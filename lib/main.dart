@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart' as provider;
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
-import 'screens/main_screen.dart';
+import 'providers/auth_provider.dart';
+import 'widgets/auth_wrapper.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,7 +13,14 @@ Future<void> main() async {
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  runApp(ProviderScope(child: const CosmopolitanInvestmentApp()));
+  runApp(
+    provider.MultiProvider(
+      providers: [
+        provider.ChangeNotifierProvider(create: (context) => AuthProvider()),
+      ],
+      child: ProviderScope(child: const CosmopolitanInvestmentApp()),
+    ),
+  );
 }
 
 class CosmopolitanInvestmentApp extends StatelessWidget {
@@ -25,7 +34,7 @@ class CosmopolitanInvestmentApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,
       debugShowCheckedModeBanner: false,
-      home: const MainScreen(),
+      home: const SplashScreen(),
     );
   }
 }
