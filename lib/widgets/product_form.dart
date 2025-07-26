@@ -52,6 +52,26 @@ class _ProductFormState extends State<ProductForm> {
     _isActive = p?.isActive ?? true;
   }
 
+  Future<void> _selectDate(BuildContext context, bool isIssueDate) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: isIssueDate
+          ? (_issueDate ?? DateTime.now())
+          : (_maturityDate ?? DateTime.now()),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isIssueDate) {
+          _issueDate = picked;
+        } else {
+          _maturityDate = picked;
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Form(
@@ -94,6 +114,54 @@ class _ProductFormState extends State<ProductForm> {
               decoration: const InputDecoration(labelText: 'ID firmy'),
               validator: (v) => v == null || v.isEmpty ? 'Wymagane' : null,
               onSaved: (v) => _companyId = v!,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _selectDate(context, true),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Data emisji',
+                        suffixIcon: Icon(Icons.calendar_today),
+                      ),
+                      child: Text(
+                        _issueDate != null
+                            ? '${_issueDate!.day}/${_issueDate!.month}/${_issueDate!.year}'
+                            : 'Wybierz datę',
+                        style: TextStyle(
+                          color: _issueDate != null
+                              ? Theme.of(context).textTheme.bodyMedium?.color
+                              : Theme.of(context).hintColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _selectDate(context, false),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Data wykupu',
+                        suffixIcon: Icon(Icons.calendar_today),
+                      ),
+                      child: Text(
+                        _maturityDate != null
+                            ? '${_maturityDate!.day}/${_maturityDate!.month}/${_maturityDate!.year}'
+                            : 'Wybierz datę',
+                        style: TextStyle(
+                          color: _maturityDate != null
+                              ? Theme.of(context).textTheme.bodyMedium?.color
+                              : Theme.of(context).hintColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             TextFormField(
