@@ -18,18 +18,18 @@ Future<void> main() async {
       providers: [
         provider.ChangeNotifierProvider(create: (context) => AuthProvider()),
       ],
-      child: ProviderScope(child: const CosmopolitanInvestmentApp()),
+      child: ProviderScope(child: const MetropolitanInvestmentApp()),
     ),
   );
 }
 
-class CosmopolitanInvestmentApp extends StatelessWidget {
-  const CosmopolitanInvestmentApp({super.key});
+class MetropolitanInvestmentApp extends StatelessWidget {
+  const MetropolitanInvestmentApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Cosmopolitan Investment',
+      title: 'Metropolitan Investment',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,

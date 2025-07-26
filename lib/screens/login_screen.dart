@@ -208,7 +208,7 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         const SizedBox(height: 24),
         Text(
-          'Cosmopolitan Investment',
+          'Materopolitan Investment',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
             color: AppTheme.primaryColor,
             fontWeight: FontWeight.bold,

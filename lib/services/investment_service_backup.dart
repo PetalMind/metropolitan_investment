@@ -1,4 +1,58 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';znowu ten sam blad |Uncaught (in promise) DartError: FormatException: Illegal RegExp pattern: ^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$, SyntaxError: Invalid regular expression: /^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$/: Range out of order in character class
+    at Object.throw_ [as throw] (errors.dart:266:3)
+    at JSSyntaxRegExp.makeNative (profile.dart:117:39)
+    at new _js_helper.JSSyntaxRegExp.new (regexp_helper.dart:60:29)
+    at RegExp.new (core_patch.dart:524:9)
+    at register_screen.dart:323:15
+    at custom_text_field.dart:150:55
+    at [_validate] (form.dart:659:33)
+    at form.dart:647:7
+    at text_form_field._TextFormFieldState.new.setState (framework.dart:1199:30)
+    at text_form_field._TextFormFieldState.new.validate (form.dart:646:5)
+    at [_validate] (form.dart:360:40)
+    at form.FormState.new.validate (form.dart:330:12)
+    at register_screen.dart:84:19
+    at async_patch.dart:622:19
+    at async_patch.dart:647:23
+    at Object._asyncStartSync (async_patch.dart:541:3)
+    at [_handleRegister] (register_screen.dart:83:16)
+    at tear (operations.dart:117:77)
+    at ink_well._InkResponseState.new.handleTap (ink_well.dart:1203:21)
+    at tear (operations.dart:117:77)
+    at tap.TapGestureRecognizer.new.invokeCallback (recognizer.dart:345:24)
+    at tap.TapGestureRecognizer.new.handleTapUp (tap.dart:737:11)
+    at [_checkUp] (tap.dart:362:5)
+    at tap.TapGestureRecognizer.new.handlePrimaryPointer (tap.dart:293:7)
+    at tap.TapGestureRecognizer.new.handleEvent (recognizer.dart:706:9)
+    at tear (operations.dart:117:77)
+    at [_dispatch] (pointer_router.dart:97:7)
+    at pointer_router.dart:143:9
+    at _js_helper.LinkedMap.new.forEach (linked_hash_map.dart:21:7)
+    at [_dispatchEventToRoutes] (pointer_router.dart:141:17)
+    at pointer_router.PointerRouter.new.route (pointer_router.dart:131:7)
+    at binding$4.WidgetsFlutterBinding.new.handleEvent (binding.dart:530:5)
+    at binding$4.WidgetsFlutterBinding.new.dispatchEvent (binding.dart:499:14)
+    at binding$4.WidgetsFlutterBinding.new.dispatchEvent (binding.dart:473:11)
+    at [_handlePointerEventImmediately] (binding.dart:437:7)
+    at binding$4.WidgetsFlutterBinding.new.handlePointerEvent (binding.dart:394:5)
+    at [_flushPointerEventQueue] (binding.dart:341:7)
+    at [_handlePointerDataPacket] (binding.dart:308:9)
+    at tear (operations.dart:117:77)
+    at Object.invoke1 (platform_dispatcher.dart:1327:5)
+    at _engine.EnginePlatformDispatcher.new.invokeOnPointerDataPacket (platform_dispatcher.dart:281:5)
+    at [_sendToFramework] (pointer_binding.dart:411:30)
+    at _engine.ClickDebouncer.new.onPointerData (pointer_binding.dart:231:7)
+    at _engine._PointerAdapter.new.tear (operations.dart:117:77)
+    at pointer_binding.dart:1029:20
+    at pointer_binding.dart:912:7
+    at loggedHandler (pointer_binding.dart:535:9)
+    at _RootZone.runUnary (zone.dart:1849:54)
+    at zone.dart:1804:26
+    at Object._callDartFunctionFast1 (js_allow_interop_patch.dart:224:27)
+    at ret (js_allow_interop_patch.dart:84:15)
+
+
+  2. Dodatkowo zniknela animacja ladowaniai i znowu jest 
 import '../models/investment.dart';
 import '../models/product.dart';
 import '../services/employee_service.dart';
