@@ -1,0 +1,13 @@
+{
+  "name": "firebase-uploader",
+  "version": "1.0.0",
+  "description": "Upload JSON data to Firebase",
+  "main": "upload.js",
+  "scripts": {
+    "upload": "node upload.js"
+  },
+  "dependencies": {
+    "firebase": "^12.0.0",
+    "firebase-admin": "^12.0.0"
+  }
+}
