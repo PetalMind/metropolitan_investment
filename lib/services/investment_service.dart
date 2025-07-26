@@ -1,21 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/investment.dart';
 import '../models/product.dart';
+import 'base_service.dart';
 
-class InvestmentService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+class InvestmentService extends BaseService {
   final String _collection = 'investments';
 
   // Cache pracowników dla lepszej wydajności
-  static Map<String, String> _employeeNameToIdCache = {};
-  static bool _isCacheLoaded = false;
+  Map<String, String> _employeeNameToIdCache = {};
+  bool _isCacheLoaded = false;
 
   // Ładowanie cache'u pracowników
   Future<void> _loadEmployeeCache() async {
     if (_isCacheLoaded) return;
 
     try {
-      final snapshot = await _firestore.collection('employees').get();
+      final snapshot = await firestore.collection('employees').get();
       _employeeNameToIdCache.clear();
 
       for (var doc in snapshot.docs) {
@@ -32,6 +32,7 @@ class InvestmentService {
       _isCacheLoaded = true;
       print('Załadowano ${_employeeNameToIdCache.length} pracowników do cache');
     } catch (e) {
+      logError('_loadEmployeeCache', e);
       print('Błąd podczas ładowania cache\'u pracowników: $e');
     }
   }
@@ -60,18 +61,20 @@ class InvestmentService {
   // CRUD Operations
   Future<String> createInvestment(Investment investment) async {
     try {
-      final docRef = await _firestore
+      final docRef = await firestore
           .collection(_collection)
           .add(investment.toFirestore());
+      clearCache('investment_stats');
       return docRef.id;
     } catch (e) {
+      logError('createInvestment', e);
       throw Exception('Błąd podczas tworzenia inwestycji: $e');
     }
   }
 
-  // Get all investments with pagination - ZAKTUALIZOWANE dla danych z Excel
+  // Get all investments with pagination i optymalizacją - ZAKTUALIZOWANE dla danych z Excel
   Stream<List<Investment>> getAllInvestments({int? limit}) {
-    Query query = _firestore
+    Query query = firestore
         .collection(_collection)
         .orderBy('data_podpisania', descending: true);
 
@@ -87,9 +90,67 @@ class InvestmentService {
     );
   }
 
+  // Paginowana wersja z pełną optymalizacją
+  Future<PaginationResult<Investment>> getAllInvestmentsPaginated({
+    PaginationParams params = const PaginationParams(),
+    FilterParams? filters,
+  }) async {
+    try {
+      Query query = firestore.collection(_collection);
+
+      // Aplikuj filtry
+      if (filters != null) {
+        // Filtry where
+        filters.whereConditions.forEach((field, value) {
+          query = query.where(field, isEqualTo: value);
+        });
+
+        // Filtry dat
+        if (filters.startDate != null && filters.dateField != null) {
+          query = query.where(
+            filters.dateField!,
+            isGreaterThanOrEqualTo: filters.startDate!.toIso8601String(),
+          );
+        }
+        if (filters.endDate != null && filters.dateField != null) {
+          query = query.where(
+            filters.dateField!,
+            isLessThanOrEqualTo: filters.endDate!.toIso8601String(),
+          );
+        }
+      }
+
+      query = query
+          .orderBy(
+            params.orderBy ?? 'data_podpisania',
+            descending: params.descending,
+          )
+          .limit(params.limit);
+
+      if (params.startAfter != null) {
+        query = query.startAfterDocument(params.startAfter!);
+      }
+
+      final snapshot = await query.get();
+      final investments = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return _convertExcelDataToInvestment(doc.id, data);
+      }).toList();
+
+      return PaginationResult<Investment>(
+        items: investments,
+        lastDocument: snapshot.docs.isNotEmpty ? snapshot.docs.last : null,
+        hasMore: snapshot.docs.length == params.limit,
+      );
+    } catch (e) {
+      logError('getAllInvestmentsPaginated', e);
+      throw Exception('Błąd podczas pobierania inwestycji: $e');
+    }
+  }
+
   // Get by client - ZAKTUALIZOWANE dla danych z Excel
   Stream<List<Investment>> getInvestmentsByClient(String clientName) {
-    return _firestore
+    return firestore
         .collection(_collection)
         .where('klient', isEqualTo: clientName)
         .orderBy('data_podpisania', descending: true)
@@ -104,7 +165,7 @@ class InvestmentService {
 
   // Search - ZAKTUALIZOWANE dla danych z Excel
   Stream<List<Investment>> searchInvestments(String query) {
-    return _firestore
+    return firestore
         .collection(_collection)
         .where('klient', isGreaterThanOrEqualTo: query)
         .where('klient', isLessThan: query + '\uf8ff')
@@ -125,7 +186,7 @@ class InvestmentService {
     if (status == InvestmentStatus.earlyRedemption)
       statusStr = 'Wykup wczesniejszy';
 
-    return _firestore
+    return firestore
         .collection(_collection)
         .where('status_produktu', isEqualTo: statusStr)
         .orderBy('data_podpisania', descending: true)
@@ -141,7 +202,7 @@ class InvestmentService {
   // Update investment
   Future<void> updateInvestment(String id, Investment investment) async {
     try {
-      await _firestore
+      await firestore
           .collection(_collection)
           .doc(id)
           .update(investment.toFirestore());
@@ -153,7 +214,7 @@ class InvestmentService {
   // Delete investment
   Future<void> deleteInvestment(String id) async {
     try {
-      await _firestore.collection(_collection).doc(id).delete();
+      await firestore.collection(_collection).doc(id).delete();
     } catch (e) {
       throw Exception('Błąd podczas usuwania inwestycji: $e');
     }
@@ -162,7 +223,7 @@ class InvestmentService {
   // Get single investment by ID - ZAKTUALIZOWANE dla danych z Excel
   Future<Investment?> getInvestment(String id) async {
     try {
-      final doc = await _firestore.collection(_collection).doc(id).get();
+      final doc = await firestore.collection(_collection).doc(id).get();
       if (doc.exists) {
         final data = doc.data()!;
         return _convertExcelDataToInvestment(doc.id, data);
@@ -185,7 +246,7 @@ class InvestmentService {
     String? lastDocumentId,
   }) async {
     try {
-      Query query = _firestore
+      Query query = firestore
           .collection(_collection)
           .orderBy('data_podpisania', descending: true)
           .limit(limit);
@@ -194,7 +255,7 @@ class InvestmentService {
         query = query.startAfterDocument(startAfter);
       } else if (lastDocumentId != null) {
         // Pobierz DocumentSnapshot na podstawie ID
-        final lastDoc = await _firestore
+        final lastDoc = await firestore
             .collection(_collection)
             .doc(lastDocumentId)
             .get();
@@ -218,7 +279,7 @@ class InvestmentService {
       final now = DateTime.now();
       final thirtyDaysFromNow = now.add(const Duration(days: 30));
 
-      final snapshot = await _firestore
+      final snapshot = await firestore
           .collection(_collection)
           .where(
             'data_wymagalnosci',
@@ -241,7 +302,7 @@ class InvestmentService {
   // Analytics methods - ZAKTUALIZOWANE dla danych z Excel
   Future<Map<String, dynamic>> getInvestmentStatistics() async {
     try {
-      final snapshot = await _firestore.collection(_collection).get();
+      final snapshot = await firestore.collection(_collection).get();
 
       double totalValue = 0;
       int activeCount = 0;
@@ -298,7 +359,7 @@ class InvestmentService {
     String employeeFirstName,
     String employeeLastName,
   ) {
-    return _firestore
+    return firestore
         .collection(_collection)
         .where('praconwnik_imie', isEqualTo: employeeFirstName)
         .where('pracownik_nazwisko', isEqualTo: employeeLastName)
@@ -320,7 +381,7 @@ class InvestmentService {
     if (productType == ProductType.shares) typeStr = 'Udziały';
     if (productType == ProductType.apartments) typeStr = 'Apartamenty';
 
-    return _firestore
+    return firestore
         .collection(_collection)
         .where('typ_produktu', isEqualTo: typeStr)
         .orderBy('data_podpisania', descending: true)
@@ -338,7 +399,7 @@ class InvestmentService {
     DateTime startDate,
     DateTime endDate,
   ) {
-    return _firestore
+    return firestore
         .collection(_collection)
         .where(
           'data_podpisania',
@@ -434,7 +495,7 @@ class InvestmentService {
       await _loadEmployeeCache();
       print('Rozpoczynam aktualizację Employee ID w inwestycjach...');
 
-      final snapshot = await _firestore.collection(_collection).get();
+      final snapshot = await firestore.collection(_collection).get();
       int updated = 0;
       int total = snapshot.docs.length;
 

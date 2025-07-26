@@ -108,21 +108,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Text(
                   'Dashboard Inwestycji',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.displayMedium?.copyWith(color: Colors.white),
+                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                    color: AppTheme.textOnPrimary,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Przegląd aktywności inwestycyjnej',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.white.withOpacity(0.8),
+                    color: AppTheme.textOnPrimary.withOpacity(0.8),
                   ),
                 ),
               ],
             ),
           ),
-          Icon(Icons.dashboard, size: 48, color: Colors.white.withOpacity(0.8)),
+          Icon(
+            Icons.dashboard,
+            size: 48,
+            color: AppTheme.textOnPrimary.withOpacity(0.8),
+          ),
         ],
       ),
     );
@@ -253,7 +257,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     titleStyle: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                     ),
                   );
                 }).toList(),

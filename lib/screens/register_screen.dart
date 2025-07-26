@@ -119,7 +119,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.error_outline, color: Colors.white),
+            const Icon(Icons.error_outline, color: AppTheme.textOnPrimary),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
@@ -135,13 +135,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-            colors: [Color(0xFF3949AB), Color(0xFF1A237E), Color(0xFF000051)],
-          ),
-        ),
+        decoration: BoxDecoration(gradient: AppTheme.heroGradient),
         child: SafeArea(
           child: Column(
             children: [
@@ -203,9 +197,12 @@ class _RegisterScreenState extends State<RegisterScreen>
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              color: AppTheme.textOnPrimary,
+            ),
             style: IconButton.styleFrom(
-              backgroundColor: Colors.white.withOpacity(0.1),
+              backgroundColor: AppTheme.textOnPrimary.withOpacity(0.1),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -215,7 +212,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           Text(
             'Rejestracja',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
+              color: AppTheme.textOnPrimary,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -243,7 +240,11 @@ class _RegisterScreenState extends State<RegisterScreen>
               ),
             ],
           ),
-          child: const Icon(Icons.person_add, color: Colors.white, size: 40),
+          child: const Icon(
+            Icons.person_add,
+            color: AppTheme.textOnPrimary,
+            size: 40,
+          ),
         ),
         const SizedBox(height: 16),
         Text(
@@ -491,7 +492,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                    color: Colors.white,
+                    color: AppTheme.textOnPrimary,
                     strokeWidth: 2,
                   ),
                 )

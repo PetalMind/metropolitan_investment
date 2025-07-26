@@ -26,13 +26,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       Text(
                         'Zarządzanie Produktami',
                         style: Theme.of(context).textTheme.displayMedium
-                            ?.copyWith(color: Colors.white),
+                            ?.copyWith(color: AppTheme.textOnPrimary),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Obligacje, Udziały, Pożyczki, Apartamenty',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white.withOpacity(0.8),
+                          color: AppTheme.textOnPrimary.withOpacity(0.8),
                         ),
                       ),
                     ],
@@ -43,7 +43,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   icon: const Icon(Icons.add),
                   label: const Text('Nowy Produkt'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
+                    backgroundColor: AppTheme.surfaceCard,
                     foregroundColor: AppTheme.primaryColor,
                   ),
                 ),

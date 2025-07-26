@@ -129,7 +129,10 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredClients.isEmpty
                 ? _buildEmptyState()
-                : _buildClientsList(),
+                : SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
+                    child: _buildClientsList(),
+                  ),
           ),
         ],
       ),
@@ -148,15 +151,15 @@ class _ClientsScreenState extends State<ClientsScreen> {
               children: [
                 Text(
                   'Zarządzanie Klientami',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.displayMedium?.copyWith(color: Colors.white),
+                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                    color: AppTheme.textOnPrimary,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   '${_filteredClients.length} klientów',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.white.withOpacity(0.8),
+                    color: AppTheme.textOnPrimary.withOpacity(0.8),
                   ),
                 ),
               ],
@@ -167,7 +170,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
             icon: const Icon(Icons.add),
             label: const Text('Nowy Klient'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: AppTheme.surfaceCard,
               foregroundColor: AppTheme.primaryColor,
             ),
           ),

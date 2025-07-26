@@ -125,7 +125,7 @@ class _AuthLoadingScreenState extends State<AuthLoadingScreen>
                           width: 120,
                           height: 120,
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppTheme.surfaceCard,
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
@@ -152,7 +152,7 @@ class _AuthLoadingScreenState extends State<AuthLoadingScreen>
                 Text(
                   'Metropolitan Investment',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: Colors.white,
+                    color: AppTheme.textOnPrimary,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.5,
                   ),
@@ -165,7 +165,7 @@ class _AuthLoadingScreenState extends State<AuthLoadingScreen>
                 Text(
                   'Ładowanie aplikacji...',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.white.withOpacity(0.8),
+                    color: AppTheme.textOnPrimary.withOpacity(0.8),
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -178,7 +178,7 @@ class _AuthLoadingScreenState extends State<AuthLoadingScreen>
                   height: 40,
                   child: CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.white.withOpacity(0.8),
+                      AppTheme.textOnPrimary.withOpacity(0.8),
                     ),
                     strokeWidth: 3,
                   ),
@@ -328,7 +328,7 @@ class _SplashScreenState extends State<SplashScreen>
                         width: 150,
                         height: 150,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppTheme.surfaceCard,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
@@ -365,7 +365,7 @@ class _SplashScreenState extends State<SplashScreen>
                             'Metropolitan Investment',
                             style: Theme.of(context).textTheme.headlineLarge
                                 ?.copyWith(
-                                  color: Colors.white,
+                                  color: AppTheme.textOnPrimary,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 2.0,
                                 ),
@@ -378,7 +378,9 @@ class _SplashScreenState extends State<SplashScreen>
                             'Profesjonalne zarządzanie inwestycjami',
                             style: Theme.of(context).textTheme.bodyLarge
                                 ?.copyWith(
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: AppTheme.textOnPrimary.withOpacity(
+                                    0.9,
+                                  ),
                                   letterSpacing: 1.0,
                                 ),
                             textAlign: TextAlign.center,

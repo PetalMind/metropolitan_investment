@@ -264,17 +264,20 @@ class _InvestmentFormState extends State<InvestmentForm> {
           widget.investment == null ? 'Nowa Inwestycja' : 'Edytuj Inwestycję',
         ),
         backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
+        foregroundColor: AppTheme.textOnPrimary,
         actions: [
           TextButton(
             onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-            child: const Text('Anuluj', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Anuluj',
+              style: TextStyle(color: AppTheme.textOnPrimary),
+            ),
           ),
           const SizedBox(width: 8),
           ElevatedButton(
             onPressed: _isSaving ? null : _saveInvestment,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: AppTheme.surfaceCard,
               foregroundColor: AppTheme.primaryColor,
             ),
             child: _isSaving

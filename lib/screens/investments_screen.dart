@@ -365,15 +365,15 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
               children: [
                 Text(
                   'Zarządzanie Inwestycjami',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.displayMedium?.copyWith(color: Colors.white),
+                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                    color: AppTheme.textOnPrimary,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   '${_filteredInvestments.length} inwestycji${_hasMoreData ? ' (więcej dostępnych)' : ' (wszystkie)'}',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.white.withOpacity(0.8),
+                    color: AppTheme.textOnPrimary.withOpacity(0.8),
                   ),
                 ),
               ],
@@ -385,7 +385,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
               icon: const Icon(Icons.refresh),
               label: const Text('Załaduj więcej'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white.withOpacity(0.9),
+                backgroundColor: AppTheme.surfaceCard.withOpacity(0.9),
                 foregroundColor: AppTheme.primaryColor,
               ),
             ),
@@ -395,7 +395,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             icon: const Icon(Icons.add),
             label: const Text('Nowa Inwestycja'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: AppTheme.surfaceCard,
               foregroundColor: AppTheme.primaryColor,
             ),
           ),

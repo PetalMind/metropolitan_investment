@@ -1,14 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product.dart';
+import 'base_service.dart';
 
-class ProductService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+class ProductService extends BaseService {
   final String _collection = 'products';
 
   // Create
   Future<String> createProduct(Product product) async {
     try {
-      final docRef = await _firestore
+      final docRef = await firestore
           .collection(_collection)
           .add(product.toFirestore());
       return docRef.id;
@@ -20,7 +20,7 @@ class ProductService {
   // Read
   Future<Product?> getProduct(String id) async {
     try {
-      final doc = await _firestore.collection(_collection).doc(id).get();
+      final doc = await firestore.collection(_collection).doc(id).get();
       if (doc.exists) {
         return Product.fromFirestore(doc);
       }
@@ -32,7 +32,7 @@ class ProductService {
 
   // Read all
   Stream<List<Product>> getProducts() {
-    return _firestore
+    return firestore
         .collection(_collection)
         .where('isActive', isEqualTo: true)
         .orderBy('name')
@@ -45,7 +45,7 @@ class ProductService {
 
   // Get products by type
   Stream<List<Product>> getProductsByType(ProductType type) {
-    return _firestore
+    return firestore
         .collection(_collection)
         .where('isActive', isEqualTo: true)
         .where('type', isEqualTo: type.name)
@@ -59,7 +59,7 @@ class ProductService {
 
   // Get products by company
   Stream<List<Product>> getProductsByCompany(String companyId) {
-    return _firestore
+    return firestore
         .collection(_collection)
         .where('isActive', isEqualTo: true)
         .where('companyId', isEqualTo: companyId)
@@ -75,7 +75,7 @@ class ProductService {
   Stream<List<Product>> searchProducts(String query) {
     if (query.isEmpty) return getProducts();
 
-    return _firestore
+    return firestore
         .collection(_collection)
         .where('isActive', isEqualTo: true)
         .orderBy('name')
@@ -91,7 +91,7 @@ class ProductService {
   // Update
   Future<void> updateProduct(String id, Product product) async {
     try {
-      await _firestore
+      await firestore
           .collection(_collection)
           .doc(id)
           .update(product.toFirestore());
@@ -103,7 +103,7 @@ class ProductService {
   // Delete (soft delete)
   Future<void> deleteProduct(String id) async {
     try {
-      await _firestore.collection(_collection).doc(id).update({
+      await firestore.collection(_collection).doc(id).update({
         'isActive': false,
         'updatedAt': Timestamp.now(),
       });
@@ -115,7 +115,7 @@ class ProductService {
   // Hard delete
   Future<void> hardDeleteProduct(String id) async {
     try {
-      await _firestore.collection(_collection).doc(id).delete();
+      await firestore.collection(_collection).doc(id).delete();
     } catch (e) {
       throw Exception('Failed to hard delete product: $e');
     }
@@ -127,7 +127,7 @@ class ProductService {
       final Map<ProductType, int> counts = {};
 
       for (final type in ProductType.values) {
-        final snapshot = await _firestore
+        final snapshot = await firestore
             .collection(_collection)
             .where('isActive', isEqualTo: true)
             .where('type', isEqualTo: type.name)
@@ -149,7 +149,7 @@ class ProductService {
     ProductType? type,
   }) async {
     try {
-      Query query = _firestore
+      Query query = firestore
           .collection(_collection)
           .where('isActive', isEqualTo: true);
 
@@ -175,7 +175,7 @@ class ProductService {
     try {
       final threshold = DateTime.now().add(Duration(days: daysThreshold));
 
-      final snapshot = await _firestore
+      final snapshot = await firestore
           .collection(_collection)
           .where('isActive', isEqualTo: true)
           .where('type', isEqualTo: ProductType.bonds.name)

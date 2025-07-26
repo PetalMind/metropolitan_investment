@@ -108,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen>
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.error_outline, color: Colors.white),
+            const Icon(Icons.error_outline, color: AppTheme.textOnPrimary),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
@@ -124,13 +124,7 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1A237E), Color(0xFF3949AB), Color(0xFF5C6BC0)],
-          ),
-        ),
+        decoration: BoxDecoration(gradient: AppTheme.heroGradient),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -202,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           child: const Icon(
             Icons.account_balance,
-            color: Colors.white,
+            color: AppTheme.textOnPrimary,
             size: 40,
           ),
         ),
@@ -210,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen>
         Text(
           'Materopolitan Investment',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            color: AppTheme.primaryColor,
+            color: AppTheme.textPrimary,
             fontWeight: FontWeight.bold,
           ),
           textAlign: TextAlign.center,
@@ -282,7 +276,7 @@ class _LoginScreenState extends State<LoginScreen>
                   _rememberMe = value ?? false;
                 });
               },
-              activeColor: AppTheme.primaryColor,
+              activeColor: AppTheme.secondaryGold,
             ),
             Text(
               'Zapamiętaj mnie',
@@ -306,7 +300,7 @@ class _LoginScreenState extends State<LoginScreen>
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                    color: Colors.white,
+                    color: AppTheme.textOnPrimary,
                     strokeWidth: 2,
                   ),
                 )
@@ -331,7 +325,7 @@ class _LoginScreenState extends State<LoginScreen>
       child: Text(
         'Zapomniałeś hasła?',
         style: TextStyle(
-          color: AppTheme.primaryColor,
+          color: AppTheme.secondaryGold,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -395,7 +389,7 @@ class _LoginScreenState extends State<LoginScreen>
           child: Text(
             'Zarejestruj się',
             style: TextStyle(
-              color: AppTheme.primaryColor,
+              color: AppTheme.secondaryGold,
               fontWeight: FontWeight.bold,
             ),
           ),

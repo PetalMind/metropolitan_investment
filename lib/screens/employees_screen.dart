@@ -26,13 +26,13 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                       Text(
                         'Zarządzanie Pracownikami',
                         style: Theme.of(context).textTheme.displayMedium
-                            ?.copyWith(color: Colors.white),
+                            ?.copyWith(color: AppTheme.textOnPrimary),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Doradcy inwestycyjni i personel',
+                        'Zespół Cosmopolitan Investment',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white.withOpacity(0.8),
+                          color: AppTheme.textOnPrimary.withOpacity(0.8),
                         ),
                       ),
                     ],
@@ -43,7 +43,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                   icon: const Icon(Icons.add),
                   label: const Text('Nowy Pracownik'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
+                    backgroundColor: AppTheme.surfaceCard,
                     foregroundColor: AppTheme.primaryColor,
                   ),
                 ),

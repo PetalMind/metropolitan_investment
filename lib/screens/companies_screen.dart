@@ -26,13 +26,13 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                       Text(
                         'Zarządzanie Spółkami',
                         style: Theme.of(context).textTheme.displayMedium
-                            ?.copyWith(color: Colors.white),
+                            ?.copyWith(color: AppTheme.textOnPrimary),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Emitenci produktów inwestycyjnych',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white.withOpacity(0.8),
+                          color: AppTheme.textOnPrimary.withOpacity(0.8),
                         ),
                       ),
                     ],
@@ -43,7 +43,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                   icon: const Icon(Icons.add),
                   label: const Text('Nowa Spółka'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
+                    backgroundColor: AppTheme.surfaceCard,
                     foregroundColor: AppTheme.primaryColor,
                   ),
                 ),

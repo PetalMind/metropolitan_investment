@@ -1,14 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/company.dart';
+import 'base_service.dart';
 
-class CompanyService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+class CompanyService extends BaseService {
   final String _collection = 'companies';
 
   // Create
   Future<String> createCompany(Company company) async {
     try {
-      final docRef = await _firestore
+      final docRef = await firestore
           .collection(_collection)
           .add(company.toFirestore());
       return docRef.id;
@@ -20,7 +20,7 @@ class CompanyService {
   // Read
   Future<Company?> getCompany(String id) async {
     try {
-      final doc = await _firestore.collection(_collection).doc(id).get();
+      final doc = await firestore.collection(_collection).doc(id).get();
       if (doc.exists) {
         return Company.fromFirestore(doc);
       }
@@ -32,7 +32,7 @@ class CompanyService {
 
   // Read all
   Stream<List<Company>> getCompanies() {
-    return _firestore
+    return firestore
         .collection(_collection)
         .where('isActive', isEqualTo: true)
         .orderBy('name')
@@ -47,7 +47,7 @@ class CompanyService {
   Stream<List<Company>> searchCompanies(String query) {
     if (query.isEmpty) return getCompanies();
 
-    return _firestore
+    return firestore
         .collection(_collection)
         .where('isActive', isEqualTo: true)
         .orderBy('name')
@@ -63,7 +63,7 @@ class CompanyService {
   // Update
   Future<void> updateCompany(String id, Company company) async {
     try {
-      await _firestore
+      await firestore
           .collection(_collection)
           .doc(id)
           .update(company.toFirestore());
@@ -75,7 +75,7 @@ class CompanyService {
   // Delete (soft delete)
   Future<void> deleteCompany(String id) async {
     try {
-      await _firestore.collection(_collection).doc(id).update({
+      await firestore.collection(_collection).doc(id).update({
         'isActive': false,
         'updatedAt': Timestamp.now(),
       });
@@ -87,7 +87,7 @@ class CompanyService {
   // Get companies count
   Future<int> getCompaniesCount() async {
     try {
-      final snapshot = await _firestore
+      final snapshot = await firestore
           .collection(_collection)
           .where('isActive', isEqualTo: true)
           .count()

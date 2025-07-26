@@ -171,7 +171,7 @@ class _AnimatedButtonState extends State<AnimatedButton>
                             gradient: LinearGradient(
                               colors: [
                                 Colors.transparent,
-                                Colors.white.withOpacity(0.2),
+                                AppTheme.textOnPrimary.withOpacity(0.2),
                                 Colors.transparent,
                               ],
                               stops: const [0.0, 0.5, 1.0],
@@ -188,7 +188,7 @@ class _AnimatedButtonState extends State<AnimatedButton>
                       child: CustomPaint(
                         painter: RipplePainter(
                           animation: _rippleAnimation,
-                          color: Colors.white.withOpacity(0.3),
+                          color: AppTheme.textOnPrimary.withOpacity(0.3),
                         ),
                       ),
                     ),
@@ -218,7 +218,9 @@ class _AnimatedButtonState extends State<AnimatedButton>
                         child: Center(
                           child: DefaultTextStyle(
                             style: TextStyle(
-                              color: widget.foregroundColor ?? Colors.white,
+                              color:
+                                  widget.foregroundColor ??
+                                  AppTheme.textOnPrimary,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
@@ -413,7 +415,7 @@ class _PulseButtonState extends State<PulseButton>
             onPressed: widget.onPressed,
             style: ElevatedButton.styleFrom(
               backgroundColor: widget.color ?? AppTheme.primaryColor,
-              foregroundColor: Colors.white,
+              foregroundColor: AppTheme.textOnPrimary,
               minimumSize: Size(widget.width ?? 200, widget.height ?? 56),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
