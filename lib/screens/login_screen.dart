@@ -239,9 +239,7 @@ class _LoginScreenState extends State<LoginScreen>
             if (value == null || value.isEmpty) {
               return 'Podaj adres email';
             }
-            if (!RegExp(
-              r'^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$',
-            ).hasMatch(value)) {
+            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
               return 'Podaj prawidłowy adres email';
             }
             return null;

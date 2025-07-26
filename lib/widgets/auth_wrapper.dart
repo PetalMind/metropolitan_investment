@@ -150,7 +150,7 @@ class _AuthLoadingScreenState extends State<AuthLoadingScreen>
 
                 // App name
                 Text(
-                  'Materopolitan Investment',
+                  'Metropolitan Investment',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -362,7 +362,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Column(
                         children: [
                           Text(
-                            'Materopolitan Investment',
+                            'Metropolitan Investment',
                             style: Theme.of(context).textTheme.headlineLarge
                                 ?.copyWith(
                                   color: Colors.white,
