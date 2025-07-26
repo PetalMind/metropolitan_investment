@@ -319,7 +319,7 @@ class _RegisterScreenState extends State<RegisterScreen>
               return 'Podaj adres email';
             }
             if (!RegExp(
-              r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$',
+              r'^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$',
             ).hasMatch(value)) {
               return 'Podaj prawidłowy adres email';
             }
@@ -335,7 +335,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           validator: (value) {
             if (value != null && value.isNotEmpty) {
               if (!RegExp(
-                r'^[\+]?[0-9]{9,15}$',
+                r'^[\\+]?[0-9]{9,15}$',
               ).hasMatch(value.replaceAll(' ', ''))) {
                 return 'Podaj prawidłowy numer telefonu';
               }
@@ -374,7 +374,7 @@ class _RegisterScreenState extends State<RegisterScreen>
             if (value.length < 6) {
               return 'Hasło musi mieć co najmniej 6 znaków';
             }
-            if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)').hasMatch(value)) {
+            if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)').hasMatch(value)) {
               return 'Hasło musi zawierać małą literę, wielką literę i cyfrę';
             }
             return null;

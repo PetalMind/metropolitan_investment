@@ -240,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen>
               return 'Podaj adres email';
             }
             if (!RegExp(
-              r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$',
+              r'^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$',
             ).hasMatch(value)) {
               return 'Podaj prawidłowy adres email';
             }
