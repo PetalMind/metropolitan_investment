@@ -29,7 +29,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   String? _lastDocumentId;
 
   // Parametry paginacji
-  static const int _pageSize = 20;
+  static const int _pageSize = 100;
 
   InvestmentStatus? _selectedStatus;
   ProductType? _selectedProductType;
