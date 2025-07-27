@@ -27,6 +27,12 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen> {
   bool _isLoading = true;
   String? _error;
 
+  // Paging
+  int _currentPage = 0;
+  int _pageSize = 50;
+  bool _hasNextPage = false;
+  bool _hasPreviousPage = false;
+
   InvestorRange? _majorityControlPoint;
   double _totalPortfolioValue = 0;
 
@@ -62,32 +68,67 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen> {
     });
 
     try {
-      final investors = await _analyticsService
-          .getInvestorsSortedByRemainingCapital(
-            includeInactive: _includeInactive,
-          );
+      print('🚀 [UI] Ładowanie danych inwestorów...');
+
+      // Ładujemy wszystkich inwestorów do analizy i filtrowania
+      final allInvestors = await _analyticsService.getAllInvestorsForAnalysis(
+        includeInactive: _includeInactive,
+      );
 
       final majorityPoint = _analyticsService.findMajorityControlPoint(
-        investors,
+        allInvestors,
       );
-      final totalValue = investors.fold<double>(
+      final totalValue = allInvestors.fold<double>(
         0.0,
         (sum, inv) => sum + inv.totalValue,
       );
 
       setState(() {
-        _allInvestors = investors;
-        _filteredInvestors = investors;
+        _allInvestors = allInvestors;
+        _filteredInvestors = allInvestors;
         _majorityControlPoint = majorityPoint;
         _totalPortfolioValue = totalValue;
+        _currentPage = 0; // Reset do pierwszej strony
         _isLoading = false;
       });
+
+      print('✅ [UI] Załadowano ${allInvestors.length} inwestorów');
     } catch (e) {
+      print('❌ [UI] Błąd ładowania: $e');
       setState(() {
         _error = e.toString();
         _isLoading = false;
       });
     }
+  }
+
+  // Ładuj konkretną stronę z aktualnie przefiltrowanych danych
+  void _loadPage(int page) {
+    if (page < 0) return;
+
+    final totalPages = (_filteredInvestors.length / _pageSize).ceil();
+    if (page >= totalPages && totalPages > 0) return;
+
+    setState(() {
+      _currentPage = page;
+      _hasPreviousPage = page > 0;
+      _hasNextPage = page < totalPages - 1;
+    });
+  }
+
+  // Pobierz aktualną stronę danych
+  List<InvestorSummary> get _currentPageData {
+    final startIndex = _currentPage * _pageSize;
+    final endIndex = (startIndex + _pageSize).clamp(
+      0,
+      _filteredInvestors.length,
+    );
+
+    if (startIndex >= _filteredInvestors.length) {
+      return [];
+    }
+
+    return _filteredInvestors.sublist(startIndex, endIndex);
   }
 
   void _applyFilters() {
@@ -138,7 +179,15 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen> {
             matchesType &&
             matchesUnviable;
       }).toList();
+
+      // Reset do pierwszej strony po filtrowaniu
+      _currentPage = 0;
+      _loadPage(0);
     });
+
+    print(
+      '🔍 [UI] Filtrowanie: ${_allInvestors.length} -> ${_filteredInvestors.length} inwestorów',
+    );
   }
 
   void _showInvestorDetails(InvestorSummary investor) {
@@ -226,7 +275,7 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen> {
                 Expanded(
                   child: _buildSummaryItem(
                     'Liczba inwestorów',
-                    '${_allInvestors.length}',
+                    '${_allInvestors.length} (${_filteredInvestors.length} po filtrach)',
                     Icons.people,
                     AppTheme.primaryAccent,
                   ),
@@ -271,6 +320,30 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen> {
                           ),
                         ],
                       ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            // Informacje o pagingu
+            if (_filteredInvestors.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.backgroundSecondary,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Strona ${_currentPage + 1} z ${((_filteredInvestors.length / _pageSize).ceil()).clamp(1, double.infinity).toInt()}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    Text(
+                      'Pokazano ${_currentPageData.length} z ${_filteredInvestors.length}',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
@@ -512,13 +585,93 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _filteredInvestors.length,
-      itemBuilder: (context, index) {
-        final investor = _filteredInvestors[index];
-        return _buildInvestorCard(investor, index + 1);
-      },
+    final currentPageData = _currentPageData;
+    final startIndex = _currentPage * _pageSize;
+
+    return Column(
+      children: [
+        // Kontrolki paginacji na górze
+        if (_filteredInvestors.length > _pageSize) _buildPaginationControls(),
+
+        // Lista inwestorów
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: currentPageData.length,
+            itemBuilder: (context, index) {
+              final investor = currentPageData[index];
+              final globalPosition = startIndex + index + 1;
+              return _buildInvestorCard(investor, globalPosition);
+            },
+          ),
+        ),
+
+        // Kontrolki paginacji na dole
+        if (_filteredInvestors.length > _pageSize) _buildPaginationControls(),
+      ],
+    );
+  }
+
+  Widget _buildPaginationControls() {
+    final totalPages = (_filteredInvestors.length / _pageSize)
+        .ceil()
+        .clamp(1, double.infinity)
+        .toInt();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                onPressed: _hasPreviousPage
+                    ? () => _loadPage(_currentPage - 1)
+                    : null,
+                icon: const Icon(Icons.chevron_left),
+              ),
+              Text(
+                'Strona ${_currentPage + 1} z $totalPages',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              IconButton(
+                onPressed: _hasNextPage
+                    ? () => _loadPage(_currentPage + 1)
+                    : null,
+                icon: const Icon(Icons.chevron_right),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Text(
+                'Rozmiar strony:',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(width: 8),
+              DropdownButton<int>(
+                value: _pageSize,
+                items: [25, 50, 100, 200]
+                    .map(
+                      (size) =>
+                          DropdownMenuItem(value: size, child: Text('$size')),
+                    )
+                    .toList(),
+                onChanged: (newSize) {
+                  if (newSize != null) {
+                    setState(() {
+                      _pageSize = newSize;
+                      _currentPage = 0; // Reset do pierwszej strony
+                      _loadPage(0);
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

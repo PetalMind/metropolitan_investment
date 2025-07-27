@@ -9,56 +9,196 @@ import 'client_service.dart';
 class InvestorAnalyticsService extends BaseService {
   final ClientService _clientService = ClientService();
 
-  // Pobierz wszystkich inwestorów posortowanych według kapitału pozostałego
-  Future<List<InvestorSummary>> getInvestorsSortedByRemainingCapital({
+  // Cache dla inwestorów z czasem wygaśnięcia
+  Map<String, List<InvestorSummary>>? _investorsCache;
+  DateTime? _cacheTimestamp;
+  static const Duration _cacheTimeout = Duration(minutes: 5);
+
+  // Pobierz wszystkich inwestorów posortowanych według kapitału pozostałego z pagingiem
+  Future<InvestorAnalyticsResult> getInvestorsSortedByRemainingCapital({
     bool includeInactive = false,
+    int page = 0,
+    int pageSize = 50,
+    bool useCache = true,
   }) async {
+    final startTime = DateTime.now();
+    print('📊 [InvestorAnalytics] Rozpoczynam pobieranie danych inwestorów...');
+    print(
+      '📊 [InvestorAnalytics] Parametry: page=$page, pageSize=$pageSize, includeInactive=$includeInactive',
+    );
+
     try {
-      // Pobierz wszystkich klientów
-      final clients = await _clientService.getAllClients();
-      final activeClients = includeInactive
-          ? clients
-          : clients.where((c) => c.isActive).toList();
+      List<InvestorSummary> allSummaries;
 
-      // Dla każdego klienta pobierz jego inwestycje
-      final List<InvestorSummary> summaries = [];
+      // Sprawdź cache
+      if (useCache && _isCacheValid()) {
+        print('📊 [InvestorAnalytics] Używam danych z cache');
+        final cacheKey = includeInactive ? 'all' : 'active';
+        allSummaries = _investorsCache![cacheKey] ?? [];
+      } else {
+        print(
+          '📊 [InvestorAnalytics] Cache nieważny lub wyłączony, pobieranie nowych danych...',
+        );
+        allSummaries = await _loadAllInvestors(includeInactive);
 
-      for (final client in activeClients) {
-        final investments = await _getInvestmentsByClientName(client.name);
-        if (investments.isNotEmpty) {
-          final summary = InvestorSummary.fromInvestments(client, investments);
-          summaries.add(summary);
-        }
+        // Zapisz do cache
+        _investorsCache = {(includeInactive ? 'all' : 'active'): allSummaries};
+        _cacheTimestamp = DateTime.now();
       }
 
-      // Sortuj według łącznej wartości (kapitał pozostały + udziały)
-      summaries.sort((a, b) => b.totalValue.compareTo(a.totalValue));
+      // Oblicz paging
+      final totalCount = allSummaries.length;
+      final startIndex = page * pageSize;
+      final endIndex = (startIndex + pageSize).clamp(0, totalCount);
 
-      // Oblicz procentowy udział każdego inwestora
-      final totalPortfolioValue = summaries.fold<double>(
-        0.0,
-        (sum, summary) => sum + summary.totalValue,
+      final pagedSummaries = startIndex < totalCount
+          ? allSummaries.sublist(startIndex, endIndex)
+          : <InvestorSummary>[];
+
+      final loadTime = DateTime.now().difference(startTime);
+      print('📊 [InvestorAnalytics] Zakończono w ${loadTime.inMilliseconds}ms');
+      print(
+        '📊 [InvestorAnalytics] Znaleziono ${totalCount} inwestorów, zwracam ${pagedSummaries.length} na stronie $page',
       );
 
-      // Dodaj informację o procentowym udziale
-      for (int i = 0; i < summaries.length; i++) {
-        final summary = summaries[i];
-        final percentage = totalPortfolioValue > 0
-            ? (summary.totalValue / totalPortfolioValue) * 100
-            : 0.0;
-
-        // Utworzenie nowego obiektu z obliczonym procentem
-        summaries[i] = InvestorSummaryWithPercentage(
-          summary: summary,
-          percentageOfPortfolio: percentage,
-          cumulativePercentage: _calculateCumulativePercentage(summaries, i),
-        );
-      }
-
-      return summaries;
+      return InvestorAnalyticsResult(
+        investors: pagedSummaries,
+        totalCount: totalCount,
+        currentPage: page,
+        pageSize: pageSize,
+        hasNextPage: endIndex < totalCount,
+        hasPreviousPage: page > 0,
+        totalPortfolioValue: allSummaries.fold<double>(
+          0.0,
+          (sum, summary) => sum + summary.totalValue,
+        ),
+      );
     } catch (e) {
+      final loadTime = DateTime.now().difference(startTime);
+      print('❌ [InvestorAnalytics] Błąd po ${loadTime.inMilliseconds}ms: $e');
       logError('getInvestorsSortedByRemainingCapital', e);
       throw Exception('Błąd podczas pobierania danych inwestorów: $e');
+    }
+  }
+
+  // Sprawdź ważność cache
+  bool _isCacheValid() {
+    if (_investorsCache == null || _cacheTimestamp == null) {
+      return false;
+    }
+    return DateTime.now().difference(_cacheTimestamp!) < _cacheTimeout;
+  }
+
+  // Ładuj wszystkich inwestorów (metoda pomocnicza)
+  Future<List<InvestorSummary>> _loadAllInvestors(bool includeInactive) async {
+    print('📊 [InvestorAnalytics] Pobieranie klientów...');
+    final clientsStartTime = DateTime.now();
+
+    // Pobierz wszystkich klientów
+    final clients = await _clientService.getAllClients();
+    final activeClients = includeInactive
+        ? clients
+        : clients.where((c) => c.isActive).toList();
+
+    final clientsLoadTime = DateTime.now().difference(clientsStartTime);
+    print(
+      '📊 [InvestorAnalytics] Pobrano ${clients.length} klientów (${activeClients.length} aktywnych) w ${clientsLoadTime.inMilliseconds}ms',
+    );
+
+    // Pobierz wszystkie inwestycje jednym zapytaniem dla wydajności
+    print('📊 [InvestorAnalytics] Pobieranie wszystkich inwestycji...');
+    final investmentsStartTime = DateTime.now();
+    final allInvestments = await _getAllInvestments();
+    final investmentsLoadTime = DateTime.now().difference(investmentsStartTime);
+    print(
+      '📊 [InvestorAnalytics] Pobrano ${allInvestments.length} inwestycji w ${investmentsLoadTime.inMilliseconds}ms',
+    );
+
+    // Grupuj inwestycje według nazwy klienta dla wydajności
+    final investmentsByClient = <String, List<Investment>>{};
+    for (final investment in allInvestments) {
+      final clientName = investment.clientName;
+      investmentsByClient[clientName] ??= [];
+      investmentsByClient[clientName]!.add(investment);
+    }
+
+    print(
+      '📊 [InvestorAnalytics] Grupowanie inwestycji dla ${investmentsByClient.length} klientów',
+    );
+
+    // Tworzenie podsumowań
+    final List<InvestorSummary> summaries = [];
+    int processedClients = 0;
+
+    for (final client in activeClients) {
+      final investments = investmentsByClient[client.name] ?? [];
+      if (investments.isNotEmpty) {
+        final summary = InvestorSummary.fromInvestments(client, investments);
+        summaries.add(summary);
+      }
+
+      processedClients++;
+      if (processedClients % 100 == 0) {
+        print(
+          '📊 [InvestorAnalytics] Przetworzono $processedClients/${activeClients.length} klientów',
+        );
+      }
+    }
+
+    print(
+      '📊 [InvestorAnalytics] Sortowanie ${summaries.length} podsumowań...',
+    );
+
+    // Sortuj według łącznej wartości (kapitał pozostały + udziały)
+    summaries.sort((a, b) => b.totalValue.compareTo(a.totalValue));
+
+    // Oblicz procentowy udział każdego inwestora
+    final totalPortfolioValue = summaries.fold<double>(
+      0.0,
+      (sum, summary) => sum + summary.totalValue,
+    );
+
+    print(
+      '📊 [InvestorAnalytics] Obliczanie procentów dla portfela o wartości ${totalPortfolioValue.toStringAsFixed(0)} PLN',
+    );
+
+    // Dodaj informację o procentowym udziale
+    for (int i = 0; i < summaries.length; i++) {
+      final summary = summaries[i];
+      final percentage = totalPortfolioValue > 0
+          ? (summary.totalValue / totalPortfolioValue) * 100
+          : 0.0;
+
+      // Utworzenie nowego obiektu z obliczonym procentem
+      summaries[i] = InvestorSummaryWithPercentage(
+        summary: summary,
+        percentageOfPortfolio: percentage,
+        cumulativePercentage: _calculateCumulativePercentage(
+          summaries,
+          i,
+          totalPortfolioValue,
+        ),
+      );
+    }
+
+    print(
+      '📊 [InvestorAnalytics] Utworzono ${summaries.length} podsumowań inwestorów',
+    );
+    return summaries;
+  }
+
+  // Pobierz wszystkie inwestycje jednym zapytaniem
+  Future<List<Investment>> _getAllInvestments() async {
+    try {
+      final snapshot = await firestore.collection('investments').get();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return _convertExcelDataToInvestment(doc.id, data);
+      }).toList();
+    } catch (e) {
+      print('❌ [InvestorAnalytics] Błąd pobierania inwestycji: $e');
+      logError('_getAllInvestments', e);
+      return [];
     }
   }
 
@@ -66,12 +206,8 @@ class InvestorAnalyticsService extends BaseService {
   double _calculateCumulativePercentage(
     List<InvestorSummary> summaries,
     int currentIndex,
+    double totalPortfolioValue,
   ) {
-    final totalPortfolioValue = summaries.fold<double>(
-      0.0,
-      (sum, summary) => sum + summary.totalValue,
-    );
-
     double cumulativeValue = 0;
     for (int i = 0; i <= currentIndex; i++) {
       cumulativeValue += summaries[i].totalValue;
@@ -80,6 +216,31 @@ class InvestorAnalyticsService extends BaseService {
     return totalPortfolioValue > 0
         ? (cumulativeValue / totalPortfolioValue) * 100
         : 0.0;
+  }
+
+  // Pobierz wszystkich inwestorów bez pagingu (do filtrowania)
+  Future<List<InvestorSummary>> getAllInvestorsForAnalysis({
+    bool includeInactive = false,
+    bool useCache = true,
+  }) async {
+    print(
+      '📊 [InvestorAnalytics] Pobieranie wszystkich inwestorów do analizy...',
+    );
+
+    if (useCache && _isCacheValid()) {
+      final cacheKey = includeInactive ? 'all' : 'active';
+      final cached = _investorsCache![cacheKey];
+      if (cached != null) {
+        print(
+          '📊 [InvestorAnalytics] Zwracam ${cached.length} inwestorów z cache',
+        );
+        return cached;
+      }
+    }
+
+    final investors = await _loadAllInvestors(includeInactive);
+    print('📊 [InvestorAnalytics] Zwracam ${investors.length} inwestorów');
+    return investors;
   }
 
   // Znajdź punkt 51% kapitału
@@ -370,4 +531,30 @@ class InvestorEmailData {
         )
         .join('\n');
   }
+}
+
+// Klasa wyniku analityki inwestorów z pagingiem
+class InvestorAnalyticsResult {
+  final List<InvestorSummary> investors;
+  final int totalCount;
+  final int currentPage;
+  final int pageSize;
+  final bool hasNextPage;
+  final bool hasPreviousPage;
+  final double totalPortfolioValue;
+
+  InvestorAnalyticsResult({
+    required this.investors,
+    required this.totalCount,
+    required this.currentPage,
+    required this.pageSize,
+    required this.hasNextPage,
+    required this.hasPreviousPage,
+    required this.totalPortfolioValue,
+  });
+
+  int get totalPages => (totalCount / pageSize).ceil();
+
+  double get currentPageValue =>
+      investors.fold<double>(0.0, (sum, inv) => sum + inv.totalValue);
 }
