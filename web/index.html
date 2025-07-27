@@ -20,9 +20,11 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Metropolitan Investment - Professional Investment Management Platform.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Metropolitan Investment">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
@@ -30,11 +32,201 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png" />
 
+  <!-- PWA meta tags -->
+  <meta name="theme-color" content="#0D1B2A">
+  
+  <!-- Security headers -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  
+  <!-- SEO meta tags -->
+  <meta name="keywords" content="investment, finance, portfolio management, bonds, shares, loans, apartments">
+  <meta name="author" content="Metropolitan Investment">
+  <meta property="og:title" content="Metropolitan Investment">
+  <meta property="og:description" content="Professional Investment Management Platform">
+  <meta property="og:type" content="website">
+
   <title>Metropolitan Investment</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Loading styles -->
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #0D1B2A 0%, #1B263B 50%, #415A77 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+      background: linear-gradient(135deg, #0D1B2A 0%, #1B263B 50%, #415A77 100%);
+      transition: opacity 0.5s ease-out;
+    }
+
+    .loading-container.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .logo-container {
+      position: relative;
+      margin-bottom: 40px;
+    }
+
+    .logo {
+      width: 120px;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .logo::before {
+      content: '🏛️';
+      font-size: 48px;
+      animation: rotate 3s linear infinite;
+    }
+
+    .app-title {
+      color: white;
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 16px;
+      letter-spacing: 1px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .app-subtitle {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 16px;
+      text-align: center;
+      margin-bottom: 40px;
+      letter-spacing: 0.5px;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid #D4AF37;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    .loading-text {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .loading-container > * {
+      animation: slideUp 0.6s ease-out forwards;
+    }
+
+    .loading-container > *:nth-child(1) { animation-delay: 0.1s; opacity: 0; }
+    .loading-container > *:nth-child(2) { animation-delay: 0.2s; opacity: 0; }
+    .loading-container > *:nth-child(3) { animation-delay: 0.3s; opacity: 0; }
+    .loading-container > *:nth-child(4) { animation-delay: 0.4s; opacity: 0; }
+    .loading-container > *:nth-child(5) { animation-delay: 0.5s; opacity: 0; }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+      .app-title {
+        font-size: 24px;
+      }
+      
+      .logo {
+        width: 100px;
+        height: 100px;
+      }
+      
+      .logo::before {
+        font-size: 40px;
+      }
+    }
+  </style>
 </head>
 
 <body>
+  <!-- Loading screen -->
+  <div id="loading-container" class="loading-container">
+    <div class="logo-container">
+      <div class="logo"></div>
+    </div>
+    <h1 class="app-title">Metropolitan Investment</h1>
+    <p class="app-subtitle">Professional Investment Management</p>
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Ładowanie aplikacji...</p>
+  </div>
+
+  <script>
+    // Hide loading screen when Flutter app is ready
+    window.addEventListener('flutter-first-frame', function() {
+      const loadingContainer = document.getElementById('loading-container');
+      if (loadingContainer) {
+        loadingContainer.classList.add('fade-out');
+        setTimeout(() => {
+          loadingContainer.style.display = 'none';
+        }, 500);
+      }
+    });
+
+    // Fallback: hide loading screen after 10 seconds
+    setTimeout(() => {
+      const loadingContainer = document.getElementById('loading-container');
+      if (loadingContainer && !loadingContainer.classList.contains('fade-out')) {
+        loadingContainer.classList.add('fade-out');
+        setTimeout(() => {
+          loadingContainer.style.display = 'none';
+        }, 500);
+      }
+    }, 10000);
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 
