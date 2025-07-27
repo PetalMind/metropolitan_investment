@@ -34,11 +34,11 @@
 
   <!-- PWA meta tags -->
   <meta name="theme-color" content="#0D1B2A">
-  
+
   <!-- Security headers -->
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="X-Frame-Options" content="DENY">
-  
+
   <!-- SEO meta tags -->
   <meta name="keywords" content="investment, finance, portfolio management, bonds, shares, loans, apartments">
   <meta name="author" content="Metropolitan Investment">
@@ -138,18 +138,35 @@
     }
 
     @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.05);
+      }
     }
 
     @keyframes rotate {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
     }
 
     @keyframes slideUp {
@@ -157,33 +174,53 @@
         opacity: 0;
         transform: translateY(20px);
       }
+
       to {
         opacity: 1;
         transform: translateY(0);
       }
     }
 
-    .loading-container > * {
+    .loading-container>* {
       animation: slideUp 0.6s ease-out forwards;
     }
 
-    .loading-container > *:nth-child(1) { animation-delay: 0.1s; opacity: 0; }
-    .loading-container > *:nth-child(2) { animation-delay: 0.2s; opacity: 0; }
-    .loading-container > *:nth-child(3) { animation-delay: 0.3s; opacity: 0; }
-    .loading-container > *:nth-child(4) { animation-delay: 0.4s; opacity: 0; }
-    .loading-container > *:nth-child(5) { animation-delay: 0.5s; opacity: 0; }
+    .loading-container>*:nth-child(1) {
+      animation-delay: 0.1s;
+      opacity: 0;
+    }
+
+    .loading-container>*:nth-child(2) {
+      animation-delay: 0.2s;
+      opacity: 0;
+    }
+
+    .loading-container>*:nth-child(3) {
+      animation-delay: 0.3s;
+      opacity: 0;
+    }
+
+    .loading-container>*:nth-child(4) {
+      animation-delay: 0.4s;
+      opacity: 0;
+    }
+
+    .loading-container>*:nth-child(5) {
+      animation-delay: 0.5s;
+      opacity: 0;
+    }
 
     /* Responsive design */
     @media (max-width: 768px) {
       .app-title {
         font-size: 24px;
       }
-      
+
       .logo {
         width: 100px;
         height: 100px;
       }
-      
+
       .logo::before {
         font-size: 40px;
       }
@@ -205,7 +242,7 @@
 
   <script>
     // Hide loading screen when Flutter app is ready
-    window.addEventListener('flutter-first-frame', function() {
+    window.addEventListener('flutter-first-frame', function () {
       const loadingContainer = document.getElementById('loading-container');
       if (loadingContainer) {
         loadingContainer.classList.add('fade-out');

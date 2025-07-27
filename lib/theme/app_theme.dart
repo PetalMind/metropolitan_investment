@@ -888,6 +888,30 @@ class AppTheme {
     }
   }
 
+  /// Returns appropriate color for risk level
+  static Color getRiskColor(String riskLevel) {
+    switch (riskLevel.toLowerCase()) {
+      case 'low':
+      case 'niskie':
+      case 'bezpieczne':
+        return successPrimary;
+      case 'medium':
+      case 'średnie':
+      case 'umiarkowane':
+        return warningPrimary;
+      case 'high':
+      case 'wysokie':
+      case 'ryzykowne':
+        return errorPrimary;
+      case 'very_high':
+      case 'bardzo_wysokie':
+      case 'spekulacyjne':
+        return lossPrimary;
+      default:
+        return neutralPrimary;
+    }
+  }
+
   // === CUSTOM DECORATIONS ===
 
   /// Premium card decoration with subtle border and shadow

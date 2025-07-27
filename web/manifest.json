@@ -8,7 +8,11 @@
   "theme_color": "#0D1B2A",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
-  "categories": ["finance", "business", "productivity"],
+  "categories": [
+    "finance",
+    "business",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "icons/Icon-192.png",

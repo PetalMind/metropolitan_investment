@@ -19,9 +19,9 @@ Future<void> main() async {
       FlutterError.presentError(details);
       debugPrint('Flutter Error: ${details.exception}');
       debugPrint('Stack trace: ${details.stack}');
-      
+
       // Check if it's a Firestore index error
-      if (details.exception.toString().contains('firestore') && 
+      if (details.exception.toString().contains('firestore') &&
           details.exception.toString().contains('index')) {
         _logFirestoreIndexError(details.exception.toString());
       }
@@ -33,17 +33,17 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    
+
     if (kDebugMode) {
       print('🚀 Firebase initialized successfully');
       print('📊 Debug mode enabled - Firestore errors will be logged');
-      
+
       // Setup Firestore settings for development
       FirebaseFirestore.instance.settings = const Settings(
         persistenceEnabled: true,
         cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
       );
-      
+
       // Setup additional Firestore debugging
       _setupFirestoreDebugging();
     }
@@ -51,9 +51,10 @@ Future<void> main() async {
     if (kDebugMode) {
       print('❌ Error initializing Firebase: $e');
       print('Stack trace: $stackTrace');
-      
+
       // Check if it's a Firestore index error
-      if (e.toString().contains('firestore') && e.toString().contains('index')) {
+      if (e.toString().contains('firestore') &&
+          e.toString().contains('index')) {
         _logFirestoreIndexError(e.toString());
       }
     }
@@ -76,11 +77,13 @@ void _logFirestoreIndexError(String error) {
     print('🔥 FIRESTORE INDEX ERROR DETECTED 🔥');
     print('=' * 80);
     print('Error: $error');
-    
+
     // Extract the index creation URL if present
-    final RegExp urlRegex = RegExp(r'https://console\.firebase\.google\.com/[^\s]+');
+    final RegExp urlRegex = RegExp(
+      r'https://console\.firebase\.google\.com/[^\s]+',
+    );
     final Match? match = urlRegex.firstMatch(error);
-    
+
     if (match != null) {
       final String indexUrl = match.group(0)!;
       print('\n🔗 KLIKNIJ TUTAJ ABY UTWORZYĆ INDEKS:');
@@ -93,12 +96,18 @@ void _logFirestoreIndexError(String error) {
       print('5. Odśwież aplikację');
     } else {
       print('\n🔗 Aby utworzyć indeksy, przejdź do:');
-      print('📋 https://console.firebase.google.com/project/metropolitan-investment/firestore/indexes');
+      print(
+        '📋 https://console.firebase.google.com/project/metropolitan-investment/firestore/indexes',
+      );
     }
-    
+
     print('\n💡 Tip: Indeksy są wymagane dla złożonych zapytań Firestore');
-    print('💡 Możesz również wyłączyć wymaganie indeksów w trybie deweloperskim');
-    print('💡 Dodaj: FirebaseFirestore.instance.disableNetwork() dla trybu offline');
+    print(
+      '💡 Możesz również wyłączyć wymaganie indeksów w trybie deweloperskim',
+    );
+    print(
+      '💡 Dodaj: FirebaseFirestore.instance.disableNetwork() dla trybu offline',
+    );
     print('=' * 80 + '\n');
   }
 }
@@ -118,10 +127,10 @@ void _setupFirestoreDebugging() {
         }
       },
     );
-    
+
     print('🔧 Firestore debugging enabled');
     print('📡 Monitoring for index errors...');
-    
+
     // Log the specific error from the attachment if we see it
     _logSpecificIndexError();
   }
@@ -133,14 +142,14 @@ void _logSpecificIndexError() {
     print('\n' + '🔍' * 40);
     print('SPECIFIC FIRESTORE INDEX ERROR FROM ATTACHMENT:');
     print('🔍' * 40);
-    
+
     final String specificError = '''
 [cloud_firestore/failed-precondition] The query requires an index. You can create it here: 
 https://console.firebase.google.com/v1/r/project/metropolitan-investment/firestore/indexes?create_composite=Cllwcm9qZWN0cy9tZXRyb3BvbGl0YW4taW52ZXN0bWVudC9kYXRhYmFzZXMvKGRlZmF1bHQpL2NvbGxlY3Rpb25Hcm91cHMvLUhRb0wyTnZCY3lJM3BiMjVIY205MWNHMHpZVzF6bG95WlpXMUwyWjZaVFl4WlhYQkNnWnVhMGRHYmhRbgpCWUc3OWJaV2xhWkVJRVEyVmhEYUVhb2JHZnpkRTNoV1VRQWRRbUNncEZZMzBBQg==''';
-    
+
     print('Error details: $specificError');
     _logFirestoreIndexError(specificError);
-    
+
     print('🔍' * 40 + '\n');
   }
 }
@@ -152,9 +161,9 @@ class MetropolitanInvestmentApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Metropolitan Investment',
-      theme: AppTheme.lightTheme,
+      theme: AppTheme.darkTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.light,
+      themeMode: ThemeMode.dark,
       debugShowCheckedModeBanner: false,
       // Add error handling
       builder: (context, widget) {
@@ -162,11 +171,11 @@ class MetropolitanInvestmentApp extends StatelessWidget {
           // Setup error handling for the app
           ErrorWidget.builder = (FlutterErrorDetails details) {
             // Log Firestore errors specifically
-            if (details.exception.toString().contains('firestore') && 
+            if (details.exception.toString().contains('firestore') &&
                 details.exception.toString().contains('index')) {
               _logFirestoreIndexError(details.exception.toString());
             }
-            
+
             return Scaffold(
               backgroundColor: AppTheme.backgroundPrimary,
               body: Center(
@@ -203,7 +212,9 @@ class MetropolitanInvestmentApp extends StatelessWidget {
                           fontSize: 14,
                         ),
                       ),
-                      if (details.exception.toString().contains('firestore')) ...[
+                      if (details.exception.toString().contains(
+                        'firestore',
+                      )) ...[
                         const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(12),
