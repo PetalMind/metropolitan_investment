@@ -34,6 +34,29 @@ class _DashboardScreenState extends State<DashboardScreen>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
+  // === RESPONSYWNE FUNKCJE POMOCNICZE ===
+
+  bool _isMobile(BuildContext context) =>
+      MediaQuery.of(context).size.width < 768;
+  bool _isTablet(BuildContext context) =>
+      MediaQuery.of(context).size.width >= 768 &&
+      MediaQuery.of(context).size.width < 1024;
+  bool _isDesktop(BuildContext context) =>
+      MediaQuery.of(context).size.width >= 1024;
+
+  double _getScreenWidth(BuildContext context) =>
+      MediaQuery.of(context).size.width;
+  double _getHorizontalPadding(BuildContext context) =>
+      _isMobile(context) ? 16.0 : 24.0;
+  double _getVerticalSpacing(BuildContext context) =>
+      _isMobile(context) ? 16.0 : 24.0;
+
+  int _getCrossAxisCountForCards(BuildContext context) {
+    if (_isMobile(context)) return 1;
+    if (_isTablet(context)) return 2;
+    return 4;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -135,36 +158,70 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _buildDashboardHeader() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(_getHorizontalPadding(context)),
       decoration: AppTheme.gradientDecoration,
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Zaawansowany Dashboard Inwestycji',
-                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                    color: AppTheme.textOnPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Kompleksowa analiza portfela z predykcjami i alertami',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppTheme.textOnPrimary.withOpacity(0.8),
-                  ),
-                ),
-              ],
-            ),
+      child: _isMobile(context) ? _buildMobileHeader() : _buildDesktopHeader(),
+    );
+  }
+
+  Widget _buildMobileHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Dashboard Inwestycji',
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+            color: AppTheme.textOnPrimary,
+            fontWeight: FontWeight.bold,
           ),
-          _buildTimeFrameSelector(),
-          const SizedBox(width: 16),
-          _buildRefreshButton(),
-        ],
-      ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Zaawansowana analiza portfela',
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: AppTheme.textOnPrimary.withOpacity(0.8),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: _buildTimeFrameSelector()),
+            const SizedBox(width: 8),
+            _buildRefreshButton(),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopHeader() {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Zaawansowany Dashboard Inwestycji',
+                style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                  color: AppTheme.textOnPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Kompleksowa analiza portfela z predykcjami i alertami',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: AppTheme.textOnPrimary.withOpacity(0.8),
+                ),
+              ),
+            ],
+          ),
+        ),
+        _buildTimeFrameSelector(),
+        const SizedBox(width: 16),
+        _buildRefreshButton(),
+      ],
     );
   }
 
@@ -211,15 +268,79 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _buildTabBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: EdgeInsets.symmetric(
+        horizontal: _getHorizontalPadding(context),
+        vertical: 16,
+      ),
+      child: _isMobile(context) ? _buildMobileTabBar() : _buildDesktopTabBar(),
+    );
+  }
+
+  Widget _buildMobileTabBar() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _buildTabButton(0, 'Przegląd', Icons.dashboard),
-          _buildTabButton(1, 'Wydajność', Icons.trending_up),
-          _buildTabButton(2, 'Ryzyko', Icons.security),
-          _buildTabButton(3, 'Prognozy', Icons.insights),
-          _buildTabButton(4, 'Benchmarki', Icons.compare_arrows),
+          _buildCompactTabButton(0, 'Przegląd', Icons.dashboard),
+          const SizedBox(width: 8),
+          _buildCompactTabButton(1, 'Wydajność', Icons.trending_up),
+          const SizedBox(width: 8),
+          _buildCompactTabButton(2, 'Ryzyko', Icons.security),
+          const SizedBox(width: 8),
+          _buildCompactTabButton(3, 'Prognozy', Icons.insights),
+          const SizedBox(width: 8),
+          _buildCompactTabButton(4, 'Benchmarki', Icons.compare_arrows),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopTabBar() {
+    return Row(
+      children: [
+        _buildTabButton(0, 'Przegląd', Icons.dashboard),
+        _buildTabButton(1, 'Wydajność', Icons.trending_up),
+        _buildTabButton(2, 'Ryzyko', Icons.security),
+        _buildTabButton(3, 'Prognozy', Icons.insights),
+        _buildTabButton(4, 'Benchmarki', Icons.compare_arrows),
+      ],
+    );
+  }
+
+  Widget _buildCompactTabButton(int index, String label, IconData icon) {
+    final isSelected = _selectedDashboardTab == index;
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedDashboardTab = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryColor : AppTheme.surfaceCard,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? AppTheme.primaryColor
+                : AppTheme.borderSecondary,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? Colors.white : AppTheme.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: isSelected ? Colors.white : AppTheme.textSecondary,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -281,42 +402,62 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _buildOverviewTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(_getHorizontalPadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildAdvancedSummaryCards(),
-          const SizedBox(height: 24),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 2,
-                child: Column(
-                  children: [
-                    _buildPortfolioComposition(),
-                    const SizedBox(height: 24),
-                    _buildRecentInvestments(),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 24),
-              Expanded(
-                flex: 1,
-                child: Column(
-                  children: [
-                    _buildQuickMetrics(),
-                    const SizedBox(height: 24),
-                    _buildAttentionRequired(),
-                    const SizedBox(height: 24),
-                    _buildRiskAlerts(),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          SizedBox(height: _getVerticalSpacing(context)),
+          _isMobile(context) ? _buildMobileLayout() : _buildDesktopLayout(),
         ],
       ),
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return Column(
+      children: [
+        _buildPortfolioComposition(),
+        const SizedBox(height: 16),
+        _buildQuickMetrics(),
+        const SizedBox(height: 16),
+        _buildRecentInvestments(),
+        const SizedBox(height: 16),
+        _buildAttentionRequired(),
+        const SizedBox(height: 16),
+        _buildRiskAlerts(),
+      ],
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 2,
+          child: Column(
+            children: [
+              _buildPortfolioComposition(),
+              const SizedBox(height: 24),
+              _buildRecentInvestments(),
+            ],
+          ),
+        ),
+        const SizedBox(width: 24),
+        Expanded(
+          flex: 1,
+          child: Column(
+            children: [
+              _buildQuickMetrics(),
+              const SizedBox(height: 24),
+              _buildAttentionRequired(),
+              const SizedBox(height: 24),
+              _buildRiskAlerts(),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -325,12 +466,81 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     final metrics = _advancedMetrics!.portfolioMetrics;
 
+    if (_isMobile(context)) {
+      return Column(
+        children: [
+          _buildSummaryCard(
+            title: 'Łączna Wartość Portfela',
+            value: _formatCurrency(metrics.totalValue),
+            subtitle: 'Wszystkie inwestycje',
+            icon: Icons.account_balance_wallet,
+            color: AppTheme.primaryColor,
+            trend:
+                '${metrics.portfolioGrowthRate >= 0 ? '+' : ''}${metrics.portfolioGrowthRate.toStringAsFixed(1)}%',
+            trendValue: metrics.portfolioGrowthRate,
+            additionalInfo: [
+              'ROI portfela: ${metrics.roi.toStringAsFixed(2)}%',
+              'Średnia inwestycja: ${_formatCurrency(metrics.averageInvestmentSize)}',
+            ],
+            tooltip:
+                'Całkowita wartość portfela = Aktywne inwestycje + Zrealizowane zyski. ROI = ((Aktualna wartość - Zainwestowany kapitał) / Zainwestowany kapitał) * 100%',
+          ),
+          const SizedBox(height: 16),
+          _buildSummaryCard(
+            title: 'Zainwestowany Kapitał',
+            value: _formatCurrency(metrics.totalInvested),
+            subtitle: 'Całkowite wpłaty',
+            icon: Icons.trending_up,
+            color: AppTheme.infoColor,
+            additionalInfo: [
+              'Mediana: ${_formatCurrency(metrics.medianInvestmentSize)}',
+              'Aktywne: ${metrics.activeInvestmentsCount}/${metrics.totalInvestmentsCount}',
+            ],
+            tooltip:
+                'Suma wszystkich zainwestowanych kwot. Mediana to wartość środkowa wszystkich inwestycji. Aktywne to inwestycje, które jeszcze nie zostały w pełni zrealizowane.',
+          ),
+          const SizedBox(height: 16),
+          _buildSummaryCard(
+            title: 'Zrealizowane Zyski',
+            value: _formatCurrency(metrics.totalRealized),
+            subtitle: 'Wypłacone środki',
+            icon: Icons.monetization_on,
+            color: AppTheme.successColor,
+            trend: _getRealizedTrend(),
+            additionalInfo: [
+              'Odsetki: ${_formatCurrency(metrics.totalInterest)}',
+              'Zysk całkowity: ${_formatCurrency(metrics.totalProfit)}',
+            ],
+            tooltip:
+                'Kwoty już wypłacone z inwestycji. Odsetki to naliczone zyski. Zysk całkowity = Zrealizowane zyski + Niezrealizowane zyski z aktywnych inwestycji.',
+          ),
+          const SizedBox(height: 16),
+          _buildSummaryCard(
+            title: 'Koncentracja Ryzyka',
+            value:
+                '${_advancedMetrics!.riskMetrics.concentrationRisk.toStringAsFixed(1)}%',
+            subtitle: 'Wskaźnik dywersyfikacji',
+            icon: Icons.pie_chart,
+            color: AppTheme.getRiskColor(
+              _getRiskLevel(_advancedMetrics!.riskMetrics.concentrationRisk),
+            ),
+            additionalInfo: [
+              'VaR 95%: ${_advancedMetrics!.riskMetrics.valueAtRisk.toStringAsFixed(2)}%',
+              'Sharpe: ${_advancedMetrics!.performanceMetrics.sharpeRatio.toStringAsFixed(3)}',
+            ],
+            tooltip:
+                'Koncentracja ryzyka mierzy jak bardzo portfel jest skoncentrowany na pojedynczych inwestycjach. VaR 95% to maksymalna strata z 95% prawdopodobieństwem. Wskaźnik Sharpe\'a = (Zwrot - Stopa wolna od ryzyka) / Zmienność.',
+          ),
+        ],
+      );
+    }
+
     return Column(
       children: [
         Row(
           children: [
             Expanded(
-              child: AdvancedMetricCard(
+              child: _buildSummaryCard(
                 title: 'Łączna Wartość Portfela',
                 value: _formatCurrency(metrics.totalValue),
                 subtitle: 'Wszystkie inwestycje',
@@ -343,11 +553,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                   'ROI portfela: ${metrics.roi.toStringAsFixed(2)}%',
                   'Średnia inwestycja: ${_formatCurrency(metrics.averageInvestmentSize)}',
                 ],
+                tooltip:
+                    'Całkowita wartość portfela = Aktywne inwestycje + Zrealizowane zyski. ROI = ((Aktualna wartość - Zainwestowany kapitał) / Zainwestowany kapitał) * 100%',
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: AdvancedMetricCard(
+              child: _buildSummaryCard(
                 title: 'Zainwestowany Kapitał',
                 value: _formatCurrency(metrics.totalInvested),
                 subtitle: 'Całkowite wpłaty',
@@ -357,11 +569,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                   'Mediana: ${_formatCurrency(metrics.medianInvestmentSize)}',
                   'Aktywne: ${metrics.activeInvestmentsCount}/${metrics.totalInvestmentsCount}',
                 ],
+                tooltip:
+                    'Suma wszystkich zainwestowanych kwot. Mediana to wartość środkowa wszystkich inwestycji. Aktywne to inwestycje, które jeszcze nie zostały w pełni zrealizowane.',
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: AdvancedMetricCard(
+              child: _buildSummaryCard(
                 title: 'Zrealizowane Zyski',
                 value: _formatCurrency(metrics.totalRealized),
                 subtitle: 'Wypłacone środki',
@@ -372,6 +586,85 @@ class _DashboardScreenState extends State<DashboardScreen>
                   'Odsetki: ${_formatCurrency(metrics.totalInterest)}',
                   'Zysk całkowity: ${_formatCurrency(metrics.totalProfit)}',
                 ],
+                tooltip:
+                    'Kwoty już wypłacone z inwestycji. Odsetki to naliczone zyski. Zysk całkowity = Zrealizowane zyski + Niezrealizowane zyski z aktywnych inwestycji.',
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildSummaryCard(
+                title: 'Koncentracja Ryzyka',
+                value:
+                    '${_advancedMetrics!.riskMetrics.concentrationRisk.toStringAsFixed(1)}%',
+                subtitle: 'Wskaźnik dywersyfikacji',
+                icon: Icons.pie_chart,
+                color: AppTheme.getRiskColor(
+                  _getRiskLevel(
+                    _advancedMetrics!.riskMetrics.concentrationRisk,
+                  ),
+                ),
+                additionalInfo: [
+                  'VaR 95%: ${_advancedMetrics!.riskMetrics.valueAtRisk.toStringAsFixed(2)}%',
+                  'Sharpe: ${_advancedMetrics!.performanceMetrics.sharpeRatio.toStringAsFixed(3)}',
+                ],
+                tooltip:
+                    'Koncentracja ryzyka mierzy jak bardzo portfel jest skoncentrowany na pojedynczych inwestycjach. VaR 95% to maksymalna strata z 95% prawdopodobieństwem. Wskaźnik Sharpe\'a = (Zwrot - Stopa wolna od ryzyka) / Zmienność.',
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    String? trend,
+    double? trendValue,
+    List<String>? additionalInfo,
+    String? tooltip,
+  }) {
+    return AdvancedMetricCard(
+      title: title,
+      value: value,
+      subtitle: subtitle,
+      icon: icon,
+      color: color,
+      trend: trend,
+      trendValue: trendValue,
+      additionalInfo: additionalInfo,
+      tooltip: tooltip,
+    );
+  }
+
+  Widget _buildQuickMetrics() {
+    if (_advancedMetrics == null) return const SizedBox();
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: AdvancedMetricCard(
+                title: 'Całkowity zwrot',
+                value:
+                    '${_advancedMetrics!.performanceMetrics.totalROI.toStringAsFixed(2)}%',
+                subtitle: 'ROI',
+                icon: Icons.trending_up,
+                color: Colors.green,
+                trend: _advancedMetrics!.performanceMetrics.totalROI > 0
+                    ? 'up'
+                    : 'down',
+                trendValue: _advancedMetrics!.performanceMetrics.totalROI,
+                additionalInfo: [
+                  'CAGR: ${_advancedMetrics!.performanceMetrics.annualizedReturn.toStringAsFixed(2)}%',
+                ],
+                tooltip:
+                    'Całkowity zwrot z inwestycji (ROI). CAGR to złożona roczna stopa wzrostu = ((Wartość końcowa / Wartość początkowa)^(1/lata) - 1) * 100%',
               ),
             ),
             const SizedBox(width: 16),
@@ -385,10 +678,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                 color: _getSharpeColor(
                   _advancedMetrics!.riskMetrics.sharpeRatio,
                 ),
+                trend: _advancedMetrics!.riskMetrics.sharpeRatio > 1.0
+                    ? 'up'
+                    : 'down',
+                trendValue: _advancedMetrics!.riskMetrics.sharpeRatio,
                 additionalInfo: [
                   'Volatilność: ${_advancedMetrics!.riskMetrics.volatility.toStringAsFixed(2)}%',
                   'Max strata: ${_advancedMetrics!.riskMetrics.maxDrawdown.toStringAsFixed(2)}%',
                 ],
+                tooltip:
+                    'Wskaźnik Sharpe\'a = (Zwrot - Stopa wolna od ryzyka) / Odchylenie standardowe. Volatilność to miara ryzyka (odchylenie standardowe zwrotów). Max strata to największy spadek wartości portfela.',
               ),
             ),
           ],
@@ -422,49 +721,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         title: 'Skład Portfela według Produktów',
         showLegend: true,
         showPercentages: true,
-      ),
-    );
-  }
-
-  Widget _buildQuickMetrics() {
-    if (_advancedMetrics == null) return const SizedBox();
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Szybkie Metryki',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 16),
-          _buildQuickMetricItem(
-            'Nowi klienci (miesiąc)',
-            '${_advancedMetrics!.clientAnalytics.newClientsThisMonth}',
-            Icons.person_add,
-            AppTheme.successColor,
-          ),
-          _buildQuickMetricItem(
-            'Retencja klientów',
-            '${_advancedMetrics!.clientAnalytics.clientRetention.toStringAsFixed(1)}%',
-            Icons.loyalty,
-            AppTheme.primaryColor,
-          ),
-          _buildQuickMetricItem(
-            'Dywersyfikacja geo.',
-            '${_advancedMetrics!.geographicAnalytics.geographicDiversification.toStringAsFixed(0)} oddziałów',
-            Icons.public,
-            AppTheme.infoColor,
-          ),
-          _buildQuickMetricItem(
-            'Momentum portfela',
-            '${_advancedMetrics!.timeSeriesAnalytics.momentum.toStringAsFixed(1)}%',
-            Icons.speed,
-            _getMomentumColor(_advancedMetrics!.timeSeriesAnalytics.momentum),
-          ),
-        ],
       ),
     );
   }
@@ -590,24 +846,24 @@ class _DashboardScreenState extends State<DashboardScreen>
     final performance = _advancedMetrics!.performanceMetrics;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(_getHorizontalPadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildPerformanceHeader(),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Główne metryki wydajności
           _buildPerformanceOverview(performance),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Wykres wydajności w czasie
           _buildPerformanceChart(),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Analiza produktów
           _buildProductPerformanceAnalysis(performance),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Ranking najlepszych inwestycji
           _buildTopPerformersSection(performance),
@@ -667,62 +923,72 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildPerformanceOverview(PerformanceMetrics performance) {
-    return Row(
-      children: [
-        Expanded(
-          child: AdvancedMetricCard(
-            title: 'ROI Całkowity',
-            value: '${performance.totalROI.toStringAsFixed(2)}%',
-            subtitle: 'Zwrot z inwestycji',
-            icon: Icons.trending_up,
-            color: AppTheme.getPerformanceColor(performance.totalROI),
-            tooltip:
-                'ROI = (Wartość obecna - Wartość zainwestowana) / Wartość zainwestowana × 100%',
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: AdvancedMetricCard(
-            title: 'CAGR',
-            value: '${performance.annualizedReturn.toStringAsFixed(2)}%',
-            subtitle: 'Roczny zwrot składany',
-            icon: Icons.auto_graph,
-            color: AppTheme.getPerformanceColor(performance.annualizedReturn),
-            tooltip:
-                'CAGR = (Wartość końcowa / Wartość początkowa)^(1/liczba lat) - 1',
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: AdvancedMetricCard(
-            title: 'Sharpe Ratio',
-            value: performance.sharpeRatio.toStringAsFixed(3),
-            subtitle: 'Ryzyko vs zwrot',
-            icon: Icons.balance,
-            color: performance.sharpeRatio > 1
-                ? AppTheme.successColor
-                : performance.sharpeRatio > 0.5
-                ? AppTheme.warningColor
-                : AppTheme.errorColor,
-            tooltip:
-                'Sharpe Ratio = (Zwrot portfela - Stopa wolna od ryzyka) / Odchylenie standardowe\n'
-                '> 1.0: Bardzo dobry\n0.5-1.0: Dobry\n< 0.5: Słaby',
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: AdvancedMetricCard(
-            title: 'Max Drawdown',
-            value: '${performance.maxDrawdown.toStringAsFixed(2)}%',
-            subtitle: 'Maksymalny spadek',
-            icon: Icons.trending_down,
-            color: AppTheme.getPerformanceColor(-performance.maxDrawdown),
-            tooltip:
-                'Największy spadek wartości portfela od szczytu do dołka w okresie obserwacji',
-          ),
-        ),
-      ],
-    );
+    final cards = [
+      AdvancedMetricCard(
+        title: 'ROI Całkowity',
+        value: '${performance.totalROI.toStringAsFixed(2)}%',
+        subtitle: 'Zwrot z inwestycji',
+        icon: Icons.trending_up,
+        color: AppTheme.getPerformanceColor(performance.totalROI),
+        tooltip:
+            'ROI = (Wartość obecna - Wartość zainwestowana) / Wartość zainwestowana × 100%',
+      ),
+      AdvancedMetricCard(
+        title: 'CAGR',
+        value: '${performance.annualizedReturn.toStringAsFixed(2)}%',
+        subtitle: 'Roczny zwrot składany',
+        icon: Icons.auto_graph,
+        color: AppTheme.getPerformanceColor(performance.annualizedReturn),
+        tooltip:
+            'CAGR = (Wartość końcowa / Wartość początkowa)^(1/liczba lat) - 1',
+      ),
+      AdvancedMetricCard(
+        title: 'Sharpe Ratio',
+        value: performance.sharpeRatio.toStringAsFixed(3),
+        subtitle: 'Ryzyko vs zwrot',
+        icon: Icons.balance,
+        color: performance.sharpeRatio > 1
+            ? AppTheme.successColor
+            : performance.sharpeRatio > 0.5
+            ? AppTheme.warningColor
+            : AppTheme.errorColor,
+        tooltip:
+            'Sharpe Ratio = (Zwrot portfela - Stopa wolna od ryzyka) / Odchylenie standardowe\n'
+            '> 1.0: Bardzo dobry\n0.5-1.0: Dobry\n< 0.5: Słaby',
+      ),
+      AdvancedMetricCard(
+        title: 'Max Drawdown',
+        value: '${performance.maxDrawdown.toStringAsFixed(2)}%',
+        subtitle: 'Maksymalny spadek',
+        icon: Icons.trending_down,
+        color: AppTheme.getPerformanceColor(-performance.maxDrawdown),
+        tooltip:
+            'Największy spadek wartości portfela od szczytu do dołka w okresie obserwacji',
+      ),
+    ];
+
+    // Responsywny układ - Column na mobile, Row na desktop
+    if (_isMobile(context)) {
+      return Column(
+        children: cards
+            .map(
+              (card) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: card,
+              ),
+            )
+            .toList(),
+      );
+    } else {
+      return Row(
+        children:
+            cards
+                .map((card) => Expanded(child: card))
+                .expand((widget) => [widget, const SizedBox(width: 16)])
+                .toList()
+              ..removeLast(),
+      );
+    }
   }
 
   Widget _buildPerformanceChart() {
@@ -1049,24 +1315,24 @@ class _DashboardScreenState extends State<DashboardScreen>
     final risk = _advancedMetrics!.riskMetrics;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(_getHorizontalPadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildRiskHeader(),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Główne metryki ryzyka
           _buildRiskOverview(risk),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Macierz ryzyka
           _buildRiskMatrix(),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Koncentracja ryzyka
           _buildRiskConcentration(risk),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Analiza VaR
           _buildVaRAnalysis(risk),
@@ -1475,24 +1741,24 @@ class _DashboardScreenState extends State<DashboardScreen>
     final predictions = _advancedMetrics!.predictionMetrics;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(_getHorizontalPadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildPredictionsHeader(),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Główne prognozy
           _buildPredictionsOverview(predictions),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Wykres prognozy
           _buildPredictionChart(),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Scenariusze
           _buildScenarioAnalysis(),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Rekomendacje
           _buildRecommendations(),
@@ -1964,24 +2230,24 @@ class _DashboardScreenState extends State<DashboardScreen>
     final benchmark = _advancedMetrics!.benchmarkMetrics;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(_getHorizontalPadding(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildBenchmarkHeader(),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Główne metryki porównawcze
           _buildBenchmarkOverview(benchmark),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Wykres porównawczy
           _buildBenchmarkChart(),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Tabela benchmarków
           _buildBenchmarkTable(),
-          const SizedBox(height: 24),
+          SizedBox(height: _getVerticalSpacing(context)),
 
           // Analiza outperformance
           _buildOutperformanceAnalysis(benchmark),

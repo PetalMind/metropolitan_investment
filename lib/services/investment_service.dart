@@ -72,6 +72,74 @@ class InvestmentService extends BaseService {
     }
   }
 
+  // Load all investments with progress tracking
+  Future<List<Investment>> loadAllInvestmentsWithProgress({
+    required Function(double progress, String stage) onProgress,
+  }) async {
+    try {
+      onProgress(0.1, 'Łączenie z bazą danych...');
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      onProgress(0.2, 'Pobieranie liczby rekordów...');
+      final countSnapshot = await firestore.collection(_collection).count().get();
+      final totalCount = countSnapshot.count ?? 0;
+      
+      onProgress(0.3, 'Rozpoczynanie pobierania danych...');
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      const batchSize = 500;
+      List<Investment> allInvestments = [];
+      DocumentSnapshot? lastDoc;
+      int processedCount = 0;
+
+      while (true) {
+        Query query = firestore
+            .collection(_collection)
+            .orderBy('data_podpisania', descending: true)
+            .limit(batchSize);
+
+        if (lastDoc != null) {
+          query = query.startAfterDocument(lastDoc);
+        }
+
+        final snapshot = await query.get();
+        
+        if (snapshot.docs.isEmpty) break;
+
+        // Process batch
+        for (var doc in snapshot.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          allInvestments.add(_convertExcelDataToInvestment(doc.id, data));
+          processedCount++;
+
+          // Update progress
+          final progress = 0.3 + (processedCount / totalCount) * 0.6;
+          if (processedCount % 50 == 0) {
+            onProgress(
+              progress, 
+              'Przetwarzanie danych: $processedCount/$totalCount inwestycji'
+            );
+            await Future.delayed(const Duration(milliseconds: 10));
+          }
+        }
+
+        lastDoc = snapshot.docs.last;
+        
+        if (snapshot.docs.length < batchSize) break;
+      }
+
+      onProgress(0.95, 'Finalizacja ładowania...');
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      onProgress(1.0, 'Gotowe!');
+      return allInvestments;
+      
+    } catch (e) {
+      logError('loadAllInvestmentsWithProgress', e);
+      throw Exception('Błąd podczas ładowania inwestycji: $e');
+    }
+  }
+
   // Get all investments with pagination i optymalizacją - ZAKTUALIZOWANE dla danych z Excel
   Stream<List<Investment>> getAllInvestments({int? limit}) {
     Query query = firestore

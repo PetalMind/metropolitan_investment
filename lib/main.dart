@@ -7,7 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'providers/auth_provider.dart';
-import 'widgets/auth_wrapper.dart';
+import 'config/routes.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -159,12 +159,13 @@ class MetropolitanInvestmentApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Metropolitan Investment',
+    return MaterialApp.router(
+      title: 'Cosmopolitan Investment',
       theme: AppTheme.darkTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.dark,
       debugShowCheckedModeBanner: false,
+      routerConfig: AppRouter.router,
       // Add error handling
       builder: (context, widget) {
         if (kDebugMode) {
@@ -240,8 +241,6 @@ class MetropolitanInvestmentApp extends StatelessWidget {
         }
         return widget ?? const SizedBox.shrink();
       },
-      // Używamy bezpośrednio AuthWrapper zamiast SplashScreen dla szybszego ładowania
-      home: const AuthWrapper(),
     );
   }
 }

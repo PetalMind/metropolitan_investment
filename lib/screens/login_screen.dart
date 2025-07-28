@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/animated_button.dart';
-import 'register_screen.dart';
-import 'main_screen.dart';
+import '../config/routes.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -93,9 +93,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     if (success && mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const MainScreen()),
-      );
+      context.go(AppRoutes.main);
     } else if (mounted) {
       _showErrorSnackBar(
         authProvider.error ?? 'Wystąpił błąd podczas logowania',
@@ -363,28 +361,7 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         TextButton(
           onPressed: () {
-            Navigator.of(context).push(
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) =>
-                    const RegisterScreen(),
-                transitionsBuilder:
-                    (context, animation, secondaryAnimation, child) {
-                      const begin = Offset(1.0, 0.0);
-                      const end = Offset.zero;
-                      const curve = Curves.ease;
-
-                      var tween = Tween(
-                        begin: begin,
-                        end: end,
-                      ).chain(CurveTween(curve: curve));
-
-                      return SlideTransition(
-                        position: animation.drive(tween),
-                        child: child,
-                      );
-                    },
-              ),
-            );
+            context.push(AppRoutes.register);
           },
           child: Text(
             'Zarejestruj się',

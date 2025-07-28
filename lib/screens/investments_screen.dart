@@ -7,6 +7,7 @@ import '../services/investment_service.dart';
 import '../widgets/investment_card.dart';
 import '../widgets/investment_form.dart';
 import '../widgets/data_table_widget.dart';
+import '../widgets/custom_loading_widget.dart';
 
 class InvestmentsScreen extends StatefulWidget {
   const InvestmentsScreen({super.key});
@@ -20,16 +21,13 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
+  List<Investment> _allInvestments = [];
   List<Investment> _investments = [];
   List<Investment> _filteredInvestments = [];
-  bool _isLoading = true;
-  bool _isLoadingMore = false;
-  bool _hasMoreData = true;
+  bool _isInitialLoading = true;
   bool _isGridView = false;
-  String? _lastDocumentId;
-
-  // Parametry paginacji
-  static const int _pageSize = 100;
+  double _loadingProgress = 0.0;
+  String _loadingStage = 'Inicjalizacja...';
 
   InvestmentStatus? _selectedStatus;
   ProductType? _selectedProductType;
@@ -39,9 +37,8 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadInitialInvestments();
+    _loadAllInvestments();
     _searchController.addListener(_onSearchChanged);
-    _scrollController.addListener(_onScroll);
   }
 
   @override
@@ -51,77 +48,44 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     super.dispose();
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      _loadMoreInvestments();
-    }
-  }
-
   void _onSearchChanged() {
     // Opóźnienie wyszukiwania dla lepszej wydajności
-    Future.delayed(const Duration(milliseconds: 500), () {
+    Future.delayed(const Duration(milliseconds: 300), () {
       if (_searchController.text == _searchController.text) {
-        _resetAndReload();
+        _filterInvestments();
       }
     });
   }
 
-  Future<void> _loadInitialInvestments() async {
-    setState(() {
-      _isLoading = true;
-      _investments.clear();
-      _filteredInvestments.clear();
-      _lastDocumentId = null;
-      _hasMoreData = true;
-    });
-
+  Future<void> _loadAllInvestments() async {
     try {
-      final investments = await _investmentService.getInvestmentsPaginated(
-        limit: _pageSize,
+      setState(() {
+        _isInitialLoading = true;
+        _loadingProgress = 0.0;
+        _loadingStage = 'Inicjalizacja...';
+      });
+
+      final investments = await _investmentService.loadAllInvestmentsWithProgress(
+        onProgress: (progress, stage) {
+          if (mounted) {
+            setState(() {
+              _loadingProgress = progress;
+              _loadingStage = stage;
+            });
+          }
+        },
       );
 
       setState(() {
+        _allInvestments = investments;
         _investments = investments;
         _filteredInvestments = investments;
-        _lastDocumentId = investments.isNotEmpty ? investments.last.id : null;
-        _hasMoreData = investments.length == _pageSize;
-        _isLoading = false;
+        _isInitialLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      setState(() => _isInitialLoading = false);
       _showErrorSnackBar('Błąd podczas ładowania inwestycji: $e');
     }
-  }
-
-  Future<void> _loadMoreInvestments() async {
-    if (_isLoadingMore || !_hasMoreData || _lastDocumentId == null) return;
-
-    setState(() => _isLoadingMore = true);
-
-    try {
-      final newInvestments = await _investmentService.getInvestmentsPaginated(
-        limit: _pageSize,
-        lastDocumentId: _lastDocumentId,
-      );
-
-      setState(() {
-        _investments.addAll(newInvestments);
-        _filterInvestments();
-        _lastDocumentId = newInvestments.isNotEmpty
-            ? newInvestments.last.id
-            : null;
-        _hasMoreData = newInvestments.length == _pageSize;
-        _isLoadingMore = false;
-      });
-    } catch (e) {
-      setState(() => _isLoadingMore = false);
-      _showErrorSnackBar('Błąd podczas ładowania kolejnych inwestycji: $e');
-    }
-  }
-
-  void _resetAndReload() {
-    _loadInitialInvestments();
   }
 
   void _filterInvestments() {
@@ -175,7 +139,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             investment: investment,
             onSaved: (savedInvestment) {
               Navigator.of(context).pop();
-              _loadInitialInvestments();
+              _loadAllInvestments();
               _showSuccessSnackBar(
                 investment == null
                     ? 'Inwestycja została dodana'
@@ -207,7 +171,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                 await _investmentService.deleteInvestment(investment.id);
                 Navigator.of(context).pop();
                 _showSuccessSnackBar('Inwestycja została usunięta');
-                _loadInitialInvestments();
+                _loadAllInvestments();
               } catch (e) {
                 _showErrorSnackBar('Błąd podczas usuwania: $e');
               }
@@ -334,14 +298,17 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
+      backgroundColor: isDarkTheme ? AppTheme.backgroundPrimary : null,
       body: Column(
         children: [
           _buildHeader(),
-          _buildToolbar(),
+          if (!_isInitialLoading) _buildToolbar(),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+            child: _isInitialLoading
+                ? _buildCustomLoading()
                 : _filteredInvestments.isEmpty
                 ? _buildEmptyState()
                 : _isGridView
@@ -353,51 +320,128 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     );
   }
 
+  Widget _buildCustomLoading() {
+    return Center(
+      child: ProgressLoadingWidget(
+        progress: _loadingProgress,
+        message: _loadingStage,
+        details: _loadingProgress > 0.3 ? 'Może to potrwać kilka sekund...' : null,
+      ),
+    );
+  }
+
   Widget _buildHeader() {
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: AppTheme.gradientDecoration,
+      decoration: BoxDecoration(
+        gradient: isDarkTheme ? AppTheme.primaryGradient : AppTheme.goldGradient,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Zarządzanie Inwestycjami',
-                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                    color: AppTheme.textOnPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${_filteredInvestments.length} inwestycji${_hasMoreData ? ' (więcej dostępnych)' : ' (wszystkie)'}',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppTheme.textOnPrimary.withOpacity(0.8),
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(
+                        MdiIcons.chartLine,
+                        color: AppTheme.textOnPrimary,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Zarządzanie Inwestycjami',
+                            style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                              color: AppTheme.textOnPrimary,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${_filteredInvestments.length} inwestycji (wszystkie załadowane)',
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: AppTheme.textOnPrimary.withOpacity(0.85),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          if (_hasMoreData && !_isLoadingMore)
-            ElevatedButton.icon(
-              onPressed: _loadMoreInvestments,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Załaduj więcej'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.surfaceCard.withOpacity(0.9),
-                foregroundColor: AppTheme.primaryColor,
+          const SizedBox(width: 16),
+          Row(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.2),
+                    width: 1,
+                  ),
+                ),
+                child: IconButton(
+                  onPressed: _loadAllInvestments,
+                  icon: const Icon(Icons.refresh),
+                  color: AppTheme.textOnPrimary,
+                  tooltip: 'Odśwież dane',
+                ),
               ),
-            ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: () => _showInvestmentForm(),
-            icon: const Icon(Icons.add),
-            label: const Text('Nowa Inwestycja'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.surfaceCard,
-              foregroundColor: AppTheme.primaryColor,
-            ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: () => _showInvestmentForm(),
+                icon: const Icon(Icons.add, size: 20),
+                label: const Text(
+                  'Nowa Inwestycja',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: isDarkTheme ? AppTheme.primaryColor : AppTheme.secondaryGold,
+                  elevation: 4,
+                  shadowColor: Colors.black.withOpacity(0.3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -405,101 +449,192 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   }
 
   Widget _buildToolbar() {
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.grey[50],
+      color: isDarkTheme ? AppTheme.backgroundSecondary : Colors.grey[50],
       child: Row(
         children: [
           Expanded(
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Szukaj po kliencie, produkcie lub doradcy...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        onPressed: () {
-                          _searchController.clear();
-                          _filterInvestments();
-                        },
-                        icon: const Icon(Icons.clear),
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDarkTheme ? AppTheme.surfaceInteractive : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDarkTheme ? AppTheme.borderSecondary : Colors.grey.shade300,
+                  width: 1,
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDarkTheme ? 0.2 : 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                style: TextStyle(
+                  color: isDarkTheme ? AppTheme.textPrimary : Colors.black87,
+                  fontSize: 16,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Szukaj po kliencie, produkcie lub doradcy...',
+                  hintStyle: TextStyle(
+                    color: isDarkTheme ? AppTheme.textTertiary : Colors.grey[600],
+                    fontSize: 16,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: isDarkTheme ? AppTheme.textSecondary : Colors.grey[600],
+                  ),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            _filterInvestments();
+                          },
+                          icon: Icon(
+                            Icons.clear,
+                            color: isDarkTheme ? AppTheme.textSecondary : Colors.grey[600],
+                          ),
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                 ),
               ),
             ),
           ),
           const SizedBox(width: 16),
-          IconButton(
+          _buildToolbarButton(
             onPressed: _showFilterDialog,
-            icon: Badge(
-              isLabelVisible: _hasActiveFilters(),
-              child: const Icon(Icons.filter_list),
-            ),
+            icon: Icons.filter_list,
             tooltip: 'Filtry',
+            color: AppTheme.primaryColor,
+            hasNotification: _hasActiveFilters(),
           ),
           const SizedBox(width: 8),
-          IconButton(
+          _buildToolbarButton(
             onPressed: () => setState(() => _isGridView = !_isGridView),
-            icon: Icon(_isGridView ? Icons.table_rows : Icons.grid_view),
+            icon: _isGridView ? Icons.table_rows : Icons.grid_view,
             tooltip: _isGridView ? 'Widok tabeli' : 'Widok kafelków',
+            color: AppTheme.infoColor,
           ),
           const SizedBox(width: 8),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-                case 'export_excel':
-                  _exportToExcel();
-                  break;
-                case 'export_pdf':
-                  _exportToPdf();
-                  break;
-                case 'import':
-                  _showImportDialog();
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'export_excel',
-                child: Row(
-                  children: [
-                    Icon(Icons.file_download),
-                    SizedBox(width: 8),
-                    Text('Eksport do Excel'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'export_pdf',
-                child: Row(
-                  children: [
-                    Icon(Icons.picture_as_pdf),
-                    SizedBox(width: 8),
-                    Text('Eksport do PDF'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'import',
-                child: Row(
-                  children: [
-                    Icon(Icons.file_upload),
-                    SizedBox(width: 8),
-                    Text('Import z Excel'),
-                  ],
-                ),
-              ),
-            ],
-            child: const Icon(Icons.more_vert),
+          _buildToolbarPopupMenu(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolbarButton({
+    required VoidCallback onPressed,
+    required IconData icon,
+    required String tooltip,
+    required Color color,
+    bool hasNotification = false,
+  }) {
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: isDarkTheme 
+            ? color.withOpacity(0.15)
+            : color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDarkTheme 
+              ? color.withOpacity(0.3)
+              : color.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        icon: hasNotification 
+            ? Badge(
+                child: Icon(icon, color: color),
+              )
+            : Icon(icon, color: color),
+        tooltip: tooltip,
+      ),
+    );
+  }
+
+  Widget _buildToolbarPopupMenu() {
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: isDarkTheme 
+            ? AppTheme.warningColor.withOpacity(0.15)
+            : AppTheme.warningColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDarkTheme 
+              ? AppTheme.warningColor.withOpacity(0.3)
+              : AppTheme.warningColor.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: PopupMenuButton<String>(
+        onSelected: (value) {
+          switch (value) {
+            case 'export_excel':
+              _exportToExcel();
+              break;
+            case 'export_pdf':
+              _exportToPdf();
+              break;
+            case 'import':
+              _showImportDialog();
+              break;
+          }
+        },
+        itemBuilder: (context) => [
+          const PopupMenuItem(
+            value: 'export_excel',
+            child: Row(
+              children: [
+                Icon(Icons.file_download),
+                SizedBox(width: 8),
+                Text('Eksport do Excel'),
+              ],
+            ),
+          ),
+          const PopupMenuItem(
+            value: 'export_pdf',
+            child: Row(
+              children: [
+                Icon(Icons.picture_as_pdf),
+                SizedBox(width: 8),
+                Text('Eksport do PDF'),
+              ],
+            ),
+          ),
+          const PopupMenuItem(
+            value: 'import',
+            child: Row(
+              children: [
+                Icon(Icons.file_upload),
+                SizedBox(width: 8),
+                Text('Import z Excel'),
+              ],
+            ),
           ),
         ],
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Icon(
+            Icons.more_vert, 
+            color: AppTheme.warningColor,
+          ),
+        ),
       ),
     );
   }
@@ -515,14 +650,8 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
         ),
-        itemCount: _filteredInvestments.length + (_isLoadingMore ? 1 : 0),
+        itemCount: _filteredInvestments.length,
         itemBuilder: (context, index) {
-          if (index == _filteredInvestments.length) {
-            return const Card(
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-
           final investment = _filteredInvestments[index];
           return InvestmentCard(
             investment: investment,
@@ -536,143 +665,206 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   }
 
   Widget _buildTableView() {
-    return Column(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            child: DataTableWidget<Investment>(
-              items: _filteredInvestments,
-              columns: [
-                DataTableColumn<Investment>(
-                  label: 'Klient',
-                  value: (investment) => investment.clientName,
-                  sortable: true,
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: DataTableWidget<Investment>(
+        items: _filteredInvestments,
+        columns: [
+          DataTableColumn<Investment>(
+            label: 'Klient',
+            value: (investment) => investment.clientName,
+            sortable: true,
+          ),
+          DataTableColumn<Investment>(
+            label: 'Produkt',
+            value: (investment) => investment.productName,
+            sortable: true,
+          ),
+          DataTableColumn<Investment>(
+            label: 'Typ',
+            value: (investment) => investment.productType.displayName,
+            sortable: true,
+            width: 120,
+          ),
+          DataTableColumn<Investment>(
+            label: 'Kwota',
+            value: (investment) =>
+                _formatCurrency(investment.investmentAmount),
+            sortable: true,
+            numeric: true,
+            width: 140,
+          ),
+          DataTableColumn<Investment>(
+            label: 'Status',
+            value: (investment) => investment.status.displayName,
+            sortable: true,
+            width: 120,
+            widget: (investment) => Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: AppTheme.getStatusColor(
+                  investment.status.name,
+                ).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                investment.status.displayName,
+                style: TextStyle(
+                  color: AppTheme.getStatusColor(investment.status.name),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                 ),
-                DataTableColumn<Investment>(
-                  label: 'Produkt',
-                  value: (investment) => investment.productName,
-                  sortable: true,
-                ),
-                DataTableColumn<Investment>(
-                  label: 'Typ',
-                  value: (investment) => investment.productType.displayName,
-                  sortable: true,
-                  width: 120,
-                ),
-                DataTableColumn<Investment>(
-                  label: 'Kwota',
-                  value: (investment) =>
-                      _formatCurrency(investment.investmentAmount),
-                  sortable: true,
-                  numeric: true,
-                  width: 140,
-                ),
-                DataTableColumn<Investment>(
-                  label: 'Status',
-                  value: (investment) => investment.status.displayName,
-                  sortable: true,
-                  width: 120,
-                  widget: (investment) => Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.getStatusColor(
-                        investment.status.name,
-                      ).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      investment.status.displayName,
-                      style: TextStyle(
-                        color: AppTheme.getStatusColor(investment.status.name),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-                DataTableColumn<Investment>(
-                  label: 'Data podpisania',
-                  value: (investment) => _formatDate(investment.signedDate),
-                  sortable: true,
-                  width: 120,
-                ),
-                DataTableColumn<Investment>(
-                  label: 'Doradca',
-                  value: (investment) => investment.employeeFullName,
-                  sortable: true,
-                  width: 150,
-                ),
-                DataTableColumn<Investment>(
-                  label: 'Oddział',
-                  value: (investment) => investment.branchCode,
-                  sortable: true,
-                  width: 80,
-                ),
-                DataTableColumn<Investment>(
-                  label: 'Akcje',
-                  value: (investment) => '',
-                  width: 120,
-                  widget: (investment) => Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        onPressed: () => _showInvestmentForm(investment),
-                        icon: const Icon(Icons.edit, size: 18),
-                        tooltip: 'Edytuj',
-                      ),
-                      IconButton(
-                        onPressed: () => _deleteInvestment(investment),
-                        icon: const Icon(Icons.delete, size: 18),
-                        tooltip: 'Usuń',
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              onRowTap: (investment) => _showInvestmentForm(investment),
+              ),
             ),
           ),
-        ),
-        if (_isLoadingMore)
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: CircularProgressIndicator(),
+          DataTableColumn<Investment>(
+            label: 'Data podpisania',
+            value: (investment) => _formatDate(investment.signedDate),
+            sortable: true,
+            width: 120,
           ),
-      ],
+          DataTableColumn<Investment>(
+            label: 'Doradca',
+            value: (investment) => investment.employeeFullName,
+            sortable: true,
+            width: 150,
+          ),
+          DataTableColumn<Investment>(
+            label: 'Oddział',
+            value: (investment) => investment.branchCode,
+            sortable: true,
+            width: 80,
+          ),
+          DataTableColumn<Investment>(
+            label: 'Akcje',
+            value: (investment) => '',
+            width: 120,
+            widget: (investment) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: () => _showInvestmentForm(investment),
+                  icon: const Icon(Icons.edit, size: 18),
+                  tooltip: 'Edytuj',
+                ),
+                IconButton(
+                  onPressed: () => _deleteInvestment(investment),
+                  icon: const Icon(Icons.delete, size: 18),
+                  tooltip: 'Usuń',
+                ),
+              ],
+            ),
+          ),
+        ],
+        onRowTap: (investment) => _showInvestmentForm(investment),
+      ),
     );
   }
 
   Widget _buildEmptyState() {
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+    
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(MdiIcons.chartLine, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'Brak inwestycji',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Dodaj pierwszą inwestycję, aby rozpocząć',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(color: Colors.grey[500]),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _showInvestmentForm(),
-            icon: const Icon(Icons.add),
-            label: const Text('Dodaj Inwestycję'),
-          ),
-        ],
+      child: Container(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: isDarkTheme 
+                    ? AppTheme.surfaceElevated
+                    : Colors.grey[100],
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isDarkTheme 
+                      ? AppTheme.borderPrimary
+                      : Colors.grey.shade300,
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                MdiIcons.chartLine, 
+                size: 64, 
+                color: isDarkTheme 
+                    ? AppTheme.textTertiary
+                    : Colors.grey[400],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Brak inwestycji',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: isDarkTheme 
+                    ? AppTheme.textSecondary
+                    : Colors.grey[600],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Nie znaleziono inwestycji spełniających kryteria wyszukiwania.\nSpróbuj zmienić filtry lub dodać pierwszą inwestycję.',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: isDarkTheme 
+                    ? AppTheme.textTertiary
+                    : Colors.grey[500],
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_hasActiveFilters()) ...[
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _selectedStatus = null;
+                        _selectedProductType = null;
+                        _selectedBranch = null;
+                        _selectedDateRange = null;
+                        _searchController.clear();
+                      });
+                      _filterInvestments();
+                    },
+                    icon: const Icon(Icons.clear_all),
+                    label: const Text('Wyczyść filtry'),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: isDarkTheme 
+                            ? AppTheme.borderPrimary
+                            : Colors.grey.shade400,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+                ElevatedButton.icon(
+                  onPressed: () => _showInvestmentForm(),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Dodaj Inwestycję'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDarkTheme 
+                        ? AppTheme.secondaryGold
+                        : AppTheme.primaryColor,
+                    foregroundColor: isDarkTheme 
+                        ? AppTheme.textOnSecondary
+                        : AppTheme.textOnPrimary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
