@@ -35,6 +35,7 @@ class _LoginScreenState extends State<LoginScreen>
   void initState() {
     super.initState();
     _initializeAnimations();
+    _loadSavedLoginData();
   }
 
   void _initializeAnimations() {
@@ -72,6 +73,22 @@ class _LoginScreenState extends State<LoginScreen>
     _scaleController.forward();
   }
 
+  // Load saved login data if available
+  Future<void> _loadSavedLoginData() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final savedData = await authProvider.getSavedLoginData();
+    
+    if (mounted) {
+      setState(() {
+        _rememberMe = savedData['rememberMe'] ?? false;
+        final lastEmail = savedData['lastEmail'];
+        if (lastEmail != null && _rememberMe) {
+          _emailController.text = lastEmail;
+        }
+      });
+    }
+  }
+
   @override
   void dispose() {
     _fadeController.dispose();
@@ -90,6 +107,7 @@ class _LoginScreenState extends State<LoginScreen>
     final success = await authProvider.signIn(
       _emailController.text.trim(),
       _passwordController.text,
+      rememberMe: _rememberMe,
     );
 
     if (success && mounted) {

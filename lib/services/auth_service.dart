@@ -1,10 +1,20 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'user_preferences_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  UserPreferencesService? _preferencesService;
+
+  AuthService() {
+    _initializePreferences();
+  }
+
+  Future<void> _initializePreferences() async {
+    _preferencesService = await UserPreferencesService.getInstance();
+  }
 
   // Current user stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -15,10 +25,27 @@ class AuthService {
   // Check if user is logged in
   bool get isLoggedIn => _auth.currentUser != null;
 
+  // Check if auto login should be performed
+  Future<bool> shouldAutoLogin() async {
+    if (_preferencesService == null) {
+      _preferencesService = await UserPreferencesService.getInstance();
+    }
+    return _preferencesService!.shouldAutoLogin() && isLoggedIn;
+  }
+
+  // Get last saved email for convenience
+  Future<String?> getLastSavedEmail() async {
+    if (_preferencesService == null) {
+      _preferencesService = await UserPreferencesService.getInstance();
+    }
+    return _preferencesService!.getLastEmail();
+  }
+
   // Sign in with email and password
   Future<AuthResult> signIn({
     required String email,
     required String password,
+    bool rememberMe = false,
   }) async {
     try {
       final UserCredential result = await _auth.signInWithEmailAndPassword(
@@ -29,6 +56,16 @@ class AuthService {
       if (result.user != null) {
         // Update last login time
         await _updateUserLastLogin(result.user!.uid);
+        
+        // Save login preferences if remember me is enabled
+        if (_preferencesService == null) {
+          _preferencesService = await UserPreferencesService.getInstance();
+        }
+        await _preferencesService!.saveLoginPreferences(
+          rememberMe: rememberMe,
+          email: email.trim(),
+        );
+        
         return AuthResult.success(result.user!);
       } else {
         return AuthResult.error('Nie udało się zalogować');
@@ -96,9 +133,18 @@ class AuthService {
   }
 
   // Sign out
-  Future<void> signOut() async {
+  Future<void> signOut({bool clearRememberMe = false}) async {
     try {
       await _auth.signOut();
+      
+      // Clear auth preferences if requested or if remember me is disabled
+      if (_preferencesService == null) {
+        _preferencesService = await UserPreferencesService.getInstance();
+      }
+      
+      if (clearRememberMe || !_preferencesService!.getRememberMe()) {
+        await _preferencesService!.clearAuthPreferences();
+      }
     } catch (e) {
       if (kDebugMode) {
         print('Error signing out: $e');

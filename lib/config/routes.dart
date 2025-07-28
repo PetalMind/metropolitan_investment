@@ -38,9 +38,10 @@ class AppRouter {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final isAuthenticated = authProvider.isLoggedIn;
       final isLoading = authProvider.isLoading;
+      final isInitializing = authProvider.isInitializing;
 
-      // Jeśli ładuje się auth, nie przekierowuj
-      if (isLoading) return null;
+      // Jeśli ładuje się auth lub inicjalizuje, nie przekierowuj
+      if (isLoading || isInitializing) return null;
 
       // Publiczne ścieżki dostępne bez logowania
       final publicPaths = [AppRoutes.login, AppRoutes.register];
@@ -425,30 +426,57 @@ class _MainScreenLayoutState extends State<MainScreenLayout> {
   }
 
   void _handleLogout(BuildContext context, AuthProvider authProvider) {
+    bool clearRememberMe = false;
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Wylogowanie'),
-        content: const Text('Czy na pewno chcesz się wylogować?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Anuluj'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Wylogowanie'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Czy na pewno chcesz się wylogować?'),
+              const SizedBox(height: 16),
+              CheckboxListTile(
+                value: clearRememberMe,
+                onChanged: (value) {
+                  setState(() {
+                    clearRememberMe = value ?? false;
+                  });
+                },
+                title: const Text(
+                  'Wyczyść zapisane dane logowania',
+                  style: TextStyle(fontSize: 14),
+                ),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await authProvider.signOut();
-              if (context.mounted) {
-                context.go(AppRoutes.login);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorColor,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Anuluj'),
             ),
-            child: const Text('Wyloguj'),
-          ),
-        ],
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await authProvider.signOut(clearRememberMe: clearRememberMe);
+                if (context.mounted) {
+                  // Force navigate to login and clear navigation stack
+                  context.go(AppRoutes.login);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.errorColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Wyloguj'),
+            ),
+          ],
+        ),
       ),
     );
   }

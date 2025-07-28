@@ -1,19 +1,23 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import '../services/user_preferences_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
-
+  
   User? _user;
   UserProfile? _userProfile;
   bool _isLoading = false;
+  bool _isInitializing = true;
   String? _error;
+  UserPreferencesService? _preferencesService;
 
   // Getters
   User? get user => _user;
   UserProfile? get userProfile => _userProfile;
   bool get isLoading => _isLoading;
+  bool get isInitializing => _isInitializing;
   String? get error => _error;
   bool get isLoggedIn => _user != null;
 
@@ -21,20 +25,52 @@ class AuthProvider extends ChangeNotifier {
     _initializeAuth();
   }
 
-  void _initializeAuth() {
-    _authService.authStateChanges.listen((User? user) async {
-      _user = user;
-      if (user != null) {
-        _userProfile = await _authService.getUserProfile(user.uid);
-      } else {
-        _userProfile = null;
+  void _initializeAuth() async {
+    _setInitializing(true);
+    
+    try {
+      // Initialize preferences service
+      _preferencesService = await UserPreferencesService.getInstance();
+      
+      // Listen to auth state changes
+      _authService.authStateChanges.listen((User? user) async {
+        _user = user;
+        if (user != null) {
+          _userProfile = await _authService.getUserProfile(user.uid);
+          
+          // Update last login timestamp if user is signing in
+          if (_preferencesService != null) {
+            await _preferencesService!.setLastLoginTimestamp(DateTime.now());
+          }
+        } else {
+          _userProfile = null;
+        }
+        _setInitializing(false);
+        notifyListeners();
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error initializing auth: $e');
       }
-      notifyListeners();
-    });
+      _setInitializing(false);
+    }
+  }
+
+  // Get saved login data for auto-filling forms
+  Future<Map<String, dynamic>> getSavedLoginData() async {
+    if (_preferencesService == null) {
+      _preferencesService = await UserPreferencesService.getInstance();
+    }
+    return _preferencesService!.getSavedLoginData();
+  }
+
+  // Check if should perform auto login
+  Future<bool> shouldAutoLogin() async {
+    return await _authService.shouldAutoLogin();
   }
 
   // Sign in
-  Future<bool> signIn(String email, String password) async {
+  Future<bool> signIn(String email, String password, {bool rememberMe = false}) async {
     _setLoading(true);
     _clearError();
 
@@ -42,6 +78,7 @@ class AuthProvider extends ChangeNotifier {
       final result = await _authService.signIn(
         email: email,
         password: password,
+        rememberMe: rememberMe,
       );
 
       if (result.isSuccess) {
@@ -128,11 +165,11 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Sign out
-  Future<void> signOut() async {
+  Future<void> signOut({bool clearRememberMe = false}) async {
     _setLoading(true);
 
     try {
-      await _authService.signOut();
+      await _authService.signOut(clearRememberMe: clearRememberMe);
       _user = null;
       _userProfile = null;
     } catch (e) {
@@ -181,6 +218,11 @@ class AuthProvider extends ChangeNotifier {
   // Private methods
   void _setLoading(bool loading) {
     _isLoading = loading;
+    notifyListeners();
+  }
+
+  void _setInitializing(bool initializing) {
+    _isInitializing = initializing;
     notifyListeners();
   }
 
