@@ -675,7 +675,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   }
 
   Widget _buildTableView() {
-    return Padding(
+    return Container(
       padding: const EdgeInsets.all(16),
       child: DataTableWidget<Investment>(
         items: _filteredInvestments,

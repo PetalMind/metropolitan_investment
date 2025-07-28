@@ -140,6 +140,29 @@ class _InvestmentFormState extends State<InvestmentForm> {
         setState(() {
           _products = products;
           _filterProducts();
+
+          // Jeśli edytujemy inwestycję, znajdź produktId po nazwie
+          if (widget.investment != null && _selectedProductId == null) {
+            final product = _products.firstWhere(
+              (p) => p.name == widget.investment!.productName,
+              orElse: () => _products.isNotEmpty
+                  ? _products.first
+                  : Product(
+                      id: '',
+                      name: '',
+                      type: ProductType.bonds,
+                      companyId: '',
+                      companyName: '',
+                      currency: 'PLN',
+                      createdAt: DateTime.now(),
+                      updatedAt: DateTime.now(),
+                      isActive: false,
+                    ),
+            );
+            if (product.id.isNotEmpty) {
+              _selectedProductId = product.id;
+            }
+          }
         });
       });
 
@@ -328,7 +351,9 @@ class _InvestmentFormState extends State<InvestmentForm> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _selectedClientId,
+                  value: _clients.any((c) => c.id == _selectedClientId)
+                      ? _selectedClientId
+                      : null,
                   decoration: const InputDecoration(labelText: 'Klient *'),
                   items: _clients
                       .map(
@@ -347,7 +372,9 @@ class _InvestmentFormState extends State<InvestmentForm> {
               const SizedBox(width: 16),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _selectedEmployeeId,
+                  value: _employees.any((e) => e.id == _selectedEmployeeId)
+                      ? _selectedEmployeeId
+                      : null,
                   decoration: const InputDecoration(labelText: 'Doradca *'),
                   items: _employees
                       .map(
@@ -394,7 +421,10 @@ class _InvestmentFormState extends State<InvestmentForm> {
               const SizedBox(width: 16),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _selectedProductId,
+                  value:
+                      _filteredProducts.any((p) => p.id == _selectedProductId)
+                      ? _selectedProductId
+                      : null,
                   decoration: const InputDecoration(labelText: 'Produkt *'),
                   items: _filteredProducts
                       .map(

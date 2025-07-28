@@ -44,6 +44,15 @@ class _DataTableWidgetState<T> extends State<DataTableWidget<T>> {
   bool _sortAscending = true;
   List<T> _sortedItems = [];
   final Set<T> _selectedItems = {};
+  final ScrollController _verticalScrollController = ScrollController();
+  final ScrollController _horizontalScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _verticalScrollController.dispose();
+    _horizontalScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -91,17 +100,6 @@ class _DataTableWidgetState<T> extends State<DataTableWidget<T>> {
     });
   }
 
-  void _onSelectAll(bool? selected) {
-    setState(() {
-      if (selected == true) {
-        _selectedItems.addAll(_sortedItems);
-      } else {
-        _selectedItems.clear();
-      }
-    });
-    widget.onSelectionChanged?.call(_selectedItems.toList());
-  }
-
   void _onSelectItem(T item, bool? selected) {
     setState(() {
       if (selected == true) {
@@ -137,128 +135,135 @@ class _DataTableWidgetState<T> extends State<DataTableWidget<T>> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minWidth: MediaQuery.of(context).size.width - 32,
-            ),
-            child: Theme(
-              data: Theme.of(context).copyWith(
-                dataTableTheme: DataTableThemeData(
-                  headingRowColor: MaterialStateProperty.all(
-                    isDarkTheme
-                        ? AppTheme.surfaceElevated
-                        : AppTheme.primaryColor.withOpacity(0.05),
-                  ),
-                  dataRowMinHeight: 60,
-                  dataRowMaxHeight: 60,
-                  headingRowHeight: 56,
-                  horizontalMargin: 16,
-                  columnSpacing: 24,
-                  headingTextStyle: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isDarkTheme
-                        ? AppTheme.secondaryGold
-                        : AppTheme.primaryColor,
-                    letterSpacing: 0.2,
-                  ),
-                  dataTextStyle: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: isDarkTheme ? AppTheme.textPrimary : Colors.black87,
-                    letterSpacing: 0.1,
+          controller: _verticalScrollController,
+          scrollDirection: Axis.vertical,
+          child: SingleChildScrollView(
+            controller: _horizontalScrollController,
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: MediaQuery.of(context).size.width - 32,
+              ),
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  dataTableTheme: DataTableThemeData(
+                    headingRowColor: MaterialStateProperty.all(
+                      isDarkTheme
+                          ? AppTheme.surfaceElevated
+                          : AppTheme.primaryColor.withOpacity(0.05),
+                    ),
+                    dataRowMinHeight: 60,
+                    dataRowMaxHeight: 60,
+                    headingRowHeight: 56,
+                    horizontalMargin: 16,
+                    columnSpacing: 24,
+                    headingTextStyle: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isDarkTheme
+                          ? AppTheme.secondaryGold
+                          : AppTheme.primaryColor,
+                      letterSpacing: 0.2,
+                    ),
+                    dataTextStyle: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: isDarkTheme
+                          ? AppTheme.textPrimary
+                          : Colors.black87,
+                      letterSpacing: 0.1,
+                    ),
                   ),
                 ),
-              ),
-              child: DataTable(
-                sortColumnIndex: _sortColumnIndex,
-                sortAscending: _sortAscending,
-                showCheckboxColumn: widget.showCheckboxColumn,
-                columns: widget.columns.map((column) {
-                  return DataColumn(
-                    label: SizedBox(
-                      width: column.width,
-                      child: Text(
-                        column.label,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isDarkTheme
-                              ? AppTheme.secondaryGold
-                              : AppTheme.primaryColor,
-                          letterSpacing: 0.2,
+                child: DataTable(
+                  sortColumnIndex: _sortColumnIndex,
+                  sortAscending: _sortAscending,
+                  showCheckboxColumn: widget.showCheckboxColumn,
+                  columns: widget.columns.map((column) {
+                    return DataColumn(
+                      label: SizedBox(
+                        width: column.width,
+                        child: Text(
+                          column.label,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: isDarkTheme
+                                ? AppTheme.secondaryGold
+                                : AppTheme.primaryColor,
+                            letterSpacing: 0.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    onSort: column.sortable
-                        ? (columnIndex, ascending) {
-                            _sortItems(columnIndex, ascending);
-                          }
-                        : null,
-                    numeric: column.numeric,
-                  );
-                }).toList(),
-                rows: _sortedItems.map((item) {
-                  final index = _sortedItems.indexOf(item);
-                  final isSelected = _selectedItems.contains(item);
+                      onSort: column.sortable
+                          ? (columnIndex, ascending) {
+                              _sortItems(columnIndex, ascending);
+                            }
+                          : null,
+                      numeric: column.numeric,
+                    );
+                  }).toList(),
+                  rows: _sortedItems.map((item) {
+                    final index = _sortedItems.indexOf(item);
+                    final isSelected = _selectedItems.contains(item);
 
-                  return DataRow(
-                    selected: isSelected,
-                    onSelectChanged: widget.showCheckboxColumn
-                        ? (selected) => _onSelectItem(item, selected)
-                        : null,
-                    cells: widget.columns.map((column) {
-                      return DataCell(
-                        SizedBox(
-                          width: column.width,
-                          child: column.widget != null
-                              ? column.widget!(item)
-                              : Text(
-                                  column.value(item),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w400,
-                                    color: isDarkTheme
-                                        ? AppTheme.textPrimary
-                                        : Colors.black87,
-                                    letterSpacing: 0.1,
+                    return DataRow(
+                      selected: isSelected,
+                      onSelectChanged: widget.showCheckboxColumn
+                          ? (selected) => _onSelectItem(item, selected)
+                          : null,
+                      cells: widget.columns.map((column) {
+                        return DataCell(
+                          SizedBox(
+                            width: column.width,
+                            child: column.widget != null
+                                ? column.widget!(item)
+                                : Text(
+                                    column.value(item),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w400,
+                                      color: isDarkTheme
+                                          ? AppTheme.textPrimary
+                                          : Colors.black87,
+                                      letterSpacing: 0.1,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                        ),
-                        onTap: widget.onRowTap != null
-                            ? () => widget.onRowTap!(item)
-                            : null,
-                      );
-                    }).toList(),
-                    color: MaterialStateProperty.resolveWith((states) {
-                      if (states.contains(MaterialState.hovered)) {
-                        return isDarkTheme
-                            ? AppTheme.secondaryGold.withOpacity(0.08)
-                            : AppTheme.primaryColor.withOpacity(0.08);
-                      }
-                      if (states.contains(MaterialState.selected)) {
-                        return isDarkTheme
-                            ? AppTheme.secondaryGold.withOpacity(0.15)
-                            : AppTheme.primaryColor.withOpacity(0.12);
-                      }
-                      // Naprzemienne kolorowanie wierszy dla ciemnego motywu
-                      if (isDarkTheme) {
-                        return index.isEven
-                            ? AppTheme.surfaceContainer.withOpacity(0.5)
-                            : Colors.transparent;
-                      } else {
-                        return index.isEven
-                            ? Colors.grey[50]?.withOpacity(0.3)
-                            : Colors.transparent;
-                      }
-                    }),
-                  );
-                }).toList(),
+                          ),
+                          onTap: widget.onRowTap != null
+                              ? () => widget.onRowTap!(item)
+                              : null,
+                        );
+                      }).toList(),
+                      color: MaterialStateProperty.resolveWith((states) {
+                        if (states.contains(MaterialState.hovered)) {
+                          return isDarkTheme
+                              ? AppTheme.secondaryGold.withOpacity(0.08)
+                              : AppTheme.primaryColor.withOpacity(0.08);
+                        }
+                        if (states.contains(MaterialState.selected)) {
+                          return isDarkTheme
+                              ? AppTheme.secondaryGold.withOpacity(0.15)
+                              : AppTheme.primaryColor.withOpacity(0.12);
+                        }
+                        // Naprzemienne kolorowanie wierszy dla ciemnego motywu
+                        if (isDarkTheme) {
+                          return index.isEven
+                              ? AppTheme.surfaceContainer.withOpacity(0.5)
+                              : Colors.transparent;
+                        } else {
+                          return index.isEven
+                              ? Colors.grey[50]?.withOpacity(0.3)
+                              : Colors.transparent;
+                        }
+                      }),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
           ),
