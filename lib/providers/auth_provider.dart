@@ -5,7 +5,7 @@ import '../services/user_preferences_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
-  
+
   User? _user;
   UserProfile? _userProfile;
   bool _isLoading = false;
@@ -27,17 +27,17 @@ class AuthProvider extends ChangeNotifier {
 
   void _initializeAuth() async {
     _setInitializing(true);
-    
+
     try {
       // Initialize preferences service
       _preferencesService = await UserPreferencesService.getInstance();
-      
+
       // Listen to auth state changes
       _authService.authStateChanges.listen((User? user) async {
         _user = user;
         if (user != null) {
           _userProfile = await _authService.getUserProfile(user.uid);
-          
+
           // Update last login timestamp if user is signing in
           if (_preferencesService != null) {
             await _preferencesService!.setLastLoginTimestamp(DateTime.now());
@@ -70,7 +70,11 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Sign in
-  Future<bool> signIn(String email, String password, {bool rememberMe = false}) async {
+  Future<bool> signIn(
+    String email,
+    String password, {
+    bool rememberMe = false,
+  }) async {
     _setLoading(true);
     _clearError();
 

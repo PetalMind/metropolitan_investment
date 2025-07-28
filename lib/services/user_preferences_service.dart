@@ -156,7 +156,8 @@ class UserPreferencesService {
 
   int getSessionTimeout() {
     try {
-      return _preferences?.getInt(_sessionTimeoutKey) ?? (30 * 24 * 60); // 30 days
+      return _preferences?.getInt(_sessionTimeoutKey) ??
+          (30 * 24 * 60); // 30 days
     } catch (e) {
       if (kDebugMode) {
         print('Error getting session timeout: $e');
@@ -172,7 +173,7 @@ class UserPreferencesService {
 
     final sessionTimeout = getSessionTimeout();
     final expiryTime = lastLogin.add(Duration(minutes: sessionTimeout));
-    
+
     return DateTime.now().isAfter(expiryTime);
   }
 

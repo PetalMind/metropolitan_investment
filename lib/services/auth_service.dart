@@ -56,7 +56,7 @@ class AuthService {
       if (result.user != null) {
         // Update last login time
         await _updateUserLastLogin(result.user!.uid);
-        
+
         // Save login preferences if remember me is enabled
         if (_preferencesService == null) {
           _preferencesService = await UserPreferencesService.getInstance();
@@ -65,7 +65,7 @@ class AuthService {
           rememberMe: rememberMe,
           email: email.trim(),
         );
-        
+
         return AuthResult.success(result.user!);
       } else {
         return AuthResult.error('Nie udało się zalogować');
@@ -136,12 +136,12 @@ class AuthService {
   Future<void> signOut({bool clearRememberMe = false}) async {
     try {
       await _auth.signOut();
-      
+
       // Clear auth preferences if requested or if remember me is disabled
       if (_preferencesService == null) {
         _preferencesService = await UserPreferencesService.getInstance();
       }
-      
+
       if (clearRememberMe || !_preferencesService!.getRememberMe()) {
         await _preferencesService!.clearAuthPreferences();
       }

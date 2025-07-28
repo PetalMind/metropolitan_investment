@@ -77,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _loadSavedLoginData() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final savedData = await authProvider.getSavedLoginData();
-    
+
     if (mounted) {
       setState(() {
         _rememberMe = savedData['rememberMe'] ?? false;

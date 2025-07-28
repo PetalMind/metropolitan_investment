@@ -427,7 +427,7 @@ class _MainScreenLayoutState extends State<MainScreenLayout> {
 
   void _handleLogout(BuildContext context, AuthProvider authProvider) {
     bool clearRememberMe = false;
-    
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
