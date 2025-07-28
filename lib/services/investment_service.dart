@@ -81,9 +81,12 @@ class InvestmentService extends BaseService {
       await Future.delayed(const Duration(milliseconds: 300));
 
       onProgress(0.2, 'Pobieranie liczby rekordów...');
-      final countSnapshot = await firestore.collection(_collection).count().get();
+      final countSnapshot = await firestore
+          .collection(_collection)
+          .count()
+          .get();
       final totalCount = countSnapshot.count ?? 0;
-      
+
       onProgress(0.3, 'Rozpoczynanie pobierania danych...');
       await Future.delayed(const Duration(milliseconds: 200));
 
@@ -103,7 +106,7 @@ class InvestmentService extends BaseService {
         }
 
         final snapshot = await query.get();
-        
+
         if (snapshot.docs.isEmpty) break;
 
         // Process batch
@@ -116,15 +119,15 @@ class InvestmentService extends BaseService {
           final progress = 0.3 + (processedCount / totalCount) * 0.6;
           if (processedCount % 50 == 0) {
             onProgress(
-              progress, 
-              'Przetwarzanie danych: $processedCount/$totalCount inwestycji'
+              progress,
+              'Przetwarzanie danych: $processedCount/$totalCount inwestycji',
             );
             await Future.delayed(const Duration(milliseconds: 10));
           }
         }
 
         lastDoc = snapshot.docs.last;
-        
+
         if (snapshot.docs.length < batchSize) break;
       }
 
@@ -133,7 +136,6 @@ class InvestmentService extends BaseService {
 
       onProgress(1.0, 'Gotowe!');
       return allInvestments;
-      
     } catch (e) {
       logError('loadAllInvestmentsWithProgress', e);
       throw Exception('Błąd podczas ładowania inwestycji: $e');

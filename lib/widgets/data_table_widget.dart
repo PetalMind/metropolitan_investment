@@ -116,7 +116,7 @@ class _DataTableWidgetState<T> extends State<DataTableWidget<T>> {
   @override
   Widget build(BuildContext context) {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       decoration: BoxDecoration(
         color: isDarkTheme ? AppTheme.surfaceCard : Colors.white,
@@ -146,7 +146,7 @@ class _DataTableWidgetState<T> extends State<DataTableWidget<T>> {
               data: Theme.of(context).copyWith(
                 dataTableTheme: DataTableThemeData(
                   headingRowColor: MaterialStateProperty.all(
-                    isDarkTheme 
+                    isDarkTheme
                         ? AppTheme.surfaceElevated
                         : AppTheme.primaryColor.withOpacity(0.05),
                   ),
@@ -158,7 +158,9 @@ class _DataTableWidgetState<T> extends State<DataTableWidget<T>> {
                   headingTextStyle: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: isDarkTheme ? AppTheme.secondaryGold : AppTheme.primaryColor,
+                    color: isDarkTheme
+                        ? AppTheme.secondaryGold
+                        : AppTheme.primaryColor,
                     letterSpacing: 0.2,
                   ),
                   dataTextStyle: TextStyle(
@@ -182,7 +184,9 @@ class _DataTableWidgetState<T> extends State<DataTableWidget<T>> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: isDarkTheme ? AppTheme.secondaryGold : AppTheme.primaryColor,
+                          color: isDarkTheme
+                              ? AppTheme.secondaryGold
+                              : AppTheme.primaryColor,
                           letterSpacing: 0.2,
                         ),
                         maxLines: 1,
@@ -217,7 +221,9 @@ class _DataTableWidgetState<T> extends State<DataTableWidget<T>> {
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w400,
-                                    color: isDarkTheme ? AppTheme.textPrimary : Colors.black87,
+                                    color: isDarkTheme
+                                        ? AppTheme.textPrimary
+                                        : Colors.black87,
                                     letterSpacing: 0.1,
                                   ),
                                   maxLines: 2,
@@ -231,12 +237,12 @@ class _DataTableWidgetState<T> extends State<DataTableWidget<T>> {
                     }).toList(),
                     color: MaterialStateProperty.resolveWith((states) {
                       if (states.contains(MaterialState.hovered)) {
-                        return isDarkTheme 
+                        return isDarkTheme
                             ? AppTheme.secondaryGold.withOpacity(0.08)
                             : AppTheme.primaryColor.withOpacity(0.08);
                       }
                       if (states.contains(MaterialState.selected)) {
-                        return isDarkTheme 
+                        return isDarkTheme
                             ? AppTheme.secondaryGold.withOpacity(0.15)
                             : AppTheme.primaryColor.withOpacity(0.12);
                       }

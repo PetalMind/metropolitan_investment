@@ -65,16 +65,17 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
         _loadingStage = 'Inicjalizacja...';
       });
 
-      final investments = await _investmentService.loadAllInvestmentsWithProgress(
-        onProgress: (progress, stage) {
-          if (mounted) {
-            setState(() {
-              _loadingProgress = progress;
-              _loadingStage = stage;
-            });
-          }
-        },
-      );
+      final investments = await _investmentService
+          .loadAllInvestmentsWithProgress(
+            onProgress: (progress, stage) {
+              if (mounted) {
+                setState(() {
+                  _loadingProgress = progress;
+                  _loadingStage = stage;
+                });
+              }
+            },
+          );
 
       setState(() {
         _allInvestments = investments;
@@ -299,7 +300,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       backgroundColor: isDarkTheme ? AppTheme.backgroundPrimary : null,
       body: Column(
@@ -325,18 +326,22 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       child: ProgressLoadingWidget(
         progress: _loadingProgress,
         message: _loadingStage,
-        details: _loadingProgress > 0.3 ? 'Może to potrwać kilka sekund...' : null,
+        details: _loadingProgress > 0.3
+            ? 'Może to potrwać kilka sekund...'
+            : null,
       ),
     );
   }
 
   Widget _buildHeader() {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: isDarkTheme ? AppTheme.primaryGradient : AppTheme.goldGradient,
+        gradient: isDarkTheme
+            ? AppTheme.primaryGradient
+            : AppTheme.goldGradient,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
@@ -376,21 +381,25 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                         children: [
                           Text(
                             'Zarządzanie Inwestycjami',
-                            style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                              color: AppTheme.textOnPrimary,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.5,
-                            ),
+                            style: Theme.of(context).textTheme.displayMedium
+                                ?.copyWith(
+                                  color: AppTheme.textOnPrimary,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.5,
+                                ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '${_filteredInvestments.length} inwestycji (wszystkie załadowane)',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: AppTheme.textOnPrimary.withOpacity(0.85),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(
+                                  color: AppTheme.textOnPrimary.withOpacity(
+                                    0.85,
+                                  ),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
                           ),
                         ],
                       ),
@@ -425,20 +434,22 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                 icon: const Icon(Icons.add, size: 20),
                 label: const Text(
                   'Nowa Inwestycja',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
-                  foregroundColor: isDarkTheme ? AppTheme.primaryColor : AppTheme.secondaryGold,
+                  foregroundColor: isDarkTheme
+                      ? AppTheme.primaryColor
+                      : AppTheme.secondaryGold,
                   elevation: 4,
                   shadowColor: Colors.black.withOpacity(0.3),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
                 ),
               ),
             ],
@@ -450,7 +461,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
 
   Widget _buildToolbar() {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       color: isDarkTheme ? AppTheme.backgroundSecondary : Colors.grey[50],
@@ -462,7 +473,9 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                 color: isDarkTheme ? AppTheme.surfaceInteractive : Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isDarkTheme ? AppTheme.borderSecondary : Colors.grey.shade300,
+                  color: isDarkTheme
+                      ? AppTheme.borderSecondary
+                      : Colors.grey.shade300,
                   width: 1,
                 ),
                 boxShadow: [
@@ -482,12 +495,16 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                 decoration: InputDecoration(
                   hintText: 'Szukaj po kliencie, produkcie lub doradcy...',
                   hintStyle: TextStyle(
-                    color: isDarkTheme ? AppTheme.textTertiary : Colors.grey[600],
+                    color: isDarkTheme
+                        ? AppTheme.textTertiary
+                        : Colors.grey[600],
                     fontSize: 16,
                   ),
                   prefixIcon: Icon(
                     Icons.search,
-                    color: isDarkTheme ? AppTheme.textSecondary : Colors.grey[600],
+                    color: isDarkTheme
+                        ? AppTheme.textSecondary
+                        : Colors.grey[600],
                   ),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
@@ -497,7 +514,9 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                           },
                           icon: Icon(
                             Icons.clear,
-                            color: isDarkTheme ? AppTheme.textSecondary : Colors.grey[600],
+                            color: isDarkTheme
+                                ? AppTheme.textSecondary
+                                : Colors.grey[600],
                           ),
                         )
                       : null,
@@ -540,26 +559,20 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     bool hasNotification = false,
   }) {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       decoration: BoxDecoration(
-        color: isDarkTheme 
-            ? color.withOpacity(0.15)
-            : color.withOpacity(0.1),
+        color: isDarkTheme ? color.withOpacity(0.15) : color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDarkTheme 
-              ? color.withOpacity(0.3)
-              : color.withOpacity(0.2),
+          color: isDarkTheme ? color.withOpacity(0.3) : color.withOpacity(0.2),
           width: 1,
         ),
       ),
       child: IconButton(
         onPressed: onPressed,
-        icon: hasNotification 
-            ? Badge(
-                child: Icon(icon, color: color),
-              )
+        icon: hasNotification
+            ? Badge(child: Icon(icon, color: color))
             : Icon(icon, color: color),
         tooltip: tooltip,
       ),
@@ -568,15 +581,15 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
 
   Widget _buildToolbarPopupMenu() {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       decoration: BoxDecoration(
-        color: isDarkTheme 
+        color: isDarkTheme
             ? AppTheme.warningColor.withOpacity(0.15)
             : AppTheme.warningColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDarkTheme 
+          color: isDarkTheme
               ? AppTheme.warningColor.withOpacity(0.3)
               : AppTheme.warningColor.withOpacity(0.2),
           width: 1,
@@ -630,10 +643,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
         ],
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Icon(
-            Icons.more_vert, 
-            color: AppTheme.warningColor,
-          ),
+          child: Icon(Icons.more_vert, color: AppTheme.warningColor),
         ),
       ),
     );
@@ -688,8 +698,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
           ),
           DataTableColumn<Investment>(
             label: 'Kwota',
-            value: (investment) =>
-                _formatCurrency(investment.investmentAmount),
+            value: (investment) => _formatCurrency(investment.investmentAmount),
             sortable: true,
             numeric: true,
             width: 140,
@@ -700,10 +709,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             sortable: true,
             width: 120,
             widget: (investment) => Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 4,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: AppTheme.getStatusColor(
                   investment.status.name,
@@ -766,7 +772,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
 
   Widget _buildEmptyState() {
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Center(
       child: Container(
         padding: const EdgeInsets.all(32),
@@ -776,32 +782,28 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: isDarkTheme 
+                color: isDarkTheme
                     ? AppTheme.surfaceElevated
                     : Colors.grey[100],
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isDarkTheme 
+                  color: isDarkTheme
                       ? AppTheme.borderPrimary
                       : Colors.grey.shade300,
                   width: 2,
                 ),
               ),
               child: Icon(
-                MdiIcons.chartLine, 
-                size: 64, 
-                color: isDarkTheme 
-                    ? AppTheme.textTertiary
-                    : Colors.grey[400],
+                MdiIcons.chartLine,
+                size: 64,
+                color: isDarkTheme ? AppTheme.textTertiary : Colors.grey[400],
               ),
             ),
             const SizedBox(height: 24),
             Text(
               'Brak inwestycji',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: isDarkTheme 
-                    ? AppTheme.textSecondary
-                    : Colors.grey[600],
+                color: isDarkTheme ? AppTheme.textSecondary : Colors.grey[600],
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -809,9 +811,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             Text(
               'Nie znaleziono inwestycji spełniających kryteria wyszukiwania.\nSpróbuj zmienić filtry lub dodać pierwszą inwestycję.',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: isDarkTheme 
-                    ? AppTheme.textTertiary
-                    : Colors.grey[500],
+                color: isDarkTheme ? AppTheme.textTertiary : Colors.grey[500],
                 height: 1.5,
               ),
               textAlign: TextAlign.center,
@@ -836,7 +836,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                     label: const Text('Wyczyść filtry'),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(
-                        color: isDarkTheme 
+                        color: isDarkTheme
                             ? AppTheme.borderPrimary
                             : Colors.grey.shade400,
                       ),
@@ -849,10 +849,10 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                   icon: const Icon(Icons.add),
                   label: const Text('Dodaj Inwestycję'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isDarkTheme 
+                    backgroundColor: isDarkTheme
                         ? AppTheme.secondaryGold
                         : AppTheme.primaryColor,
-                    foregroundColor: isDarkTheme 
+                    foregroundColor: isDarkTheme
                         ? AppTheme.textOnSecondary
                         : AppTheme.textOnPrimary,
                     padding: const EdgeInsets.symmetric(

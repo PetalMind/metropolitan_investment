@@ -30,7 +30,7 @@ class _CustomLoadingWidgetState extends State<CustomLoadingWidget>
   @override
   void initState() {
     super.initState();
-    
+
     _rotationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -41,21 +41,13 @@ class _CustomLoadingWidgetState extends State<CustomLoadingWidget>
       vsync: this,
     )..repeat(reverse: true);
 
-    _rotationAnimation = Tween<double>(
-      begin: 0,
-      end: 2 * math.pi,
-    ).animate(CurvedAnimation(
-      parent: _rotationController,
-      curve: Curves.linear,
-    ));
+    _rotationAnimation = Tween<double>(begin: 0, end: 2 * math.pi).animate(
+      CurvedAnimation(parent: _rotationController, curve: Curves.linear),
+    );
 
-    _pulseAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.2,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
+    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -68,7 +60,7 @@ class _CustomLoadingWidgetState extends State<CustomLoadingWidget>
   @override
   Widget build(BuildContext context) {
     final primaryColor = widget.color ?? AppTheme.secondaryGold;
-    
+
     return Container(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -97,7 +89,7 @@ class _CustomLoadingWidgetState extends State<CustomLoadingWidget>
                   );
                 },
               ),
-              
+
               // Main loading indicator
               AnimatedBuilder(
                 animation: _rotationAnimation,
@@ -109,7 +101,9 @@ class _CustomLoadingWidgetState extends State<CustomLoadingWidget>
                       height: 80,
                       child: CustomPaint(
                         painter: LoadingRingPainter(
-                          progress: widget.showProgress ? (widget.progress ?? 0.0) : null,
+                          progress: widget.showProgress
+                              ? (widget.progress ?? 0.0)
+                              : null,
                           color: primaryColor,
                         ),
                       ),
@@ -145,7 +139,10 @@ class _CustomLoadingWidgetState extends State<CustomLoadingWidget>
                 Positioned(
                   bottom: -30,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.surfaceElevated,
                       borderRadius: BorderRadius.circular(16),
@@ -191,7 +188,7 @@ class _CustomLoadingWidgetState extends State<CustomLoadingWidget>
                   final delay = index * 0.3;
                   final progress = (_rotationController.value + delay) % 1.0;
                   final opacity = (math.sin(progress * math.pi * 2) + 1) / 2;
-                  
+
                   return Container(
                     margin: const EdgeInsets.symmetric(horizontal: 2),
                     width: 6,
@@ -215,10 +212,7 @@ class LoadingRingPainter extends CustomPainter {
   final double? progress;
   final Color color;
 
-  LoadingRingPainter({
-    this.progress,
-    required this.color,
-  });
+  LoadingRingPainter({this.progress, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -237,11 +231,7 @@ class LoadingRingPainter extends CustomPainter {
     // Progress ring
     final progressPaint = Paint()
       ..shader = LinearGradient(
-        colors: [
-          color,
-          color.withOpacity(0.7),
-          color,
-        ],
+        colors: [color, color.withOpacity(0.7), color],
         stops: const [0.0, 0.5, 1.0],
       ).createShader(Rect.fromCircle(center: center, radius: radius))
       ..style = PaintingStyle.stroke
@@ -304,9 +294,9 @@ class ProgressLoadingWidget extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               details!,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textTertiary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
               textAlign: TextAlign.center,
             ),
           ],
@@ -319,13 +309,11 @@ class ProgressLoadingWidget extends StatelessWidget {
 class InvestmentLoadingStages extends StatefulWidget {
   final VoidCallback? onComplete;
 
-  const InvestmentLoadingStages({
-    super.key,
-    this.onComplete,
-  });
+  const InvestmentLoadingStages({super.key, this.onComplete});
 
   @override
-  State<InvestmentLoadingStages> createState() => _InvestmentLoadingStagesState();
+  State<InvestmentLoadingStages> createState() =>
+      _InvestmentLoadingStagesState();
 }
 
 class _InvestmentLoadingStagesState extends State<InvestmentLoadingStages> {
@@ -350,10 +338,7 @@ class _InvestmentLoadingStagesState extends State<InvestmentLoadingStages> {
       'message': 'Optymalizacja wyświetlania...',
       'details': 'Przygotowywanie interfejsu użytkownika',
     },
-    {
-      'message': 'Finalizacja...',
-      'details': 'Ostatnie przygotowania',
-    },
+    {'message': 'Finalizacja...', 'details': 'Ostatnie przygotowania'},
   ];
 
   @override
@@ -370,7 +355,11 @@ class _InvestmentLoadingStagesState extends State<InvestmentLoadingStages> {
       });
 
       // Simulate loading stages with realistic timing
-      for (double progress = _progress; progress <= (i + 1) / _stages.length; progress += 0.02) {
+      for (
+        double progress = _progress;
+        progress <= (i + 1) / _stages.length;
+        progress += 0.02
+      ) {
         await Future.delayed(const Duration(milliseconds: 50));
         if (mounted) {
           setState(() {
