@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/bond.dart';
+import '../models/investment.dart';
 import '../models/product.dart';
 import 'base_service.dart';
 import 'data_cache_service.dart';
@@ -45,7 +46,6 @@ class BondService extends BaseService {
           .collection(_collection)
           .add(bond.toFirestore());
       clearCache('bonds_stats');
-      _dataCacheService.invalidateCollectionCache('bonds');
       return docRef.id;
     } catch (e) {
       logError('createBond', e);
@@ -61,7 +61,6 @@ class BondService extends BaseService {
           .doc(id)
           .update(bond.toFirestore());
       clearCache('bonds_stats');
-      _dataCacheService.invalidateCollectionCache('bonds');
     } catch (e) {
       logError('updateBond', e);
       throw Exception('Failed to update bond: $e');
@@ -73,23 +72,20 @@ class BondService extends BaseService {
     try {
       await firestore.collection(_collection).doc(id).delete();
       clearCache('bonds_stats');
-      _dataCacheService.invalidateCollectionCache('bonds');
     } catch (e) {
       logError('deleteBond', e);
       throw Exception('Failed to delete bond: $e');
     }
   }
 
-  // Get bonds statistics - ZOPTYMALIZOWANA WERSJA (używa cache)
+  // Get bonds statistics - ZOPTYMALIZOWANA WERSJA
   Future<Map<String, dynamic>> getBondsStatistics() async {
     return getCachedData('bonds_stats', () async {
       try {
         // Pobierz wszystkie inwestycje z cache'a i filtruj obligacje
         final allInvestments = await _dataCacheService.getAllInvestments();
-        final bondInvestments = allInvestments
-            .where((inv) => inv.productType == ProductType.bonds)
-            .toList();
-
+        final bondInvestments = allInvestments.where((inv) => inv.productType == ProductType.bonds).toList();
+        
         if (bondInvestments.isEmpty) {
           return {
             'total_count': 0,
@@ -106,63 +102,38 @@ class BondService extends BaseService {
 
         // Oblicz statystyki
         final totalCount = bondInvestments.length;
-        final totalInvestmentAmount = bondInvestments.fold<double>(
-          0.0,
-          (sum, inv) => sum + inv.investmentAmount,
-        );
-        final totalRemainingCapital = bondInvestments.fold<double>(
-          0.0,
-          (sum, inv) => sum + inv.remainingCapital,
-        );
-        final totalRemainingInterest = bondInvestments.fold<double>(
-          0.0,
-          (sum, inv) => sum + inv.remainingInterest,
-        );
-        final totalRealizedCapital = bondInvestments.fold<double>(
-          0.0,
-          (sum, inv) => sum + inv.realizedCapital,
-        );
-        final totalRealizedInterest = bondInvestments.fold<double>(
-          0.0,
-          (sum, inv) => sum + inv.realizedInterest,
-        );
+        final totalInvestmentAmount = bondInvestments.fold<double>(0.0, (sum, inv) => sum + inv.investmentAmount);
+        final totalRemainingCapital = bondInvestments.fold<double>(0.0, (sum, inv) => sum + inv.remainingCapital);
+        final totalRemainingInterest = bondInvestments.fold<double>(0.0, (sum, inv) => sum + inv.remainingInterest);
+        final totalRealizedCapital = bondInvestments.fold<double>(0.0, (sum, inv) => sum + inv.realizedCapital);
+        final totalRealizedInterest = bondInvestments.fold<double>(0.0, (sum, inv) => sum + inv.realizedInterest);
 
         // Grupuj według nazwy produktu
         final productTypeCounts = <String, int>{};
         for (final investment in bondInvestments) {
-          final productName = investment.productName.isNotEmpty
-              ? investment.productName
-              : 'Nieznany';
-          productTypeCounts[productName] =
-              (productTypeCounts[productName] ?? 0) + 1;
+          final productName = investment.productName.isNotEmpty ? investment.productName : 'Nieznany';
+          productTypeCounts[productName] = (productTypeCounts[productName] ?? 0) + 1;
         }
 
         // Statystyki miesięczne
         final monthlyStats = <String, Map<String, dynamic>>{};
         final now = DateTime.now();
-
+        
         for (int i = 0; i < 12; i++) {
           final month = DateTime(now.year, now.month - i, 1);
-          final monthKey =
-              '${month.year}-${month.month.toString().padLeft(2, '0')}';
-
+          final monthKey = '${month.year}-${month.month.toString().padLeft(2, '0')}';
+          
           final monthBonds = bondInvestments.where((inv) {
-            return inv.signedDate.year == month.year &&
-                inv.signedDate.month == month.month;
+            return inv.signedDate.year == month.year && inv.signedDate.month == month.month;
           }).toList();
-
+          
           monthlyStats[monthKey] = {
             'count': monthBonds.length,
-            'total_amount': monthBonds.fold<double>(
-              0.0,
-              (sum, inv) => sum + inv.investmentAmount,
-            ),
+            'total_amount': monthBonds.fold<double>(0.0, (sum, inv) => sum + inv.investmentAmount),
           };
         }
 
-        print(
-          '📊 [BondService] Statystyki obligacji: ${totalCount} pozycji, ${totalInvestmentAmount.toStringAsFixed(0)} PLN',
-        );
+        print('📊 [BondService] Statystyki obligacji: ${totalCount} pozycji, ${totalInvestmentAmount.toStringAsFixed(0)} PLN');
 
         return {
           'total_count': totalCount,
@@ -171,9 +142,7 @@ class BondService extends BaseService {
           'total_remaining_interest': totalRemainingInterest,
           'total_realized_capital': totalRealizedCapital,
           'total_realized_interest': totalRealizedInterest,
-          'average_investment_amount': totalCount > 0
-              ? totalInvestmentAmount / totalCount
-              : 0.0,
+          'average_investment_amount': totalCount > 0 ? totalInvestmentAmount / totalCount : 0.0,
           'product_type_counts': productTypeCounts,
           'monthly_stats': monthlyStats,
         };
@@ -194,45 +163,45 @@ class BondService extends BaseService {
     });
   }
 
-  // Get top performing bonds - ZOPTYMALIZOWANA WERSJA (używa cache)
-  Future<List<Map<String, dynamic>>> getTopPerformingBonds({
-    int limit = 10,
-  }) async {
+  // Get top performing bonds - ZOPTYMALIZOWANA WERSJA
+  Future<List<Map<String, dynamic>>> getTopPerformingBonds({int limit = 10}) async {
     try {
       final allInvestments = await _dataCacheService.getAllInvestments();
-      final bondInvestments = allInvestments
-          .where((inv) => inv.productType == ProductType.bonds)
-          .toList();
-
+      final bondInvestments = allInvestments.where((inv) => inv.productType == ProductType.bonds).toList();
+      
       // Sortuj według pozostałego kapitału
-      bondInvestments.sort(
-        (a, b) => b.remainingCapital.compareTo(a.remainingCapital),
-      );
-
-      return bondInvestments
-          .take(limit)
-          .map(
-            (investment) => {
-              'id': investment.id,
-              'client_name': investment.clientName,
-              'product_name': investment.productName,
-              'investment_amount': investment.investmentAmount,
-              'remaining_capital': investment.remainingCapital,
-              'realized_capital': investment.realizedCapital,
-              'profit_rate': investment.investmentAmount > 0
-                  ? ((investment.realizedCapital +
-                                investment.remainingCapital -
-                                investment.investmentAmount) /
-                            investment.investmentAmount) *
-                        100
-                  : 0.0,
-            },
-          )
-          .toList();
+      bondInvestments.sort((a, b) => b.remainingCapital.compareTo(a.remainingCapital));
+      
+      return bondInvestments.take(limit).map((investment) => {
+        'id': investment.id,
+        'client_name': investment.clientName,
+        'product_name': investment.productName,
+        'investment_amount': investment.investmentAmount,
+        'remaining_capital': investment.remainingCapital,
+        'realized_capital': investment.realizedCapital,
+        'profit_rate': investment.investmentAmount > 0 
+            ? ((investment.realizedCapital + investment.remainingCapital - investment.investmentAmount) / investment.investmentAmount) * 100 
+            : 0.0,
+      }).toList();
     } catch (e) {
       logError('getTopPerformingBonds', e);
       return [];
     }
+  }
+
+        }
+
+  // Invalidate cache when data changes
+  void invalidateCache() {
+    clearCache('bonds_stats');
+    _dataCacheService.invalidateCollectionCache('bonds');
+  }
+}
+      } catch (e) {
+        logError('getBondsStatistics', e);
+        return {};
+      }
+    });
   }
 
   // Get bonds by product type
@@ -264,9 +233,27 @@ class BondService extends BaseService {
         );
   }
 
-  // Invalidate cache when data changes
-  void invalidateCache() {
-    clearCache('bonds_stats');
-    _dataCacheService.invalidateCollectionCache('bonds');
+  // Get top performing bonds
+  Future<List<Bond>> getTopPerformingBonds({int limit = 10}) async {
+    try {
+      final snapshot = await firestore
+          .collection(_collection)
+          .limit(100) // Get more to calculate performance
+          .get();
+
+      final bonds = snapshot.docs
+          .map((doc) => Bond.fromFirestore(doc))
+          .toList();
+
+      // Sort by profit/loss percentage
+      bonds.sort(
+        (a, b) => b.profitLossPercentage.compareTo(a.profitLossPercentage),
+      );
+
+      return bonds.take(limit).toList();
+    } catch (e) {
+      logError('getTopPerformingBonds', e);
+      throw Exception('Failed to get top performing bonds: $e');
+    }
   }
 }

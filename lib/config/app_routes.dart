@@ -149,7 +149,7 @@ class MainNavigationItems {
     ),
     NavigationItem(
       route: AppRoutes.investments,
-      label: 'Inwestycje',
+      label: 'Zarządzanie inwestycjami',
       icon: Icons.trending_up_outlined,
       selectedIcon: Icons.trending_up,
       subRoutes: [AppRoutes.investments, '/investments/'],
@@ -184,13 +184,13 @@ class MainNavigationItems {
     ),
     NavigationItem(
       route: AppRoutes.analytics,
-      label: 'Analityka',
+      label: 'Zawansowana Analityka',
       icon: Icons.analytics_outlined,
       selectedIcon: Icons.analytics,
     ),
     NavigationItem(
       route: AppRoutes.investorAnalytics,
-      label: 'Inwestorzy',
+      label: 'Analiza Inwestorów',
       icon: Icons.group_outlined,
       selectedIcon: Icons.group,
     ),

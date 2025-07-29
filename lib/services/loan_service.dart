@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/loan.dart';
+import '../models/product.dart';
 import 'base_service.dart';
+import 'data_cache_service.dart';
 
 class LoanService extends BaseService {
   final String _collection = 'loans';
+  final DataCacheService _dataCacheService = DataCacheService();
 
   // Get all loans
   Stream<List<Loan>> getAllLoans({int? limit}) {
@@ -42,6 +45,7 @@ class LoanService extends BaseService {
           .collection(_collection)
           .add(loan.toFirestore());
       clearCache('loans_stats');
+      _dataCacheService.invalidateCollectionCache('loans');
       return docRef.id;
     } catch (e) {
       logError('createLoan', e);
@@ -57,6 +61,7 @@ class LoanService extends BaseService {
           .doc(id)
           .update(loan.toFirestore());
       clearCache('loans_stats');
+      _dataCacheService.invalidateCollectionCache('loans');
     } catch (e) {
       logError('updateLoan', e);
       throw Exception('Failed to update loan: $e');
@@ -68,47 +73,102 @@ class LoanService extends BaseService {
     try {
       await firestore.collection(_collection).doc(id).delete();
       clearCache('loans_stats');
+      _dataCacheService.invalidateCollectionCache('loans');
     } catch (e) {
       logError('deleteLoan', e);
       throw Exception('Failed to delete loan: $e');
     }
   }
 
-  // Get loans statistics
+  // Get loans statistics - ZOPTYMALIZOWANA WERSJA (używa cache)
   Future<Map<String, dynamic>> getLoansStatistics() async {
     return getCachedData('loans_stats', () async {
       try {
-        final snapshot = await firestore.collection(_collection).get();
+        // Pobierz wszystkie inwestycje z cache'a i filtruj pożyczki
+        final allInvestments = await _dataCacheService.getAllInvestments();
+        final loanInvestments = allInvestments
+            .where((inv) => inv.productType == ProductType.loans)
+            .toList();
 
-        double totalInvestmentAmount = 0;
-        Map<String, int> productTypeCounts = {};
-        Map<String, double> productTypeValues = {};
-
-        for (var doc in snapshot.docs) {
-          final loan = Loan.fromFirestore(doc);
-
-          totalInvestmentAmount += loan.investmentAmount;
-
-          // Count by product type
-          productTypeCounts[loan.productType] =
-              (productTypeCounts[loan.productType] ?? 0) + 1;
-          productTypeValues[loan.productType] =
-              (productTypeValues[loan.productType] ?? 0) +
-              loan.investmentAmount;
+        if (loanInvestments.isEmpty) {
+          return {
+            'total_count': 0,
+            'total_investment_amount': 0.0,
+            'product_type_counts': <String, int>{},
+            'product_type_values': <String, double>{},
+            'average_loan_amount': 0.0,
+            'monthly_stats': <String, Map<String, dynamic>>{},
+          };
         }
 
+        // Oblicz statystyki
+        final totalCount = loanInvestments.length;
+        final totalInvestmentAmount = loanInvestments.fold<double>(
+          0.0,
+          (sum, inv) => sum + inv.investmentAmount,
+        );
+
+        // Grupuj według nazwy produktu
+        final productTypeCounts = <String, int>{};
+        final productTypeValues = <String, double>{};
+        for (final investment in loanInvestments) {
+          final productName = investment.productName.isNotEmpty
+              ? investment.productName
+              : 'Nieznany';
+          productTypeCounts[productName] =
+              (productTypeCounts[productName] ?? 0) + 1;
+          productTypeValues[productName] =
+              (productTypeValues[productName] ?? 0.0) +
+              investment.investmentAmount;
+        }
+
+        // Statystyki miesięczne
+        final monthlyStats = <String, Map<String, dynamic>>{};
+        final now = DateTime.now();
+
+        for (int i = 0; i < 12; i++) {
+          final month = DateTime(now.year, now.month - i, 1);
+          final monthKey =
+              '${month.year}-${month.month.toString().padLeft(2, '0')}';
+
+          final monthLoans = loanInvestments.where((inv) {
+            return inv.signedDate.year == month.year &&
+                inv.signedDate.month == month.month;
+          }).toList();
+
+          monthlyStats[monthKey] = {
+            'count': monthLoans.length,
+            'total_amount': monthLoans.fold<double>(
+              0.0,
+              (sum, inv) => sum + inv.investmentAmount,
+            ),
+          };
+        }
+
+        print(
+          '📊 [LoanService] Statystyki pożyczek: ${totalCount} pozycji, ${totalInvestmentAmount.toStringAsFixed(0)} PLN',
+        );
+
         return {
-          'total_count': snapshot.docs.length,
+          'total_count': totalCount,
           'total_investment_amount': totalInvestmentAmount,
           'product_type_counts': productTypeCounts,
           'product_type_values': productTypeValues,
-          'average_loan_amount': snapshot.docs.isNotEmpty
-              ? totalInvestmentAmount / snapshot.docs.length
+          'average_loan_amount': totalCount > 0
+              ? totalInvestmentAmount / totalCount
               : 0.0,
+          'monthly_stats': monthlyStats,
         };
       } catch (e) {
         logError('getLoansStatistics', e);
-        return {};
+        return {
+          'total_count': 0,
+          'total_investment_amount': 0.0,
+          'product_type_counts': <String, int>{},
+          'product_type_values': <String, double>{},
+          'average_loan_amount': 0.0,
+          'monthly_stats': <String, Map<String, dynamic>>{},
+        };
       }
     });
   }
@@ -142,25 +202,41 @@ class LoanService extends BaseService {
         );
   }
 
-  // Get largest loans
-  Future<List<Loan>> getLargestLoans({int limit = 10}) async {
+  // Get largest loans - ZOPTYMALIZOWANA WERSJA (używa cache)
+  Future<List<Map<String, dynamic>>> getLargestLoans({int limit = 10}) async {
     try {
-      final snapshot = await firestore
-          .collection(_collection)
-          .limit(100) // Get more to sort properly
-          .get();
-
-      final loans = snapshot.docs
-          .map((doc) => Loan.fromFirestore(doc))
+      final allInvestments = await _dataCacheService.getAllInvestments();
+      final loanInvestments = allInvestments
+          .where((inv) => inv.productType == ProductType.loans)
           .toList();
 
-      // Sort by investment amount
-      loans.sort((a, b) => b.investmentAmount.compareTo(a.investmentAmount));
+      // Sortuj według kwoty inwestycji
+      loanInvestments.sort(
+        (a, b) => b.investmentAmount.compareTo(a.investmentAmount),
+      );
 
-      return loans.take(limit).toList();
+      return loanInvestments
+          .take(limit)
+          .map(
+            (investment) => {
+              'id': investment.id,
+              'client_name': investment.clientName,
+              'product_name': investment.productName,
+              'investment_amount': investment.investmentAmount,
+              'remaining_capital': investment.remainingCapital,
+              'realized_capital': investment.realizedCapital,
+            },
+          )
+          .toList();
     } catch (e) {
       logError('getLargestLoans', e);
-      throw Exception('Failed to get largest loans: $e');
+      return [];
     }
+  }
+
+  // Invalidate cache when data changes
+  void invalidateCache() {
+    clearCache('loans_stats');
+    _dataCacheService.invalidateCollectionCache('loans');
   }
 }

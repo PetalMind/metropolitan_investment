@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/share.dart';
+import '../models/product.dart';
 import 'base_service.dart';
+import 'data_cache_service.dart';
 
 class ShareService extends BaseService {
   final String _collection = 'shares';
+  final DataCacheService _dataCacheService = DataCacheService();
 
   // Get all shares
   Stream<List<Share>> getAllShares({int? limit}) {
@@ -42,6 +45,7 @@ class ShareService extends BaseService {
           .collection(_collection)
           .add(share.toFirestore());
       clearCache('shares_stats');
+      _dataCacheService.invalidateCollectionCache('shares');
       return docRef.id;
     } catch (e) {
       logError('createShare', e);
@@ -57,6 +61,7 @@ class ShareService extends BaseService {
           .doc(id)
           .update(share.toFirestore());
       clearCache('shares_stats');
+      _dataCacheService.invalidateCollectionCache('shares');
     } catch (e) {
       logError('updateShare', e);
       throw Exception('Failed to update share: $e');
@@ -68,60 +73,103 @@ class ShareService extends BaseService {
     try {
       await firestore.collection(_collection).doc(id).delete();
       clearCache('shares_stats');
+      _dataCacheService.invalidateCollectionCache('shares');
     } catch (e) {
       logError('deleteShare', e);
       throw Exception('Failed to delete share: $e');
     }
   }
 
-  // Get shares statistics
+  // Get shares statistics - ZOPTYMALIZOWANA WERSJA (używa cache)
   Future<Map<String, dynamic>> getSharesStatistics() async {
     return getCachedData('shares_stats', () async {
       try {
-        final snapshot = await firestore.collection(_collection).get();
+        // Pobierz wszystkie inwestycje z cache'a i filtruj akcje
+        final allInvestments = await _dataCacheService.getAllInvestments();
+        final shareInvestments = allInvestments
+            .where((inv) => inv.productType == ProductType.shares)
+            .toList();
 
-        double totalInvestmentAmount = 0;
-        int totalSharesCount = 0;
-        Map<String, int> productTypeCounts = {};
-        Map<String, double> productTypeValues = {};
-        Map<String, int> productTypeShares = {};
-
-        for (var doc in snapshot.docs) {
-          final share = Share.fromFirestore(doc);
-
-          totalInvestmentAmount += share.investmentAmount;
-          totalSharesCount += share.sharesCount;
-
-          // Count by product type
-          productTypeCounts[share.productType] =
-              (productTypeCounts[share.productType] ?? 0) + 1;
-          productTypeValues[share.productType] =
-              (productTypeValues[share.productType] ?? 0) +
-              share.investmentAmount;
-          productTypeShares[share.productType] =
-              (productTypeShares[share.productType] ?? 0) + share.sharesCount;
+        if (shareInvestments.isEmpty) {
+          return {
+            'total_count': 0,
+            'total_investment_amount': 0.0,
+            'total_shares_count': 0,
+            'product_type_counts': <String, int>{},
+            'product_type_values': <String, double>{},
+            'average_investment_amount': 0.0,
+            'monthly_stats': <String, Map<String, dynamic>>{},
+          };
         }
 
+        // Oblicz statystyki
+        final totalCount = shareInvestments.length;
+        final totalInvestmentAmount = shareInvestments.fold<double>(
+          0.0,
+          (sum, inv) => sum + inv.investmentAmount,
+        );
+
+        // Grupuj według nazwy produktu
+        final productTypeCounts = <String, int>{};
+        final productTypeValues = <String, double>{};
+        for (final investment in shareInvestments) {
+          final productName = investment.productName.isNotEmpty
+              ? investment.productName
+              : 'Nieznany';
+          productTypeCounts[productName] =
+              (productTypeCounts[productName] ?? 0) + 1;
+          productTypeValues[productName] =
+              (productTypeValues[productName] ?? 0.0) +
+              investment.investmentAmount;
+        }
+
+        // Statystyki miesięczne
+        final monthlyStats = <String, Map<String, dynamic>>{};
+        final now = DateTime.now();
+
+        for (int i = 0; i < 12; i++) {
+          final month = DateTime(now.year, now.month - i, 1);
+          final monthKey =
+              '${month.year}-${month.month.toString().padLeft(2, '0')}';
+
+          final monthShares = shareInvestments.where((inv) {
+            return inv.signedDate.year == month.year &&
+                inv.signedDate.month == month.month;
+          }).toList();
+
+          monthlyStats[monthKey] = {
+            'count': monthShares.length,
+            'total_amount': monthShares.fold<double>(
+              0.0,
+              (sum, inv) => sum + inv.investmentAmount,
+            ),
+          };
+        }
+
+        print(
+          '📊 [ShareService] Statystyki akcji: ${totalCount} pozycji, ${totalInvestmentAmount.toStringAsFixed(0)} PLN',
+        );
+
         return {
-          'total_count': snapshot.docs.length,
+          'total_count': totalCount,
           'total_investment_amount': totalInvestmentAmount,
-          'total_shares_count': totalSharesCount,
           'product_type_counts': productTypeCounts,
           'product_type_values': productTypeValues,
-          'product_type_shares': productTypeShares,
-          'average_investment_amount': snapshot.docs.isNotEmpty
-              ? totalInvestmentAmount / snapshot.docs.length
+          'average_investment_amount': totalCount > 0
+              ? totalInvestmentAmount / totalCount
               : 0.0,
-          'average_shares_count': snapshot.docs.isNotEmpty
-              ? totalSharesCount / snapshot.docs.length
-              : 0.0,
-          'average_price_per_share': totalSharesCount > 0
-              ? totalInvestmentAmount / totalSharesCount
-              : 0.0,
+          'monthly_stats': monthlyStats,
         };
       } catch (e) {
         logError('getSharesStatistics', e);
-        return {};
+        return {
+          'total_count': 0,
+          'total_investment_amount': 0.0,
+          'product_type_counts': <String, int>{},
+          'product_type_values': <String, double>{},
+          'average_investment_amount': 0.0,
+          'monthly_stats': <String, Map<String, dynamic>>{},
+        };
       }
     });
   }
@@ -155,47 +203,43 @@ class ShareService extends BaseService {
         );
   }
 
-  // Get shares with highest count
-  Future<List<Share>> getSharesWithHighestCount({int limit = 10}) async {
+  // Get shares with highest value - ZOPTYMALIZOWANA WERSJA (używa cache)
+  Future<List<Map<String, dynamic>>> getSharesWithHighestValue({
+    int limit = 10,
+  }) async {
     try {
-      final snapshot = await firestore
-          .collection(_collection)
-          .limit(100) // Get more to sort properly
-          .get();
-
-      final shares = snapshot.docs
-          .map((doc) => Share.fromFirestore(doc))
+      final allInvestments = await _dataCacheService.getAllInvestments();
+      final shareInvestments = allInvestments
+          .where((inv) => inv.productType == ProductType.shares)
           .toList();
 
-      // Sort by shares count
-      shares.sort((a, b) => b.sharesCount.compareTo(a.sharesCount));
+      // Sortuj według kwoty inwestycji
+      shareInvestments.sort(
+        (a, b) => b.investmentAmount.compareTo(a.investmentAmount),
+      );
 
-      return shares.take(limit).toList();
+      return shareInvestments
+          .take(limit)
+          .map(
+            (investment) => {
+              'id': investment.id,
+              'client_name': investment.clientName,
+              'product_name': investment.productName,
+              'investment_amount': investment.investmentAmount,
+              'remaining_capital': investment.remainingCapital,
+              'realized_capital': investment.realizedCapital,
+            },
+          )
+          .toList();
     } catch (e) {
-      logError('getSharesWithHighestCount', e);
-      throw Exception('Failed to get shares with highest count: $e');
+      logError('getSharesWithHighestValue', e);
+      return [];
     }
   }
 
-  // Get shares with highest value
-  Future<List<Share>> getSharesWithHighestValue({int limit = 10}) async {
-    try {
-      final snapshot = await firestore
-          .collection(_collection)
-          .limit(100) // Get more to sort properly
-          .get();
-
-      final shares = snapshot.docs
-          .map((doc) => Share.fromFirestore(doc))
-          .toList();
-
-      // Sort by investment amount
-      shares.sort((a, b) => b.investmentAmount.compareTo(a.investmentAmount));
-
-      return shares.take(limit).toList();
-    } catch (e) {
-      logError('getSharesWithHighestValue', e);
-      throw Exception('Failed to get shares with highest value: $e');
-    }
+  // Invalidate cache when data changes
+  void invalidateCache() {
+    clearCache('shares_stats');
+    _dataCacheService.invalidateCollectionCache('shares');
   }
 }

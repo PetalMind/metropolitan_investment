@@ -2,9 +2,12 @@ import 'dart:math' as math;
 import '../models/investment.dart';
 import '../models/product.dart';
 import 'base_service.dart';
+import 'data_cache_service.dart';
 
 /// Zaawansowany serwis analityczny z głębokimi statystykami
 class AdvancedAnalyticsService extends BaseService {
+  final DataCacheService _dataCacheService = DataCacheService();
+
   /// Pobiera zaawansowane metryki dashboard z cache'owaniem
   Future<AdvancedDashboardMetrics> getAdvancedDashboardMetrics() async {
     return getCachedData(
@@ -51,57 +54,8 @@ class AdvancedAnalyticsService extends BaseService {
 
   /// Pobiera wszystkie inwestycje ze wszystkich kolekcji
   Future<List<Investment>> _getAllInvestments() async {
-    try {
-      print(
-        '🔍 [AdvancedAnalytics] Pobieranie danych ze wszystkich kolekcji...',
-      );
-
-      // Pobierz dane równolegle ze wszystkich kolekcji
-      final results = await Future.wait([
-        firestore.collection('investments').get(),
-        firestore.collection('bonds').get(),
-        firestore.collection('loans').get(),
-        firestore.collection('shares').get(),
-      ]);
-
-      final allInvestments = <Investment>[];
-
-      // Konwertuj dane z głównej kolekcji investments
-      for (final doc in results[0].docs) {
-        final data = doc.data();
-        allInvestments.add(_convertExcelDataToInvestment(doc.id, data));
-      }
-      print('🔍 [AdvancedAnalytics] Investments: ${results[0].docs.length}');
-
-      // Konwertuj dane z kolekcji bonds na Investment
-      for (final doc in results[1].docs) {
-        final data = doc.data();
-        allInvestments.add(_convertBondToInvestment(doc.id, data));
-      }
-      print('🔍 [AdvancedAnalytics] Bonds: ${results[1].docs.length}');
-
-      // Konwertuj dane z kolekcji loans na Investment
-      for (final doc in results[2].docs) {
-        final data = doc.data();
-        allInvestments.add(_convertLoanToInvestment(doc.id, data));
-      }
-      print('🔍 [AdvancedAnalytics] Loans: ${results[2].docs.length}');
-
-      // Konwertuj dane z kolekcji shares na Investment
-      for (final doc in results[3].docs) {
-        final data = doc.data();
-        allInvestments.add(_convertShareToInvestment(doc.id, data));
-      }
-      print('🔍 [AdvancedAnalytics] Shares: ${results[3].docs.length}');
-
-      print(
-        '🔍 [AdvancedAnalytics] Łącznie inwestycji: ${allInvestments.length}',
-      );
-      return allInvestments;
-    } catch (e) {
-      logError('_getAllInvestments', e);
-      return [];
-    }
+    // Używamy centralnego cache'a danych
+    return await _dataCacheService.getAllInvestments();
   }
 
   /// Metryki portfela

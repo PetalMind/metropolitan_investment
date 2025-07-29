@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/bond.dart';
+import '../models/investment.dart';
 import '../models/product.dart';
 import 'base_service.dart';
 import 'data_cache_service.dart';

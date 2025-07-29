@@ -7,6 +7,7 @@ import '../models/product.dart';
 import '../services/investment_service.dart';
 import '../services/advanced_analytics_service.dart';
 import '../widgets/advanced_analytics_widgets.dart';
+import '../widgets/cache_debug_widget.dart';
 import '../utils/currency_formatter.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -86,10 +87,16 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     try {
       // Ładuj dane równolegle dla lepszej wydajności
+      final recentInvestmentsFuture = _investmentService
+          .getInvestmentsPaginated(limit: 5);
+      final attentionInvestmentsFuture = _investmentService
+          .getInvestmentsRequiringAttention();
+      final metricsFuture = _analyticsService.getAdvancedDashboardMetrics();
+
       final results = await Future.wait([
-        _investmentService.getInvestmentsPaginated(limit: 5),
-        _investmentService.getInvestmentsRequiringAttention(),
-        _analyticsService.getAdvancedDashboardMetrics(),
+        recentInvestmentsFuture,
+        attentionInvestmentsFuture,
+        metricsFuture,
       ]);
 
       setState(() {
@@ -291,6 +298,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           _buildCompactTabButton(3, 'Prognozy', Icons.insights),
           const SizedBox(width: 8),
           _buildCompactTabButton(4, 'Benchmarki', Icons.compare_arrows),
+          const SizedBox(width: 8),
+          _buildCompactTabButton(5, 'Cache Debug', Icons.storage),
         ],
       ),
     );
@@ -304,6 +313,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         _buildTabButton(2, 'Ryzyko', Icons.security),
         _buildTabButton(3, 'Prognozy', Icons.insights),
         _buildTabButton(4, 'Benchmarki', Icons.compare_arrows),
+        _buildTabButton(5, 'Cache Debug', Icons.storage),
       ],
     );
   }
@@ -396,9 +406,18 @@ class _DashboardScreenState extends State<DashboardScreen>
         return _buildPredictionsTab();
       case 4:
         return _buildBenchmarkTab();
+      case 5:
+        return _buildCacheDebugTab();
       default:
         return _buildOverviewTab();
     }
+  }
+
+  Widget _buildCacheDebugTab() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(_getHorizontalPadding(context)),
+      child: const Column(children: [CacheDebugWidget()]),
+    );
   }
 
   Widget _buildOverviewTab() {

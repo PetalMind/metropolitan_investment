@@ -5,9 +5,11 @@ import '../models/investor_summary.dart';
 import '../models/product.dart';
 import 'base_service.dart';
 import 'client_service.dart';
+import 'data_cache_service.dart';
 
 class InvestorAnalyticsService extends BaseService {
   final ClientService _clientService = ClientService();
+  final DataCacheService _dataCacheService = DataCacheService();
 
   // Cache dla inwestorów z czasem wygaśnięcia
   Map<String, List<InvestorSummary>>? _investorsCache;
@@ -189,17 +191,8 @@ class InvestorAnalyticsService extends BaseService {
 
   // Pobierz wszystkie inwestycje jednym zapytaniem
   Future<List<Investment>> _getAllInvestments() async {
-    try {
-      final snapshot = await firestore.collection('investments').get();
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return _convertExcelDataToInvestment(doc.id, data);
-      }).toList();
-    } catch (e) {
-      print('❌ [InvestorAnalytics] Błąd pobierania inwestycji: $e');
-      logError('_getAllInvestments', e);
-      return [];
-    }
+    // Używamy centralnego cache'a danych
+    return await _dataCacheService.getAllInvestments();
   }
 
   // Oblicz skumulowany procent do danego indeksu
@@ -414,6 +407,7 @@ class InvestorAnalyticsService extends BaseService {
     final typeStr = data['typ_produktu']?.toString() ?? '';
     if (typeStr == 'Udziały') productType = ProductType.shares;
     if (typeStr == 'Apartamenty') productType = ProductType.apartments;
+    if (typeStr == 'Pożyczka') productType = ProductType.loans;
 
     return Investment(
       id: id,
@@ -463,6 +457,149 @@ class InvestorAnalyticsService extends BaseService {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       additionalInfo: {'source_file': 'Excel import'},
+    );
+  }
+
+  /// Konwertuje dokument z kolekcji bonds na Investment
+  Investment _convertBondToInvestment(String id, Map<String, dynamic> data) {
+    return Investment(
+      id: id,
+      clientId: '',
+      clientName: '',
+      employeeId: '',
+      employeeFirstName: '',
+      employeeLastName: '',
+      branchCode: '',
+      status: InvestmentStatus.active,
+      isAllocated: false,
+      marketType: MarketType.primary,
+      signedDate: _parseDate(data['created_at']) ?? DateTime.now(),
+      entryDate: null,
+      exitDate: null,
+      proposalId: '',
+      productType: ProductType.bonds,
+      productName: data['typ_produktu']?.toString() ?? '',
+      creditorCompany: '',
+      companyId: '',
+      issueDate: null,
+      redemptionDate: null,
+      sharesCount: null,
+      investmentAmount:
+          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
+      paidAmount:
+          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
+      realizedCapital:
+          double.tryParse(data['kapital_zrealizowany']?.toString() ?? '0') ??
+          0.0,
+      realizedInterest:
+          double.tryParse(data['odsetki_zrealizowane']?.toString() ?? '0') ??
+          0.0,
+      transferToOtherProduct:
+          double.tryParse(data['przekaz_na_inny_produkt']?.toString() ?? '0') ??
+          0.0,
+      remainingCapital:
+          double.tryParse(data['kapital_pozostaly']?.toString() ?? '0') ?? 0.0,
+      remainingInterest:
+          double.tryParse(data['odsetki_pozostale']?.toString() ?? '0') ?? 0.0,
+      plannedTax: 0.0,
+      realizedTax:
+          double.tryParse(data['podatek_zrealizowany']?.toString() ?? '0') ??
+          0.0,
+      currency: 'PLN',
+      createdAt: _parseDate(data['created_at']) ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+      additionalInfo: {'source': 'bonds_collection'},
+    );
+  }
+
+  /// Konwertuje dokument z kolekcji loans na Investment
+  Investment _convertLoanToInvestment(String id, Map<String, dynamic> data) {
+    return Investment(
+      id: id,
+      clientId: '',
+      clientName: '',
+      employeeId: '',
+      employeeFirstName: '',
+      employeeLastName: '',
+      branchCode: '',
+      status: InvestmentStatus.active,
+      isAllocated: false,
+      marketType: MarketType.primary,
+      signedDate: _parseDate(data['created_at']) ?? DateTime.now(),
+      entryDate: null,
+      exitDate: null,
+      proposalId: '',
+      productType: ProductType.loans,
+      productName: data['typ_produktu']?.toString() ?? '',
+      creditorCompany: '',
+      companyId: '',
+      issueDate: null,
+      redemptionDate: null,
+      sharesCount: null,
+      investmentAmount:
+          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
+      paidAmount:
+          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
+      realizedCapital: 0.0,
+      realizedInterest: 0.0,
+      transferToOtherProduct: 0.0,
+      remainingCapital:
+          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
+      remainingInterest: 0.0,
+      plannedTax: 0.0,
+      realizedTax: 0.0,
+      currency: 'PLN',
+      createdAt: _parseDate(data['created_at']) ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+      additionalInfo: {'source': 'loans_collection'},
+    );
+  }
+
+  /// Konwertuje dokument z kolekcji shares na Investment
+  Investment _convertShareToInvestment(String id, Map<String, dynamic> data) {
+    return Investment(
+      id: id,
+      clientId: '',
+      clientName: '',
+      employeeId: '',
+      employeeFirstName: '',
+      employeeLastName: '',
+      branchCode: '',
+      status: InvestmentStatus.active,
+      isAllocated: false,
+      marketType: MarketType.primary,
+      signedDate: _parseDate(data['created_at']) ?? DateTime.now(),
+      entryDate: null,
+      exitDate: null,
+      proposalId: '',
+      productType: ProductType.shares,
+      productName: data['typ_produktu']?.toString() ?? '',
+      creditorCompany: '',
+      companyId: '',
+      issueDate: null,
+      redemptionDate: null,
+      sharesCount: double.tryParse(
+        data['ilosc_udzialow']?.toString() ?? '0',
+      )?.toInt(),
+      investmentAmount:
+          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
+      paidAmount:
+          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
+      realizedCapital: 0.0,
+      realizedInterest: 0.0,
+      transferToOtherProduct: 0.0,
+      remainingCapital:
+          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
+      remainingInterest: 0.0,
+      plannedTax: 0.0,
+      realizedTax: 0.0,
+      currency: 'PLN',
+      createdAt: _parseDate(data['created_at']) ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+      additionalInfo: {
+        'source': 'shares_collection',
+        'ilosc_udzialow': data['ilosc_udzialow']?.toString() ?? '0',
+      },
     );
   }
 
