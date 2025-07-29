@@ -13,6 +13,11 @@ class AdvancedAnalyticsService extends BaseService {
     );
   }
 
+  /// Czyści cache zaawansowanych metryk
+  void clearAdvancedMetricsCache() {
+    clearCache('advanced_dashboard_metrics');
+  }
+
   /// Oblicza zaawansowane metryki
   Future<AdvancedDashboardMetrics> _calculateAdvancedMetrics() async {
     try {
@@ -44,14 +49,55 @@ class AdvancedAnalyticsService extends BaseService {
     }
   }
 
-  /// Pobiera wszystkie inwestycje
+  /// Pobiera wszystkie inwestycje ze wszystkich kolekcji
   Future<List<Investment>> _getAllInvestments() async {
     try {
-      final snapshot = await firestore.collection('investments').get();
-      return snapshot.docs.map((doc) {
+      print(
+        '🔍 [AdvancedAnalytics] Pobieranie danych ze wszystkich kolekcji...',
+      );
+
+      // Pobierz dane równolegle ze wszystkich kolekcji
+      final results = await Future.wait([
+        firestore.collection('investments').get(),
+        firestore.collection('bonds').get(),
+        firestore.collection('loans').get(),
+        firestore.collection('shares').get(),
+      ]);
+
+      final allInvestments = <Investment>[];
+
+      // Konwertuj dane z głównej kolekcji investments
+      for (final doc in results[0].docs) {
         final data = doc.data();
-        return _convertExcelDataToInvestment(doc.id, data);
-      }).toList();
+        allInvestments.add(_convertExcelDataToInvestment(doc.id, data));
+      }
+      print('🔍 [AdvancedAnalytics] Investments: ${results[0].docs.length}');
+
+      // Konwertuj dane z kolekcji bonds na Investment
+      for (final doc in results[1].docs) {
+        final data = doc.data();
+        allInvestments.add(_convertBondToInvestment(doc.id, data));
+      }
+      print('🔍 [AdvancedAnalytics] Bonds: ${results[1].docs.length}');
+
+      // Konwertuj dane z kolekcji loans na Investment
+      for (final doc in results[2].docs) {
+        final data = doc.data();
+        allInvestments.add(_convertLoanToInvestment(doc.id, data));
+      }
+      print('🔍 [AdvancedAnalytics] Loans: ${results[2].docs.length}');
+
+      // Konwertuj dane z kolekcji shares na Investment
+      for (final doc in results[3].docs) {
+        final data = doc.data();
+        allInvestments.add(_convertShareToInvestment(doc.id, data));
+      }
+      print('🔍 [AdvancedAnalytics] Shares: ${results[3].docs.length}');
+
+      print(
+        '🔍 [AdvancedAnalytics] Łącznie inwestycji: ${allInvestments.length}',
+      );
+      return allInvestments;
     } catch (e) {
       logError('_getAllInvestments', e);
       return [];
@@ -892,6 +938,7 @@ class AdvancedAnalyticsService extends BaseService {
     final typeStr = data['typ_produktu']?.toString() ?? '';
     if (typeStr == 'Udziały') productType = ProductType.shares;
     if (typeStr == 'Apartamenty') productType = ProductType.apartments;
+    if (typeStr == 'Pożyczka') productType = ProductType.loans;
 
     // Mapowanie zgodne z JSON z investments_data.json
     MarketType marketType = MarketType.primary;
@@ -948,6 +995,148 @@ class AdvancedAnalyticsService extends BaseService {
       additionalInfo: {
         'id_sprzedaz': data['id_sprzedaz']?.toString() ?? '',
         'wierzyciel_spolka': data['wierzyciel_spolka']?.toString() ?? '',
+      },
+    );
+  }
+
+  /// Konwertuje dokument z kolekcji bonds na Investment
+  Investment _convertBondToInvestment(String id, Map<String, dynamic> data) {
+    return Investment(
+      id: id,
+      clientId: '', // Bonds nie mają bezpośredniego ID klienta
+      clientName: '',
+      employeeId: '',
+      employeeFirstName: '',
+      employeeLastName: '',
+      branchCode: '',
+      status: InvestmentStatus.active,
+      isAllocated: false,
+      marketType: MarketType.primary,
+      signedDate:
+          DateTime.tryParse(data['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      entryDate: null,
+      exitDate: null,
+      proposalId: '',
+      productType: ProductType.bonds,
+      productName: data['typ_produktu']?.toString() ?? '',
+      creditorCompany: '',
+      companyId: '',
+      issueDate: null,
+      redemptionDate: null,
+      sharesCount: null,
+      investmentAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
+      paidAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
+      realizedCapital: data['kapital_zrealizowany']?.toDouble() ?? 0.0,
+      realizedInterest: data['odsetki_zrealizowane']?.toDouble() ?? 0.0,
+      transferToOtherProduct:
+          data['przekaz_na_inny_produkt']?.toDouble() ?? 0.0,
+      remainingCapital: data['kapital_pozostaly']?.toDouble() ?? 0.0,
+      remainingInterest: data['odsetki_pozostale']?.toDouble() ?? 0.0,
+      plannedTax: 0.0,
+      realizedTax: data['podatek_zrealizowany']?.toDouble() ?? 0.0,
+      currency: 'PLN',
+      exchangeRate: null,
+      createdAt:
+          DateTime.tryParse(data['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      updatedAt: DateTime.now(),
+      additionalInfo: {
+        'source': 'bonds_collection',
+        'podatek_pozostaly': data['podatek_pozostaly']?.toString() ?? '',
+      },
+    );
+  }
+
+  /// Konwertuje dokument z kolekcji loans na Investment
+  Investment _convertLoanToInvestment(String id, Map<String, dynamic> data) {
+    return Investment(
+      id: id,
+      clientId: '',
+      clientName: '',
+      employeeId: '',
+      employeeFirstName: '',
+      employeeLastName: '',
+      branchCode: '',
+      status: InvestmentStatus.active,
+      isAllocated: false,
+      marketType: MarketType.primary,
+      signedDate:
+          DateTime.tryParse(data['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      entryDate: null,
+      exitDate: null,
+      proposalId: '',
+      productType: ProductType.loans, // Pożyczki jako osobny typ produktu
+      productName: data['typ_produktu']?.toString() ?? '',
+      creditorCompany: '',
+      companyId: '',
+      issueDate: null,
+      redemptionDate: null,
+      sharesCount: null,
+      investmentAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
+      paidAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
+      realizedCapital: 0.0,
+      realizedInterest: 0.0,
+      transferToOtherProduct: 0.0,
+      remainingCapital: data['kwota_inwestycji']?.toDouble() ?? 0.0,
+      remainingInterest: 0.0,
+      plannedTax: 0.0,
+      realizedTax: 0.0,
+      currency: 'PLN',
+      exchangeRate: null,
+      createdAt:
+          DateTime.tryParse(data['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      updatedAt: DateTime.now(),
+      additionalInfo: {'source': 'loans_collection'},
+    );
+  }
+
+  /// Konwertuje dokument z kolekcji shares na Investment
+  Investment _convertShareToInvestment(String id, Map<String, dynamic> data) {
+    return Investment(
+      id: id,
+      clientId: '',
+      clientName: '',
+      employeeId: '',
+      employeeFirstName: '',
+      employeeLastName: '',
+      branchCode: '',
+      status: InvestmentStatus.active,
+      isAllocated: false,
+      marketType: MarketType.primary,
+      signedDate:
+          DateTime.tryParse(data['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      entryDate: null,
+      exitDate: null,
+      proposalId: '',
+      productType: ProductType.shares,
+      productName: data['typ_produktu']?.toString() ?? '',
+      creditorCompany: '',
+      companyId: '',
+      issueDate: null,
+      redemptionDate: null,
+      sharesCount: (data['ilosc_udzialow']?.toDouble() ?? 0.0).toInt(),
+      investmentAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
+      paidAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
+      realizedCapital: 0.0,
+      realizedInterest: 0.0,
+      transferToOtherProduct: 0.0,
+      remainingCapital: data['kwota_inwestycji']?.toDouble() ?? 0.0,
+      remainingInterest: 0.0,
+      plannedTax: 0.0,
+      realizedTax: 0.0,
+      currency: 'PLN',
+      exchangeRate: null,
+      createdAt:
+          DateTime.tryParse(data['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      updatedAt: DateTime.now(),
+      additionalInfo: {
+        'source': 'shares_collection',
+        'ilosc_udzialow': data['ilosc_udzialow']?.toString() ?? '0',
       },
     );
   }

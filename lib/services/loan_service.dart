@@ -16,7 +16,8 @@ class LoanService extends BaseService {
     }
 
     return query.snapshots().map(
-      (snapshot) => snapshot.docs.map((doc) => Loan.fromFirestore(doc)).toList(),
+      (snapshot) =>
+          snapshot.docs.map((doc) => Loan.fromFirestore(doc)).toList(),
     );
   }
 
@@ -78,21 +79,22 @@ class LoanService extends BaseService {
     return getCachedData('loans_stats', () async {
       try {
         final snapshot = await firestore.collection(_collection).get();
-        
+
         double totalInvestmentAmount = 0;
         Map<String, int> productTypeCounts = {};
         Map<String, double> productTypeValues = {};
 
         for (var doc in snapshot.docs) {
           final loan = Loan.fromFirestore(doc);
-          
+
           totalInvestmentAmount += loan.investmentAmount;
-          
+
           // Count by product type
-          productTypeCounts[loan.productType] = 
+          productTypeCounts[loan.productType] =
               (productTypeCounts[loan.productType] ?? 0) + 1;
-          productTypeValues[loan.productType] = 
-              (productTypeValues[loan.productType] ?? 0) + loan.investmentAmount;
+          productTypeValues[loan.productType] =
+              (productTypeValues[loan.productType] ?? 0) +
+              loan.investmentAmount;
         }
 
         return {
@@ -100,8 +102,8 @@ class LoanService extends BaseService {
           'total_investment_amount': totalInvestmentAmount,
           'product_type_counts': productTypeCounts,
           'product_type_values': productTypeValues,
-          'average_loan_amount': snapshot.docs.isNotEmpty 
-              ? totalInvestmentAmount / snapshot.docs.length 
+          'average_loan_amount': snapshot.docs.isNotEmpty
+              ? totalInvestmentAmount / snapshot.docs.length
               : 0.0,
         };
       } catch (e) {
@@ -119,7 +121,8 @@ class LoanService extends BaseService {
         .orderBy('created_at', descending: true)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) => Loan.fromFirestore(doc)).toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => Loan.fromFirestore(doc)).toList(),
         );
   }
 
@@ -134,7 +137,8 @@ class LoanService extends BaseService {
         .orderBy('typ_produktu')
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) => Loan.fromFirestore(doc)).toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => Loan.fromFirestore(doc)).toList(),
         );
   }
 
@@ -146,11 +150,13 @@ class LoanService extends BaseService {
           .limit(100) // Get more to sort properly
           .get();
 
-      final loans = snapshot.docs.map((doc) => Loan.fromFirestore(doc)).toList();
-      
+      final loans = snapshot.docs
+          .map((doc) => Loan.fromFirestore(doc))
+          .toList();
+
       // Sort by investment amount
       loans.sort((a, b) => b.investmentAmount.compareTo(a.investmentAmount));
-      
+
       return loans.take(limit).toList();
     } catch (e) {
       logError('getLargestLoans', e);

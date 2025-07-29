@@ -22,11 +22,12 @@ class Share {
   });
 
   // Calculated properties
-  double get pricePerShare => sharesCount > 0 ? investmentAmount / sharesCount : 0.0;
+  double get pricePerShare =>
+      sharesCount > 0 ? investmentAmount / sharesCount : 0.0;
 
   factory Share.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    
+
     // Helper function to safely convert to double
     double safeToDouble(dynamic value, [double defaultValue = 0.0]) {
       if (value == null) return defaultValue;
@@ -70,14 +71,16 @@ class Share {
       createdAt: parseDate(data['created_at']) ?? DateTime.now(),
       uploadedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
       additionalInfo: Map<String, dynamic>.from(data)
-        ..removeWhere((key, value) => [
-              'typ_produktu',
-              'kwota_inwestycji',
-              'ilosc_udzialow',
-              'source_file',
-              'created_at',
-              'uploaded_at'
-            ].contains(key)),
+        ..removeWhere(
+          (key, value) => [
+            'typ_produktu',
+            'kwota_inwestycji',
+            'ilosc_udzialow',
+            'source_file',
+            'created_at',
+            'uploaded_at',
+          ].contains(key),
+        ),
     );
   }
 

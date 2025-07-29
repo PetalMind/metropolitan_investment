@@ -41,14 +41,18 @@ class DashboardService extends BaseService {
         final totalSharesValue = sharesStats['total_investment_amount'] ?? 0.0;
         final totalInvestmentsValue = investmentStats['totalValue'] ?? 0.0;
 
-        final totalPortfolioValue = totalBondsValue + totalLoansValue + 
-                                   totalSharesValue + totalInvestmentsValue;
+        final totalPortfolioValue =
+            totalBondsValue +
+            totalLoansValue +
+            totalSharesValue +
+            totalInvestmentsValue;
 
         // Calculate current value (remaining + realized)
-        final bondsCurrentValue = (bondsStats['total_remaining_capital'] ?? 0.0) + 
-                                 (bondsStats['total_remaining_interest'] ?? 0.0) +
-                                 (bondsStats['total_realized_capital'] ?? 0.0) + 
-                                 (bondsStats['total_realized_interest'] ?? 0.0);
+        final bondsCurrentValue =
+            (bondsStats['total_remaining_capital'] ?? 0.0) +
+            (bondsStats['total_remaining_interest'] ?? 0.0) +
+            (bondsStats['total_realized_capital'] ?? 0.0) +
+            (bondsStats['total_realized_interest'] ?? 0.0);
 
         return {
           // Overview stats
@@ -56,34 +60,36 @@ class DashboardService extends BaseService {
           'total_clients': clientStats['total_clients'] ?? 0,
           'total_employees': employeesCount,
           'total_active_investments': investmentStats['activeCount'] ?? 0,
-          
+
           // Detailed breakdowns
           'bonds': {
             'count': bondsStats['total_count'] ?? 0,
             'total_value': totalBondsValue,
             'current_value': bondsCurrentValue,
-            'realized_profit': (bondsStats['total_realized_capital'] ?? 0.0) + 
-                              (bondsStats['total_realized_interest'] ?? 0.0),
+            'realized_profit':
+                (bondsStats['total_realized_capital'] ?? 0.0) +
+                (bondsStats['total_realized_interest'] ?? 0.0),
             'remaining_capital': bondsStats['total_remaining_capital'] ?? 0.0,
             'remaining_interest': bondsStats['total_remaining_interest'] ?? 0.0,
             'product_types': bondsStats['product_type_counts'] ?? {},
           },
-          
+
           'loans': {
             'count': loansStats['total_count'] ?? 0,
             'total_value': totalLoansValue,
             'average_amount': loansStats['average_loan_amount'] ?? 0.0,
             'product_types': loansStats['product_type_counts'] ?? {},
           },
-          
+
           'shares': {
             'count': sharesStats['total_count'] ?? 0,
             'total_value': totalSharesValue,
             'total_shares_count': sharesStats['total_shares_count'] ?? 0,
-            'average_price_per_share': sharesStats['average_price_per_share'] ?? 0.0,
+            'average_price_per_share':
+                sharesStats['average_price_per_share'] ?? 0.0,
             'product_types': sharesStats['product_type_counts'] ?? {},
           },
-          
+
           'investments': {
             'total_count': investmentStats['totalCount'] ?? 0,
             'active_count': investmentStats['activeCount'] ?? 0,
@@ -91,7 +97,7 @@ class DashboardService extends BaseService {
             'total_value': totalInvestmentsValue,
             'product_types': investmentStats['productTypes'] ?? {},
           },
-          
+
           'clients': {
             'total': clientStats['total_clients'] ?? 0,
             'with_email': clientStats['clients_with_email'] ?? 0,
@@ -101,27 +107,31 @@ class DashboardService extends BaseService {
             'phone_percentage': clientStats['phone_percentage'] ?? '0',
             'company_percentage': clientStats['company_percentage'] ?? '0',
           },
-          
+
           // Performance metrics
           'performance': {
             'total_profit_loss': (bondsStats['total_profit_loss'] ?? 0.0),
             'bonds_performance': bondsStats['total_profit_loss'] ?? 0.0,
             'portfolio_diversification': {
-              'bonds_percentage': totalPortfolioValue > 0 
-                  ? (totalBondsValue / totalPortfolioValue * 100).toStringAsFixed(1)
+              'bonds_percentage': totalPortfolioValue > 0
+                  ? (totalBondsValue / totalPortfolioValue * 100)
+                        .toStringAsFixed(1)
                   : '0',
-              'loans_percentage': totalPortfolioValue > 0 
-                  ? (totalLoansValue / totalPortfolioValue * 100).toStringAsFixed(1) 
+              'loans_percentage': totalPortfolioValue > 0
+                  ? (totalLoansValue / totalPortfolioValue * 100)
+                        .toStringAsFixed(1)
                   : '0',
-              'shares_percentage': totalPortfolioValue > 0 
-                  ? (totalSharesValue / totalPortfolioValue * 100).toStringAsFixed(1) 
+              'shares_percentage': totalPortfolioValue > 0
+                  ? (totalSharesValue / totalPortfolioValue * 100)
+                        .toStringAsFixed(1)
                   : '0',
-              'investments_percentage': totalPortfolioValue > 0 
-                  ? (totalInvestmentsValue / totalPortfolioValue * 100).toStringAsFixed(1) 
+              'investments_percentage': totalPortfolioValue > 0
+                  ? (totalInvestmentsValue / totalPortfolioValue * 100)
+                        .toStringAsFixed(1)
                   : '0',
             },
           },
-          
+
           // Timestamps
           'last_updated': DateTime.now().toIso8601String(),
           'cache_duration': 'PT5M', // 5 minutes cache
@@ -148,7 +158,7 @@ class DashboardService extends BaseService {
 
         return {
           'top_bonds': results[0],
-          'top_shares': results[1], 
+          'top_shares': results[1],
           'largest_loans': results[2],
           'last_updated': DateTime.now().toIso8601String(),
         };
@@ -167,7 +177,7 @@ class DashboardService extends BaseService {
     return getCachedData('quick_stats', () async {
       try {
         final dashboardData = await getDashboardData();
-        
+
         return {
           'total_portfolio_value': dashboardData['total_portfolio_value'],
           'total_clients': dashboardData['total_clients'],
@@ -203,33 +213,37 @@ class DashboardService extends BaseService {
   Future<List<Map<String, dynamic>>> getDashboardAlerts() async {
     try {
       final List<Map<String, dynamic>> alerts = [];
-      
+
       // Check for bonds with high remaining interest
       final bondsStats = await _bondService.getBondsStatistics();
-      final totalRemainingInterest = bondsStats['total_remaining_interest'] ?? 0.0;
-      
+      final totalRemainingInterest =
+          bondsStats['total_remaining_interest'] ?? 0.0;
+
       if (totalRemainingInterest > 100000) {
         alerts.add({
           'type': 'info',
           'title': 'Wysokie odsetki do realizacji',
-          'message': 'Pozostałe odsetki do realizacji: ${totalRemainingInterest.toStringAsFixed(0)} PLN',
+          'message':
+              'Pozostałe odsetki do realizacji: ${totalRemainingInterest.toStringAsFixed(0)} PLN',
           'action': 'bonds_view',
         });
       }
-      
+
       // Check for low client engagement
       final clientStats = await _clientService.getClientStats();
-      final emailPercentage = double.tryParse(clientStats['email_percentage'] ?? '0') ?? 0;
-      
+      final emailPercentage =
+          double.tryParse(clientStats['email_percentage'] ?? '0') ?? 0;
+
       if (emailPercentage < 50) {
         alerts.add({
           'type': 'warning',
           'title': 'Niska dostępność emaili klientów',
-          'message': 'Tylko ${emailPercentage.toStringAsFixed(1)}% klientów ma podany email',
+          'message':
+              'Tylko ${emailPercentage.toStringAsFixed(1)}% klientów ma podany email',
           'action': 'clients_view',
         });
       }
-      
+
       return alerts;
     } catch (e) {
       logError('getDashboardAlerts', e);

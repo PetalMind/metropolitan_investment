@@ -21,7 +21,7 @@ class Loan {
 
   factory Loan.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    
+
     // Helper function to safely convert to double
     double safeToDouble(dynamic value, [double defaultValue = 0.0]) {
       if (value == null) return defaultValue;
@@ -52,13 +52,15 @@ class Loan {
       createdAt: parseDate(data['created_at']) ?? DateTime.now(),
       uploadedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
       additionalInfo: Map<String, dynamic>.from(data)
-        ..removeWhere((key, value) => [
-              'typ_produktu',
-              'kwota_inwestycji',
-              'source_file',
-              'created_at',
-              'uploaded_at'
-            ].contains(key)),
+        ..removeWhere(
+          (key, value) => [
+            'typ_produktu',
+            'kwota_inwestycji',
+            'source_file',
+            'created_at',
+            'uploaded_at',
+          ].contains(key),
+        ),
     );
   }
 

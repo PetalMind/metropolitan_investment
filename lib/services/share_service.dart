@@ -16,7 +16,8 @@ class ShareService extends BaseService {
     }
 
     return query.snapshots().map(
-      (snapshot) => snapshot.docs.map((doc) => Share.fromFirestore(doc)).toList(),
+      (snapshot) =>
+          snapshot.docs.map((doc) => Share.fromFirestore(doc)).toList(),
     );
   }
 
@@ -78,7 +79,7 @@ class ShareService extends BaseService {
     return getCachedData('shares_stats', () async {
       try {
         final snapshot = await firestore.collection(_collection).get();
-        
+
         double totalInvestmentAmount = 0;
         int totalSharesCount = 0;
         Map<String, int> productTypeCounts = {};
@@ -87,16 +88,17 @@ class ShareService extends BaseService {
 
         for (var doc in snapshot.docs) {
           final share = Share.fromFirestore(doc);
-          
+
           totalInvestmentAmount += share.investmentAmount;
           totalSharesCount += share.sharesCount;
-          
+
           // Count by product type
-          productTypeCounts[share.productType] = 
+          productTypeCounts[share.productType] =
               (productTypeCounts[share.productType] ?? 0) + 1;
-          productTypeValues[share.productType] = 
-              (productTypeValues[share.productType] ?? 0) + share.investmentAmount;
-          productTypeShares[share.productType] = 
+          productTypeValues[share.productType] =
+              (productTypeValues[share.productType] ?? 0) +
+              share.investmentAmount;
+          productTypeShares[share.productType] =
               (productTypeShares[share.productType] ?? 0) + share.sharesCount;
         }
 
@@ -107,14 +109,14 @@ class ShareService extends BaseService {
           'product_type_counts': productTypeCounts,
           'product_type_values': productTypeValues,
           'product_type_shares': productTypeShares,
-          'average_investment_amount': snapshot.docs.isNotEmpty 
-              ? totalInvestmentAmount / snapshot.docs.length 
+          'average_investment_amount': snapshot.docs.isNotEmpty
+              ? totalInvestmentAmount / snapshot.docs.length
               : 0.0,
-          'average_shares_count': snapshot.docs.isNotEmpty 
-              ? totalSharesCount / snapshot.docs.length 
+          'average_shares_count': snapshot.docs.isNotEmpty
+              ? totalSharesCount / snapshot.docs.length
               : 0.0,
-          'average_price_per_share': totalSharesCount > 0 
-              ? totalInvestmentAmount / totalSharesCount 
+          'average_price_per_share': totalSharesCount > 0
+              ? totalInvestmentAmount / totalSharesCount
               : 0.0,
         };
       } catch (e) {
@@ -132,7 +134,8 @@ class ShareService extends BaseService {
         .orderBy('created_at', descending: true)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) => Share.fromFirestore(doc)).toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => Share.fromFirestore(doc)).toList(),
         );
   }
 
@@ -147,7 +150,8 @@ class ShareService extends BaseService {
         .orderBy('typ_produktu')
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) => Share.fromFirestore(doc)).toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => Share.fromFirestore(doc)).toList(),
         );
   }
 
@@ -159,11 +163,13 @@ class ShareService extends BaseService {
           .limit(100) // Get more to sort properly
           .get();
 
-      final shares = snapshot.docs.map((doc) => Share.fromFirestore(doc)).toList();
-      
+      final shares = snapshot.docs
+          .map((doc) => Share.fromFirestore(doc))
+          .toList();
+
       // Sort by shares count
       shares.sort((a, b) => b.sharesCount.compareTo(a.sharesCount));
-      
+
       return shares.take(limit).toList();
     } catch (e) {
       logError('getSharesWithHighestCount', e);
@@ -179,11 +185,13 @@ class ShareService extends BaseService {
           .limit(100) // Get more to sort properly
           .get();
 
-      final shares = snapshot.docs.map((doc) => Share.fromFirestore(doc)).toList();
-      
+      final shares = snapshot.docs
+          .map((doc) => Share.fromFirestore(doc))
+          .toList();
+
       // Sort by investment amount
       shares.sort((a, b) => b.investmentAmount.compareTo(a.investmentAmount));
-      
+
       return shares.take(limit).toList();
     } catch (e) {
       logError('getSharesWithHighestValue', e);

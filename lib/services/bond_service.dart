@@ -16,7 +16,8 @@ class BondService extends BaseService {
     }
 
     return query.snapshots().map(
-      (snapshot) => snapshot.docs.map((doc) => Bond.fromFirestore(doc)).toList(),
+      (snapshot) =>
+          snapshot.docs.map((doc) => Bond.fromFirestore(doc)).toList(),
     );
   }
 
@@ -78,7 +79,7 @@ class BondService extends BaseService {
     return getCachedData('bonds_stats', () async {
       try {
         final snapshot = await firestore.collection(_collection).get();
-        
+
         double totalInvestmentAmount = 0;
         double totalRealizedCapital = 0;
         double totalRemainingCapital = 0;
@@ -87,13 +88,13 @@ class BondService extends BaseService {
         double totalRealizedTax = 0;
         double totalRemainingTax = 0;
         double totalTransferToOtherProduct = 0;
-        
+
         Map<String, int> productTypeCounts = {};
         Map<String, double> productTypeValues = {};
 
         for (var doc in snapshot.docs) {
           final bond = Bond.fromFirestore(doc);
-          
+
           totalInvestmentAmount += bond.investmentAmount;
           totalRealizedCapital += bond.realizedCapital;
           totalRemainingCapital += bond.remainingCapital;
@@ -102,12 +103,13 @@ class BondService extends BaseService {
           totalRealizedTax += bond.realizedTax;
           totalRemainingTax += bond.remainingTax;
           totalTransferToOtherProduct += bond.transferToOtherProduct;
-          
+
           // Count by product type
-          productTypeCounts[bond.productType] = 
+          productTypeCounts[bond.productType] =
               (productTypeCounts[bond.productType] ?? 0) + 1;
-          productTypeValues[bond.productType] = 
-              (productTypeValues[bond.productType] ?? 0) + bond.investmentAmount;
+          productTypeValues[bond.productType] =
+              (productTypeValues[bond.productType] ?? 0) +
+              bond.investmentAmount;
         }
 
         return {
@@ -123,9 +125,12 @@ class BondService extends BaseService {
           'product_type_counts': productTypeCounts,
           'product_type_values': productTypeValues,
           'total_current_value': totalRemainingCapital + totalRemainingInterest,
-          'total_profit_loss': (totalRealizedCapital + totalRealizedInterest + 
-                               totalRemainingCapital + totalRemainingInterest) - 
-                               totalInvestmentAmount,
+          'total_profit_loss':
+              (totalRealizedCapital +
+                  totalRealizedInterest +
+                  totalRemainingCapital +
+                  totalRemainingInterest) -
+              totalInvestmentAmount,
         };
       } catch (e) {
         logError('getBondsStatistics', e);
@@ -142,7 +147,8 @@ class BondService extends BaseService {
         .orderBy('created_at', descending: true)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) => Bond.fromFirestore(doc)).toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => Bond.fromFirestore(doc)).toList(),
         );
   }
 
@@ -157,7 +163,8 @@ class BondService extends BaseService {
         .orderBy('typ_produktu')
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) => Bond.fromFirestore(doc)).toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => Bond.fromFirestore(doc)).toList(),
         );
   }
 
@@ -169,11 +176,15 @@ class BondService extends BaseService {
           .limit(100) // Get more to calculate performance
           .get();
 
-      final bonds = snapshot.docs.map((doc) => Bond.fromFirestore(doc)).toList();
-      
+      final bonds = snapshot.docs
+          .map((doc) => Bond.fromFirestore(doc))
+          .toList();
+
       // Sort by profit/loss percentage
-      bonds.sort((a, b) => b.profitLossPercentage.compareTo(a.profitLossPercentage));
-      
+      bonds.sort(
+        (a, b) => b.profitLossPercentage.compareTo(a.profitLossPercentage),
+      );
+
       return bonds.take(limit).toList();
     } catch (e) {
       logError('getTopPerformingBonds', e);

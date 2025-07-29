@@ -43,7 +43,7 @@ class Bond {
 
   factory Bond.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    
+
     // Helper function to safely convert to double
     double safeToDouble(dynamic value, [double defaultValue = 0.0]) {
       if (value == null) return defaultValue;
@@ -81,20 +81,22 @@ class Bond {
       createdAt: parseDate(data['created_at']) ?? DateTime.now(),
       uploadedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
       additionalInfo: Map<String, dynamic>.from(data)
-        ..removeWhere((key, value) => [
-              'typ_produktu',
-              'kwota_inwestycji',
-              'kapital_zrealizowany',
-              'kapital_pozostaly',
-              'odsetki_zrealizowane',
-              'odsetki_pozostale',
-              'podatek_zrealizowany',
-              'podatek_pozostaly',
-              'przekaz_na_inny_produkt',
-              'source_file',
-              'created_at',
-              'uploaded_at'
-            ].contains(key)),
+        ..removeWhere(
+          (key, value) => [
+            'typ_produktu',
+            'kwota_inwestycji',
+            'kapital_zrealizowany',
+            'kapital_pozostaly',
+            'odsetki_zrealizowane',
+            'odsetki_pozostale',
+            'podatek_zrealizowany',
+            'podatek_pozostaly',
+            'przekaz_na_inny_produkt',
+            'source_file',
+            'created_at',
+            'uploaded_at',
+          ].contains(key),
+        ),
     );
   }
 
@@ -142,7 +144,8 @@ class Bond {
       remainingInterest: remainingInterest ?? this.remainingInterest,
       realizedTax: realizedTax ?? this.realizedTax,
       remainingTax: remainingTax ?? this.remainingTax,
-      transferToOtherProduct: transferToOtherProduct ?? this.transferToOtherProduct,
+      transferToOtherProduct:
+          transferToOtherProduct ?? this.transferToOtherProduct,
       sourceFile: sourceFile ?? this.sourceFile,
       createdAt: createdAt ?? this.createdAt,
       uploadedAt: uploadedAt ?? this.uploadedAt,

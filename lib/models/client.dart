@@ -59,7 +59,7 @@ class Client {
 
   factory Client.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    
+
     // Helper function to parse date strings
     DateTime? parseDate(String? dateStr) {
       if (dateStr == null || dateStr.isEmpty) return null;
@@ -69,7 +69,7 @@ class Client {
         return null;
       }
     }
-    
+
     return Client(
       id: doc.id,
       name: data['imie_nazwisko'] ?? data['name'] ?? '',
@@ -89,16 +89,15 @@ class Client {
       ),
       colorCode: data['colorCode'] ?? '#FFFFFF',
       unviableInvestments: List<String>.from(data['unviableInvestments'] ?? []),
-      createdAt: data['createdAt'] != null 
+      createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : parseDate(data['created_at']) ?? DateTime.now(),
       updatedAt: data['updatedAt'] != null
-          ? (data['updatedAt'] as Timestamp).toDate() 
+          ? (data['updatedAt'] as Timestamp).toDate()
           : parseDate(data['uploaded_at']) ?? DateTime.now(),
       isActive: data['isActive'] ?? true,
-      additionalInfo: data['additionalInfo'] ?? {
-        'source_file': data['source_file'],
-      },
+      additionalInfo:
+          data['additionalInfo'] ?? {'source_file': data['source_file']},
     );
   }
 
