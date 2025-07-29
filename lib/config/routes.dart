@@ -15,8 +15,19 @@ import '../screens/investor_analytics_screen.dart';
 import '../widgets/auth_wrapper.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import 'app_routes.dart' as app_routes;
 
-class AppRoutes {
+/// Główna klasa routera - używa definicji z app_routes.dart
+class AppRouter {
+  static final GoRouter router = AppRouter._router;
+
+  /// Prywatny getter dla routera z app_routes.dart
+  static GoRouter get _router => app_routes.AppRouter.router;
+}
+
+/// DEPRECATED: Stary system routingu - zostaje dla kompatybilności
+/// Nowy system znajduje się w app_routes.dart
+class OldAppRoutes {
   static const String root = '/';
   static const String login = '/login';
   static const String register = '/register';
@@ -31,90 +42,83 @@ class AppRoutes {
   static const String investorAnalytics = '/investor-analytics';
 }
 
-class AppRouter {
+/// DEPRECATED: Stary router - używaj AppRouter z app_routes.dart
+class OldAppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: AppRoutes.root,
+    initialLocation: OldAppRoutes.root,
     redirect: (context, state) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final isAuthenticated = authProvider.isLoggedIn;
       final isLoading = authProvider.isLoading;
       final isInitializing = authProvider.isInitializing;
 
-      // Jeśli ładuje się auth lub inicjalizuje, nie przekierowuj
       if (isLoading || isInitializing) return null;
 
-      // Publiczne ścieżki dostępne bez logowania
-      final publicPaths = [AppRoutes.login, AppRoutes.register];
-
+      final publicPaths = [OldAppRoutes.login, OldAppRoutes.register];
       final isPublicPath = publicPaths.contains(state.matchedLocation);
 
-      // Jeśli użytkownik nie jest zalogowany i nie jest na publicznej ścieżce
       if (!isAuthenticated && !isPublicPath) {
-        return AppRoutes.login;
+        return OldAppRoutes.login;
       }
 
-      // Jeśli użytkownik jest zalogowany i jest na publicznej ścieżce
       if (isAuthenticated && isPublicPath) {
-        return AppRoutes.main;
+        return OldAppRoutes.main;
       }
 
       return null;
     },
     routes: [
-      // Root route
       GoRoute(
-        path: AppRoutes.root,
+        path: OldAppRoutes.root,
         builder: (context, state) => const AuthWrapper(),
       ),
 
-      // Auth routes
       GoRoute(
-        path: AppRoutes.login,
+        path: OldAppRoutes.login,
         builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
-        path: AppRoutes.register,
+        path: OldAppRoutes.register,
         builder: (context, state) => const RegisterScreen(),
       ),
 
-      // Main application with shell layout
       ShellRoute(
         builder: (context, state, child) => MainScreenShell(child: child),
         routes: [
           GoRoute(
-            path: AppRoutes.main,
+            path: OldAppRoutes.main,
             builder: (context, state) => const DashboardScreen(),
           ),
           GoRoute(
-            path: AppRoutes.dashboard,
+            path: OldAppRoutes.dashboard,
             builder: (context, state) => const DashboardScreen(),
           ),
           GoRoute(
-            path: AppRoutes.investments,
+            path: OldAppRoutes.investments,
             builder: (context, state) => const InvestmentsScreen(),
           ),
           GoRoute(
-            path: AppRoutes.clients,
+            path: OldAppRoutes.clients,
             builder: (context, state) => const ClientsScreen(),
           ),
           GoRoute(
-            path: AppRoutes.products,
+            path: OldAppRoutes.products,
             builder: (context, state) => const ProductsScreen(),
           ),
           GoRoute(
-            path: AppRoutes.companies,
+            path: OldAppRoutes.companies,
             builder: (context, state) => const CompaniesScreen(),
           ),
           GoRoute(
-            path: AppRoutes.employees,
+            path: OldAppRoutes.employees,
             builder: (context, state) => const EmployeesScreen(),
           ),
           GoRoute(
-            path: AppRoutes.analytics,
+            path: OldAppRoutes.analytics,
             builder: (context, state) => const AnalyticsScreen(),
           ),
           GoRoute(
-            path: AppRoutes.investorAnalytics,
+            path: OldAppRoutes.investorAnalytics,
             builder: (context, state) => const InvestorAnalyticsScreen(),
           ),
         ],
@@ -123,7 +127,6 @@ class AppRouter {
   );
 }
 
-// Shell wrapper dla głównej aplikacji z nawigacją
 class MainScreenShell extends StatelessWidget {
   final Widget child;
 
@@ -135,7 +138,6 @@ class MainScreenShell extends StatelessWidget {
   }
 }
 
-// Nowy layout dla głównego ekranu z nawigacją
 class MainScreenLayout extends StatefulWidget {
   final Widget content;
 
@@ -152,42 +154,42 @@ class _MainScreenLayoutState extends State<MainScreenLayout> {
     NavigationItem(
       icon: Icons.dashboard,
       label: 'Dashboard',
-      route: AppRoutes.dashboard,
+      route: OldAppRoutes.dashboard,
     ),
     NavigationItem(
       icon: MdiIcons.chartLine,
       label: 'Inwestycje',
-      route: AppRoutes.investments,
+      route: OldAppRoutes.investments,
     ),
     NavigationItem(
       icon: Icons.people,
       label: 'Klienci',
-      route: AppRoutes.clients,
+      route: OldAppRoutes.clients,
     ),
     NavigationItem(
       icon: MdiIcons.packageVariant,
       label: 'Produkty',
-      route: AppRoutes.products,
+      route: OldAppRoutes.products,
     ),
     NavigationItem(
       icon: Icons.business,
       label: 'Spółki',
-      route: AppRoutes.companies,
+      route: OldAppRoutes.companies,
     ),
     NavigationItem(
       icon: Icons.person_outline,
       label: 'Pracownicy',
-      route: AppRoutes.employees,
+      route: OldAppRoutes.employees,
     ),
     NavigationItem(
       icon: Icons.analytics,
       label: 'Analityka',
-      route: AppRoutes.analytics,
+      route: OldAppRoutes.analytics,
     ),
     NavigationItem(
       icon: MdiIcons.accountGroup,
       label: 'Inwestorzy',
-      route: AppRoutes.investorAnalytics,
+      route: OldAppRoutes.investorAnalytics,
     ),
   ];
 
@@ -411,11 +413,10 @@ class _MainScreenLayoutState extends State<MainScreenLayout> {
         return i;
       }
     }
-    return 0; // Default to dashboard
+    return 0;
   }
 
   void _showProfileDialog(BuildContext context) {
-    // Implementation for profile dialog
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -432,7 +433,6 @@ class _MainScreenLayoutState extends State<MainScreenLayout> {
   }
 
   void _showSettingsDialog(BuildContext context) {
-    // Implementation for settings dialog
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -488,8 +488,7 @@ class _MainScreenLayoutState extends State<MainScreenLayout> {
                 Navigator.of(context).pop();
                 await authProvider.signOut(clearRememberMe: clearRememberMe);
                 if (context.mounted) {
-                  // Force navigate to login and clear navigation stack
-                  context.go(AppRoutes.login);
+                  context.go(OldAppRoutes.login);
                 }
               },
               style: ElevatedButton.styleFrom(

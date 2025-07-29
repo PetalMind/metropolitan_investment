@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../providers/auth_provider.dart' as app_auth;
-import '../screens/login_screen.dart';
-import '../screens/main_screen.dart';
+import '../config/app_routes.dart';
 import '../theme/app_theme.dart';
 
 class AuthWrapper extends StatelessWidget {
@@ -18,13 +18,19 @@ class AuthWrapper extends StatelessWidget {
           return const AuthLoadingScreen();
         }
 
-        // Show main app if user is logged in
+        // Redirect to dashboard if user is logged in
         if (authProvider.isLoggedIn) {
-          return const MainScreen();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.go(AppRoutes.dashboard);
+          });
+          return const AuthLoadingScreen();
         }
 
-        // Show login screen if user is not logged in
-        return const LoginScreen();
+        // Redirect to login if user is not logged in
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          context.go(AppRoutes.login);
+        });
+        return const AuthLoadingScreen();
       },
     );
   }
@@ -205,13 +211,19 @@ class StreamAuthWrapper extends StatelessWidget {
           return const AuthLoadingScreen();
         }
 
-        // Show main app if user is logged in
+        // Redirect to dashboard if user is logged in
         if (snapshot.hasData && snapshot.data != null) {
-          return const MainScreen();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.go(AppRoutes.dashboard);
+          });
+          return const AuthLoadingScreen();
         }
 
-        // Show login screen if user is not logged in
-        return const LoginScreen();
+        // Redirect to login if user is not logged in
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          context.go(AppRoutes.login);
+        });
+        return const AuthLoadingScreen();
       },
     );
   }

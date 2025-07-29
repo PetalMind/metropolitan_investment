@@ -5,7 +5,7 @@ import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/animated_button.dart';
-import '../config/routes.dart';
+import '../config/app_routes.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     if (success && mounted) {
-      context.go(AppRoutes.main);
+      context.go(AppRoutes.dashboard);
     } else if (mounted) {
       _showErrorSnackBar(
         authProvider.error ?? 'Wystąpił błąd podczas logowania',
