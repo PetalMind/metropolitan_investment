@@ -132,6 +132,52 @@ class DataCacheService extends BaseService {
         return docData;
       }).toList();
 
+      // Debug: pokaż jakie pola mamy w pierwszym dokumencie
+      if (data.isNotEmpty) {
+        print('🔍 [DataCache] === PIERWSZY DOKUMENT Z $collectionName ===');
+        final first = data.first;
+        print('🔍 [DataCache] ID: ${first['id']}');
+
+        // Pokaż wszystkie pola z wartościami
+        final sortedKeys = first.keys.toList()..sort();
+        for (final key in sortedKeys) {
+          final value = first[key];
+          if (value != null && value != '' && value != 0) {
+            print('  - $key: $value (${value.runtimeType})');
+          }
+        }
+
+        // Pokaż specjalnie pola finansowe nawet jeśli są 0
+        final financialFields = [
+          'investment_amount',
+          'Wartość nominalna',
+          'wartość_nominalna',
+          'paid_amount',
+          'Kwota wpłacona',
+          'kwota_wpłacona',
+          'remaining_capital',
+          'Kapitał pozostały',
+          'kapitał_pozostały',
+          'realized_capital',
+          'Kapitał zrealizowany',
+          'kapitał_zrealizowany',
+          'total_value',
+          'Wartość całkowita',
+          'wartość_całkowita',
+          'value',
+          'Wartość',
+          'wartość',
+        ];
+
+        print('🔍 [DataCache] Pola finansowe (nawet jeśli 0):');
+        for (final field in financialFields) {
+          if (first.containsKey(field)) {
+            print('  - $field: ${first[field]} (${first[field].runtimeType})');
+          }
+        }
+        print('🔍 [DataCache] === KONIEC DOKUMENTU ===');
+      }
+
       // Zapisz do cache
       _collectionsCache[collectionName] = data;
       _collectionsCacheTimestamp[collectionName] = DateTime.now();
@@ -385,41 +431,67 @@ class DataCacheService extends BaseService {
     final now = DateTime.now();
     return Investment(
       id: id,
-      clientId: data['client_id'] ?? id,
-      clientName: data['Nazwa klienta'] ?? data['client_name'] ?? '',
+      clientId: data['id_klient']?.toString() ?? id,
+      clientName: data['klient'] ?? data['client_name'] ?? '',
       employeeId: data['employee_id'] ?? '',
       employeeFirstName:
-          data['Imię pracownika'] ?? data['employee_first_name'] ?? '',
+          data['praconwnik_imie'] ?? data['employee_first_name'] ?? '',
       employeeLastName:
-          data['Nazwisko pracownika'] ?? data['employee_last_name'] ?? '',
-      branchCode: data['branch_code'] ?? 'DEFAULT',
-      status: _parseStatus(data['Status'] ?? data['status'] ?? 'Active'),
-      marketType: MarketType.primary,
+          data['pracownik_nazwisko'] ?? data['employee_last_name'] ?? '',
+      branchCode: data['oddzial'] ?? data['branch_code'] ?? 'DEFAULT',
+      status: _parseStatus(
+        data['status_produktu'] ?? data['status'] ?? 'Active',
+      ),
+      marketType: data['produkt_status_wejscie'] == 'Rynek pierwotny'
+          ? MarketType.primary
+          : MarketType.secondary,
       signedDate:
-          _parseDate(data['Data podpisania'] ?? data['signed_date']) ?? now,
-      entryDate: _parseDate(data['Data rozpoczęcia'] ?? data['start_date']),
-      exitDate: _parseDate(data['Data zakończenia'] ?? data['end_date']),
-      proposalId: data['proposal_id'] ?? id,
-      productType: ProductType.bonds, // Domyślnie obligacje dla investments
-      productName: data['Nazwa produktu'] ?? data['product_name'] ?? '',
+          _parseDate(data['data_podpisania'] ?? data['signed_date']) ?? now,
+      entryDate: _parseDate(
+        data['data_wejscia_do_inwestycji'] ?? data['start_date'],
+      ),
+      exitDate: _parseDate(
+        data['data_wyjscia_z_inwestycji'] ?? data['end_date'],
+      ),
+      proposalId: data['id_propozycja_nabycia']?.toString() ?? id,
+      productType: _parseProductType(data['typ_produktu'] ?? 'Obligacje'),
+      productName: data['produkt_nazwa'] ?? data['product_name'] ?? '',
       creditorCompany:
-          data['Firma wierzyciel'] ?? data['creditor_company'] ?? '',
-      companyId: data['company_id'] ?? '',
-      issueDate: _parseDate(data['Data emisji'] ?? data['issue_date']),
+          data['wierzyciel_spolka'] ?? data['creditor_company'] ?? '',
+      companyId: data['id_spolka'] ?? data['company_id'] ?? '',
+      issueDate: _parseDate(data['data_emisji'] ?? data['issue_date']),
       redemptionDate: _parseDate(
-        data['Data wykupu'] ?? data['redemption_date'],
+        data['data_wykupu'] ?? data['redemption_date'],
       ),
       investmentAmount: _parseDouble(
-        data['Wartość nominalna'] ?? data['investment_amount'] ?? 0,
+        data['kwota_inwestycji'] ?? data['investment_amount'] ?? 0,
       ),
-      paidAmount: _parseDouble(
-        data['Kwota wpłacona'] ?? data['paid_amount'] ?? 0,
-      ),
+      paidAmount: _parseDouble(data['kwota_wplat'] ?? data['paid_amount'] ?? 0),
       remainingCapital: _parseDouble(
-        data['Kapitał pozostały'] ?? data['remaining_capital'] ?? 0,
+        data['kapital_pozostaly'] ?? data['remaining_capital'] ?? 0,
       ),
-      createdAt: now,
-      updatedAt: now,
+      realizedCapital: _parseDouble(
+        data['kapital_zrealizowany'] ?? data['realized_capital'] ?? 0,
+      ),
+      remainingInterest: _parseDouble(
+        data['odsetki_pozostale'] ?? data['remaining_interest'] ?? 0,
+      ),
+      realizedInterest: _parseDouble(
+        data['odsetki_zrealizowane'] ?? data['realized_interest'] ?? 0,
+      ),
+      transferToOtherProduct: _parseDouble(
+        data['przekaz_na_inny_produkt'] ??
+            data['transfer_to_other_product'] ??
+            0,
+      ),
+      plannedTax: _parseDouble(
+        data['planowany_podatek'] ?? data['planned_tax'] ?? 0,
+      ),
+      realizedTax: _parseDouble(
+        data['zrealizowany_podatek'] ?? data['realized_tax'] ?? 0,
+      ),
+      createdAt: _parseDate(data['created_at']) ?? now,
+      updatedAt: _parseDate(data['uploaded_at']) ?? now,
     );
   }
 
@@ -586,6 +658,30 @@ class DataCacheService extends BaseService {
     return InvestmentStatus.active;
   }
 
+  ProductType _parseProductType(dynamic value) {
+    if (value is String) {
+      switch (value.toLowerCase()) {
+        case 'obligacje':
+        case 'bonds':
+          return ProductType.bonds;
+        case 'akcje':
+        case 'udziały':
+        case 'shares':
+          return ProductType.shares;
+        case 'pożyczki':
+        case 'pozyczki':
+        case 'loans':
+          return ProductType.loans;
+        case 'apartamenty':
+        case 'apartments':
+          return ProductType.apartments;
+        default:
+          return ProductType.bonds;
+      }
+    }
+    return ProductType.bonds;
+  }
+
   /// Rekonstruuje Investment z surowych danych (dla persistent cache)
   Investment _reconstructInvestmentFromData(
     String id,
@@ -653,27 +749,5 @@ class DataCacheService extends BaseService {
       }
     }
     return MarketType.primary;
-  }
-
-  ProductType _parseProductType(dynamic value) {
-    if (value is String) {
-      switch (value.toLowerCase()) {
-        case 'bonds':
-        case 'obligacje':
-          return ProductType.bonds;
-        case 'shares':
-        case 'udziały':
-          return ProductType.shares;
-        case 'loans':
-        case 'pożyczki':
-          return ProductType.loans;
-        case 'apartments':
-        case 'apartamenty':
-          return ProductType.apartments;
-        default:
-          return ProductType.bonds;
-      }
-    }
-    return ProductType.bonds;
   }
 }

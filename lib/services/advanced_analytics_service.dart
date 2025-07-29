@@ -69,7 +69,25 @@ class AdvancedAnalyticsService extends BaseService {
     double totalInterest = 0;
     int activeCount = 0;
 
+    print('🔍 [AdvancedAnalytics] Analiza ${investments.length} inwestycji...');
+
     for (final investment in investments) {
+      if (totalValue == 0 && totalInvested == 0) {
+        print(
+          '🔍 [AdvancedAnalytics] Sample investment: ${investment.clientName}',
+        );
+        print('🔍 [AdvancedAnalytics] - totalValue: ${investment.totalValue}');
+        print(
+          '🔍 [AdvancedAnalytics] - investmentAmount: ${investment.investmentAmount}',
+        );
+        print(
+          '🔍 [AdvancedAnalytics] - realizedCapital: ${investment.realizedCapital}',
+        );
+        print(
+          '🔍 [AdvancedAnalytics] - remainingCapital: ${investment.remainingCapital}',
+        );
+      }
+
       totalValue += investment.totalValue;
       totalInvested += investment.investmentAmount;
       totalRealized += investment.realizedCapital;
@@ -81,6 +99,10 @@ class AdvancedAnalyticsService extends BaseService {
         activeCount++;
       }
     }
+
+    print(
+      '🔍 [AdvancedAnalytics] Sumy: totalValue=$totalValue, totalInvested=$totalInvested',
+    );
 
     final totalProfit = totalRealized + totalInterest - totalInvested;
     final roi = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0.0;

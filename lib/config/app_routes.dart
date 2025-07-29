@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
-import '../screens/dashboard_screen.dart';
+import '../screens/dashboard_screen_complete.dart';
 import '../screens/investments_screen.dart';
 import '../screens/clients_screen.dart';
 import '../screens/products_screen.dart';
