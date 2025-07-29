@@ -644,23 +644,43 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Email masowy'),
+        backgroundColor: AppTheme.surfaceCard,
+        title: Text(
+          'Email masowy',
+          style: TextStyle(color: AppTheme.textPrimary),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Wysłać email do ${_filteredInvestors.length} inwestorów?'),
+            Text(
+              'Wysłać email do ${_filteredInvestors.length} inwestorów?',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
             const SizedBox(height: 16),
-            const TextField(
+            TextField(
               decoration: InputDecoration(
                 labelText: 'Temat wiadomości',
-                border: OutlineInputBorder(),
+                labelStyle: TextStyle(color: AppTheme.textSecondary),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: AppTheme.borderPrimary),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: AppTheme.borderPrimary),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: AppTheme.secondaryGold),
+                ),
               ),
+              style: TextStyle(color: AppTheme.textPrimary),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondary,
+            ),
             child: const Text('Anuluj'),
           ),
           ElevatedButton(
@@ -671,6 +691,10 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
                 const SnackBar(content: Text('Wysyłanie emaili...')),
               );
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.secondaryGold,
+              foregroundColor: AppTheme.backgroundSecondary,
+            ),
             child: const Text('Wyślij'),
           ),
         ],
@@ -1640,10 +1664,21 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
   }
 
   // === METODY POMOCNICZE ===
+
+  /// KOLORY KART INWESTORÓW
+  /// Ta metoda ustala kolor krążka z pozycją inwestora w kartach.
+  /// Kolory są pobierane z pola `colorCode` w modelu Client.
+  /// Jeśli colorCode jest nieprawidłowy, używany jest AppTheme.primaryColor jako fallback.
+  ///
+  /// Używane w:
+  /// - _buildTabletInvestorLayout (linia ~1327) - krążek 40x40px z pozycją
+  /// - _buildMobileInvestorLayout (linia ~1479) - krążek 32x32px z pozycją
   Color _getClientColor(Client client) {
     try {
+      // Próba parsowania hex color code z pola client.colorCode (np. "#FF5733")
       return Color(int.parse('0xFF${client.colorCode.replaceAll('#', '')}'));
     } catch (e) {
+      // Fallback na główny kolor motywu jeśli parsing się nie powiedzie
       return AppTheme.primaryColor;
     }
   }
@@ -1652,25 +1687,16 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     InvestorDetailsModalHelper.show(
       context: context,
       investor: investor,
-      onGenerateEmail: (subject) {
-        _generateEmailForInvestor(investor, subject);
-      },
       onEditInvestor: () {
         _editInvestor(investor);
       },
       onViewInvestments: () {
         _viewInvestorInvestments(investor);
       },
-    );
-  }
-
-  void _generateEmailForInvestor(InvestorSummary investor, String subject) {
-    // TODO: Implement email generation logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Generowanie emaila dla ${investor.client.name}...'),
-        duration: const Duration(seconds: 2),
-      ),
+      onUpdateInvestor: (updatedInvestor) {
+        // Odśwież dane po aktualizacji
+        _loadInvestorData();
+      },
     );
   }
 

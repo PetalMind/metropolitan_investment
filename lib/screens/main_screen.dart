@@ -160,15 +160,22 @@ class _MainScreenState extends State<MainScreen> {
                                   color: AppTheme.backgroundModal,
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.person, color: AppTheme.textSecondary),
+                                      const Icon(
+                                        Icons.person,
+                                        color: AppTheme.textSecondary,
+                                      ),
                                       const SizedBox(width: 8),
                                       Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            authProvider.userProfile?.fullName ??
-                                                authProvider.user?.displayName ??
+                                            authProvider
+                                                    .userProfile
+                                                    ?.fullName ??
+                                                authProvider
+                                                    .user
+                                                    ?.displayName ??
                                                 'Użytkownik',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w600,
@@ -192,9 +199,17 @@ class _MainScreenState extends State<MainScreen> {
                                 value: 'settings',
                                 child: Row(
                                   children: [
-                                    Icon(Icons.settings, color: AppTheme.textSecondary),
+                                    Icon(
+                                      Icons.settings,
+                                      color: AppTheme.textSecondary,
+                                    ),
                                     SizedBox(width: 8),
-                                    Text('Ustawienia', style: TextStyle(color: AppTheme.textPrimary)),
+                                    Text(
+                                      'Ustawienia',
+                                      style: TextStyle(
+                                        color: AppTheme.textPrimary,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -202,9 +217,17 @@ class _MainScreenState extends State<MainScreen> {
                                 value: 'logout',
                                 child: Row(
                                   children: [
-                                    Icon(Icons.logout, color: AppTheme.errorColor),
+                                    Icon(
+                                      Icons.logout,
+                                      color: AppTheme.errorColor,
+                                    ),
                                     SizedBox(width: 8),
-                                    Text('Wyloguj', style: TextStyle(color: AppTheme.errorColor)),
+                                    Text(
+                                      'Wyloguj',
+                                      style: TextStyle(
+                                        color: AppTheme.errorColor,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
