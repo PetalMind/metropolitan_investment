@@ -106,100 +106,140 @@ class Investment {
 
   factory Investment.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+
+    // Helper function to parse date strings
+    DateTime? parseDate(String? dateStr) {
+      if (dateStr == null || dateStr.isEmpty) return null;
+      try {
+        return DateTime.parse(dateStr);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Helper function to map status from Polish to enum
+    InvestmentStatus mapStatus(String? status) {
+      switch (status) {
+        case 'Aktywny':
+          return InvestmentStatus.active;
+        case 'Nieaktywny':
+          return InvestmentStatus.inactive;
+        case 'Wykup wczesniejszy':
+          return InvestmentStatus.earlyRedemption;
+        case 'Zakończony':
+          return InvestmentStatus.completed;
+        default:
+          return InvestmentStatus.active;
+      }
+    }
+
+    // Helper function to map market type from Polish to enum
+    MarketType mapMarketType(String? marketType) {
+      switch (marketType) {
+        case 'Rynek pierwotny':
+          return MarketType.primary;
+        case 'Rynek wtórny':
+          return MarketType.secondary;
+        case 'Odkup od Klienta':
+          return MarketType.clientRedemption;
+        default:
+          return MarketType.primary;
+      }
+    }
+
+    // Helper function to map product type from Polish to enum
+    ProductType mapProductType(String? productType) {
+      switch (productType) {
+        case 'Obligacje':
+          return ProductType.bonds;
+        case 'Udziały':
+          return ProductType.shares;
+        case 'Pożyczki':
+          return ProductType.loans;
+        case 'Apartamenty':
+          return ProductType.apartments;
+        default:
+          return ProductType.bonds;
+      }
+    }
+
     return Investment(
       id: doc.id,
-      clientId: data['clientId'] ?? '',
-      clientName: data['clientName'] ?? '',
-      employeeId: data['employeeId'] ?? '',
-      employeeFirstName: data['employeeFirstName'] ?? '',
-      employeeLastName: data['employeeLastName'] ?? '',
-      branchCode: data['branchCode'] ?? '',
-      status: InvestmentStatus.values.firstWhere(
-        (e) => e.name == data['status'],
-        orElse: () => InvestmentStatus.active,
-      ),
-      isAllocated: data['isAllocated'] ?? false,
-      marketType: MarketType.values.firstWhere(
-        (e) => e.name == data['marketType'],
-        orElse: () => MarketType.primary,
-      ),
-      signedDate: (data['signedDate'] as Timestamp).toDate(),
-      entryDate: data['entryDate'] != null
-          ? (data['entryDate'] as Timestamp).toDate()
-          : null,
-      exitDate: data['exitDate'] != null
-          ? (data['exitDate'] as Timestamp).toDate()
-          : null,
-      proposalId: data['proposalId'] ?? '',
-      productType: ProductType.values.firstWhere(
-        (e) => e.name == data['productType'],
-        orElse: () => ProductType.bonds,
-      ),
-      productName: data['productName'] ?? '',
-      creditorCompany: data['creditorCompany'] ?? '',
-      companyId: data['companyId'] ?? '',
-      issueDate: data['issueDate'] != null
-          ? (data['issueDate'] as Timestamp).toDate()
-          : null,
-      redemptionDate: data['redemptionDate'] != null
-          ? (data['redemptionDate'] as Timestamp).toDate()
-          : null,
-      sharesCount: data['sharesCount'],
-      investmentAmount: data['investmentAmount']?.toDouble() ?? 0.0,
-      paidAmount: data['paidAmount']?.toDouble() ?? 0.0,
-      realizedCapital: data['realizedCapital']?.toDouble() ?? 0.0,
-      realizedInterest: data['realizedInterest']?.toDouble() ?? 0.0,
-      transferToOtherProduct: data['transferToOtherProduct']?.toDouble() ?? 0.0,
-      remainingCapital: data['remainingCapital']?.toDouble() ?? 0.0,
-      remainingInterest: data['remainingInterest']?.toDouble() ?? 0.0,
-      plannedTax: data['plannedTax']?.toDouble() ?? 0.0,
-      realizedTax: data['realizedTax']?.toDouble() ?? 0.0,
-      currency: data['currency'] ?? 'PLN',
-      exchangeRate: data['exchangeRate']?.toDouble(),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
-      additionalInfo: data['additionalInfo'] ?? {},
+      clientId: data['id_klient']?.toString() ?? '',
+      clientName: data['klient'] ?? '',
+      employeeId: '', // Not directly available in Firebase structure
+      employeeFirstName: data['praconwnik_imie'] ?? '',
+      employeeLastName: data['pracownik_nazwisko'] ?? '',
+      branchCode: data['oddzial'] ?? '',
+      status: mapStatus(data['status_produktu']),
+      isAllocated: (data['przydzial'] ?? 0) == 1,
+      marketType: mapMarketType(data['produkt_status_wejscie']),
+      signedDate: parseDate(data['data_podpisania']) ?? DateTime.now(),
+      entryDate: parseDate(data['data_wejscia_do_inwestycji']),
+      exitDate: parseDate(data['data_wyjscia_z_inwestycji']),
+      proposalId: data['id_propozycja_nabycia']?.toString() ?? '',
+      productType: mapProductType(data['typ_produktu']),
+      productName: data['produkt_nazwa'] ?? '',
+      creditorCompany: data['wierzyciel_spolka'] ?? '',
+      companyId: data['id_spolka'] ?? '',
+      issueDate: parseDate(data['data_emisji']),
+      redemptionDate: parseDate(data['data_wykupu']),
+      sharesCount: data['ilosc_udzialow'],
+      investmentAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
+      paidAmount: data['kwota_wplat']?.toDouble() ?? 0.0,
+      realizedCapital: data['kapital_zrealizowany']?.toDouble() ?? 0.0,
+      realizedInterest: data['odsetki_zrealizowane']?.toDouble() ?? 0.0,
+      transferToOtherProduct:
+          data['przekaz_na_inny_produkt']?.toDouble() ?? 0.0,
+      remainingCapital: data['kapital_pozostaly']?.toDouble() ?? 0.0,
+      remainingInterest: data['odsetki_pozostale']?.toDouble() ?? 0.0,
+      plannedTax: data['planowany_podatek']?.toDouble() ?? 0.0,
+      realizedTax: data['zrealizowany_podatek']?.toDouble() ?? 0.0,
+      currency: 'PLN', // Default currency
+      exchangeRate: null, // Not available in Firebase structure
+      createdAt: parseDate(data['created_at']) ?? DateTime.now(),
+      updatedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
+      additionalInfo: {
+        'source_file': data['source_file'],
+        'id_sprzedaz': data['id_sprzedaz'],
+      },
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
-      'clientId': clientId,
-      'clientName': clientName,
-      'employeeId': employeeId,
-      'employeeFirstName': employeeFirstName,
-      'employeeLastName': employeeLastName,
-      'branchCode': branchCode,
-      'status': status.name,
-      'isAllocated': isAllocated,
-      'marketType': marketType.name,
-      'signedDate': Timestamp.fromDate(signedDate),
-      'entryDate': entryDate != null ? Timestamp.fromDate(entryDate!) : null,
-      'exitDate': exitDate != null ? Timestamp.fromDate(exitDate!) : null,
-      'proposalId': proposalId,
-      'productType': productType.name,
-      'productName': productName,
-      'creditorCompany': creditorCompany,
-      'companyId': companyId,
-      'issueDate': issueDate != null ? Timestamp.fromDate(issueDate!) : null,
-      'redemptionDate': redemptionDate != null
-          ? Timestamp.fromDate(redemptionDate!)
-          : null,
-      'sharesCount': sharesCount,
-      'investmentAmount': investmentAmount,
-      'paidAmount': paidAmount,
-      'realizedCapital': realizedCapital,
-      'realizedInterest': realizedInterest,
-      'transferToOtherProduct': transferToOtherProduct,
-      'remainingCapital': remainingCapital,
-      'remainingInterest': remainingInterest,
-      'plannedTax': plannedTax,
-      'realizedTax': realizedTax,
-      'currency': currency,
-      'exchangeRate': exchangeRate,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
-      'additionalInfo': additionalInfo,
+      'id_klient': int.tryParse(clientId) ?? 0,
+      'klient': clientName,
+      'praconwnik_imie': employeeFirstName,
+      'pracownik_nazwisko': employeeLastName,
+      'oddzial': branchCode,
+      'status_produktu': status.displayName,
+      'przydzial': isAllocated ? 1 : 0,
+      'produkt_status_wejscie': marketType.displayName,
+      'data_podpisania': signedDate.toIso8601String(),
+      'data_wejscia_do_inwestycji': entryDate?.toIso8601String(),
+      'data_wyjscia_z_inwestycji': exitDate?.toIso8601String(),
+      'id_propozycja_nabycia': int.tryParse(proposalId) ?? 0,
+      'typ_produktu': productType.displayName,
+      'produkt_nazwa': productName,
+      'wierzyciel_spolka': creditorCompany,
+      'id_spolka': companyId,
+      'data_emisji': issueDate?.toIso8601String(),
+      'data_wykupu': redemptionDate?.toIso8601String(),
+      'ilosc_udzialow': sharesCount,
+      'kwota_inwestycji': investmentAmount,
+      'kwota_wplat': paidAmount,
+      'kapital_zrealizowany': realizedCapital,
+      'odsetki_zrealizowane': realizedInterest,
+      'przekaz_na_inny_produkt': transferToOtherProduct,
+      'kapital_pozostaly': remainingCapital,
+      'odsetki_pozostale': remainingInterest,
+      'planowany_podatek': plannedTax,
+      'zrealizowany_podatek': realizedTax,
+      'created_at': createdAt.toIso8601String(),
+      'uploaded_at': updatedAt.toIso8601String(),
+      'source_file': additionalInfo['source_file'] ?? 'manual_entry',
+      'id_sprzedaz': additionalInfo['id_sprzedaz'],
     };
   }
 

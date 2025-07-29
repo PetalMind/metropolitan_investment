@@ -698,8 +698,8 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             width: 120,
           ),
           DataTableColumn<Investment>(
-            label: 'Kwota',
-            value: (investment) => _formatCurrency(investment.investmentAmount),
+            label: 'Kapitał pozostały',
+            value: (investment) => _formatCurrency(investment.remainingCapital),
             sortable: true,
             numeric: true,
             width: 140,

@@ -96,7 +96,10 @@ class AppRoutes {
   /// Sprawdza czy trasa jest publiczna
   static bool isPublicRoute(String route) {
     // Dokładne dopasowanie tras publicznych
-    if (route == root || route == login || route == register || route == forgotPassword) {
+    if (route == root ||
+        route == login ||
+        route == register ||
+        route == forgotPassword) {
       return true;
     }
     return false;
