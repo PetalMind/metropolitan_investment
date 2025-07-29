@@ -67,7 +67,10 @@ class _CustomTextFieldState extends State<CustomTextField>
     );
 
     _colorAnimation =
-        ColorTween(begin: Colors.grey[300], end: AppTheme.primaryColor).animate(
+        ColorTween(
+          begin: AppTheme.borderSecondary,
+          end: AppTheme.secondaryGold,
+        ).animate(
           CurvedAnimation(
             parent: _animationController,
             curve: Curves.easeInOut,
@@ -110,7 +113,7 @@ class _CustomTextFieldState extends State<CustomTextField>
                     widget.label,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: _isFocused
-                          ? AppTheme.primaryColor
+                          ? AppTheme.secondaryGold
                           : AppTheme.textSecondary,
                       fontWeight: FontWeight.w600,
                     ),
@@ -123,7 +126,7 @@ class _CustomTextFieldState extends State<CustomTextField>
                   boxShadow: [
                     if (_isFocused)
                       BoxShadow(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        color: AppTheme.secondaryGold.withOpacity(0.1),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -156,7 +159,7 @@ class _CustomTextFieldState extends State<CustomTextField>
                     decoration: InputDecoration(
                       hintText: widget.hint,
                       hintStyle: TextStyle(
-                        color: Colors.grey[400],
+                        color: AppTheme.textTertiary,
                         fontSize: 16,
                       ),
                       prefixIcon: widget.prefixIcon != null
@@ -168,8 +171,8 @@ class _CustomTextFieldState extends State<CustomTextField>
                               child: Icon(
                                 widget.prefixIcon,
                                 color: _isFocused
-                                    ? AppTheme.primaryColor
-                                    : Colors.grey[400],
+                                    ? AppTheme.secondaryGold
+                                    : AppTheme.textTertiary,
                                 size: 22,
                               ),
                             )
@@ -184,8 +187,8 @@ class _CustomTextFieldState extends State<CustomTextField>
                       fillColor:
                           widget.fillColor ??
                           (_isFocused
-                              ? AppTheme.primaryColor.withOpacity(0.02)
-                              : Colors.grey[50]),
+                              ? AppTheme.secondaryGold.withOpacity(0.02)
+                              : AppTheme.surfaceInteractive),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 16,
@@ -195,7 +198,7 @@ class _CustomTextFieldState extends State<CustomTextField>
                           widget.borderRadius,
                         ),
                         borderSide: BorderSide(
-                          color: Colors.grey[300]!,
+                          color: AppTheme.borderSecondary,
                           width: 1.5,
                         ),
                       ),
@@ -206,7 +209,7 @@ class _CustomTextFieldState extends State<CustomTextField>
                         borderSide: BorderSide(
                           color: _hasError
                               ? AppTheme.errorColor.withOpacity(0.5)
-                              : Colors.grey[300]!,
+                              : AppTheme.borderSecondary,
                           width: 1.5,
                         ),
                       ),
@@ -217,7 +220,7 @@ class _CustomTextFieldState extends State<CustomTextField>
                         borderSide: BorderSide(
                           color: _hasError
                               ? AppTheme.errorColor
-                              : _colorAnimation.value ?? AppTheme.primaryColor,
+                              : _colorAnimation.value ?? AppTheme.secondaryGold,
                           width: 2.0,
                         ),
                       ),
@@ -245,7 +248,7 @@ class _CustomTextFieldState extends State<CustomTextField>
                         fontWeight: FontWeight.w500,
                       ),
                       counterStyle: TextStyle(
-                        color: Colors.grey[600],
+                        color: AppTheme.textTertiary,
                         fontSize: 12,
                       ),
                     ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../theme/app_theme.dart';
 import '../services/advanced_analytics_service.dart';
+import '../utils/currency_formatter.dart';
 
 /// Zaawansowany widget metryki z animacjami i interaktywnością
 class AdvancedMetricCard extends StatefulWidget {
@@ -394,12 +395,7 @@ class AdvancedPieChart extends StatelessWidget {
   }
 
   String _formatCurrency(double amount) {
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)}M PLN';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K PLN';
-    }
-    return '${amount.toStringAsFixed(0)} PLN';
+    return CurrencyFormatter.formatCurrencyShort(amount);
   }
 }
 
@@ -565,21 +561,11 @@ class AdvancedBarChart extends StatelessWidget {
   }
 
   String _formatAxisValue(double value) {
-    if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(0)}M';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(0)}K';
-    }
-    return value.toStringAsFixed(0);
+    return CurrencyFormatter.formatAxisValue(value);
   }
 
   String _formatCurrency(double amount) {
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)}M PLN';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K PLN';
-    }
-    return '${amount.toStringAsFixed(0)} PLN';
+    return CurrencyFormatter.formatCurrencyShort(amount);
   }
 
   String _truncateLabel(String label) {
@@ -766,21 +752,11 @@ class AdvancedLineChart extends StatelessWidget {
   }
 
   String _formatAxisValue(double value) {
-    if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(0)}M';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(0)}K';
-    }
-    return value.toStringAsFixed(0);
+    return CurrencyFormatter.formatAxisValue(value);
   }
 
   String _formatCurrency(double amount) {
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)}M PLN';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K PLN';
-    }
-    return '${amount.toStringAsFixed(0)} PLN';
+    return CurrencyFormatter.formatCurrencyShort(amount);
   }
 }
 

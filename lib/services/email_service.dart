@@ -5,8 +5,8 @@ import '../models/product.dart';
 import '../services/investor_analytics_service.dart';
 
 class EmailService {
-  static const String _companyName = 'Cosmopolitan Investment';
-  static const String _companyEmail = 'biuro@cosmopolitan-investment.pl';
+  static const String _companyName = 'Metropolitan Investment';
+  static const String _companyEmail = 'biuro@metropolitan-investment.pl';
 
   // Generuj szablon maila dla inwestora
   static String generateInvestorEmailTemplate({

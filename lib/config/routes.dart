@@ -212,30 +212,30 @@ class _MainScreenLayoutState extends State<MainScreenLayout> {
             destinations: _navigationItems.map((item) {
               return NavigationRailDestination(
                 icon: Icon(item.icon),
-                selectedIcon: Icon(item.icon, color: AppTheme.primaryColor),
+                selectedIcon: Icon(item.icon, color: AppTheme.secondaryGold),
                 label: Text(item.label),
               );
             }).toList(),
-            backgroundColor: Colors.grey[50],
+            backgroundColor: AppTheme.backgroundSecondary,
             selectedIconTheme: IconThemeData(
-              color: AppTheme.primaryColor,
+              color: AppTheme.secondaryGold,
               size: 28,
             ),
             unselectedIconTheme: IconThemeData(
-              color: Colors.grey[600],
+              color: AppTheme.textTertiary,
               size: 24,
             ),
             selectedLabelTextStyle: TextStyle(
-              color: AppTheme.primaryColor,
+              color: AppTheme.secondaryGold,
               fontWeight: FontWeight.w600,
               fontSize: 12,
             ),
             unselectedLabelTextStyle: TextStyle(
-              color: Colors.grey[600],
+              color: AppTheme.textTertiary,
               fontSize: 12,
             ),
             useIndicator: true,
-            indicatorColor: AppTheme.primaryColor.withOpacity(0.1),
+            indicatorColor: AppTheme.secondaryGold.withOpacity(0.1),
           ),
           const VerticalDivider(thickness: 1, width: 1),
           Expanded(child: widget.content),
@@ -252,23 +252,31 @@ class _MainScreenLayoutState extends State<MainScreenLayout> {
           width: 60,
           height: 60,
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor,
+            gradient: AppTheme.primaryGradient,
             borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryColor.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: const Icon(
             Icons.account_balance,
-            color: Colors.white,
+            color: AppTheme.textOnPrimary,
             size: 32,
           ),
         ),
         if (_isRailExtended) ...[
           const SizedBox(height: 8),
           Text(
-            'Cosmopolitan\nInvestment',
+            'Metropolitan\nInvestment',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: AppTheme.primaryColor,
+              color: AppTheme.textPrimary,
               fontWeight: FontWeight.bold,
+              fontSize: 13,
             ),
           ),
         ],
@@ -292,8 +300,13 @@ class _MainScreenLayoutState extends State<MainScreenLayout> {
                 },
                 icon: Icon(
                   _isRailExtended ? Icons.chevron_left : Icons.chevron_right,
+                  color: AppTheme.textSecondary,
                 ),
                 tooltip: _isRailExtended ? 'Zwiń menu' : 'Rozwiń menu',
+                style: IconButton.styleFrom(
+                  backgroundColor: AppTheme.surfaceElevated,
+                  foregroundColor: AppTheme.textSecondary,
+                ),
               ),
               const SizedBox(height: 8),
               _buildUserMenu(),
@@ -339,7 +352,10 @@ class _MainScreenLayoutState extends State<MainScreenLayout> {
                       ),
                       Text(
                         authProvider.user?.email ?? '',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textTertiary,
+                        ),
                       ),
                     ],
                   ),
@@ -371,10 +387,17 @@ class _MainScreenLayoutState extends State<MainScreenLayout> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.1),
+              gradient: AppTheme.goldGradient,
               borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.secondaryGold.withOpacity(0.3),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: Icon(Icons.person, color: AppTheme.primaryColor),
+            child: Icon(Icons.person, color: AppTheme.textOnSecondary),
           ),
         );
       },
@@ -470,8 +493,8 @@ class _MainScreenLayoutState extends State<MainScreenLayout> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.errorColor,
-                foregroundColor: Colors.white,
+                backgroundColor: AppTheme.errorPrimary,
+                foregroundColor: AppTheme.textOnPrimary,
               ),
               child: const Text('Wyloguj'),
             ),

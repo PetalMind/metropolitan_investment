@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
+import 'theme/app_theme_professional.dart';
 import 'providers/auth_provider.dart';
 import 'config/routes.dart';
 
@@ -160,7 +161,7 @@ class MetropolitanInvestmentApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Cosmopolitan Investment',
+      title: 'Metropolitan Investment',
       theme: AppTheme.darkTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.dark,

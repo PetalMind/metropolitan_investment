@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import '../models/investment.dart';
 import '../theme/app_theme.dart';
+import '../utils/currency_formatter.dart';
 
 class InvestmentCard extends StatelessWidget {
   final Investment investment;
@@ -254,7 +256,7 @@ class InvestmentCard extends StatelessWidget {
   }
 
   String _formatCurrency(double amount) {
-    return '${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match match) => '${match[1]} ')} PLN';
+    return CurrencyFormatter.formatCurrency(amount, showDecimals: false);
   }
 
   String _formatDate(DateTime date) {

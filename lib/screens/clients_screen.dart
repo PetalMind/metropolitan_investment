@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../models/client.dart';
 import '../services/client_service.dart';
 import '../widgets/data_table_widget.dart';
+import '../widgets/custom_loading_widget.dart';
 
 class ClientsScreen extends StatefulWidget {
   const ClientsScreen({super.key});
@@ -18,6 +19,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
   List<Client> _clients = [];
   List<Client> _filteredClients = [];
   bool _isLoading = true;
+  double _loadingProgress = 0.0;
+  String _loadingStage = 'Inicjalizacja...';
 
   @override
   void initState() {
@@ -33,15 +36,28 @@ class _ClientsScreenState extends State<ClientsScreen> {
   }
 
   Future<void> _loadClients() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _loadingProgress = 0.0;
+      _loadingStage = 'Inicjalizacja...';
+    });
 
     try {
-      _clientService.getClients().listen((clients) {
-        setState(() {
-          _clients = clients;
-          _filteredClients = clients;
-          _isLoading = false;
-        });
+      final clients = await _clientService.loadAllClientsWithProgress(
+        onProgress: (progress, stage) {
+          if (mounted) {
+            setState(() {
+              _loadingProgress = progress;
+              _loadingStage = stage;
+            });
+          }
+        },
+      );
+
+      setState(() {
+        _clients = clients;
+        _filteredClients = clients;
+        _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
@@ -56,12 +72,29 @@ class _ClientsScreenState extends State<ClientsScreen> {
       _filteredClients = _clients.where((client) {
         return client.name.toLowerCase().contains(query) ||
             client.email.toLowerCase().contains(query) ||
-            client.phone.toLowerCase().contains(query);
+            client.phone.toLowerCase().contains(query) ||
+            (client.pesel?.toLowerCase().contains(query) ?? false);
       }).toList();
     });
   }
 
   void _showClientForm([Client? client]) {
+    final TextEditingController nameController = TextEditingController(
+      text: client?.name ?? '',
+    );
+    final TextEditingController emailController = TextEditingController(
+      text: client?.email ?? '',
+    );
+    final TextEditingController phoneController = TextEditingController(
+      text: client?.phone ?? '',
+    );
+    final TextEditingController peselController = TextEditingController(
+      text: client?.pesel ?? '',
+    );
+    final TextEditingController addressController = TextEditingController(
+      text: client?.address ?? '',
+    );
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -72,25 +105,28 @@ class _ClientsScreenState extends State<ClientsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextFormField(
-                decoration: const InputDecoration(
-                  labelText: 'Nazwa/Imię i nazwisko',
-                ),
-                initialValue: client?.name ?? '',
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Imię i nazwisko'),
               ),
               const SizedBox(height: 16),
               TextFormField(
+                controller: peselController,
+                decoration: const InputDecoration(labelText: 'PESEL'),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: emailController,
                 decoration: const InputDecoration(labelText: 'Email'),
-                initialValue: client?.email ?? '',
               ),
               const SizedBox(height: 16),
               TextFormField(
+                controller: phoneController,
                 decoration: const InputDecoration(labelText: 'Telefon'),
-                initialValue: client?.phone ?? '',
               ),
               const SizedBox(height: 16),
               TextFormField(
+                controller: addressController,
                 decoration: const InputDecoration(labelText: 'Adres'),
-                initialValue: client?.address ?? '',
                 maxLines: 3,
               ),
             ],
@@ -126,7 +162,13 @@ class _ClientsScreenState extends State<ClientsScreen> {
           _buildToolbar(),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(
+                    child: ProgressLoadingWidget(
+                      progress: _loadingProgress,
+                      message: _loadingStage,
+                      details: 'Ładowanie bazy danych klientów...',
+                    ),
+                  )
                 : _filteredClients.isEmpty
                 ? _buildEmptyState()
                 : SingleChildScrollView(
@@ -189,7 +231,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Szukaj po nazwie, emailu lub telefonie...',
+                hintText:
+                    'Szukaj po imieniu i nazwisku, PESEL, emailu lub telefonie...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
@@ -253,14 +296,22 @@ class _ClientsScreenState extends State<ClientsScreen> {
       items: _filteredClients,
       columns: [
         DataTableColumn<Client>(
-          label: 'Nazwa',
+          label: 'Imię i nazwisko',
           value: (client) => client.name,
           sortable: true,
+          width: 180,
+        ),
+        DataTableColumn<Client>(
+          label: 'PESEL',
+          value: (client) => client.pesel ?? '',
+          sortable: true,
+          width: 120,
         ),
         DataTableColumn<Client>(
           label: 'Email',
           value: (client) => client.email,
           sortable: true,
+          width: 200,
         ),
         DataTableColumn<Client>(
           label: 'Telefon',
@@ -272,12 +323,6 @@ class _ClientsScreenState extends State<ClientsScreen> {
           label: 'Adres',
           value: (client) => client.address,
           width: 200,
-        ),
-        DataTableColumn<Client>(
-          label: 'Data utworzenia',
-          value: (client) => _formatDate(client.createdAt),
-          sortable: true,
-          width: 120,
         ),
         DataTableColumn<Client>(
           label: 'Akcje',
@@ -359,10 +404,6 @@ class _ClientsScreenState extends State<ClientsScreen> {
         ],
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 
   void _showSuccessSnackBar(String message) {

@@ -33,6 +33,39 @@ class ClientService extends BaseService {
     }
   }
 
+  // Read all - Stream wszystkich klientów bez paginacji
+  Stream<List<Client>> getAllClientsStream() {
+    return firestore
+        .collection(_collection)
+        .orderBy('imie_nazwisko')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            final data = doc.data();
+            // Konwertuj dane z Excel do modelu Client
+            return Client(
+              id: doc.id,
+              name:
+                  data['imie_nazwisko'] ??
+                  '', // Używamy imie_nazwisko z Firebase
+              email: data['email'] ?? '',
+              phone: data['telefon'] ?? '',
+              address: '', // Brak adresu w danych Excel
+              pesel: data['pesel'] ?? '',
+              createdAt: data['created_at'] != null
+                  ? DateTime.parse(data['created_at'])
+                  : DateTime.now(),
+              updatedAt: DateTime.now(),
+              isActive: true,
+              additionalInfo: {
+                'nazwa_firmy': data['nazwa_firmy'] ?? '',
+                'source_file': data['source_file'] ?? 'Excel import',
+              },
+            );
+          }).toList(),
+        );
+  }
+
   // Read all - ZAKTUALIZOWANE dla danych z Excel z paginacją i cache
   Stream<List<Client>> getClients({int? limit}) {
     return firestore
@@ -46,10 +79,13 @@ class ClientService extends BaseService {
             // Konwertuj dane z Excel do modelu Client
             return Client(
               id: doc.id,
-              name: data['imie_nazwisko'] ?? '',
+              name:
+                  data['imie_nazwisko'] ??
+                  '', // Używamy imie_nazwisko z Firebase
               email: data['email'] ?? '',
               phone: data['telefon'] ?? '',
               address: '', // Brak adresu w danych Excel
+              pesel: data['pesel'] ?? '',
               createdAt: data['created_at'] != null
                   ? DateTime.parse(data['created_at'])
                   : DateTime.now(),
@@ -86,10 +122,11 @@ class ClientService extends BaseService {
         final data = doc.data() as Map<String, dynamic>;
         return Client(
           id: doc.id,
-          name: data['imie_nazwisko'] ?? '',
+          name: data['imie_nazwisko'] ?? '', // Używamy imie_nazwisko z Firebase
           email: data['email'] ?? '',
           phone: data['telefon'] ?? '',
           address: '',
+          pesel: data['pesel'] ?? '',
           createdAt: data['created_at'] != null
               ? DateTime.parse(data['created_at'])
               : DateTime.now(),
@@ -115,7 +152,7 @@ class ClientService extends BaseService {
 
   // Search clients - ZAKTUALIZOWANE dla danych z Excel z optymalizacją
   Stream<List<Client>> searchClients(String query, {int limit = 30}) {
-    if (query.isEmpty) return getClients(limit: limit);
+    if (query.isEmpty) return getAllClientsStream();
 
     return firestore
         .collection(_collection)
@@ -129,10 +166,13 @@ class ClientService extends BaseService {
             final data = doc.data();
             return Client(
               id: doc.id,
-              name: data['imie_nazwisko'] ?? '',
+              name:
+                  data['imie_nazwisko'] ??
+                  '', // Używamy imie_nazwisko z Firebase
               email: data['email'] ?? '',
               phone: data['telefon'] ?? '',
               address: '',
+              pesel: data['pesel'] ?? '',
               createdAt: data['created_at'] != null
                   ? DateTime.parse(data['created_at'])
                   : DateTime.now(),
@@ -213,10 +253,13 @@ class ClientService extends BaseService {
             final data = doc.data();
             return Client(
               id: doc.id,
-              name: data['imie_nazwisko'] ?? '',
+              name:
+                  data['imie_nazwisko'] ??
+                  '', // Używamy imie_nazwisko z Firebase
               email: data['email'] ?? '',
               phone: data['telefon'] ?? '',
               address: '',
+              pesel: data['pesel'] ?? '',
               createdAt: data['created_at'] != null
                   ? DateTime.parse(data['created_at'])
                   : DateTime.now(),
@@ -299,11 +342,11 @@ class ClientService extends BaseService {
         final data = doc.data();
         return Client(
           id: doc.id,
-          name: data['imie_nazwisko'] ?? '',
+          name: data['imie_nazwisko'] ?? '', // Używamy imie_nazwisko z Firebase
           email: data['email'] ?? '',
           phone: data['telefon'] ?? '',
           address: '',
-          pesel: data['pesel'],
+          pesel: data['pesel'] ?? '',
           companyName: data['nazwa_firmy'],
           type: ClientType.values.firstWhere(
             (e) => e.name == data['type'],
@@ -332,6 +375,71 @@ class ClientService extends BaseService {
     } catch (e) {
       logError('getAllClients', e);
       throw Exception('Failed to get all clients: $e');
+    }
+  }
+
+  // Load all clients with progress for UI
+  Future<List<Client>> loadAllClientsWithProgress({
+    Function(double progress, String stage)? onProgress,
+  }) async {
+    try {
+      onProgress?.call(0.0, 'Inicjalizacja...');
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      onProgress?.call(0.2, 'Łączenie z bazą danych...');
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      onProgress?.call(0.4, 'Pobieranie danych klientów...');
+      final snapshot = await firestore.collection(_collection).get();
+
+      onProgress?.call(0.6, 'Przetwarzanie informacji...');
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      final clients = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return Client(
+          id: doc.id,
+          name: data['imie_nazwisko'] ?? '', // Używamy imie_nazwisko z Firebase
+          email: data['email'] ?? '',
+          phone: data['telefon'] ?? '',
+          address: '',
+          pesel: data['pesel'] ?? '',
+          companyName: data['nazwa_firmy'],
+          type: ClientType.values.firstWhere(
+            (e) => e.name == data['type'],
+            orElse: () => ClientType.individual,
+          ),
+          notes: data['notes'] ?? '',
+          votingStatus: VotingStatus.values.firstWhere(
+            (e) => e.name == data['votingStatus'],
+            orElse: () => VotingStatus.undecided,
+          ),
+          colorCode: data['colorCode'] ?? '#FFFFFF',
+          unviableInvestments: List<String>.from(
+            data['unviableInvestments'] ?? [],
+          ),
+          createdAt: data['created_at'] != null
+              ? DateTime.parse(data['created_at'])
+              : DateTime.now(),
+          updatedAt: DateTime.now(),
+          isActive: data['isActive'] ?? true,
+          additionalInfo: {
+            'nazwa_firmy': data['nazwa_firmy'] ?? '',
+            'source_file': data['source_file'] ?? 'Excel import',
+          },
+        );
+      }).toList();
+
+      onProgress?.call(0.8, 'Optymalizacja wyświetlania...');
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      onProgress?.call(1.0, 'Finalizacja...');
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      return clients;
+    } catch (e) {
+      logError('loadAllClientsWithProgress', e);
+      throw Exception('Failed to load all clients with progress: $e');
     }
   }
 

@@ -8,6 +8,7 @@ import '../widgets/investment_card.dart';
 import '../widgets/investment_form.dart';
 import '../widgets/data_table_widget.dart';
 import '../widgets/custom_loading_widget.dart';
+import '../utils/currency_formatter.dart';
 
 class InvestmentsScreen extends StatefulWidget {
   const InvestmentsScreen({super.key});
@@ -892,7 +893,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   }
 
   String _formatCurrency(double amount) {
-    return '${amount.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match match) => '${match[1]} ')} PLN';
+    return CurrencyFormatter.formatCurrency(amount);
   }
 
   String _formatDate(DateTime date) {

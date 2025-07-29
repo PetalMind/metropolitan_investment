@@ -129,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen>
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: AppTheme.errorColor,
+        backgroundColor: AppTheme.errorPrimary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
@@ -155,9 +155,14 @@ class _LoginScreenState extends State<LoginScreen>
                       constraints: const BoxConstraints(maxWidth: 400),
                       child: Card(
                         elevation: 20,
-                        shadowColor: Colors.black.withOpacity(0.3),
+                        shadowColor: Colors.black.withOpacity(0.5),
+                        color: AppTheme.surfaceCard,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
+                          side: BorderSide(
+                            color: AppTheme.borderPrimary.withOpacity(0.5),
+                            width: 1,
+                          ),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(32.0),
@@ -218,7 +223,7 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         const SizedBox(height: 24),
         Text(
-          'Materopolitan Investment',
+          'Metropolitan Investment',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
             color: AppTheme.textPrimary,
             fontWeight: FontWeight.bold,
@@ -351,18 +356,18 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(child: Divider(color: Colors.grey[300])),
+        Expanded(child: Divider(color: AppTheme.borderSecondary)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'LUB',
             style: TextStyle(
-              color: Colors.grey[600],
+              color: AppTheme.textTertiary,
               fontWeight: FontWeight.w500,
             ),
           ),
         ),
-        Expanded(child: Divider(color: Colors.grey[300])),
+        Expanded(child: Divider(color: AppTheme.borderSecondary)),
       ],
     );
   }
@@ -444,7 +449,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 content: Text(
                                   'Link do resetowania hasła został wysłany',
                                 ),
-                                backgroundColor: AppTheme.successColor,
+                                backgroundColor: AppTheme.successPrimary,
                               ),
                             );
                           } else {

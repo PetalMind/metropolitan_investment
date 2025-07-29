@@ -7,6 +7,7 @@ import '../models/product.dart';
 import '../services/investment_service.dart';
 import '../services/advanced_analytics_service.dart';
 import '../widgets/advanced_analytics_widgets.dart';
+import '../utils/currency_formatter.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -128,7 +129,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: AppTheme.primaryColor),
+              CircularProgressIndicator(color: AppTheme.secondaryGold),
               const SizedBox(height: 16),
               Text(
                 'Ładowanie zaawansowanych analiz...',
@@ -2905,7 +2906,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   String _formatCurrency(double amount) {
-    return '${amount.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match match) => '${match[1]} ')} PLN';
+    return CurrencyFormatter.formatCurrency(amount);
   }
 
   String _formatDate(DateTime date) {
@@ -3084,12 +3085,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   // === METODY POMOCNICZE DLA ZAKŁADKI PROGNOZY ===
 
   String _formatCurrencyShort(double value) {
-    if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}M';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(0)}K';
-    }
-    return value.toStringAsFixed(0);
+    return CurrencyFormatter.formatCurrencyShort(value);
   }
 
   List<FlSpot> _generateOptimisticScenario() {

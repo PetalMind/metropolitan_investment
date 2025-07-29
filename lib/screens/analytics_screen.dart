@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../services/investment_service.dart';
 import '../services/client_service.dart';
 import '../models/product.dart';
+import '../utils/currency_formatter.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -750,12 +751,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final amount = value is double
         ? value
         : double.tryParse(value.toString()) ?? 0;
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)}M PLN';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K PLN';
-    }
-    return '${amount.toStringAsFixed(0)} PLN';
+    return CurrencyFormatter.formatCurrencyShort(amount);
   }
 
   // ============ ZAKŁADKI ANALITYKI ============

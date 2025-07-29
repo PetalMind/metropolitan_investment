@@ -98,7 +98,7 @@ class _MainScreenState extends State<MainScreen> {
                 if (_isRailExtended) ...[
                   const SizedBox(height: 8),
                   Text(
-                    'Cosmopolitan\nInvestment',
+                    'Metropolitan\nInvestment',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       color: AppTheme.primaryColor,
