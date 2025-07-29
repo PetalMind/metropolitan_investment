@@ -6,58 +6,6 @@ import 'base_service.dart';
 class InvestmentService extends BaseService {
   final String _collection = 'investments';
 
-  // Cache pracowników dla lepszej wydajności
-  Map<String, String> _employeeNameToIdCache = {};
-  bool _isCacheLoaded = false;
-
-  // Ładowanie cache'u pracowników
-  Future<void> _loadEmployeeCache() async {
-    if (_isCacheLoaded) return;
-
-    try {
-      final snapshot = await firestore.collection('employees').get();
-      _employeeNameToIdCache.clear();
-
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final firstName = data['firstName']?.toString() ?? '';
-        final lastName = data['lastName']?.toString() ?? '';
-        final fullName = '$firstName $lastName'.trim();
-
-        if (fullName.isNotEmpty) {
-          _employeeNameToIdCache[fullName] = doc.id;
-        }
-      }
-
-      _isCacheLoaded = true;
-      print('Załadowano ${_employeeNameToIdCache.length} pracowników do cache');
-    } catch (e) {
-      logError('_loadEmployeeCache', e);
-      print('Błąd podczas ładowania cache\'u pracowników: $e');
-    }
-  }
-
-  // Znajdź ID pracownika na podstawie imienia i nazwiska
-  Future<String?> _findEmployeeId(String firstName, String lastName) async {
-    await _loadEmployeeCache();
-
-    final fullName = '$firstName $lastName'.trim();
-    String? employeeId = _employeeNameToIdCache[fullName];
-
-    // Jeśli nie znaleziono dokładnego dopasowania, spróbuj częściowego
-    if (employeeId == null && fullName.isNotEmpty) {
-      for (var entry in _employeeNameToIdCache.entries) {
-        if (entry.key.toLowerCase().contains(fullName.toLowerCase()) ||
-            fullName.toLowerCase().contains(entry.key.toLowerCase())) {
-          employeeId = entry.value;
-          break;
-        }
-      }
-    }
-
-    return employeeId;
-  }
-
   // CRUD Operations
   Future<String> createInvestment(Investment investment) async {
     try {
@@ -111,8 +59,7 @@ class InvestmentService extends BaseService {
 
         // Process batch
         for (var doc in snapshot.docs) {
-          final data = doc.data() as Map<String, dynamic>;
-          allInvestments.add(_convertExcelDataToInvestment(doc.id, data));
+          allInvestments.add(Investment.fromFirestore(doc));
           processedCount++;
 
           // Update progress
@@ -154,8 +101,7 @@ class InvestmentService extends BaseService {
 
     return query.snapshots().map(
       (snapshot) => snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return _convertExcelDataToInvestment(doc.id, data);
+        return Investment.fromFirestore(doc);
       }).toList(),
     );
   }
@@ -203,8 +149,7 @@ class InvestmentService extends BaseService {
 
       final snapshot = await query.get();
       final investments = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return _convertExcelDataToInvestment(doc.id, data);
+        return Investment.fromFirestore(doc);
       }).toList();
 
       return PaginationResult<Investment>(
@@ -489,108 +434,118 @@ class InvestmentService extends BaseService {
         );
   }
 
-  // Konwersja danych z Excel do modelu Investment
+  // Konwersja danych z Firebase do modelu Investment - używa bezpośrednio danych
   Investment _convertExcelDataToInvestment(
     String id,
     Map<String, dynamic> data,
   ) {
-    // Mapowanie statusu
-    InvestmentStatus status = InvestmentStatus.active;
-    final statusStr = data['status_produktu']?.toString() ?? '';
-    if (statusStr == 'Nieaktywny' || statusStr == 'Nieaktywowany') {
-      status = InvestmentStatus.inactive;
-    } else if (statusStr == 'Wykup wczesniejszy') {
-      status = InvestmentStatus.earlyRedemption;
+    // Helper function to safely convert to double
+    double safeToDouble(dynamic value, [double defaultValue = 0.0]) {
+      if (value == null) return defaultValue;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) {
+        final parsed = double.tryParse(value);
+        return parsed ?? defaultValue;
+      }
+      return defaultValue;
     }
 
-    // Mapowanie typu produktu
-    ProductType productType = ProductType.bonds;
-    final typeStr = data['typ_produktu']?.toString() ?? '';
-    if (typeStr == 'Udziały') productType = ProductType.shares;
-    if (typeStr == 'Apartamenty') productType = ProductType.apartments;
+    // Helper function to parse date strings
+    DateTime? parseDate(String? dateStr) {
+      if (dateStr == null || dateStr.isEmpty) return null;
+      try {
+        return DateTime.parse(dateStr);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Helper function to map status from Polish to enum
+    InvestmentStatus mapStatus(String? status) {
+      switch (status) {
+        case 'Aktywny':
+          return InvestmentStatus.active;
+        case 'Nieaktywny':
+          return InvestmentStatus.inactive;
+        case 'Wykup wczesniejszy':
+          return InvestmentStatus.earlyRedemption;
+        case 'Zakończony':
+          return InvestmentStatus.completed;
+        default:
+          return InvestmentStatus.active;
+      }
+    }
+
+    // Helper function to map market type from Polish to enum
+    MarketType mapMarketType(String? marketType) {
+      switch (marketType) {
+        case 'Rynek pierwotny':
+          return MarketType.primary;
+        case 'Rynek wtórny':
+          return MarketType.secondary;
+        case 'Odkup od Klienta':
+          return MarketType.clientRedemption;
+        default:
+          return MarketType.primary;
+      }
+    }
+
+    // Helper function to map product type from Polish to enum
+    ProductType mapProductType(String? productType) {
+      switch (productType) {
+        case 'Obligacje':
+          return ProductType.bonds;
+        case 'Udziały':
+          return ProductType.shares;
+        case 'Pożyczki':
+          return ProductType.loans;
+        case 'Apartamenty':
+          return ProductType.apartments;
+        default:
+          return ProductType.bonds;
+      }
+    }
 
     return Investment(
       id: id,
-      clientId: '', // Nie mamy bezpośredniego mapowania
-      clientName: data['klient']?.toString() ?? '',
-      employeeId: '', // Zostanie wypełnione asynchronicznie
-      employeeFirstName: data['praconwnik_imie']?.toString() ?? '',
-      employeeLastName: data['pracownik_nazwisko']?.toString() ?? '',
-      branchCode: data['kod_oddzialu']?.toString() ?? '',
-      status: status,
-      isAllocated: data['przydzial']?.toString() == '1',
-      marketType: MarketType.primary,
-      signedDate:
-          DateTime.tryParse(data['data_podpisania']?.toString() ?? '') ??
-          DateTime.now(),
-      entryDate: DateTime.tryParse(data['data_zawarcia']?.toString() ?? ''),
-      exitDate: DateTime.tryParse(data['data_wymagalnosci']?.toString() ?? ''),
-      proposalId: data['numer_kontraktu']?.toString() ?? '',
-      productType: productType,
-      productName: data['nazwa_produktu']?.toString() ?? '',
-      creditorCompany: '',
-      companyId: '',
-      issueDate: DateTime.tryParse(data['data_podpisania']?.toString() ?? ''),
-      redemptionDate: DateTime.tryParse(
-        data['data_wymagalnosci']?.toString() ?? '',
-      ),
-      sharesCount: null,
-      investmentAmount:
-          double.tryParse(data['wartosc_kontraktu']?.toString() ?? '0') ?? 0.0,
-      paidAmount:
-          double.tryParse(data['wartosc_kontraktu']?.toString() ?? '0') ?? 0.0,
-      realizedCapital: 0.0,
-      realizedInterest: 0.0,
-      transferToOtherProduct: 0.0,
-      remainingCapital:
-          double.tryParse(data['wartosc_kontraktu']?.toString() ?? '0') ?? 0.0,
-      remainingInterest: 0.0,
-      plannedTax: 0.0,
-      realizedTax: 0.0,
-      currency: data['waluta']?.toString() ?? 'PLN',
-      exchangeRate: null,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      clientId: data['id_klient']?.toString() ?? '',
+      clientName: data['klient'] ?? '',
+      employeeId: '', // Not directly available in Firebase structure
+      employeeFirstName: data['praconwnik_imie'] ?? '',
+      employeeLastName: data['pracownik_nazwisko'] ?? '',
+      branchCode: data['oddzial'] ?? '',
+      status: mapStatus(data['status_produktu']),
+      isAllocated: (data['przydzial'] ?? 0) == 1,
+      marketType: mapMarketType(data['produkt_status_wejscie']),
+      signedDate: parseDate(data['data_podpisania']) ?? DateTime.now(),
+      entryDate: parseDate(data['data_wejscia_do_inwestycji']),
+      exitDate: parseDate(data['data_wyjscia_z_inwestycji']),
+      proposalId: data['id_propozycja_nabycia']?.toString() ?? '',
+      productType: mapProductType(data['typ_produktu']),
+      productName: data['produkt_nazwa'] ?? '',
+      creditorCompany: data['wierzyciel_spolka'] ?? '',
+      companyId: data['id_spolka'] ?? '',
+      issueDate: parseDate(data['data_emisji']),
+      redemptionDate: parseDate(data['data_wykupu']),
+      sharesCount: data['ilosc_udzialow'],
+      investmentAmount: safeToDouble(data['kwota_inwestycji']),
+      paidAmount: safeToDouble(data['kwota_wplat']),
+      realizedCapital: safeToDouble(data['kapital_zrealizowany']),
+      realizedInterest: safeToDouble(data['odsetki_zrealizowane']),
+      transferToOtherProduct: safeToDouble(data['przekaz_na_inny_produkt']),
+      remainingCapital: safeToDouble(data['kapital_pozostaly']),
+      remainingInterest: safeToDouble(data['odsetki_pozostale']),
+      plannedTax: safeToDouble(data['planowany_podatek']),
+      realizedTax: safeToDouble(data['zrealizowany_podatek']),
+      currency: 'PLN', // Default currency
+      exchangeRate: null, // Not available in Firebase structure
+      createdAt: parseDate(data['created_at']) ?? DateTime.now(),
+      updatedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
       additionalInfo: {
-        'numer_kontraktu': data['numer_kontraktu']?.toString() ?? '',
-        'prowizja': data['prowizja']?.toString() ?? '',
-        'procent_prowizji': data['procent_prowizji']?.toString() ?? '',
+        'source_file': data['source_file'],
+        'id_sprzedaz': data['id_sprzedaz'],
       },
     );
-  }
-
-  // Metoda do aktualizacji employeeId w istniejących inwestycjach
-  Future<void> updateEmployeeIdsInInvestments() async {
-    try {
-      await _loadEmployeeCache();
-      print('Rozpoczynam aktualizację Employee ID w inwestycjach...');
-
-      final snapshot = await firestore.collection(_collection).get();
-      int updated = 0;
-      int total = snapshot.docs.length;
-
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final firstName = data['praconwnik_imie']?.toString() ?? '';
-        final lastName = data['pracownik_nazwisko']?.toString() ?? '';
-
-        if (firstName.isNotEmpty || lastName.isNotEmpty) {
-          final employeeId = await _findEmployeeId(firstName, lastName);
-          if (employeeId != null && employeeId.isNotEmpty) {
-            await doc.reference.update({'employeeId': employeeId});
-            updated++;
-            if (updated % 10 == 0) {
-              print('Zaktualizowano $updated/$total inwestycji...');
-            }
-          }
-        }
-      }
-
-      print(
-        'Aktualizacja zakończona: $updated/$total inwestycji zostało zaktualizowanych',
-      );
-    } catch (e) {
-      print('Błąd podczas aktualizacji Employee ID: $e');
-    }
   }
 }

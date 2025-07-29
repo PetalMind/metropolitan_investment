@@ -147,6 +147,18 @@ class Investment {
       }
     }
 
+    // Helper function to safely convert to double
+    double safeToDouble(dynamic value, [double defaultValue = 0.0]) {
+      if (value == null) return defaultValue;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) {
+        final parsed = double.tryParse(value);
+        return parsed ?? defaultValue;
+      }
+      return defaultValue;
+    }
+
     // Helper function to map product type from Polish to enum
     ProductType mapProductType(String? productType) {
       switch (productType) {
@@ -185,16 +197,15 @@ class Investment {
       issueDate: parseDate(data['data_emisji']),
       redemptionDate: parseDate(data['data_wykupu']),
       sharesCount: data['ilosc_udzialow'],
-      investmentAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
-      paidAmount: data['kwota_wplat']?.toDouble() ?? 0.0,
-      realizedCapital: data['kapital_zrealizowany']?.toDouble() ?? 0.0,
-      realizedInterest: data['odsetki_zrealizowane']?.toDouble() ?? 0.0,
-      transferToOtherProduct:
-          data['przekaz_na_inny_produkt']?.toDouble() ?? 0.0,
-      remainingCapital: data['kapital_pozostaly']?.toDouble() ?? 0.0,
-      remainingInterest: data['odsetki_pozostale']?.toDouble() ?? 0.0,
-      plannedTax: data['planowany_podatek']?.toDouble() ?? 0.0,
-      realizedTax: data['zrealizowany_podatek']?.toDouble() ?? 0.0,
+      investmentAmount: safeToDouble(data['kwota_inwestycji']),
+      paidAmount: safeToDouble(data['kwota_wplat']),
+      realizedCapital: safeToDouble(data['kapital_zrealizowany']),
+      realizedInterest: safeToDouble(data['odsetki_zrealizowane']),
+      transferToOtherProduct: safeToDouble(data['przekaz_na_inny_produkt']),
+      remainingCapital: safeToDouble(data['kapital_pozostaly']),
+      remainingInterest: safeToDouble(data['odsetki_pozostale']),
+      plannedTax: safeToDouble(data['planowany_podatek']),
+      realizedTax: safeToDouble(data['zrealizowany_podatek']),
       currency: 'PLN', // Default currency
       exchangeRate: null, // Not available in Firebase structure
       createdAt: parseDate(data['created_at']) ?? DateTime.now(),

@@ -59,14 +59,25 @@ class Client {
 
   factory Client.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    
+    // Helper function to parse date strings
+    DateTime? parseDate(String? dateStr) {
+      if (dateStr == null || dateStr.isEmpty) return null;
+      try {
+        return DateTime.parse(dateStr);
+      } catch (e) {
+        return null;
+      }
+    }
+    
     return Client(
       id: doc.id,
-      name: data['name'] ?? '',
+      name: data['imie_nazwisko'] ?? data['name'] ?? '',
       email: data['email'] ?? '',
-      phone: data['phone'] ?? '',
-      address: data['address'] ?? '',
-      pesel: data['pesel'],
-      companyName: data['companyName'],
+      phone: data['telefon'] ?? data['phone'] ?? '',
+      address: data['address'] ?? '', // Może być puste dla danych z Excel
+      pesel: data['pesel'], // PESEL jest już obsługiwany
+      companyName: data['nazwa_firmy'] ?? data['companyName'],
       type: ClientType.values.firstWhere(
         (e) => e.name == data['type'],
         orElse: () => ClientType.individual,
@@ -78,21 +89,30 @@ class Client {
       ),
       colorCode: data['colorCode'] ?? '#FFFFFF',
       unviableInvestments: List<String>.from(data['unviableInvestments'] ?? []),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+      createdAt: data['createdAt'] != null 
+          ? (data['createdAt'] as Timestamp).toDate()
+          : parseDate(data['created_at']) ?? DateTime.now(),
+      updatedAt: data['updatedAt'] != null
+          ? (data['updatedAt'] as Timestamp).toDate() 
+          : parseDate(data['uploaded_at']) ?? DateTime.now(),
       isActive: data['isActive'] ?? true,
-      additionalInfo: data['additionalInfo'] ?? {},
+      additionalInfo: data['additionalInfo'] ?? {
+        'source_file': data['source_file'],
+      },
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,
+      'imie_nazwisko': name, // Dla kompatybilności z Excel
       'email': email,
+      'telefon': phone, // Dla kompatybilności z Excel
       'phone': phone,
       'address': address,
       'pesel': pesel,
       'companyName': companyName,
+      'nazwa_firmy': companyName ?? '', // Dla kompatybilności z Excel
       'type': type.name,
       'notes': notes,
       'votingStatus': votingStatus.name,
@@ -100,8 +120,11 @@ class Client {
       'unviableInvestments': unviableInvestments,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'created_at': createdAt.toIso8601String(), // Dla kompatybilności z Excel
+      'uploaded_at': updatedAt.toIso8601String(), // Dla kompatybilności z Excel
       'isActive': isActive,
       'additionalInfo': additionalInfo,
+      'source_file': additionalInfo['source_file'] ?? 'manual_entry',
     };
   }
 
