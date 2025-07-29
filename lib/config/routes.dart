@@ -87,11 +87,11 @@ class OldAppRouter {
         routes: [
           GoRoute(
             path: OldAppRoutes.main,
-            builder: (context, state) => const DashboardScreen(),
+            builder: (context, state) => const DashboardScreenComplete(),
           ),
           GoRoute(
             path: OldAppRoutes.dashboard,
-            builder: (context, state) => const DashboardScreen(),
+            builder: (context, state) => const DashboardScreenComplete(),
           ),
           GoRoute(
             path: OldAppRoutes.investments,

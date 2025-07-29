@@ -408,7 +408,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       isMobile: _isMobile(context),
       selectedTimeFrame: _selectedTimeFrame,
       horizontalPadding: _getHorizontalPadding(context),
-      context: context,
     );
   }
 
@@ -417,7 +416,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       metrics: _advancedMetrics,
       isMobile: _isMobile(context),
       horizontalPadding: _getHorizontalPadding(context),
-      context: context,
     );
   }
 
@@ -426,7 +424,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       metrics: _advancedMetrics,
       isMobile: _isMobile(context),
       horizontalPadding: _getHorizontalPadding(context),
-      context: context,
     );
   }
 
@@ -435,7 +432,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       metrics: _advancedMetrics,
       isMobile: _isMobile(context),
       horizontalPadding: _getHorizontalPadding(context),
-      context: context,
     );
   }
 

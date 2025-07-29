@@ -44,7 +44,7 @@ class DashboardBenchmarkContent extends StatelessWidget {
   }
 
   Widget _buildBenchmarkComparison() {
-    final benchmarks = metrics?.benchmarkMetrics;
+    // final benchmarks = metrics?.benchmarkMetrics; // Usunięte bo nie jest używane
 
     return Container(
       padding: const EdgeInsets.all(16),

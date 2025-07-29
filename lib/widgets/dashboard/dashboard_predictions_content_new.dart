@@ -27,9 +27,9 @@ class DashboardPredictionsContent extends StatelessWidget {
         children: [
           Text(
             'Prognozy i Symulacje',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           _buildPredictionModels(context),
@@ -57,9 +57,9 @@ class DashboardPredictionsContent extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Modele predykcyjne',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -75,7 +75,9 @@ class DashboardPredictionsContent extends StatelessWidget {
             _buildPredictionCard(
               context,
               'Oczekiwana wartość przy zapadaniu',
-              CurrencyFormatter.formatCurrency(predictions?.expectedMaturityValue ?? 0.0),
+              CurrencyFormatter.formatCurrency(
+                predictions?.expectedMaturityValue ?? 0.0,
+              ),
               Icons.savings,
             ),
             const SizedBox(height: 12),
@@ -101,7 +103,9 @@ class DashboardPredictionsContent extends StatelessWidget {
                   child: _buildPredictionCard(
                     context,
                     'Oczekiwana wartość przy zapadaniu',
-                    CurrencyFormatter.formatCurrency(predictions?.expectedMaturityValue ?? 0.0),
+                    CurrencyFormatter.formatCurrency(
+                      predictions?.expectedMaturityValue ?? 0.0,
+                    ),
                     Icons.savings,
                   ),
                 ),
@@ -120,7 +124,12 @@ class DashboardPredictionsContent extends StatelessWidget {
     );
   }
 
-  Widget _buildPredictionCard(BuildContext context, String title, String value, IconData icon) {
+  Widget _buildPredictionCard(
+    BuildContext context,
+    String title,
+    String value,
+    IconData icon,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -171,9 +180,9 @@ class DashboardPredictionsContent extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Wykres prognoz',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -190,7 +199,11 @@ class DashboardPredictionsContent extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.insert_chart, size: 48, color: AppTheme.textSecondary),
+                  Icon(
+                    Icons.insert_chart,
+                    size: 48,
+                    color: AppTheme.textSecondary,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'Wykres prognoz zostanie wyświetlony tutaj',
@@ -222,9 +235,9 @@ class DashboardPredictionsContent extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Analiza scenariuszy',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -262,9 +275,9 @@ class DashboardPredictionsContent extends StatelessWidget {
               children: [
                 Text(
                   'Optymalizacja portfela',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -281,7 +294,12 @@ class DashboardPredictionsContent extends StatelessWidget {
     );
   }
 
-  Widget _buildScenarioItem(BuildContext context, String label, String value, Color color) {
+  Widget _buildScenarioItem(
+    BuildContext context,
+    String label,
+    String value,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -294,9 +312,9 @@ class DashboardPredictionsContent extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
           ),
           Text(
             value,

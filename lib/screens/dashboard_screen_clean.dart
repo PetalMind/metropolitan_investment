@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'dart:math' as math;
+import 'package:fl_chart/fl_chart.dart';
 
-import '../theme/app_theme.dart';
-import '../models_and_services.dart';
+import '../config/theme.dart';
+import '../models/models_and_services.dart';
+import '../services/advanced_analytics_service.dart';
+import '../widgets/common/advanced_metric_card.dart';
+import '../widgets/charts/advanced_line_chart.dart';
+import '../widgets/charts/advanced_pie_chart.dart';
+import '../widgets/charts/advanced_scatter_chart.dart';
 import '../widgets/dashboard/dashboard_overview_content.dart';
 import '../widgets/dashboard/dashboard_performance_content.dart';
 import '../widgets/dashboard/dashboard_risk_content.dart';
@@ -19,12 +27,11 @@ class DashboardScreenComplete extends StatefulWidget {
 class _DashboardScreenCompleteState extends State<DashboardScreenComplete>
     with TickerProviderStateMixin {
   late TabController _tabController;
+  int _selectedIndex = 0;
 
   final AdvancedAnalyticsService _analyticsService = AdvancedAnalyticsService();
-  AdvancedDashboardMetrics? _advancedMetrics;
+  AdvancedMetrics? _advancedMetrics;
   bool _isLoading = true;
-  List<Investment> _recentInvestments = [];
-  String _selectedTimeFrame = '12M';
 
   final List<Tab> _tabs = [
     const Tab(icon: Icon(Icons.dashboard), text: 'Przegląd'),
@@ -45,6 +52,11 @@ class _DashboardScreenCompleteState extends State<DashboardScreenComplete>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        _selectedIndex = _tabController.index;
+      });
+    });
     _loadAdvancedMetrics();
   }
 
@@ -56,7 +68,7 @@ class _DashboardScreenCompleteState extends State<DashboardScreenComplete>
 
   Future<void> _loadAdvancedMetrics() async {
     try {
-      final metrics = await _analyticsService.getAdvancedDashboardMetrics();
+      final metrics = await _analyticsService.calculateAdvancedMetrics();
       setState(() {
         _advancedMetrics = metrics;
         _isLoading = false;
@@ -145,11 +157,10 @@ class _DashboardScreenCompleteState extends State<DashboardScreenComplete>
 
   Widget _buildOverviewTab() {
     return DashboardOverviewContent(
-      recentInvestments: _recentInvestments,
-      metrics: _advancedMetrics,
+      metrics: _advancedMetrics!,
       isMobile: _isMobile(context),
-      selectedTimeFrame: _selectedTimeFrame,
       horizontalPadding: _getHorizontalPadding(context),
+      context: context,
     );
   }
 
@@ -158,6 +169,7 @@ class _DashboardScreenCompleteState extends State<DashboardScreenComplete>
       metrics: _advancedMetrics!,
       isMobile: _isMobile(context),
       horizontalPadding: _getHorizontalPadding(context),
+      context: context,
     );
   }
 
@@ -166,6 +178,7 @@ class _DashboardScreenCompleteState extends State<DashboardScreenComplete>
       metrics: _advancedMetrics!,
       isMobile: _isMobile(context),
       horizontalPadding: _getHorizontalPadding(context),
+      context: context,
     );
   }
 
@@ -174,6 +187,7 @@ class _DashboardScreenCompleteState extends State<DashboardScreenComplete>
       metrics: _advancedMetrics!,
       isMobile: _isMobile(context),
       horizontalPadding: _getHorizontalPadding(context),
+      context: context,
     );
   }
 

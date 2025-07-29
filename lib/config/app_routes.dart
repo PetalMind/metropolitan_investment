@@ -292,7 +292,7 @@ class AppRouter {
             pageBuilder: (context, state) => _buildPageWithTransition(
               context,
               state,
-              const DashboardScreen(),
+              const DashboardScreenComplete(),
             ),
           ),
 

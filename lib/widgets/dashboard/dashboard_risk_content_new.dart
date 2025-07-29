@@ -27,9 +27,9 @@ class DashboardRiskContent extends StatelessWidget {
         children: [
           Text(
             'Analiza Ryzyka',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           _buildRiskMetrics(context),
@@ -57,35 +57,75 @@ class DashboardRiskContent extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Metryki ryzyka',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ],
           ),
           const SizedBox(height: 16),
           if (isMobile) ...[
-            _buildRiskCard(context, 'Zmienność', '${(riskMetrics?.volatility ?? 0.0).toStringAsFixed(2)}%'),
+            _buildRiskCard(
+              context,
+              'Zmienność',
+              '${(riskMetrics?.volatility ?? 0.0).toStringAsFixed(2)}%',
+            ),
             const SizedBox(height: 12),
-            _buildRiskCard(context, 'Współczynnik Sharpe', (riskMetrics?.sharpeRatio ?? 0.0).toStringAsFixed(3)),
+            _buildRiskCard(
+              context,
+              'Współczynnik Sharpe',
+              (riskMetrics?.sharpeRatio ?? 0.0).toStringAsFixed(3),
+            ),
             const SizedBox(height: 12),
-            _buildRiskCard(context, 'Maksymalny spadek', '${(riskMetrics?.maxDrawdown ?? 0.0).toStringAsFixed(2)}%'),
+            _buildRiskCard(
+              context,
+              'Maksymalny spadek',
+              '${(riskMetrics?.maxDrawdown ?? 0.0).toStringAsFixed(2)}%',
+            ),
             const SizedBox(height: 12),
-            _buildRiskCard(context, 'Value at Risk', '${(riskMetrics?.valueAtRisk ?? 0.0).toStringAsFixed(2)}%'),
+            _buildRiskCard(
+              context,
+              'Value at Risk',
+              '${(riskMetrics?.valueAtRisk ?? 0.0).toStringAsFixed(2)}%',
+            ),
           ] else ...[
             Row(
               children: [
-                Expanded(child: _buildRiskCard(context, 'Zmienność', '${(riskMetrics?.volatility ?? 0.0).toStringAsFixed(2)}%')),
+                Expanded(
+                  child: _buildRiskCard(
+                    context,
+                    'Zmienność',
+                    '${(riskMetrics?.volatility ?? 0.0).toStringAsFixed(2)}%',
+                  ),
+                ),
                 const SizedBox(width: 16),
-                Expanded(child: _buildRiskCard(context, 'Współczynnik Sharpe', (riskMetrics?.sharpeRatio ?? 0.0).toStringAsFixed(3))),
+                Expanded(
+                  child: _buildRiskCard(
+                    context,
+                    'Współczynnik Sharpe',
+                    (riskMetrics?.sharpeRatio ?? 0.0).toStringAsFixed(3),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(child: _buildRiskCard(context, 'Maksymalny spadek', '${(riskMetrics?.maxDrawdown ?? 0.0).toStringAsFixed(2)}%')),
+                Expanded(
+                  child: _buildRiskCard(
+                    context,
+                    'Maksymalny spadek',
+                    '${(riskMetrics?.maxDrawdown ?? 0.0).toStringAsFixed(2)}%',
+                  ),
+                ),
                 const SizedBox(width: 16),
-                Expanded(child: _buildRiskCard(context, 'Value at Risk', '${(riskMetrics?.valueAtRisk ?? 0.0).toStringAsFixed(2)}%')),
+                Expanded(
+                  child: _buildRiskCard(
+                    context,
+                    'Value at Risk',
+                    '${(riskMetrics?.valueAtRisk ?? 0.0).toStringAsFixed(2)}%',
+                  ),
+                ),
               ],
             ),
           ],
@@ -107,9 +147,9 @@ class DashboardRiskContent extends StatelessWidget {
         children: [
           Text(
             title,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 8),
           Text(
@@ -137,9 +177,9 @@ class DashboardRiskContent extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Rozkład ryzyka',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -165,11 +205,26 @@ class DashboardRiskContent extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildRiskLegendItem(context, 'Niskie ryzyko', AppTheme.successColor, '30%'),
+                      _buildRiskLegendItem(
+                        context,
+                        'Niskie ryzyko',
+                        AppTheme.successColor,
+                        '30%',
+                      ),
                       const SizedBox(height: 8),
-                      _buildRiskLegendItem(context, 'Średnie ryzyko', AppTheme.warningColor, '50%'),
+                      _buildRiskLegendItem(
+                        context,
+                        'Średnie ryzyko',
+                        AppTheme.warningColor,
+                        '50%',
+                      ),
                       const SizedBox(height: 8),
-                      _buildRiskLegendItem(context, 'Wysokie ryzyko', AppTheme.errorColor, '20%'),
+                      _buildRiskLegendItem(
+                        context,
+                        'Wysokie ryzyko',
+                        AppTheme.errorColor,
+                        '20%',
+                      ),
                     ],
                   ),
                 ),
@@ -181,7 +236,12 @@ class DashboardRiskContent extends StatelessWidget {
     );
   }
 
-  Widget _buildRiskLegendItem(BuildContext context, String label, Color color, String percentage) {
+  Widget _buildRiskLegendItem(
+    BuildContext context,
+    String label,
+    Color color,
+    String percentage,
+  ) {
     return Row(
       children: [
         Container(
@@ -194,16 +254,13 @@ class DashboardRiskContent extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
         ),
         Text(
           percentage,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
       ],
     );
@@ -247,22 +304,42 @@ class DashboardRiskContent extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Dodatkowe metryki ryzyka',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          _buildAnalysisItem(context, 'Ryzyko koncentracji', '${(riskMetrics?.concentrationRisk ?? 0.0).toStringAsFixed(2)}%'),
+          _buildAnalysisItem(
+            context,
+            'Ryzyko koncentracji',
+            '${(riskMetrics?.concentrationRisk ?? 0.0).toStringAsFixed(2)}%',
+          ),
           const SizedBox(height: 8),
-          _buildAnalysisItem(context, 'Współczynnik dywersyfikacji', (riskMetrics?.diversificationRatio ?? 0.0).toStringAsFixed(3)),
+          _buildAnalysisItem(
+            context,
+            'Współczynnik dywersyfikacji',
+            (riskMetrics?.diversificationRatio ?? 0.0).toStringAsFixed(3),
+          ),
           const SizedBox(height: 8),
-          _buildAnalysisItem(context, 'Ryzyko płynności', '${(riskMetrics?.liquidityRisk ?? 0.0).toStringAsFixed(2)}%'),
+          _buildAnalysisItem(
+            context,
+            'Ryzyko płynności',
+            '${(riskMetrics?.liquidityRisk ?? 0.0).toStringAsFixed(2)}%',
+          ),
           const SizedBox(height: 8),
-          _buildAnalysisItem(context, 'Ryzyko kredytowe', '${(riskMetrics?.creditRisk ?? 0.0).toStringAsFixed(2)}%'),
+          _buildAnalysisItem(
+            context,
+            'Ryzyko kredytowe',
+            '${(riskMetrics?.creditRisk ?? 0.0).toStringAsFixed(2)}%',
+          ),
           const SizedBox(height: 8),
-          _buildAnalysisItem(context, 'Beta', (riskMetrics?.beta ?? 0.0).toStringAsFixed(3)),
+          _buildAnalysisItem(
+            context,
+            'Beta',
+            (riskMetrics?.beta ?? 0.0).toStringAsFixed(3),
+          ),
         ],
       ),
     );
@@ -279,10 +356,7 @@ class DashboardRiskContent extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          Text(label, style: Theme.of(context).textTheme.bodyMedium),
           Text(
             value,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
