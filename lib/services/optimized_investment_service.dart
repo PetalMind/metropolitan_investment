@@ -320,7 +320,7 @@ class OptimizedInvestmentService extends BaseService {
       clientId: '',
       clientName: dataMap['klient']?.toString() ?? '',
       employeeId: '',
-      employeeFirstName: dataMap['praconwnik_imie']?.toString() ?? '',
+      employeeFirstName: dataMap['pracownik_imie']?.toString() ?? '',
       employeeLastName: dataMap['pracownik_nazwisko']?.toString() ?? '',
       branchCode: dataMap['kod_oddzialu']?.toString() ?? '',
       status: status,

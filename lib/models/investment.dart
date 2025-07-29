@@ -161,6 +161,24 @@ class Investment {
 
     // Helper function to map product type from Polish to enum
     ProductType mapProductType(String? productType) {
+      if (productType == null || productType.isEmpty) {
+        return ProductType.bonds;
+      }
+
+      final type = productType.toLowerCase();
+
+      // Sprawdź zawartość stringa dla rozpoznania typu
+      if (type.contains('pożyczka') || type.contains('pozyczka')) {
+        return ProductType.loans;
+      } else if (type.contains('udział') || type.contains('udziały')) {
+        return ProductType.shares;
+      } else if (type.contains('apartament')) {
+        return ProductType.apartments;
+      } else if (type.contains('obligacje') || type.contains('obligacja')) {
+        return ProductType.bonds;
+      }
+
+      // Fallback dla dokładnych dopasowań
       switch (productType) {
         case 'Obligacje':
           return ProductType.bonds;
@@ -180,7 +198,7 @@ class Investment {
       clientId: data['id_klient']?.toString() ?? '',
       clientName: data['klient'] ?? '',
       employeeId: '', // Not directly available in Firebase structure
-      employeeFirstName: data['praconwnik_imie'] ?? '',
+      employeeFirstName: data['pracownik_imie'] ?? '',
       employeeLastName: data['pracownik_nazwisko'] ?? '',
       branchCode: data['oddzial'] ?? '',
       status: mapStatus(data['status_produktu']),
@@ -221,7 +239,7 @@ class Investment {
     return {
       'id_klient': int.tryParse(clientId) ?? 0,
       'klient': clientName,
-      'praconwnik_imie': employeeFirstName,
+      'pracownik_imie': employeeFirstName,
       'pracownik_nazwisko': employeeLastName,
       'oddzial': branchCode,
       'status_produktu': status.displayName,

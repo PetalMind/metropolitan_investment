@@ -376,7 +376,7 @@ class InvestmentService extends BaseService {
   ) {
     return firestore
         .collection(_collection)
-        .where('praconwnik_imie', isEqualTo: employeeFirstName)
+        .where('pracownik_imie', isEqualTo: employeeFirstName)
         .where('pracownik_nazwisko', isEqualTo: employeeLastName)
         .orderBy('data_podpisania', descending: true)
         .snapshots()
@@ -493,6 +493,24 @@ class InvestmentService extends BaseService {
 
     // Helper function to map product type from Polish to enum
     ProductType mapProductType(String? productType) {
+      if (productType == null || productType.isEmpty) {
+        return ProductType.bonds;
+      }
+
+      final type = productType.toLowerCase();
+
+      // Sprawdź zawartość stringa dla rozpoznania typu
+      if (type.contains('pożyczka') || type.contains('pozyczka')) {
+        return ProductType.loans;
+      } else if (type.contains('udział') || type.contains('udziały')) {
+        return ProductType.shares;
+      } else if (type.contains('apartament')) {
+        return ProductType.apartments;
+      } else if (type.contains('obligacje') || type.contains('obligacja')) {
+        return ProductType.bonds;
+      }
+
+      // Fallback dla dokładnych dopasowań
       switch (productType) {
         case 'Obligacje':
           return ProductType.bonds;
@@ -512,7 +530,7 @@ class InvestmentService extends BaseService {
       clientId: data['id_klient']?.toString() ?? '',
       clientName: data['klient'] ?? '',
       employeeId: '', // Not directly available in Firebase structure
-      employeeFirstName: data['praconwnik_imie'] ?? '',
+      employeeFirstName: data['pracownik_imie'] ?? '',
       employeeLastName: data['pracownik_nazwisko'] ?? '',
       branchCode: data['oddzial'] ?? '',
       status: mapStatus(data['status_produktu']),

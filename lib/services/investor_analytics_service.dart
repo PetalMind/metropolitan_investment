@@ -400,6 +400,40 @@ class InvestorAnalyticsService extends BaseService {
     String id,
     Map<String, dynamic> data,
   ) {
+    // Helper function to map product type from Polish to enum
+    ProductType mapProductType(String? productType) {
+      if (productType == null || productType.isEmpty) {
+        return ProductType.bonds;
+      }
+
+      final type = productType.toLowerCase();
+
+      // Sprawdź zawartość stringa dla rozpoznania typu
+      if (type.contains('pożyczka') || type.contains('pozyczka')) {
+        return ProductType.loans;
+      } else if (type.contains('udział') || type.contains('udziały')) {
+        return ProductType.shares;
+      } else if (type.contains('apartament')) {
+        return ProductType.apartments;
+      } else if (type.contains('obligacje') || type.contains('obligacja')) {
+        return ProductType.bonds;
+      }
+
+      // Fallback dla dokładnych dopasowań
+      switch (productType) {
+        case 'Obligacje':
+          return ProductType.bonds;
+        case 'Udziały':
+          return ProductType.shares;
+        case 'Pożyczki':
+          return ProductType.loans;
+        case 'Apartamenty':
+          return ProductType.apartments;
+        default:
+          return ProductType.bonds;
+      }
+    }
+
     // Mapowanie statusu
     InvestmentStatus status = InvestmentStatus.active;
     final statusStr = data['status_produktu']?.toString() ?? '';
@@ -410,17 +444,14 @@ class InvestorAnalyticsService extends BaseService {
     }
 
     // Mapowanie typu produktu
-    ProductType productType = ProductType.bonds;
-    final typeStr = data['typ_produktu']?.toString() ?? '';
-    if (typeStr == 'Udziały') productType = ProductType.shares;
-    if (typeStr == 'Apartamenty') productType = ProductType.apartments;
+    ProductType productType = mapProductType(data['typ_produktu']?.toString());
 
     return Investment(
       id: id,
       clientId: '',
       clientName: data['klient']?.toString() ?? '',
       employeeId: '',
-      employeeFirstName: data['praconwnik_imie']?.toString() ?? '',
+      employeeFirstName: data['pracownik_imie']?.toString() ?? '',
       employeeLastName: data['pracownik_nazwisko']?.toString() ?? '',
       branchCode: data['oddzial']?.toString() ?? '',
       status: status,
