@@ -86,12 +86,19 @@ class _MainScreenState extends State<MainScreen> {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor,
+                    gradient: AppTheme.goldGradient,
                     borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.secondaryGold.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: const Icon(
                     Icons.account_balance,
-                    color: Colors.white,
+                    color: AppTheme.textOnSecondary,
                     size: 32,
                   ),
                 ),
@@ -101,7 +108,7 @@ class _MainScreenState extends State<MainScreen> {
                     'Metropolitan\nInvestment',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.textPrimary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -125,6 +132,7 @@ class _MainScreenState extends State<MainScreen> {
                           _isRailExtended
                               ? Icons.chevron_left
                               : Icons.chevron_right,
+                          color: AppTheme.textSecondary,
                         ),
                         tooltip: _isRailExtended ? 'Zwiń menu' : 'Rozwiń menu',
                       ),
@@ -148,41 +156,45 @@ class _MainScreenState extends State<MainScreen> {
                             itemBuilder: (context) => [
                               PopupMenuItem(
                                 value: 'profile',
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.person),
-                                    const SizedBox(width: 8),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          authProvider.userProfile?.fullName ??
-                                              authProvider.user?.displayName ??
-                                              'Użytkownik',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
+                                child: Container(
+                                  color: AppTheme.backgroundModal,
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.person, color: AppTheme.textSecondary),
+                                      const SizedBox(width: 8),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            authProvider.userProfile?.fullName ??
+                                                authProvider.user?.displayName ??
+                                                'Użytkownik',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: AppTheme.textPrimary,
+                                            ),
                                           ),
-                                        ),
-                                        Text(
-                                          authProvider.user?.email ?? '',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
+                                          Text(
+                                            authProvider.user?.email ?? '',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: AppTheme.textTertiary,
+                                            ),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                               const PopupMenuItem(
                                 value: 'settings',
                                 child: Row(
                                   children: [
-                                    Icon(Icons.settings),
+                                    Icon(Icons.settings, color: AppTheme.textSecondary),
                                     SizedBox(width: 8),
-                                    Text('Ustawienia'),
+                                    Text('Ustawienia', style: TextStyle(color: AppTheme.textPrimary)),
                                   ],
                                 ),
                               ),
@@ -190,9 +202,9 @@ class _MainScreenState extends State<MainScreen> {
                                 value: 'logout',
                                 child: Row(
                                   children: [
-                                    Icon(Icons.logout),
+                                    Icon(Icons.logout, color: AppTheme.errorColor),
                                     SizedBox(width: 8),
-                                    Text('Wyloguj'),
+                                    Text('Wyloguj', style: TextStyle(color: AppTheme.errorColor)),
                                   ],
                                 ),
                               ),
@@ -201,12 +213,21 @@ class _MainScreenState extends State<MainScreen> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryColor.withOpacity(0.1),
+                                gradient: AppTheme.goldGradient,
                                 borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.secondaryGold.withOpacity(
+                                      0.3,
+                                    ),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                              child: Icon(
+                              child: const Icon(
                                 Icons.person,
-                                color: AppTheme.primaryColor,
+                                color: AppTheme.textOnSecondary,
                               ),
                             ),
                           );
@@ -220,32 +241,36 @@ class _MainScreenState extends State<MainScreen> {
             destinations: _navigationItems.map((item) {
               return NavigationRailDestination(
                 icon: Icon(item.icon),
-                selectedIcon: Icon(item.icon, color: AppTheme.primaryColor),
+                selectedIcon: Icon(item.icon, color: AppTheme.secondaryGold),
                 label: Text(item.label),
               );
             }).toList(),
-            backgroundColor: Colors.grey[50],
-            selectedIconTheme: IconThemeData(
-              color: AppTheme.primaryColor,
+            backgroundColor: AppTheme.backgroundSecondary,
+            selectedIconTheme: const IconThemeData(
+              color: AppTheme.secondaryGold,
               size: 28,
             ),
-            unselectedIconTheme: IconThemeData(
-              color: Colors.grey[600],
+            unselectedIconTheme: const IconThemeData(
+              color: AppTheme.textSecondary,
               size: 24,
             ),
-            selectedLabelTextStyle: TextStyle(
-              color: AppTheme.primaryColor,
+            selectedLabelTextStyle: const TextStyle(
+              color: AppTheme.secondaryGold,
               fontWeight: FontWeight.w600,
               fontSize: 12,
             ),
-            unselectedLabelTextStyle: TextStyle(
-              color: Colors.grey[600],
+            unselectedLabelTextStyle: const TextStyle(
+              color: AppTheme.textSecondary,
               fontSize: 12,
             ),
             useIndicator: true,
-            indicatorColor: AppTheme.primaryColor.withOpacity(0.1),
+            indicatorColor: AppTheme.secondaryGold.withOpacity(0.2),
           ),
-          const VerticalDivider(thickness: 1, width: 1),
+          const VerticalDivider(
+            thickness: 1,
+            width: 1,
+            color: AppTheme.borderSecondary,
+          ),
           Expanded(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
@@ -264,7 +289,11 @@ class _MainScreenState extends State<MainScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Profil użytkownika'),
+        backgroundColor: AppTheme.backgroundModal,
+        title: const Text(
+          'Profil użytkownika',
+          style: TextStyle(color: AppTheme.textPrimary),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -278,13 +307,19 @@ class _MainScreenState extends State<MainScreen> {
                 _buildProfileItem('Telefon', userProfile.phone!),
               _buildProfileItem('Rola', userProfile.role),
             ] else ...[
-              const Text('Brak danych profilu'),
+              const Text(
+                'Brak danych profilu',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
             ],
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondary,
+            ),
             child: const Text('Zamknij'),
           ),
           ElevatedButton(
@@ -292,6 +327,10 @@ class _MainScreenState extends State<MainScreen> {
               Navigator.of(context).pop();
               // TODO: Navigate to profile edit screen
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.secondaryGold,
+              foregroundColor: AppTheme.textOnSecondary,
+            ),
             child: const Text('Edytuj profil'),
           ),
         ],
@@ -309,10 +348,18 @@ class _MainScreenState extends State<MainScreen> {
             width: 80,
             child: Text(
               '$label:',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
-          Expanded(child: Text(value)),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: AppTheme.textPrimary),
+            ),
+          ),
         ],
       ),
     );
@@ -322,30 +369,61 @@ class _MainScreenState extends State<MainScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Ustawienia'),
-        content: const Column(
+        backgroundColor: AppTheme.backgroundModal,
+        title: const Text(
+          'Ustawienia',
+          style: TextStyle(color: AppTheme.textPrimary),
+        ),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.palette),
-              title: Text('Motyw'),
-              subtitle: Text('Jasny motyw'),
+              leading: const Icon(Icons.palette, color: AppTheme.textSecondary),
+              title: const Text(
+                'Motyw',
+                style: TextStyle(color: AppTheme.textPrimary),
+              ),
+              subtitle: const Text(
+                'Ciemny motyw',
+                style: TextStyle(color: AppTheme.textTertiary),
+              ),
             ),
             ListTile(
-              leading: Icon(Icons.language),
-              title: Text('Język'),
-              subtitle: Text('Polski'),
+              leading: const Icon(
+                Icons.language,
+                color: AppTheme.textSecondary,
+              ),
+              title: const Text(
+                'Język',
+                style: TextStyle(color: AppTheme.textPrimary),
+              ),
+              subtitle: const Text(
+                'Polski',
+                style: TextStyle(color: AppTheme.textTertiary),
+              ),
             ),
             ListTile(
-              leading: Icon(Icons.notifications),
-              title: Text('Powiadomienia'),
-              subtitle: Text('Włączone'),
+              leading: const Icon(
+                Icons.notifications,
+                color: AppTheme.textSecondary,
+              ),
+              title: const Text(
+                'Powiadomienia',
+                style: TextStyle(color: AppTheme.textPrimary),
+              ),
+              subtitle: const Text(
+                'Włączone',
+                style: TextStyle(color: AppTheme.textTertiary),
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondary,
+            ),
             child: const Text('Zamknij'),
           ),
         ],
@@ -357,11 +435,21 @@ class _MainScreenState extends State<MainScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Wylogowanie'),
-        content: const Text('Czy na pewno chcesz się wylogować?'),
+        backgroundColor: AppTheme.backgroundModal,
+        title: const Text(
+          'Wylogowanie',
+          style: TextStyle(color: AppTheme.textPrimary),
+        ),
+        content: const Text(
+          'Czy na pewno chcesz się wylogować?',
+          style: TextStyle(color: AppTheme.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondary,
+            ),
             child: const Text('Anuluj'),
           ),
           ElevatedButton(
@@ -385,6 +473,7 @@ class _MainScreenState extends State<MainScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.errorColor,
+              foregroundColor: AppTheme.textOnPrimary,
             ),
             child: const Text('Wyloguj'),
           ),

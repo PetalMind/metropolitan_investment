@@ -98,7 +98,11 @@ class _ClientsScreenState extends State<ClientsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(client == null ? 'Nowy Klient' : 'Edytuj Klienta'),
+        backgroundColor: AppTheme.backgroundModal,
+        title: Text(
+          client == null ? 'Nowy Klient' : 'Edytuj Klienta',
+          style: const TextStyle(color: AppTheme.textPrimary),
+        ),
         content: SizedBox(
           width: 400,
           child: Column(
@@ -106,27 +110,47 @@ class _ClientsScreenState extends State<ClientsScreen> {
             children: [
               TextFormField(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: 'Imię i nazwisko'),
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Imię i nazwisko',
+                  labelStyle: TextStyle(color: AppTheme.textSecondary),
+                ),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: peselController,
-                decoration: const InputDecoration(labelText: 'PESEL'),
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'PESEL',
+                  labelStyle: TextStyle(color: AppTheme.textSecondary),
+                ),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  labelStyle: TextStyle(color: AppTheme.textSecondary),
+                ),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: phoneController,
-                decoration: const InputDecoration(labelText: 'Telefon'),
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Telefon',
+                  labelStyle: TextStyle(color: AppTheme.textSecondary),
+                ),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: addressController,
-                decoration: const InputDecoration(labelText: 'Adres'),
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  labelText: 'Adres',
+                  labelStyle: TextStyle(color: AppTheme.textSecondary),
+                ),
                 maxLines: 3,
               ),
             ],
@@ -135,6 +159,9 @@ class _ClientsScreenState extends State<ClientsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondary,
+            ),
             child: const Text('Anuluj'),
           ),
           ElevatedButton(
@@ -146,6 +173,10 @@ class _ClientsScreenState extends State<ClientsScreen> {
                     : 'Klient został zaktualizowany',
               );
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.secondaryGold,
+              foregroundColor: AppTheme.textOnSecondary,
+            ),
             child: const Text('Zapisz'),
           ),
         ],
@@ -212,8 +243,14 @@ class _ClientsScreenState extends State<ClientsScreen> {
             icon: const Icon(Icons.add),
             label: const Text('Nowy Klient'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.surfaceCard,
-              foregroundColor: AppTheme.primaryColor,
+              backgroundColor: AppTheme.secondaryGold,
+              foregroundColor: AppTheme.textOnSecondary,
+              elevation: 4,
+              shadowColor: AppTheme.secondaryGold.withOpacity(0.3),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ],
@@ -224,24 +261,51 @@ class _ClientsScreenState extends State<ClientsScreen> {
   Widget _buildToolbar() {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.grey[50],
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundSecondary,
+        border: Border(
+          bottom: BorderSide(color: AppTheme.borderSecondary, width: 1),
+        ),
+      ),
       child: Row(
         children: [
           Expanded(
             child: TextField(
               controller: _searchController,
+              style: const TextStyle(color: AppTheme.textPrimary),
               decoration: InputDecoration(
                 hintText:
                     'Szukaj po imieniu i nazwisku, PESEL, emailu lub telefonie...',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle: const TextStyle(color: AppTheme.textTertiary),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: AppTheme.textSecondary,
+                ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         onPressed: () => _searchController.clear(),
-                        icon: const Icon(Icons.clear),
+                        icon: const Icon(
+                          Icons.clear,
+                          color: AppTheme.textSecondary,
+                        ),
                       )
                     : null,
+                filled: true,
+                fillColor: AppTheme.surfaceInteractive,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppTheme.borderSecondary),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppTheme.borderSecondary),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: AppTheme.secondaryGold,
+                    width: 2,
+                  ),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -252,6 +316,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
           ),
           const SizedBox(width: 16),
           PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary),
             onSelected: (value) {
               switch (value) {
                 case 'export':
@@ -267,9 +332,12 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 value: 'export',
                 child: Row(
                   children: [
-                    Icon(Icons.file_download),
+                    Icon(Icons.file_download, color: AppTheme.textSecondary),
                     SizedBox(width: 8),
-                    Text('Eksport'),
+                    Text(
+                      'Eksport',
+                      style: TextStyle(color: AppTheme.textPrimary),
+                    ),
                   ],
                 ),
               ),
@@ -277,14 +345,16 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 value: 'import',
                 child: Row(
                   children: [
-                    Icon(Icons.file_upload),
+                    Icon(Icons.file_upload, color: AppTheme.textSecondary),
                     SizedBox(width: 8),
-                    Text('Import'),
+                    Text(
+                      'Import',
+                      style: TextStyle(color: AppTheme.textPrimary),
+                    ),
                   ],
                 ),
               ),
             ],
-            child: const Icon(Icons.more_vert),
           ),
         ],
       ),
@@ -354,26 +424,34 @@ class _ClientsScreenState extends State<ClientsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.people_outline, size: 80, color: Colors.grey[400]),
+          Icon(Icons.people_outline, size: 80, color: AppTheme.textTertiary),
           const SizedBox(height: 16),
           Text(
             'Brak klientów',
             style: Theme.of(
               context,
-            ).textTheme.headlineMedium?.copyWith(color: Colors.grey[600]),
+            ).textTheme.headlineMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 8),
           Text(
             'Dodaj pierwszego klienta, aby rozpocząć',
             style: Theme.of(
               context,
-            ).textTheme.bodyLarge?.copyWith(color: Colors.grey[500]),
+            ).textTheme.bodyLarge?.copyWith(color: AppTheme.textTertiary),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () => _showClientForm(),
             icon: const Icon(Icons.add),
             label: const Text('Dodaj Klienta'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.secondaryGold,
+              foregroundColor: AppTheme.textOnSecondary,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         ],
       ),
@@ -384,11 +462,21 @@ class _ClientsScreenState extends State<ClientsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Potwierdzenie usunięcia'),
-        content: Text('Czy na pewno chcesz usunąć klienta ${client.name}?'),
+        backgroundColor: AppTheme.backgroundModal,
+        title: const Text(
+          'Potwierdzenie usunięcia',
+          style: TextStyle(color: AppTheme.textPrimary),
+        ),
+        content: Text(
+          'Czy na pewno chcesz usunąć klienta ${client.name}?',
+          style: const TextStyle(color: AppTheme.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondary,
+            ),
             child: const Text('Anuluj'),
           ),
           ElevatedButton(
@@ -398,6 +486,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.errorColor,
+              foregroundColor: AppTheme.textOnPrimary,
             ),
             child: const Text('Usuń'),
           ),
