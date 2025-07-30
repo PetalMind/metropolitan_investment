@@ -34,10 +34,11 @@ class InvestorSummary {
 
     for (final investment in investments) {
       if (investment.productType == ProductType.shares) {
-        // Dla udziałów liczymy wartość inwestycji
+        // Dla udziałów używamy kwoty inwestycji jako wartości
+        // bo udziały nie mają "kapitału pozostałego" w tradycyjnym sensie
         totalSharesValue += investment.investmentAmount;
       } else {
-        // Dla pozostałych produktów liczymy kapitał pozostały
+        // Dla obligacji, pożyczek itd. liczymy kapitał pozostały do wypłaty
         totalRemainingCapital += investment.remainingCapital;
       }
 
@@ -77,8 +78,10 @@ class InvestorSummary {
     double total = 0;
     for (final investment in viableInvestments) {
       if (investment.productType == ProductType.shares) {
+        // Dla udziałów - wartość inwestycji (nie ma "kapitału pozostałego")
         total += investment.investmentAmount;
       } else {
+        // Dla obligacji, pożyczek itd. - kapitał pozostały do wypłaty
         total += investment.remainingCapital;
       }
     }

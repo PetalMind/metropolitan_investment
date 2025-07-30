@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../models/client.dart';
 import '../models/investor_summary.dart';
 import '../services/investor_analytics_service.dart';
 import '../widgets/investor_details_modal.dart';
+import '../widgets/data_table_widget.dart';
 import '../utils/currency_formatter.dart';
 
 class InvestorAnalyticsScreen extends StatefulWidget {
@@ -48,6 +50,12 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
   InvestorRange? _majorityControlPoint;
   double _totalPortfolioValue = 0;
 
+  // Analityka głosowania - kapitał pozostały według statusu
+  double _yesVotingCapital = 0.0;
+  double _noVotingCapital = 0.0;
+  double _abstainVotingCapital = 0.0;
+  double _undecidedVotingCapital = 0.0;
+
   // Filtry mobilne
   VotingStatus? _selectedVotingStatus;
   ClientType? _selectedClientType;
@@ -56,13 +64,25 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
   bool _isFilterVisible = false;
 
   // Widok mobilny
-  String _currentView = 'list'; // 'list', 'cards', 'summary'
-  String _sortBy = 'totalValue'; // 'totalValue', 'name', 'investmentCount'
+  String _currentView = 'list'; // 'list', 'cards', 'summary', 'table'
+  String _sortBy =
+      'totalValue'; // 'totalValue', 'name', 'investmentCount', 'viableCapital', 'majority', 'votingStatus'
   bool _sortAscending = false;
+
+  // Konfiguracja
+  static const double _majorityThreshold = 51.0; // Próg kontroli większościowej
 
   @override
   void initState() {
     super.initState();
+
+    // Ustaw responsywny rozmiar strony na podstawie rozmiaru ekranu
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      setState(() {
+        _pageSize = screenWidth > 768 ? 50 : 20; // Więcej na desktopie
+      });
+    });
 
     // Inicjalizacja animacji
     _filterAnimationController = AnimationController(
@@ -181,9 +201,10 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
         includeInactive: _includeInactive,
       );
 
-      // Znajdź punkt kontroli 51%
+      // Znajdź punkt kontroli większościowej
       final majorityPoint = _analyticsService.findMajorityControlPoint(
         allInvestors,
+        threshold: _majorityThreshold,
       );
 
       // Oblicz łączną wartość portfela
@@ -191,6 +212,9 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
         0.0,
         (sum, inv) => sum + inv.totalValue,
       );
+
+      // Oblicz rozkład kapitału według statusu głosowania
+      _calculateVotingCapitalDistribution(allInvestors);
 
       // Sortuj według wybranego kryterium
       _sortInvestors(allInvestors);
@@ -236,6 +260,34 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
         case 'investmentCount':
           comparison = a.investmentCount.compareTo(b.investmentCount);
           break;
+        case 'viableCapital':
+          comparison = a.viableRemainingCapital.compareTo(
+            b.viableRemainingCapital,
+          );
+          break;
+        case 'majority':
+          // Sortowanie według odległości do 51% progu
+          final totalViable =
+              _yesVotingCapital +
+              _noVotingCapital +
+              _abstainVotingCapital +
+              _undecidedVotingCapital;
+          if (totalViable > 0) {
+            final aPercentage = (a.viableRemainingCapital / totalViable) * 100;
+            final bPercentage = (b.viableRemainingCapital / totalViable) * 100;
+            final aMajorityDistance = (aPercentage - _majorityThreshold).abs();
+            final bMajorityDistance = (bPercentage - _majorityThreshold).abs();
+            comparison = aMajorityDistance.compareTo(bMajorityDistance);
+          } else {
+            comparison = 0;
+          }
+          break;
+        case 'votingStatus':
+          // Sortowanie według statusu głosowania: TAK -> NIE -> NIEZDECYDOWANY -> WSTRZYMUJE
+          final aStatusOrder = _getVotingStatusOrder(a.client.votingStatus);
+          final bStatusOrder = _getVotingStatusOrder(b.client.votingStatus);
+          comparison = aStatusOrder.compareTo(bStatusOrder);
+          break;
         default:
           comparison = a.totalValue.compareTo(b.totalValue);
       }
@@ -266,6 +318,108 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
 
     _sortInvestors(_allInvestors);
     _applyFilters();
+  }
+
+  /// Oblicza rozkład kapitału według statusu głosowania
+  void _calculateVotingCapitalDistribution(List<InvestorSummary> investors) {
+    _yesVotingCapital = 0.0;
+    _noVotingCapital = 0.0;
+    _abstainVotingCapital = 0.0;
+    _undecidedVotingCapital = 0.0;
+
+    for (final investor in investors) {
+      // Używamy viableRemainingCapital zamiast totalValue
+      // aby uwzględnić tylko wykonalne inwestycje
+      final capitalValue = investor.viableRemainingCapital;
+
+      switch (investor.client.votingStatus) {
+        case VotingStatus.yes:
+          _yesVotingCapital += capitalValue;
+          break;
+        case VotingStatus.no:
+          _noVotingCapital += capitalValue;
+          break;
+        case VotingStatus.abstain:
+          _abstainVotingCapital += capitalValue;
+          break;
+        case VotingStatus.undecided:
+          _undecidedVotingCapital += capitalValue;
+          break;
+      }
+    }
+
+    final totalViableCapital =
+        _yesVotingCapital +
+        _noVotingCapital +
+        _abstainVotingCapital +
+        _undecidedVotingCapital;
+
+    print('📊 [Voting Capital Distribution]');
+    print(
+      '   TAK: ${_yesVotingCapital.toStringAsFixed(2)} PLN (${totalViableCapital > 0 ? (_yesVotingCapital / totalViableCapital * 100).toStringAsFixed(1) : "0.0"}%)',
+    );
+    print(
+      '   NIE: ${_noVotingCapital.toStringAsFixed(2)} PLN (${totalViableCapital > 0 ? (_noVotingCapital / totalViableCapital * 100).toStringAsFixed(1) : "0.0"}%)',
+    );
+    print(
+      '   WSTRZYMUJE: ${_abstainVotingCapital.toStringAsFixed(2)} PLN (${totalViableCapital > 0 ? (_abstainVotingCapital / totalViableCapital * 100).toStringAsFixed(1) : "0.0"}%)',
+    );
+    print(
+      '   NIEZDECYDOWANY: ${_undecidedVotingCapital.toStringAsFixed(2)} PLN (${totalViableCapital > 0 ? (_undecidedVotingCapital / totalViableCapital * 100).toStringAsFixed(1) : "0.0"}%)',
+    );
+    print(
+      '   ŁĄCZNIE WYKONALNY KAPITAŁ: ${totalViableCapital.toStringAsFixed(2)} PLN',
+    );
+  }
+
+  /// Oblicza łączną wartość kapitału wykonalnych inwestycji
+  double get _totalViableCapital {
+    return _yesVotingCapital +
+        _noVotingCapital +
+        _abstainVotingCapital +
+        _undecidedVotingCapital;
+  }
+
+  /// Procent kapitału dla statusu głosowania TAK
+  double get _yesVotingPercentage {
+    return _totalViableCapital > 0
+        ? (_yesVotingCapital / _totalViableCapital) * 100
+        : 0.0;
+  }
+
+  /// Procent kapitału dla statusu głosowania NIE
+  double get _noVotingPercentage {
+    return _totalViableCapital > 0
+        ? (_noVotingCapital / _totalViableCapital) * 100
+        : 0.0;
+  }
+
+  /// Procent kapitału dla statusu WSTRZYMUJE SIĘ
+  double get _abstainVotingPercentage {
+    return _totalViableCapital > 0
+        ? (_abstainVotingCapital / _totalViableCapital) * 100
+        : 0.0;
+  }
+
+  /// Procent kapitału dla statusu NIEZDECYDOWANY
+  double get _undecidedVotingPercentage {
+    return _totalViableCapital > 0
+        ? (_undecidedVotingCapital / _totalViableCapital) * 100
+        : 0.0;
+  }
+
+  /// Zwraca kolejność sortowania dla statusu głosowania
+  int _getVotingStatusOrder(VotingStatus status) {
+    switch (status) {
+      case VotingStatus.yes:
+        return 1; // TAK - najwyższy priorytet
+      case VotingStatus.no:
+        return 2; // NIE
+      case VotingStatus.undecided:
+        return 3; // NIEZDECYDOWANY
+      case VotingStatus.abstain:
+        return 4; // WSTRZYMUJE - najniższy priorytet
+    }
   }
 
   void _applyFilters() {
@@ -472,6 +626,40 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     _fabAnimationController.reverse().then((_) {
       _fabAnimationController.forward();
     });
+  }
+
+  void _showViewSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Wybierz widok',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            _buildViewOption('Lista', 'list', Icons.view_list),
+            _buildViewOption('Tabela', 'table', Icons.table_chart),
+            _buildViewOption('Karty', 'cards', Icons.view_agenda),
+            _buildViewOption('Podsumowanie', 'summary', Icons.analytics),
+
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildErrorView() {
@@ -845,6 +1033,417 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     );
   }
 
+  Widget _buildVotingAnalysisSliver(bool isTablet) {
+    return SliverToBoxAdapter(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppTheme.bondsBackground.withOpacity(0.1),
+              AppTheme.surfaceCard,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.bondsBackground.withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          border: Border.all(
+            color: AppTheme.bondsBackground.withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header sekcji
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppTheme.bondsBackground,
+                          AppTheme.bondsBackground.withOpacity(0.8),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.bondsBackground.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.how_to_vote,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Analiza Głosowania',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Rozkład kapitału według statusu głosowania',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppTheme.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Wskaźnik progu większościowego
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warningColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppTheme.warningColor.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      '51% PRÓG',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppTheme.warningColor,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Grid ze statystykami głosowania
+              if (isTablet)
+                _buildVotingStatsGrid()
+              else
+                _buildVotingStatsColumn(),
+
+              const SizedBox(height: 20),
+
+              // Wykres procentowy (pasek)
+              _buildVotingProgressBar(),
+
+              const SizedBox(height: 16),
+
+              // Dodatkowe informacje
+              _buildVotingInsights(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVotingStatsGrid() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 4,
+      childAspectRatio: 1.2,
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      children: [
+        _buildVotingStatCard(
+          'TAK',
+          _yesVotingCapital,
+          _yesVotingPercentage,
+          Icons.check_circle,
+          AppTheme.successColor,
+        ),
+        _buildVotingStatCard(
+          'NIE',
+          _noVotingCapital,
+          _noVotingPercentage,
+          Icons.cancel,
+          AppTheme.errorColor,
+        ),
+        _buildVotingStatCard(
+          'NIEZDECYDOWANY',
+          _undecidedVotingCapital,
+          _undecidedVotingPercentage,
+          Icons.help,
+          AppTheme.warningColor,
+        ),
+        _buildVotingStatCard(
+          'WSTRZYMUJE',
+          _abstainVotingCapital,
+          _abstainVotingPercentage,
+          Icons.remove_circle,
+          AppTheme.textSecondary,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVotingStatsColumn() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildVotingStatCard(
+                'TAK',
+                _yesVotingCapital,
+                _yesVotingPercentage,
+                Icons.check_circle,
+                AppTheme.successColor,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildVotingStatCard(
+                'NIE',
+                _noVotingCapital,
+                _noVotingPercentage,
+                Icons.cancel,
+                AppTheme.errorColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildVotingStatCard(
+                'NIEZDECYDOWANY',
+                _undecidedVotingCapital,
+                _undecidedVotingPercentage,
+                Icons.help,
+                AppTheme.warningColor,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildVotingStatCard(
+                'WSTRZYMUJE',
+                _abstainVotingCapital,
+                _abstainVotingPercentage,
+                Icons.remove_circle,
+                AppTheme.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVotingStatCard(
+    String title,
+    double amount,
+    double percentage,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            CurrencyFormatter.formatCurrencyShort(amount),
+            style: TextStyle(
+              color: color,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${percentage.toStringAsFixed(1)}%',
+            style: TextStyle(
+              color: color.withOpacity(0.8),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVotingProgressBar() {
+    final total = _totalViableCapital;
+    if (total <= 0) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Rozkład kapitału głosującego',
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 20,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppTheme.borderSecondary, width: 1),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(9),
+            child: Row(
+              children: [
+                if (_yesVotingPercentage > 0)
+                  Expanded(
+                    flex: (_yesVotingPercentage * 100).round(),
+                    child: Container(color: AppTheme.successColor),
+                  ),
+                if (_noVotingPercentage > 0)
+                  Expanded(
+                    flex: (_noVotingPercentage * 100).round(),
+                    child: Container(color: AppTheme.errorColor),
+                  ),
+                if (_undecidedVotingPercentage > 0)
+                  Expanded(
+                    flex: (_undecidedVotingPercentage * 100).round(),
+                    child: Container(color: AppTheme.warningColor),
+                  ),
+                if (_abstainVotingPercentage > 0)
+                  Expanded(
+                    flex: (_abstainVotingPercentage * 100).round(),
+                    child: Container(color: AppTheme.textSecondary),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Łącznie: ${CurrencyFormatter.formatCurrency(total)}',
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVotingInsights() {
+    final yesPercentage = _yesVotingPercentage;
+    final noPercentage = _noVotingPercentage;
+    final majorityThreshold = _majorityThreshold;
+
+    String insight;
+    Color insightColor;
+    IconData insightIcon;
+
+    if (yesPercentage >= majorityThreshold) {
+      insight =
+          'Większość głosuje ZA (${yesPercentage.toStringAsFixed(1)}% ≥ ${majorityThreshold.toStringAsFixed(0)}%)';
+      insightColor = AppTheme.successColor;
+      insightIcon = Icons.trending_up;
+    } else if (noPercentage >= majorityThreshold) {
+      insight =
+          'Większość głosuje PRZECIW (${noPercentage.toStringAsFixed(1)}% ≥ ${majorityThreshold.toStringAsFixed(0)}%)';
+      insightColor = AppTheme.errorColor;
+      insightIcon = Icons.trending_down;
+    } else {
+      final needed = majorityThreshold - yesPercentage;
+      insight =
+          'Do większości ZA potrzeba jeszcze ${needed.toStringAsFixed(1)}%';
+      insightColor = AppTheme.warningColor;
+      insightIcon = Icons.info;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: insightColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: insightColor.withOpacity(0.2), width: 1),
+      ),
+      child: Row(
+        children: [
+          Icon(insightIcon, color: insightColor, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              insight,
+              style: TextStyle(
+                color: insightColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFilterSliver(bool isTablet) {
     return SliverToBoxAdapter(
       child: SlideTransition(
@@ -1053,6 +1652,27 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
           ),
         ),
         DropdownMenuItem(
+          value: 'viableCapital',
+          child: Text(
+            'Kapitał głosujący',
+            style: TextStyle(color: AppTheme.textPrimary),
+          ),
+        ),
+        DropdownMenuItem(
+          value: 'majority',
+          child: Text(
+            'Odległość do 51%',
+            style: TextStyle(color: AppTheme.textPrimary),
+          ),
+        ),
+        DropdownMenuItem(
+          value: 'votingStatus',
+          child: Text(
+            'Status głosowania',
+            style: TextStyle(color: AppTheme.textPrimary),
+          ),
+        ),
+        DropdownMenuItem(
           value: 'name',
           child: Text(
             'Nazwa klienta',
@@ -1132,52 +1752,6 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     );
   }
 
-  Widget _buildViewOptionsBottomSheet() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.surfaceCard,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppTheme.borderPrimary,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Opcje widoku',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  _buildViewOption('Lista', 'list', Icons.view_list),
-                  _buildViewOption('Karty', 'cards', Icons.view_agenda),
-                  _buildViewOption('Podsumowanie', 'summary', Icons.analytics),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildViewOption(String title, String viewType, IconData icon) {
     final isSelected = _currentView == viewType;
 
@@ -1245,6 +1819,7 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
             SliverFillRemaining(child: _buildErrorView())
           else ...[
             _buildSummarySliver(isTablet),
+            _buildVotingAnalysisSliver(isTablet),
             if (_isFilterVisible) _buildFilterSliver(isTablet),
             _buildInvestorsList(),
             if (_isLoadingMore)
@@ -1261,8 +1836,6 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
           ],
         ],
       ),
-      floatingActionButton: _buildResponsiveFAB(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -1313,12 +1886,19 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
         ),
       ),
       actions: [
+        // Przycisk przełączania widoku
+        IconButton(
+          icon: Icon(_getViewIcon(), color: AppTheme.secondaryGold),
+          onPressed: _showViewSelector,
+          tooltip: 'Zmień widok',
+        ),
         IconButton(
           icon: Icon(
             _isFilterVisible ? Icons.filter_list_off : Icons.filter_list,
             color: AppTheme.secondaryGold,
           ),
           onPressed: _toggleFilter,
+          tooltip: 'Filtry',
         ),
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert, color: AppTheme.secondaryGold),
@@ -1455,26 +2035,6 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     );
   }
 
-  Widget _buildResponsiveFAB() {
-    return ScaleTransition(
-      scale: _fabScaleAnimation,
-      child: FloatingActionButton.extended(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (context) => _buildViewOptionsBottomSheet(),
-          );
-        },
-        backgroundColor: AppTheme.secondaryGold,
-        foregroundColor: AppTheme.backgroundSecondary,
-        icon: Icon(_getViewIcon()),
-        label: Text(_getViewLabel()),
-      ),
-    );
-  }
-
   IconData _getViewIcon() {
     switch (_currentView) {
       case 'cards':
@@ -1588,30 +2148,29 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     }
 
     if (_error != null) {
-      return SliverFillRemaining(
+      return SliverFillRemaining(child: Center(child: _buildErrorView()));
+    }
+
+    if (_filteredInvestors.isEmpty) {
+      return const SliverFillRemaining(
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline, size: 64, color: AppTheme.errorColor),
-              const SizedBox(height: 16),
+              Icon(Icons.search_off, size: 64, color: AppTheme.textSecondary),
+              SizedBox(height: 16),
               Text(
-                'Błąd podczas ładowania danych',
-                style: Theme.of(context).textTheme.headlineSmall,
+                'Brak inwestorów',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Text(
-                _error!,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _loadInvestorData,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Spróbuj ponownie'),
+                'Spróbuj zmienić filtry wyszukiwania',
+                style: TextStyle(color: AppTheme.textSecondary),
               ),
             ],
           ),
@@ -1619,6 +2178,20 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
       );
     }
 
+    // Wybór widoku na podstawie _currentView
+    switch (_currentView) {
+      case 'table':
+        return _buildTableView();
+      case 'cards':
+        return _buildCardsView();
+      case 'summary':
+        return _buildSummaryView();
+      default:
+        return _buildListView();
+    }
+  }
+
+  Widget _buildListView() {
     if (_filteredInvestors.isEmpty) {
       return const SliverFillRemaining(
         child: Center(
@@ -1866,7 +2439,7 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
         child: Text(
           '#$position',
           style: const TextStyle(
-            color: Colors.white,
+            color: AppTheme.textOnSecondary,
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
@@ -2223,6 +2796,681 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
       case VotingStatus.undecided:
         return AppTheme.textSecondary;
     }
+  }
+
+  // Implementacje brakujących metod widoków
+  Widget _buildTableView() {
+    if (_filteredInvestors.isEmpty) {
+      return const SliverFillRemaining(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.table_view_outlined, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'Brak danych do wyświetlenia',
+                style: TextStyle(fontSize: 18),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header tabeli
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryAccent.withOpacity(0.1),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.table_view, color: AppTheme.primaryAccent),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Tabela inwestorów (${_currentPageData.length} z ${_filteredInvestors.length})',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // DataTable z wykorzystaniem DataTableWidget
+            DataTableWidget<InvestorSummary>(
+              items: _currentPageData,
+              columns: [
+                DataTableColumn<InvestorSummary>(
+                  label: '#',
+                  value: (investor) {
+                    final index = _currentPageData.indexOf(investor);
+                    final position = (_currentPage * _pageSize) + index + 1;
+                    return '#$position';
+                  },
+                  widget: (investor) {
+                    final index = _currentPageData.indexOf(investor);
+                    final position = (_currentPage * _pageSize) + index + 1;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Color(
+                          int.parse(
+                            '0xFF${investor.client.colorCode.replaceAll('#', '')}',
+                          ),
+                        ).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '#$position',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    );
+                  },
+                  numeric: true,
+                  width: 80,
+                ),
+                DataTableColumn<InvestorSummary>(
+                  label: 'Inwestor',
+                  value: (investor) => investor.client.name,
+                  widget: (investor) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        investor.client.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (investor.client.email.isNotEmpty)
+                        Text(
+                          investor.client.email,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                  sortable: true,
+                  width: 200,
+                ),
+                DataTableColumn<InvestorSummary>(
+                  label: 'Wartość portfela',
+                  value: (investor) =>
+                      '${NumberFormat('#,###').format(investor.totalValue.round())} PLN',
+                  widget: (investor) => Text(
+                    '${NumberFormat('#,###').format(investor.totalValue.round())} PLN',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.successColor,
+                    ),
+                  ),
+                  sortable: true,
+                  numeric: true,
+                  width: 150,
+                ),
+                DataTableColumn<InvestorSummary>(
+                  label: '% udział',
+                  value: (investor) {
+                    final percentage = _totalPortfolioValue > 0
+                        ? (investor.totalValue / _totalPortfolioValue) * 100
+                        : 0.0;
+                    return '${percentage.toStringAsFixed(1)}%';
+                  },
+                  widget: (investor) {
+                    final percentage = _totalPortfolioValue > 0
+                        ? (investor.totalValue / _totalPortfolioValue) * 100
+                        : 0.0;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: percentage >= 10
+                            ? AppTheme.successColor.withOpacity(0.2)
+                            : AppTheme.warningColor.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${percentage.toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: percentage >= 10
+                              ? AppTheme.successColor
+                              : AppTheme.warningColor,
+                        ),
+                      ),
+                    );
+                  },
+                  sortable: true,
+                  numeric: true,
+                  width: 100,
+                ),
+                DataTableColumn<InvestorSummary>(
+                  label: 'Status głosowania',
+                  value: (investor) => investor.client.votingStatus.displayName,
+                  widget: (investor) => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getVotingStatusColor(
+                        investor.client.votingStatus,
+                      ).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      investor.client.votingStatus.displayName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: _getVotingStatusColor(
+                          investor.client.votingStatus,
+                        ),
+                      ),
+                    ),
+                  ),
+                  sortable: true,
+                  width: 140,
+                ),
+                DataTableColumn<InvestorSummary>(
+                  label: 'Akcje',
+                  value: (investor) => 'Akcje',
+                  widget: (investor) => IconButton(
+                    onPressed: () => _showInvestorDetails(investor),
+                    icon: const Icon(Icons.visibility, size: 18),
+                    tooltip: 'Zobacz szczegóły',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                  ),
+                  width: 80,
+                ),
+              ],
+              onRowTap: (investor) => _showInvestorDetails(investor),
+            ),
+
+            // Paginacja na dole tabeli
+            if (_filteredInvestors.length > _pageSize)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: _buildPaginationControls(),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardsView() {
+    if (_filteredInvestors.isEmpty) {
+      return const SliverFillRemaining(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.view_agenda_outlined, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'Brak danych do wyświetlenia',
+                style: TextStyle(fontSize: 18),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SliverGrid(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      delegate: SliverChildBuilderDelegate((context, index) {
+        if (index >= _currentPageData.length) return null;
+
+        final investor = _currentPageData[index];
+        final position = (_currentPage * _pageSize) + index + 1;
+        final percentage = _totalPortfolioValue > 0
+            ? (investor.totalValue / _totalPortfolioValue) * 100
+            : 0.0;
+
+        return GestureDetector(
+          onTap: () => _showInvestorDetails(investor),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppTheme.surfaceCard,
+                  AppTheme.surfaceCard.withOpacity(0.8),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Color(
+                  int.parse(
+                    '0xFF${investor.client.colorCode.replaceAll('#', '')}',
+                  ),
+                ).withOpacity(0.5),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(
+                    int.parse(
+                      '0xFF${investor.client.colorCode.replaceAll('#', '')}',
+                    ),
+                  ).withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Pozycja i wartość
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Color(
+                            int.parse(
+                              '0xFF${investor.client.colorCode.replaceAll('#', '')}',
+                            ),
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '#$position',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${percentage.toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: percentage >= 10
+                              ? AppTheme.successColor
+                              : AppTheme.warningColor,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Nazwa inwestora
+                  Text(
+                    investor.client.name,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Wartość portfela
+                  Text(
+                    '${NumberFormat('#,###').format(investor.totalValue.round())} PLN',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.successColor,
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  // Status głosowania
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _getVotingStatusColor(
+                        investor.client.votingStatus,
+                      ).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      investor.client.votingStatus.displayName,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: _getVotingStatusColor(
+                          investor.client.votingStatus,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }, childCount: _currentPageData.length),
+    );
+  }
+
+  Widget _buildSummaryView() {
+    if (_filteredInvestors.isEmpty) {
+      return const SliverFillRemaining(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.summarize_outlined, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'Brak danych do podsumowania',
+                style: TextStyle(fontSize: 18),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final votingDistribution = _getVotingCapitalDistribution();
+    final topInvestors = _filteredInvestors.take(5).toList();
+    final averagePortfolioValue = _filteredInvestors.isNotEmpty
+        ? _filteredInvestors
+                  .map((inv) => inv.totalValue)
+                  .reduce((a, b) => a + b) /
+              _filteredInvestors.length
+        : 0.0;
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Statystyki ogólne
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppTheme.surfaceCard, AppTheme.surfaceElevated],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppTheme.primaryAccent.withOpacity(0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.assessment, color: AppTheme.successColor),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Statystyki ogólne',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary,
+                            ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'Łączna liczba inwestorów',
+                          '${_filteredInvestors.length}',
+                          Icons.people,
+                          AppTheme.primaryAccent,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Łączna wartość portfela',
+                          '${NumberFormat('#,###').format(_totalPortfolioValue.round())} PLN',
+                          Icons.account_balance_wallet,
+                          AppTheme.successColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'Średnia wartość portfela',
+                          '${NumberFormat('#,###').format(averagePortfolioValue.round())} PLN',
+                          Icons.trending_up,
+                          AppTheme.warningColor,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Głosy "TAK"',
+                          '${votingDistribution['yes']?.toStringAsFixed(1) ?? '0.0'}%',
+                          Icons.how_to_vote,
+                          AppTheme.successColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Top 5 inwestorów
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppTheme.surfaceCard, AppTheme.surfaceElevated],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppTheme.primaryAccent.withOpacity(0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.emoji_events, color: AppTheme.secondaryGold),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Top 5 inwestorów',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary,
+                            ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  ...topInvestors.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final investor = entry.value;
+                    final percentage = _totalPortfolioValue > 0
+                        ? (investor.totalValue / _totalPortfolioValue) * 100
+                        : 0.0;
+
+                    return GestureDetector(
+                      onTap: () => _showInvestorDetails(investor),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.backgroundSecondary.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Color(
+                              int.parse(
+                                '0xFF${investor.client.colorCode.replaceAll('#', '')}',
+                              ),
+                            ).withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Color(
+                                  int.parse(
+                                    '0xFF${investor.client.colorCode.replaceAll('#', '')}',
+                                  ),
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '#${index + 1}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    investor.client.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${NumberFormat('#,###').format(investor.totalValue.round())} PLN',
+                                    style: TextStyle(
+                                      color: AppTheme.successColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              '${percentage.toStringAsFixed(1)}%',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Map<String, double> _getVotingCapitalDistribution() {
+    double yesCapital = 0.0;
+    double noCapital = 0.0;
+    double abstainCapital = 0.0;
+    double undecidedCapital = 0.0;
+
+    for (final investor in _filteredInvestors) {
+      final capitalValue = investor.viableRemainingCapital;
+
+      switch (investor.client.votingStatus) {
+        case VotingStatus.yes:
+          yesCapital += capitalValue;
+          break;
+        case VotingStatus.no:
+          noCapital += capitalValue;
+          break;
+        case VotingStatus.abstain:
+          abstainCapital += capitalValue;
+          break;
+        case VotingStatus.undecided:
+          undecidedCapital += capitalValue;
+          break;
+      }
+    }
+
+    final totalCapital =
+        yesCapital + noCapital + abstainCapital + undecidedCapital;
+
+    return {
+      'yes': totalCapital > 0 ? (yesCapital / totalCapital) * 100 : 0.0,
+      'no': totalCapital > 0 ? (noCapital / totalCapital) * 100 : 0.0,
+      'abstain': totalCapital > 0 ? (abstainCapital / totalCapital) * 100 : 0.0,
+      'undecided': totalCapital > 0
+          ? (undecidedCapital / totalCapital) * 100
+          : 0.0,
+    };
   }
 }
 

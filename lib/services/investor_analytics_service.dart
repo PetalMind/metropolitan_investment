@@ -243,10 +243,11 @@ class InvestorAnalyticsService extends BaseService {
     return investors;
   }
 
-  // Znajdź punkt 51% kapitału
+  // Znajdź punkt kontroli większościowej (domyślnie 51% kapitału)
   InvestorRange? findMajorityControlPoint(
-    List<InvestorSummary> sortedInvestors,
-  ) {
+    List<InvestorSummary> sortedInvestors, {
+    double threshold = 51.0,
+  }) {
     double cumulativeValue = 0;
     final totalValue = sortedInvestors.fold<double>(
       0.0,
@@ -257,7 +258,7 @@ class InvestorAnalyticsService extends BaseService {
       cumulativeValue += sortedInvestors[i].totalValue;
       final percentage = (cumulativeValue / totalValue) * 100;
 
-      if (percentage >= 51.0) {
+      if (percentage >= threshold) {
         return InvestorRange(
           investorCount: i + 1,
           percentage: percentage,
