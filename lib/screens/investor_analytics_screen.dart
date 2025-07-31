@@ -47,7 +47,6 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
   bool _isLoadingMore = false;
 
   // Analityka
-  InvestorRange? _majorityControlPoint;
   double _totalPortfolioValue = 0;
 
   // Analityka głosowania - kapitał pozostały według statusu
@@ -55,6 +54,15 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
   double _noVotingCapital = 0.0;
   double _abstainVotingCapital = 0.0;
   double _undecidedVotingCapital = 0.0;
+
+  // Analiza kontroli większościowej - NOWE
+  bool _showMajorityAnalysis = false;
+  List<InvestorWithControlInfo> _majorityAnalysisInvestors = [];
+  List<InvestorWithControlInfo> _controlGroupAnalysisInvestors = [];
+  double _totalViableCapitalAnalysis = 0.0;
+  double _controlGroupCapitalAnalysis = 0.0;
+  int _controlGroupCountAnalysis = 0;
+  bool _isLoadingMajorityAnalysis = false;
 
   // Filtry mobilne
   VotingStatus? _selectedVotingStatus;
@@ -196,22 +204,15 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     try {
       print('🚀 [Mobile UI] Ładowanie danych inwestorów...');
 
-      // Ładuj wszystkich inwestorów dla analizy offline
-      final allInvestors = await _analyticsService.getAllInvestorsForAnalysis(
-        includeInactive: _includeInactive,
-      );
+      // Używamy nowej metody do pobierania inwestorów
+      final result = await _analyticsService
+          .getInvestorsSortedByRemainingCapital(
+            includeInactive: _includeInactive,
+            page: 0,
+            pageSize: 1000, // Pobierz wszystkich dla analizy
+          );
 
-      // Znajdź punkt kontroli większościowej
-      final majorityPoint = _analyticsService.findMajorityControlPoint(
-        allInvestors,
-        threshold: _majorityThreshold,
-      );
-
-      // Oblicz łączną wartość portfela
-      final totalValue = allInvestors.fold<double>(
-        0.0,
-        (sum, inv) => sum + inv.totalValue,
-      );
+      final allInvestors = result.investors;
 
       // Oblicz rozkład kapitału według statusu głosowania
       _calculateVotingCapitalDistribution(allInvestors);
@@ -225,8 +226,7 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
       setState(() {
         _allInvestors = allInvestors;
         _filteredInvestors = initialInvestors;
-        _majorityControlPoint = majorityPoint;
-        _totalPortfolioValue = totalValue;
+        _totalPortfolioValue = result.totalViableCapital;
         _currentPage = 0;
         _hasNextPage = allInvestors.length > _pageSize;
         _hasPreviousPage = false;
@@ -243,6 +243,63 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
         _error = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  /// Analizuje kontrolę większościową na podstawie kapitału pozostałego
+  Future<void> _performMajorityControlAnalysis() async {
+    if (_isLoadingMajorityAnalysis) return;
+
+    setState(() {
+      _isLoadingMajorityAnalysis = true;
+    });
+
+    try {
+      print(
+        '📊 [MajorityAnalysis] Rozpoczynam analizę kontroli większościowej...',
+      );
+
+      final analysis = await _analyticsService.analyzeMajorityControl(
+        includeInactive: _includeInactive,
+        controlThreshold: _majorityThreshold,
+      );
+
+      setState(() {
+        _majorityAnalysisInvestors = analysis.allInvestors;
+        _controlGroupAnalysisInvestors = analysis.controlGroupInvestors;
+        _totalViableCapitalAnalysis = analysis.totalViableCapital;
+        _controlGroupCapitalAnalysis = analysis.controlGroupCapital;
+        _controlGroupCountAnalysis = analysis.controlGroupCount;
+        _showMajorityAnalysis = true;
+        _isLoadingMajorityAnalysis = false;
+      });
+
+      print(
+        '✅ [MajorityAnalysis] Analiza zakończona. Grupa kontrolna: ${analysis.controlGroupCount} inwestorów',
+      );
+
+      // Pokaż wynik w SnackBar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Analiza zakończona: ${analysis.controlGroupCount} inwestorów tworzy ${_majorityThreshold}% kontroli',
+          ),
+          backgroundColor: AppTheme.successColor,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      print('❌ [MajorityAnalysis] Błąd: $e');
+      setState(() {
+        _isLoadingMajorityAnalysis = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Błąd analizy kontroli: $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
     }
   }
 
@@ -741,10 +798,6 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
                 _buildTabletSummaryGrid()
               else
                 _buildMobileSummaryColumn(),
-              if (_majorityControlPoint != null) ...[
-                const SizedBox(height: 24),
-                _buildMajorityControlInfo(isTablet),
-              ],
             ],
           ),
         ),
@@ -957,77 +1010,6 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMajorityControlInfo(bool isTablet) {
-    final point = _majorityControlPoint!;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.warningColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.warningColor.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.pie_chart, color: AppTheme.warningColor, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Punkt kontroli 51%',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: AppTheme.warningColor,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (isTablet)
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${point.investorCount} największych inwestorów kontroluje ${point.percentage.toStringAsFixed(1)}% portfela',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ),
-                Text(
-                  CurrencyFormatter.formatCurrencyShort(point.totalValue),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.warningColor,
-                  ),
-                ),
-              ],
-            )
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${point.investorCount} inwestorów → ${point.percentage.toStringAsFixed(1)}%',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  CurrencyFormatter.formatCurrencyShort(point.totalValue),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.warningColor,
-                  ),
-                ),
-              ],
-            ),
         ],
       ),
     );
@@ -1790,12 +1772,9 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
         .map((inv) => inv.client.id)
         .toList();
 
-    showDialog(
-      context: context,
-      builder: (context) => _EmailGeneratorDialog(
-        analyticsService: _analyticsService,
-        clientIds: selectedIds,
-      ),
+    // TODO: Implementacja generatora emaili
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Funkcja generatora emaili zostanie wkrótce dodana')),
     );
   }
 
@@ -1911,6 +1890,9 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
               case 'export':
                 _generateEmailList();
                 break;
+              case 'majority':
+                _performMajorityControlAnalysis();
+                break;
               case 'reset':
                 _resetFilters();
                 break;
@@ -1934,6 +1916,17 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
                 leading: Icon(Icons.email, color: AppTheme.secondaryGold),
                 title: Text(
                   'Generuj maile',
+                  style: TextStyle(color: AppTheme.textPrimary),
+                ),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            PopupMenuItem(
+              value: 'majority',
+              child: ListTile(
+                leading: Icon(Icons.analytics, color: AppTheme.secondaryGold),
+                title: Text(
+                  'Analiza 51% kontroli',
                   style: TextStyle(color: AppTheme.textPrimary),
                 ),
                 contentPadding: EdgeInsets.zero,
@@ -1991,16 +1984,6 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
             Icons.account_balance_wallet,
           ),
         ),
-        if (_majorityControlPoint != null) ...[
-          const SizedBox(width: 16),
-          Expanded(
-            child: _buildQuickStatItem(
-              '${_majorityControlPoint!.investorCount}',
-              'Do 51%',
-              Icons.pie_chart,
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -3790,161 +3773,3 @@ class _InvestorDetailsDialogState extends State<_InvestorDetailsDialog> {
   }
 }
 
-// Dialog generowania maili
-class _EmailGeneratorDialog extends StatefulWidget {
-  final InvestorAnalyticsService analyticsService;
-  final List<String> clientIds;
-
-  const _EmailGeneratorDialog({
-    required this.analyticsService,
-    required this.clientIds,
-  });
-
-  @override
-  State<_EmailGeneratorDialog> createState() => _EmailGeneratorDialogState();
-}
-
-class _EmailGeneratorDialogState extends State<_EmailGeneratorDialog> {
-  List<InvestorEmailData> _emailData = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadEmailData();
-  }
-
-  Future<void> _loadEmailData() async {
-    try {
-      final data = await widget.analyticsService.generateEmailData(
-        widget.clientIds,
-      );
-      setState(() {
-        _emailData = data;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Błąd: $e')));
-    }
-  }
-
-  void _copyEmailList() {
-    final emails = _emailData.map((data) => data.client.email).join('; ');
-    Clipboard.setData(ClipboardData(text: emails));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Lista maili została skopiowana')),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: AppTheme.surfaceCard,
-      child: Container(
-        width: 600,
-        height: 500,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Generator maili (${_emailData.length})',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, color: AppTheme.textSecondary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            if (_isLoading)
-              const Expanded(
-                child: Center(
-                  child: CircularProgressIndicator(
-                    color: AppTheme.secondaryGold,
-                  ),
-                ),
-              )
-            else ...[
-              Row(
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: _copyEmailList,
-                    icon: const Icon(Icons.copy),
-                    label: const Text('Kopiuj listę maili'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.secondaryGold,
-                      foregroundColor: AppTheme.backgroundSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _emailData.length,
-                  itemBuilder: (context, index) {
-                    final data = _emailData[index];
-                    return Card(
-                      color: AppTheme.backgroundSecondary,
-                      child: ExpansionTile(
-                        title: Text(
-                          data.client.name,
-                          style: TextStyle(color: AppTheme.textPrimary),
-                        ),
-                        subtitle: Text(
-                          data.client.email,
-                          style: TextStyle(color: AppTheme.textSecondary),
-                        ),
-                        iconColor: AppTheme.secondaryGold,
-                        collapsedIconColor: AppTheme.textSecondary,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Inwestycje:',
-                                  style: Theme.of(context).textTheme.titleSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.textPrimary,
-                                      ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  data.formattedInvestmentList,
-                                  style: TextStyle(
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}

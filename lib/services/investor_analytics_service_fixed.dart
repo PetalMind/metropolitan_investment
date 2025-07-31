@@ -412,13 +412,8 @@ class InvestorAnalyticsService extends BaseService {
   ) {
     return Investment(
       id: docId,
-      clientId:
-          data['id_klient']?.toString() ??
-          data['clientId'] ??
-          data['client_id'] ??
-          '',
-      clientName:
-          data['klient'] ?? data['clientName'] ?? data['client_name'] ?? '',
+      clientId: data['clientId'] ?? data['client_id'] ?? '',
+      clientName: data['clientName'] ?? data['client_name'] ?? '',
       employeeId: data['employeeId'] ?? '',
       employeeFirstName: data['employeeFirstName'] ?? '',
       employeeLastName: data['employeeLastName'] ?? '',
