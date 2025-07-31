@@ -371,4 +371,42 @@ class OptimizedInvestmentService extends BaseService {
       },
     );
   }
+
+  /// Pobiera top inwestycje według wartości - używa indeksu compound (status, aktualna_wartosc desc)
+  Future<List<Investment>> getTopInvestments(
+    InvestmentStatus status, {
+    int limit = 10,
+  }) async {
+    try {
+      final snapshot = await firestore
+          .collection(_collection)
+          .where('status', isEqualTo: status.name)
+          .orderBy('aktualna_wartosc', descending: true)
+          .limit(limit)
+          .get();
+
+      return snapshot.docs.map((doc) => Investment.fromFirestore(doc)).toList();
+    } catch (e) {
+      logError('getTopInvestments', e);
+      throw Exception('Failed to get top investments: $e');
+    }
+  }
+
+  /// Pobiera najnowsze inwestycje (ostatnie N dni)
+  Future<List<Investment>> getRecentInvestments({int days = 30}) async {
+    try {
+      final DateTime cutoffDate = DateTime.now().subtract(Duration(days: days));
+
+      final snapshot = await firestore
+          .collection(_collection)
+          .where('createdAt', isGreaterThan: Timestamp.fromDate(cutoffDate))
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return snapshot.docs.map((doc) => Investment.fromFirestore(doc)).toList();
+    } catch (e) {
+      logError('getRecentInvestments', e);
+      throw Exception('Failed to get recent investments: $e');
+    }
+  }
 }

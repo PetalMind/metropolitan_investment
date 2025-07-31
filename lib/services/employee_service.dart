@@ -33,7 +33,7 @@ class EmployeeService extends BaseService {
     }
   }
 
-  // Read all z optymalizacją
+  // Read all z optymalizacją - WYKORZYSTUJE indeks isActive + lastName + firstName
   Stream<List<Employee>> getEmployees({int? limit}) {
     Query query = firestore
         .collection(_collection)
@@ -83,7 +83,7 @@ class EmployeeService extends BaseService {
     }
   }
 
-  // Get employees by branch z optymalizacją
+  // Get employees by branch z optymalizacją - WYKORZYSTUJE indeks isActive + branchCode + lastName
   Stream<List<Employee>> getEmployeesByBranch(String branchCode, {int? limit}) {
     Query query = firestore
         .collection(_collection)
