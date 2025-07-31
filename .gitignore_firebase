@@ -1,0 +1,7 @@
+# Dodaj ten plik do .gitignore
+service-account.json
+
+# Nie commituj kluczy Firebase
+.env
+firebase-key.json
+*-service-account.json
