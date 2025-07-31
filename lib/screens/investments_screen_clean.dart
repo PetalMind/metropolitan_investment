@@ -292,11 +292,9 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             onPressed: () async {
               try {
                 await _investmentService.deleteInvestment(investment.id);
-                if (mounted) {
-                  Navigator.of(context).pop();
-                  _showSuccessSnackBar('Inwestycja została usunięta');
-                  _loadAllInvestments();
-                }
+                Navigator.of(context).pop();
+                _showSuccessSnackBar('Inwestycja została usunięta');
+                _loadAllInvestments();
               } catch (e) {
                 _showErrorSnackBar('Błąd podczas usuwania: $e');
               }
@@ -468,7 +466,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             : AppTheme.goldGradient,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: Colors.black.withOpacity(0.2),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -485,10 +483,10 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
+                        color: Colors.white.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.2),
+                          color: Colors.white.withOpacity(0.2),
                           width: 1,
                         ),
                       ),
@@ -520,8 +518,8 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                                 : 'Załadowano: $_totalLoaded inwestycji${_hasMoreData ? ' (wczytywanie...)' : ''}',
                             style: Theme.of(context).textTheme.bodyLarge
                                 ?.copyWith(
-                                  color: AppTheme.textOnPrimary.withValues(
-                                    alpha: 0.85,
+                                  color: AppTheme.textOnPrimary.withOpacity(
+                                    0.85,
                                   ),
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
@@ -540,10 +538,10 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: Colors.white.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: Colors.white.withOpacity(0.2),
                     width: 1,
                   ),
                 ),
@@ -568,7 +566,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                       ? AppTheme.primaryColor
                       : AppTheme.secondaryGold,
                   elevation: 4,
-                  shadowColor: Colors.black.withValues(alpha: 0.3),
+                  shadowColor: Colors.black.withOpacity(0.3),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -606,9 +604,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(
-                      alpha: isDarkTheme ? 0.2 : 0.05,
-                    ),
+                    color: Colors.black.withOpacity(isDarkTheme ? 0.2 : 0.05),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -690,14 +686,10 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDarkTheme
-            ? color.withValues(alpha: 0.15)
-            : color.withValues(alpha: 0.1),
+        color: isDarkTheme ? color.withOpacity(0.15) : color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDarkTheme
-              ? color.withValues(alpha: 0.3)
-              : color.withValues(alpha: 0.2),
+          color: isDarkTheme ? color.withOpacity(0.3) : color.withOpacity(0.2),
           width: 1,
         ),
       ),
@@ -717,13 +709,13 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     return Container(
       decoration: BoxDecoration(
         color: isDarkTheme
-            ? AppTheme.warningColor.withValues(alpha: 0.15)
-            : AppTheme.warningColor.withValues(alpha: 0.1),
+            ? AppTheme.warningColor.withOpacity(0.15)
+            : AppTheme.warningColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isDarkTheme
-              ? AppTheme.warningColor.withValues(alpha: 0.3)
-              : AppTheme.warningColor.withValues(alpha: 0.2),
+              ? AppTheme.warningColor.withOpacity(0.3)
+              : AppTheme.warningColor.withOpacity(0.2),
           width: 1,
         ),
       ),
@@ -860,7 +852,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                     decoration: BoxDecoration(
                       color: AppTheme.getStatusColor(
                         investment.status.name,
-                      ).withValues(alpha: 0.1),
+                      ).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -957,7 +949,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             width: 200,
             height: 4,
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.2),
+              color: AppTheme.primaryColor.withOpacity(0.2),
               borderRadius: BorderRadius.circular(2),
             ),
             child: AnimatedContainer(
@@ -967,9 +959,9 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppTheme.primaryColor.withValues(alpha: 0.3),
+                    AppTheme.primaryColor.withOpacity(0.3),
                     AppTheme.primaryColor,
-                    AppTheme.primaryColor.withValues(alpha: 0.3),
+                    AppTheme.primaryColor.withOpacity(0.3),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(2),

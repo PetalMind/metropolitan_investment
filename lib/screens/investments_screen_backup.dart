@@ -29,15 +29,16 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
 
   List<Investment> _investments = [];
   List<Investment> _filteredInvestments = [];
-  List<Investment> _displayedInvestments = [];
+  List<Investment> _displayedInvestments =
+      []; // Lista wyświetlanych inwestycji z paginacją
   bool _isInitialLoading = true;
-  bool _isLoadingMore = false;
+  bool _isLoadingMore = false; // Stan ładowania kolejnych stron
   bool _isGridView = false;
   double _loadingProgress = 0.0;
   String _loadingStage = 'Inicjalizacja...';
-  InvestmentStatus? _selectedStatus;
+  InvestmentStatus? _selectedStatus; // Nowy filtr statusu
 
-  // Paginacja
+  // Zaawansowana paginacja
   static const int _pageSize = 250;
   bool _hasMoreData = true;
   DocumentSnapshot? _lastDocument;
@@ -64,6 +65,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   }
 
   void _onSearchChanged() {
+    // Opóźnienie wyszukiwania dla lepszej wydajności
     Future.delayed(const Duration(milliseconds: 300), () {
       if (_searchController.text == _searchController.text) {
         _filterInvestments();
@@ -72,6 +74,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   }
 
   void _onScroll() {
+    // Sprawdzenie czy użytkownik przewinął blisko końca
     final threshold =
         _scrollController.position.maxScrollExtent -
         (_scrollController.position.viewportDimension * 0.8);
@@ -83,6 +86,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     }
   }
 
+  // Zoptymalizowana metoda ładowania z paginacją
   Future<void> _loadInvestmentsPaginated({bool isRefresh = false}) async {
     if (isRefresh) {
       setState(() {
@@ -97,6 +101,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     }
 
     try {
+
       setState(() {
         if (!isRefresh) _isInitialLoading = true;
         _loadingProgress = 0.1;
@@ -110,21 +115,23 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
         descending: true,
       );
 
+
       setState(() {
         _loadingProgress = 0.3;
-        _loadingStage = 'Pobieranie danych...';
+        _loadingStage = 'Pobieranie pierwszej partii danych...';
       });
 
       final result = await _optimizedService.getInvestmentsPaginated(
         params: params,
       );
 
+
       setState(() {
         _loadingProgress = 0.7;
         _loadingStage = 'Przetwarzanie danych...';
       });
 
-      await Future.delayed(const Duration(milliseconds: 200));
+      await Future.delayed(const Duration(milliseconds: 200)); // UX delay
 
       setState(() {
         if (isRefresh) {
@@ -144,6 +151,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
         _loadingProgress = 1.0;
         _loadingStage = 'Gotowe!';
       });
+
     } catch (e) {
       setState(() {
         _isInitialLoading = false;
@@ -162,6 +170,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       _isLoadingMore = true;
     });
 
+
     try {
       final params = PaginationParams(
         limit: _pageSize,
@@ -173,6 +182,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       final result = await _optimizedService.getInvestmentsPaginated(
         params: params,
       );
+
 
       setState(() {
         _investments.addAll(result.items);
@@ -202,6 +212,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   }
 
   Future<void> _loadAllInvestments() async {
+    // Fallback do starej metody - używana przez refresh button
     await _loadInvestmentsPaginated(isRefresh: true);
   }
 
@@ -215,25 +226,31 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
         _selectedDateRange != null;
 
     if (_isFilterActive) {
+      // Jeśli filtr jest aktywny, filtruj lokalnie
       setState(() {
         _displayedInvestments = _investments.where((investment) {
+          // Text search
           final matchesSearch =
               query.isEmpty ||
               investment.clientName.toLowerCase().contains(query) ||
               investment.productName.toLowerCase().contains(query) ||
               investment.employeeFullName.toLowerCase().contains(query);
 
+          // Status filter
           final matchesStatus =
               _selectedStatus == null || investment.status == _selectedStatus;
 
+          // Product type filter
           final matchesProductType =
               _selectedProductType == null ||
               investment.productType == _selectedProductType;
 
+          // Branch filter
           final matchesBranch =
               _selectedBranch == null ||
               investment.branchCode == _selectedBranch;
 
+          // Date range filter
           final matchesDateRange =
               _selectedDateRange == null ||
               (investment.signedDate.isAfter(_selectedDateRange!.start) &&
@@ -247,6 +264,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
         }).toList();
       });
     } else {
+      // Jeśli nie ma filtrów, powróć do normalnej paginacji
       _resetPagination();
     }
   }
@@ -292,11 +310,9 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             onPressed: () async {
               try {
                 await _investmentService.deleteInvestment(investment.id);
-                if (mounted) {
-                  Navigator.of(context).pop();
-                  _showSuccessSnackBar('Inwestycja została usunięta');
-                  _loadAllInvestments();
-                }
+                Navigator.of(context).pop();
+                _showSuccessSnackBar('Inwestycja została usunięta');
+                _loadAllInvestments();
               } catch (e) {
                 _showErrorSnackBar('Błąd podczas usuwania: $e');
               }
@@ -447,6 +463,85 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
 
   Widget _buildCustomLoading() {
     return Center(
+      child: Container(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ProgressLoadingWidget(
+              progress: _loadingProgress,
+              message: _loadingStage,
+              details: _loadingProgress > 0.3
+                  ? 'Optymalizowane ładowanie w paczках po $_pageSize...'
+                  : 'Przygotowanie...',
+            ),
+            const SizedBox(height: 32),
+            // Debug panel z logami
+              Container(
+                width: 500,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppTheme.surfaceElevated
+                      : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppTheme.borderPrimary
+                        : Colors.grey.shade300,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: AppTheme.infoColor,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Status ładowania',
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.infoColor,
+                              ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      height: 120,
+                      child: ListView.builder(
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppTheme.textSecondary
+                                        : Colors.grey[600],
+                                    fontFamily: 'monospace',
+                                  ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+    );
+  }
+
+  Widget _buildCustomLoading() {
+    return Center(
       child: ProgressLoadingWidget(
         progress: _loadingProgress,
         message: _loadingStage,
@@ -468,7 +563,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             : AppTheme.goldGradient,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: Colors.black.withOpacity(0.2),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -485,10 +580,10 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
+                        color: Colors.white.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.2),
+                          color: Colors.white.withOpacity(0.2),
                           width: 1,
                         ),
                       ),
@@ -517,11 +612,11 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                           Text(
                             _isFilterActive
                                 ? 'Filtrowane: ${_displayedInvestments.length} z $_totalLoaded inwestycji'
-                                : 'Załadowano: $_totalLoaded inwestycji${_hasMoreData ? ' (wczytywanie...)' : ''}',
+                                : 'Załadowano: $_totalLoaded inwestycji${_hasMoreData ? ' (ładowanie w trakcie)' : ' (wszystkie)'}',
                             style: Theme.of(context).textTheme.bodyLarge
                                 ?.copyWith(
-                                  color: AppTheme.textOnPrimary.withValues(
-                                    alpha: 0.85,
+                                  color: AppTheme.textOnPrimary.withOpacity(
+                                    0.85,
                                   ),
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
@@ -540,10 +635,10 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: Colors.white.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: Colors.white.withOpacity(0.2),
                     width: 1,
                   ),
                 ),
@@ -568,7 +663,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                       ? AppTheme.primaryColor
                       : AppTheme.secondaryGold,
                   elevation: 4,
-                  shadowColor: Colors.black.withValues(alpha: 0.3),
+                  shadowColor: Colors.black.withOpacity(0.3),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -606,9 +701,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(
-                      alpha: isDarkTheme ? 0.2 : 0.05,
-                    ),
+                    color: Colors.black.withOpacity(isDarkTheme ? 0.2 : 0.05),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -690,14 +783,10 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDarkTheme
-            ? color.withValues(alpha: 0.15)
-            : color.withValues(alpha: 0.1),
+        color: isDarkTheme ? color.withOpacity(0.15) : color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDarkTheme
-              ? color.withValues(alpha: 0.3)
-              : color.withValues(alpha: 0.2),
+          color: isDarkTheme ? color.withOpacity(0.3) : color.withOpacity(0.2),
           width: 1,
         ),
       ),
@@ -717,13 +806,13 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     return Container(
       decoration: BoxDecoration(
         color: isDarkTheme
-            ? AppTheme.warningColor.withValues(alpha: 0.15)
-            : AppTheme.warningColor.withValues(alpha: 0.1),
+            ? AppTheme.warningColor.withOpacity(0.15)
+            : AppTheme.warningColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isDarkTheme
-              ? AppTheme.warningColor.withValues(alpha: 0.3)
-              : AppTheme.warningColor.withValues(alpha: 0.2),
+              ? AppTheme.warningColor.withOpacity(0.3)
+              : AppTheme.warningColor.withOpacity(0.2),
           width: 1,
         ),
       ),
@@ -808,8 +897,98 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             ),
           ),
         ),
-        _buildLoadingIndicator(),
-        _buildDataEndIndicator(),
+        if (_isLoadingMore)
+          Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppTheme.primaryColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      'Ładowanie kolejnych $_pageSize inwestycji...',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Pasek postępu z animacją
+                Container(
+                  width: 200,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                  child: Stack(
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 1500),
+                        width: 200,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppTheme.primaryColor.withOpacity(0.3),
+                              AppTheme.primaryColor,
+                              AppTheme.primaryColor.withOpacity(0.3),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Łącznie załadowano: $_totalLoaded • ${_hasMoreData ? 'Więcej dostępne' : 'Wszystkie załadowane'}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        // Informacja o końcu danych dla Grid View
+        if (!_hasMoreData &&
+            _displayedInvestments.isNotEmpty &&
+            !_isFilterActive)
+          Container(
+            padding: const EdgeInsets.all(24),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.check_circle_outline,
+                  color: AppTheme.successColor,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Wszystkie inwestycje zostały załadowane ($_totalLoaded)',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.successColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -860,7 +1039,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                     decoration: BoxDecoration(
                       color: AppTheme.getStatusColor(
                         investment.status.name,
-                      ).withValues(alpha: 0.1),
+                      ).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -916,103 +1095,99 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             ),
           ),
         ),
-        _buildLoadingIndicator(),
-        _buildDataEndIndicator(),
-      ],
-    );
-  }
-
-  Widget _buildLoadingIndicator() {
-    if (!_isLoadingMore) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    AppTheme.primaryColor,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Text(
-                'Ładowanie kolejnych $_pageSize inwestycji...',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+        if (_isLoadingMore)
           Container(
-            width: 200,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(2),
-            ),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 1500),
-              width: 200,
-              height: 4,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.primaryColor.withValues(alpha: 0.3),
-                    AppTheme.primaryColor,
-                    AppTheme.primaryColor.withValues(alpha: 0.3),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppTheme.primaryColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      'Ładowanie kolejnych $_pageSize inwestycji...',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(2),
-              ),
+                const SizedBox(height: 16),
+                // Pasek postępu z animacją
+                Container(
+                  width: 200,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                  child: Stack(
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 1500),
+                        width: 200,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppTheme.primaryColor.withOpacity(0.3),
+                              AppTheme.primaryColor,
+                              AppTheme.primaryColor.withOpacity(0.3),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Łącznie załadowano: $_totalLoaded • ${_hasMoreData ? 'Więcej dostępne' : 'Wszystkie załadowane'}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Łącznie: $_totalLoaded ${_hasMoreData ? '• Więcej dostępne' : ''}',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDataEndIndicator() {
-    if (_hasMoreData || _displayedInvestments.isEmpty || _isFilterActive) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.check_circle_outline,
-            color: AppTheme.successColor,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'Wszystkie inwestycje zostały załadowane ($_totalLoaded)',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.successColor,
-              fontWeight: FontWeight.w500,
+        // Informacja o końcu danych dla Table View
+        if (!_hasMoreData &&
+            _displayedInvestments.isNotEmpty &&
+            !_isFilterActive)
+          Container(
+            padding: const EdgeInsets.all(24),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.check_circle_outline,
+                  color: AppTheme.successColor,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Wszystkie inwestycje zostały załadowane ($_totalLoaded)',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.successColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -1123,14 +1298,17 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   }
 
   void _exportToExcel() {
+    // Implement Excel export
     _showInfoSnackBar('Eksport do Excel - w przygotowaniu');
   }
 
   void _exportToPdf() {
+    // Implement PDF export
     _showInfoSnackBar('Eksport do PDF - w przygotowaniu');
   }
 
   void _showImportDialog() {
+    // Implement import dialog
     _showInfoSnackBar('Import z Excel - w przygotowaniu');
   }
 
