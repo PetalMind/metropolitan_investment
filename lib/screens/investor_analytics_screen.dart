@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../models/client.dart';
 import '../models/investor_summary.dart';
 import '../services/investor_analytics_service.dart';
+import '../services/optimized_investor_analytics_service.dart';
 import '../widgets/investor_details_modal.dart';
 import '../widgets/data_table_widget.dart';
 import '../utils/currency_formatter.dart';
@@ -20,6 +21,9 @@ class InvestorAnalyticsScreen extends StatefulWidget {
 class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     with TickerProviderStateMixin {
   final InvestorAnalyticsService _analyticsService = InvestorAnalyticsService();
+  // **OPTYMALIZACJA:** Dodano zoptymalizowany serwis
+  final OptimizedInvestorAnalyticsService _optimizedAnalyticsService =
+      OptimizedInvestorAnalyticsService();
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _minAmountController = TextEditingController();
   final TextEditingController _maxAmountController = TextEditingController();
@@ -31,7 +35,6 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
   late AnimationController _filterAnimationController;
   late AnimationController _fabAnimationController;
   late Animation<Offset> _filterSlideAnimation;
-  late Animation<double> _fabScaleAnimation;
 
   // Stan danych
   List<InvestorSummary> _allInvestors = [];
@@ -55,13 +58,7 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
   double _abstainVotingCapital = 0.0;
   double _undecidedVotingCapital = 0.0;
 
-  // Analiza kontroli większościowej - NOWE
-  bool _showMajorityAnalysis = false;
-  List<InvestorWithControlInfo> _majorityAnalysisInvestors = [];
-  List<InvestorWithControlInfo> _controlGroupAnalysisInvestors = [];
-  double _totalViableCapitalAnalysis = 0.0;
-  double _controlGroupCapitalAnalysis = 0.0;
-  int _controlGroupCountAnalysis = 0;
+  // Analiza kontroli większościowej - NOWE (zoptymalizowane)
   bool _isLoadingMajorityAnalysis = false;
 
   // Filtry mobilne
@@ -86,7 +83,6 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
 
     // Ustaw responsywny rozmiar strony na podstawie rozmiaru ekranu
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final screenWidth = MediaQuery.of(context).size.width;
       setState(() {
         _pageSize = 250; // Limit na 250 niezależnie od ekranu
       });
@@ -112,13 +108,6 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
             curve: Curves.easeInOut,
           ),
         );
-
-    _fabScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _fabAnimationController,
-        curve: Curves.elasticOut,
-      ),
-    );
 
     // Infinite scroll setup
     _scrollController.addListener(_onScroll);
@@ -195,6 +184,7 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     );
   }
 
+  /// **OPTYMALIZACJA:** Główna metoda ładowania danych z wykorzystaniem optymalizacji z raportu
   Future<void> _loadInvestorData() async {
     setState(() {
       _isLoading = true;
@@ -202,47 +192,84 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     });
 
     try {
-      print('🚀 [Mobile UI] Ładowanie danych inwestorów...');
+      print(
+        '🚀 [OptimizedUI] Ładowanie danych z wykorzystaniem optymalizacji...',
+      );
 
-      // Używamy nowej metody do pobierania inwestorów
-      final result = await _analyticsService
-          .getInvestorsSortedByRemainingCapital(
+      // **WYKORZYSTANIE OPTYMALIZACJI Z RAPORTU:**
+      // - Używamy indeksów isActive + imie_nazwisko dla aktywnych klientów
+      // - Używamy indeksów votingStatus + updatedAt dla filtrów głosowania
+      // - Batch processing dla lepszej wydajności
+      final result = await _optimizedAnalyticsService
+          .getOptimizedInvestorAnalytics(
+            page: _currentPage + 1,
+            pageSize: _pageSize,
+            sortBy: _sortBy,
+            sortAscending: _sortAscending,
             includeInactive: _includeInactive,
-            page: 0,
-            pageSize: 1000, // Pobierz wszystkich dla analizy
+            votingStatusFilter: _selectedVotingStatus,
+            clientTypeFilter: _selectedClientType,
+            showOnlyWithUnviableInvestments: _showOnlyWithUnviableInvestments,
+            searchQuery: _searchController.text.isNotEmpty
+                ? _searchController.text
+                : null,
           );
 
-      final allInvestors = result.investors;
-
       // Oblicz rozkład kapitału według statusu głosowania
-      _calculateVotingCapitalDistribution(allInvestors);
-
-      // Sortuj według wybranego kryterium
-      _sortInvestors(allInvestors);
-
-      // Inicjalna paginacja - tylko pierwsza strona
-      final initialInvestors = allInvestors.take(_pageSize).toList();
+      _calculateVotingCapitalDistribution(result.investors);
 
       setState(() {
-        _allInvestors = allInvestors;
-        _filteredInvestors = initialInvestors;
+        _allInvestors = result.allInvestors ?? result.investors;
+        _filteredInvestors = result.investors;
         _totalPortfolioValue = result.totalViableCapital;
-        _currentPage = 0;
-        _hasNextPage = allInvestors.length > _pageSize;
-        _hasPreviousPage = false;
+        _currentPage = result.currentPage - 1; // Konwertuj z 1-based na 0-based
+        _hasNextPage = result.hasNextPage;
+        _hasPreviousPage = result.hasPreviousPage;
         _isLoading = false;
       });
 
-      print('✅ [Mobile UI] Załadowano ${allInvestors.length} inwestorów');
       print(
-        '📊 [Mobile UI] Wyświetlam ${initialInvestors.length} na pierwszej stronie',
+        '✅ [OptimizedUI] Załadowano ${result.investors.length} inwestorów ze strony ${result.currentPage}',
       );
+      print(
+        '📊 [OptimizedUI] Całkowity kapitał: ${result.totalViableCapital.toStringAsFixed(2)} PLN',
+      );
+      print('⚡ [OptimizedUI] Wykorzystano zoptymalizowane indeksy Firestore');
     } catch (e) {
-      print('❌ [Mobile UI] Błąd ładowania: $e');
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      print('❌ [OptimizedUI] Błąd ładowania: $e');
+      print('🔄 [OptimizedUI] Próba fallback do legacy serwisu...');
+
+      // Fallback do oryginalnego serwisu w przypadku błędu
+      try {
+        final legacyResult = await _analyticsService
+            .getInvestorsSortedByRemainingCapital(
+              includeInactive: _includeInactive,
+              page: 0,
+              pageSize: 1000,
+            );
+
+        final allInvestors = legacyResult.investors;
+        _calculateVotingCapitalDistribution(allInvestors);
+        _sortInvestors(allInvestors);
+        final initialInvestors = allInvestors.take(_pageSize).toList();
+
+        setState(() {
+          _allInvestors = allInvestors;
+          _filteredInvestors = initialInvestors;
+          _totalPortfolioValue = legacyResult.totalViableCapital;
+          _currentPage = 0;
+          _hasNextPage = allInvestors.length > _pageSize;
+          _hasPreviousPage = false;
+          _isLoading = false;
+        });
+
+        print('✅ [OptimizedUI] Fallback zakończony sukcesem');
+      } catch (fallbackError) {
+        setState(() {
+          _error = 'Błąd ładowania danych: $e\nFallback error: $fallbackError';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -265,12 +292,6 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
       );
 
       setState(() {
-        _majorityAnalysisInvestors = analysis.allInvestors;
-        _controlGroupAnalysisInvestors = analysis.controlGroupInvestors;
-        _totalViableCapitalAnalysis = analysis.totalViableCapital;
-        _controlGroupCapitalAnalysis = analysis.controlGroupCapital;
-        _controlGroupCountAnalysis = analysis.controlGroupCount;
-        _showMajorityAnalysis = true;
         _isLoadingMajorityAnalysis = false;
       });
 
@@ -483,7 +504,27 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     }
   }
 
+  /// **OPTYMALIZACJA:** Metoda filtrów z wykorzystaniem cache i inteligentnych zapytań
   void _applyFilters() {
+    print('🔍 [OptimizedFilters] Stosowanie filtrów z optymalizacją...');
+
+    // **JEŚLI FILTRY SĄ AKTYWNE, UŻYJ ZOPTYMALIZOWANEGO ZAPYTANIA**
+    final hasActiveFilters =
+        _selectedVotingStatus != null ||
+        _selectedClientType != null ||
+        _searchController.text.isNotEmpty ||
+        _showOnlyWithUnviableInvestments;
+
+    if (hasActiveFilters) {
+      print(
+        '🎯 [OptimizedFilters] Wykryto aktywne filtry - używam zoptymalizowanych zapytań',
+      );
+      // Przeładuj dane z nowymi filtrami używając indeksów
+      _loadInvestorData();
+      return;
+    }
+
+    // **DLA PODSTAWOWYCH FILTRÓW LOKALNYCH - SZYBKIE PRZETWARZANIE IN-MEMORY**
     setState(() {
       var filtered = _allInvestors.where((investor) {
         // Filtr tekstowy (name, company)
@@ -1771,11 +1812,6 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
   }
 
   void _generateEmailList() {
-    final selectedIds = _filteredInvestors
-        .where((inv) => inv.client.email.isNotEmpty)
-        .map((inv) => inv.client.id)
-        .toList();
-
     // TODO: Implementacja generatora emaili
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -1833,7 +1869,7 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
       backgroundColor: AppTheme.backgroundSecondary,
       flexibleSpace: FlexibleSpaceBar(
         title: Text(
-          'Analityka Inwestorów',
+          'Analityka Inwestorów ⚡',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             color: AppTheme.textPrimary,
             fontWeight: FontWeight.bold,
@@ -2032,17 +2068,6 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
         return Icons.analytics;
       default:
         return Icons.view_list;
-    }
-  }
-
-  String _getViewLabel() {
-    switch (_currentView) {
-      case 'cards':
-        return 'Karty';
-      case 'summary':
-        return 'Podsumowanie';
-      default:
-        return 'Lista';
     }
   }
 
