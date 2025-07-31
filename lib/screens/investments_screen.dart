@@ -22,15 +22,20 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  List<Investment> _allInvestments = [];
   List<Investment> _investments = [];
   List<Investment> _filteredInvestments = [];
+  List<Investment> _displayedInvestments = []; // Lista wyświetlanych inwestycji z paginacją
   bool _isInitialLoading = true;
+  bool _isLoadingMore = false; // Stan ładowania kolejnych stron
   bool _isGridView = false;
   double _loadingProgress = 0.0;
   String _loadingStage = 'Inicjalizacja...';
+  InvestmentStatus? _selectedStatus; // Nowy filtr statusu
+  
+  // Paginacja
+  static const int _pageSize = 250;
+  bool _hasMoreData = true;
 
-  InvestmentStatus? _selectedStatus;
   ProductType? _selectedProductType;
   String? _selectedBranch;
   DateTimeRange? _selectedDateRange;
@@ -40,6 +45,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     super.initState();
     _loadAllInvestments();
     _searchController.addListener(_onSearchChanged);
+    _scrollController.addListener(_onScroll);
   }
 
   @override
@@ -56,6 +62,51 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
         _filterInvestments();
       }
     });
+  }
+
+  void _onScroll() {
+    // Sprawdzenie czy użytkownik przewinął blisko końca
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMoreInvestments();
+    }
+  }
+
+  void _loadMoreInvestments() {
+    if (_isLoadingMore || !_hasMoreData) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    // Symulacja opóźnienia sieciowego (można usunąć w produkcji)
+    Future.delayed(const Duration(milliseconds: 500), () {
+      final startIndex = _displayedInvestments.length;
+      final endIndex = (startIndex + _pageSize).clamp(0, _filteredInvestments.length);
+      
+      if (startIndex < _filteredInvestments.length) {
+        final newItems = _filteredInvestments.sublist(startIndex, endIndex);
+        
+        setState(() {
+          _displayedInvestments.addAll(newItems);
+          _hasMoreData = endIndex < _filteredInvestments.length;
+          _isLoadingMore = false;
+        });
+      } else {
+        setState(() {
+          _hasMoreData = false;
+          _isLoadingMore = false;
+        });
+      }
+    });
+  }
+
+  void _resetPagination() {
+    setState(() {
+      _hasMoreData = true;
+      _displayedInvestments.clear();
+    });
+    _loadMoreInvestments();
   }
 
   Future<void> _loadAllInvestments() async {
@@ -79,11 +130,13 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
           );
 
       setState(() {
-        _allInvestments = investments;
         _investments = investments;
         _filteredInvestments = investments;
         _isInitialLoading = false;
       });
+      
+      // Załaduj pierwszą stronę
+      _resetPagination();
     } catch (e) {
       setState(() => _isInitialLoading = false);
       _showErrorSnackBar('Błąd podczas ładowania inwestycji: $e');
@@ -128,6 +181,9 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             matchesDateRange;
       }).toList();
     });
+    
+    // Reset paginacji po filtrowaniu
+    _resetPagination();
   }
 
   void _showInvestmentForm([Investment? investment]) {
@@ -311,7 +367,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
           Expanded(
             child: _isInitialLoading
                 ? _buildCustomLoading()
-                : _filteredInvestments.isEmpty
+                : _displayedInvestments.isEmpty
                 ? _buildEmptyState()
                 : _isGridView
                 ? _buildGridView()
@@ -392,7 +448,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${_filteredInvestments.length} inwestycji (wszystkie załadowane)',
+                            'Wyświetlono ${_displayedInvestments.length} z ${_filteredInvestments.length} inwestycji',
                             style: Theme.of(context).textTheme.bodyLarge
                                 ?.copyWith(
                                   color: AppTheme.textOnPrimary.withOpacity(
@@ -651,123 +707,159 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   }
 
   Widget _buildGridView() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: GridView.builder(
-        controller: _scrollController,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          childAspectRatio: 1.2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
+    return Column(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: GridView.builder(
+              controller: _scrollController,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                childAspectRatio: 1.2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+              ),
+              itemCount: _displayedInvestments.length,
+              itemBuilder: (context, index) {
+                final investment = _displayedInvestments[index];
+                return InvestmentCard(
+                  investment: investment,
+                  onTap: () => _showInvestmentForm(investment),
+                  onEdit: () => _showInvestmentForm(investment),
+                  onDelete: () => _deleteInvestment(investment),
+                );
+              },
+            ),
+          ),
         ),
-        itemCount: _filteredInvestments.length,
-        itemBuilder: (context, index) {
-          final investment = _filteredInvestments[index];
-          return InvestmentCard(
-            investment: investment,
-            onTap: () => _showInvestmentForm(investment),
-            onEdit: () => _showInvestmentForm(investment),
-            onDelete: () => _deleteInvestment(investment),
-          );
-        },
-      ),
+        if (_isLoadingMore)
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('Ładowanie kolejnych inwestycji...'),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
   Widget _buildTableView() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: DataTableWidget<Investment>(
-        items: _filteredInvestments,
-        columns: [
-          DataTableColumn<Investment>(
-            label: 'Klient',
-            value: (investment) => investment.clientName,
-            sortable: true,
-          ),
-          DataTableColumn<Investment>(
-            label: 'Produkt',
-            value: (investment) => investment.productName,
-            sortable: true,
-          ),
-          DataTableColumn<Investment>(
-            label: 'Typ',
-            value: (investment) => investment.productType.displayName,
-            sortable: true,
-            width: 120,
-          ),
-          DataTableColumn<Investment>(
-            label: 'Kapitał pozostały',
-            value: (investment) => _formatCurrency(investment.remainingCapital),
-            sortable: true,
-            numeric: true,
-            width: 140,
-          ),
-          DataTableColumn<Investment>(
-            label: 'Status',
-            value: (investment) => investment.status.displayName,
-            sortable: true,
-            width: 120,
-            widget: (investment) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppTheme.getStatusColor(
-                  investment.status.name,
-                ).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                investment.status.displayName,
-                style: TextStyle(
-                  color: AppTheme.getStatusColor(investment.status.name),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+    return Column(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: DataTableWidget<Investment>(
+              items: _displayedInvestments,
+              columns: [
+                DataTableColumn<Investment>(
+                  label: 'Klient',
+                  value: (investment) => investment.clientName,
+                  sortable: true,
                 ),
-              ),
+                DataTableColumn<Investment>(
+                  label: 'Produkt',
+                  value: (investment) => investment.productName,
+                  sortable: true,
+                ),
+                DataTableColumn<Investment>(
+                  label: 'Typ',
+                  value: (investment) => investment.productType.displayName,
+                  sortable: true,
+                  width: 120,
+                ),
+                DataTableColumn<Investment>(
+                  label: 'Kapitał pozostały',
+                  value: (investment) => _formatCurrency(investment.remainingCapital),
+                  sortable: true,
+                  numeric: true,
+                  width: 140,
+                ),
+                DataTableColumn<Investment>(
+                  label: 'Status',
+                  value: (investment) => investment.status.displayName,
+                  sortable: true,
+                  width: 120,
+                  widget: (investment) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.getStatusColor(
+                        investment.status.name,
+                      ).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      investment.status.displayName,
+                      style: TextStyle(
+                        color: AppTheme.getStatusColor(investment.status.name),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+                DataTableColumn<Investment>(
+                  label: 'Data podpisania',
+                  value: (investment) => _formatDate(investment.signedDate),
+                  sortable: true,
+                  width: 120,
+                ),
+                DataTableColumn<Investment>(
+                  label: 'Doradca',
+                  value: (investment) => investment.employeeFullName,
+                  sortable: true,
+                  width: 150,
+                ),
+                DataTableColumn<Investment>(
+                  label: 'Oddział',
+                  value: (investment) => investment.branchCode,
+                  sortable: true,
+                  width: 80,
+                ),
+                DataTableColumn<Investment>(
+                  label: 'Akcje',
+                  value: (investment) => '',
+                  width: 120,
+                  widget: (investment) => Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        onPressed: () => _showInvestmentForm(investment),
+                        icon: const Icon(Icons.edit, size: 18),
+                        tooltip: 'Edytuj',
+                      ),
+                      IconButton(
+                        onPressed: () => _deleteInvestment(investment),
+                        icon: const Icon(Icons.delete, size: 18),
+                        tooltip: 'Usuń',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              onRowTap: (investment) => _showInvestmentForm(investment),
             ),
           ),
-          DataTableColumn<Investment>(
-            label: 'Data podpisania',
-            value: (investment) => _formatDate(investment.signedDate),
-            sortable: true,
-            width: 120,
-          ),
-          DataTableColumn<Investment>(
-            label: 'Doradca',
-            value: (investment) => investment.employeeFullName,
-            sortable: true,
-            width: 150,
-          ),
-          DataTableColumn<Investment>(
-            label: 'Oddział',
-            value: (investment) => investment.branchCode,
-            sortable: true,
-            width: 80,
-          ),
-          DataTableColumn<Investment>(
-            label: 'Akcje',
-            value: (investment) => '',
-            width: 120,
-            widget: (investment) => Row(
-              mainAxisSize: MainAxisSize.min,
+        ),
+        if (_isLoadingMore)
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                IconButton(
-                  onPressed: () => _showInvestmentForm(investment),
-                  icon: const Icon(Icons.edit, size: 18),
-                  tooltip: 'Edytuj',
-                ),
-                IconButton(
-                  onPressed: () => _deleteInvestment(investment),
-                  icon: const Icon(Icons.delete, size: 18),
-                  tooltip: 'Usuń',
-                ),
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('Ładowanie kolejnych inwestycji...'),
               ],
             ),
           ),
-        ],
-        onRowTap: (investment) => _showInvestmentForm(investment),
-      ),
+      ],
     );
   }
 

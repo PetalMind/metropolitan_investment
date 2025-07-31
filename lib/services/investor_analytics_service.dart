@@ -178,7 +178,7 @@ class InvestorAnalyticsService extends BaseService {
   /// Pobiera inwestorów posortowanych według kapitału pozostałego z obsługą paginacji
   Future<InvestorAnalyticsResult> getInvestorsSortedByRemainingCapital({
     int page = 1,
-    int pageSize = 20,
+    int pageSize = 250,
     String sortBy = 'viableCapital',
     bool sortAscending = false,
     bool includeInactive = false,
@@ -292,10 +292,10 @@ class InvestorAnalyticsService extends BaseService {
       final totalPages = (totalCount / pageSize).ceil();
       final startIndex = (page - 1) * pageSize;
       final endIndex = (startIndex + pageSize).clamp(0, totalCount);
-
+      // Ogranicz do 250
       final paginatedInvestors = filteredInvestors.sublist(
         startIndex,
-        endIndex,
+        endIndex.clamp(startIndex, startIndex + 250),
       );
 
       return InvestorAnalyticsResult(

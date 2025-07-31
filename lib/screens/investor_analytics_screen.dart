@@ -41,7 +41,7 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
 
   // Paginacja responsywna
   int _currentPage = 0;
-  int _pageSize = 20; // Zmniejszone dla mobile
+  int _pageSize = 250; // Limit na 250
   bool _hasNextPage = false;
   bool _hasPreviousPage = false;
   bool _isLoadingMore = false;
@@ -88,7 +88,7 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final screenWidth = MediaQuery.of(context).size.width;
       setState(() {
-        _pageSize = screenWidth > 768 ? 50 : 20; // Więcej na desktopie
+        _pageSize = 250; // Limit na 250 niezależnie od ekranu
       });
     });
 
@@ -186,13 +186,13 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     // Symulacja API call z paginacją
     final startIndex = page * _pageSize;
     final endIndex = (startIndex + _pageSize).clamp(0, _allInvestors.length);
-
     if (startIndex >= _allInvestors.length) return [];
-
-    // Dodanie opóźnienia dla UX
     await Future.delayed(const Duration(milliseconds: 500));
-
-    return _allInvestors.sublist(startIndex, endIndex);
+    // Ogranicz do 250
+    return _allInvestors.sublist(
+      startIndex,
+      endIndex.clamp(startIndex, startIndex + 250),
+    );
   }
 
   Future<void> _loadInvestorData() async {
@@ -360,7 +360,11 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
       0,
       _filteredInvestors.length,
     );
-    return _filteredInvestors.sublist(startIndex, endIndex);
+    // Ogranicz do 250
+    return _filteredInvestors.sublist(
+      startIndex,
+      endIndex.clamp(startIndex, startIndex + 250),
+    );
   }
 
   void _changeSortOrder(String newSortBy) {
@@ -536,7 +540,7 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
       _sortInvestors(filtered);
 
       // Reset paginacji po filtrowaniu
-      _filteredInvestors = filtered.take(_pageSize).toList();
+      _filteredInvestors = filtered.take(250).toList();
       _currentPage = 0;
       _hasNextPage = filtered.length > _pageSize;
       _hasPreviousPage = false;
@@ -1774,7 +1778,9 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
 
     // TODO: Implementacja generatora emaili
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Funkcja generatora emaili zostanie wkrótce dodana')),
+      const SnackBar(
+        content: Text('Funkcja generatora emaili zostanie wkrótce dodana'),
+      ),
     );
   }
 
@@ -3772,4 +3778,3 @@ class _InvestorDetailsDialogState extends State<_InvestorDetailsDialog> {
     }
   }
 }
-
