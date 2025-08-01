@@ -667,6 +667,7 @@ class _PremiumInvestorAnalyticsScreenState
       slivers: [
         if (_isFilterVisible) _buildFilterPanel(),
         _buildSearchBar(),
+        _buildInvestorsSortBar(),
         if (_isLoading)
           _buildLoadingSliver()
         else if (_error != null)
@@ -961,6 +962,100 @@ class _PremiumInvestorAnalyticsScreenState
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildInvestorsSortBar() {
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: _isTablet ? 16 : 12,
+          vertical: 8,
+        ),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.borderSecondary),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.sort_rounded, color: AppTheme.textSecondary, size: 20),
+            const SizedBox(width: 12),
+            Text(
+              'Sortuj według:',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildSortChip('name', 'Nazwa'),
+                  _buildSortChip('viableCapital', 'Kapitał pozostały'),
+                  _buildSortChip('investmentCount', 'Liczba inwestycji'),
+                  _buildSortChip('votingStatus', 'Status głosowania'),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              onPressed: () {
+                setState(() {
+                  _sortAscending = !_sortAscending;
+                });
+                _applyFiltersAndSort();
+              },
+              icon: Icon(
+                _sortAscending
+                    ? Icons.arrow_upward_rounded
+                    : Icons.arrow_downward_rounded,
+                color: AppTheme.secondaryGold,
+                size: 20,
+              ),
+              tooltip: _sortAscending ? 'Rosnąco' : 'Malejąco',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortChip(String sortKey, String label) {
+    final isSelected = _sortBy == sortKey;
+
+    return FilterChip(
+      selected: isSelected,
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected
+              ? AppTheme.backgroundPrimary
+              : AppTheme.textSecondary,
+          fontSize: 12,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+        ),
+      ),
+      selectedColor: AppTheme.secondaryGold,
+      backgroundColor: AppTheme.backgroundTertiary,
+      checkmarkColor: AppTheme.backgroundPrimary,
+      side: BorderSide(
+        color: isSelected ? AppTheme.secondaryGold : AppTheme.borderSecondary,
+        width: 1,
+      ),
+      onSelected: (selected) {
+        if (selected) {
+          setState(() {
+            _sortBy = sortKey;
+          });
+          _applyFiltersAndSort();
+        }
+      },
     );
   }
 

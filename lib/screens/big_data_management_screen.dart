@@ -3,6 +3,7 @@ import '../services/firebase_functions_data_service.dart';
 import '../models/client.dart';
 import '../models/investment.dart';
 import '../models/product.dart';
+import '../theme/app_theme.dart';
 
 /// 🚀 ZARZĄDZANIE DUŻYMI ZBIORAMI DANYCH
 /// Demonstracja Firebase Functions dla skalowania
@@ -151,9 +152,10 @@ class _BigDataManagementScreenState extends State<BigDataManagementScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(
-        title: 'Zarządzanie Big Data',
-        subtitle: 'Firebase Functions + Skalowanie',
+      appBar: AppBar(
+        title: const Text('Zarządzanie Big Data'),
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -163,18 +165,39 @@ class _BigDataManagementScreenState extends State<BigDataManagementScreen>
           ],
         ),
       ),
-      body: LoadingOverlay(
-        isLoading: _isLoading,
-        child: _errorMessage != null
-            ? ErrorMessage(message: _errorMessage!, onRetry: _loadInitialData)
-            : TabBarView(
-                controller: _tabController,
+      body: Stack(
+        children: [
+          if (_errorMessage != null)
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildClientsTab(),
-                  _buildInvestmentsTab(),
-                  _buildStatsTab(),
+                  Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(_errorMessage!, style: TextStyle(color: Colors.red)),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadInitialData,
+                    child: Text('Ponów próbę'),
+                  ),
                 ],
               ),
+            )
+          else
+            TabBarView(
+              controller: _tabController,
+              children: [
+                _buildClientsTab(),
+                _buildInvestmentsTab(),
+                _buildStatsTab(),
+              ],
+            ),
+          if (_isLoading)
+            Container(
+              color: Colors.black26,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+        ],
       ),
     );
   }

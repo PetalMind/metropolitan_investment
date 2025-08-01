@@ -101,7 +101,6 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     }
 
     try {
-
       setState(() {
         if (!isRefresh) _isInitialLoading = true;
         _loadingProgress = 0.1;
@@ -115,7 +114,6 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
         descending: true,
       );
 
-
       setState(() {
         _loadingProgress = 0.3;
         _loadingStage = 'Pobieranie pierwszej partii danych...';
@@ -124,7 +122,6 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       final result = await _optimizedService.getInvestmentsPaginated(
         params: params,
       );
-
 
       setState(() {
         _loadingProgress = 0.7;
@@ -151,7 +148,6 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
         _loadingProgress = 1.0;
         _loadingStage = 'Gotowe!';
       });
-
     } catch (e) {
       setState(() {
         _isInitialLoading = false;
@@ -170,7 +166,6 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       _isLoadingMore = true;
     });
 
-
     try {
       final params = PaginationParams(
         limit: _pageSize,
@@ -182,7 +177,6 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       final result = await _optimizedService.getInvestmentsPaginated(
         params: params,
       );
-
 
       setState(() {
         _investments.addAll(result.items);
@@ -477,77 +471,68 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             ),
             const SizedBox(height: 32),
             // Debug panel z logami
-              Container(
-                width: 500,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
+            Container(
+              width: 500,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppTheme.surfaceElevated
+                    : Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
                   color: Theme.of(context).brightness == Brightness.dark
-                      ? AppTheme.surfaceElevated
-                      : Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? AppTheme.borderPrimary
-                        : Colors.grey.shade300,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: 16,
-                          color: AppTheme.infoColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Status ładowania',
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.infoColor,
-                              ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      height: 120,
-                      child: ListView.builder(
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color:
-                                        Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? AppTheme.textSecondary
-                                        : Colors.grey[600],
-                                    fontFamily: 'monospace',
-                                  ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                      ? AppTheme.borderPrimary
+                      : Colors.grey.shade300,
                 ),
               ),
-    );
-  }
-
-  Widget _buildCustomLoading() {
-    return Center(
-      child: ProgressLoadingWidget(
-        progress: _loadingProgress,
-        message: _loadingStage,
-        details: _loadingProgress > 0.3
-            ? 'Ładowanie w paczках po $_pageSize inwestycji...'
-            : 'Przygotowanie do ładowania danych...',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: AppTheme.infoColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Status ładowania',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.infoColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    height: 120,
+                    child: ListView.builder(
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            'Ładowanie...',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? AppTheme.textSecondary
+                                      : Colors.grey[600],
+                                  fontFamily: 'monospace',
+                                ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
