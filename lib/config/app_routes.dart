@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../screens/optimized_investor_analytics_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
 import '../screens/dashboard_screen.dart';
@@ -11,7 +12,6 @@ import '../screens/products_screen.dart';
 import '../screens/companies_screen.dart';
 import '../screens/employees_screen.dart';
 import '../screens/analytics_screen.dart';
-import '../screens/investor_analytics_screen.dart';
 import '../widgets/auth_wrapper.dart';
 import '../widgets/main_layout.dart';
 import '../providers/auth_provider.dart';
@@ -450,7 +450,7 @@ class AppRouter {
             pageBuilder: (context, state) => _buildPageWithTransition(
               context,
               state,
-              const InvestorAnalyticsScreen(),
+              const OptimizedInvestorAnalyticsScreen(),
             ),
           ),
 
