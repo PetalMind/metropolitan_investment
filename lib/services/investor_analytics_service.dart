@@ -5,328 +5,520 @@ import '../models/investor_summary.dart';
 import '../models/product.dart';
 import 'base_service.dart';
 import 'client_service.dart';
-import 'data_cache_service.dart';
 
 class InvestorAnalyticsService extends BaseService {
   final ClientService _clientService = ClientService();
-  final DataCacheService _dataCacheService = DataCacheService();
 
   // Cache dla inwestorów z czasem wygaśnięcia
   Map<String, List<InvestorSummary>>? _investorsCache;
   DateTime? _cacheTimestamp;
-  static const Duration _cacheTimeout = Duration(minutes: 5);
+  static const Duration _cacheTimeout = Duration(minutes: 10);
 
-  // Pobierz wszystkich inwestorów posortowanych według kapitału pozostałego z pagingiem
-  Future<InvestorAnalyticsResult> getInvestorsSortedByRemainingCapital({
+  /// Analiza inwestorów tworzących 51% kontroli portfela
+  Future<MajorityControlAnalysis> analyzeMajorityControl({
     bool includeInactive = false,
-    int page = 0,
-    int pageSize = 50,
-    bool useCache = true,
+    double controlThreshold = 51.0,
   }) async {
     final startTime = DateTime.now();
-    print('📊 [InvestorAnalytics] Rozpoczynam pobieranie danych inwestorów...');
     print(
-      '📊 [InvestorAnalytics] Parametry: page=$page, pageSize=$pageSize, includeInactive=$includeInactive',
+      '📊 [MajorityControl] Rozpoczynam analizę kontroli ${controlThreshold}%...',
     );
 
     try {
-      List<InvestorSummary> allSummaries;
+      // Pobierz wszystkich inwestorów
+      final allInvestors = await _loadAllInvestors(includeInactive);
 
-      // Sprawdź cache
-      if (useCache && _isCacheValid()) {
-        print('📊 [InvestorAnalytics] Używam danych z cache');
-        final cacheKey = includeInactive ? 'all' : 'active';
-        allSummaries = _investorsCache![cacheKey] ?? [];
-      } else {
-        print(
-          '📊 [InvestorAnalytics] Cache nieważny lub wyłączony, pobieranie nowych danych...',
+      if (allInvestors.isEmpty) {
+        return MajorityControlAnalysis.empty();
+      }
+
+      // Sortuj według kapitału pozostałego (viableRemainingCapital) malejąco
+      allInvestors.sort(
+        (a, b) => b.viableRemainingCapital.compareTo(a.viableRemainingCapital),
+      );
+
+      // Oblicz całkowitą wartość portfela na podstawie kapitału pozostałego
+      final totalViableCapital = allInvestors.fold<double>(
+        0.0,
+        (sum, investor) => sum + investor.viableRemainingCapital,
+      );
+
+      print(
+        '📊 [MajorityControl] Całkowity kapitał pozostały: ${totalViableCapital.toStringAsFixed(2)} PLN',
+      );
+
+      if (totalViableCapital <= 0) {
+        return MajorityControlAnalysis.empty();
+      }
+
+      // Znajdź inwestorów tworzących próg kontrolny
+      final List<InvestorWithControlInfo> controlInvestors = [];
+      final List<InvestorWithControlInfo> allInvestorsWithInfo = [];
+      double cumulativeCapital = 0.0;
+      double controlThresholdAmount =
+          totalViableCapital * (controlThreshold / 100);
+
+      print(
+        '📊 [MajorityControl] Próg kontrolny: ${controlThresholdAmount.toStringAsFixed(2)} PLN (${controlThreshold}%)',
+      );
+
+      for (final investor in allInvestors) {
+        final previousCumulative = cumulativeCapital;
+        cumulativeCapital += investor.viableRemainingCapital;
+
+        final controlPercentage =
+            (investor.viableRemainingCapital / totalViableCapital) * 100;
+        final cumulativePercentage =
+            (cumulativeCapital / totalViableCapital) * 100;
+
+        final investorInfo = InvestorWithControlInfo(
+          summary: investor,
+          controlPercentage: controlPercentage,
+          cumulativePercentage: cumulativePercentage,
+          isInControlGroup: previousCumulative < controlThresholdAmount,
         );
-        allSummaries = await _loadAllInvestors(includeInactive);
 
-        // Zapisz do cache
-        _investorsCache = {(includeInactive ? 'all' : 'active'): allSummaries};
+        allInvestorsWithInfo.add(investorInfo);
+
+        // Dodaj do grupy kontrolnej jeśli jest potrzebny do osiągnięcia progu
+        if (previousCumulative < controlThresholdAmount) {
+          controlInvestors.add(investorInfo);
+        }
+      }
+
+      final controlGroupCapital = controlInvestors.fold<double>(
+        0.0,
+        (sum, investor) => sum + investor.summary.viableRemainingCapital,
+      );
+
+      print(
+        '📊 [MajorityControl] Grupa kontrolna: ${controlInvestors.length} inwestorów z kapitałem ${controlGroupCapital.toStringAsFixed(2)} PLN',
+      );
+      print(
+        '📊 [MajorityControl] Analiza zakończona w ${DateTime.now().difference(startTime).inMilliseconds}ms',
+      );
+
+      return MajorityControlAnalysis(
+        allInvestors: allInvestorsWithInfo,
+        controlGroupInvestors: controlInvestors,
+        totalViableCapital: totalViableCapital,
+        controlGroupCapital: controlGroupCapital,
+        controlGroupCount: controlInvestors.length,
+        controlThreshold: controlThreshold,
+        analysisDate: DateTime.now(),
+      );
+    } catch (e) {
+      print('❌ [MajorityControl] Błąd analizy: $e');
+      logError('analyzeMajorityControl', e);
+      return MajorityControlAnalysis.empty();
+    }
+  }
+
+  /// Analiza rozkładu kapitału według statusu głosowania
+  Future<VotingCapitalDistribution> analyzeVotingDistribution({
+    bool includeInactive = false,
+  }) async {
+    print('📊 [VotingDistribution] Rozpoczynam analizę rozkładu głosowania...');
+
+    try {
+      final allInvestors = await _loadAllInvestors(includeInactive);
+
+      if (allInvestors.isEmpty) {
+        return VotingCapitalDistribution.empty();
+      }
+
+      final Map<VotingStatus, double> distribution = {};
+      final Map<VotingStatus, int> counts = {};
+
+      // Inicjalizuj wszystkie statusy z zerowymi wartościami
+      for (final status in VotingStatus.values) {
+        distribution[status] = 0.0;
+        counts[status] = 0;
+      }
+
+      double totalCapital = 0.0;
+
+      for (final investor in allInvestors) {
+        final capital = investor.viableRemainingCapital;
+        final status = investor.client.votingStatus;
+
+        distribution[status] = (distribution[status] ?? 0.0) + capital;
+        counts[status] = (counts[status] ?? 0) + 1;
+        totalCapital += capital;
+      }
+
+      print(
+        '📊 [VotingDistribution] Całkowity kapitał: ${totalCapital.toStringAsFixed(2)} PLN',
+      );
+      print('📊 [VotingDistribution] Rozkład według statusów:');
+
+      for (final entry in distribution.entries) {
+        final percentage = totalCapital > 0
+            ? (entry.value / totalCapital) * 100
+            : 0.0;
+        print(
+          '   ${entry.key.name}: ${entry.value.toStringAsFixed(2)} PLN (${percentage.toStringAsFixed(1)}%) - ${counts[entry.key]} inwestorów',
+        );
+      }
+
+      return VotingCapitalDistribution(
+        capitalByStatus: distribution,
+        countByStatus: counts,
+        totalCapital: totalCapital,
+        totalInvestors: allInvestors.length,
+        analysisDate: DateTime.now(),
+      );
+    } catch (e) {
+      print('❌ [VotingDistribution] Błąd analizy: $e');
+      logError('analyzeVotingDistribution', e);
+      return VotingCapitalDistribution.empty();
+    }
+  }
+
+  /// Pobiera inwestorów posortowanych według kapitału pozostałego z obsługą paginacji
+  Future<InvestorAnalyticsResult> getInvestorsSortedByRemainingCapital({
+    int page = 1,
+    int pageSize = 250,
+    String sortBy = 'viableCapital',
+    bool sortAscending = false,
+    bool includeInactive = false,
+    VotingStatus? votingStatusFilter,
+    ClientType? clientTypeFilter,
+    bool showOnlyWithUnviableInvestments = false,
+  }) async {
+    print(
+      '📊 [Analytics] Pobieranie inwestorów - strona $page, rozmiar $pageSize',
+    );
+    print(
+      '📊 [Analytics] Sortowanie: $sortBy (${sortAscending ? 'rosnąco' : 'malejąco'})',
+    );
+
+    try {
+      // Sprawdź cache
+      final isCacheValid =
+          _investorsCache != null &&
+          _cacheTimestamp != null &&
+          DateTime.now().difference(_cacheTimestamp!).abs() < _cacheTimeout;
+
+      List<InvestorSummary> allInvestors;
+
+      if (isCacheValid) {
+        print('📊 [Analytics] Używam danych z cache');
+        allInvestors = _investorsCache!.values.expand((x) => x).toList();
+      } else {
+        print('📊 [Analytics] Ładuję świeże dane z bazy');
+        allInvestors = await _loadAllInvestors(includeInactive);
+
+        // Aktualizuj cache
+        _investorsCache = {'all': allInvestors};
         _cacheTimestamp = DateTime.now();
       }
 
-      // Oblicz paging
-      final totalCount = allSummaries.length;
-      final startIndex = page * pageSize;
-      final endIndex = (startIndex + pageSize).clamp(0, totalCount);
+      // Filtrowanie
+      List<InvestorSummary> filteredInvestors = allInvestors;
 
-      final pagedSummaries = startIndex < totalCount
-          ? allSummaries.sublist(startIndex, endIndex)
-          : <InvestorSummary>[];
+      if (votingStatusFilter != null) {
+        filteredInvestors = filteredInvestors
+            .where(
+              (investor) => investor.client.votingStatus == votingStatusFilter,
+            )
+            .toList();
+      }
 
-      final loadTime = DateTime.now().difference(startTime);
-      print('📊 [InvestorAnalytics] Zakończono w ${loadTime.inMilliseconds}ms');
+      if (clientTypeFilter != null) {
+        filteredInvestors = filteredInvestors
+            .where((investor) => investor.client.type == clientTypeFilter)
+            .toList();
+      }
+
+      if (showOnlyWithUnviableInvestments) {
+        filteredInvestors = filteredInvestors
+            .where(
+              (investor) =>
+                  investor.totalValue > investor.viableRemainingCapital,
+            )
+            .toList();
+      }
+
       print(
-        '📊 [InvestorAnalytics] Znaleziono ${totalCount} inwestorów, zwracam ${pagedSummaries.length} na stronie $page',
+        '📊 [Analytics] Po filtrowaniu: ${filteredInvestors.length} inwestorów',
+      );
+
+      // Sortowanie
+      filteredInvestors.sort((a, b) {
+        late final int comparison;
+
+        switch (sortBy) {
+          case 'name':
+            comparison = a.client.name.compareTo(b.client.name);
+            break;
+          case 'totalValue':
+            comparison = a.totalValue.compareTo(b.totalValue);
+            break;
+          case 'viableCapital':
+            comparison = a.viableRemainingCapital.compareTo(
+              b.viableRemainingCapital,
+            );
+            break;
+          case 'investmentCount':
+            comparison = a.investments.length.compareTo(b.investments.length);
+            break;
+          case 'votingStatus':
+            comparison = a.client.votingStatus.index.compareTo(
+              b.client.votingStatus.index,
+            );
+            break;
+          default:
+            comparison = a.viableRemainingCapital.compareTo(
+              b.viableRemainingCapital,
+            );
+        }
+
+        return sortAscending ? comparison : -comparison;
+      });
+
+      // Oblicz statystyki całkowitej listy przed paginacją
+      final totalViableCapital = filteredInvestors.fold<double>(
+        0.0,
+        (sum, investor) => sum + investor.viableRemainingCapital,
+      );
+
+      print(
+        '📊 [Analytics] Całkowity kapitał (po filtrach): ${totalViableCapital.toStringAsFixed(2)} PLN',
+      );
+
+      // Paginacja
+      final totalCount = filteredInvestors.length;
+      final totalPages = (totalCount / pageSize).ceil();
+      final startIndex = (page - 1) * pageSize;
+      final endIndex = (startIndex + pageSize).clamp(0, totalCount);
+      // Ogranicz do 250
+      final paginatedInvestors = filteredInvestors.sublist(
+        startIndex,
+        endIndex.clamp(startIndex, startIndex + 250),
       );
 
       return InvestorAnalyticsResult(
-        investors: pagedSummaries,
+        investors: paginatedInvestors,
         totalCount: totalCount,
         currentPage: page,
+        totalPages: totalPages,
         pageSize: pageSize,
-        hasNextPage: endIndex < totalCount,
-        hasPreviousPage: page > 0,
-        totalPortfolioValue: allSummaries.fold<double>(
-          0.0,
-          (sum, summary) => sum + summary.totalValue,
-        ),
+        totalViableCapital: totalViableCapital,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
       );
     } catch (e) {
-      final loadTime = DateTime.now().difference(startTime);
-      print('❌ [InvestorAnalytics] Błąd po ${loadTime.inMilliseconds}ms: $e');
+      print('❌ [Analytics] Błąd pobierania danych: $e');
       logError('getInvestorsSortedByRemainingCapital', e);
-      throw Exception('Błąd podczas pobierania danych inwestorów: $e');
+      rethrow;
     }
   }
 
-  // Sprawdź ważność cache
-  bool _isCacheValid() {
-    if (_investorsCache == null || _cacheTimestamp == null) {
-      return false;
-    }
-    return DateTime.now().difference(_cacheTimestamp!) < _cacheTimeout;
-  }
-
-  // Ładuj wszystkich inwestorów (metoda pomocnicza)
+  /// Ładuje wszystkich inwestorów z cache lub bazy danych
   Future<List<InvestorSummary>> _loadAllInvestors(bool includeInactive) async {
-    print('📊 [InvestorAnalytics] Pobieranie klientów...');
-    final clientsStartTime = DateTime.now();
+    // Sprawdź cache
+    final isCacheValid =
+        _investorsCache != null &&
+        _cacheTimestamp != null &&
+        DateTime.now().difference(_cacheTimestamp!).abs() < _cacheTimeout;
 
-    // Pobierz wszystkich klientów
-    final clients = await _clientService.getAllClients();
-    final activeClients = includeInactive
-        ? clients
-        : clients.where((c) => c.isActive).toList();
-
-    final clientsLoadTime = DateTime.now().difference(clientsStartTime);
-    print(
-      '📊 [InvestorAnalytics] Pobrano ${clients.length} klientów (${activeClients.length} aktywnych) w ${clientsLoadTime.inMilliseconds}ms',
-    );
-
-    // Pobierz wszystkie inwestycje jednym zapytaniem dla wydajności
-    print('📊 [InvestorAnalytics] Pobieranie wszystkich inwestycji...');
-    final investmentsStartTime = DateTime.now();
-    final allInvestments = await _getAllInvestments();
-    final investmentsLoadTime = DateTime.now().difference(investmentsStartTime);
-    print(
-      '📊 [InvestorAnalytics] Pobrano ${allInvestments.length} inwestycji w ${investmentsLoadTime.inMilliseconds}ms',
-    );
-
-    // Grupuj inwestycje według nazwy klienta dla wydajności
-    final investmentsByClient = <String, List<Investment>>{};
-    for (final investment in allInvestments) {
-      final clientName = investment.clientName;
-      investmentsByClient[clientName] ??= [];
-      investmentsByClient[clientName]!.add(investment);
+    if (isCacheValid) {
+      return _investorsCache!.values.expand((x) => x).toList();
     }
 
-    print(
-      '📊 [InvestorAnalytics] Grupowanie inwestycji dla ${investmentsByClient.length} klientów',
+    // Załaduj z bazy danych
+    final loadedInvestors = await getAllInvestorsForAnalysis(
+      includeInactive: includeInactive,
     );
 
-    // Tworzenie podsumowań
-    final List<InvestorSummary> summaries = [];
-    int processedClients = 0;
+    // Aktualizuj cache
+    _investorsCache = {'all': loadedInvestors};
+    _cacheTimestamp = DateTime.now();
 
-    for (final client in activeClients) {
-      final investments = investmentsByClient[client.name] ?? [];
-      if (investments.isNotEmpty) {
-        final summary = InvestorSummary.fromInvestments(client, investments);
-        summaries.add(summary);
-      }
-
-      processedClients++;
-      if (processedClients % 100 == 0) {
-        print(
-          '📊 [InvestorAnalytics] Przetworzono $processedClients/${activeClients.length} klientów',
-        );
-      }
-    }
-
-    print(
-      '📊 [InvestorAnalytics] Sortowanie ${summaries.length} podsumowań...',
-    );
-
-    // Sortuj według łącznej wartości (kapitał pozostały + udziały)
-    summaries.sort((a, b) => b.totalValue.compareTo(a.totalValue));
-
-    // Oblicz procentowy udział każdego inwestora
-    final totalPortfolioValue = summaries.fold<double>(
-      0.0,
-      (sum, summary) => sum + summary.totalValue,
-    );
-
-    print(
-      '📊 [InvestorAnalytics] Obliczanie procentów dla portfela o wartości ${totalPortfolioValue.toStringAsFixed(0)} PLN',
-    );
-
-    // Dodaj informację o procentowym udziale
-    for (int i = 0; i < summaries.length; i++) {
-      final summary = summaries[i];
-      final percentage = totalPortfolioValue > 0
-          ? (summary.totalValue / totalPortfolioValue) * 100
-          : 0.0;
-
-      // Utworzenie nowego obiektu z obliczonym procentem
-      summaries[i] = InvestorSummaryWithPercentage(
-        summary: summary,
-        percentageOfPortfolio: percentage,
-        cumulativePercentage: _calculateCumulativePercentage(
-          summaries,
-          i,
-          totalPortfolioValue,
-        ),
-      );
-    }
-
-    print(
-      '📊 [InvestorAnalytics] Utworzono ${summaries.length} podsumowań inwestorów',
-    );
-    return summaries;
+    return loadedInvestors;
   }
 
-  // Pobierz wszystkie inwestycje jednym zapytaniem
-  Future<List<Investment>> _getAllInvestments() async {
-    // Używamy centralnego cache'a danych
-    return await _dataCacheService.getAllInvestments();
-  }
-
-  // Oblicz skumulowany procent do danego indeksu
-  double _calculateCumulativePercentage(
-    List<InvestorSummary> summaries,
-    int currentIndex,
-    double totalPortfolioValue,
-  ) {
-    double cumulativeValue = 0;
-    for (int i = 0; i <= currentIndex; i++) {
-      cumulativeValue += summaries[i].totalValue;
-    }
-
-    return totalPortfolioValue > 0
-        ? (cumulativeValue / totalPortfolioValue) * 100
-        : 0.0;
-  }
-
-  // Pobierz wszystkich inwestorów bez pagingu (do filtrowania)
+  /// Pobiera wszystkich inwestorów do analizy z obliczeniami kapitału
   Future<List<InvestorSummary>> getAllInvestorsForAnalysis({
     bool includeInactive = false,
-    bool useCache = true,
   }) async {
-    print(
-      '📊 [InvestorAnalytics] Pobieranie wszystkich inwestorów do analizy...',
-    );
+    print('📊 [Analytics] Pobieranie wszystkich inwestorów do analizy...');
 
-    if (useCache && _isCacheValid()) {
-      final cacheKey = includeInactive ? 'all' : 'active';
-      final cached = _investorsCache![cacheKey];
-      if (cached != null) {
-        print(
-          '📊 [InvestorAnalytics] Zwracam ${cached.length} inwestorów z cache',
-        );
-        return cached;
+    try {
+      final clients = await _clientService.getAllClients();
+      print('📊 [Analytics] Znaleziono ${clients.length} klientów');
+
+      final allInvestments = await _getAllInvestments();
+      print('📊 [Analytics] Znaleziono ${allInvestments.length} inwestycji');
+
+      final Map<String, List<Investment>> investmentsByClientId = {};
+      for (final investment in allInvestments) {
+        final clientId = investment.clientId;
+        investmentsByClientId.putIfAbsent(clientId, () => []).add(investment);
       }
-    }
 
-    final investors = await _loadAllInvestors(includeInactive);
-    print('📊 [InvestorAnalytics] Zwracam ${investors.length} inwestorów');
-    return investors;
+      print('📊 [Analytics] Grupowanie inwestycji według klientów...');
+
+      final List<InvestorSummary> investors = [];
+
+      for (final client in clients) {
+        if (!includeInactive && !client.isActive) continue;
+
+        final clientInvestments = investmentsByClientId[client.id] ?? [];
+        if (clientInvestments.isEmpty) {
+          print('⚠️ [Analytics] Klient ${client.name} nie ma inwestycji');
+          continue;
+        }
+
+        // Utwórz podsumowanie inwestora używając factory method
+        final investorSummary = InvestorSummary.fromInvestments(
+          client,
+          clientInvestments,
+        );
+        investors.add(investorSummary);
+      }
+
+      print(
+        '📊 [Analytics] Utworzono ${investors.length} podsumowań inwestorów',
+      );
+
+      return investors;
+    } catch (e) {
+      print('❌ [Analytics] Błąd pobierania inwestorów: $e');
+      logError('getAllInvestorsForAnalysis', e);
+      rethrow;
+    }
   }
 
-  // Znajdź punkt 51% kapitału
-  InvestorRange? findMajorityControlPoint(
-    List<InvestorSummary> sortedInvestors,
+  /// Pobiera wszystkie inwestycje z bazy danych
+  Future<List<Investment>> _getAllInvestments() async {
+    try {
+      final snapshot = await firestore.collection('investments').get();
+      return snapshot.docs
+          .map((doc) => _convertExcelDataToInvestment(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      print('❌ [Analytics] Błąd pobierania inwestycji: $e');
+      logError('_getAllInvestments', e);
+      rethrow;
+    }
+  }
+
+  /// Konwertuje dane z Excel/Firestore na obiekt Investment
+  Investment _convertExcelDataToInvestment(
+    Map<String, dynamic> data,
+    String docId,
   ) {
-    double cumulativeValue = 0;
-    final totalValue = sortedInvestors.fold<double>(
-      0.0,
-      (sum, summary) => sum + summary.totalValue,
+    return Investment(
+      id: docId,
+      clientId:
+          data['id_klient']?.toString() ??
+          data['clientId'] ??
+          data['client_id'] ??
+          '',
+      clientName:
+          data['klient'] ?? data['clientName'] ?? data['client_name'] ?? '',
+      employeeId: data['employeeId'] ?? '',
+      employeeFirstName: data['employeeFirstName'] ?? '',
+      employeeLastName: data['employeeLastName'] ?? '',
+      branchCode: data['branchCode'] ?? '',
+      status: InvestmentStatus.values.firstWhere(
+        (status) => status.name == data['status'],
+        orElse: () => InvestmentStatus.active,
+      ),
+      isAllocated: data['isAllocated'] ?? true,
+      marketType: MarketType.values.firstWhere(
+        (type) => type.name == data['marketType'],
+        orElse: () => MarketType.primary,
+      ),
+      signedDate: _parseDate(data['signedDate']) ?? DateTime.now(),
+      entryDate: _parseDate(data['entryDate']),
+      exitDate: _parseDate(data['exitDate']),
+      proposalId: data['proposalId'] ?? '',
+      productType: ProductType.values.firstWhere(
+        (type) => type.name == data['productType'],
+        orElse: () => ProductType.bonds,
+      ),
+      productName: data['productName'] ?? '',
+      creditorCompany: data['creditorCompany'] ?? '',
+      companyId: data['companyId'] ?? '',
+      issueDate: _parseDate(data['issueDate']),
+      redemptionDate: _parseDate(data['redemptionDate']),
+      sharesCount: data['sharesCount'],
+      investmentAmount: (data['investmentAmount'] as num?)?.toDouble() ?? 0.0,
+      paidAmount: (data['paidAmount'] as num?)?.toDouble() ?? 0.0,
+      realizedCapital: (data['realizedCapital'] as num?)?.toDouble() ?? 0.0,
+      realizedInterest: (data['realizedInterest'] as num?)?.toDouble() ?? 0.0,
+      transferToOtherProduct:
+          (data['transferToOtherProduct'] as num?)?.toDouble() ?? 0.0,
+      remainingCapital: (data['remainingCapital'] as num?)?.toDouble() ?? 0.0,
+      remainingInterest: (data['remainingInterest'] as num?)?.toDouble() ?? 0.0,
+      currency: data['currency'] ?? 'PLN',
+      createdAt: _parseDate(data['createdAt']) ?? DateTime.now(),
+      updatedAt: _parseDate(data['updatedAt']) ?? DateTime.now(),
     );
+  }
 
-    for (int i = 0; i < sortedInvestors.length; i++) {
-      cumulativeValue += sortedInvestors[i].totalValue;
-      final percentage = (cumulativeValue / totalValue) * 100;
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
 
-      if (percentage >= 51.0) {
-        return InvestorRange(
-          investorCount: i + 1,
-          percentage: percentage,
-          totalValue: cumulativeValue,
-          investors: sortedInvestors.take(i + 1).toList(),
-        );
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (e) {
+        return null;
       }
     }
 
     return null;
   }
 
-  // Filtruj inwestorów według wysokości kapitału
-  List<InvestorSummary> filterByCapitalAmount({
-    required List<InvestorSummary> investors,
-    double? minAmount,
-    double? maxAmount,
-  }) {
-    return investors.where((investor) {
-      final amount = investor.totalValue;
-      if (minAmount != null && amount < minAmount) return false;
-      if (maxAmount != null && amount > maxAmount) return false;
-      return true;
-    }).toList();
-  }
-
-  // Filtruj inwestorów według firmy
-  List<InvestorSummary> filterByCompany({
-    required List<InvestorSummary> investors,
-    required String companyName,
-  }) {
-    return investors.where((investor) {
-      return investor.investmentsByCompany.keys.any(
-        (company) => company.toLowerCase().contains(companyName.toLowerCase()),
-      );
-    }).toList();
-  }
-
-  // Aktualizuj status głosowania inwestora
-  Future<void> updateVotingStatus(String clientId, VotingStatus status) async {
+  /// Aktualizuje status głosowania inwestora
+  Future<void> updateVotingStatus(
+    String clientId,
+    VotingStatus newStatus,
+  ) async {
     try {
       await _clientService.updateClientFields(clientId, {
-        'votingStatus': status.name,
+        'votingStatus': newStatus.name,
       });
-      clearCache('investor_analytics');
+      clearCache('clients');
     } catch (e) {
       logError('updateVotingStatus', e);
-      throw Exception('Błąd podczas aktualizacji statusu głosowania: $e');
+      rethrow;
     }
   }
 
-  // Aktualizuj notatki inwestora
+  /// Aktualizuje notatki inwestora
   Future<void> updateInvestorNotes(String clientId, String notes) async {
     try {
       await _clientService.updateClientFields(clientId, {'notes': notes});
-      clearCache('investor_analytics');
+      clearCache('clients');
     } catch (e) {
       logError('updateInvestorNotes', e);
-      throw Exception('Błąd podczas aktualizacji notatek: $e');
+      rethrow;
     }
   }
 
-  // Aktualizuj kolor inwestora
-  Future<void> updateInvestorColor(String clientId, String colorCode) async {
+  /// Aktualizuje kolor inwestora
+  Future<void> updateInvestorColor(String clientId, String colorHex) async {
     try {
       await _clientService.updateClientFields(clientId, {
-        'colorCode': colorCode,
+        'colorCode': colorHex,
       });
-      clearCache('investor_analytics');
+      clearCache('clients');
     } catch (e) {
       logError('updateInvestorColor', e);
-      throw Exception('Błąd podczas aktualizacji koloru: $e');
+      rethrow;
     }
   }
 
-  // Oznacz inwestycje jako niewykonalne
+  /// Oznacza inwestycje jako nierentowne
   Future<void> markInvestmentsAsUnviable(
     String clientId,
     List<String> investmentIds,
@@ -335,363 +527,157 @@ class InvestorAnalyticsService extends BaseService {
       await _clientService.updateClientFields(clientId, {
         'unviableInvestments': investmentIds,
       });
-      clearCache('investor_analytics');
+      clearCache('clients');
     } catch (e) {
       logError('markInvestmentsAsUnviable', e);
-      throw Exception(
-        'Błąd podczas oznaczania inwestycji jako niewykonalne: $e',
-      );
+      rethrow;
     }
   }
 
-  // Generuj dane do wysyłki maili
-  Future<List<InvestorEmailData>> generateEmailData(
-    List<String> clientIds,
+  /// Generuje dane do wysyłki email
+  Future<Map<String, dynamic>> generateEmailData(
+    List<InvestorSummary> selectedInvestors,
+    String emailTemplate,
   ) async {
     try {
-      final List<InvestorEmailData> emailData = [];
+      final emails = selectedInvestors
+          .map((investor) => investor.client.email)
+          .where((email) => email.isNotEmpty)
+          .toList();
 
-      for (final clientId in clientIds) {
-        final client = await _clientService.getClient(clientId);
-        if (client != null && client.email.isNotEmpty) {
-          final investments = await _getInvestmentsByClientName(client.name);
-          emailData.add(
-            InvestorEmailData(client: client, investments: investments),
-          );
-        }
-      }
-
-      return emailData;
+      return {
+        'emails': emails,
+        'template': emailTemplate,
+        'generatedAt': DateTime.now().toIso8601String(),
+      };
     } catch (e) {
       logError('generateEmailData', e);
-      throw Exception('Błąd podczas generowania danych do maili: $e');
+      rethrow;
     }
   }
 
-  // Pobierz inwestycje klienta według nazwy
-  Future<List<Investment>> _getInvestmentsByClientName(
-    String clientName,
-  ) async {
-    try {
-      final snapshot = await firestore
-          .collection('investments')
-          .where('klient', isEqualTo: clientName)
-          .get();
-
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return _convertExcelDataToInvestment(doc.id, data);
-      }).toList();
-    } catch (e) {
-      logError('_getInvestmentsByClientName', e);
-      return [];
-    }
-  }
-
-  // Konwersja danych Excel do Investment (kopiowana z InvestmentService)
-  Investment _convertExcelDataToInvestment(
-    String id,
-    Map<String, dynamic> data,
-  ) {
-    // Mapowanie statusu
-    InvestmentStatus status = InvestmentStatus.active;
-    final statusStr = data['status_produktu']?.toString() ?? '';
-    if (statusStr == 'Nieaktywny' || statusStr == 'Nieaktywowany') {
-      status = InvestmentStatus.inactive;
-    } else if (statusStr == 'Wykup wczesniejszy') {
-      status = InvestmentStatus.earlyRedemption;
-    }
-
-    // Mapowanie typu produktu
-    ProductType productType = ProductType.bonds;
-    final typeStr = data['typ_produktu']?.toString() ?? '';
-    if (typeStr == 'Udziały') productType = ProductType.shares;
-    if (typeStr == 'Apartamenty') productType = ProductType.apartments;
-    if (typeStr == 'Pożyczka') productType = ProductType.loans;
-
-    return Investment(
-      id: id,
-      clientId: '',
-      clientName: data['klient']?.toString() ?? '',
-      employeeId: '',
-      employeeFirstName: data['praconwnik_imie']?.toString() ?? '',
-      employeeLastName: data['pracownik_nazwisko']?.toString() ?? '',
-      branchCode: data['oddzial']?.toString() ?? '',
-      status: status,
-      isAllocated: data['przydzial']?.toString() == '1',
-      marketType: MarketType.primary,
-      signedDate: _parseDate(data['data_podpisania']) ?? DateTime.now(),
-      entryDate: _parseDate(data['data_wejscia_do_inwestycji']),
-      exitDate: _parseDate(data['data_wyjscia_z_inwestycji']),
-      proposalId: data['id_propozycja_nabycia']?.toString() ?? '',
-      productType: productType,
-      productName: data['produkt_nazwa']?.toString() ?? '',
-      creditorCompany: data['wierzyciel_spolka']?.toString() ?? '',
-      companyId: data['id_spolka']?.toString() ?? '',
-      issueDate: _parseDate(data['data_emisji']),
-      redemptionDate: _parseDate(data['data_wykupu']),
-      sharesCount: data['ilosc_udzialow']?.toInt(),
-      investmentAmount:
-          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
-      paidAmount:
-          double.tryParse(data['kwota_wplat']?.toString() ?? '0') ?? 0.0,
-      realizedCapital:
-          double.tryParse(data['kapital_zrealizowany']?.toString() ?? '0') ??
-          0.0,
-      realizedInterest:
-          double.tryParse(data['odsetki_zrealizowane']?.toString() ?? '0') ??
-          0.0,
-      transferToOtherProduct:
-          double.tryParse(data['przekaz_na_inny_produkt']?.toString() ?? '0') ??
-          0.0,
-      remainingCapital:
-          double.tryParse(data['kapital_pozostaly']?.toString() ?? '0') ?? 0.0,
-      remainingInterest:
-          double.tryParse(data['odsetki_pozostale']?.toString() ?? '0') ?? 0.0,
-      plannedTax:
-          double.tryParse(data['planowany_podatek']?.toString() ?? '0') ?? 0.0,
-      realizedTax:
-          double.tryParse(data['zrealizowany_podatek']?.toString() ?? '0') ??
-          0.0,
-      currency: 'PLN',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      additionalInfo: {'source_file': 'Excel import'},
-    );
-  }
-
-  /// Konwertuje dokument z kolekcji bonds na Investment
-  Investment _convertBondToInvestment(String id, Map<String, dynamic> data) {
-    return Investment(
-      id: id,
-      clientId: '',
-      clientName: '',
-      employeeId: '',
-      employeeFirstName: '',
-      employeeLastName: '',
-      branchCode: '',
-      status: InvestmentStatus.active,
-      isAllocated: false,
-      marketType: MarketType.primary,
-      signedDate: _parseDate(data['created_at']) ?? DateTime.now(),
-      entryDate: null,
-      exitDate: null,
-      proposalId: '',
-      productType: ProductType.bonds,
-      productName: data['typ_produktu']?.toString() ?? '',
-      creditorCompany: '',
-      companyId: '',
-      issueDate: null,
-      redemptionDate: null,
-      sharesCount: null,
-      investmentAmount:
-          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
-      paidAmount:
-          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
-      realizedCapital:
-          double.tryParse(data['kapital_zrealizowany']?.toString() ?? '0') ??
-          0.0,
-      realizedInterest:
-          double.tryParse(data['odsetki_zrealizowane']?.toString() ?? '0') ??
-          0.0,
-      transferToOtherProduct:
-          double.tryParse(data['przekaz_na_inny_produkt']?.toString() ?? '0') ??
-          0.0,
-      remainingCapital:
-          double.tryParse(data['kapital_pozostaly']?.toString() ?? '0') ?? 0.0,
-      remainingInterest:
-          double.tryParse(data['odsetki_pozostale']?.toString() ?? '0') ?? 0.0,
-      plannedTax: 0.0,
-      realizedTax:
-          double.tryParse(data['podatek_zrealizowany']?.toString() ?? '0') ??
-          0.0,
-      currency: 'PLN',
-      createdAt: _parseDate(data['created_at']) ?? DateTime.now(),
-      updatedAt: DateTime.now(),
-      additionalInfo: {'source': 'bonds_collection'},
-    );
-  }
-
-  /// Konwertuje dokument z kolekcji loans na Investment
-  Investment _convertLoanToInvestment(String id, Map<String, dynamic> data) {
-    return Investment(
-      id: id,
-      clientId: '',
-      clientName: '',
-      employeeId: '',
-      employeeFirstName: '',
-      employeeLastName: '',
-      branchCode: '',
-      status: InvestmentStatus.active,
-      isAllocated: false,
-      marketType: MarketType.primary,
-      signedDate: _parseDate(data['created_at']) ?? DateTime.now(),
-      entryDate: null,
-      exitDate: null,
-      proposalId: '',
-      productType: ProductType.loans,
-      productName: data['typ_produktu']?.toString() ?? '',
-      creditorCompany: '',
-      companyId: '',
-      issueDate: null,
-      redemptionDate: null,
-      sharesCount: null,
-      investmentAmount:
-          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
-      paidAmount:
-          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
-      realizedCapital: 0.0,
-      realizedInterest: 0.0,
-      transferToOtherProduct: 0.0,
-      remainingCapital:
-          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
-      remainingInterest: 0.0,
-      plannedTax: 0.0,
-      realizedTax: 0.0,
-      currency: 'PLN',
-      createdAt: _parseDate(data['created_at']) ?? DateTime.now(),
-      updatedAt: DateTime.now(),
-      additionalInfo: {'source': 'loans_collection'},
-    );
-  }
-
-  /// Konwertuje dokument z kolekcji shares na Investment
-  Investment _convertShareToInvestment(String id, Map<String, dynamic> data) {
-    return Investment(
-      id: id,
-      clientId: '',
-      clientName: '',
-      employeeId: '',
-      employeeFirstName: '',
-      employeeLastName: '',
-      branchCode: '',
-      status: InvestmentStatus.active,
-      isAllocated: false,
-      marketType: MarketType.primary,
-      signedDate: _parseDate(data['created_at']) ?? DateTime.now(),
-      entryDate: null,
-      exitDate: null,
-      proposalId: '',
-      productType: ProductType.shares,
-      productName: data['typ_produktu']?.toString() ?? '',
-      creditorCompany: '',
-      companyId: '',
-      issueDate: null,
-      redemptionDate: null,
-      sharesCount: double.tryParse(
-        data['ilosc_udzialow']?.toString() ?? '0',
-      )?.toInt(),
-      investmentAmount:
-          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
-      paidAmount:
-          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
-      realizedCapital: 0.0,
-      realizedInterest: 0.0,
-      transferToOtherProduct: 0.0,
-      remainingCapital:
-          double.tryParse(data['kwota_inwestycji']?.toString() ?? '0') ?? 0.0,
-      remainingInterest: 0.0,
-      plannedTax: 0.0,
-      realizedTax: 0.0,
-      currency: 'PLN',
-      createdAt: _parseDate(data['created_at']) ?? DateTime.now(),
-      updatedAt: DateTime.now(),
-      additionalInfo: {
-        'source': 'shares_collection',
-        'ilosc_udzialow': data['ilosc_udzialow']?.toString() ?? '0',
-      },
-    );
-  }
-
-  DateTime? _parseDate(dynamic value) {
-    if (value == null) return null;
-    if (value is Timestamp) return value.toDate();
-    if (value is String) {
-      try {
-        return DateTime.parse(value);
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
+  /// Czyści cache inwestorów
+  @override
+  void clearCache(String key) {
+    _investorsCache = null;
+    _cacheTimestamp = null;
+    print('🗑️ [Analytics] Cache wyczyszczony');
   }
 }
 
-// Rozszerzenie InvestorSummary o informacje procentowe
-class InvestorSummaryWithPercentage extends InvestorSummary {
-  final double percentageOfPortfolio;
+/// Klasa przechowująca wyniki analizy kontroli większościowej
+class MajorityControlAnalysis {
+  final List<InvestorWithControlInfo> allInvestors;
+  final List<InvestorWithControlInfo> controlGroupInvestors;
+  final double totalViableCapital;
+  final double controlGroupCapital;
+  final int controlGroupCount;
+  final double controlThreshold;
+  final DateTime analysisDate;
+
+  const MajorityControlAnalysis({
+    required this.allInvestors,
+    required this.controlGroupInvestors,
+    required this.totalViableCapital,
+    required this.controlGroupCapital,
+    required this.controlGroupCount,
+    required this.controlThreshold,
+    required this.analysisDate,
+  });
+
+  factory MajorityControlAnalysis.empty() {
+    return MajorityControlAnalysis(
+      allInvestors: [],
+      controlGroupInvestors: [],
+      totalViableCapital: 0.0,
+      controlGroupCapital: 0.0,
+      controlGroupCount: 0,
+      controlThreshold: 51.0,
+      analysisDate: DateTime.now(),
+    );
+  }
+
+  double get controlGroupPercentage => totalViableCapital > 0
+      ? (controlGroupCapital / totalViableCapital) * 100
+      : 0.0;
+
+  bool get hasControlGroup => controlGroupCount > 0;
+}
+
+/// Klasa przechowująca informacje o inwestorze z jego udziałem kontrolnym
+class InvestorWithControlInfo {
+  final InvestorSummary summary;
+  final double controlPercentage;
   final double cumulativePercentage;
+  final bool isInControlGroup;
 
-  InvestorSummaryWithPercentage({
-    required InvestorSummary summary,
-    required this.percentageOfPortfolio,
+  const InvestorWithControlInfo({
+    required this.summary,
+    required this.controlPercentage,
     required this.cumulativePercentage,
-  }) : super(
-         client: summary.client,
-         investments: summary.investments,
-         totalRemainingCapital: summary.totalRemainingCapital,
-         totalSharesValue: summary.totalSharesValue,
-         totalValue: summary.totalValue,
-         totalInvestmentAmount: summary.totalInvestmentAmount,
-         totalRealizedCapital: summary.totalRealizedCapital,
-         investmentCount: summary.investmentCount,
-       );
-}
-
-// Klasa reprezentująca zakres inwestorów (np. do punktu 51%)
-class InvestorRange {
-  final int investorCount;
-  final double percentage;
-  final double totalValue;
-  final List<InvestorSummary> investors;
-
-  InvestorRange({
-    required this.investorCount,
-    required this.percentage,
-    required this.totalValue,
-    required this.investors,
+    required this.isInControlGroup,
   });
 }
 
-// Klasa do generowania danych email
-class InvestorEmailData {
-  final Client client;
-  final List<Investment> investments;
+/// Klasa przechowująca rozkład kapitału według statusów głosowania
+class VotingCapitalDistribution {
+  final Map<VotingStatus, double> capitalByStatus;
+  final Map<VotingStatus, int> countByStatus;
+  final double totalCapital;
+  final int totalInvestors;
+  final DateTime analysisDate;
 
-  InvestorEmailData({required this.client, required this.investments});
+  const VotingCapitalDistribution({
+    required this.capitalByStatus,
+    required this.countByStatus,
+    required this.totalCapital,
+    required this.totalInvestors,
+    required this.analysisDate,
+  });
 
-  String get formattedInvestmentList {
-    return investments
-        .map(
-          (inv) =>
-              '• ${inv.productName} - ${inv.remainingCapital.toStringAsFixed(2)} PLN',
-        )
-        .join('\n');
+  factory VotingCapitalDistribution.empty() {
+    return VotingCapitalDistribution(
+      capitalByStatus: {},
+      countByStatus: {},
+      totalCapital: 0.0,
+      totalInvestors: 0,
+      analysisDate: DateTime.now(),
+    );
+  }
+
+  double getCapitalPercentage(VotingStatus status) {
+    final capital = capitalByStatus[status] ?? 0.0;
+    return totalCapital > 0 ? (capital / totalCapital) * 100 : 0.0;
+  }
+
+  double getCountPercentage(VotingStatus status) {
+    final count = countByStatus[status] ?? 0;
+    return totalInvestors > 0 ? (count / totalInvestors) * 100 : 0.0;
   }
 }
 
-// Klasa wyniku analityki inwestorów z pagingiem
+/// Klasa przechowująca wyniki analizy inwestorów z paginacją
 class InvestorAnalyticsResult {
   final List<InvestorSummary> investors;
   final int totalCount;
   final int currentPage;
+  final int totalPages;
   final int pageSize;
+  final double totalViableCapital;
   final bool hasNextPage;
   final bool hasPreviousPage;
-  final double totalPortfolioValue;
 
-  InvestorAnalyticsResult({
+  const InvestorAnalyticsResult({
     required this.investors,
     required this.totalCount,
     required this.currentPage,
+    required this.totalPages,
     required this.pageSize,
+    required this.totalViableCapital,
     required this.hasNextPage,
     required this.hasPreviousPage,
-    required this.totalPortfolioValue,
   });
 
-  int get totalPages => (totalCount / pageSize).ceil();
-
-  double get currentPageValue =>
-      investors.fold<double>(0.0, (sum, inv) => sum + inv.totalValue);
+  double get averageViableCapital =>
+      investors.isNotEmpty ? totalViableCapital / investors.length : 0.0;
 }

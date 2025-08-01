@@ -4,10 +4,13 @@
   "description": "Upload JSON data to Firebase",
   "main": "upload.js",
   "scripts": {
-    "upload": "node upload.js"
+    "upload": "node upload.js",
+    "upload-clients": "node upload_clients_to_firebase.js",
+    "install-deps": "npm install firebase-admin"
   },
   "dependencies": {
     "firebase": "^12.0.0",
-    "firebase-admin": "^12.0.0"
+    "firebase-admin": "^12.7.0",
+    "uuid": "^11.1.0"
   }
 }

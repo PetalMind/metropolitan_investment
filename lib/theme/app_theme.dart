@@ -138,6 +138,7 @@ class AppTheme {
   static const Color overlayMedium = Color(0x33FFFFFF); // Medium overlay
   static const Color overlayDark = Color(0x80000000); // Dark overlay
   static const Color scrimColor = Color(0xCC000000); // Modal scrim
+  static const Color shadowColor = Color(0x26000000); // Shadow color
 
   // === GRADIENT DEFINITIONS ===
   static const LinearGradient primaryGradient = LinearGradient(
