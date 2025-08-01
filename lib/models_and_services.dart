@@ -27,5 +27,4 @@ export 'services/user_preferences_service.dart';
 export 'services/advanced_analytics_service.dart';
 export 'services/investor_analytics_service.dart';
 export 'services/optimized_company_service.dart';
-export 'services/optimized_investment_service.dart';
 export 'services/optimized_product_service.dart';

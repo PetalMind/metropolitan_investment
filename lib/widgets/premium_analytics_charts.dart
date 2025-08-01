@@ -7,13 +7,13 @@ import '../models/investor_summary.dart';
 import '../utils/currency_formatter.dart';
 
 /// 🔥 PREMIUM DYNAMICZNE WYKRESY ANALITYCZNE
-/// 
+///
 /// Nowoczesne, interaktywne wykresy inspirowane platformami:
 /// • Bloomberg Terminal
-/// • Refinitiv Eikon  
+/// • Refinitiv Eikon
 /// • FactSet
 /// • Trading View
-/// 
+///
 /// ✨ FEATURES:
 /// • Real-time animacje
 /// • Interaktywne tooltips
@@ -60,7 +60,7 @@ class _PremiumVotingPieChartState extends State<PremiumVotingPieChart>
       parent: _animationController,
       curve: Curves.elasticOut,
     );
-    
+
     if (widget.showAnimations) {
       _animationController.forward();
     }
@@ -118,8 +118,8 @@ class _PremiumVotingPieChartState extends State<PremiumVotingPieChart>
                         pieTouchData: PieTouchData(
                           touchCallback: _onPieTouch,
                           mouseCursorResolver: (event, response) {
-                            return response == null 
-                                ? MouseCursor.defer 
+                            return response == null
+                                ? MouseCursor.defer
                                 : SystemMouseCursors.click;
                           },
                         ),
@@ -129,14 +129,11 @@ class _PremiumVotingPieChartState extends State<PremiumVotingPieChart>
                 },
               ),
             ),
-            
+
             const SizedBox(width: 32),
-            
+
             // Legenda z animacjami
-            Expanded(
-              flex: 2,
-              child: _buildAnimatedLegend(),
-            ),
+            Expanded(flex: 2, child: _buildAnimatedLegend()),
           ],
         ),
       ),
@@ -146,16 +143,16 @@ class _PremiumVotingPieChartState extends State<PremiumVotingPieChart>
   List<PieChartSectionData> _buildPieSections() {
     final List<PieChartSectionData> sections = [];
     int index = 0;
-    
+
     for (final entry in widget.votingDistribution.entries) {
-      final percentage = widget.totalCapital > 0 
-          ? (entry.value / widget.totalCapital) * 100 
+      final percentage = widget.totalCapital > 0
+          ? (entry.value / widget.totalCapital) * 100
           : 0.0;
-      
+
       final isTouch = index == _touchedIndex;
       final radius = isTouch ? 110.0 : 100.0;
       final fontSize = isTouch ? 14.0 : 12.0;
-      
+
       sections.add(
         PieChartSectionData(
           color: _getVotingStatusGradientColor(entry.key),
@@ -174,17 +171,23 @@ class _PremiumVotingPieChartState extends State<PremiumVotingPieChart>
               ),
             ],
           ),
-          badgeWidget: isTouch ? _buildHoverBadge(entry.key, entry.value, percentage) : null,
+          badgeWidget: isTouch
+              ? _buildHoverBadge(entry.key, entry.value, percentage)
+              : null,
           badgePositionPercentageOffset: 1.3,
         ),
       );
       index++;
     }
-    
+
     return sections;
   }
 
-  Widget _buildHoverBadge(VotingStatus status, double value, double percentage) {
+  Widget _buildHoverBadge(
+    VotingStatus status,
+    double value,
+    double percentage,
+  ) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.all(8),
@@ -220,11 +223,11 @@ class _PremiumVotingPieChartState extends State<PremiumVotingPieChart>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: widget.votingDistribution.entries.map((entry) {
-        final percentage = widget.totalCapital > 0 
-            ? (entry.value / widget.totalCapital) * 100 
+        final percentage = widget.totalCapital > 0
+            ? (entry.value / widget.totalCapital) * 100
             : 0.0;
         final count = widget.votingCounts[entry.key] ?? 0;
-        
+
         return TweenAnimationBuilder<double>(
           duration: Duration(milliseconds: 800 + (entry.key.index * 200)),
           tween: Tween(begin: 0.0, end: 1.0),
@@ -234,7 +237,12 @@ class _PremiumVotingPieChartState extends State<PremiumVotingPieChart>
               offset: Offset((1 - value) * 50, 0),
               child: Opacity(
                 opacity: value,
-                child: _buildLegendItem(entry.key, entry.value, percentage, count),
+                child: _buildLegendItem(
+                  entry.key,
+                  entry.value,
+                  percentage,
+                  count,
+                ),
               ),
             );
           },
@@ -243,7 +251,12 @@ class _PremiumVotingPieChartState extends State<PremiumVotingPieChart>
     );
   }
 
-  Widget _buildLegendItem(VotingStatus status, double value, double percentage, int count) {
+  Widget _buildLegendItem(
+    VotingStatus status,
+    double value,
+    double percentage,
+    int count,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(12),
@@ -278,9 +291,9 @@ class _PremiumVotingPieChartState extends State<PremiumVotingPieChart>
               ],
             ),
           ),
-          
+
           const SizedBox(width: 12),
-          
+
           // Status info
           Expanded(
             child: Column(
@@ -303,7 +316,7 @@ class _PremiumVotingPieChartState extends State<PremiumVotingPieChart>
               ],
             ),
           ),
-          
+
           // Percentage
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -345,16 +358,16 @@ class _PremiumVotingPieChartState extends State<PremiumVotingPieChart>
             const SizedBox(height: 16),
             Text(
               'Brak danych do analizy',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 8),
             Text(
               'Załaduj dane inwestorów aby zobaczyć rozkład głosowania',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textTertiary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
               textAlign: TextAlign.center,
             ),
           ],
@@ -373,7 +386,7 @@ class _PremiumVotingPieChartState extends State<PremiumVotingPieChart>
       }
       _touchedIndex = response.touchedSection!.touchedSectionIndex;
     });
-    
+
     if (widget.onSegmentTap != null) {
       widget.onSegmentTap!();
     }
@@ -427,7 +440,8 @@ class PremiumCapitalTrendChart extends StatefulWidget {
   });
 
   @override
-  State<PremiumCapitalTrendChart> createState() => _PremiumCapitalTrendChartState();
+  State<PremiumCapitalTrendChart> createState() =>
+      _PremiumCapitalTrendChartState();
 }
 
 class _PremiumCapitalTrendChartState extends State<PremiumCapitalTrendChart>
@@ -448,7 +462,7 @@ class _PremiumCapitalTrendChartState extends State<PremiumCapitalTrendChart>
       parent: _animationController,
       curve: Curves.easeInOutCubic,
     );
-    
+
     _prepareData();
     _animationController.forward();
   }
@@ -462,12 +476,14 @@ class _PremiumCapitalTrendChartState extends State<PremiumCapitalTrendChart>
   void _prepareData() {
     // Sortuj inwestorów według kapitału
     final sortedInvestors = List<InvestorSummary>.from(widget.investors)
-      ..sort((a, b) => a.viableRemainingCapital.compareTo(b.viableRemainingCapital));
+      ..sort(
+        (a, b) => a.viableRemainingCapital.compareTo(b.viableRemainingCapital),
+      );
 
     // Utwórz punkty danych dla wykresu
     double cumulativeCapital = 0;
     _dataPoints = [];
-    
+
     for (int i = 0; i < sortedInvestors.length; i++) {
       cumulativeCapital += sortedInvestors[i].viableRemainingCapital;
       _dataPoints.add(FlSpot(i.toDouble(), cumulativeCapital));
@@ -481,27 +497,31 @@ class _PremiumCapitalTrendChartState extends State<PremiumCapitalTrendChart>
 
   List<FlSpot> _calculateProjection() {
     if (_dataPoints.length < 3) return [];
-    
+
     // Oblicz trend na podstawie ostatnich punktów
     final lastPointsCount = math.min(5, _dataPoints.length);
-    final lastPoints = _dataPoints.sublist(_dataPoints.length - lastPointsCount);
+    final lastPoints = _dataPoints.sublist(
+      _dataPoints.length - lastPointsCount,
+    );
     double avgGrowth = 0;
-    
+
     for (int i = 1; i < lastPoints.length; i++) {
-      avgGrowth += (lastPoints[i].y - lastPoints[i-1].y);
+      avgGrowth += (lastPoints[i].y - lastPoints[i - 1].y);
     }
     avgGrowth /= (lastPoints.length - 1);
-    
+
     // Utwórz punkty projekcji
     final projectionLength = (_dataPoints.length * 0.3).round();
     final projectionPoints = <FlSpot>[];
-    
+
     for (int i = 1; i <= projectionLength; i++) {
       final x = _dataPoints.length + i - 1;
-      final y = _dataPoints.last.y + (avgGrowth * i * 0.8); // Zmniejsz wzrost w projekcji
+      final y =
+          _dataPoints.last.y +
+          (avgGrowth * i * 0.8); // Zmniejsz wzrost w projekcji
       projectionPoints.add(FlSpot(x.toDouble(), y));
     }
-    
+
     return projectionPoints;
   }
 
@@ -511,9 +531,12 @@ class _PremiumCapitalTrendChartState extends State<PremiumCapitalTrendChart>
       return _buildEmptyState();
     }
 
-    final maxY = [..._dataPoints, ..._projectionPoints]
-        .map((spot) => spot.y)
-        .reduce(math.max) * 1.1;
+    final maxY =
+        [
+          ..._dataPoints,
+          ..._projectionPoints,
+        ].map((spot) => spot.y).reduce(math.max) *
+        1.1;
 
     return Container(
       height: 400,
@@ -575,9 +598,9 @@ class _PremiumCapitalTrendChartState extends State<PremiumCapitalTrendChart>
             ),
             Text(
               'Skumulowany kapitał według inwestorów',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
             ),
           ],
         ),
@@ -618,14 +641,13 @@ class _PremiumCapitalTrendChartState extends State<PremiumCapitalTrendChart>
       lineBarsData: [
         // Linia główna
         LineChartBarData(
-          spots: _dataPoints.take((_dataPoints.length * _animation.value).round()).toList(),
+          spots: _dataPoints
+              .take((_dataPoints.length * _animation.value).round())
+              .toList(),
           isCurved: true,
           curveSmoothness: 0.3,
           gradient: LinearGradient(
-            colors: [
-              widget.primaryColor.withOpacity(0.8),
-              widget.primaryColor,
-            ],
+            colors: [widget.primaryColor.withOpacity(0.8), widget.primaryColor],
           ),
           barWidth: 4,
           isStrokeCapRound: true,
@@ -652,7 +674,7 @@ class _PremiumCapitalTrendChartState extends State<PremiumCapitalTrendChart>
             ),
           ),
         ),
-        
+
         // Linia projekcji
         if (_projectionPoints.isNotEmpty && _animation.value > 0.8)
           LineChartBarData(
@@ -684,14 +706,16 @@ class _PremiumCapitalTrendChartState extends State<PremiumCapitalTrendChart>
             getTitlesWidget: (value, meta) {
               return Text(
                 CurrencyFormatter.formatAxisValue(value),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.textTertiary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
               );
             },
           ),
         ),
-        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        rightTitles: const AxisTitles(
+          sideTitles: SideTitles(showTitles: false),
+        ),
         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         bottomTitles: AxisTitles(
           sideTitles: SideTitles(
@@ -703,9 +727,9 @@ class _PremiumCapitalTrendChartState extends State<PremiumCapitalTrendChart>
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   'Inv ${value.toInt() + 1}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textTertiary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
                 ),
               );
             },
@@ -747,26 +771,27 @@ class _PremiumCapitalTrendChartState extends State<PremiumCapitalTrendChart>
           },
         ),
         handleBuiltInTouches: true,
-        getTouchedSpotIndicator: (LineChartBarData barData, List<int> spotIndexes) {
-          return spotIndexes.map((index) {
-            return TouchedSpotIndicatorData(
-              FlLine(
-                color: widget.primaryColor.withOpacity(0.8),
-                strokeWidth: 2,
-              ),
-              FlDotData(
-                getDotPainter: (spot, percent, barData, index) {
-                  return FlDotCirclePainter(
-                    radius: 8,
-                    color: widget.primaryColor,
-                    strokeWidth: 3,
-                    strokeColor: Colors.white,
-                  );
-                },
-              ),
-            );
-          }).toList();
-        },
+        getTouchedSpotIndicator:
+            (LineChartBarData barData, List<int> spotIndexes) {
+              return spotIndexes.map((index) {
+                return TouchedSpotIndicatorData(
+                  FlLine(
+                    color: widget.primaryColor.withOpacity(0.8),
+                    strokeWidth: 2,
+                  ),
+                  FlDotData(
+                    getDotPainter: (spot, percent, barData, index) {
+                      return FlDotCirclePainter(
+                        radius: 8,
+                        color: widget.primaryColor,
+                        strokeWidth: 3,
+                        strokeColor: Colors.white,
+                      );
+                    },
+                  ),
+                );
+              }).toList();
+            },
       ),
     );
   }
@@ -791,9 +816,9 @@ class _PremiumCapitalTrendChartState extends State<PremiumCapitalTrendChart>
             const SizedBox(height: 16),
             Text(
               'Brak danych do analizy trendów',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: AppTheme.textSecondary),
             ),
           ],
         ),
@@ -818,10 +843,12 @@ class PremiumCapitalDistributionChart extends StatefulWidget {
   });
 
   @override
-  State<PremiumCapitalDistributionChart> createState() => _PremiumCapitalDistributionChartState();
+  State<PremiumCapitalDistributionChart> createState() =>
+      _PremiumCapitalDistributionChartState();
 }
 
-class _PremiumCapitalDistributionChartState extends State<PremiumCapitalDistributionChart>
+class _PremiumCapitalDistributionChartState
+    extends State<PremiumCapitalDistributionChart>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _animation;
@@ -839,7 +866,7 @@ class _PremiumCapitalDistributionChartState extends State<PremiumCapitalDistribu
       parent: _animationController,
       curve: Curves.elasticOut,
     );
-    
+
     _prepareDistributionData();
     _animationController.forward();
   }
@@ -852,7 +879,7 @@ class _PremiumCapitalDistributionChartState extends State<PremiumCapitalDistribu
 
   void _prepareDistributionData() {
     _distributionData = {};
-    
+
     // Inicjalizuj kategorie
     _distributionData['0-100K'] = 0;
     _distributionData['100K-500K'] = 0;
@@ -860,11 +887,11 @@ class _PremiumCapitalDistributionChartState extends State<PremiumCapitalDistribu
     _distributionData['1M-5M'] = 0;
     _distributionData['5M-10M'] = 0;
     _distributionData['10M+'] = 0;
-    
+
     // Policz inwestorów w każdej kategorii
     for (final investor in widget.investors) {
       final capital = investor.viableRemainingCapital;
-      
+
       if (capital < 100000) {
         _distributionData['0-100K'] = _distributionData['0-100K']! + 1;
       } else if (capital < 500000) {
@@ -887,8 +914,8 @@ class _PremiumCapitalDistributionChartState extends State<PremiumCapitalDistribu
       return _buildEmptyState();
     }
 
-    final maxValue = _distributionData.values.isNotEmpty 
-        ? _distributionData.values.reduce(math.max).toDouble() 
+    final maxValue = _distributionData.values.isNotEmpty
+        ? _distributionData.values.reduce(math.max).toDouble()
         : 1.0;
 
     return Container(
@@ -937,7 +964,7 @@ class _PremiumCapitalDistributionChartState extends State<PremiumCapitalDistribu
 
   Widget _buildChartHeader() {
     final totalInvestors = widget.investors.length;
-    
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -953,9 +980,9 @@ class _PremiumCapitalDistributionChartState extends State<PremiumCapitalDistribu
             ),
             Text(
               'Rozkład $totalInvestors inwestorów według kapitału',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
             ),
           ],
         ),
@@ -992,14 +1019,16 @@ class _PremiumCapitalDistributionChartState extends State<PremiumCapitalDistribu
   BarChartData _buildBarChartData(double maxValue) {
     return BarChartData(
       maxY: maxValue * 1.2,
-      barGroups: _distributionData.entries.toList().asMap().entries.map((entry) {
+      barGroups: _distributionData.entries.toList().asMap().entries.map((
+        entry,
+      ) {
         final index = entry.key;
         final count = entry.value.value.toDouble();
-        
+
         final isTouched = index == _touchedIndex;
         final barWidth = isTouched ? 28.0 : 24.0;
         final animatedHeight = count * _animation.value;
-        
+
         return BarChartGroupData(
           x: index,
           barRods: [
@@ -1007,7 +1036,9 @@ class _PremiumCapitalDistributionChartState extends State<PremiumCapitalDistribu
               toY: animatedHeight,
               color: _getBarColor(index),
               width: barWidth,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(6),
+              ),
               gradient: LinearGradient(
                 begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
@@ -1033,14 +1064,16 @@ class _PremiumCapitalDistributionChartState extends State<PremiumCapitalDistribu
             getTitlesWidget: (value, meta) {
               return Text(
                 value.toInt().toString(),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.textTertiary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
               );
             },
           ),
         ),
-        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        rightTitles: const AxisTitles(
+          sideTitles: SideTitles(showTitles: false),
+        ),
         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         bottomTitles: AxisTitles(
           sideTitles: SideTitles(
@@ -1087,10 +1120,10 @@ class _PremiumCapitalDistributionChartState extends State<PremiumCapitalDistribu
           getTooltipItem: (group, groupIndex, rod, rodIndex) {
             final category = _distributionData.keys.toList()[group.x];
             final count = rod.toY.toInt();
-            final percentage = widget.investors.isNotEmpty 
+            final percentage = widget.investors.isNotEmpty
                 ? (count / widget.investors.length * 100).toStringAsFixed(1)
                 : '0.0';
-            
+
             return BarTooltipItem(
               '$category\n$count inwestorów ($percentage%)',
               const TextStyle(
@@ -1148,21 +1181,13 @@ class _PremiumCapitalDistributionChartState extends State<PremiumCapitalDistribu
             const SizedBox(height: 16),
             Text(
               'Brak danych do analizy rozkładu',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: AppTheme.textSecondary),
             ),
           ],
         ),
       ),
     );
-  }
-}
-
-// Extension helper dla tej klasy
-extension _ListExtension<T> on List<T> {
-  List<T> takeLast(int count) {
-    if (count >= length) return this;
-    return sublist(length - count);
   }
 }

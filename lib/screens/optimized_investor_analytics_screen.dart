@@ -1117,7 +1117,7 @@ class _OptimizedInvestorAnalyticsScreenState
       children: [
         _buildSummaryRow('Inwestorzy na stronie', '${result.investors.length}'),
         _buildSummaryRow(
-          'Łączny kapitał wykonalny',
+          'Kwota inwestycji',
           CurrencyFormatter.formatCurrency(result.totalViableCapital),
         ),
         _buildSummaryRow(
