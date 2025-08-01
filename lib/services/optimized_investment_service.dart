@@ -186,7 +186,12 @@ class OptimizedInvestmentService extends BaseService {
           final data = doc.data();
           final investment = _convertExcelDataToInvestment(doc.id, data);
 
-          totalValue += investment.investmentAmount;
+          // Dla obligacji używamy tylko kapital_pozostaly, dla innych produktów investmentAmount
+          if (investment.productType == ProductType.bonds) {
+            totalValue += investment.remainingCapital;
+          } else {
+            totalValue += investment.investmentAmount;
+          }
 
           // Count product types
           final productTypeName = investment.productType

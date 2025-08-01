@@ -33,13 +33,12 @@ class Bond {
     this.additionalInfo = const {},
   });
 
-  // Calculated properties
+  // Calculated properties - uwzględniamy tylko kapital_pozostaly
   double get totalRealized => realizedCapital + realizedInterest;
   double get totalRemaining => remainingCapital + remainingInterest;
-  double get totalValue => totalRealized + totalRemaining;
-  double get profitLoss => totalValue - investmentAmount;
-  double get profitLossPercentage =>
-      investmentAmount > 0 ? (profitLoss / investmentAmount) * 100 : 0.0;
+  double get totalValue => remainingCapital; // tylko kapital_pozostaly
+  double get profitLoss => 0.0; // nie uwzględniamy profit/loss
+  double get profitLossPercentage => 0.0; // nie uwzględniamy performance
 
   factory Bond.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;

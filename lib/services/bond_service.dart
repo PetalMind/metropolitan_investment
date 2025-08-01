@@ -80,7 +80,6 @@ class BondService extends BaseService {
       try {
         final snapshot = await firestore.collection(_collection).get();
 
-        double totalInvestmentAmount = 0;
         double totalRealizedCapital = 0;
         double totalRemainingCapital = 0;
         double totalRealizedInterest = 0;
@@ -95,7 +94,6 @@ class BondService extends BaseService {
         for (var doc in snapshot.docs) {
           final bond = Bond.fromFirestore(doc);
 
-          totalInvestmentAmount += bond.investmentAmount;
           totalRealizedCapital += bond.realizedCapital;
           totalRemainingCapital += bond.remainingCapital;
           totalRealizedInterest += bond.realizedInterest;
@@ -109,12 +107,13 @@ class BondService extends BaseService {
               (productTypeCounts[bond.productType] ?? 0) + 1;
           productTypeValues[bond.productType] =
               (productTypeValues[bond.productType] ?? 0) +
-              bond.investmentAmount;
+              bond.remainingCapital; // zmienione na kapital_pozostaly
         }
 
         return {
           'total_count': snapshot.docs.length,
-          'total_investment_amount': totalInvestmentAmount,
+          'total_investment_amount':
+              totalRemainingCapital, // zmienione na kapital_pozostaly
           'total_realized_capital': totalRealizedCapital,
           'total_remaining_capital': totalRemainingCapital,
           'total_realized_interest': totalRealizedInterest,
@@ -124,13 +123,9 @@ class BondService extends BaseService {
           'total_transfer_to_other_product': totalTransferToOtherProduct,
           'product_type_counts': productTypeCounts,
           'product_type_values': productTypeValues,
-          'total_current_value': totalRemainingCapital + totalRemainingInterest,
-          'total_profit_loss':
-              (totalRealizedCapital +
-                  totalRealizedInterest +
-                  totalRemainingCapital +
-                  totalRemainingInterest) -
-              totalInvestmentAmount,
+          'total_current_value':
+              totalRemainingCapital, // tylko kapital_pozostaly
+          'total_profit_loss': 0.0, // nie uwzględniamy profit/loss
         };
       } catch (e) {
         logError('getBondsStatistics', e);
@@ -180,10 +175,8 @@ class BondService extends BaseService {
           .map((doc) => Bond.fromFirestore(doc))
           .toList();
 
-      // Sort by profit/loss percentage
-      bonds.sort(
-        (a, b) => b.profitLossPercentage.compareTo(a.profitLossPercentage),
-      );
+      // Sort by remaining capital (highest first) - zmienione z profit/loss
+      bonds.sort((a, b) => b.remainingCapital.compareTo(a.remainingCapital));
 
       return bonds.take(limit).toList();
     } catch (e) {
