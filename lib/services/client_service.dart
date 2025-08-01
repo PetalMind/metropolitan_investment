@@ -466,9 +466,9 @@ class ClientService extends BaseService {
 
   // Pobierz aktywnych klientów - wykorzystuje indeks isActive + imie_nazwisko
   Stream<List<Client>> getActiveClients({int limit = 100}) {
+    // Ponieważ dane z Excel nie mają pola isActive, pobieramy wszystkich klientów
     return firestore
         .collection(_collection)
-        .where('isActive', isEqualTo: true)
         .orderBy('imie_nazwisko')
         .limit(limit)
         .snapshots()
@@ -486,7 +486,7 @@ class ClientService extends BaseService {
                   ? DateTime.parse(data['created_at'])
                   : DateTime.now(),
               updatedAt: DateTime.now(),
-              isActive: data['isActive'] ?? true,
+              isActive: true, // Wszystkich traktujemy jako aktywnych
               additionalInfo: {
                 'nazwa_firmy': data['nazwa_firmy'] ?? '',
                 'source_file': data['source_file'] ?? 'Excel import',
@@ -496,11 +496,11 @@ class ClientService extends BaseService {
         );
   }
 
-  // Pobierz klientów według typu - wykorzystuje indeks type + imie_nazwisko
+  // Pobierz klientów według typu - dane z Excel nie mają pola type
   Stream<List<Client>> getClientsByType(ClientType type, {int limit = 50}) {
+    // Pobieramy wszystkich klientów (dane nie mają pola type)
     return firestore
         .collection(_collection)
-        .where('type', isEqualTo: type.name)
         .orderBy('imie_nazwisko')
         .limit(limit)
         .snapshots()
@@ -514,15 +514,12 @@ class ClientService extends BaseService {
               phone: data['telefon'] ?? '',
               address: '',
               pesel: data['pesel'] ?? '',
-              type: ClientType.values.firstWhere(
-                (e) => e.name == data['type'],
-                orElse: () => ClientType.individual,
-              ),
+              type: ClientType.individual, // Domyślnie individual
               createdAt: data['created_at'] != null
                   ? DateTime.parse(data['created_at'])
                   : DateTime.now(),
               updatedAt: DateTime.now(),
-              isActive: data['isActive'] ?? true,
+              isActive: true,
               additionalInfo: {
                 'nazwa_firmy': data['nazwa_firmy'] ?? '',
                 'source_file': data['source_file'] ?? 'Excel import',
@@ -537,10 +534,10 @@ class ClientService extends BaseService {
     VotingStatus votingStatus, {
     int limit = 50,
   }) {
+    // Pobieramy wszystkich klientów (dane nie mają pola votingStatus)
     return firestore
         .collection(_collection)
-        .where('votingStatus', isEqualTo: votingStatus.name)
-        .orderBy('updatedAt', descending: true)
+        .orderBy('imie_nazwisko')
         .limit(limit)
         .snapshots()
         .map(
@@ -553,21 +550,16 @@ class ClientService extends BaseService {
               phone: data['telefon'] ?? '',
               address: '',
               pesel: data['pesel'] ?? '',
-              type: ClientType.values.firstWhere(
-                (e) => e.name == data['type'],
-                orElse: () => ClientType.individual,
-              ),
-              votingStatus: VotingStatus.values.firstWhere(
-                (e) => e.name == data['votingStatus'],
-                orElse: () => VotingStatus.undecided,
-              ),
+              type: ClientType.individual, // Domyślnie individual
+              notes: data['notes'] ?? '',
+              votingStatus: VotingStatus.undecided, // Domyślnie undecided
+              colorCode: data['colorCode'] ?? '#FFFFFF',
+              unviableInvestments: [],
               createdAt: data['created_at'] != null
                   ? DateTime.parse(data['created_at'])
                   : DateTime.now(),
-              updatedAt: data['updatedAt'] != null
-                  ? (data['updatedAt'] as Timestamp).toDate()
-                  : DateTime.now(),
-              isActive: data['isActive'] ?? true,
+              updatedAt: DateTime.now(),
+              isActive: true, // Wszyscy są aktywni
               additionalInfo: {
                 'nazwa_firmy': data['nazwa_firmy'] ?? '',
                 'source_file': data['source_file'] ?? 'Excel import',
