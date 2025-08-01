@@ -332,7 +332,7 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
     final investmentsData = data['investments'] as List;
 
     final client = Client(
-      id: clientData['id'] ?? '',
+      id: (clientData['id'] ?? '').toString(),
       name: clientData['name'] ?? '',
       email: clientData['email'] ?? '',
       phone: clientData['phone'] ?? '',
@@ -369,41 +369,56 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
 
   Investment _convertToInvestment(Map<String, dynamic> data) {
     return Investment(
-      id: data['id'] ?? '',
-      clientId: '',
+      id: (data['id'] ?? '').toString(),
+      clientId: (data['id_klient'] ?? '').toString(),
       clientName: data['klient'] ?? '',
       employeeId: '',
       employeeFirstName: data['pracownik_imie'] ?? '',
       employeeLastName: data['pracownik_nazwisko'] ?? '',
-      branchCode: data['kod_oddzialu'] ?? '',
+      branchCode: data['kod_oddzialu'] ?? data['oddzial'] ?? '',
       status: _parseInvestmentStatus(data['status_produktu']),
       isAllocated: data['przydzial']?.toString() == '1',
       marketType: MarketType.primary,
-      signedDate: _parseDate(data['data_podpisania']) ?? DateTime.now(),
-      entryDate: _parseDate(data['data_zawarcia']),
-      exitDate: _parseDate(data['data_wymagalnosci']),
-      proposalId: data['numer_kontraktu']?.toString() ?? '',
+      signedDate:
+          _parseDate(data['data_podpisania'] ?? data['data_kontraktu']) ??
+          DateTime.now(),
+      entryDate: _parseDate(
+        data['data_zawarcia'] ?? data['data_wejscia_do_inwestycji'],
+      ),
+      exitDate: _parseDate(
+        data['data_wymagalnosci'] ?? data['data_wyjscia_z_inwestycji'],
+      ),
+      proposalId:
+          (data['numer_kontraktu'] ?? data['id_propozycja_nabycia'] ?? '')
+              .toString(),
       productType: _parseProductType(data['typ_produktu']),
-      productName: data['nazwa_produktu']?.toString() ?? '',
-      creditorCompany: '',
-      companyId: data['id_spolka']?.toString() ?? '',
-      issueDate: _parseDate(data['data_podpisania']),
-      redemptionDate: _parseDate(data['data_wymagalnosci']),
-      investmentAmount: (data['investmentAmount'] ?? 0).toDouble(),
-      paidAmount: (data['investmentAmount'] ?? 0).toDouble(),
-      realizedCapital: (data['realizedCapital'] ?? 0).toDouble(),
-      realizedInterest: 0.0,
-      transferToOtherProduct: 0.0,
-      remainingCapital: (data['remainingCapital'] ?? 0).toDouble(),
-      remainingInterest: 0.0,
-      plannedTax: 0.0,
-      realizedTax: 0.0,
+      productName: data['nazwa_produktu'] ?? data['produkt_nazwa'] ?? '',
+      creditorCompany: data['wierzyciel_spolka'] ?? '',
+      companyId: (data['id_spolka'] ?? '').toString(),
+      issueDate: _parseDate(data['data_emisji']),
+      redemptionDate: _parseDate(data['data_wykupu']),
+      investmentAmount:
+          (data['investmentAmount'] ?? data['kwota_inwestycji'] ?? 0)
+              .toDouble(),
+      paidAmount: (data['kwota_wplat'] ?? data['investmentAmount'] ?? 0)
+          .toDouble(),
+      realizedCapital:
+          (data['realizedCapital'] ?? data['kapital_zrealizowany'] ?? 0)
+              .toDouble(),
+      realizedInterest: (data['odsetki_zrealizowane'] ?? 0).toDouble(),
+      transferToOtherProduct: (data['przekaz_na_inny_produkt'] ?? 0).toDouble(),
+      remainingCapital:
+          (data['remainingCapital'] ?? data['kapital_pozostaly'] ?? 0)
+              .toDouble(),
+      remainingInterest: (data['odsetki_pozostale'] ?? 0).toDouble(),
+      plannedTax: (data['planowany_podatek'] ?? 0).toDouble(),
+      realizedTax: (data['zrealizowany_podatek'] ?? 0).toDouble(),
       currency: data['waluta']?.toString() ?? 'PLN',
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       additionalInfo: {
         'source': 'firebase-functions',
-        'numer_kontraktu': data['numer_kontraktu']?.toString() ?? '',
+        'numer_kontraktu': (data['numer_kontraktu'] ?? '').toString(),
       },
     );
   }
@@ -465,12 +480,12 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
   /// Konwertuje surowe dane Firebase na model Client
   Client _convertToClient(Map<String, dynamic> data) {
     return Client(
-      id: data['id'] ?? '',
+      id: (data['id'] ?? '').toString(),
       name: data['imie_nazwisko'] ?? data['name'] ?? '',
       email: data['email'] ?? '',
       phone: data['telefon'] ?? data['phone'] ?? '',
       address: data['address'] ?? '',
-      pesel: data['pesel'],
+      pesel: data['pesel']?.toString(),
       companyName: data['nazwa_firmy'] ?? data['companyName'],
       type: ClientType.values.firstWhere(
         (e) => e.name == data['type'],
@@ -486,16 +501,16 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] is Timestamp
                 ? (data['createdAt'] as Timestamp).toDate()
-                : DateTime.parse(data['createdAt']))
+                : DateTime.parse(data['createdAt'].toString()))
           : (data['created_at'] != null
-                ? DateTime.parse(data['created_at'])
+                ? DateTime.parse(data['created_at'].toString())
                 : DateTime.now()),
       updatedAt: data['updatedAt'] != null
           ? (data['updatedAt'] is Timestamp
                 ? (data['updatedAt'] as Timestamp).toDate()
-                : DateTime.parse(data['updatedAt']))
+                : DateTime.parse(data['updatedAt'].toString()))
           : (data['uploaded_at'] != null
-                ? DateTime.parse(data['uploaded_at'])
+                ? DateTime.parse(data['uploaded_at'].toString())
                 : DateTime.now()),
       isActive: data['isActive'] ?? true,
       additionalInfo:
