@@ -35,8 +35,8 @@ class DashboardService extends BaseService {
         final clientStats = results[4] as Map<String, dynamic>;
         final employeesCount = results[5] as int;
 
-        // Calculate total portfolio value
-        final totalBondsValue = bondsStats['total_investment_amount'] ?? 0.0;
+        // Calculate total portfolio value - tylko kapital_pozostaly
+        final totalBondsValue = bondsStats['total_remaining_capital'] ?? 0.0;
         final totalLoansValue = loansStats['total_investment_amount'] ?? 0.0;
         final totalSharesValue = sharesStats['total_investment_amount'] ?? 0.0;
         final totalInvestmentsValue = investmentStats['totalValue'] ?? 0.0;
@@ -47,12 +47,8 @@ class DashboardService extends BaseService {
             totalSharesValue +
             totalInvestmentsValue;
 
-        // Calculate current value (remaining + realized)
-        final bondsCurrentValue =
-            (bondsStats['total_remaining_capital'] ?? 0.0) +
-            (bondsStats['total_remaining_interest'] ?? 0.0) +
-            (bondsStats['total_realized_capital'] ?? 0.0) +
-            (bondsStats['total_realized_interest'] ?? 0.0);
+        // Calculate current value - tylko kapital_pozostaly dla obligacji
+        final bondsCurrentValue = bondsStats['total_remaining_capital'] ?? 0.0;
 
         return {
           // Overview stats
@@ -64,13 +60,11 @@ class DashboardService extends BaseService {
           // Detailed breakdowns
           'bonds': {
             'count': bondsStats['total_count'] ?? 0,
-            'total_value': totalBondsValue,
-            'current_value': bondsCurrentValue,
-            'realized_profit':
-                (bondsStats['total_realized_capital'] ?? 0.0) +
-                (bondsStats['total_realized_interest'] ?? 0.0),
+            'total_value': totalBondsValue, // tylko kapital_pozostaly
+            'current_value': bondsCurrentValue, // tylko kapital_pozostaly
+            'realized_profit': 0.0, // nie uwzględniamy zrealizowanych zysków
             'remaining_capital': bondsStats['total_remaining_capital'] ?? 0.0,
-            'remaining_interest': bondsStats['total_remaining_interest'] ?? 0.0,
+            'remaining_interest': 0.0, // nie uwzględniamy odsetek
             'product_types': bondsStats['product_type_counts'] ?? {},
           },
 
@@ -108,10 +102,10 @@ class DashboardService extends BaseService {
             'company_percentage': clientStats['company_percentage'] ?? '0',
           },
 
-          // Performance metrics
+          // Performance metrics - tylko kapital_pozostaly dla obligacji
           'performance': {
-            'total_profit_loss': (bondsStats['total_profit_loss'] ?? 0.0),
-            'bonds_performance': bondsStats['total_profit_loss'] ?? 0.0,
+            'total_profit_loss': 0.0, // nie uwzględniamy profit/loss
+            'bonds_performance': 0.0, // nie uwzględniamy performance
             'portfolio_diversification': {
               'bonds_percentage': totalPortfolioValue > 0
                   ? (totalBondsValue / totalPortfolioValue * 100)
@@ -214,17 +208,17 @@ class DashboardService extends BaseService {
     try {
       final List<Map<String, dynamic>> alerts = [];
 
-      // Check for bonds with high remaining interest
+      // Check for bonds with remaining capital - zmienione z wysokich odsetek na kapitał pozostały
       final bondsStats = await _bondService.getBondsStatistics();
-      final totalRemainingInterest =
-          bondsStats['total_remaining_interest'] ?? 0.0;
+      final totalRemainingCapital =
+          bondsStats['total_remaining_capital'] ?? 0.0;
 
-      if (totalRemainingInterest > 100000) {
+      if (totalRemainingCapital > 100000) {
         alerts.add({
           'type': 'info',
-          'title': 'Wysokie odsetki do realizacji',
+          'title': 'Wysoki kapitał pozostały',
           'message':
-              'Pozostałe odsetki do realizacji: ${totalRemainingInterest.toStringAsFixed(0)} PLN',
+              'Kapitał pozostały do dyspozycji: ${totalRemainingCapital.toStringAsFixed(0)} PLN',
           'action': 'bonds_view',
         });
       }

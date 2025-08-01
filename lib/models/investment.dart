@@ -99,7 +99,16 @@ class Investment {
 
   double get totalRealized => realizedCapital + realizedInterest;
   double get totalRemaining => remainingCapital + remainingInterest;
-  double get totalValue => totalRealized + totalRemaining;
+
+  // Dla obligacji używamy tylko kapital_pozostaly, dla innych produktów pełną wartość
+  double get totalValue {
+    if (productType == ProductType.bonds) {
+      return remainingCapital;
+    } else {
+      return totalRealized + totalRemaining;
+    }
+  }
+
   double get profitLoss => totalValue - investmentAmount;
   double get profitLossPercentage =>
       investmentAmount > 0 ? (profitLoss / investmentAmount) * 100 : 0.0;
