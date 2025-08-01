@@ -164,7 +164,323 @@ exports.getOptimizedInvestorAnalytics = functions
       }
     });
 
-// 🛠️ HELPER FUNCTIONS
+// � ZARZĄDZANIE DUŻYMI ZBIORAMI DANYCH
+
+/**
+ * Pobiera wszystkich klientów z paginacją i filtrowaniem
+ */
+exports.getAllClients = functions
+    .region("europe-west1")
+    .runWith({
+      memory: "1GB",
+      timeoutSeconds: 300,
+    })
+    .https.onCall(async (data) => {
+      console.log("👥 [Get All Clients] Pobieranie klientów...", data);
+
+      try {
+        const {
+          page = 1,
+          pageSize = 500,
+          searchQuery = null,
+          sortBy = "imie_nazwisko",
+          forceRefresh = false,
+        } = data;
+
+        // Cache dla klientów
+        const cacheKey = `clients_${JSON.stringify(data)}`;
+        if (!forceRefresh) {
+          const cached = await getCachedResult(cacheKey);
+          if (cached) {
+            console.log("⚡ [Get All Clients] Zwracam z cache");
+            return cached;
+          }
+        }
+
+        const query = db.collection("clients").orderBy(sortBy);
+
+        // Zastosuj wyszukiwanie jeśli jest
+        if (searchQuery) {
+        // Firestore nie ma full-text search, więc pobieramy wszystko
+        // i filtrujemy
+          const allSnapshot = await query.limit(10000).get();
+          const allClients = allSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+
+          const searchLower = searchQuery.toLowerCase();
+          const filteredClients = allClients.filter((client) =>
+            (client.imie_nazwisko || "").toLowerCase()
+                .includes(searchLower) ||
+          (client.email || "").toLowerCase().includes(searchLower) ||
+          (client.telefon || "").toLowerCase().includes(searchLower),
+          ); // Paginacja po filtrowaniu
+          const totalCount = filteredClients.length;
+          const startIndex = (page - 1) * pageSize;
+          const endIndex = Math.min(startIndex + pageSize, totalCount);
+          const paginatedClients = filteredClients.slice(startIndex, endIndex);
+
+          const result = {
+            clients: paginatedClients,
+            totalCount,
+            currentPage: page,
+            pageSize,
+            hasNextPage: endIndex < totalCount,
+            hasPreviousPage: page > 1,
+            source: "firebase-functions-filtered",
+          };
+
+          await setCachedResult(cacheKey, result, 180); // 3 minuty cache
+          return result;
+        }
+
+        // Bez wyszukiwania - zwykła paginacja
+        const snapshot = await query
+            .limit(pageSize)
+            .offset((page - 1) * pageSize)
+            .get();
+
+        const clients = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        // Policz total (może być kosztowne dla dużych zbiorów)
+        const countSnapshot = await db.collection("clients").count().get();
+        const totalCount = countSnapshot.data().count;
+
+        const result = {
+          clients,
+          totalCount,
+          currentPage: page,
+          pageSize,
+          hasNextPage: clients.length === pageSize,
+          hasPreviousPage: page > 1,
+          source: "firebase-functions",
+        };
+
+        await setCachedResult(cacheKey, result, 300); // 5 minut cache
+        console.log(`✅ [Get All Clients] Zwrócono ${clients.length} klientów`);
+        return result;
+      } catch (error) {
+        console.error("❌ [Get All Clients] Błąd:", error);
+        throw new functions.https.HttpsError(
+            "internal",
+            "Błąd pobierania klientów",
+            error.message,
+        );
+      }
+    });
+
+/**
+ * Pobiera wszystkie inwestycje z paginacją i filtrowaniem
+ */
+exports.getAllInvestments = functions
+    .region("europe-west1")
+    .runWith({
+      memory: "1GB",
+      timeoutSeconds: 300,
+    })
+    .https.onCall(async (data) => {
+      console.log("💼 [Get All Investments] Pobieranie inwestycji...", data);
+
+      try {
+        const {
+          page = 1,
+          pageSize = 500,
+          clientFilter = null,
+          productTypeFilter = null,
+          sortBy = "data_kontraktu",
+          forceRefresh = false,
+        } = data;
+
+        const cacheKey = `investments_${JSON.stringify(data)}`;
+        if (!forceRefresh) {
+          const cached = await getCachedResult(cacheKey);
+          if (cached) {
+            console.log("⚡ [Get All Investments] Zwracam z cache");
+            return cached;
+          }
+        }
+
+        let query = db.collection("investments");
+
+        // Zastosuj filtry
+        if (clientFilter) {
+          query = query.where("klient", "==", clientFilter);
+        }
+        if (productTypeFilter) {
+          query = query.where("typ_produktu", "==", productTypeFilter);
+        }
+
+        // Sortowanie
+        if (sortBy === "data_kontraktu") {
+          query = query.orderBy("data_kontraktu", "desc");
+        } else {
+          query = query.orderBy(sortBy);
+        }
+
+        // Paginacja
+        const snapshot = await query
+            .limit(pageSize)
+            .offset((page - 1) * pageSize)
+            .get();
+
+        const investments = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        // Dodaj obliczone pola
+        const processedInvestments = investments.map((investment) => ({
+          ...investment,
+          investmentAmount: parseFloat(investment.wartosc_kontraktu || 0),
+          remainingCapital: parseFloat(
+              investment.remainingCapital || investment.wartosc_kontraktu || 0,
+          ),
+          realizedCapital: parseFloat(investment.realizedCapital || 0),
+        }));
+
+        // Policz total dla bieżących filtrów
+        let countQuery = db.collection("investments");
+        if (clientFilter) {
+          countQuery = countQuery.where("klient", "==", clientFilter);
+        }
+        if (productTypeFilter) {
+          countQuery = countQuery.where(
+              "typ_produktu", "==", productTypeFilter,
+          );
+        }
+
+        const countSnapshot = await countQuery.count().get();
+        const totalCount = countSnapshot.data().count;
+
+        const result = {
+          investments: processedInvestments,
+          totalCount,
+          currentPage: page,
+          pageSize,
+          hasNextPage: investments.length === pageSize,
+          hasPreviousPage: page > 1,
+          appliedFilters: {
+            clientFilter,
+            productTypeFilter,
+          },
+          source: "firebase-functions",
+        };
+
+        await setCachedResult(cacheKey, result, 300);
+        console.log(
+            `✅ [Get All Investments] Zwrócono ${investments.length} inwestycji`,
+        );
+        return result;
+      } catch (error) {
+        console.error("❌ [Get All Investments] Błąd:", error);
+        throw new functions.https.HttpsError(
+            "internal",
+            "Błąd pobierania inwestycji",
+            error.message,
+        );
+      }
+    });
+
+/**
+ * Pobiera statystyki całego systemu
+ */
+exports.getSystemStats = functions
+    .region("europe-west1")
+    .runWith({
+      memory: "512MB",
+      timeoutSeconds: 120,
+    })
+    .https.onCall(async (data) => {
+      console.log("📊 [System Stats] Obliczanie statystyk...");
+
+      try {
+        const {forceRefresh = false} = data;
+
+        const cacheKey = "system_stats";
+        if (!forceRefresh) {
+          const cached = await getCachedResult(cacheKey);
+          if (cached) {
+            console.log("⚡ [System Stats] Zwracam z cache");
+            return cached;
+          }
+        }
+
+        // Równoległe pobieranie statystyk
+        const [
+          clientsCount,
+          investmentsCount,
+          totalCapitalSnapshot,
+        ] = await Promise.all([
+          db.collection("clients").count().get(),
+          db.collection("investments").count().get(),
+          db.collection("investments").get(),
+        ]);
+
+        // Oblicz statystyki kapitału
+        let totalInvestedCapital = 0;
+        let totalRemainingCapital = 0;
+        const productTypeStats = new Map();
+
+        totalCapitalSnapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          const invested = parseFloat(data.wartosc_kontraktu || 0);
+          const remaining = parseFloat(data.remainingCapital || invested);
+          const productType = data.typ_produktu || "Nieznany";
+
+          totalInvestedCapital += invested;
+          totalRemainingCapital += remaining;
+
+          if (!productTypeStats.has(productType)) {
+            productTypeStats.set(productType, {
+              count: 0,
+              totalCapital: 0,
+              remainingCapital: 0,
+            });
+          }
+
+          const typeStats = productTypeStats.get(productType);
+          typeStats.count++;
+          typeStats.totalCapital += invested;
+          typeStats.remainingCapital += remaining;
+        });
+
+        const result = {
+          totalClients: clientsCount.data().count,
+          totalInvestments: investmentsCount.data().count,
+          totalInvestedCapital,
+          totalRemainingCapital,
+          averageInvestmentPerClient:
+          totalInvestedCapital / Math.max(clientsCount.data().count, 1),
+          productTypeBreakdown: Array.from(productTypeStats.entries()).map(
+              ([type, stats]) => ({
+                productType: type,
+                ...stats,
+                averagePerInvestment: stats.totalCapital /
+              Math.max(stats.count, 1),
+              }),
+          ),
+          lastUpdated: new Date().toISOString(),
+          source: "firebase-functions",
+        };
+
+        await setCachedResult(cacheKey, result, 600); // 10 minut cache
+        console.log("✅ [System Stats] Statystyki obliczone");
+        return result;
+      } catch (error) {
+        console.error("❌ [System Stats] Błąd:", error);
+        throw new functions.https.HttpsError(
+            "internal",
+            "Błąd obliczania statystyk",
+            error.message,
+        );
+      }
+    });
+
+// �🛠️ HELPER FUNCTIONS
 
 /**
  * Tworzy podsumowanie inwestora z jego inwestycji

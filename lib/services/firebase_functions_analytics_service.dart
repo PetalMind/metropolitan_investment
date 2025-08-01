@@ -1,9 +1,11 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/client.dart';
 import '../models/investor_summary.dart';
 import '../models/investment.dart';
 import '../models/product.dart';
 import 'base_service.dart';
+import 'firebase_functions_data_service.dart';
 
 /// 🚀 FIREBASE FUNCTIONS ANALYTICS SERVICE
 /// Wykorzystuje server-side processing dla maksymalnej wydajności
@@ -185,6 +187,144 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
     }
   }
 
+  /// **POBIERANIE WSZYSTKICH KLIENTÓW** przez Firebase Functions
+  Future<ClientsResult> getAllClients({
+    int page = 1,
+    int pageSize = 500,
+    String? searchQuery,
+    String sortBy = 'imie_nazwisko',
+    bool forceRefresh = false,
+  }) async {
+    print('👥 [Functions Service] Pobieranie klientów z Functions...');
+
+    try {
+      final callable = _functions.httpsCallable('getAllClients');
+
+      final response = await callable.call({
+        'page': page,
+        'pageSize': pageSize,
+        'searchQuery': searchQuery,
+        'sortBy': sortBy,
+        'forceRefresh': forceRefresh,
+      });
+
+      final data = response.data as Map<String, dynamic>;
+
+      final clients = (data['clients'] as List)
+          .map((clientData) => _convertToClient(clientData))
+          .toList();
+
+      print('✅ [Functions Service] Pobrano ${clients.length} klientów');
+
+      return ClientsResult(
+        clients: clients,
+        totalCount: data['totalCount'] ?? 0,
+        currentPage: data['currentPage'] ?? page,
+        pageSize: data['pageSize'] ?? pageSize,
+        hasNextPage: data['hasNextPage'] ?? false,
+        hasPreviousPage: data['hasPreviousPage'] ?? false,
+        source: data['source'] ?? 'firebase-functions',
+      );
+    } catch (e) {
+      print('❌ [Functions Service] Błąd pobierania klientów: $e');
+      throw Exception('Błąd pobierania klientów: $e');
+    }
+  }
+
+  /// **POBIERANIE WSZYSTKICH INWESTYCJI** przez Firebase Functions
+  Future<InvestmentsResult> getAllInvestments({
+    int page = 1,
+    int pageSize = 500,
+    String? clientFilter,
+    String? productTypeFilter,
+    String sortBy = 'data_kontraktu',
+    bool forceRefresh = false,
+  }) async {
+    print('💼 [Functions Service] Pobieranie inwestycji z Functions...');
+
+    try {
+      final callable = _functions.httpsCallable('getAllInvestments');
+
+      final response = await callable.call({
+        'page': page,
+        'pageSize': pageSize,
+        'clientFilter': clientFilter,
+        'productTypeFilter': productTypeFilter,
+        'sortBy': sortBy,
+        'forceRefresh': forceRefresh,
+      });
+
+      final data = response.data as Map<String, dynamic>;
+
+      final investments = (data['investments'] as List)
+          .map((investmentData) => _convertToInvestment(investmentData))
+          .toList();
+
+      print('✅ [Functions Service] Pobrano ${investments.length} inwestycji');
+
+      return InvestmentsResult(
+        investments: investments,
+        totalCount: data['totalCount'] ?? 0,
+        currentPage: data['currentPage'] ?? page,
+        pageSize: data['pageSize'] ?? pageSize,
+        hasNextPage: data['hasNextPage'] ?? false,
+        hasPreviousPage: data['hasPreviousPage'] ?? false,
+        appliedFilters: AppliedFilters(
+          clientFilter: data['appliedFilters']?['clientFilter'],
+          productTypeFilter: data['appliedFilters']?['productTypeFilter'],
+        ),
+        source: data['source'] ?? 'firebase-functions',
+      );
+    } catch (e) {
+      print('❌ [Functions Service] Błąd pobierania inwestycji: $e');
+      throw Exception('Błąd pobierania inwestycji: $e');
+    }
+  }
+
+  /// **STATYSTYKI SYSTEMU** przez Firebase Functions
+  Future<SystemStats> getSystemStats({bool forceRefresh = false}) async {
+    print('📊 [Functions Service] Pobieranie statystyk systemu...');
+
+    try {
+      final callable = _functions.httpsCallable('getSystemStats');
+
+      final response = await callable.call({'forceRefresh': forceRefresh});
+
+      final data = response.data as Map<String, dynamic>;
+
+      print('✅ [Functions Service] Pobrano statystyki systemu');
+
+      return SystemStats(
+        totalClients: data['totalClients'] ?? 0,
+        totalInvestments: data['totalInvestments'] ?? 0,
+        totalInvestedCapital: (data['totalInvestedCapital'] ?? 0).toDouble(),
+        totalRemainingCapital: (data['totalRemainingCapital'] ?? 0).toDouble(),
+        averageInvestmentPerClient: (data['averageInvestmentPerClient'] ?? 0)
+            .toDouble(),
+        productTypeBreakdown: (data['productTypeBreakdown'] as List? ?? [])
+            .map(
+              (breakdown) => ProductTypeBreakdown(
+                productType: breakdown['productType'] ?? '',
+                count: breakdown['count'] ?? 0,
+                totalCapital: (breakdown['totalCapital'] ?? 0).toDouble(),
+                remainingCapital: (breakdown['remainingCapital'] ?? 0)
+                    .toDouble(),
+                averagePerInvestment: (breakdown['averagePerInvestment'] ?? 0)
+                    .toDouble(),
+              ),
+            )
+            .toList(),
+        lastUpdated: DateTime.parse(
+          data['lastUpdated'] ?? DateTime.now().toIso8601String(),
+        ),
+        source: data['source'] ?? 'firebase-functions',
+      );
+    } catch (e) {
+      print('❌ [Functions Service] Błąd pobierania statystyk: $e');
+      throw Exception('Błąd pobierania statystyk: $e');
+    }
+  }
+
   // 🛠️ HELPER METHODS
 
   InvestorSummary _convertToInvestorSummary(Map<String, dynamic> data) {
@@ -320,6 +460,47 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
   DateTime? _parseDate(dynamic date) {
     if (date == null) return null;
     return DateTime.tryParse(date.toString());
+  }
+
+  /// Konwertuje surowe dane Firebase na model Client
+  Client _convertToClient(Map<String, dynamic> data) {
+    return Client(
+      id: data['id'] ?? '',
+      name: data['imie_nazwisko'] ?? data['name'] ?? '',
+      email: data['email'] ?? '',
+      phone: data['telefon'] ?? data['phone'] ?? '',
+      address: data['address'] ?? '',
+      pesel: data['pesel'],
+      companyName: data['nazwa_firmy'] ?? data['companyName'],
+      type: ClientType.values.firstWhere(
+        (e) => e.name == data['type'],
+        orElse: () => ClientType.individual,
+      ),
+      notes: data['notes'] ?? '',
+      votingStatus: VotingStatus.values.firstWhere(
+        (e) => e.name == data['votingStatus'],
+        orElse: () => VotingStatus.undecided,
+      ),
+      colorCode: data['colorCode'] ?? '#FFFFFF',
+      unviableInvestments: List<String>.from(data['unviableInvestments'] ?? []),
+      createdAt: data['createdAt'] != null
+          ? (data['createdAt'] is Timestamp
+                ? (data['createdAt'] as Timestamp).toDate()
+                : DateTime.parse(data['createdAt']))
+          : (data['created_at'] != null
+                ? DateTime.parse(data['created_at'])
+                : DateTime.now()),
+      updatedAt: data['updatedAt'] != null
+          ? (data['updatedAt'] is Timestamp
+                ? (data['updatedAt'] as Timestamp).toDate()
+                : DateTime.parse(data['updatedAt']))
+          : (data['uploaded_at'] != null
+                ? DateTime.parse(data['uploaded_at'])
+                : DateTime.now()),
+      isActive: data['isActive'] ?? true,
+      additionalInfo:
+          data['additionalInfo'] ?? {'source_file': data['source_file']},
+    );
   }
 }
 
