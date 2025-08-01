@@ -10,326 +10,326 @@ const admin = require("firebase-admin");
 
 // 🔍 ZAAWANSOWANE FILTROWANIE INWESTORÓW
 exports.getFilteredInvestorAnalytics = functions
-  .region("europe-west1")
-  .runWith({
-    memory: "2GB",
-    timeoutSeconds: 540,
-  })
-  .https.onCall(async (data, context) => {
-    const startTime = Date.now();
-    console.log(
-      "🎛️ [Premium Filter] Rozpoczynam zaawansowane filtrowanie...",
-      data,
-    );
-
-    try {
-      const {
-        searchQuery = "",
-        votingStatusFilter = null,
-        clientTypeFilter = null,
-        minCapital = 0,
-        maxCapital = Number.MAX_SAFE_INTEGER,
-        minInvestmentCount = 0,
-        maxInvestmentCount = 100,
-        showOnlyMajorityHolders = false,
-        showOnlyLargeInvestors = false,
-        showOnlyWithUnviableInvestments = false,
-        includeActiveOnly = false,
-        requireHighDiversification = false,
-        recentActivityOnly = false,
-        sortBy = "viableCapital",
-        sortAscending = false,
-        page = 1,
-        pageSize = 250,
-      } = data;
-
-      // 📊 KROK 1: Pobierz wszystkie dane
-      console.log("📋 [Premium Filter] Pobieranie danych...");
-      const [clientsSnapshot, investmentsSnapshot] = await Promise.all([
-        admin.firestore().collection("clients").limit(10000).get(),
-        admin.firestore().collection("investments").limit(50000).get(),
-      ]);
-
-      const clients = clientsSnapshot.docs.map((doc) => (
-        { id: doc.id, ...doc.data() }
-      ));
-      const investments = investmentsSnapshot.docs.map((doc) => (
-        { id: doc.id, ...doc.data() }
-      ));
-
+    .region("europe-west1")
+    .runWith({
+      memory: "2GB",
+      timeoutSeconds: 540,
+    })
+    .https.onCall(async (data, context) => {
+      const startTime = Date.now();
       console.log(
-        `📊 [Premium Filter] Dane: ${clients.length} klientów, ` +
+          "🎛️ [Premium Filter] Rozpoczynam zaawansowane filtrowanie...",
+          data,
+      );
+
+      try {
+        const {
+          searchQuery = "",
+          votingStatusFilter = null,
+          clientTypeFilter = null,
+          minCapital = 0,
+          maxCapital = Number.MAX_SAFE_INTEGER,
+          minInvestmentCount = 0,
+          maxInvestmentCount = 100,
+          showOnlyMajorityHolders = false,
+          showOnlyLargeInvestors = false,
+          showOnlyWithUnviableInvestments = false,
+          includeActiveOnly = false,
+          requireHighDiversification = false,
+          recentActivityOnly = false,
+          sortBy = "viableCapital",
+          sortAscending = false,
+          page = 1,
+          pageSize = 250,
+        } = data;
+
+        // 📊 KROK 1: Pobierz wszystkie dane
+        console.log("📋 [Premium Filter] Pobieranie danych...");
+        const [clientsSnapshot, investmentsSnapshot] = await Promise.all([
+          admin.firestore().collection("clients").limit(10000).get(),
+          admin.firestore().collection("investments").limit(50000).get(),
+        ]);
+
+        const clients = clientsSnapshot.docs.map((doc) => (
+          {id: doc.id, ...doc.data()}
+        ));
+        const investments = investmentsSnapshot.docs.map((doc) => (
+          {id: doc.id, ...doc.data()}
+        ));
+
+        console.log(
+            `📊 [Premium Filter] Dane: ${clients.length} klientów, ` +
         `${investments.length} inwestycji`,
-      );
+        );
 
-      // 📊 KROK 2: Grupuj inwestycje według klientów
-      const investmentsByClient = groupInvestmentsByClient(investments);
+        // 📊 KROK 2: Grupuj inwestycje według klientów
+        const investmentsByClient = groupInvestmentsByClient(investments);
 
-      // 📊 KROK 3: Utwórz podsumowania inwestorów
-      console.log(
-        "🔄 [Premium Filter] Tworzę podsumowania inwestorów...",
-      );
-      const allInvestors = createInvestorSummaries(
-        clients,
-        investmentsByClient,
-      );
+        // 📊 KROK 3: Utwórz podsumowania inwestorów
+        console.log(
+            "🔄 [Premium Filter] Tworzę podsumowania inwestorów...",
+        );
+        const allInvestors = createInvestorSummaries(
+            clients,
+            investmentsByClient,
+        );
 
-      // 📊 KROK 4: Zastosuj filtry
-      console.log("🎛️ [Premium Filter] Zastosowuję filtry...");
-      const filteredInvestors = applyAdvancedFilters(allInvestors, {
-        searchQuery,
-        votingStatusFilter,
-        clientTypeFilter,
-        minCapital,
-        maxCapital,
-        minInvestmentCount,
-        maxInvestmentCount,
-        showOnlyMajorityHolders,
-        showOnlyLargeInvestors,
-        showOnlyWithUnviableInvestments,
-        includeActiveOnly,
-        requireHighDiversification,
-        recentActivityOnly,
-      });
-
-      console.log(
-        `🎯 [Premium Filter] Po filtrach: ${filteredInvestors.length} ` +
-        `z ${allInvestors.length} inwestorów`,
-      );
-
-      // 📊 KROK 5: Sortowanie
-      console.log("📶 [Premium Filter] Sortuję wyniki...");
-      sortInvestors(filteredInvestors, sortBy, sortAscending);
-
-      // 📊 KROK 6: Paginacja
-      const totalCount = filteredInvestors.length;
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = Math.min(startIndex + pageSize, totalCount);
-      const paginatedInvestors = filteredInvestors.slice(
-        startIndex,
-        endIndex,
-      );
-
-      // 📊 KROK 7: Oblicz statystyki
-      const analytics = calculateAdvancedAnalytics(
-        filteredInvestors,
-        allInvestors,
-      );
-
-      const result = {
-        investors: paginatedInvestors,
-        allFilteredInvestors: filteredInvestors,
-        originalCount: allInvestors.length,
-        filteredCount: totalCount,
-        currentPage: page,
-        pageSize,
-        totalPages: Math.ceil(totalCount / pageSize),
-        hasNextPage: endIndex < totalCount,
-        hasPreviousPage: page > 1,
-        analytics,
-        appliedFilters: {
+        // 📊 KROK 4: Zastosuj filtry
+        console.log("🎛️ [Premium Filter] Zastosowuję filtry...");
+        const filteredInvestors = applyAdvancedFilters(allInvestors, {
           searchQuery,
           votingStatusFilter,
           clientTypeFilter,
           minCapital,
           maxCapital,
+          minInvestmentCount,
+          maxInvestmentCount,
           showOnlyMajorityHolders,
           showOnlyLargeInvestors,
+          showOnlyWithUnviableInvestments,
           includeActiveOnly,
-        },
-        executionTime: Date.now() - startTime,
-        source: "firebase-functions-premium-filter",
-      };
+          requireHighDiversification,
+          recentActivityOnly,
+        });
 
-      console.log(
-        `✅ [Premium Filter] Zakończono w ${result.executionTime}ms`,
-      );
-      return result;
-    } catch (error) {
-      console.error("❌ [Premium Filter] Błąd:", error);
-      throw new functions.https.HttpsError(
-        "internal",
-        "Błąd podczas zaawansowanego filtrowania",
-        error.message,
-      );
-    }
-  });
+        console.log(
+            `🎯 [Premium Filter] Po filtrach: ${filteredInvestors.length} ` +
+        `z ${allInvestors.length} inwestorów`,
+        );
+
+        // 📊 KROK 5: Sortowanie
+        console.log("📶 [Premium Filter] Sortuję wyniki...");
+        sortInvestors(filteredInvestors, sortBy, sortAscending);
+
+        // 📊 KROK 6: Paginacja
+        const totalCount = filteredInvestors.length;
+        const startIndex = (page - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, totalCount);
+        const paginatedInvestors = filteredInvestors.slice(
+            startIndex,
+            endIndex,
+        );
+
+        // 📊 KROK 7: Oblicz statystyki
+        const analytics = calculateAdvancedAnalytics(
+            filteredInvestors,
+            allInvestors,
+        );
+
+        const result = {
+          investors: paginatedInvestors,
+          allFilteredInvestors: filteredInvestors,
+          originalCount: allInvestors.length,
+          filteredCount: totalCount,
+          currentPage: page,
+          pageSize,
+          totalPages: Math.ceil(totalCount / pageSize),
+          hasNextPage: endIndex < totalCount,
+          hasPreviousPage: page > 1,
+          analytics,
+          appliedFilters: {
+            searchQuery,
+            votingStatusFilter,
+            clientTypeFilter,
+            minCapital,
+            maxCapital,
+            showOnlyMajorityHolders,
+            showOnlyLargeInvestors,
+            includeActiveOnly,
+          },
+          executionTime: Date.now() - startTime,
+          source: "firebase-functions-premium-filter",
+        };
+
+        console.log(
+            `✅ [Premium Filter] Zakończono w ${result.executionTime}ms`,
+        );
+        return result;
+      } catch (error) {
+        console.error("❌ [Premium Filter] Błąd:", error);
+        throw new functions.https.HttpsError(
+            "internal",
+            "Błąd podczas zaawansowanego filtrowania",
+            error.message,
+        );
+      }
+    });
 
 // 🔍 WYSZUKIWANIE INTELIGENTNE
 exports.getSmartSearchSuggestions = functions
-  .region("europe-west1")
-  .runWith({
-    memory: "1GB",
-    timeoutSeconds: 120,
-  })
-  .https.onCall(async (data, context) => {
-    console.log("🔍 [Smart Search] Generuję sugestie wyszukiwania...", data);
+    .region("europe-west1")
+    .runWith({
+      memory: "1GB",
+      timeoutSeconds: 120,
+    })
+    .https.onCall(async (data, context) => {
+      console.log("🔍 [Smart Search] Generuję sugestie wyszukiwania...", data);
 
-    try {
-      const { query = "", limit = 10 } = data;
+      try {
+        const {query = "", limit = 10} = data;
 
-      if (query.length < 2) {
-        return { suggestions: [] };
+        if (query.length < 2) {
+          return {suggestions: []};
+        }
+
+        const searchLower = query.toLowerCase();
+
+        // Wyszukaj w klientach
+        const clientsSnapshot = await admin.firestore()
+            .collection("clients")
+            .limit(1000)
+            .get();
+
+        const suggestions = [];
+
+        clientsSnapshot.docs.forEach((doc) => {
+          const client = doc.data();
+          const name = (client.imie_nazwisko || "").toLowerCase();
+          const email = (client.email || "").toLowerCase();
+          const phone = (client.telefon || "").toLowerCase();
+
+          if (name.includes(searchLower)) {
+            suggestions.push({
+              type: "name",
+              value: client.imie_nazwisko,
+              label: `👤 ${client.imie_nazwisko}`,
+              category: "Inwestorzy",
+            });
+          }
+
+          if (email.includes(searchLower) && email) {
+            suggestions.push({
+              type: "email",
+              value: client.email,
+              label: `📧 ${client.email}`,
+              category: "Email",
+            });
+          }
+
+          if (phone.includes(searchLower) && phone) {
+            suggestions.push({
+              type: "phone",
+              value: client.telefon,
+              label: `📞 ${client.telefon}`,
+              category: "Telefon",
+            });
+          }
+        });
+
+        // Usuń duplikaty i ogranicz wyniki
+        const uniqueSuggestions = suggestions
+            .filter((item, index, self) =>
+              index === self.findIndex((s) =>
+                s.value === item.value && s.type === item.type,
+              ),
+            )
+            .slice(0, limit);
+
+        return {suggestions: uniqueSuggestions};
+      } catch (error) {
+        console.error("❌ [Smart Search] Błąd:", error);
+        throw new functions.https.HttpsError(
+            "internal",
+            "Błąd podczas wyszukiwania sugestii",
+            error.message,
+        );
       }
-
-      const searchLower = query.toLowerCase();
-
-      // Wyszukaj w klientach
-      const clientsSnapshot = await admin.firestore()
-        .collection("clients")
-        .limit(1000)
-        .get();
-
-      const suggestions = [];
-
-      clientsSnapshot.docs.forEach((doc) => {
-        const client = doc.data();
-        const name = (client.imie_nazwisko || "").toLowerCase();
-        const email = (client.email || "").toLowerCase();
-        const phone = (client.telefon || "").toLowerCase();
-
-        if (name.includes(searchLower)) {
-          suggestions.push({
-            type: "name",
-            value: client.imie_nazwisko,
-            label: `👤 ${client.imie_nazwisko}`,
-            category: "Inwestorzy",
-          });
-        }
-
-        if (email.includes(searchLower) && email) {
-          suggestions.push({
-            type: "email",
-            value: client.email,
-            label: `📧 ${client.email}`,
-            category: "Email",
-          });
-        }
-
-        if (phone.includes(searchLower) && phone) {
-          suggestions.push({
-            type: "phone",
-            value: client.telefon,
-            label: `📞 ${client.telefon}`,
-            category: "Telefon",
-          });
-        }
-      });
-
-      // Usuń duplikaty i ogranicz wyniki
-      const uniqueSuggestions = suggestions
-        .filter((item, index, self) =>
-          index === self.findIndex((s) =>
-            s.value === item.value && s.type === item.type,
-          ),
-        )
-        .slice(0, limit);
-
-      return { suggestions: uniqueSuggestions };
-    } catch (error) {
-      console.error("❌ [Smart Search] Błąd:", error);
-      throw new functions.https.HttpsError(
-        "internal",
-        "Błąd podczas wyszukiwania sugestii",
-        error.message,
-      );
-    }
-  });
+    });
 
 // 📊 ANALYTICS DASHBOARDS PRESETS
 exports.getAnalyticsDashboardPresets = functions
-  .region("europe-west1")
-  .runWith({
-    memory: "512MB",
-    timeoutSeconds: 60,
-  })
-  .https.onCall(async (data, context) => {
-    console.log("📊 [Dashboard Presets] Generuję presety dashboardu...");
+    .region("europe-west1")
+    .runWith({
+      memory: "512MB",
+      timeoutSeconds: 60,
+    })
+    .https.onCall(async (data, context) => {
+      console.log("📊 [Dashboard Presets] Generuję presety dashboardu...");
 
-    try {
-      const presets = [
-        {
-          id: "majority_holders",
-          name: "Właściciele większościowi",
-          description: "Inwestorzy z największymi udziałami kontrolnymi",
-          filters: {
-            showOnlyMajorityHolders: true,
-            sortBy: "viableCapital",
-            sortAscending: false,
+      try {
+        const presets = [
+          {
+            id: "majority_holders",
+            name: "Właściciele większościowi",
+            description: "Inwestorzy z największymi udziałami kontrolnymi",
+            filters: {
+              showOnlyMajorityHolders: true,
+              sortBy: "viableCapital",
+              sortAscending: false,
+            },
+            icon: "👑",
           },
-          icon: "👑",
-        },
-        {
-          id: "voting_yes",
-          name: "Głosujący ZA",
-          description: "Inwestorzy popierający propozycje",
-          filters: {
-            votingStatusFilter: "yes",
-            sortBy: "viableCapital",
-            sortAscending: false,
+          {
+            id: "voting_yes",
+            name: "Głosujący ZA",
+            description: "Inwestorzy popierający propozycje",
+            filters: {
+              votingStatusFilter: "yes",
+              sortBy: "viableCapital",
+              sortAscending: false,
+            },
+            icon: "✅",
           },
-          icon: "✅",
-        },
-        {
-          id: "large_investors",
-          name: "Duzi inwestorzy",
-          description: "Inwestorzy z kapitałem powyżej 1M PLN",
-          filters: {
-            showOnlyLargeInvestors: true,
-            minCapital: 1000000,
-            sortBy: "viableCapital",
-            sortAscending: false,
+          {
+            id: "large_investors",
+            name: "Duzi inwestorzy",
+            description: "Inwestorzy z kapitałem powyżej 1M PLN",
+            filters: {
+              showOnlyLargeInvestors: true,
+              minCapital: 1000000,
+              sortBy: "viableCapital",
+              sortAscending: false,
+            },
+            icon: "💰",
           },
-          icon: "💰",
-        },
-        {
-          id: "problematic_investments",
-          name: "Problematyczne inwestycje",
-          description:
+          {
+            id: "problematic_investments",
+            name: "Problematyczne inwestycje",
+            description:
             "Inwestorzy z nierentownymi lub problematycznymi inwestycjami",
-          filters: {
-            showOnlyWithUnviableInvestments: true,
-            sortBy: "totalValue",
-            sortAscending: true,
+            filters: {
+              showOnlyWithUnviableInvestments: true,
+              sortBy: "totalValue",
+              sortAscending: true,
+            },
+            icon: "⚠️",
           },
-          icon: "⚠️",
-        },
-        {
-          id: "high_diversification",
-          name: "Zdywersyfikowane portfele",
-          description: "Inwestorzy z różnorodnymi typami produktów",
-          filters: {
-            requireHighDiversification: true,
-            minInvestmentCount: 3,
-            sortBy: "investmentCount",
-            sortAscending: false,
+          {
+            id: "high_diversification",
+            name: "Zdywersyfikowane portfele",
+            description: "Inwestorzy z różnorodnymi typami produktów",
+            filters: {
+              requireHighDiversification: true,
+              minInvestmentCount: 3,
+              sortBy: "investmentCount",
+              sortAscending: false,
+            },
+            icon: "🎯",
           },
-          icon: "🎯",
-        },
-        {
-          id: "recent_activity",
-          name: "Ostatnia aktywność",
-          description: "Inwestorzy z ostatnią aktywnością w ciągu 30 dni",
-          filters: {
-            recentActivityOnly: true,
-            includeActiveOnly: true,
-            sortBy: "totalValue",
-            sortAscending: false,
+          {
+            id: "recent_activity",
+            name: "Ostatnia aktywność",
+            description: "Inwestorzy z ostatnią aktywnością w ciągu 30 dni",
+            filters: {
+              recentActivityOnly: true,
+              includeActiveOnly: true,
+              sortBy: "totalValue",
+              sortAscending: false,
+            },
+            icon: "🔥",
           },
-          icon: "🔥",
-        },
-      ];
+        ];
 
-      return { presets };
-    } catch (error) {
-      console.error("❌ [Dashboard Presets] Błąd:", error);
-      throw new functions.https.HttpsError(
-        "internal",
-        "Błąd podczas pobierania presetów",
-        error.message,
-      );
-    }
-  });
+        return {presets};
+      } catch (error) {
+        console.error("❌ [Dashboard Presets] Błąd:", error);
+        throw new functions.https.HttpsError(
+            "internal",
+            "Błąd podczas pobierania presetów",
+            error.message,
+        );
+      }
+    });
 
 // 🛠️ HELPER FUNCTIONS
 
@@ -381,35 +381,24 @@ function createInvestorSummaries(clients, investmentsByClient) {
  * @return {Object} Investor summary object
  */
 function createInvestorSummary(client, investments) {
-  let totalRemainingCapital = 0;
-  let totalSharesValue = 0;
+  let totalViableCapital = 0;
   let totalInvestmentAmount = 0;
-  let totalRealizedCapital = 0;
 
   const processedInvestments = investments.map((investment) => {
     const amount = parseFloat(investment.kwota_inwestycji || 0);
-    const remaining = parseFloat(investment.kapital_pozostaly || amount);
-    const realized = parseFloat(investment.kapital_zrealizowany || 0);
+    // UŻYWAMY TYLKO kapital_pozostaly zgodnie z modelem Dart
+    const remainingCapital = parseFloat(investment.kapital_pozostaly || 0);
 
     totalInvestmentAmount += amount;
-    totalRealizedCapital += realized;
-
-    if (investment.typ_produktu === "Udziały") {
-      totalSharesValue += amount;
-    } else {
-      totalRemainingCapital += remaining;
-    }
+    // Dla wszystkich typów produktów używamy tylko kapital_pozostaly
+    totalViableCapital += remainingCapital;
 
     return {
       ...investment,
       investmentAmount: amount,
-      remainingCapital: remaining,
-      realizedCapital: realized,
+      remainingCapital: remainingCapital,
     };
   });
-
-  const totalValue = totalRemainingCapital + totalSharesValue;
-  const viableRemainingCapital = totalValue;
 
   return {
     client: {
@@ -423,13 +412,13 @@ function createInvestorSummary(client, investments) {
       unviableInvestments: client.unviableInvestments || [],
     },
     investments: processedInvestments,
-    totalRemainingCapital,
-    totalSharesValue,
-    totalValue,
+    totalRemainingCapital: totalViableCapital,
+    totalSharesValue: 0, // Nie używamy już osobnej kategorii dla udziałów
+    totalValue: totalViableCapital,
     totalInvestmentAmount,
-    totalRealizedCapital,
+    totalRealizedCapital: 0, // Nie używamy już zrealizowanego kapitału
     investmentCount: investments.length,
-    viableRemainingCapital,
+    viableRemainingCapital: totalViableCapital,
     hasUnviableInvestments: (client.unviableInvestments || []).length > 0,
   };
 }
@@ -498,9 +487,9 @@ function applyAdvancedFilters(investors, filters) {
     // High diversification filter
     if (filters.requireHighDiversification) {
       const productTypes = investor.investments
-        .map((inv) => inv.typ_produktu)
-        .filter((type, index, arr) => arr.indexOf(type) === index)
-        .length;
+          .map((inv) => inv.typ_produktu)
+          .filter((type, index, arr) => arr.indexOf(type) === index)
+          .length;
 
       if (productTypes < 3) {
         return false;
@@ -558,7 +547,7 @@ function sortInvestors(investors, sortBy, ascending) {
         bVal = b.investmentCount;
         break;
       case "votingStatus": {
-        const statusOrder = { yes: 1, no: 2, abstain: 3, undecided: 4 };
+        const statusOrder = {yes: 1, no: 2, abstain: 3, undecided: 4};
         aVal = statusOrder[a.client.votingStatus] || 4;
         bVal = statusOrder[b.client.votingStatus] || 4;
         break;
@@ -580,18 +569,18 @@ function sortInvestors(investors, sortBy, ascending) {
  */
 function calculateAdvancedAnalytics(filteredInvestors, allInvestors) {
   const filteredCapital = filteredInvestors.reduce(
-    (sum, inv) => sum + inv.viableRemainingCapital, 0,
+      (sum, inv) => sum + inv.viableRemainingCapital, 0,
   );
   const totalCapital = allInvestors.reduce(
-    (sum, inv) => sum + inv.viableRemainingCapital, 0,
+      (sum, inv) => sum + inv.viableRemainingCapital, 0,
   );
 
   // Voting distribution
   const votingDistribution = {
-    yes: { count: 0, capital: 0 },
-    no: { count: 0, capital: 0 },
-    abstain: { count: 0, capital: 0 },
-    undecided: { count: 0, capital: 0 },
+    yes: {count: 0, capital: 0},
+    no: {count: 0, capital: 0},
+    abstain: {count: 0, capital: 0},
+    undecided: {count: 0, capital: 0},
   };
 
   filteredInvestors.forEach((investor) => {
@@ -607,20 +596,20 @@ function calculateAdvancedAnalytics(filteredInvestors, allInvestors) {
   // Capital distribution by size
   const capitalDistribution = {
     small: filteredInvestors.filter(
-      (inv) => inv.viableRemainingCapital < 100000,
+        (inv) => inv.viableRemainingCapital < 100000,
     ).length,
     medium: filteredInvestors.filter((inv) =>
       inv.viableRemainingCapital >= 100000 &&
       inv.viableRemainingCapital < 1000000,
     ).length,
     large: filteredInvestors.filter(
-      (inv) => inv.viableRemainingCapital >= 1000000,
+        (inv) => inv.viableRemainingCapital >= 1000000,
     ).length,
   };
 
   // Majority holders analysis
   const sortedByCapital = [...filteredInvestors].sort(
-    (a, b) => b.viableRemainingCapital - a.viableRemainingCapital,
+      (a, b) => b.viableRemainingCapital - a.viableRemainingCapital,
   );
 
   let cumulativeCapital = 0;
@@ -654,7 +643,7 @@ function calculateAdvancedAnalytics(filteredInvestors, allInvestors) {
     averageCapital: filteredInvestors.length > 0 ?
       filteredCapital / filteredInvestors.length : 0,
     medianCapital: calculateMedian(
-      filteredInvestors.map((inv) => inv.viableRemainingCapital),
+        filteredInvestors.map((inv) => inv.viableRemainingCapital),
     ),
 
     diversificationStats: calculateDiversificationStats(filteredInvestors),
@@ -683,13 +672,13 @@ function calculateMedian(values) {
  * @return {Object} Diversification statistics
  */
 function calculateDiversificationStats(investors) {
-  if (investors.length === 0) return { averageProducts: 0, highlyDiversified: 0 };
+  if (investors.length === 0) return {averageProducts: 0, highlyDiversified: 0};
 
   const productCounts = investors.map((investor) => {
     return investor.investments
-      .map((inv) => inv.typ_produktu)
-      .filter((type, index, arr) => arr.indexOf(type) === index)
-      .length;
+        .map((inv) => inv.typ_produktu)
+        .filter((type, index, arr) => arr.indexOf(type) === index)
+        .length;
   });
 
   const averageProducts = productCounts.reduce((sum, count) => sum + count, 0) /

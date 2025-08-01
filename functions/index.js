@@ -1,16 +1,5 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const cors = require("cors")({
-  origin: [
-    "http://localhost:8080",
-    "http://0.0.0.0:8080",
-    "http://127.0.0.1:8080",
-    "https://metropolitan-investment.pl",
-    "https://metropolitan-investment.web.app",
-    "https://metropolitan-investment.firebaseapp.com",
-  ],
-  credentials: true,
-});
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -27,232 +16,225 @@ exports.getOptimizedInvestorAnalytics = functions
       memory: "2GB",
       timeoutSeconds: 540,
     })
-    .https.onRequest(async (req, res) => {
-      return cors(req, res, async () => {
-        const startTime = Date.now();
-        console.log("🚀 [Analytics Functions] Rozpoczynam analizę...", req.body);
+    .https.onCall(async (data) => {
+      const startTime = Date.now();
+      console.log("🚀 [Analytics Functions] Rozpoczynam analizę...", data);
 
-        try {
-          const data = req.body.data || req.body;
-          const {
-            page = 1,
-            pageSize = 250,
-            sortBy = "totalValue",
-            sortAscending = false,
-            searchQuery = null,
-            forceRefresh = false,
-          } = data;
+      try {
+        const {
+          page = 1,
+          pageSize = 250,
+          sortBy = "totalValue",
+          sortAscending = false,
+          searchQuery = null,
+          forceRefresh = false,
+        } = data;
 
-          // 💾 Sprawdź cache
-          const cacheKey = `analytics_${JSON.stringify(data)}`;
-          if (!forceRefresh) {
-            const cached = await getCachedResult(cacheKey);
-            if (cached) {
-              console.log("⚡ [Analytics Functions] Zwracam z cache");
-              return cached;
-            }
+        // 💾 Sprawdź cache
+        const cacheKey = `analytics_${JSON.stringify(data)}`;
+        if (!forceRefresh) {
+          const cached = await getCachedResult(cacheKey);
+          if (cached) {
+            console.log("⚡ [Analytics Functions] Zwracam z cache");
+            return cached;
           }
-
-          // 📊 KROK 1: Pobierz klientów
-          console.log("📋 [Analytics Functions] Pobieranie klientów...");
-          const clientsSnapshot = await db.collection("clients")
-              .orderBy("imie_nazwisko")
-              .limit(5000)
-              .get();
-
-          const clients = clientsSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-
-          console.log(
-              `👥 [Analytics Functions] Znaleziono ${clients.length} klientów`,
-          );
-
-          // 📊 KROK 2: Pobierz wszystkie inwestycje
-          console.log("💼 [Analytics Functions] Pobieranie inwestycji...");
-          const investmentsSnapshot = await db.collection("investments")
-              .limit(50000)
-              .get();
-
-          const investments = investmentsSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-
-          console.log(
-              `💰 [Analytics Functions] Znaleziono ${investments.length} ` +
-          `inwestycji`,
-          );
-
-          // 📊 KROK 3: Grupuj inwestycje według klientów
-          const investmentsByClient = new Map();
-          investments.forEach((investment) => {
-            const clientName = investment.klient;
-            if (!investmentsByClient.has(clientName)) {
-              investmentsByClient.set(clientName, []);
-            }
-            investmentsByClient.get(clientName).push(investment);
-          });
-
-          console.log(
-              `🔍 [Analytics Functions] Mapa inwestycji: ` +
-          `${investmentsByClient.size} unikalnych klientów`,
-          );
-
-          // Wyloguj kilka przykładów dla debugowania
-          const sampleClients = Array.from(investmentsByClient.keys())
-              .slice(0, 3);
-          console.log(
-              `📝 [Analytics Functions] Przykłady klientów z inwestycjami: ` +
-          `${sampleClients.join(", ")}`,
-          );
-
-          // 📊 KROK 4: Utwórz InvestorSummary dla każdego klienta
-          console.log(
-              "🔄 [Analytics Functions] Tworzę podsumowania inwestorów...",
-          );
-          const investors = [];
-          let clientsProcessed = 0;
-          let batchNumber = 1;
-
-          for (const client of clients) {
-            clientsProcessed++;
-
-            if (clientsProcessed % 10 === 0) {
-              console.log(
-                  `📦 [OptimizedAnalytics] Przetwarzam batch ` +
-              `${batchNumber}/${Math.ceil(clients.length / 10)} ` +
-              `(10 klientów)`,
-              );
-              batchNumber++;
-            }
-
-            // Spróbuj dopasować po nazwie klienta
-            const clientInvestments =
-            investmentsByClient.get(client.imie_nazwisko) || [];
-
-            if (clientInvestments.length === 0) continue;
-
-            const investorSummary =
-            createInvestorSummary(client, clientInvestments);
-
-            // Zastosuj filtry
-            if (searchQuery) {
-              const searchLower = searchQuery.toLowerCase();
-              const nameMatch =
-              client.imie_nazwisko.toLowerCase().includes(searchLower);
-              const emailMatch =
-              (client.email || "").toLowerCase().includes(searchLower);
-
-              if (!nameMatch && !emailMatch) {
-                continue;
-              }
-            }
-
-            investors.push(investorSummary);
-          }
-
-          console.log(
-              `👥 [OptimizedAnalytics] Utworzono ${investors.length} ` +
-          `podsumowań inwestorów`,
-          );
-          console.log("💾 [OptimizedAnalytics] Cache zaktualizowany");
-          console.log(
-              `✅ [OptimizedAnalytics] Analiza zakończona w ` +
-          `${Date.now() - startTime}ms`,
-          );
-
-          // 📊 KROK 5: Sortowanie
-          sortInvestors(investors, sortBy, sortAscending);
-
-          // 📊 KROK 6: Paginacja
-          const totalCount = investors.length;
-          const startIndex = (page - 1) * pageSize;
-          const endIndex = Math.min(startIndex + pageSize, totalCount);
-          const paginatedInvestors = investors.slice(startIndex, endIndex);
-
-          console.log(
-              `📊 [OptimizedAnalytics] Zwracam ${paginatedInvestors.length} ` +
-          `inwestorów ze strony ${page}`,
-          );
-
-          // 📊 KROK 7: Oblicz statystyki
-          const totalViableCapital = investors.reduce(
-              (sum, inv) => sum + inv.viableRemainingCapital, 0,
-          );
-          const votingDistribution = analyzeVotingDistribution(investors);
-
-          // Wyloguj rozkład głosowania
-          console.log("📊 [Voting Capital Distribution]");
-          const yesPercent = totalViableCapital > 0 ?
-          ((votingDistribution.yes.capital / totalViableCapital) * 100) : 0;
-          console.log(
-              `   TAK: ${votingDistribution.yes.capital.toFixed(2)} PLN ` +
-          `(${yesPercent.toFixed(1)}%)`,
-          );
-          const noPercent = totalViableCapital > 0 ?
-          ((votingDistribution.no.capital / totalViableCapital) * 100) : 0;
-          console.log(
-              `   NIE: ${votingDistribution.no.capital.toFixed(2)} PLN ` +
-          `(${noPercent.toFixed(1)}%)`,
-          );
-          const abstainPercent = totalViableCapital > 0 ?
-          ((votingDistribution.abstain.capital / totalViableCapital) * 100) : 0;
-          console.log(
-              `   WSTRZYMUJE: ` +
-          `${votingDistribution.abstain.capital.toFixed(2)} ` +
-          `PLN (${abstainPercent.toFixed(1)}%)`,
-          );
-          const undecidedPercent = totalViableCapital > 0 ?
-          ((votingDistribution.undecided.capital / totalViableCapital) * 100) :
-          0;
-          console.log(
-              `   NIEZDECYDOWANY: ` +
-          `${votingDistribution.undecided.capital.toFixed(2)} PLN ` +
-          `(${undecidedPercent.toFixed(1)}%)`,
-          );
-          console.log(
-              `   ŁĄCZNIE WYKONALNY KAPITAŁ: ` +
-          `${totalViableCapital.toFixed(2)} PLN`,
-          );
-
-          const result = {
-            investors: paginatedInvestors,
-            allInvestors: investors,
-            totalCount,
-            currentPage: page,
-            pageSize,
-            hasNextPage: endIndex < totalCount,
-            hasPreviousPage: page > 1,
-            totalViableCapital,
-            votingDistribution,
-            executionTime: Date.now() - startTime,
-            source: "firebase-functions",
-          };
-
-          // 💾 Zapisz do cache
-          await setCachedResult(cacheKey, result, 300);
-
-          console.log(
-              `🎉 [Analytics Functions] Analiza zakończona w ` +
-          `${result.executionTime}ms`,
-          );
-          res.status(200).json({data: result});
-        } catch (error) {
-          console.error("❌ [Analytics Functions] Błąd:", error);
-          res.status(500).json({
-            error: {
-              code: "internal",
-              message: "Błąd podczas analizy",
-              details: error.message,
-            },
-          });
         }
-      });
-    });
 
-// � ZARZĄDZANIE DUŻYMI ZBIORAMI DANYCH
+        // 📊 KROK 1: Pobierz klientów
+        console.log("📋 [Analytics Functions] Pobieranie klientów...");
+        const clientsSnapshot = await db.collection("clients")
+            .orderBy("imie_nazwisko")
+            .limit(5000)
+            .get();
+
+        const clients = clientsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        console.log(
+            `👥 [Analytics Functions] Znaleziono ${clients.length} klientów`,
+        );
+
+        // 📊 KROK 2: Pobierz wszystkie inwestycje
+        console.log("💼 [Analytics Functions] Pobieranie inwestycji...");
+        const investmentsSnapshot = await db.collection("investments")
+            .limit(50000)
+            .get();
+
+        const investments = investmentsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        console.log(
+            `💰 [Analytics Functions] Znaleziono ${investments.length} ` +
+        `inwestycji`,
+        );
+
+        // 📊 KROK 3: Grupuj inwestycje według klientów
+        const investmentsByClient = new Map();
+        investments.forEach((investment) => {
+          const clientName = investment.klient;
+          if (!investmentsByClient.has(clientName)) {
+            investmentsByClient.set(clientName, []);
+          }
+          investmentsByClient.get(clientName).push(investment);
+        });
+
+        console.log(
+            `🔍 [Analytics Functions] Mapa inwestycji: ` +
+        `${investmentsByClient.size} unikalnych klientów`,
+        );
+
+        // Wyloguj kilka przykładów dla debugowania
+        const sampleClients = Array.from(investmentsByClient.keys())
+            .slice(0, 3);
+        console.log(
+            `📝 [Analytics Functions] Przykłady klientów z inwestycjami: ` +
+        `${sampleClients.join(", ")}`,
+        );
+
+        // 📊 KROK 4: Utwórz InvestorSummary dla każdego klienta
+        console.log(
+            "🔄 [Analytics Functions] Tworzę podsumowania inwestorów...",
+        );
+        const investors = [];
+        let clientsProcessed = 0;
+        let batchNumber = 1;
+
+        for (const client of clients) {
+          clientsProcessed++;
+
+          if (clientsProcessed % 10 === 0) {
+            console.log(
+                `📦 [OptimizedAnalytics] Przetwarzam batch ` +
+            `${batchNumber}/${Math.ceil(clients.length / 10)} ` +
+            `(10 klientów)`,
+            );
+            batchNumber++;
+          }
+
+          // Spróbuj dopasować po nazwie klienta
+          const clientInvestments =
+          investmentsByClient.get(client.imie_nazwisko) || [];
+
+          if (clientInvestments.length === 0) continue;
+
+          const investorSummary =
+          createInvestorSummary(client, clientInvestments);
+
+          // Zastosuj filtry
+          if (searchQuery) {
+            const searchLower = searchQuery.toLowerCase();
+            const nameMatch =
+            client.imie_nazwisko.toLowerCase().includes(searchLower);
+            const emailMatch =
+            (client.email || "").toLowerCase().includes(searchLower);
+
+            if (!nameMatch && !emailMatch) {
+              continue;
+            }
+          }
+
+          investors.push(investorSummary);
+        }
+
+        console.log(
+            `👥 [OptimizedAnalytics] Utworzono ${investors.length} ` +
+        `podsumowań inwestorów`,
+        );
+        console.log("💾 [OptimizedAnalytics] Cache zaktualizowany");
+        console.log(
+            `✅ [OptimizedAnalytics] Analiza zakończona w ` +
+        `${Date.now() - startTime}ms`,
+        );
+
+        // 📊 KROK 5: Sortowanie
+        sortInvestors(investors, sortBy, sortAscending);
+
+        // 📊 KROK 6: Paginacja
+        const totalCount = investors.length;
+        const startIndex = (page - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, totalCount);
+        const paginatedInvestors = investors.slice(startIndex, endIndex);
+
+        console.log(
+            `📊 [OptimizedAnalytics] Zwracam ${paginatedInvestors.length} ` +
+        `inwestorów ze strony ${page}`,
+        );
+
+        // 📊 KROK 7: Oblicz statystyki
+        const totalViableCapital = investors.reduce(
+            (sum, inv) => sum + inv.viableRemainingCapital, 0,
+        );
+        const votingDistribution = analyzeVotingDistribution(investors);
+
+        // Wyloguj rozkład głosowania
+        console.log("📊 [Voting Capital Distribution]");
+        const yesPercent = totalViableCapital > 0 ?
+        ((votingDistribution.yes.capital / totalViableCapital) * 100) : 0;
+        console.log(
+            `   TAK: ${votingDistribution.yes.capital.toFixed(2)} PLN ` +
+        `(${yesPercent.toFixed(1)}%)`,
+        );
+        const noPercent = totalViableCapital > 0 ?
+        ((votingDistribution.no.capital / totalViableCapital) * 100) : 0;
+        console.log(
+            `   NIE: ${votingDistribution.no.capital.toFixed(2)} PLN ` +
+        `(${noPercent.toFixed(1)}%)`,
+        );
+        const abstainPercent = totalViableCapital > 0 ?
+        ((votingDistribution.abstain.capital / totalViableCapital) * 100) : 0;
+        console.log(
+            `   WSTRZYMUJE: ` +
+        `${votingDistribution.abstain.capital.toFixed(2)} ` +
+        `PLN (${abstainPercent.toFixed(1)}%)`,
+        );
+        const undecidedPercent = totalViableCapital > 0 ?
+        ((votingDistribution.undecided.capital / totalViableCapital) * 100) :
+        0;
+        console.log(
+            `   NIEZDECYDOWANY: ` +
+        `${votingDistribution.undecided.capital.toFixed(2)} PLN ` +
+        `(${undecidedPercent.toFixed(1)}%)`,
+        );
+        console.log(
+            `   ŁĄCZNIE WYKONALNY KAPITAŁ: ` +
+        `${totalViableCapital.toFixed(2)} PLN`,
+        );
+
+        const result = {
+          investors: paginatedInvestors,
+          allInvestors: investors,
+          totalCount,
+          currentPage: page,
+          pageSize,
+          hasNextPage: endIndex < totalCount,
+          hasPreviousPage: page > 1,
+          totalViableCapital,
+          votingDistribution,
+          executionTime: Date.now() - startTime,
+          source: "firebase-functions",
+        };
+
+        // 💾 Zapisz do cache
+        await setCachedResult(cacheKey, result, 300);
+
+        console.log(
+            `🎉 [Analytics Functions] Analiza zakończona w ` +
+        `${result.executionTime}ms`,
+        );
+        return result;
+      } catch (error) {
+        console.error("❌ [Analytics Functions] Błąd:", error);
+        throw new functions.https.HttpsError(
+            "internal",
+            "Błąd podczas analizy",
+            error.message,
+        );
+      }
+    });// � ZARZĄDZANIE DUŻYMI ZBIORAMI DANYCH
 
 /**
  * Pobiera wszystkich klientów z paginacją i filtrowaniem
@@ -508,46 +490,41 @@ exports.getSystemStats = functions
           db.collection("investments").get(),
         ]);
 
-        // Oblicz statystyki kapitału
-        let totalInvestedCapital = 0;
+        // Oblicz statystyki kapitału - używamy tylko kapital_pozostaly
         let totalRemainingCapital = 0;
         const productTypeStats = new Map();
 
         totalCapitalSnapshot.docs.forEach((doc) => {
           const data = doc.data();
-          const invested = parseFloat(data.wartosc_kontraktu || 0);
-          const remaining = parseFloat(data.remainingCapital || invested);
+          // UŻYWAMY TYLKO kapital_pozostaly zgodnie z modelem Dart
+          const remaining = parseFloat(data.kapital_pozostaly || 0);
           const productType = data.typ_produktu || "Nieznany";
 
-          totalInvestedCapital += invested;
           totalRemainingCapital += remaining;
 
           if (!productTypeStats.has(productType)) {
             productTypeStats.set(productType, {
               count: 0,
-              totalCapital: 0,
               remainingCapital: 0,
             });
           }
 
           const typeStats = productTypeStats.get(productType);
           typeStats.count++;
-          typeStats.totalCapital += invested;
           typeStats.remainingCapital += remaining;
         });
 
         const result = {
           totalClients: clientsCount.data().count,
           totalInvestments: investmentsCount.data().count,
-          totalInvestedCapital,
           totalRemainingCapital,
-          averageInvestmentPerClient:
-          totalInvestedCapital / Math.max(clientsCount.data().count, 1),
+          averageCapitalPerClient:
+          totalRemainingCapital / Math.max(clientsCount.data().count, 1),
           productTypeBreakdown: Array.from(productTypeStats.entries()).map(
               ([type, stats]) => ({
                 productType: type,
                 ...stats,
-                averagePerInvestment: stats.totalCapital /
+                averagePerInvestment: stats.remainingCapital /
               Math.max(stats.count, 1),
               }),
           ),
@@ -577,34 +554,24 @@ exports.getSystemStats = functions
  * @return {Object} InvestorSummary
  */
 function createInvestorSummary(client, investments) {
-  let totalRemainingCapital = 0;
-  let totalSharesValue = 0;
+  let totalViableCapital = 0;
   let totalInvestmentAmount = 0;
-  let totalRealizedCapital = 0;
 
   const processedInvestments = investments.map((investment) => {
     const amount = parseFloat(investment.kwota_inwestycji || 0);
-    const remaining = parseFloat(investment.kapital_pozostaly || amount);
-    const realized = parseFloat(investment.kapital_zrealizowany || 0);
+    // UŻYWAMY TYLKO kapital_pozostaly zgodnie z modelem Dart
+    const remainingCapital = parseFloat(investment.kapital_pozostaly || 0);
 
     totalInvestmentAmount += amount;
-    totalRealizedCapital += realized;
-
-    if (investment.typ_produktu === "Udziały") {
-      totalSharesValue += amount;
-    } else {
-      totalRemainingCapital += remaining;
-    }
+    // Dla wszystkich typów produktów używamy tylko kapital_pozostaly
+    totalViableCapital += remainingCapital;
 
     return {
       ...investment,
       investmentAmount: amount,
-      remainingCapital: remaining,
-      realizedCapital: realized,
+      remainingCapital: remainingCapital,
     };
   });
-
-  const totalValue = totalRemainingCapital + totalSharesValue;
 
   return {
     client: {
@@ -617,13 +584,13 @@ function createInvestorSummary(client, investments) {
       unviableInvestments: client.unviableInvestments || [],
     },
     investments: processedInvestments,
-    totalRemainingCapital,
-    totalSharesValue,
-    totalValue,
+    totalRemainingCapital: totalViableCapital,
+    totalSharesValue: 0, // Nie używamy już osobnej kategorii dla udziałów
+    totalValue: totalViableCapital,
     totalInvestmentAmount,
-    totalRealizedCapital,
+    totalRealizedCapital: 0, // Nie używamy już zrealizowanego kapitału
     investmentCount: investments.length,
-    viableRemainingCapital: totalValue,
+    viableRemainingCapital: totalViableCapital,
     hasUnviableInvestments: false,
   };
 }
