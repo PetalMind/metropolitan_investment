@@ -1,411 +1,229 @@
+import '../services/bond_service.dart';
+import '../services/loan_service.dart';
+import '../services/share_service.dart';
+import '../services/investment_service.dart';
 import '../services/client_service.dart';
 import '../services/employee_service.dart';
-import '../services/data_cache_service.dart';
-import '../models/investment.dart';
-import '../models/product.dart';
 import 'base_service.dart';
 
 class DashboardService extends BaseService {
-  final DataCacheService _dataCacheService = DataCacheService();
+  final BondService _bondService = BondService();
+  final LoanService _loanService = LoanService();
+  final ShareService _shareService = ShareService();
+  final InvestmentService _investmentService = InvestmentService();
   final ClientService _clientService = ClientService();
   final EmployeeService _employeeService = EmployeeService();
 
-  // Get complete dashboard data - ZOPTYMALIZOWANA WERSJA
+  // Get complete dashboard data
   Future<Map<String, dynamic>> getDashboardData() async {
     return getCachedData('dashboard_complete', () async {
       try {
-        print('🎯 [Dashboard] Pobieranie danych dashboard z cache...');
-
-        // Pobierz wszystkie inwestycje jednym zapytaniem z cache'a
-        final allInvestments = await _dataCacheService.getAllInvestments();
-
-        // Oblicz statystyki na podstawie wszystkich inwestycji
-        final dashboardStats = _calculateDashboardStats(allInvestments);
-
-        // Dodaj dodatkowe dane (klienci, pracownicy) równolegle
+        // Execute all requests in parallel for better performance
         final results = await Future.wait([
+          _bondService.getBondsStatistics(),
+          _loanService.getLoansStatistics(),
+          _shareService.getSharesStatistics(),
+          _investmentService.getInvestmentStatistics(),
           _clientService.getClientStats(),
           _employeeService.getEmployeesCount(),
         ]);
 
-        dashboardStats['clientStats'] = results[0];
-        dashboardStats['employeesCount'] = results[1];
+        final bondsStats = results[0] as Map<String, dynamic>;
+        final loansStats = results[1] as Map<String, dynamic>;
+        final sharesStats = results[2] as Map<String, dynamic>;
+        final investmentStats = results[3] as Map<String, dynamic>;
+        final clientStats = results[4] as Map<String, dynamic>;
+        final employeesCount = results[5] as int;
 
-        print(
-          '🎯 [Dashboard] Dashboard wygenerowany z ${allInvestments.length} inwestycji',
-        );
-        return dashboardStats;
+        // Calculate total portfolio value - tylko kapital_pozostaly
+        final totalBondsValue = bondsStats['total_remaining_capital'] ?? 0.0;
+        final totalLoansValue = loansStats['total_investment_amount'] ?? 0.0;
+        final totalSharesValue = sharesStats['total_investment_amount'] ?? 0.0;
+        final totalInvestmentsValue = investmentStats['totalValue'] ?? 0.0;
+
+        final totalPortfolioValue =
+            totalBondsValue +
+            totalLoansValue +
+            totalSharesValue +
+            totalInvestmentsValue;
+
+        // Calculate current value - tylko kapital_pozostaly dla obligacji
+        final bondsCurrentValue = bondsStats['total_remaining_capital'] ?? 0.0;
+
+        return {
+          // Overview stats
+          'total_portfolio_value': totalPortfolioValue,
+          'total_clients': clientStats['total_clients'] ?? 0,
+          'total_employees': employeesCount,
+          'total_active_investments': investmentStats['activeCount'] ?? 0,
+
+          // Detailed breakdowns
+          'bonds': {
+            'count': bondsStats['total_count'] ?? 0,
+            'total_value': totalBondsValue, // tylko kapital_pozostaly
+            'current_value': bondsCurrentValue, // tylko kapital_pozostaly
+            'realized_profit': 0.0, // nie uwzględniamy zrealizowanych zysków
+            'remaining_capital': bondsStats['total_remaining_capital'] ?? 0.0,
+            'remaining_interest': 0.0, // nie uwzględniamy odsetek
+            'product_types': bondsStats['product_type_counts'] ?? {},
+          },
+
+          'loans': {
+            'count': loansStats['total_count'] ?? 0,
+            'total_value': totalLoansValue,
+            'average_amount': loansStats['average_loan_amount'] ?? 0.0,
+            'product_types': loansStats['product_type_counts'] ?? {},
+          },
+
+          'shares': {
+            'count': sharesStats['total_count'] ?? 0,
+            'total_value': totalSharesValue,
+            'total_shares_count': sharesStats['total_shares_count'] ?? 0,
+            'average_price_per_share':
+                sharesStats['average_price_per_share'] ?? 0.0,
+            'product_types': sharesStats['product_type_counts'] ?? {},
+          },
+
+          'investments': {
+            'total_count': investmentStats['totalCount'] ?? 0,
+            'active_count': investmentStats['activeCount'] ?? 0,
+            'inactive_count': investmentStats['inactiveCount'] ?? 0,
+            'total_value': totalInvestmentsValue,
+            'product_types': investmentStats['productTypes'] ?? {},
+          },
+
+          'clients': {
+            'total': clientStats['total_clients'] ?? 0,
+            'with_email': clientStats['clients_with_email'] ?? 0,
+            'with_phone': clientStats['clients_with_phone'] ?? 0,
+            'with_company': clientStats['clients_with_company'] ?? 0,
+            'email_percentage': clientStats['email_percentage'] ?? '0',
+            'phone_percentage': clientStats['phone_percentage'] ?? '0',
+            'company_percentage': clientStats['company_percentage'] ?? '0',
+          },
+
+          // Performance metrics - tylko kapital_pozostaly dla obligacji
+          'performance': {
+            'total_profit_loss': 0.0, // nie uwzględniamy profit/loss
+            'bonds_performance': 0.0, // nie uwzględniamy performance
+            'portfolio_diversification': {
+              'bonds_percentage': totalPortfolioValue > 0
+                  ? (totalBondsValue / totalPortfolioValue * 100)
+                        .toStringAsFixed(1)
+                  : '0',
+              'loans_percentage': totalPortfolioValue > 0
+                  ? (totalLoansValue / totalPortfolioValue * 100)
+                        .toStringAsFixed(1)
+                  : '0',
+              'shares_percentage': totalPortfolioValue > 0
+                  ? (totalSharesValue / totalPortfolioValue * 100)
+                        .toStringAsFixed(1)
+                  : '0',
+              'investments_percentage': totalPortfolioValue > 0
+                  ? (totalInvestmentsValue / totalPortfolioValue * 100)
+                        .toStringAsFixed(1)
+                  : '0',
+            },
+          },
+
+          // Timestamps
+          'last_updated': DateTime.now().toIso8601String(),
+          'cache_duration': 'PT5M', // 5 minutes cache
+        };
       } catch (e) {
         logError('getDashboardData', e);
-        throw Exception('Błąd podczas pobierania danych dashboard: $e');
+        return {
+          'error': 'Failed to load dashboard data: $e',
+          'last_updated': DateTime.now().toIso8601String(),
+        };
       }
     });
   }
 
-  // Oblicza statystyki dashboard na podstawie wszystkich inwestycji
-  Map<String, dynamic> _calculateDashboardStats(List<Investment> investments) {
-    // Grupuj inwestycje według typu produktu
-    final bondInvestments = investments
-        .where((inv) => inv.productType == ProductType.bonds)
-        .toList();
-    final shareInvestments = investments
-        .where((inv) => inv.productType == ProductType.shares)
-        .toList();
-    final loanInvestments = investments
-        .where((inv) => inv.productType == ProductType.loans)
-        .toList();
-    final apartmentInvestments = investments
-        .where((inv) => inv.productType == ProductType.apartments)
-        .toList();
-
-    // Oblicz statystyki dla każdego typu
-    final bondsStats = _calculateProductStats(bondInvestments, 'bonds');
-    final sharesStats = _calculateProductStats(shareInvestments, 'shares');
-    final loansStats = _calculateProductStats(loanInvestments, 'loans');
-    final apartmentsStats = _calculateProductStats(
-      apartmentInvestments,
-      'apartments',
-    );
-
-    // Oblicz łączne wartości
-    final totalPortfolioValue = investments.fold<double>(
-      0.0,
-      (sum, inv) => sum + inv.investmentAmount,
-    );
-    final totalRemainingCapital = investments.fold<double>(
-      0.0,
-      (sum, inv) => sum + inv.remainingCapital,
-    );
-    final totalRealizedCapital = investments.fold<double>(
-      0.0,
-      (sum, inv) => sum + inv.realizedCapital,
-    );
-
-    return {
-      'totalPortfolioValue': totalPortfolioValue,
-      'totalRemainingCapital': totalRemainingCapital,
-      'totalRealizedCapital': totalRealizedCapital,
-      'totalInvestments': investments.length,
-      'bondsStats': bondsStats,
-      'sharesStats': sharesStats,
-      'loansStats': loansStats,
-      'apartmentsStats': apartmentsStats,
-      'portfolioComposition': _calculatePortfolioComposition(investments),
-      'monthlyTrends': _calculateMonthlyTrends(investments),
-      'topClients': _calculateTopClients(investments),
-      'lastUpdated': DateTime.now().toIso8601String(),
-    };
-  }
-
-  // Oblicza statystyki dla konkretnego typu produktu
-  Map<String, dynamic> _calculateProductStats(
-    List<Investment> investments,
-    String productType,
-  ) {
-    if (investments.isEmpty) {
-      return {
-        'count': 0,
-        'total_investment_amount': 0.0,
-        'total_remaining_capital': 0.0,
-        'total_realized_capital': 0.0,
-        'average_investment': 0.0,
-        'active_count': 0,
-        'completed_count': 0,
-      };
-    }
-
-    final totalInvestment = investments.fold<double>(
-      0.0,
-      (sum, inv) => sum + inv.investmentAmount,
-    );
-    final totalRemaining = investments.fold<double>(
-      0.0,
-      (sum, inv) => sum + inv.remainingCapital,
-    );
-    final totalRealized = investments.fold<double>(
-      0.0,
-      (sum, inv) => sum + inv.realizedCapital,
-    );
-    final activeCount = investments
-        .where((inv) => inv.status == InvestmentStatus.active)
-        .length;
-    final completedCount = investments
-        .where((inv) => inv.status == InvestmentStatus.completed)
-        .length;
-
-    return {
-      'count': investments.length,
-      'total_investment_amount': totalInvestment,
-      'total_remaining_capital': totalRemaining,
-      'total_realized_capital': totalRealized,
-      'average_investment': investments.isNotEmpty
-          ? totalInvestment / investments.length
-          : 0.0,
-      'active_count': activeCount,
-      'completed_count': completedCount,
-    };
-  }
-
-  // Oblicza skład portfela według produktów
-  Map<String, dynamic> _calculatePortfolioComposition(
-    List<Investment> investments,
-  ) {
-    if (investments.isEmpty) return {};
-
-    final totalValue = investments.fold<double>(
-      0.0,
-      (sum, inv) => sum + inv.remainingCapital,
-    );
-
-    final composition = <String, Map<String, dynamic>>{};
-    for (final productType in ProductType.values) {
-      final productInvestments = investments
-          .where((inv) => inv.productType == productType)
-          .toList();
-      final productValue = productInvestments.fold<double>(
-        0.0,
-        (sum, inv) => sum + inv.remainingCapital,
-      );
-      final percentage = totalValue > 0
-          ? (productValue / totalValue) * 100
-          : 0.0;
-
-      composition[productType.displayName] = {
-        'value': productValue,
-        'percentage': percentage,
-        'count': productInvestments.length,
-      };
-    }
-
-    return composition;
-  }
-
-  // Oblicza trendy miesięczne
-  Map<String, dynamic> _calculateMonthlyTrends(List<Investment> investments) {
-    final now = DateTime.now();
-    final trends = <String, Map<String, dynamic>>{};
-
-    for (int i = 0; i < 12; i++) {
-      final month = DateTime(now.year, now.month - i, 1);
-      final monthKey =
-          '${month.year}-${month.month.toString().padLeft(2, '0')}';
-
-      final monthInvestments = investments.where((inv) {
-        return inv.signedDate.year == month.year &&
-            inv.signedDate.month == month.month;
-      }).toList();
-
-      trends[monthKey] = {
-        'count': monthInvestments.length,
-        'value': monthInvestments.fold<double>(
-          0.0,
-          (sum, inv) => sum + inv.investmentAmount,
-        ),
-      };
-    }
-
-    return trends;
-  }
-
-  // Oblicza top klientów
-  List<Map<String, dynamic>> _calculateTopClients(
-    List<Investment> investments, {
-    int limit = 10,
-  }) {
-    final clientGroups = <String, List<Investment>>{};
-
-    for (final investment in investments) {
-      clientGroups.putIfAbsent(investment.clientName, () => []).add(investment);
-    }
-
-    final clientStats = clientGroups.entries.map((entry) {
-      final clientInvestments = entry.value;
-      final totalValue = clientInvestments.fold<double>(
-        0.0,
-        (sum, inv) => sum + inv.remainingCapital,
-      );
-
-      return {
-        'clientName': entry.key,
-        'totalValue': totalValue,
-        'investmentCount': clientInvestments.length,
-        'averageInvestment': totalValue / clientInvestments.length,
-      };
-    }).toList();
-
-    clientStats.sort(
-      (a, b) =>
-          (b['totalValue'] as double).compareTo(a['totalValue'] as double),
-    );
-    return clientStats.take(limit).toList();
-  }
-
-  // Get top performing investments for insights - ZOPTYMALIZOWANA WERSJA
-  Future<Map<String, List<Map<String, dynamic>>>>
-  getTopPerformingInvestments() async {
-    return getCachedData('top_performing_investments', () async {
+  // Get top performers across all asset types
+  Future<Map<String, dynamic>> getTopPerformers() async {
+    return getCachedData('top_performers', () async {
       try {
-        final allInvestments = await _dataCacheService.getAllInvestments();
-
-        // Sortuj według wartości
-        final topByValue = List<Investment>.from(allInvestments)
-          ..sort((a, b) => b.remainingCapital.compareTo(a.remainingCapital));
+        final results = await Future.wait([
+          _bondService.getTopPerformingBonds(limit: 5),
+          _shareService.getSharesWithHighestValue(limit: 5),
+          _loanService.getLargestLoans(limit: 5),
+        ]);
 
         return {
-          'top_bonds': topByValue
-              .where((inv) => inv.productType == ProductType.bonds)
-              .take(5)
-              .map(
-                (inv) => {
-                  'clientName': inv.clientName,
-                  'productName': inv.productName,
-                  'remainingCapital': inv.remainingCapital,
-                  'realizedCapital': inv.realizedCapital,
-                },
-              )
-              .toList(),
-          'top_shares': topByValue
-              .where((inv) => inv.productType == ProductType.shares)
-              .take(5)
-              .map(
-                (inv) => {
-                  'clientName': inv.clientName,
-                  'productName': inv.productName,
-                  'remainingCapital': inv.remainingCapital,
-                  'sharesCount': inv.sharesCount ?? 0,
-                },
-              )
-              .toList(),
-          'top_loans': topByValue
-              .where((inv) => inv.productType == ProductType.loans)
-              .take(5)
-              .map(
-                (inv) => {
-                  'clientName': inv.clientName,
-                  'productName': inv.productName,
-                  'remainingCapital': inv.remainingCapital,
-                  'paidAmount': inv.paidAmount,
-                },
-              )
-              .toList(),
+          'top_bonds': results[0],
+          'top_shares': results[1],
+          'largest_loans': results[2],
+          'last_updated': DateTime.now().toIso8601String(),
         };
       } catch (e) {
-        logError('getTopPerformingInvestments', e);
+        logError('getTopPerformers', e);
         return {
-          'top_bonds': <Map<String, dynamic>>[],
-          'top_shares': <Map<String, dynamic>>[],
-          'top_loans': <Map<String, dynamic>>[],
+          'error': 'Failed to load top performers: $e',
+          'last_updated': DateTime.now().toIso8601String(),
         };
       }
     });
   }
 
-  // Czyści cache dashboard
-  void clearDashboardCache() {
+  // Get summary statistics for quick overview
+  Future<Map<String, dynamic>> getQuickStats() async {
+    return getCachedData('quick_stats', () async {
+      try {
+        final dashboardData = await getDashboardData();
+
+        return {
+          'total_portfolio_value': dashboardData['total_portfolio_value'],
+          'total_clients': dashboardData['total_clients'],
+          'active_investments': dashboardData['total_active_investments'],
+          'bonds_count': dashboardData['bonds']['count'],
+          'loans_count': dashboardData['loans']['count'],
+          'shares_count': dashboardData['shares']['count'],
+          'profit_loss': dashboardData['performance']['total_profit_loss'],
+          'last_updated': DateTime.now().toIso8601String(),
+        };
+      } catch (e) {
+        logError('getQuickStats', e);
+        return {
+          'error': 'Failed to load quick stats: $e',
+          'last_updated': DateTime.now().toIso8601String(),
+        };
+      }
+    });
+  }
+
+  // Clear all dashboard caches
+  Future<void> refreshDashboardData() async {
     clearCache('dashboard_complete');
-    clearCache('top_performing_investments');
-    clearCache('portfolio_growth');
-    _dataCacheService.invalidateCache();
-    print('🎯 [Dashboard] Cache wyczyszczony');
+    clearCache('top_performers');
+    clearCache('quick_stats');
+    clearCache('bonds_stats');
+    clearCache('loans_stats');
+    clearCache('shares_stats');
+    clearCache('client_stats');
   }
 
-  // Pobiera wzrost portfela w czasie - ZOPTYMALIZOWANA WERSJA
-  Future<Map<String, dynamic>> getPortfolioGrowth() async {
-    return getCachedData('portfolio_growth', () async {
-      try {
-        final allInvestments = await _dataCacheService.getAllInvestments();
-
-        // Grupuj według miesięcy
-        final monthlyData = <String, Map<String, dynamic>>{};
-        final now = DateTime.now();
-
-        for (int i = 0; i < 12; i++) {
-          final month = DateTime(now.year, now.month - i, 1);
-          final monthKey =
-              '${month.year}-${month.month.toString().padLeft(2, '0')}';
-
-          final monthInvestments = allInvestments.where((inv) {
-            return inv.signedDate.year == month.year &&
-                inv.signedDate.month == month.month;
-          }).toList();
-
-          final totalInvested = monthInvestments.fold<double>(
-            0.0,
-            (sum, inv) => sum + inv.investmentAmount,
-          );
-          final totalRemaining = monthInvestments.fold<double>(
-            0.0,
-            (sum, inv) => sum + inv.remainingCapital,
-          );
-
-          monthlyData[monthKey] = {
-            'month': monthKey,
-            'new_investments': monthInvestments.length,
-            'total_invested': totalInvested,
-            'total_remaining': totalRemaining,
-            'growth_rate': totalInvested > 0
-                ? (totalRemaining / totalInvested) * 100
-                : 0.0,
-          };
-        }
-
-        return {
-          'monthly_data': monthlyData,
-          'total_growth': _calculateTotalGrowth(allInvestments),
-        };
-      } catch (e) {
-        logError('getPortfolioGrowth', e);
-        return {'monthly_data': {}, 'total_growth': 0.0};
-      }
-    });
-  }
-
-  // Oblicza łączny wzrost portfela
-  double _calculateTotalGrowth(List<Investment> investments) {
-    final totalInvested = investments.fold<double>(
-      0.0,
-      (sum, inv) => sum + inv.investmentAmount,
-    );
-    final totalCurrent = investments.fold<double>(
-      0.0,
-      (sum, inv) => sum + inv.remainingCapital + inv.realizedCapital,
-    );
-
-    return totalInvested > 0
-        ? ((totalCurrent - totalInvested) / totalInvested) * 100
-        : 0.0;
-  }
-
-  // Pobiera alerty dashboard - ZOPTYMALIZOWANA WERSJA
+  // Get alerts and notifications
   Future<List<Map<String, dynamic>>> getDashboardAlerts() async {
     try {
-      final allInvestments = await _dataCacheService.getAllInvestments();
-      final alerts = <Map<String, dynamic>>[];
+      final List<Map<String, dynamic>> alerts = [];
 
-      // Sprawdź inwestycje z dużymi kwotami niezrealizowanych odsetek
-      final highInterestInvestments = allInvestments
-          .where(
-            (inv) =>
-                inv.remainingInterest > 100000, // 100k+ pozostałych odsetek
-          )
-          .toList();
+      // Check for bonds with remaining capital - zmienione z wysokich odsetek na kapitał pozostały
+      final bondsStats = await _bondService.getBondsStatistics();
+      final totalRemainingCapital =
+          bondsStats['total_remaining_capital'] ?? 0.0;
 
-      if (highInterestInvestments.isNotEmpty) {
-        final totalRemainingInterest = highInterestInvestments.fold<double>(
-          0.0,
-          (sum, inv) => sum + inv.remainingInterest,
-        );
-
+      if (totalRemainingCapital > 100000) {
         alerts.add({
           'type': 'info',
-          'title': 'Wysokie odsetki do realizacji',
+          'title': 'Wysoki kapitał pozostały',
           'message':
-              'Pozostałe odsetki do realizacji: ${totalRemainingInterest.toStringAsFixed(0)} PLN',
-          'action': 'investments_view',
+              'Kapitał pozostały do dyspozycji: ${totalRemainingCapital.toStringAsFixed(0)} PLN',
+          'action': 'bonds_view',
         });
       }
 
-      // Sprawdź zaangażowanie klientów (email)
+      // Check for low client engagement
       final clientStats = await _clientService.getClientStats();
       final emailPercentage =
           double.tryParse(clientStats['email_percentage'] ?? '0') ?? 0;

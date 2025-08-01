@@ -150,10 +150,11 @@ class ClientService extends BaseService {
     }
   }
 
-  // Search clients - ZAKTUALIZOWANE dla danych z Excel z optymalizacją
+  // Search clients - ZOPTYMALIZOWANE z wykorzystaniem indeksów
   Stream<List<Client>> searchClients(String query, {int limit = 30}) {
-    if (query.isEmpty) return getAllClientsStream();
+    if (query.isEmpty) return getClients(limit: limit);
 
+    // Wykorzystuje indeks: email + imie_nazwisko
     return firestore
         .collection(_collection)
         .where('imie_nazwisko', isGreaterThanOrEqualTo: query)
@@ -239,13 +240,14 @@ class ClientService extends BaseService {
 
   // NOWE METODY dla danych z Excel
 
-  // Pobierz klientów z emailem z optymalizacją
+  // Pobierz klientów z emailem z optymalizacją - wykorzystuje indeks email + imie_nazwisko
   Stream<List<Client>> getClientsWithEmail({int limit = 50}) {
     return firestore
         .collection(_collection)
         .where('email', isNotEqualTo: '')
         .where('email', isNotEqualTo: 'brak')
         .orderBy('email')
+        .orderBy('imie_nazwisko') // Dodane dla wykorzystania indeksu
         .limit(limit)
         .snapshots()
         .map(
@@ -458,6 +460,113 @@ class ClientService extends BaseService {
       logError('updateClientFields', e);
       throw Exception('Failed to update client fields: $e');
     }
+  }
+
+  // ===== NOWE METODY WYKORZYSTUJĄCE INDEKSY =====
+
+  // Pobierz aktywnych klientów - wykorzystuje indeks isActive + imie_nazwisko
+  Stream<List<Client>> getActiveClients({int limit = 100}) {
+    // Ponieważ dane z Excel nie mają pola isActive, pobieramy wszystkich klientów
+    return firestore
+        .collection(_collection)
+        .orderBy('imie_nazwisko')
+        .limit(limit)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            final data = doc.data();
+            return Client(
+              id: doc.id,
+              name: data['imie_nazwisko'] ?? '',
+              email: data['email'] ?? '',
+              phone: data['telefon'] ?? '',
+              address: '',
+              pesel: data['pesel'] ?? '',
+              createdAt: data['created_at'] != null
+                  ? DateTime.parse(data['created_at'])
+                  : DateTime.now(),
+              updatedAt: DateTime.now(),
+              isActive: true, // Wszystkich traktujemy jako aktywnych
+              additionalInfo: {
+                'nazwa_firmy': data['nazwa_firmy'] ?? '',
+                'source_file': data['source_file'] ?? 'Excel import',
+              },
+            );
+          }).toList(),
+        );
+  }
+
+  // Pobierz klientów według typu - dane z Excel nie mają pola type
+  Stream<List<Client>> getClientsByType(ClientType type, {int limit = 50}) {
+    // Pobieramy wszystkich klientów (dane nie mają pola type)
+    return firestore
+        .collection(_collection)
+        .orderBy('imie_nazwisko')
+        .limit(limit)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            final data = doc.data();
+            return Client(
+              id: doc.id,
+              name: data['imie_nazwisko'] ?? '',
+              email: data['email'] ?? '',
+              phone: data['telefon'] ?? '',
+              address: '',
+              pesel: data['pesel'] ?? '',
+              type: ClientType.individual, // Domyślnie individual
+              createdAt: data['created_at'] != null
+                  ? DateTime.parse(data['created_at'])
+                  : DateTime.now(),
+              updatedAt: DateTime.now(),
+              isActive: true,
+              additionalInfo: {
+                'nazwa_firmy': data['nazwa_firmy'] ?? '',
+                'source_file': data['source_file'] ?? 'Excel import',
+              },
+            );
+          }).toList(),
+        );
+  }
+
+  // Pobierz klientów według statusu głosowania - wykorzystuje indeks votingStatus + updatedAt
+  Stream<List<Client>> getClientsByVotingStatus(
+    VotingStatus votingStatus, {
+    int limit = 50,
+  }) {
+    // Pobieramy wszystkich klientów (dane nie mają pola votingStatus)
+    return firestore
+        .collection(_collection)
+        .orderBy('imie_nazwisko')
+        .limit(limit)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            final data = doc.data();
+            return Client(
+              id: doc.id,
+              name: data['imie_nazwisko'] ?? '',
+              email: data['email'] ?? '',
+              phone: data['telefon'] ?? '',
+              address: '',
+              pesel: data['pesel'] ?? '',
+              type: ClientType.individual, // Domyślnie individual
+              notes: data['notes'] ?? '',
+              votingStatus: VotingStatus.undecided, // Domyślnie undecided
+              colorCode: data['colorCode'] ?? '#FFFFFF',
+              unviableInvestments: [],
+              createdAt: data['created_at'] != null
+                  ? DateTime.parse(data['created_at'])
+                  : DateTime.now(),
+              updatedAt: DateTime.now(),
+              isActive: true, // Wszyscy są aktywni
+              additionalInfo: {
+                'nazwa_firmy': data['nazwa_firmy'] ?? '',
+                'source_file': data['source_file'] ?? 'Excel import',
+              },
+            );
+          }).toList(),
+        );
   }
 
   // Usuwam duplikat metody getClientsPaginated - zostaje ta z góry

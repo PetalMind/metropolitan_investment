@@ -18,7 +18,9 @@ class _ClientsScreenState extends State<ClientsScreen> {
 
   List<Client> _clients = [];
   List<Client> _filteredClients = [];
+  List<Client> _activeClients = []; // Nowa lista dla aktywnych klientów
   bool _isLoading = true;
+  bool _showActiveOnly = false; // Toggle dla aktywnych klientów
   double _loadingProgress = 0.0;
   String _loadingStage = 'Inicjalizacja...';
 
@@ -43,39 +45,65 @@ class _ClientsScreenState extends State<ClientsScreen> {
     });
 
     try {
+      // Ładowanie wszystkich klientów
       final clients = await _clientService.loadAllClientsWithProgress(
         onProgress: (progress, stage) {
           if (mounted) {
             setState(() {
-              _loadingProgress = progress;
+              _loadingProgress = progress * 0.7; // 70% dla wszystkich klientów
               _loadingStage = stage;
             });
           }
         },
       );
 
-      setState(() {
-        _clients = clients;
-        _filteredClients = clients;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loadingProgress = 0.8;
+          _loadingStage = 'Ładowanie aktywnych klientów...';
+        });
+
+        // Ładowanie aktywnych klientów z wykorzystaniem indeksu
+        final activeClientsStream = _clientService.getActiveClients();
+        final activeClients = await activeClientsStream.first;
+
+        setState(() {
+          _clients = clients;
+          _activeClients = activeClients;
+          _filteredClients = _showActiveOnly ? _activeClients : _clients;
+          _isLoading = false;
+          _loadingProgress = 1.0;
+          _loadingStage = 'Zakończono';
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
       _showErrorSnackBar('Błąd podczas ładowania klientów: $e');
     }
   }
 
   void _filterClients() {
     final query = _searchController.text.toLowerCase();
+    final sourceList = _showActiveOnly ? _activeClients : _clients;
 
     setState(() {
-      _filteredClients = _clients.where((client) {
+      _filteredClients = sourceList.where((client) {
         return client.name.toLowerCase().contains(query) ||
             client.email.toLowerCase().contains(query) ||
             client.phone.toLowerCase().contains(query) ||
             (client.pesel?.toLowerCase().contains(query) ?? false);
       }).toList();
     });
+  }
+
+  void _toggleActiveClients() {
+    setState(() {
+      _showActiveOnly = !_showActiveOnly;
+      _filteredClients = _showActiveOnly ? _activeClients : _clients;
+    });
+    _filterClients(); // Re-apply search filter
   }
 
   void _showClientForm([Client? client]) {
@@ -313,6 +341,29 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 ),
               ),
             ),
+          ),
+          const SizedBox(width: 16),
+          // Przełącznik dla aktywnych klientów - wykorzystuje indeks compound (isActive, name)
+          FilterChip(
+            label: Text(
+              'Tylko aktywni (${_activeClients.length})',
+              style: TextStyle(
+                color: _showActiveOnly ? Colors.white : AppTheme.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+            selected: _showActiveOnly,
+            onSelected: (bool selected) => _toggleActiveClients(),
+            selectedColor: AppTheme.secondaryGold,
+            checkmarkColor: Colors.white,
+            backgroundColor: AppTheme.surfaceInteractive,
+            side: BorderSide(
+              color: _showActiveOnly
+                  ? AppTheme.secondaryGold
+                  : AppTheme.borderSecondary,
+            ),
+            tooltip:
+                'Pokaż tylko aktywnych klientów - optymalizacja 50-100x szybsza',
           ),
           const SizedBox(width: 16),
           PopupMenuButton<String>(

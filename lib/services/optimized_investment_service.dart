@@ -186,7 +186,12 @@ class OptimizedInvestmentService extends BaseService {
           final data = doc.data();
           final investment = _convertExcelDataToInvestment(doc.id, data);
 
-          totalValue += investment.investmentAmount;
+          // Dla obligacji używamy tylko kapital_pozostaly, dla innych produktów investmentAmount
+          if (investment.productType == ProductType.bonds) {
+            totalValue += investment.remainingCapital;
+          } else {
+            totalValue += investment.investmentAmount;
+          }
 
           // Count product types
           final productTypeName = investment.productType
@@ -320,7 +325,7 @@ class OptimizedInvestmentService extends BaseService {
       clientId: '',
       clientName: dataMap['klient']?.toString() ?? '',
       employeeId: '',
-      employeeFirstName: dataMap['praconwnik_imie']?.toString() ?? '',
+      employeeFirstName: dataMap['pracownik_imie']?.toString() ?? '',
       employeeLastName: dataMap['pracownik_nazwisko']?.toString() ?? '',
       branchCode: dataMap['kod_oddzialu']?.toString() ?? '',
       status: status,
@@ -370,5 +375,43 @@ class OptimizedInvestmentService extends BaseService {
         'procent_prowizji': dataMap['procent_prowizji']?.toString() ?? '',
       },
     );
+  }
+
+  /// Pobiera top inwestycje według wartości - używa indeksu compound (status, aktualna_wartosc desc)
+  Future<List<Investment>> getTopInvestments(
+    InvestmentStatus status, {
+    int limit = 10,
+  }) async {
+    try {
+      final snapshot = await firestore
+          .collection(_collection)
+          .where('status', isEqualTo: status.name)
+          .orderBy('aktualna_wartosc', descending: true)
+          .limit(limit)
+          .get();
+
+      return snapshot.docs.map((doc) => Investment.fromFirestore(doc)).toList();
+    } catch (e) {
+      logError('getTopInvestments', e);
+      throw Exception('Failed to get top investments: $e');
+    }
+  }
+
+  /// Pobiera najnowsze inwestycje (ostatnie N dni)
+  Future<List<Investment>> getRecentInvestments({int days = 30}) async {
+    try {
+      final DateTime cutoffDate = DateTime.now().subtract(Duration(days: days));
+
+      final snapshot = await firestore
+          .collection(_collection)
+          .where('createdAt', isGreaterThan: Timestamp.fromDate(cutoffDate))
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return snapshot.docs.map((doc) => Investment.fromFirestore(doc)).toList();
+    } catch (e) {
+      logError('getRecentInvestments', e);
+      throw Exception('Failed to get recent investments: $e');
+    }
   }
 }

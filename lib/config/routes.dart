@@ -11,7 +11,7 @@ import '../screens/products_screen.dart';
 import '../screens/companies_screen.dart';
 import '../screens/employees_screen.dart';
 import '../screens/analytics_screen.dart';
-import '../screens/investor_analytics_screen.dart';
+import '../screens/optimized_investor_analytics_screen.dart';
 import '../widgets/auth_wrapper.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
@@ -119,7 +119,8 @@ class OldAppRouter {
           ),
           GoRoute(
             path: OldAppRoutes.investorAnalytics,
-            builder: (context, state) => const InvestorAnalyticsScreen(),
+            builder: (context, state) =>
+                const OptimizedInvestorAnalyticsScreen(),
           ),
         ],
       ),

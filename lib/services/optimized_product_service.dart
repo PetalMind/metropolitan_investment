@@ -89,7 +89,7 @@ class OptimizedProductService extends BaseService {
     }
   }
 
-  // Get products by type z limitami
+  // Get products by type z limitami - WYKORZYSTUJE indeks isActive + type + name
   Stream<List<Product>> getProductsByType(ProductType type, {int? limit}) {
     Query query = firestore
         .collection(_collection)
@@ -107,7 +107,7 @@ class OptimizedProductService extends BaseService {
     );
   }
 
-  // Get products by company z limitami
+  // Get products by company z limitami - WYKORZYSTUJE indeks isActive + companyId + name
   Stream<List<Product>> getProductsByCompany(String companyId, {int? limit}) {
     Query query = firestore
         .collection(_collection)
@@ -209,7 +209,7 @@ class OptimizedProductService extends BaseService {
     });
   }
 
-  // Get active bonds near maturity z optymalizacją
+  // Obligacje bliskie wykupu z limitem - WYKORZYSTUJE indeks type + maturityDate + isActive
   Future<List<Product>> getBondsNearMaturity(
     int daysThreshold, {
     int limit = 50,
@@ -219,13 +219,12 @@ class OptimizedProductService extends BaseService {
 
       final snapshot = await firestore
           .collection(_collection)
-          .where('isActive', isEqualTo: true)
           .where('type', isEqualTo: ProductType.bonds.name)
           .where(
             'maturityDate',
             isLessThanOrEqualTo: Timestamp.fromDate(threshold),
           )
-          .where('maturityDate', isGreaterThan: Timestamp.now())
+          .where('isActive', isEqualTo: true)
           .orderBy('maturityDate')
           .limit(limit)
           .get();
@@ -235,5 +234,47 @@ class OptimizedProductService extends BaseService {
       logError('getBondsNearMaturity', e);
       throw Exception('Failed to get bonds near maturity: $e');
     }
+  }
+
+  // ===== NOWE METODY WYKORZYSTUJĄCE INDEKSY =====
+
+  // Produkty według daty zapadalności - wykorzystuje indeks isActive + maturityDate
+  Stream<List<Product>> getProductsByMaturityRange(
+    DateTime startDate,
+    DateTime endDate, {
+    int limit = 50,
+  }) {
+    return firestore
+        .collection(_collection)
+        .where('isActive', isEqualTo: true)
+        .where(
+          'maturityDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        )
+        .where('maturityDate', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+        .orderBy('maturityDate')
+        .limit(limit)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList(),
+        );
+  }
+
+  // Produkty sortowane według daty zapadalności - wykorzystuje indeks isActive + maturityDate
+  Stream<List<Product>> getProductsByMaturityDate({
+    bool ascending = true,
+    int limit = 100,
+  }) {
+    return firestore
+        .collection(_collection)
+        .where('isActive', isEqualTo: true)
+        .orderBy('maturityDate', descending: !ascending)
+        .limit(limit)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList(),
+        );
   }
 }
