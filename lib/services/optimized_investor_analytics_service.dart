@@ -187,7 +187,7 @@ class OptimizedInvestorAnalyticsService extends BaseService {
         // Filtruj według niepracujących inwestycji jeśli wymagane
         if (showOnlyWithUnviableInvestments) {
           final hasUnviableInvestments =
-              investorSummary.totalValue >
+              investorSummary.totalRemainingCapital >
               investorSummary.viableRemainingCapital;
           if (!hasUnviableInvestments) return null;
         }
@@ -399,7 +399,9 @@ class OptimizedInvestorAnalyticsService extends BaseService {
           comparison = a.client.name.compareTo(b.client.name);
           break;
         case 'totalValue':
-          comparison = a.totalValue.compareTo(b.totalValue);
+          comparison = a.viableRemainingCapital.compareTo(
+            b.viableRemainingCapital,
+          );
           break;
         case 'viableCapital':
           comparison = a.viableRemainingCapital.compareTo(

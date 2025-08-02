@@ -1,7 +1,20 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../theme/app_theme.dart';
+import '.    double totalReturn = 0.0;
+    int validInvestments = 0;
+
+    for (final investment in investor.investments) {
+      if (investment.investmentAmount > 0) {
+        // ⭐ Zwrot obliczony tylko na podstawie kapitału pozostałego
+        final returnValue = (investment.remainingCapital - investment.investmentAmount) / 
+                           investment.investmentAmount * 100;
+        totalReturn += returnValue;
+        validInvestments++;
+      }
+    }
+
+    return validInvestments > 0 ? totalReturn / validInvestments : 0.0;.dart';
 import '../models/investor_summary.dart';
 import '../utils/currency_formatter.dart';
 
@@ -653,12 +666,9 @@ class _PremiumRiskReturnBubbleChartState
 
     for (final investment in investor.investments) {
       if (investment.investmentAmount > 0) {
-        final returnValue =
-            (investment.realizedCapital +
-                investment.remainingCapital -
-                investment.investmentAmount) /
-            investment.investmentAmount *
-            100;
+        // ⭐ Zwrot obliczony tylko na podstawie kapitału pozostałego
+        final returnValue = (investment.remainingCapital - investment.investmentAmount) / 
+                           investment.investmentAmount * 100;
         totalReturn += returnValue;
         validInvestments++;
       }

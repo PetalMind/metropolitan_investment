@@ -235,7 +235,8 @@ class InvestorAnalyticsService extends BaseService {
         filteredInvestors = filteredInvestors
             .where(
               (investor) =>
-                  investor.totalValue > investor.viableRemainingCapital,
+                  investor.totalRemainingCapital >
+                  investor.viableRemainingCapital,
             )
             .toList();
       }
@@ -253,7 +254,9 @@ class InvestorAnalyticsService extends BaseService {
             comparison = a.client.name.compareTo(b.client.name);
             break;
           case 'totalValue':
-            comparison = a.totalValue.compareTo(b.totalValue);
+            comparison = a.viableRemainingCapital.compareTo(
+              b.viableRemainingCapital,
+            );
             break;
           case 'viableCapital':
             comparison = a.viableRemainingCapital.compareTo(
