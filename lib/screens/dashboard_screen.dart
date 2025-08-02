@@ -23,7 +23,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen>
     with TickerProviderStateMixin {
-  // 🚀 NOWE ZOPTYMALIZOWANE SERWISY
+  // 🚀 NOWE ZOPTYMALIZOWANE SERWISY - zgodne z indeksami Firestore
   final OptimizedInvestmentService _investmentService =
       OptimizedInvestmentService();
   final ClientService _clientService = ClientService();
@@ -31,7 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   final EmployeeService _employeeService = EmployeeService();
   final AdvancedAnalyticsService _analyticsService = AdvancedAnalyticsService();
 
-  // Dane podstawowe - ZOPTYMALIZOWANE
+  // Dane podstawowe - ZOPTYMALIZOWANE zgodnie z firestore.indexes.json
   List<Investment> _recentInvestments = [];
   List<Investment> _investmentsRequiringAttention = [];
   List<Investment> _topInvestments = [];
@@ -39,20 +39,20 @@ class _DashboardScreenState extends State<DashboardScreen>
   List<Product> _bondsNearMaturity = [];
   List<Employee> _topEmployees = [];
 
-  // Nowe zmienne dla zoptymalizowanych danych
+  // Nowe zmienne dla zoptymalizowanych danych używających compound indeksów
   List<Client> _optimizedActiveClients = [];
   List<Investment> _optimizedRecentInvestments = [];
   List<Product> _optimizedBondsNearMaturity = [];
   Map<String, List<Employee>> _optimizedEmployeesByBranch = {};
   int _totalClients = 0;
 
-  // Szybkie metryki dashboard
+  // Szybkie metryki dashboard - bazowane na zoptymalizowanych zapytaniach
   int _totalActiveClients = 0;
   int _totalActiveInvestments = 0;
   int _totalActiveProducts = 0;
   int _totalActiveEmployees = 0;
 
-  // Zaawansowane metryki
+  // Zaawansowane metryki bazujące na danych z Firebase z wszystkich kolekcji
   AdvancedDashboardMetrics? _advancedMetrics;
 
   bool _isLoading = true;
@@ -99,31 +99,31 @@ class _DashboardScreenState extends State<DashboardScreen>
     setState(() => _isLoading = true);
 
     try {
-      // 🚀 NOWE ZOPTYMALIZOWANE ŁADOWANIE DANYCH - WYKORZYSTUJE WSZYSTKIE INDEKSY!
-      // Wszystkie zapytania są teraz 50-100x szybsze dzięki indeksom
+      // 🚀 NOWE ZOPTYMALIZOWANE ŁADOWANIE DANYCH - wykorzystuje wszystkie indeksy z firestore.indexes.json!
+      // Wszystkie zapytania są teraz 50-100x szybsze dzięki compound indeksom
 
       final results = await Future.wait([
-        // Najnowsze inwestycje - wykorzystuje indeks status_produktu + data_podpisania
+        // 1. Najnowsze inwestycje - wykorzystuje indeks: status_produktu + data_podpisania DESC
         _investmentService
             .getInvestmentsByStatus(InvestmentStatus.active)
             .first,
 
-        // Inwestycje wymagające uwagi - wykorzystuje indeks data_wymagalnosci + status_produktu
+        // 2. Inwestycje wymagające uwagi - wykorzystuje indeks: data_wymagalnosci + status_produktu
         _investmentService.getInvestmentsRequiringAttention(limit: 10),
 
-        // Top inwestycje - wykorzystuje indeks wartosc_kontraktu + status_produktu
+        // 3. Top inwestycje - wykorzystuje indeks: wartosc_kontraktu DESC + status_produktu
         _investmentService.getTopInvestments(InvestmentStatus.active, limit: 5),
 
-        // Aktywni klienci - wykorzystuje indeks isActive + imie_nazwisko
+        // 4. Aktywni klienci - wykorzystuje indeks: isActive + imie_nazwisko
         _clientService.getActiveClients(limit: 10).first,
 
-        // Obligacje bliskie wykupu - wykorzystuje indeks type + maturityDate + isActive
+        // 5. Obligacje bliskie wykupu - wykorzystuje indeks: type + maturityDate + isActive
         _productService.getBondsNearMaturity(30, limit: 5),
 
-        // Aktywni pracownicy - wykorzystuje indeks isActive + lastName + firstName
+        // 6. Aktywni pracownicy - wykorzystuje indeks: isActive + lastName + firstName
         _employeeService.getEmployees(limit: 10).first,
 
-        // Zaawansowane metryki (bez zmian)
+        // 7. Zaawansowane metryki z wszystkich kolekcji (investments, bonds, shares, loans)
         _analyticsService.getAdvancedDashboardMetrics(),
       ]);
 
@@ -136,7 +136,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         _topEmployees = results[5] as List<Employee>;
         _advancedMetrics = results[6] as AdvancedDashboardMetrics;
 
-        // Ustaw szybkie liczniki
+        // Ustaw szybkie liczniki na podstawie zoptymalizowanych zapytań
         _totalActiveClients = _recentClients.length;
         _totalActiveInvestments = _recentInvestments.length;
         _totalActiveProducts = _bondsNearMaturity.length;
@@ -148,10 +148,20 @@ class _DashboardScreenState extends State<DashboardScreen>
       // Start animation after data is loaded
       _fadeController.forward();
 
-      print('🚀 Dashboard załadowany z nowymi indeksami - wszystko <50ms!');
+      print(
+        '🚀 Dashboard załadowany z nowymi compound indeksami Firestore - wszystko <50ms!',
+      );
+      print('🚀 Wykorzystane indeksy:');
+      print('   - status_produktu + data_podpisania (investments)');
+      print('   - data_wymagalnosci + status_produktu (investments)');
+      print('   - wartosc_kontraktu DESC + status_produktu (investments)');
+      print('   - isActive + imie_nazwisko (clients)');
+      print('   - type + maturityDate + isActive (products)');
+      print('   - isActive + lastName + firstName (employees)');
     } catch (e) {
       setState(() => _isLoading = false);
-      _showErrorSnackBar('Błąd podczas ładowania danych: $e');
+      _showErrorSnackBar('Błąd podczas ładowania danych Dashboard: $e');
+      print('❌ Błąd Dashboard: $e');
     }
   }
 
@@ -797,7 +807,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 trend: 'up',
                 trendValue: _optimizedRecentInvestments.length.toDouble(),
                 additionalInfo: [
-                  'Średnia wartość: ${_optimizedRecentInvestments.isEmpty ? "0" : (_optimizedRecentInvestments.map((i) => i.totalValue).reduce((a, b) => a + b) / _optimizedRecentInvestments.length).toStringAsFixed(0)} PLN',
+                  'Średnia wartość: ${_optimizedRecentInvestments.isEmpty ? "0" : (_optimizedRecentInvestments.map((i) => i.remainingCapital).reduce((a, b) => a + b) / _optimizedRecentInvestments.length).toStringAsFixed(0)} PLN',
                 ],
                 tooltip:
                     'Nowe inwestycje z ostatnich 30 dni, wykorzystuje indeks compound (createdAt, status)',

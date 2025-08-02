@@ -260,7 +260,9 @@ class InvestorWidgets {
             borderRadius: BorderRadius.circular(16),
           ),
           child: Text(
-            CurrencyFormatter.formatCurrencyShort(investor.totalValue),
+            CurrencyFormatter.formatCurrencyShort(
+              investor.viableRemainingCapital,
+            ),
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,

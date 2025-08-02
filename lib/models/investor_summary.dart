@@ -28,25 +28,22 @@ class InvestorSummary {
     List<Investment> investments,
   ) {
     double totalRemainingCapital = 0;
-    double totalSharesValue = 0;
+    double totalSharesValue =
+        0; // Zachowujemy dla kompatybilności, ale zawsze = 0
     double totalInvestmentAmount = 0;
     double totalRealizedCapital = 0;
 
     for (final investment in investments) {
-      if (investment.productType == ProductType.shares) {
-        // Dla udziałów używamy kwoty inwestycji jako wartości
-        // bo udziały nie mają "kapitału pozostałego" w tradycyjnym sensie
-        totalSharesValue += investment.investmentAmount;
-      } else {
-        // Dla obligacji, pożyczek itd. liczymy kapitał pozostały do wypłaty
-        totalRemainingCapital += investment.remainingCapital;
-      }
+      // ⭐ TYLKO KAPITAŁ POZOSTAŁY - dla wszystkich typów produktów
+      totalRemainingCapital += investment.remainingCapital;
 
+      // Zachowujemy inne pola dla kompatybilności wstecznej
       totalInvestmentAmount += investment.investmentAmount;
       totalRealizedCapital += investment.realizedCapital;
     }
 
-    final totalValue = totalRemainingCapital + totalSharesValue;
+    // ⭐ WARTOŚĆ CAŁKOWITA = TYLKO kapitał pozostały
+    final totalValue = totalRemainingCapital;
 
     return InvestorSummary(
       client: client,
@@ -64,6 +61,19 @@ class InvestorSummary {
   double get percentageOfPortfolio => 0.0; // Będzie obliczane na poziomie listy
   bool get hasUnviableInvestments => client.unviableInvestments.isNotEmpty;
 
+  // Sformatowana lista inwestycji do wyświetlenia
+  String get formattedInvestmentList {
+    if (investments.isEmpty) return 'Brak inwestycji';
+
+    return investments
+        .map((investment) {
+          // ⭐ TYLKO KAPITAŁ POZOSTAŁY - dla wszystkich typów produktów
+          final amount = investment.remainingCapital;
+          return '${investment.productName}: ${amount.toStringAsFixed(2)} PLN';
+        })
+        .join('\n');
+  }
+
   // Produkty które są niewykonalne
   List<Investment> get unviableInvestments => investments
       .where((inv) => client.unviableInvestments.contains(inv.id))
@@ -77,13 +87,8 @@ class InvestorSummary {
   double get viableRemainingCapital {
     double total = 0;
     for (final investment in viableInvestments) {
-      if (investment.productType == ProductType.shares) {
-        // Dla udziałów - wartość inwestycji (nie ma "kapitału pozostałego")
-        total += investment.investmentAmount;
-      } else {
-        // Dla obligacji, pożyczek itd. - kapitał pozostały do wypłaty
-        total += investment.remainingCapital;
-      }
+      // ⭐ TYLKO KAPITAŁ POZOSTAŁY - dla wszystkich typów produktów
+      total += investment.remainingCapital;
     }
     return total;
   }
