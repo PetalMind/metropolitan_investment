@@ -2879,7 +2879,7 @@ class _EmailGeneratorDialog extends StatefulWidget {
 }
 
 class _EmailGeneratorDialogState extends State<_EmailGeneratorDialog> {
-  List<InvestorEmailData> _emailData = [];
+  List<InvestorSummary> _emailData = [];
   bool _isLoading = true;
 
   @override
@@ -2890,7 +2890,7 @@ class _EmailGeneratorDialogState extends State<_EmailGeneratorDialog> {
 
   Future<void> _loadEmailData() async {
     try {
-      final data = await widget.analyticsService.generateEmailData(
+      final data = await widget.analyticsService.getInvestorsByClientIds(
         widget.clientIds,
       );
       setState(() {

@@ -181,7 +181,7 @@ class EmailService {
   }) async {
     try {
       final List<EmailData> emails = [];
-      final investorData = await analyticsService.generateEmailData(clientIds);
+      final investorData = await analyticsService.getInvestorsByClientIds(clientIds);
 
       for (final data in investorData) {
         if (data.client.email.isNotEmpty) {

@@ -32,12 +32,12 @@ class InvestorAnalyticsService extends BaseService {
         return MajorityControlAnalysis.empty();
       }
 
-      // Sortuj według kapitału pozostałego (viableRemainingCapital) malejąco
+      // Sortuj według kapitału pozostałego (remainingCapital) malejąco
       allInvestors.sort(
         (a, b) => b.viableRemainingCapital.compareTo(a.viableRemainingCapital),
       );
 
-      // Oblicz całkowitą wartość portfela na podstawie kapitału pozostałego
+      // ⭐ Oblicz całkowitą wartość portfela TYLKO na podstawie kapitału pozostałego
       final totalViableCapital = allInvestors.fold<double>(
         0.0,
         (sum, investor) => sum + investor.viableRemainingCapital,
@@ -235,7 +235,8 @@ class InvestorAnalyticsService extends BaseService {
         filteredInvestors = filteredInvestors
             .where(
               (investor) =>
-                  investor.totalValue > investor.viableRemainingCapital,
+                  investor.totalRemainingCapital >
+                  investor.viableRemainingCapital,
             )
             .toList();
       }
@@ -253,7 +254,9 @@ class InvestorAnalyticsService extends BaseService {
             comparison = a.client.name.compareTo(b.client.name);
             break;
           case 'totalValue':
-            comparison = a.totalValue.compareTo(b.totalValue);
+            comparison = a.viableRemainingCapital.compareTo(
+              b.viableRemainingCapital,
+            );
             break;
           case 'viableCapital':
             comparison = a.viableRemainingCapital.compareTo(
@@ -534,7 +537,7 @@ class InvestorAnalyticsService extends BaseService {
     }
   }
 
-  /// Generuje dane do wysyłki email
+  /// Generuje dane do wysyłki email na podstawie wybranych inwestorów
   Future<Map<String, dynamic>> generateEmailData(
     List<InvestorSummary> selectedInvestors,
     String emailTemplate,
@@ -552,6 +555,34 @@ class InvestorAnalyticsService extends BaseService {
       };
     } catch (e) {
       logError('generateEmailData', e);
+      rethrow;
+    }
+  }
+
+  /// Pobiera inwestorów na podstawie listy ID klientów do generowania emaili
+  Future<List<InvestorSummary>> getInvestorsByClientIds(
+    List<String> clientIds,
+  ) async {
+    try {
+      print(
+        '📧 [Analytics] Pobieranie inwestorów dla ${clientIds.length} klientów...',
+      );
+
+      final allInvestors = await getAllInvestorsForAnalysis(
+        includeInactive: true,
+      );
+
+      final filteredInvestors = allInvestors
+          .where((investor) => clientIds.contains(investor.client.id))
+          .toList();
+
+      print(
+        '📧 [Analytics] Znaleziono ${filteredInvestors.length} inwestorów z adresami email',
+      );
+
+      return filteredInvestors;
+    } catch (e) {
+      logError('getInvestorsByClientIds', e);
       rethrow;
     }
   }

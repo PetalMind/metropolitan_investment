@@ -52,10 +52,75 @@ class AdvancedAnalyticsService extends BaseService {
     }
   }
 
-  /// Pobiera wszystkie inwestycje ze wszystkich kolekcji
+  /// Pobiera wszystkie inwestycje ze wszystkich kolekcji (investments, bonds, shares, loans)
   Future<List<Investment>> _getAllInvestments() async {
-    // Używamy centralnego cache'a danych
-    return await _dataCacheService.getAllInvestments();
+    try {
+      print(
+        '🔍 [AdvancedAnalytics] Pobieranie inwestycji ze wszystkich kolekcji...',
+      );
+
+      // Pobranie danych z głównej kolekcji investments (dane z Excel)
+      final investmentsSnapshot = await firestore
+          .collection('investments')
+          .get();
+
+      // Konwersja dokumentów z kolekcji investments
+      final investments = investmentsSnapshot.docs.map((doc) {
+        return _convertExcelDataToInvestment(doc.id, doc.data());
+      }).toList();
+
+      print(
+        '🔍 [AdvancedAnalytics] Pobrano ${investments.length} inwestycji z kolekcji investments',
+      );
+
+      // Opcjonalnie: dodaj dane z innych kolekcji (bonds, shares, loans)
+      try {
+        final bondsSnapshot = await firestore.collection('bonds').get();
+        final bondsInvestments = bondsSnapshot.docs.map((doc) {
+          return _convertBondToInvestment(doc.id, doc.data());
+        }).toList();
+        investments.addAll(bondsInvestments);
+        print(
+          '🔍 [AdvancedAnalytics] Dodano ${bondsInvestments.length} obligacji',
+        );
+      } catch (e) {
+        print('⚠️ [AdvancedAnalytics] Brak kolekcji bonds lub błąd: $e');
+      }
+
+      try {
+        final sharesSnapshot = await firestore.collection('shares').get();
+        final sharesInvestments = sharesSnapshot.docs.map((doc) {
+          return _convertShareToInvestment(doc.id, doc.data());
+        }).toList();
+        investments.addAll(sharesInvestments);
+        print(
+          '🔍 [AdvancedAnalytics] Dodano ${sharesInvestments.length} udziałów',
+        );
+      } catch (e) {
+        print('⚠️ [AdvancedAnalytics] Brak kolekcji shares lub błąd: $e');
+      }
+
+      try {
+        final loansSnapshot = await firestore.collection('loans').get();
+        final loansInvestments = loansSnapshot.docs.map((doc) {
+          return _convertLoanToInvestment(doc.id, doc.data());
+        }).toList();
+        investments.addAll(loansInvestments);
+        print(
+          '🔍 [AdvancedAnalytics] Dodano ${loansInvestments.length} pożyczek',
+        );
+      } catch (e) {
+        print('⚠️ [AdvancedAnalytics] Brak kolekcji loans lub błąd: $e');
+      }
+
+      print(
+        '🔍 [AdvancedAnalytics] Łącznie pobrano ${investments.length} inwestycji ze wszystkich kolekcji',
+      );
+      return investments;
+    } catch (e) {
+      logError('_getAllInvestments', e);
+      throw Exception('Błąd podczas pobierania inwestycji: $e');
+    }
   }
 
   /// Metryki portfela
@@ -897,17 +962,61 @@ class AdvancedAnalyticsService extends BaseService {
     }
   }
 
-  /// Konwersja danych Excel do Investment
+  /// Konwersja danych Excel do Investment - zgodna z firestore.indexes.json
   Investment _convertExcelDataToInvestment(
     String id,
     Map<String, dynamic> data,
   ) {
-    InvestmentStatus status = InvestmentStatus.active;
-    final statusStr = data['status_produktu']?.toString() ?? '';
-    if (statusStr == 'Nieaktywny' || statusStr == 'Nieaktywowany') {
-      status = InvestmentStatus.inactive;
-    } else if (statusStr == 'Wykup wczesniejszy') {
-      status = InvestmentStatus.earlyRedemption;
+    // Helper function to safely convert to double
+    double safeToDouble(dynamic value, [double defaultValue = 0.0]) {
+      if (value == null) return defaultValue;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) {
+        final parsed = double.tryParse(value);
+        return parsed ?? defaultValue;
+      }
+      return defaultValue;
+    }
+
+    // Helper function to parse date strings
+    DateTime? parseDate(String? dateStr) {
+      if (dateStr == null || dateStr.isEmpty) return null;
+      try {
+        return DateTime.parse(dateStr);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Helper function to map status from Polish to enum
+    InvestmentStatus mapStatus(String? status) {
+      switch (status) {
+        case 'Aktywny':
+          return InvestmentStatus.active;
+        case 'Nieaktywny':
+          return InvestmentStatus.inactive;
+        case 'Wykup wczesniejszy':
+          return InvestmentStatus.earlyRedemption;
+        case 'Zakończony':
+          return InvestmentStatus.completed;
+        default:
+          return InvestmentStatus.active;
+      }
+    }
+
+    // Helper function to map market type from Polish to enum
+    MarketType mapMarketType(String? marketType) {
+      switch (marketType) {
+        case 'Rynek pierwotny':
+          return MarketType.primary;
+        case 'Rynek wtórny':
+          return MarketType.secondary;
+        case 'Odkup od Klienta':
+          return MarketType.clientRedemption;
+        default:
+          return MarketType.primary;
+      }
     }
 
     // Helper function to map product type from Polish to enum
@@ -944,63 +1053,45 @@ class AdvancedAnalyticsService extends BaseService {
       }
     }
 
-    ProductType productType = mapProductType(data['typ_produktu']?.toString());
-
-    // Mapowanie zgodne z JSON z investments_data.json
-    MarketType marketType = MarketType.primary;
-    final marketStr = data['produkt_status_wejscie']?.toString() ?? '';
-    if (marketStr == 'Rynek wtórny') marketType = MarketType.secondary;
-    if (marketStr == 'Odkup od Klienta')
-      marketType = MarketType.clientRedemption;
-
     return Investment(
       id: id,
       clientId: data['id_klient']?.toString() ?? '',
-      clientName: data['klient']?.toString() ?? '',
-      employeeId: data['id_klient']?.toString() ?? '',
-      employeeFirstName: data['pracownik_imie']?.toString() ?? '',
-      employeeLastName: data['pracownik_nazwisko']?.toString() ?? '',
-      branchCode: data['oddzial']?.toString() ?? '',
-      status: status,
-      isAllocated:
-          (data['przydzial']?.toString() == '1') || (data['przydzial'] == 1.0),
-      marketType: marketType,
-      signedDate:
-          DateTime.tryParse(data['data_podpisania']?.toString() ?? '') ??
-          DateTime.now(),
-      entryDate: DateTime.tryParse(
-        data['data_wejscia_do_inwestycji']?.toString() ?? '',
-      ),
-      exitDate: DateTime.tryParse(
-        data['data_wyjscia_z_inwestycji']?.toString() ?? '',
-      ),
+      clientName: data['klient'] ?? '',
+      employeeId: '', // Not directly available in Firebase structure
+      employeeFirstName: data['pracownik_imie'] ?? '',
+      employeeLastName: data['pracownik_nazwisko'] ?? '',
+      branchCode: data['kod_oddzialu'] ?? '',
+      status: mapStatus(data['status_produktu']),
+      isAllocated: (data['przydzial'] ?? 0) == 1,
+      marketType: mapMarketType(data['produkt_status_wejscie']),
+      signedDate: parseDate(data['data_podpisania']) ?? DateTime.now(),
+      entryDate: parseDate(data['data_wejscia_do_inwestycji']),
+      exitDate: parseDate(data['data_wyjscia_z_inwestycji']),
       proposalId: data['id_propozycja_nabycia']?.toString() ?? '',
-      productType: productType,
-      productName: data['produkt_nazwa']?.toString() ?? '',
-      creditorCompany: data['wierzyciel_spolka']?.toString() ?? '',
-      companyId: data['id_spolka']?.toString() ?? '',
-      issueDate: DateTime.tryParse(data['data_emisji']?.toString() ?? ''),
-      redemptionDate: DateTime.tryParse(data['data_wykupu']?.toString() ?? ''),
-      sharesCount: data['ilosc_udzialow']?.toInt(),
-      investmentAmount: (data['kwota_inwestycji']?.toDouble() ?? 0.0),
-      paidAmount: (data['kwota_wplat']?.toDouble() ?? 0.0),
-      realizedCapital: (data['kapital_zrealizowany']?.toDouble() ?? 0.0),
-      realizedInterest: (data['odsetki_zrealizowane']?.toDouble() ?? 0.0),
-      transferToOtherProduct:
-          (data['przekaz_na_inny_produkt']?.toDouble() ?? 0.0),
-      remainingCapital: (data['kapital_pozostaly']?.toDouble() ?? 0.0),
-      remainingInterest: (data['odsetki_pozostale']?.toDouble() ?? 0.0),
-      plannedTax: (data['planowany_podatek']?.toDouble() ?? 0.0),
-      realizedTax: (data['zrealizowany_podatek']?.toDouble() ?? 0.0),
-      currency: 'PLN', // Domyślnie PLN
-      exchangeRate: null,
-      createdAt:
-          DateTime.tryParse(data['created_at']?.toString() ?? '') ??
-          DateTime.now(),
-      updatedAt: DateTime.now(),
+      productType: mapProductType(data['typ_produktu']),
+      productName: data['produkt_nazwa'] ?? '',
+      creditorCompany: data['wierzyciel_spolka'] ?? '',
+      companyId: data['id_spolka'] ?? '',
+      issueDate: parseDate(data['data_emisji']),
+      redemptionDate: parseDate(data['data_wymagalnosci']),
+      sharesCount: data['ilosc_udzialow'],
+      investmentAmount: safeToDouble(data['wartosc_kontraktu']),
+      paidAmount: safeToDouble(data['kwota_wplat']),
+      realizedCapital: safeToDouble(data['kapital_zrealizowany']),
+      realizedInterest: safeToDouble(data['odsetki_zrealizowane']),
+      transferToOtherProduct: safeToDouble(data['przekaz_na_inny_produkt']),
+      remainingCapital: safeToDouble(data['kapital_pozostaly']),
+      remainingInterest: safeToDouble(data['odsetki_pozostale']),
+      plannedTax: safeToDouble(data['planowany_podatek']),
+      realizedTax: safeToDouble(data['zrealizowany_podatek']),
+      currency: 'PLN', // Default currency
+      exchangeRate: null, // Not available in Firebase structure
+      createdAt: parseDate(data['created_at']) ?? DateTime.now(),
+      updatedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
       additionalInfo: {
-        'id_sprzedaz': data['id_sprzedaz']?.toString() ?? '',
-        'wierzyciel_spolka': data['wierzyciel_spolka']?.toString() ?? '',
+        'source_file': data['source_file'],
+        'id_sprzedaz': data['id_sprzedaz'],
+        'kod_oddzialu': data['kod_oddzialu'],
       },
     );
   }

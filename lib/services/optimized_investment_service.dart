@@ -131,28 +131,38 @@ class OptimizedInvestmentService extends BaseService {
         );
   }
 
-  // Inwestycje według statusu z optymalizacją
+  // Inwestycje według statusu z optymalizacją - używa indeksu compound (status_produktu + data_podpisania DESC)
   Stream<List<Investment>> getInvestmentsByStatus(
     InvestmentStatus status, {
     int limit = 50,
   }) {
+    // Mapuj status do polskiego stringa używanego w Firebase
     String statusStr = 'Aktywny';
     if (status == InvestmentStatus.inactive) statusStr = 'Nieaktywny';
     if (status == InvestmentStatus.earlyRedemption)
       statusStr = 'Wykup wczesniejszy';
+    if (status == InvestmentStatus.completed) statusStr = 'Zakończony';
 
+    print(
+      '🔍 [OptimizedInvestmentService] Stream inwestycji dla statusu: $statusStr',
+    );
+
+    // Używa compound indeksu: status_produktu + data_podpisania DESC
     return firestore
         .collection(_collection)
         .where('status_produktu', isEqualTo: statusStr)
         .orderBy('data_podpisania', descending: true)
         .limit(limit)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.map((doc) {
+        .map((snapshot) {
+          print(
+            '🔍 [OptimizedInvestmentService] Stream otrzymał ${snapshot.docs.length} dokumentów dla statusu: $statusStr',
+          );
+          return snapshot.docs.map((doc) {
             final data = doc.data();
             return _convertExcelDataToInvestment(doc.id, data);
-          }).toList(),
-        );
+          }).toList();
+        });
   }
 
   // Statystyki z cache
@@ -235,7 +245,7 @@ class OptimizedInvestmentService extends BaseService {
     });
   }
 
-  // Inwestycje wymagające uwagi - optymalizacja
+  // Inwestycje wymagające uwagi - używa indeksu compound (data_wymagalnosci + status_produktu)
   Future<List<Investment>> getInvestmentsRequiringAttention({
     int limit = 50,
   }) async {
@@ -243,6 +253,11 @@ class OptimizedInvestmentService extends BaseService {
       final now = DateTime.now();
       final thirtyDaysFromNow = now.add(const Duration(days: 30));
 
+      print(
+        '🔍 [OptimizedInvestmentService] Pobieranie inwestycji wymagających uwagi do daty: ${thirtyDaysFromNow.toIso8601String()}',
+      );
+
+      // Używa compound indeksu: data_wymagalnosci + status_produktu
       final snapshot = await firestore
           .collection(_collection)
           .where(
@@ -251,16 +266,23 @@ class OptimizedInvestmentService extends BaseService {
           )
           .where('status_produktu', isEqualTo: 'Aktywny')
           .orderBy('data_wymagalnosci')
+          .orderBy('status_produktu')
           .limit(limit)
           .get();
 
-      return snapshot.docs.map((doc) {
+      final investments = snapshot.docs.map((doc) {
         final data = doc.data();
         return _convertExcelDataToInvestment(doc.id, data);
       }).toList();
+
+      print(
+        '🔍 [OptimizedInvestmentService] Pobrano ${investments.length} inwestycji wymagających uwagi',
+      );
+      return investments;
     } catch (e) {
       logError('getInvestmentsRequiringAttention', e);
-      return [];
+      print('❌ Błąd getInvestmentsRequiringAttention: $e');
+      return []; // Zwróć pustą listę zamiast rzucać wyjątek
     }
   }
 
@@ -377,41 +399,78 @@ class OptimizedInvestmentService extends BaseService {
     );
   }
 
-  /// Pobiera top inwestycje według wartości - używa indeksu compound (status, aktualna_wartosc desc)
+  /// Pobiera top inwestycje według wartości - używa indeksu compound (wartosc_kontraktu DESC + status_produktu)
   Future<List<Investment>> getTopInvestments(
     InvestmentStatus status, {
     int limit = 10,
   }) async {
     try {
+      // Mapuj status do polskiego stringa używanego w Firebase
+      String statusStr = 'Aktywny';
+      if (status == InvestmentStatus.inactive) statusStr = 'Nieaktywny';
+      if (status == InvestmentStatus.earlyRedemption)
+        statusStr = 'Wykup wczesniejszy';
+      if (status == InvestmentStatus.completed) statusStr = 'Zakończony';
+
+      print(
+        '🔍 [OptimizedInvestmentService] Pobieranie top inwestycji dla statusu: $statusStr',
+      );
+
+      // Używa compound indeksu: wartosc_kontraktu DESC + status_produktu
       final snapshot = await firestore
           .collection(_collection)
-          .where('status', isEqualTo: status.name)
-          .orderBy('aktualna_wartosc', descending: true)
+          .where('status_produktu', isEqualTo: statusStr)
+          .orderBy('wartosc_kontraktu', descending: true)
           .limit(limit)
           .get();
 
-      return snapshot.docs.map((doc) => Investment.fromFirestore(doc)).toList();
+      final investments = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return _convertExcelDataToInvestment(doc.id, data);
+      }).toList();
+
+      print(
+        '🔍 [OptimizedInvestmentService] Pobrano ${investments.length} top inwestycji',
+      );
+      return investments;
     } catch (e) {
       logError('getTopInvestments', e);
-      throw Exception('Failed to get top investments: $e');
+      print('❌ Błąd getTopInvestments: $e');
+      return []; // Zwróć pustą listę zamiast rzucać wyjątek
     }
   }
 
-  /// Pobiera najnowsze inwestycje (ostatnie N dni)
+  /// Pobiera najnowsze inwestycje (ostatnie N dni) - używa indeksu data_podpisania + data_wymagalnosci
   Future<List<Investment>> getRecentInvestments({int days = 30}) async {
     try {
       final DateTime cutoffDate = DateTime.now().subtract(Duration(days: days));
+      final cutoffDateStr = cutoffDate.toIso8601String();
 
+      print(
+        '🔍 [OptimizedInvestmentService] Pobieranie inwestycji od daty: $cutoffDateStr',
+      );
+
+      // Używa indeksu: data_podpisania + data_wymagalnosci
       final snapshot = await firestore
           .collection(_collection)
-          .where('createdAt', isGreaterThan: Timestamp.fromDate(cutoffDate))
-          .orderBy('createdAt', descending: true)
+          .where('data_podpisania', isGreaterThanOrEqualTo: cutoffDateStr)
+          .orderBy('data_podpisania', descending: true)
+          .orderBy('data_wymagalnosci')
           .get();
 
-      return snapshot.docs.map((doc) => Investment.fromFirestore(doc)).toList();
+      final investments = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return _convertExcelDataToInvestment(doc.id, data);
+      }).toList();
+
+      print(
+        '🔍 [OptimizedInvestmentService] Pobrano ${investments.length} najnowszych inwestycji',
+      );
+      return investments;
     } catch (e) {
       logError('getRecentInvestments', e);
-      throw Exception('Failed to get recent investments: $e');
+      print('❌ Błąd getRecentInvestments: $e');
+      return []; // Zwróć pustą listę zamiast rzucać wyjątek
     }
   }
 }
