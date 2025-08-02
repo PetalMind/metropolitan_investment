@@ -181,7 +181,9 @@ class EmailService {
   }) async {
     try {
       final List<EmailData> emails = [];
-      final investorData = await analyticsService.getInvestorsByClientIds(clientIds);
+      final investorData = await analyticsService.getInvestorsByClientIds(
+        clientIds,
+      );
 
       for (final data in investorData) {
         if (data.client.email.isNotEmpty) {
@@ -228,10 +230,8 @@ class EmailService {
     for (final email in emails) {
       final totalValue = email.investments.fold<double>(
         0.0,
-        (sum, inv) =>
-            sum +
-            inv.remainingCapital +
-            (inv.productType == ProductType.shares ? inv.investmentAmount : 0),
+        // ⭐ TYLKO KAPITAŁ POZOSTAŁY - dla wszystkich typów produktów
+        (sum, inv) => sum + inv.remainingCapital,
       );
 
       csv.writeln(

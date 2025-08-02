@@ -1364,7 +1364,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                 ),
                 Text(
-                  _formatCurrency(investment.investmentAmount),
+                  _formatCurrency(investment.remainingCapital),
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
@@ -3082,7 +3082,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                _formatCurrency(investment.investmentAmount),
+                _formatCurrency(investment.remainingCapital),
                 style: Theme.of(
                   context,
                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),

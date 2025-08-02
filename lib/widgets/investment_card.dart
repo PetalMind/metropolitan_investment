@@ -129,9 +129,9 @@ class InvestmentCard extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // Investment amount
+              // ⭐ Kapitał pozostały (nie kwota pierwotnej inwestycji)
               Text(
-                _formatCurrency(investment.investmentAmount),
+                _formatCurrency(investment.remainingCapital),
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: AppTheme.primaryColor,
                   fontWeight: FontWeight.bold,
