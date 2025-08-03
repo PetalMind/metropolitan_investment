@@ -40,10 +40,9 @@ exports.getOptimizedInvestorAnalytics = functions
           }
         }
 
-        // 📊 KROK 1: Pobierz klientów
+        // 📊 KROK 1: Pobierz klientów - użyj prostego zapytania
         console.log("📋 [Analytics Functions] Pobieranie klientów...");
         const clientsSnapshot = await db.collection("clients")
-            .orderBy("imie_nazwisko")
             .limit(5000)
             .get();
 
@@ -267,12 +266,12 @@ exports.getAllClients = functions
           }
         }
 
-        const query = db.collection("clients").orderBy(sortBy);
+        const query = db.collection("clients");
 
         // Zastosuj wyszukiwanie jeśli jest
         if (searchQuery) {
         // Firestore nie ma full-text search, więc pobieramy wszystko
-        // i filtrujemy
+        // i filtrujemy lokalnie
           const allSnapshot = await query.limit(10000).get();
           const allClients = allSnapshot.docs.map((doc) => ({
             id: doc.id,
@@ -305,7 +304,7 @@ exports.getAllClients = functions
           return result;
         }
 
-        // Bez wyszukiwania - zwykła paginacja
+        // Bez wyszukiwania - zwykła paginacja bez sortowania dla większej niezawodności
         const snapshot = await query
             .limit(pageSize)
             .offset((page - 1) * pageSize)
@@ -384,12 +383,20 @@ exports.getAllInvestments = functions
           query = query.where("typ_produktu", "==", productTypeFilter);
         }
 
-        // Sortowanie
-        if (sortBy === "data_kontraktu") {
+        // Sortowanie - użyj indeksów które już istnieją lub tylko proste sortowanie
+        if (sortBy === "data_kontraktu" && !clientFilter && !productTypeFilter) {
+          // Tylko jeśli nie ma filtrów - użyj prostego sortowania
           query = query.orderBy("data_kontraktu", "desc");
-        } else {
-          query = query.orderBy(sortBy);
+        } else if (sortBy && !clientFilter && !productTypeFilter) {
+          // Inne sortowanie tylko bez filtrów
+          try {
+            query = query.orderBy(sortBy);
+          } catch (e) {
+            console.log(`⚠️ [Get All Investments] Nie można sortować po ${sortBy}, używam domyślnego`);
+            // Fallback - bez sortowania
+          }
         }
+        // Jeśli są filtry, nie używaj sortowania aby uniknąć błędów indeksów
 
         // Paginacja
         const snapshot = await query

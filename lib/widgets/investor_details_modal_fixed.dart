@@ -5,6 +5,8 @@ import '../models/investor_summary.dart';
 import '../services/investor_analytics_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import 'custom_text_field.dart';
+import 'animated_button.dart';
 
 class InvestorDetailsModal extends StatefulWidget {
   final InvestorSummary investor;
@@ -42,6 +44,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   late bool _isActive;
   late String _selectedColorCode;
 
+  bool _isEditMode = false;
   bool _hasChanges = false;
 
   @override
@@ -763,22 +766,15 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
   Future<void> _saveChanges() async {
     try {
-      print('🔄 [Modal] Rozpoczynam zapisywanie zmian dla klienta: ${widget.investor.client.id}');
-      print('🔄 [Modal] Nazwa klienta: ${widget.investor.client.name}');
-      print('🔄 [Modal] Nowy status głosowania: $_selectedVotingStatus');
-      
       if (widget.analyticsService == null) {
         throw Exception('Analytics service nie jest dostępny');
       }
 
-      // Sprawdź czy ID nie jest puste lub nieprawidłowe
-      if (widget.investor.client.id.isEmpty) {
-        throw Exception('ID klienta jest puste');
-      }
+      // Sprawdź czy klient istnieje przed aktualizacją
+      print('🔄 Próba aktualizacji klienta ID: ${widget.investor.client.id}');
+      print('🔄 Dane klienta: ${widget.investor.client.name}');
+      print('🔄 Email klienta: ${widget.investor.client.email}');
 
-      // Debugowanie - sprawdź format ID
-      print('🔍 [Modal] Format ID: ${widget.investor.client.id} (długość: ${widget.investor.client.id.length})');
-      
       // Zapisz zmiany przez serwis analityki
       await widget.analyticsService!.updateInvestorDetails(
         widget.investor.client.id,

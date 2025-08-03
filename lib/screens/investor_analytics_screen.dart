@@ -393,6 +393,7 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
     InvestorDetailsModalHelper.show(
       context: context,
       investor: investor,
+      analyticsService: _analyticsService,
       onEditInvestor: () {
         _editInvestor(investor);
       },
@@ -401,6 +402,7 @@ class _InvestorAnalyticsScreenState extends State<InvestorAnalyticsScreen>
       },
       onUpdateInvestor: (updatedInvestor) {
         _updateInvestorInList(updatedInvestor);
+        _loadAllInvestors(); // Odśwież dane po aktualizacji
       },
     );
   }

@@ -21,7 +21,8 @@ enum ClientType {
 }
 
 class Client {
-  final String id;
+  final String id; // UUID from Firestore doc.id
+  final String? excelId; // Original numeric ID from Excel
   final String name;
   final String email;
   final String phone;
@@ -40,6 +41,7 @@ class Client {
 
   Client({
     required this.id,
+    this.excelId,
     required this.name,
     required this.email,
     required this.phone,

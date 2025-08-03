@@ -6,6 +6,8 @@ import '../theme/app_theme.dart';
 import '../models/client.dart';
 import '../models/investor_summary.dart';
 import '../services/firebase_functions_analytics_service.dart';
+import '../services/investor_analytics_service.dart' as ia_service;
+import '../widgets/investor_details_modal.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/voting_analysis_manager.dart';
 
@@ -50,6 +52,7 @@ class _PremiumInvestorAnalyticsScreenState
   // 🎮 CORE SERVICES
   final FirebaseFunctionsAnalyticsService _analyticsService =
       FirebaseFunctionsAnalyticsService();
+  final ia_service.InvestorAnalyticsService _updateService = ia_service.InvestorAnalyticsService(); // Dla aktualizacji danych
   final VotingAnalysisManager _votingManager = VotingAnalysisManager();
 
   // 🎛️ UI CONTROLLERS
@@ -1781,7 +1784,7 @@ class _PremiumInvestorAnalyticsScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Kapitał wykonalny',
+                          'Kapitał pozostały',
                           style: TextStyle(
                             color: AppTheme.textTertiary,
                             fontSize: 12,
@@ -3005,148 +3008,28 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   void _showInvestorDetails(InvestorSummary investor) {
-    showDialog(
+    InvestorDetailsModalHelper.show(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: AppTheme.backgroundModal,
-        child: Container(
-          width: _isTablet ? 700 : 400,
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.8,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppTheme.backgroundSecondary,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: AppTheme.secondaryGold.withOpacity(0.2),
-                      child: Text(
-                        investor.client.name.isNotEmpty
-                            ? investor.client.name[0].toUpperCase()
-                            : '?',
-                        style: TextStyle(
-                          color: AppTheme.secondaryGold,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            investor.client.name,
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            investor.client.type.displayName,
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getVotingStatusColor(
-                          investor.client.votingStatus,
-                        ).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        investor.client.votingStatus.displayName,
-                        style: TextStyle(
-                          color: _getVotingStatusColor(
-                            investor.client.votingStatus,
-                          ),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Content
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildInvestorInfoSection(investor),
-                      const SizedBox(height: 20),
-                      _buildInvestorStatsSection(investor),
-                      const SizedBox(height: 20),
-                      _buildInvestorInvestmentsSection(investor),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Actions
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppTheme.backgroundSecondary,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(12),
-                    bottomRight: Radius.circular(12),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _copyInvestorEmail(investor),
-                        icon: Icon(Icons.email_rounded, size: 18),
-                        label: Text('Kopiuj email'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _exportInvestorData(investor),
-                        icon: Icon(Icons.download_rounded, size: 18),
-                        label: Text('Eksportuj'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text('Zamknij'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      investor: investor,
+      analyticsService: _updateService,
+      onEditInvestor: () {
+        // Możliwość dodania dodatkowej logiki edycji
+      },
+      onViewInvestments: () {
+        // Możliwość dodania logiki wyświetlania inwestycji
+      },
+      onUpdateInvestor: (updatedInvestor) {
+        // Odśwież dane po aktualizacji
+        setState(() {
+          final index = _displayedInvestors.indexWhere(
+            (inv) => inv.client.id == updatedInvestor.client.id,
+          );
+          if (index != -1) {
+            _displayedInvestors[index] = updatedInvestor;
+          }
+        });
+        _loadInitialData(); // Odśwież dane po aktualizacji
+      },
     );
   }
 
@@ -3259,7 +3142,7 @@ class _PremiumInvestorAnalyticsScreenState
           children: [
             Expanded(
               child: _buildInvestorStatCard(
-                'Kapitał wykonalny',
+                'Kapitał pozostały',
                 CurrencyFormatter.formatCurrency(
                   investor.viableRemainingCapital,
                 ),
@@ -3499,7 +3382,7 @@ class _PremiumInvestorAnalyticsScreenState
       'Telefon: ${investor.client.phone}',
       'Typ: ${investor.client.type.displayName}',
       'Status głosowania: ${investor.client.votingStatus.displayName}',
-      'Kapitał wykonalny: ${CurrencyFormatter.formatCurrency(investor.viableRemainingCapital)}',
+      'Kapitał pozostały: ${CurrencyFormatter.formatCurrency(investor.viableRemainingCapital)}',
       'Liczba inwestycji: ${investor.investmentCount}',
       '',
       'Lista inwestycji:',
