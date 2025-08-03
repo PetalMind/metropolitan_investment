@@ -537,6 +537,56 @@ class InvestorAnalyticsService extends BaseService {
     }
   }
 
+  /// Aktualizuje wszystkie dane inwestora (status głosowania, notatki, kolor, typ)
+  Future<void> updateInvestorDetails(
+    String clientId, {
+    VotingStatus? votingStatus,
+    String? notes,
+    String? colorCode,
+    ClientType? type,
+    bool? isActive,
+  }) async {
+    try {
+      print('🔄 [InvestorAnalyticsService] Aktualizacja klienta: $clientId');
+      
+      // Sprawdź czy klient istnieje
+      final exists = await _clientService.clientExists(clientId);
+      if (!exists) {
+        print('❌ [InvestorAnalyticsService] Klient $clientId nie istnieje');
+        throw Exception('Client with ID $clientId does not exist');
+      }
+
+      final Map<String, dynamic> updates = {};
+
+      if (votingStatus != null) {
+        updates['votingStatus'] = votingStatus.name;
+      }
+      if (notes != null) {
+        updates['notes'] = notes;
+      }
+      if (colorCode != null) {
+        updates['colorCode'] = colorCode;
+      }
+      if (type != null) {
+        updates['type'] = type.name;
+      }
+      if (isActive != null) {
+        updates['isActive'] = isActive;
+      }
+
+      if (updates.isNotEmpty) {
+        print('✅ [InvestorAnalyticsService] Aktualizuje pola: ${updates.keys.join(', ')}');
+        await _clientService.updateClientFields(clientId, updates);
+        clearCache('clients');
+        print('✅ [InvestorAnalyticsService] Pomyślnie zaktualizowano klienta $clientId');
+      }
+    } catch (e) {
+      print('❌ [InvestorAnalyticsService] Błąd w updateInvestorDetails: $e');
+      logError('updateInvestorDetails', e);
+      rethrow;
+    }
+  }
+
   /// Generuje dane do wysyłki email na podstawie wybranych inwestorów
   Future<Map<String, dynamic>> generateEmailData(
     List<InvestorSummary> selectedInvestors,

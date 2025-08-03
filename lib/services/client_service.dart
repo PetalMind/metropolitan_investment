@@ -33,6 +33,17 @@ class ClientService extends BaseService {
     }
   }
 
+  // Check if client exists
+  Future<bool> clientExists(String id) async {
+    try {
+      final doc = await firestore.collection(_collection).doc(id).get();
+      return doc.exists;
+    } catch (e) {
+      logError('clientExists', e);
+      return false;
+    }
+  }
+
   // Read all - Stream wszystkich klientów bez paginacji
   Stream<List<Client>> getAllClientsStream() {
     return firestore
@@ -451,12 +462,28 @@ class ClientService extends BaseService {
     Map<String, dynamic> fields,
   ) async {
     try {
-      await firestore.collection(_collection).doc(id).update({
+      print('🔄 [ClientService] Sprawdzanie istnienia klienta: $id');
+      
+      // Sprawdź czy dokument istnieje przed aktualizacją
+      final docRef = firestore.collection(_collection).doc(id);
+      final docSnapshot = await docRef.get();
+      
+      if (!docSnapshot.exists) {
+        print('❌ [ClientService] Klient $id nie istnieje w kolekcji clients');
+        throw Exception('Client with ID $id does not exist');
+      }
+
+      print('✅ [ClientService] Klient $id istnieje, aktualizuję pola: ${fields.keys.join(', ')}');
+      
+      await docRef.update({
         ...fields,
         'updatedAt': Timestamp.now(),
       });
+      
+      print('✅ [ClientService] Pomyślnie zaktualizowano klienta $id');
       clearCache('all_clients');
     } catch (e) {
+      print('❌ [ClientService] Błąd w updateClientFields: $e');
       logError('updateClientFields', e);
       throw Exception('Failed to update client fields: $e');
     }

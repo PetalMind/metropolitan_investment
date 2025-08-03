@@ -1,0 +1,27 @@
+rules_version = '2';
+
+// Cloud Storage Security Rules
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow read/write access to authenticated users for their own data
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow read access to public files
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Allow access to investment documents for authenticated users
+    match /investments/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow access to client documents for authenticated users
+    match /clients/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

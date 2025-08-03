@@ -57,6 +57,48 @@
       ]
     },
     {
+      "collectionGroup": "clients",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "votingStatus",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "imie_nazwisko",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "investments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "klient",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "data_kontraktu",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "investments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "typ_produktu",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "data_kontraktu",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "investments",
       "queryScope": "COLLECTION",
       "fields": [
