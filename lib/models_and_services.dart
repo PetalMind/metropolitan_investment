@@ -15,6 +15,7 @@ export 'models/excel_import_models.dart';
 export 'services/base_service.dart';
 export 'services/client_service.dart';
 export 'services/client_notes_service.dart';
+export 'services/client_id_mapping_service.dart';
 export 'services/employee_service.dart';
 export 'services/investment_service.dart';
 export 'services/product_service.dart';
@@ -30,3 +31,9 @@ export 'services/advanced_analytics_service.dart';
 export 'services/investor_analytics_service.dart';
 export 'services/optimized_company_service.dart';
 export 'services/optimized_product_service.dart';
+export 'services/optimized_client_voting_service.dart';
+
+// Widget exports - Logo and branding components
+export 'widgets/animated_logo.dart';
+export 'widgets/metropolitan_components.dart';
+export 'screens/splash_screen.dart';

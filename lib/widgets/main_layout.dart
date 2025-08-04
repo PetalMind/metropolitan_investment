@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../config/app_routes.dart';
+import 'animated_logo.dart';
 
 /// Główny layout aplikacji z nawigacją boczną
 class MainLayout extends StatefulWidget {
@@ -107,39 +108,47 @@ class _MainLayoutState extends State<MainLayout> {
       children: [
         const SizedBox(height: 16),
 
-        // Logo aplikacji
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            gradient: AppTheme.primaryGradient,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryColor.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.account_balance,
-            color: AppTheme.textOnPrimary,
-            size: 32,
-          ),
+        // Animowane logo aplikacji
+        AnimatedMetropolitanLogo(
+          size: _isRailExtended ? 80.0 : 60.0,
+          variant: LogoVariant.svg,
+          showText: false,
+          enableHoverEffect: true,
+          onTap: () => context.go(AppRoutes.dashboard),
         ),
 
         // Nazwa aplikacji (gdy nawigacja rozwinięta)
         if (_isRailExtended) ...[
           const SizedBox(height: 12),
-          Text(
-            'Metropolitan\nInvestment',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              height: 1.2,
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 300),
+            opacity: _isRailExtended ? 1.0 : 0.0,
+            child: Column(
+              children: [
+                Text(
+                  'METROPOLITAN',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    letterSpacing: 1.2,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'INVESTMENT',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: AppTheme.secondaryGold,
+                    fontWeight: FontWeight.w400,
+                    fontSize: 11,
+                    letterSpacing: 0.8,
+                    height: 1.1,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

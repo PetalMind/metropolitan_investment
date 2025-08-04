@@ -73,6 +73,7 @@ dependencies:
   cached_network_image: ^3.4.1
   shimmer: ^3.0.0
   lottie: ^3.1.2
+  flutter_svg: ^2.0.10+1
   
   # Form handling
   form_validator: ^2.1.1
