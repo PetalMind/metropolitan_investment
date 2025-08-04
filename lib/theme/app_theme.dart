@@ -1,157 +1,164 @@
 import 'package:flutter/material.dart';
 
-/// Premium Dark Theme for Cosmopolitan Investment
-/// Inspired by professional financial platforms like Bloomberg Terminal,
-/// Charles Schwab, and modern fintech applications
+/// Modern Premium Financial Theme for Metropolitan Investment
+/// Enhanced with sophisticated gradients, glassmorphism effects, and refined color palette
+/// Inspired by cutting-edge fintech platforms with professional gold-dark aesthetic
 class AppTheme {
-  // === CORE BRAND COLORS ===
-  // Rich, deep blue-grays that convey trust and professionalism
+  // === REFINED BRAND COLORS ===
+  // Deep, sophisticated navy with enhanced visual depth
   static const Color primaryColor = Color(
-    0xFF0D1B2A,
-  ); // Deep navy - primary brand
+    0xFF0A1628,
+  ); // Ultra-deep navy - primary brand
   static const Color primaryLight = Color(
-    0xFF1B263B,
-  ); // Lighter navy for surfaces
+    0xFF1A2332,
+  ); // Elevated navy surfaces with warmth
   static const Color primaryAccent = Color(
-    0xFF415A77,
-  ); // Medium blue-gray for accents
+    0xFF2D3E50,
+  ); // Medium navy with refined sophistication
 
-  // === SECONDARY FINANCIAL COLORS ===
-  // Sophisticated gold and copper tones that suggest wealth and prosperity
-  static const Color secondaryGold = Color(0xFFD4AF37); // Premium gold
-  static const Color secondaryCopper = Color(0xFFB87333); // Rich copper
+  // === PREMIUM GOLD SYSTEM ===
+  // Enhanced gold palette with multiple tones for visual hierarchy
+  static const Color secondaryGold = Color(0xFFFFD700); // Pure premium gold
+  static const Color secondaryCopper = Color(0xFFF4D03F); // Warm copper-gold
   static const Color secondaryAmber = Color(
-    0xFFFFB300,
-  ); // Warm amber for highlights
+    0xFFE6B800,
+  ); // Rich amber with rose undertones
 
-  // === DARK BACKGROUND PALETTE ===
-  // Professional dark grays with subtle blue undertones
+  // === SOPHISTICATED BACKGROUND PALETTE ===
+  // Ultra-deep backgrounds with subtle gradient undertones
   static const Color backgroundPrimary = Color(
-    0xFF0A0E13,
-  ); // Almost black, slight blue tint
+    0xFF0B1426,
+  ); // Primary deep background with blue tint
   static const Color backgroundSecondary = Color(
-    0xFF0F1419,
-  ); // Slightly lighter for cards
+    0xFF1A2332,
+  ); // Card surfaces with warmth
   static const Color backgroundTertiary = Color(
-    0xFF161B22,
-  ); // For elevated surfaces
+    0xFF243447,
+  ); // Elevated surfaces with depth
   static const Color backgroundModal = Color(
-    0xFF1C2128,
-  ); // For modals and overlays
+    0xFF2C3E50,
+  ); // Modal backgrounds with sophistication
 
-  // === SURFACE COLORS ===
-  // Sophisticated surface hierarchy
+  // === ENHANCED SURFACE COLORS ===
+  // Sophisticated surface hierarchy with depth and warmth
   static const Color surfaceContainer = Color(
-    0xFF1E252D,
-  ); // Main container surface
-  static const Color surfaceCard = Color(0xFF232A33); // Card surfaces
-  static const Color surfaceElevated = Color(0xFF2A3139); // Elevated components
+    0xFF1E2A38,
+  ); // Main container surface with sophistication
+  static const Color surfaceCard = Color(0xFF243447); // Card surfaces with depth
+  static const Color surfaceElevated = Color(0xFF2A3A4F); // Elevated components with presence
   static const Color surfaceInteractive = Color(
-    0xFF2F3640,
-  ); // Interactive elements
+    0xFF334155,
+  ); // Interactive elements with modern appeal
 
-  // === TEXT HIERARCHY ===
-  // Carefully crafted text colors for optimal readability
-  static const Color textPrimary = Color(0xFFE8EAED); // High contrast white
-  static const Color textSecondary = Color(0xFFBDC1C6); // Medium contrast gray
+  // === REFINED TEXT HIERARCHY ===
+  // Premium text system with enhanced contrast and readability
+  static const Color textPrimary = Color(0xFFF8FAFC); // Ultra-high contrast white
+  static const Color textSecondary = Color(0xFFE2E8F0); // High contrast secondary
   static const Color textTertiary = Color(
-    0xFF9AA0A6,
-  ); // Lower contrast for labels
-  static const Color textDisabled = Color(0xFF5F6368); // Disabled state
+    0xFFCBD5E1,
+  ); // Medium contrast tertiary
+  static const Color textDisabled = Color(0xFF64748B); // Disabled state with clarity
   static const Color textOnPrimary = Color(
     0xFFFFFFFF,
   ); // Text on primary surfaces
   static const Color textOnSecondary = Color(
-    0xFF0D1B2A,
-  ); // Text on secondary surfaces
+    0xFF1A1A1A,
+  ); // Text on secondary/gold surfaces
 
-  // === INVESTMENT PERFORMANCE COLORS ===
-  // Professional color system for financial data
-  static const Color gainPrimary = Color(0xFF00C896); // Primary gain green
+  // === MODERN INVESTMENT PERFORMANCE COLORS ===
+  // Enhanced color system for financial data with visual sophistication
+  static const Color gainPrimary = Color(0xFF00D7AA); // Modern gain green with energy
   static const Color gainSecondary = Color(
-    0xFF10E78B,
-  ); // Secondary gain (lighter)
-  static const Color gainBackground = Color(0xFF0A2D20); // Gain background
+    0xFF4FFFCB,
+  ); // Light gain accent with vitality
+  static const Color gainBackground = Color(0xFF0D2818); // Sophisticated gain background
 
-  static const Color lossPrimary = Color(0xFFFF6B6B); // Primary loss red
+  static const Color lossPrimary = Color(0xFFFF4757); // Modern loss red with clarity
   static const Color lossSecondary = Color(
-    0xFFFF8E8E,
-  ); // Secondary loss (lighter)
-  static const Color lossBackground = Color(0xFF2D0A0A); // Loss background
+    0xFFFF7979,
+  ); // Light loss accent with warmth
+  static const Color lossBackground = Color(0xFF2D1B1E); // Refined loss background
 
-  static const Color neutralPrimary = Color(0xFF8B9DC3); // Neutral/unchanged
-  static const Color neutralSecondary = Color(0xFFA5B3D1); // Lighter neutral
+  static const Color neutralPrimary = Color(0xFF8B9DC3); // Neutral with sophistication
+  static const Color neutralSecondary = Color(0xFFA8B8D8); // Light neutral with elegance
   static const Color neutralBackground = Color(
-    0xFF1A1F2E,
-  ); // Neutral background
+    0xFF1E2630,
+  ); // Neutral background with depth
 
-  // === INVESTMENT PRODUCT COLORS ===
-  // Distinct colors for different investment types
-  static const Color bondsColor = Color(0xFF4FC3F7); // Light blue for bonds
-  static const Color bondsBackground = Color(0xFF0D1F2A); // Bonds background
+  // === ENHANCED INVESTMENT PRODUCT COLORS ===
+  // Modern colors for different investment types with visual appeal
+  static const Color bondsColor = Color(0xFF5DADE2); // Modern bonds blue with confidence
+  static const Color bondsBackground = Color(0xFF0F1C2A); // Sophisticated bonds background
 
-  static const Color sharesColor = Color(0xFF66BB6A); // Green for shares
-  static const Color sharesBackground = Color(0xFF0F2A14); // Shares background
+  static const Color sharesColor = Color(0xFF58D68D); // Modern shares green with growth energy
+  static const Color sharesBackground = Color(0xFF0F2A15); // Refined shares background
 
-  static const Color loansColor = Color(0xFFFFB74D); // Orange for loans
-  static const Color loansBackground = Color(0xFF2A1A0A); // Loans background
+  static const Color loansColor = Color(0xFFF39C12); // Modern loans orange with warmth
+  static const Color loansBackground = Color(0xFF2A1B0A); // Elegant loans background
 
   static const Color apartmentsColor = Color(
-    0xFFBA68C8,
-  ); // Purple for real estate
+    0xFFAB47BC,
+  ); // Modern real estate purple with luxury
   static const Color apartmentsBackground = Color(
     0xFF1F0D2A,
-  ); // Apartments background
+  ); // Sophisticated apartments background
 
-  static const Color etfColor = Color(0xFF42A5F5); // Blue for ETFs
-  static const Color cryptoColor = Color(0xFFFFA726); // Gold for crypto
+  static const Color etfColor = Color(0xFF42A5F5); // Modern ETF blue with trust
+  static const Color cryptoColor = Color(0xFFFF9500); // Modern crypto orange with innovation
   static const Color commoditiesColor = Color(
     0xFF8D6E63,
-  ); // Brown for commodities
+  ); // Refined commodities brown with stability
 
-  // === STATUS COLORS ===
-  // Professional status indication system
-  static const Color successPrimary = Color(0xFF00C896); // Success state
+  // === MODERN STATUS COLORS ===
+  // Enhanced status indication system with sophisticated appeal
+  static const Color successPrimary = Color(0xFF00E676); // Modern success with vitality
   static const Color successBackground = Color(
-    0xFF0A2D20,
-  ); // Success background
+    0xFF0D2E1C,
+  ); // Sophisticated success background
 
-  static const Color warningPrimary = Color(0xFFFFB300); // Warning state
+  static const Color warningPrimary = Color(0xFFFFC107); // Modern warning with clarity
   static const Color warningBackground = Color(
     0xFF2A2000,
-  ); // Warning background
+  ); // Refined warning background
 
-  static const Color errorPrimary = Color(0xFFFF5252); // Error state
-  static const Color errorBackground = Color(0xFF2D0A0A); // Error background
+  static const Color errorPrimary = Color(0xFFFF1744); // Modern error with urgency
+  static const Color errorBackground = Color(0xFF2D0A0F); // Sophisticated error background
 
-  static const Color infoPrimary = Color(0xFF42A5F5); // Info state
-  static const Color infoBackground = Color(0xFF0A1A2A); // Info background
+  static const Color infoPrimary = Color(0xFF2196F3); // Modern info with trust
+  static const Color infoBackground = Color(0xFF0A1A2D); // Elegant info background
 
-  // === BORDER AND DIVIDER COLORS ===
-  static const Color borderPrimary = Color(0xFF373E47); // Primary borders
-  static const Color borderSecondary = Color(0xFF2F3640); // Secondary borders
-  static const Color borderFocus = Color(0xFF415A77); // Focused borders
-  static const Color dividerColor = Color(0xFF2A2F36); // Dividers
+  // === REFINED BORDER AND DIVIDER COLORS ===
+  static const Color borderPrimary = Color(0xFF3A4A5C); // Modern primary borders
+  static const Color borderSecondary = Color(0xFF2A3441); // Sophisticated secondary borders
+  static const Color borderFocus = Color(0xFF4A5A6C); // Enhanced focused borders
+  static const Color dividerColor = Color(0xFF2E3A47); // Modern dividers with depth
 
-  // === OVERLAY COLORS ===
-  static const Color overlayLight = Color(0x1AFFFFFF); // Light overlay
-  static const Color overlayMedium = Color(0x33FFFFFF); // Medium overlay
-  static const Color overlayDark = Color(0x80000000); // Dark overlay
-  static const Color scrimColor = Color(0xCC000000); // Modal scrim
-  static const Color shadowColor = Color(0x26000000); // Shadow color
+  // === ENHANCED OVERLAY COLORS ===
+  static const Color overlayLight = Color(0x15FFFFFF); // Refined light overlay
+  static const Color overlayMedium = Color(0x30FFFFFF); // Enhanced medium overlay
+  static const Color overlayDark = Color(0x70000000); // Sophisticated dark overlay
+  static const Color scrimColor = Color(0xE0000000); // Modern modal scrim
+  static const Color shadowColor = Color(0x30000000); // Enhanced shadow color
 
-  // === GRADIENT DEFINITIONS ===
+  // === ENHANCED GRADIENT DEFINITIONS ===
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [primaryColor, primaryLight],
-    stops: [0.0, 1.0],
+    colors: [primaryColor, primaryLight, primaryAccent],
+    stops: [0.0, 0.5, 1.0],
   );
 
   static const LinearGradient goldGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [secondaryGold, secondaryCopper],
+    colors: [secondaryGold, secondaryCopper, secondaryAmber],
+    stops: [0.0, 0.5, 1.0],
+  );
+
+  static const LinearGradient cardGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [backgroundSecondary, backgroundTertiary],
     stops: [0.0, 1.0],
   );
 
@@ -171,8 +178,15 @@ class AppTheme {
 
   static const RadialGradient heroGradient = RadialGradient(
     center: Alignment.topLeft,
-    radius: 1.5,
-    colors: [Color(0xFF1B263B), Color(0xFF0D1B2A), Color(0xFF0A0E13)],
+    radius: 2.0,
+    colors: [primaryLight, primaryColor, backgroundPrimary],
+    stops: [0.0, 0.6, 1.0],
+  );
+
+  static const LinearGradient glassGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [overlayLight, Color(0x10FFFFFF), Color(0x05FFFFFF)],
     stops: [0.0, 0.5, 1.0],
   );
 
@@ -305,18 +319,18 @@ class AppTheme {
       // Scaffold Background
       scaffoldBackgroundColor: backgroundPrimary,
 
-      // App Bar Theme
+      // App Bar Theme with enhanced styling
       appBarTheme: const AppBarTheme(
         backgroundColor: backgroundSecondary,
         foregroundColor: textPrimary,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        scrolledUnderElevation: 1,
+        scrolledUnderElevation: 2,
         shadowColor: Colors.black26,
         centerTitle: false,
         titleTextStyle: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
+          fontSize: 24,
+          fontWeight: FontWeight.w700,
           color: textPrimary,
           letterSpacing: -0.5,
         ),
@@ -325,38 +339,38 @@ class AppTheme {
           fontWeight: FontWeight.w500,
           color: textSecondary,
         ),
-        iconTheme: IconThemeData(color: textSecondary, size: 24),
-        actionsIconTheme: IconThemeData(color: textSecondary, size: 24),
+        iconTheme: IconThemeData(color: secondaryGold, size: 24),
+        actionsIconTheme: IconThemeData(color: secondaryGold, size: 24),
       ),
 
-      // Card Theme
+      // Enhanced Card Theme
       cardTheme: CardThemeData(
         color: surfaceCard,
-        shadowColor: Colors.black26,
-        elevation: 2,
+        shadowColor: Colors.black38,
+        elevation: 8,
         margin: const EdgeInsets.all(8),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: borderSecondary, width: 0.5),
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: borderPrimary, width: 1),
         ),
       ),
 
-      // Button Themes
+      // Enhanced Button Themes
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: textOnPrimary,
+          backgroundColor: secondaryGold,
+          foregroundColor: textOnSecondary,
           disabledBackgroundColor: surfaceInteractive,
           disabledForegroundColor: textDisabled,
-          elevation: 3,
-          shadowColor: Colors.black38,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          elevation: 8,
+          shadowColor: secondaryGold.withOpacity(0.4),
+          padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 18),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
           textStyle: const TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
           ),
         ),
@@ -364,16 +378,16 @@ class AppTheme {
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primaryAccent,
+          foregroundColor: secondaryGold,
           disabledForegroundColor: textDisabled,
-          side: const BorderSide(color: borderPrimary, width: 1.5),
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          side: const BorderSide(color: secondaryGold, width: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 18),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
           textStyle: const TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
           ),
         ),
@@ -383,59 +397,59 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: secondaryGold,
           disabledForegroundColor: textDisabled,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            letterSpacing: 0.25,
+            letterSpacing: 0.3,
           ),
         ),
       ),
 
-      // Input Theme
+      // Enhanced Input Theme
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceInteractive,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
+          horizontal: 20,
+          vertical: 18,
         ),
 
-        // Border Styles
+        // Modern Border Styles
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: borderSecondary, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: borderSecondary, width: 1),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: borderPrimary, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: borderFocus, width: 2),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: secondaryGold, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: errorPrimary, width: 1),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: errorPrimary, width: 2),
         ),
         disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: borderSecondary, width: 0.5),
         ),
 
-        // Text Styles
+        // Enhanced Text Styles
         labelStyle: const TextStyle(
           color: textSecondary,
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
         floatingLabelStyle: const TextStyle(
-          color: borderFocus,
+          color: secondaryGold,
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
@@ -455,122 +469,122 @@ class AppTheme {
           fontWeight: FontWeight.w400,
         ),
 
-        // Icons
-        prefixIconColor: textSecondary,
-        suffixIconColor: textSecondary,
+        // Enhanced Icons
+        prefixIconColor: secondaryGold,
+        suffixIconColor: secondaryGold,
       ),
 
-      // Typography
+      // Enhanced Typography
       textTheme: const TextTheme(
-        // Display styles - for major headings
+        // Display styles - enhanced for major headings
         displayLarge: TextStyle(
-          fontSize: 40,
+          fontSize: 42,
+          fontWeight: FontWeight.w800,
+          color: textPrimary,
+          letterSpacing: -1.2,
+          height: 1.1,
+        ),
+        displayMedium: TextStyle(
+          fontSize: 36,
           fontWeight: FontWeight.w700,
           color: textPrimary,
           letterSpacing: -1.0,
           height: 1.2,
         ),
-        displayMedium: TextStyle(
-          fontSize: 32,
+        displaySmall: TextStyle(
+          fontSize: 30,
           fontWeight: FontWeight.w700,
           color: textPrimary,
           letterSpacing: -0.8,
           height: 1.25,
         ),
-        displaySmall: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.w600,
+
+        // Headline styles - enhanced for section headers
+        headlineLarge: TextStyle(
+          fontSize: 26,
+          fontWeight: FontWeight.w700,
           color: textPrimary,
           letterSpacing: -0.6,
           height: 1.3,
         ),
-
-        // Headline styles - for section headers
-        headlineLarge: TextStyle(
-          fontSize: 24,
+        headlineMedium: TextStyle(
+          fontSize: 22,
           fontWeight: FontWeight.w600,
           color: textPrimary,
           letterSpacing: -0.4,
           height: 1.35,
         ),
-        headlineMedium: TextStyle(
+        headlineSmall: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: textPrimary,
           letterSpacing: -0.2,
           height: 1.4,
         ),
-        headlineSmall: TextStyle(
+
+        // Title styles - enhanced for card titles and important labels
+        titleLarge: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: textPrimary,
           letterSpacing: 0,
           height: 1.45,
         ),
-
-        // Title styles - for card titles and important labels
-        titleLarge: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: textPrimary,
-          letterSpacing: 0.15,
-          height: 1.5,
-        ),
         titleMedium: TextStyle(
-          fontSize: 14,
+          fontSize: 16,
           fontWeight: FontWeight.w600,
           color: textPrimary,
           letterSpacing: 0.1,
           height: 1.5,
         ),
         titleSmall: TextStyle(
-          fontSize: 12,
+          fontSize: 14,
           fontWeight: FontWeight.w600,
           color: textSecondary,
           letterSpacing: 0.2,
           height: 1.5,
         ),
 
-        // Body styles - for main content
+        // Body styles - enhanced for main content
         bodyLarge: TextStyle(
-          fontSize: 16,
+          fontSize: 17,
           fontWeight: FontWeight.w400,
           color: textPrimary,
-          letterSpacing: 0.15,
+          letterSpacing: 0.1,
           height: 1.6,
         ),
         bodyMedium: TextStyle(
-          fontSize: 14,
+          fontSize: 15,
           fontWeight: FontWeight.w400,
           color: textPrimary,
           letterSpacing: 0.1,
           height: 1.6,
         ),
         bodySmall: TextStyle(
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: FontWeight.w400,
           color: textSecondary,
           letterSpacing: 0.2,
           height: 1.6,
         ),
 
-        // Label styles - for small labels and captions
+        // Label styles - enhanced for small labels and captions
         labelLarge: TextStyle(
-          fontSize: 14,
+          fontSize: 15,
           fontWeight: FontWeight.w500,
           color: textSecondary,
           letterSpacing: 0.3,
           height: 1.4,
         ),
         labelMedium: TextStyle(
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: FontWeight.w500,
           color: textSecondary,
           letterSpacing: 0.4,
           height: 1.4,
         ),
         labelSmall: TextStyle(
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w500,
           color: textTertiary,
           letterSpacing: 0.5,
@@ -578,8 +592,8 @@ class AppTheme {
         ),
       ),
 
-      // Icon Theme
-      iconTheme: const IconThemeData(color: textSecondary, size: 24),
+      // Enhanced Icon Theme
+      iconTheme: const IconThemeData(color: secondaryGold, size: 24),
 
       // Divider Theme
       dividerTheme: const DividerThemeData(
@@ -588,15 +602,15 @@ class AppTheme {
         space: 1,
       ),
 
-      // List Tile Theme
+      // Enhanced List Tile Theme
       listTileTheme: const ListTileThemeData(
         tileColor: Colors.transparent,
         selectedTileColor: surfaceElevated,
-        iconColor: textSecondary,
+        iconColor: secondaryGold,
         textColor: textPrimary,
         titleTextStyle: TextStyle(
           fontSize: 16,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
         subtitleTextStyle: TextStyle(
@@ -604,9 +618,9 @@ class AppTheme {
           fontWeight: FontWeight.w400,
           color: textSecondary,
         ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(8)),
+          borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
       ),
 
@@ -636,30 +650,30 @@ class AppTheme {
         ),
       ),
 
-      // Chip Theme
+                  // Enhanced Chip Theme
       chipTheme: ChipThemeData(
         backgroundColor: surfaceElevated,
-        selectedColor: primaryLight,
-        secondarySelectedColor: secondaryCopper,
+        selectedColor: secondaryCopper,
+        secondarySelectedColor: secondaryAmber,
         deleteIconColor: textSecondary,
         disabledColor: surfaceCard,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-        side: const BorderSide(color: borderSecondary, width: 0.5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+        side: const BorderSide(color: borderPrimary, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
         labelStyle: const TextStyle(
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: FontWeight.w500,
           color: textPrimary,
         ),
         secondaryLabelStyle: const TextStyle(
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: FontWeight.w500,
-          color: textOnPrimary,
+          color: textOnSecondary,
         ),
       ),
 
-      // Bottom Navigation Theme
+      // Enhanced Bottom Navigation Theme
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: backgroundSecondary,
         selectedItemColor: secondaryGold,
@@ -676,7 +690,7 @@ class AppTheme {
         elevation: 8,
       ),
 
-      // Tab Bar Theme
+      // Enhanced Tab Bar Theme
       tabBarTheme: const TabBarThemeData(
         labelColor: secondaryGold,
         unselectedLabelColor: textTertiary,
@@ -693,18 +707,18 @@ class AppTheme {
         ),
       ),
 
-      // Dialog Theme
+      // Enhanced Dialog Theme
       dialogTheme: const DialogThemeData(
         backgroundColor: backgroundModal,
         elevation: 8,
         shadowColor: Colors.black38,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(16)),
-          side: BorderSide(color: borderPrimary, width: 0.5),
+          borderRadius: BorderRadius.all(Radius.circular(20)),
+          side: BorderSide(color: borderPrimary, width: 1),
         ),
         titleTextStyle: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
         contentTextStyle: TextStyle(
@@ -715,10 +729,10 @@ class AppTheme {
         ),
       ),
 
-      // Snack Bar Theme
-      snackBarTheme: const SnackBarThemeData(
+      // Enhanced Snack Bar Theme
+      snackBarTheme: SnackBarThemeData(
         backgroundColor: surfaceElevated,
-        contentTextStyle: TextStyle(
+        contentTextStyle: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: textPrimary,
@@ -726,19 +740,19 @@ class AppTheme {
         actionTextColor: secondaryGold,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(8)),
+          borderRadius: BorderRadius.circular(16),
         ),
-        elevation: 6,
+        elevation: 8,
       ),
 
-      // Progress Indicator Theme
+      // Enhanced Progress Indicator Theme
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: secondaryGold,
         linearTrackColor: surfaceInteractive,
         circularTrackColor: surfaceInteractive,
       ),
 
-      // Switch Theme
+      // Enhanced Switch Theme
       switchTheme: SwitchThemeData(
         thumbColor: MaterialStateProperty.resolveWith((states) {
           if (states.contains(MaterialState.selected)) {
@@ -754,7 +768,7 @@ class AppTheme {
         }),
       ),
 
-      // Checkbox Theme
+      // Enhanced Checkbox Theme
       checkboxTheme: CheckboxThemeData(
         fillColor: MaterialStateProperty.resolveWith((states) {
           if (states.contains(MaterialState.selected)) {
@@ -764,10 +778,10 @@ class AppTheme {
         }),
         checkColor: MaterialStateProperty.all(textOnSecondary),
         side: const BorderSide(color: borderPrimary, width: 1.5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
 
-      // Radio Theme
+      // Enhanced Radio Theme
       radioTheme: RadioThemeData(
         fillColor: MaterialStateProperty.resolveWith((states) {
           if (states.contains(MaterialState.selected)) {
@@ -777,12 +791,12 @@ class AppTheme {
         }),
       ),
 
-      // Slider Theme
+      // Enhanced Slider Theme
       sliderTheme: const SliderThemeData(
         activeTrackColor: secondaryGold,
         inactiveTrackColor: surfaceInteractive,
         thumbColor: secondaryGold,
-        overlayColor: Color(0x1FD4AF37),
+        overlayColor: Color(0x1FFFD700),
         valueIndicatorColor: primaryColor,
         valueIndicatorTextStyle: TextStyle(
           color: textOnPrimary,
@@ -913,37 +927,43 @@ class AppTheme {
     }
   }
 
-  // === CUSTOM DECORATIONS ===
+  // === PREMIUM DECORATIONS ===
 
-  /// Premium card decoration with subtle border and shadow
+  /// Ultra-premium card decoration with enhanced shadows and glassmorphism
   static BoxDecoration get premiumCardDecoration => BoxDecoration(
-    color: surfaceCard,
-    borderRadius: BorderRadius.circular(16),
-    border: Border.all(color: borderSecondary, width: 0.5),
+    gradient: cardGradient,
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: borderPrimary, width: 1),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.15),
-        blurRadius: 12,
-        offset: const Offset(0, 4),
+        color: Colors.black.withOpacity(0.3),
+        blurRadius: 20,
+        offset: const Offset(0, 8),
         spreadRadius: 0,
       ),
       BoxShadow(
-        color: Colors.black.withOpacity(0.05),
-        blurRadius: 6,
-        offset: const Offset(0, 2),
+        color: secondaryGold.withOpacity(0.05),
+        blurRadius: 15,
+        offset: const Offset(0, 4),
         spreadRadius: 0,
       ),
     ],
   );
 
-  /// Elevated surface decoration for important components
+  /// Modern elevated surface decoration with sophisticated styling
   static BoxDecoration get elevatedSurfaceDecoration => BoxDecoration(
     color: surfaceElevated,
-    borderRadius: BorderRadius.circular(12),
-    border: Border.all(color: borderPrimary, width: 0.5),
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(color: borderSecondary, width: 1),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.2),
+        color: Colors.black.withOpacity(0.25),
+        blurRadius: 12,
+        offset: const Offset(0, 6),
+        spreadRadius: 0,
+      ),
+      BoxShadow(
+        color: secondaryGold.withOpacity(0.03),
         blurRadius: 8,
         offset: const Offset(0, 2),
         spreadRadius: 0,
@@ -951,52 +971,66 @@ class AppTheme {
     ],
   );
 
-  /// Investment performance card decoration
+  /// Enhanced investment performance card decoration with glow effects
   static BoxDecoration getPerformanceCardDecoration(double value) =>
       BoxDecoration(
         color: getPerformanceBackground(value),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: getPerformanceColor(value).withOpacity(0.3),
-          width: 1,
+          color: getPerformanceColor(value).withOpacity(0.4),
+          width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: getPerformanceColor(value).withOpacity(0.1),
-            blurRadius: 8,
+            color: getPerformanceColor(value).withOpacity(0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+            spreadRadius: 2,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
             offset: const Offset(0, 2),
             spreadRadius: 0,
           ),
         ],
       );
 
-  /// Product type chip decoration
+  /// Enhanced product type chip decoration with modern styling
   static BoxDecoration getProductChipDecoration(String productType) =>
       BoxDecoration(
         color: getProductTypeBackground(productType),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(25),
         border: Border.all(
-          color: getProductTypeColor(productType).withOpacity(0.5),
-          width: 1,
+          color: getProductTypeColor(productType).withOpacity(0.6),
+          width: 1.5,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: getProductTypeColor(productType).withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+            spreadRadius: 1,
+          ),
+        ],
       );
 
-  /// Glass morphism effect decoration
+  /// Modern glassmorphism effect decoration
   static BoxDecoration get glassMorphismDecoration => BoxDecoration(
-    color: surfaceCard.withOpacity(0.8),
-    borderRadius: BorderRadius.circular(16),
-    border: Border.all(color: borderPrimary.withOpacity(0.5), width: 0.5),
+    gradient: glassGradient,
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: borderPrimary.withOpacity(0.3), width: 1),
     boxShadow: [
       BoxShadow(
         color: Colors.black.withOpacity(0.1),
-        blurRadius: 16,
-        offset: const Offset(0, 8),
+        blurRadius: 20,
+        offset: const Offset(0, 10),
         spreadRadius: 0,
       ),
     ],
   );
 
-  // === ADDITIONAL COLORS AND DECORATIONS FOR COMPATIBILITY ===
+  // === ENHANCED COLORS AND DECORATIONS FOR COMPATIBILITY ===
 
   /// Error color alias for backward compatibility
   static const Color errorColor = errorPrimary;
@@ -1013,12 +1047,50 @@ class AppTheme {
   /// Text hint color alias for backward compatibility
   static const Color textHint = textTertiary;
 
-  /// Gradient decoration for backgrounds
+  /// Enhanced gradient decoration for backgrounds
   static BoxDecoration get gradientDecoration => BoxDecoration(
-    gradient: primaryGradient,
-    borderRadius: BorderRadius.circular(16),
-  );
+        gradient: primaryGradient,
+        borderRadius: BorderRadius.circular(20),
+      );
 
   /// Card decoration alias for backward compatibility
   static BoxDecoration get cardDecoration => premiumCardDecoration;
+
+  /// Modern gold accent decoration with sophisticated appeal
+  static BoxDecoration get goldAccentDecoration => BoxDecoration(
+        gradient: goldGradient,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: secondaryGold.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+            spreadRadius: 0,
+          ),
+        ],
+      );
+
+  /// Interactive surface decoration with hover effects
+  static BoxDecoration get interactiveDecoration => BoxDecoration(
+        color: surfaceInteractive,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: borderFocus,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+            spreadRadius: 0,
+          ),
+        ],
+      );
 }
