@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import '../models/client.dart';
-import '../services/client_service.dart';
+import '../models_and_services.dart';
 import '../widgets/data_table_widget.dart';
 import '../widgets/custom_loading_widget.dart';
+import '../widgets/client_form.dart';
 
 class ClientsScreen extends StatefulWidget {
   const ClientsScreen({super.key});
@@ -107,107 +107,90 @@ class _ClientsScreenState extends State<ClientsScreen> {
   }
 
   void _showClientForm([Client? client]) {
-    final TextEditingController nameController = TextEditingController(
-      text: client?.name ?? '',
-    );
-    final TextEditingController emailController = TextEditingController(
-      text: client?.email ?? '',
-    );
-    final TextEditingController phoneController = TextEditingController(
-      text: client?.phone ?? '',
-    );
-    final TextEditingController peselController = TextEditingController(
-      text: client?.pesel ?? '',
-    );
-    final TextEditingController addressController = TextEditingController(
-      text: client?.address ?? '',
-    );
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      barrierDismissible: false,
+      builder: (context) => Dialog(
         backgroundColor: AppTheme.backgroundModal,
-        title: Text(
-          client == null ? 'Nowy Klient' : 'Edytuj Klienta',
-          style: const TextStyle(color: AppTheme.textPrimary),
-        ),
-        content: SizedBox(
-          width: 400,
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          constraints: const BoxConstraints(maxWidth: 800, maxHeight: 600),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextFormField(
-                controller: nameController,
-                style: const TextStyle(color: AppTheme.textPrimary),
-                decoration: const InputDecoration(
-                  labelText: 'Imię i nazwisko',
-                  labelStyle: TextStyle(color: AppTheme.textSecondary),
-                ),
+              // Nagłówek
+              Row(
+                children: [
+                  Icon(
+                    client == null ? Icons.person_add : Icons.edit,
+                    color: AppTheme.secondaryGold,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    client == null ? 'Nowy Klient' : 'Edytuj Klienta',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                    color: AppTheme.textSecondary,
+                  ),
+                ],
               ),
+              const Divider(),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: peselController,
-                style: const TextStyle(color: AppTheme.textPrimary),
-                decoration: const InputDecoration(
-                  labelText: 'PESEL',
-                  labelStyle: TextStyle(color: AppTheme.textSecondary),
+
+              // Zaawansowany formularz klienta
+              Expanded(
+                child: ClientForm(
+                  client: client,
+                  onSave: (Client updatedClient) async {
+                    Navigator.of(context).pop();
+
+                    try {
+                      if (client == null) {
+                        // Dodawanie nowego klienta
+                        final clientId = await _clientService.createClient(
+                          updatedClient,
+                        );
+                        if (clientId.isNotEmpty) {
+                          _showSuccessSnackBar(
+                            'Klient "${updatedClient.name}" został dodany',
+                          );
+                          _loadClients(); // Przeładuj listę
+                        } else {
+                          _showErrorSnackBar('Błąd podczas dodawania klienta');
+                        }
+                      } else {
+                        // Aktualizacja istniejącego klienta
+                        await _clientService.updateClient(
+                          client.id,
+                          updatedClient,
+                        );
+                        _showSuccessSnackBar(
+                          'Klient "${updatedClient.name}" został zaktualizowany',
+                        );
+                        _loadClients(); // Przeładuj listę
+                      }
+                    } catch (e) {
+                      _showErrorSnackBar('Błąd: $e');
+                    }
+                  },
+                  onCancel: () {
+                    Navigator.of(context).pop();
+                  },
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: emailController,
-                style: const TextStyle(color: AppTheme.textPrimary),
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  labelStyle: TextStyle(color: AppTheme.textSecondary),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: phoneController,
-                style: const TextStyle(color: AppTheme.textPrimary),
-                decoration: const InputDecoration(
-                  labelText: 'Telefon',
-                  labelStyle: TextStyle(color: AppTheme.textSecondary),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: addressController,
-                style: const TextStyle(color: AppTheme.textPrimary),
-                decoration: const InputDecoration(
-                  labelText: 'Adres',
-                  labelStyle: TextStyle(color: AppTheme.textSecondary),
-                ),
-                maxLines: 3,
               ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.textSecondary,
-            ),
-            child: const Text('Anuluj'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _showSuccessSnackBar(
-                client == null
-                    ? 'Klient został dodany'
-                    : 'Klient został zaktualizowany',
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.secondaryGold,
-              foregroundColor: AppTheme.textOnSecondary,
-            ),
-            child: const Text('Zapisz'),
-          ),
-        ],
       ),
     );
   }
@@ -260,7 +243,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 Text(
                   '${_filteredClients.length} klientów',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppTheme.textOnPrimary.withOpacity(0.8),
+                    color: AppTheme.textOnPrimary.withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -274,7 +257,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
               backgroundColor: AppTheme.secondaryGold,
               foregroundColor: AppTheme.textOnSecondary,
               elevation: 4,
-              shadowColor: AppTheme.secondaryGold.withOpacity(0.3),
+              shadowColor: AppTheme.secondaryGold.withValues(alpha: 0.3),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),

@@ -1,5 +1,6 @@
 // Models exports
 export 'models/client.dart';
+export 'models/client_note.dart';
 export 'models/employee.dart';
 export 'models/investment.dart';
 export 'models/product.dart';
@@ -13,6 +14,7 @@ export 'models/excel_import_models.dart';
 // Services exports
 export 'services/base_service.dart';
 export 'services/client_service.dart';
+export 'services/client_notes_service.dart';
 export 'services/employee_service.dart';
 export 'services/investment_service.dart';
 export 'services/product_service.dart';

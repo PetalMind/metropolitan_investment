@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/client.dart';
+import '../models_and_services.dart';
+import 'client_notes_widget.dart';
 
 class ClientForm extends StatefulWidget {
   final Client? client;
@@ -165,17 +166,50 @@ class _ClientFormState extends State<ClientForm> {
             ),
             const SizedBox(height: 12),
 
-            // Notatki
+            // Notatki - Stary system (zachowujemy dla kompatybilności)
             TextFormField(
               initialValue: _notes,
               decoration: const InputDecoration(
-                labelText: 'Notatki',
-                hintText: 'Dodatkowe informacje o kliencie...',
+                labelText: 'Notatki podstawowe',
+                hintText: 'Podstawowe informacje o kliencie...',
+                helperText:
+                    'Krótka notatka zapisana bezpośrednio w profilu klienta',
               ),
-              maxLines: 3,
+              maxLines: 2,
               onSaved: (v) => _notes = v ?? '',
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 24),
+
+            // Notatki zaawansowane - nowy system
+            if (widget.client != null) ...[
+              const Divider(),
+              const SizedBox(height: 16),
+              Text(
+                'Notatki szczegółowe',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Zaawansowany system notatek z kategoriami, priorytetami i historią zmian.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 400,
+                child: ClientNotesWidget(
+                  clientId: widget.client!.id,
+                  clientName: widget.client!.name,
+                  currentUserId: 'current_user', // TODO: Pobierz z AuthProvider
+                  currentUserName:
+                      'Bieżący użytkownik', // TODO: Pobierz z AuthProvider
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // Kolor (opcjonalnie możemy dodać selektor kolorów)
             Row(
