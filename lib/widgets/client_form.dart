@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models_and_services.dart';
 import 'client_notes_widget.dart';
+import 'optimized_voting_status_widget.dart';
 
 class ClientForm extends StatefulWidget {
   final Client? client;
@@ -140,29 +141,25 @@ class _ClientFormState extends State<ClientForm> {
               const SizedBox(height: 12),
             ],
 
-            // Status głosowania
-            DropdownButtonFormField<VotingStatus>(
-              value: _votingStatus,
-              decoration: const InputDecoration(labelText: 'Status głosowania'),
-              items: VotingStatus.values
-                  .map(
-                    (status) => DropdownMenuItem(
-                      value: status,
-                      child: Row(
-                        children: [
-                          Icon(
-                            _getVotingStatusIcon(status),
-                            color: _getVotingStatusColor(status),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(status.displayName),
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (v) => setState(() => _votingStatus = v!),
+            // Status głosowania - ZOPTYMALIZOWANY
+            const SizedBox(height: 12),
+            Text(
+              'Status głosowania',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 8),
+            OptimizedVotingStatusSelector(
+              currentStatus: _votingStatus,
+              onStatusChanged: (status) {
+                setState(() {
+                  _votingStatus = status;
+                });
+              },
+              isCompact: false,
+              showLabels: true,
+              clientName: _name.isNotEmpty ? _name : null,
             ),
             const SizedBox(height: 12),
 
@@ -300,31 +297,5 @@ class _ClientFormState extends State<ClientForm> {
         ),
       ),
     );
-  }
-
-  IconData _getVotingStatusIcon(VotingStatus status) {
-    switch (status) {
-      case VotingStatus.yes:
-        return Icons.check_circle;
-      case VotingStatus.no:
-        return Icons.cancel;
-      case VotingStatus.abstain:
-        return Icons.remove_circle;
-      case VotingStatus.undecided:
-        return Icons.help;
-    }
-  }
-
-  Color _getVotingStatusColor(VotingStatus status) {
-    switch (status) {
-      case VotingStatus.yes:
-        return Colors.green;
-      case VotingStatus.no:
-        return Colors.red;
-      case VotingStatus.abstain:
-        return Colors.orange;
-      case VotingStatus.undecided:
-        return Colors.grey;
-    }
   }
 }

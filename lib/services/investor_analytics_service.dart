@@ -5,9 +5,11 @@ import '../models/investor_summary.dart';
 import '../models/product.dart';
 import 'base_service.dart';
 import 'client_service.dart';
+import 'client_id_mapping_service.dart';
 
 class InvestorAnalyticsService extends BaseService {
   final ClientService _clientService = ClientService();
+  final ClientIdMappingService _idMappingService = ClientIdMappingService();
 
   // Cache dla inwestorów z czasem wygaśnięcia
   Map<String, List<InvestorSummary>>? _investorsCache;
@@ -537,7 +539,8 @@ class InvestorAnalyticsService extends BaseService {
     }
   }
 
-  /// Aktualizuje wszystkie dane inwestora (status głosowania, notatki, kolor, typ)
+  /// Aktualizuje dane inwestora zgodnie z wzorcem OptimizedClientVotingService
+  /// Z obsługą mapowania Excel ID -> Firestore ID
   Future<void> updateInvestorDetails(
     String clientId, {
     VotingStatus? votingStatus,
@@ -545,21 +548,56 @@ class InvestorAnalyticsService extends BaseService {
     String? colorCode,
     ClientType? type,
     bool? isActive,
+    String? updateReason,
   }) async {
     try {
       print('🔄 [InvestorAnalyticsService] Aktualizacja klienta: $clientId');
-      
-      // Sprawdź czy klient istnieje
-      final exists = await _clientService.clientExists(clientId);
+
+      // Spróbuj znaleźć prawdziwe Firestore ID jeśli to Excel ID
+      String? actualFirestoreId = clientId;
+
+      // Sprawdź czy to może być Excel ID (numeryczne)
+      if (RegExp(r'^\d+$').hasMatch(clientId)) {
+        print(
+          '🔍 [InvestorAnalyticsService] Wykryto Excel ID, szukam Firestore ID...',
+        );
+        actualFirestoreId = await _idMappingService.findFirestoreIdByExcelId(
+          clientId,
+        );
+
+        if (actualFirestoreId == null) {
+          print(
+            '❌ [InvestorAnalyticsService] Nie znaleziono mapowania dla Excel ID: $clientId',
+          );
+          throw Exception(
+            'Cannot find Firestore ID for Excel ID: $clientId. The client may have been deleted or the ID mapping is incomplete.',
+          );
+        }
+
+        print(
+          '✅ [InvestorAnalyticsService] Zmapowano Excel ID $clientId -> Firestore ID $actualFirestoreId',
+        );
+      }
+
+      // Sprawdź czy klient istnieje w Firestore
+      final exists = await _clientService.clientExists(actualFirestoreId);
       if (!exists) {
-        print('❌ [InvestorAnalyticsService] Klient $clientId nie istnieje');
-        throw Exception('Client with ID $clientId does not exist');
+        print(
+          '❌ [InvestorAnalyticsService] Klient $actualFirestoreId nie istnieje w Firestore',
+        );
+        throw Exception(
+          'Client with Firestore ID $actualFirestoreId does not exist',
+        );
       }
 
       final Map<String, dynamic> updates = {};
 
+      // Przekazuj enum objects bezpośrednio - ClientService je skonwertuje
       if (votingStatus != null) {
-        updates['votingStatus'] = votingStatus.name;
+        updates['votingStatus'] = votingStatus; // Przekaż enum object
+        print(
+          '🗳️ [InvestorAnalyticsService] Status głosowania: ${votingStatus.displayName}',
+        );
       }
       if (notes != null) {
         updates['notes'] = notes;
@@ -568,22 +606,57 @@ class InvestorAnalyticsService extends BaseService {
         updates['colorCode'] = colorCode;
       }
       if (type != null) {
-        updates['type'] = type.name;
+        updates['type'] = type; // Przekaż enum object
+        print('👤 [InvestorAnalyticsService] Typ klienta: ${type.displayName}');
       }
       if (isActive != null) {
         updates['isActive'] = isActive;
       }
 
+      // Dodaj historię zmian jeśli to aktualizacja statusu głosowania
+      if (votingStatus != null &&
+          updateReason != null &&
+          updateReason.isNotEmpty) {
+        updates['lastVotingStatusUpdate'] = {
+          'status': votingStatus.name,
+          'reason': updateReason,
+          'timestamp': Timestamp.fromDate(DateTime.now()),
+          'updatedBy': 'investor_analytics', // Identyfikator źródła
+          'original_client_id':
+              clientId, // Zachowaj oryginalne ID dla debugowania
+        };
+      }
+
       if (updates.isNotEmpty) {
-        print('✅ [InvestorAnalyticsService] Aktualizuje pola: ${updates.keys.join(', ')}');
-        await _clientService.updateClientFields(clientId, updates);
-        clearCache('clients');
-        print('✅ [InvestorAnalyticsService] Pomyślnie zaktualizowano klienta $clientId');
+        print(
+          '✅ [InvestorAnalyticsService] Aktualizuje pola dla Firestore ID $actualFirestoreId: ${updates.keys.join(', ')}',
+        );
+        await _clientService.updateClientFields(actualFirestoreId, updates);
+
+        // Oczyść cache analityk
+        _clearAnalyticsCache();
+
+        print(
+          '✅ [InvestorAnalyticsService] Pomyślnie zaktualizowano klienta $actualFirestoreId (oryginalne ID: $clientId)',
+        );
       }
     } catch (e) {
       print('❌ [InvestorAnalyticsService] Błąd w updateInvestorDetails: $e');
       logError('updateInvestorDetails', e);
       rethrow;
+    }
+  }
+
+  /// Czyści cache związane z analitykami
+  void _clearAnalyticsCache() {
+    clearCache('clients');
+    clearCache('all_investors');
+    clearCache('majority_control');
+    clearCache('investor_summary');
+
+    // Wyczyść cache dla różnych filtrów
+    for (final status in VotingStatus.values) {
+      clearCache('investors_voting_${status.name}');
     }
   }
 

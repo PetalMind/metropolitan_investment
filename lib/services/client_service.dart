@@ -456,36 +456,76 @@ class ClientService extends BaseService {
     }
   }
 
-  // Update client with partial data
+  // Update client with partial data - ZOPTYMALIZOWANE dla statusu głosowania
   Future<void> updateClientFields(
     String id,
     Map<String, dynamic> fields,
   ) async {
     try {
       print('🔄 [ClientService] Sprawdzanie istnienia klienta: $id');
-      
+
       // Sprawdź czy dokument istnieje przed aktualizacją
       final docRef = firestore.collection(_collection).doc(id);
       final docSnapshot = await docRef.get();
-      
+
       if (!docSnapshot.exists) {
         print('❌ [ClientService] Klient $id nie istnieje w kolekcji clients');
         throw Exception('Client with ID $id does not exist');
       }
 
-      print('✅ [ClientService] Klient $id istnieje, aktualizuję pola: ${fields.keys.join(', ')}');
-      
-      await docRef.update({
-        ...fields,
-        'updatedAt': Timestamp.now(),
-      });
-      
+      print(
+        '✅ [ClientService] Klient $id istnieje, aktualizuję pola: ${fields.keys.join(', ')}',
+      );
+
+      // Waliduj i konwertuj enum values do string format
+      final processedFields = <String, dynamic>{};
+
+      for (final entry in fields.entries) {
+        final key = entry.key;
+        final value = entry.value;
+
+        // Konwertuj enum na string name zgodnie z modelem Client
+        if (key == 'votingStatus' && value is VotingStatus) {
+          processedFields[key] = value.name;
+          print(
+            '🗳️ [ClientService] Konwertuję votingStatus: ${value.displayName} -> ${value.name}',
+          );
+        } else if (key == 'type' && value is ClientType) {
+          processedFields[key] = value.name;
+          print(
+            '👤 [ClientService] Konwertuję type: ${value.displayName} -> ${value.name}',
+          );
+        } else {
+          processedFields[key] = value;
+        }
+      }
+
+      await docRef.update({...processedFields, 'updatedAt': Timestamp.now()});
+
       print('✅ [ClientService] Pomyślnie zaktualizowano klienta $id');
-      clearCache('all_clients');
+
+      // Rozszerzone czyszczenie cache dla danych głosowania
+      _clearClientRelatedCache();
     } catch (e) {
       print('❌ [ClientService] Błąd w updateClientFields: $e');
       logError('updateClientFields', e);
       throw Exception('Failed to update client fields: $e');
+    }
+  }
+
+  /// Czyści cache związane z klientami
+  void _clearClientRelatedCache() {
+    clearCache('all_clients');
+    clearCache('client_stats');
+
+    // Wyczyść cache dla różnych filtrów statusu głosowania
+    for (final status in VotingStatus.values) {
+      clearCache('clients_voting_${status.name}');
+    }
+
+    // Wyczyść cache dla różnych typów klientów
+    for (final type in ClientType.values) {
+      clearCache('clients_type_${type.name}');
     }
   }
 

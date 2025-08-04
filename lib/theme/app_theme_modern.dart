@@ -7,9 +7,13 @@ class ModernAppTheme {
   // === PREMIUM BRAND COLORS ===
   // Deep, sophisticated dark blues with enhanced depth
   static const Color primaryNavy = Color(0xFF0A1628); // Ultra-deep navy primary
-  static const Color primaryNavyLight = Color(0xFF1A2332); // Elevated navy surfaces
+  static const Color primaryNavyLight = Color(
+    0xFF1A2332,
+  ); // Elevated navy surfaces
   static const Color primaryAccent = Color(0xFF2D3E50); // Medium navy accents
-  static const Color primaryMuted = Color(0xFF34495E); // Muted navy for backgrounds
+  static const Color primaryMuted = Color(
+    0xFF34495E,
+  ); // Muted navy for backgrounds
 
   // === PREMIUM GOLD SYSTEM ===
   // Sophisticated gold palette with multiple tones for visual hierarchy
@@ -17,21 +21,35 @@ class ModernAppTheme {
   static const Color goldWarm = Color(0xFFF4D03F); // Warm gold variant
   static const Color goldRose = Color(0xFFE6B800); // Rose gold undertone
   static const Color goldDark = Color(0xFFB8860B); // Dark gold for depth
-  static const Color goldMuted = Color(0xFFDAA520); // Muted gold for subtle accents
+  static const Color goldMuted = Color(
+    0xFFDAA520,
+  ); // Muted gold for subtle accents
 
   // === MODERN BACKGROUND SYSTEM ===
   // Ultra-deep backgrounds with subtle gradient undertones
-  static const Color backgroundDeep = Color(0xFF0B1426); // Primary deep background
+  static const Color backgroundDeep = Color(
+    0xFF0B1426,
+  ); // Primary deep background
   static const Color backgroundCard = Color(0xFF1A2332); // Card surfaces
-  static const Color backgroundElevated = Color(0xFF243447); // Elevated surfaces
+  static const Color backgroundElevated = Color(
+    0xFF243447,
+  ); // Elevated surfaces
   static const Color backgroundModal = Color(0xFF2C3E50); // Modal backgrounds
-  static const Color backgroundGlass = Color(0x1AFFFFFF); // Glass morphism overlay
+  static const Color backgroundGlass = Color(
+    0x1AFFFFFF,
+  ); // Glass morphism overlay
 
   // === ENHANCED TEXT HIERARCHY ===
   // Premium text system with enhanced contrast and readability
-  static const Color textPrimary = Color(0xFFF8FAFC); // Ultra-high contrast white
-  static const Color textSecondary = Color(0xFFE2E8F0); // High contrast secondary
-  static const Color textTertiary = Color(0xFFCBD5E1); // Medium contrast tertiary
+  static const Color textPrimary = Color(
+    0xFFF8FAFC,
+  ); // Ultra-high contrast white
+  static const Color textSecondary = Color(
+    0xFFE2E8F0,
+  ); // High contrast secondary
+  static const Color textTertiary = Color(
+    0xFFCBD5E1,
+  ); // Medium contrast tertiary
   static const Color textMuted = Color(0xFF94A3B8); // Subtle muted text
   static const Color textDisabled = Color(0xFF64748B); // Disabled state
   static const Color textOnGold = Color(0xFF1A1A1A); // Text on gold backgrounds
@@ -41,17 +59,23 @@ class ModernAppTheme {
   // Modern financial indicators with enhanced visual appeal
   static const Color gainPrimary = Color(0xFF00D7AA); // Modern gain green
   static const Color gainSecondary = Color(0xFF4FFFCB); // Light gain accent
-  static const Color gainBackground = Color(0xFF0D2818); // Subtle gain background
+  static const Color gainBackground = Color(
+    0xFF0D2818,
+  ); // Subtle gain background
   static const Color gainGlow = Color(0x2000D7AA); // Gain glow effect
 
   static const Color lossPrimary = Color(0xFFFF4757); // Modern loss red
   static const Color lossSecondary = Color(0xFFFF7979); // Light loss accent
-  static const Color lossBackground = Color(0xFF2D1B1E); // Subtle loss background
+  static const Color lossBackground = Color(
+    0xFF2D1B1E,
+  ); // Subtle loss background
   static const Color lossGlow = Color(0x20FF4757); // Loss glow effect
 
   static const Color neutralPrimary = Color(0xFF8B9DC3); // Neutral indicator
   static const Color neutralSecondary = Color(0xFFA8B8D8); // Light neutral
-  static const Color neutralBackground = Color(0xFF1E2630); // Neutral background
+  static const Color neutralBackground = Color(
+    0xFF1E2630,
+  ); // Neutral background
 
   // === MODERN INVESTMENT COLORS ===
   // Enhanced investment category colors with modern appeal
@@ -67,9 +91,13 @@ class ModernAppTheme {
   static const Color loansGlow = Color(0x20F39C12); // Loans glow effect
   static const Color loansBackground = Color(0xFF2A1B0A); // Loans background
 
-  static const Color realEstateModern = Color(0xFFAB47BC); // Modern real estate purple
+  static const Color realEstateModern = Color(
+    0xFFAB47BC,
+  ); // Modern real estate purple
   static const Color realEstateGlow = Color(0x20AB47BC); // Real estate glow
-  static const Color realEstateBackground = Color(0xFF1F0D2A); // Real estate background
+  static const Color realEstateBackground = Color(
+    0xFF1F0D2A,
+  ); // Real estate background
 
   static const Color cryptoModern = Color(0xFFFF9500); // Modern crypto orange
   static const Color cryptoGlow = Color(0x20FF9500); // Crypto glow effect
@@ -83,11 +111,15 @@ class ModernAppTheme {
   // Enhanced status colors with glow effects
   static const Color successModern = Color(0xFF00E676); // Modern success
   static const Color successGlow = Color(0x2000E676); // Success glow
-  static const Color successBackground = Color(0xFF0D2E1C); // Success background
+  static const Color successBackground = Color(
+    0xFF0D2E1C,
+  ); // Success background
 
   static const Color warningModern = Color(0xFFFFC107); // Modern warning
   static const Color warningGlow = Color(0x20FFC107); // Warning glow
-  static const Color warningBackground = Color(0xFF2A2000); // Warning background
+  static const Color warningBackground = Color(
+    0xFF2A2000,
+  ); // Warning background
 
   static const Color errorModern = Color(0xFFFF1744); // Modern error
   static const Color errorGlow = Color(0x20FF1744); // Error glow
@@ -109,7 +141,9 @@ class ModernAppTheme {
   // Modern surface colors with depth
   static const Color surfacePrimary = Color(0xFF1E2A38); // Primary surfaces
   static const Color surfaceSecondary = Color(0xFF243447); // Secondary surfaces
-  static const Color surfaceInteractive = Color(0xFF2A3A4F); // Interactive surfaces
+  static const Color surfaceInteractive = Color(
+    0xFF2A3A4F,
+  ); // Interactive surfaces
   static const Color surfaceHover = Color(0xFF334155); // Hover states
   static const Color surfacePressed = Color(0xFF3A4A5F); // Pressed states
 
@@ -314,72 +348,64 @@ class ModernAppTheme {
 
   /// Ultra-premium card decoration with glassmorphism
   static BoxDecoration get premiumCardDecoration => BoxDecoration(
-        gradient: cardGradient,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: borderPrimary,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-            spreadRadius: 0,
-          ),
-          BoxShadow(
-            color: goldPrimary.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
-            spreadRadius: 0,
-          ),
-        ],
-      );
+    gradient: cardGradient,
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: borderPrimary, width: 1),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.3),
+        blurRadius: 20,
+        offset: const Offset(0, 8),
+        spreadRadius: 0,
+      ),
+      BoxShadow(
+        color: goldPrimary.withOpacity(0.05),
+        blurRadius: 15,
+        offset: const Offset(0, 4),
+        spreadRadius: 0,
+      ),
+    ],
+  );
 
   /// Glassmorphism card decoration
   static BoxDecoration get glassMorphismDecoration => BoxDecoration(
-        gradient: glassGradient,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: borderPrimary.withOpacity(0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-            spreadRadius: 0,
-          ),
-        ],
-      );
+    gradient: glassGradient,
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(color: borderPrimary.withOpacity(0.3), width: 1),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.1),
+        blurRadius: 20,
+        offset: const Offset(0, 10),
+        spreadRadius: 0,
+      ),
+    ],
+  );
 
   /// Elevated surface with modern styling
   static BoxDecoration get modernElevatedDecoration => BoxDecoration(
-        color: surfaceSecondary,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: borderAccent,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-            spreadRadius: 0,
-          ),
-          BoxShadow(
-            color: goldPrimary.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-            spreadRadius: 0,
-          ),
-        ],
-      );
+    color: surfaceSecondary,
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(color: borderAccent, width: 1),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.25),
+        blurRadius: 12,
+        offset: const Offset(0, 6),
+        spreadRadius: 0,
+      ),
+      BoxShadow(
+        color: goldPrimary.withOpacity(0.03),
+        blurRadius: 8,
+        offset: const Offset(0, 2),
+        spreadRadius: 0,
+      ),
+    ],
+  );
 
   /// Performance card with glow effect
-  static BoxDecoration getPerformanceCardDecoration(double value) => BoxDecoration(
+  static BoxDecoration getPerformanceCardDecoration(double value) =>
+      BoxDecoration(
         color: getPerformanceBackground(value),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
@@ -403,7 +429,8 @@ class ModernAppTheme {
       );
 
   /// Investment type chip with glow
-  static BoxDecoration getInvestmentChipDecoration(String type) => BoxDecoration(
+  static BoxDecoration getInvestmentChipDecoration(String type) =>
+      BoxDecoration(
         color: getInvestmentTypeBackground(type),
         borderRadius: BorderRadius.circular(25),
         border: Border.all(
@@ -422,41 +449,38 @@ class ModernAppTheme {
 
   /// Gold accent decoration
   static BoxDecoration get goldAccentDecoration => BoxDecoration(
-        gradient: goldGradient,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: goldPrimary.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-            spreadRadius: 0,
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-            spreadRadius: 0,
-          ),
-        ],
-      );
+    gradient: goldGradient,
+    borderRadius: BorderRadius.circular(12),
+    boxShadow: [
+      BoxShadow(
+        color: goldPrimary.withOpacity(0.3),
+        blurRadius: 15,
+        offset: const Offset(0, 5),
+        spreadRadius: 0,
+      ),
+      BoxShadow(
+        color: Colors.black.withOpacity(0.2),
+        blurRadius: 8,
+        offset: const Offset(0, 2),
+        spreadRadius: 0,
+      ),
+    ],
+  );
 
   /// Interactive surface decoration
   static BoxDecoration get interactiveDecoration => BoxDecoration(
-        color: surfaceInteractive,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: borderAccent,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-            spreadRadius: 0,
-          ),
-        ],
-      );
+    color: surfaceInteractive,
+    borderRadius: BorderRadius.circular(12),
+    border: Border.all(color: borderAccent, width: 1),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.15),
+        blurRadius: 8,
+        offset: const Offset(0, 2),
+        spreadRadius: 0,
+      ),
+    ],
+  );
 
   // === MAIN THEME CONFIGURATION ===
 
@@ -584,7 +608,9 @@ class ModernAppTheme {
           foregroundColor: goldPrimary,
           disabledForegroundColor: textDisabled,
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -822,9 +848,7 @@ class ModernAppTheme {
         ),
         actionTextColor: goldPrimary,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 8,
       ),
     );
@@ -839,7 +863,7 @@ class ModernAppTheme {
 
   static BoxDecoration get cardDecoration => premiumCardDecoration;
   static BoxDecoration get gradientDecoration => BoxDecoration(
-        gradient: primaryGradient,
-        borderRadius: BorderRadius.circular(20),
-      );
+    gradient: primaryGradient,
+    borderRadius: BorderRadius.circular(20),
+  );
 }
