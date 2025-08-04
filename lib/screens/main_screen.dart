@@ -11,7 +11,7 @@ import 'products_screen.dart';
 import 'companies_screen.dart';
 import 'employees_screen.dart';
 import 'analytics_screen.dart';
-import 'investor_analytics_screen.dart';
+import 'enhanced_investor_analytics_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -63,7 +63,7 @@ class _MainScreenState extends State<MainScreen> {
     NavigationItem(
       icon: MdiIcons.accountGroup,
       label: 'Inwestorzy',
-      screen: const InvestorAnalyticsScreen(),
+      screen: const EnhancedInvestorAnalyticsScreen(),
     ),
   ];
 
