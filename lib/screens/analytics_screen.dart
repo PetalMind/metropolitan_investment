@@ -49,6 +49,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       final riskAnalytics = await _getRiskAnalytics();
       final profitabilityAnalytics = await _getProfitabilityAnalytics();
 
+      if (!mounted) return;
       setState(() {
         _investmentSummary = summary;
         _clientStats = clientStats;
@@ -62,6 +63,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
@@ -515,6 +517,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           DropdownMenuItem(value: -1, child: Text('Cały okres')),
         ],
         onChanged: (value) {
+          if (!mounted) return;
           setState(() {
             _selectedTimeRange = value!;
           });
@@ -548,6 +551,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
+          if (!mounted) return;
           setState(() {
             _selectedAnalyticsTab = tabId;
           });

@@ -37,6 +37,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   Future<void> _loadBranches() async {
     try {
       final branches = await _employeeService.getUniqueBranches();
+      if (!mounted) return;
       setState(() {
         _branches = branches;
       });

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../screens/premium_investor_analytics_screen.dart';
+import '../screens/enhanced_investor_analytics_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
 import '../screens/dashboard_screen.dart';
@@ -450,7 +450,7 @@ class AppRouter {
             pageBuilder: (context, state) => _buildPageWithTransition(
               context,
               state,
-              const PremiumInvestorAnalyticsScreen(),
+              const EnhancedInvestorAnalyticsScreen(),
             ),
           ),
 

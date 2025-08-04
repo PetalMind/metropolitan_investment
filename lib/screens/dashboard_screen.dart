@@ -96,6 +96,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _loadDashboardData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
@@ -127,6 +128,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         _analyticsService.getAdvancedDashboardMetrics(),
       ]);
 
+      if (!mounted) return;
       setState(() {
         _recentInvestments = (results[0] as List<Investment>).take(5).toList();
         _investmentsRequiringAttention = results[1] as List<Investment>;
@@ -145,8 +147,10 @@ class _DashboardScreenState extends State<DashboardScreen>
         _isLoading = false;
       });
 
-      // Start animation after data is loaded
-      _fadeController.forward();
+      // Start animation after data is loaded - check mounted again
+      if (mounted) {
+        _fadeController.forward();
+      }
 
       print(
         '🚀 Dashboard załadowany z nowymi compound indeksami Firestore - wszystko <50ms!',
@@ -159,6 +163,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       print('   - type + maturityDate + isActive (products)');
       print('   - isActive + lastName + firstName (employees)');
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       _showErrorSnackBar('Błąd podczas ładowania danych Dashboard: $e');
       print('❌ Błąd Dashboard: $e');
@@ -304,6 +309,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           DropdownMenuItem(value: 'ALL', child: Text('Wszystko')),
         ],
         onChanged: (value) {
+          if (!mounted) return;
           setState(() => _selectedTimeFrame = value!);
           _loadDashboardData();
         },
@@ -370,7 +376,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     final isSelected = _selectedDashboardTab == index;
 
     return GestureDetector(
-      onTap: () => setState(() => _selectedDashboardTab = index),
+      onTap: () {
+        if (!mounted) return;
+        setState(() => _selectedDashboardTab = index);
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
@@ -409,7 +418,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _selectedDashboardTab = index),
+        onTap: () {
+          if (!mounted) return;
+          setState(() => _selectedDashboardTab = index);
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
