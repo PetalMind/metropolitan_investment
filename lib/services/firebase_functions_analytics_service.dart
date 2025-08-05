@@ -517,6 +517,37 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
           data['additionalInfo'] ?? {'source_file': data['source_file']},
     );
   }
+
+  /// Czyści cache analityki po aktualizacji danych
+  void clearAnalyticsCache() {
+    clearAllCache();
+    print('🗑️ [Functions Service] Cache analityki wyczyszczony');
+  }
+
+  /// Wywołuje Firebase Function do czyszczenia cache po stronie serwera
+  Future<void> clearServerCache() async {
+    try {
+      print(
+        '🗑️ [Functions Service] Rozpoczynam czyszczenie cache na serwerze...',
+      );
+
+      final callable = _functions.httpsCallable(
+        'clearAnalyticsCache',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 30)),
+      );
+
+      final response = await callable.call({});
+      final data = response.data as Map<String, dynamic>;
+
+      print('✅ [Functions Service] Cache serwera wyczyszczony');
+      print(
+        '🗑️ [Functions Service] Wyczyszczono ${data['clearedKeys']} kluczy',
+      );
+    } catch (e) {
+      print('❌ [Functions Service] Błąd czyszczenia cache serwera: $e');
+      // Nie rethrow - czyszczenie cache nie powinno blokować głównej operacji
+    }
+  }
 }
 
 // 📊 DATA MODELS dla Firebase Functions response

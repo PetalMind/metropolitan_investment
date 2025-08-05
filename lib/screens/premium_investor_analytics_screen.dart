@@ -52,7 +52,8 @@ class _PremiumInvestorAnalyticsScreenState
   // 🎮 CORE SERVICES
   final FirebaseFunctionsAnalyticsService _analyticsService =
       FirebaseFunctionsAnalyticsService();
-  final ia_service.InvestorAnalyticsService _updateService = ia_service.InvestorAnalyticsService(); // Dla aktualizacji danych
+  final ia_service.InvestorAnalyticsService _updateService =
+      ia_service.InvestorAnalyticsService(); // Dla aktualizacji danych
   final VotingAnalysisManager _votingManager = VotingAnalysisManager();
 
   // 🎛️ UI CONTROLLERS
@@ -335,6 +336,64 @@ class _PremiumInvestorAnalyticsScreenState
     } finally {
       if (mounted) {
         setState(() => _isRefreshing = false);
+      }
+    }
+  }
+
+  /// Odświeża dane po aktualizacji inwestora z wymuszeniem przeładowania z serwera
+  Future<void> _refreshDataAfterUpdate() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _currentPage = 1;
+    });
+
+    try {
+      // Wymuś przeładowanie danych z serwera (pomijając cache)
+      final result = await _analyticsService.getOptimizedInvestorAnalytics(
+        page: _currentPage,
+        pageSize: _pageSize,
+        sortBy: _sortBy,
+        sortAscending: _sortAscending,
+        includeInactive: _includeInactive,
+        votingStatusFilter: _selectedVotingStatus,
+        clientTypeFilter: _selectedClientType,
+        showOnlyWithUnviableInvestments: _showOnlyWithUnviableInvestments,
+        searchQuery: _searchQuery.isNotEmpty ? _searchQuery : null,
+        forceRefresh: true, // 🔑 WYMUSZA PRZEŁADOWANIE CACHE
+      );
+
+      if (mounted) {
+        _processAnalyticsResult(result);
+        _calculateMajorityAnalysis();
+        _calculateVotingAnalysis();
+
+        // Pokaż komunikat o pomyślnym odświeżeniu
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('📊 Dane zostały automatycznie odświeżone'),
+            backgroundColor: AppTheme.successColor,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = _handleAnalyticsError(e);
+          _isLoading = false;
+        });
+
+        // Pokaż błąd odświeżania
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Błąd odświeżania danych: ${e.toString()}'),
+            backgroundColor: AppTheme.errorColor,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     }
   }
@@ -3019,16 +3078,8 @@ class _PremiumInvestorAnalyticsScreenState
         // Możliwość dodania logiki wyświetlania inwestycji
       },
       onUpdateInvestor: (updatedInvestor) {
-        // Odśwież dane po aktualizacji
-        setState(() {
-          final index = _displayedInvestors.indexWhere(
-            (inv) => inv.client.id == updatedInvestor.client.id,
-          );
-          if (index != -1) {
-            _displayedInvestors[index] = updatedInvestor;
-          }
-        });
-        _loadInitialData(); // Odśwież dane po aktualizacji
+        // Odśwież dane po aktualizacji z wymuszeniem przeładowania z serwera
+        _refreshDataAfterUpdate();
       },
     );
   }

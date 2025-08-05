@@ -6,10 +6,13 @@ import '../models/product.dart';
 import 'base_service.dart';
 import 'client_service.dart';
 import 'client_id_mapping_service.dart';
+import 'firebase_functions_analytics_service.dart';
 
 class InvestorAnalyticsService extends BaseService {
   final ClientService _clientService = ClientService();
   final ClientIdMappingService _idMappingService = ClientIdMappingService();
+  final FirebaseFunctionsAnalyticsService _functionsService =
+      FirebaseFunctionsAnalyticsService();
 
   // Cache dla inwestorów z czasem wygaśnięcia
   Map<String, List<InvestorSummary>>? _investorsCache;
@@ -658,6 +661,21 @@ class InvestorAnalyticsService extends BaseService {
     for (final status in VotingStatus.values) {
       clearCache('investors_voting_${status.name}');
     }
+  }
+
+  /// Publiczna metoda czyszczenia cache dla całej analityki
+  void clearAnalyticsCache() {
+    _clearAnalyticsCache();
+    print(
+      '🗑️ [InvestorAnalyticsService] Publiczne czyszczenie cache analityk',
+    );
+
+    // Asynchronicznie wyczyść także cache Firebase Functions
+    _functionsService.clearServerCache().catchError((e) {
+      print(
+        '⚠️ [InvestorAnalyticsService] Nie udało się wyczyścić cache serwera: $e',
+      );
+    });
   }
 
   /// Generuje dane do wysyłki email na podstawie wybranych inwestorów
