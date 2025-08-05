@@ -47,8 +47,8 @@ app.*.map.json
 # Firebase related
 firebase-debug.log
 .firebase/
-firebase.json
-.firebaserc
+# firebase.json - included for deployment configuration
+# .firebaserc - included for project configuration
 
 # Firebase Functions
 functions/node_modules/
