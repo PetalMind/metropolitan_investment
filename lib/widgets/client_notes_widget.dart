@@ -251,7 +251,7 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
                 ),
               )
             else
-              Expanded(
+              Flexible(
                 child: ListView.builder(
                   itemCount: _filteredNotes.length,
                   itemBuilder: (context, index) {

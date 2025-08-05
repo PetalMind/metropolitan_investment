@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../models/product.dart';
 import '../services/firebase_functions_products_service.dart';
-import '../services/product_service.dart';
+import '../services/product_service.dart'; // Zachowaj dla operacji CRUD
 import '../widgets/data_table_widget.dart';
 import '../widgets/product_form.dart';
 import '../widgets/animated_button.dart';
@@ -16,10 +16,9 @@ class ProductsScreen extends StatefulWidget {
 }
 
 class _ProductsScreenState extends State<ProductsScreen> {
-  final FirebaseFunctionsProductsService _functionsService =
-      FirebaseFunctionsProductsService();
-  final ProductService _productService = ProductService();
-
+  final FirebaseFunctionsProductsService _functionsService = FirebaseFunctionsProductsService();
+  final ProductService _productService = ProductService(); // Dla operacji CRUD
+  
   // State variables
   String _search = '';
   ProductType? _filterType;
@@ -27,13 +26,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
   String? _clientName;
   int _currentPage = 1;
   static const int _pageSize = 50;
-
+  
   // UI state
   Product? _editingProduct;
   bool _showForm = false;
   bool _isLoading = false;
   String? _error;
-
+  
   // Data
   List<Product> _products = [];
   ProductsStats? _stats;
@@ -41,16 +40,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
+    
     // Sprawdź czy są parametry z nawigacji
     final state = GoRouterState.of(context);
     final clientId = state.uri.queryParameters['clientId'];
     final clientName = state.uri.queryParameters['clientName'];
-
+    
     if (clientId != null && clientId != _clientId) {
       setState(() {
         _clientId = clientId;
         _clientName = clientName;
+        // Ustaw wyszukiwanie na nazwę klienta jeśli dostępna
         if (clientName != null && clientName.isNotEmpty) {
           _search = clientName;
         }
@@ -86,9 +86,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
     _loadProducts();
   }
 
+  /// Ładuje produkty przez Firebase Functions
   Future<void> _loadProducts() async {
     if (_isLoading) return;
-
+    
     setState(() {
       _isLoading = true;
       _error = null;
@@ -110,6 +111,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         _stats = result.stats;
         _isLoading = false;
       });
+
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -118,11 +120,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
+  /// Odświeża dane
   Future<void> _refreshProducts() async {
     _currentPage = 1;
     await _loadProducts();
   }
 
+  /// Zmienia stronę
   void _changePage(int newPage) {
     setState(() {
       _currentPage = newPage;
@@ -130,11 +134,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
     _loadProducts();
   }
 
+  /// Zmienia wyszukiwanie
   void _onSearchChanged(String value) {
     setState(() {
       _search = value;
       _currentPage = 1;
     });
+    // Debouncing - poczekaj chwilę przed wyszukiwaniem
     Future.delayed(const Duration(milliseconds: 500), () {
       if (_search == value) {
         _loadProducts();
@@ -142,6 +148,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     });
   }
 
+  /// Zmienia filtr typu
   void _onFilterChanged(ProductType? type) {
     setState(() {
       _filterType = type;
@@ -158,10 +165,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
       } else {
         await _productService.updateProduct(product.id, product);
       }
-
+      
+      // Wyczyść cache i odśwież dane
       FirebaseFunctionsProductsService.clearProductCache();
       _closeForm();
       await _loadProducts();
+      
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -173,9 +182,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
     setState(() => _isLoading = true);
     try {
       await _productService.deleteProduct(product.id);
-
+      
+      // Wyczyść cache i odśwież dane
       FirebaseFunctionsProductsService.clearProductCache();
       await _loadProducts();
+      
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -190,7 +201,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
         children: [
           Column(
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: AppTheme.gradientDecoration,
@@ -215,14 +225,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.secondaryGold.withOpacity(
-                                      0.2,
-                                    ),
+                                    color: AppTheme.secondaryGold.withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
-                                      color: AppTheme.secondaryGold.withOpacity(
-                                        0.5,
-                                      ),
+                                      color: AppTheme.secondaryGold.withOpacity(0.5),
                                     ),
                                   ),
                                   child: Row(
@@ -236,13 +242,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       const SizedBox(width: 4),
                                       Text(
                                         'Filtr: ${_clientName ?? 'Klient'}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
+                                        style: Theme.of(context).textTheme.bodySmall
                                             ?.copyWith(
-                                              color: AppTheme.secondaryGold,
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                          color: AppTheme.secondaryGold,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -252,14 +256,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            _clientId != null
-                                ? 'Produkty powiązane z klientem'
+                            _clientId != null 
+                                ? 'Produkty powiązane z klientem' 
                                 : 'Obligacje, Udziały, Pożyczki, Apartamenty',
                             style: Theme.of(context).textTheme.bodyLarge
                                 ?.copyWith(
-                                  color: AppTheme.textOnPrimary.withOpacity(
-                                    0.8,
-                                  ),
+                                  color: AppTheme.textOnPrimary.withOpacity(0.8),
                                 ),
                           ),
                         ],
@@ -278,9 +280,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 Text('Usuń filtr'),
                               ],
                             ),
-                            backgroundColor: AppTheme.warningColor.withOpacity(
-                              0.8,
-                            ),
+                            backgroundColor: AppTheme.warningColor.withOpacity(0.8),
                             foregroundColor: AppTheme.textOnPrimary,
                           ),
                           const SizedBox(width: 12),
@@ -305,7 +305,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ],
                 ),
               ),
-              // Controls
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -323,6 +322,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 0,
                           ),
                         ),
                         onChanged: _onSearchChanged,
@@ -360,7 +363,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ],
                 ),
               ),
-              // Pagination info
+              // Informacje o paginacji
               if (_stats != null) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -394,17 +397,140 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 ),
                 const SizedBox(height: 8),
               ],
-              // Products list
-              Expanded(child: _buildProductsList()),
+              Expanded(
+                child: _buildProductsList(),
+              ),
+
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Błąd: ${snapshot.error}'));
+                    }
+                    final products = snapshot.data ?? [];
+                    if (products.isEmpty) {
+                      return Center(
+                        child: Text(
+                          'Brak produktów do wyświetlenia.',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      );
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 8,
+                      ),
+                      child: DataTableWidget<Product>(
+                        items: products,
+                        columns: [
+                          DataTableColumn(
+                            label: 'Nazwa',
+                            value: (p) => p.name,
+                            sortable: true,
+                          ),
+                          DataTableColumn(
+                            label: 'Typ',
+                            value: (p) => p.type.displayName,
+                            sortable: true,
+                            widget: (p) => Chip(
+                              label: Text(p.type.displayName),
+                              backgroundColor:
+                                  AppTheme.getProductTypeBackground(
+                                    p.type.name,
+                                  ),
+                              labelStyle: TextStyle(
+                                color: AppTheme.getProductTypeColor(
+                                  p.type.name,
+                                ),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          DataTableColumn(
+                            label: 'Firma',
+                            value: (p) => p.companyName,
+                            sortable: true,
+                          ),
+                          DataTableColumn(
+                            label: 'Oprocent.',
+                            value: (p) =>
+                                p.interestRate?.toStringAsFixed(2) ?? '-',
+                            numeric: true,
+                          ),
+                          DataTableColumn(
+                            label: 'Aktywny',
+                            value: (p) => p.isActive ? 'Tak' : 'Nie',
+                            widget: (p) => Icon(
+                              p.isActive ? Icons.check_circle : Icons.cancel,
+                              color: p.isActive
+                                  ? AppTheme.successColor
+                                  : AppTheme.errorColor,
+                              size: 20,
+                            ),
+                          ),
+                          DataTableColumn(
+                            label: 'Akcje',
+                            value: (_) => '',
+                            widget: (p) => Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit, size: 20),
+                                  tooltip: 'Edytuj',
+                                  onPressed: () => _openForm(p),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    size: 20,
+                                    color: Colors.red,
+                                  ),
+                                  tooltip: 'Usuń',
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text(
+                                          'Potwierdź usunięcie',
+                                        ),
+                                        content: Text(
+                                          'Czy na pewno chcesz usunąć produkt "${p.name}"?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
+                                            child: const Text('Anuluj'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
+                                            child: const Text('Usuń'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  AppTheme.errorColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true) {
+                                      await _deleteProduct(p);
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
           ),
-          // Loading overlay
-          if (_isLoading)
-            Container(
-              color: Colors.black.withOpacity(0.3),
-              child: const Center(child: CircularProgressIndicator()),
-            ),
-          // Form dialog
           if (_showForm)
             Center(
               child: Dialog(
@@ -425,133 +551,50 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 ),
               ),
             ),
-          // Error message
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.1),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
           if (_error != null)
             Positioned(
-              top: 100,
-              left: 24,
-              right: 24,
-              child: Material(
-                color: AppTheme.errorColor,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _error!,
-                          style: const TextStyle(color: Colors.white),
+              bottom: 32,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Material(
+                  color: AppTheme.errorBackground,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error, color: AppTheme.errorColor),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            _error!,
+                            style: const TextStyle(color: AppTheme.errorColor),
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        onPressed: () => setState(() => _error = null),
-                      ),
-                    ],
+                        IconButton(
+                          icon: const Icon(
+                            Icons.close,
+                            color: AppTheme.errorColor,
+                          ),
+                          onPressed: () => setState(() => _error = null),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildProductsList() {
-    if (_isLoading && _products.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_error != null && _products.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: AppTheme.errorColor),
-            const SizedBox(height: 16),
-            Text(
-              'Błąd podczas ładowania produktów',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadProducts,
-              child: const Text('Spróbuj ponownie'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_products.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.inventory_2_outlined,
-              size: 64,
-              color: AppTheme.textSecondary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _clientId != null
-                  ? 'Klient nie ma produktów'
-                  : 'Brak produktów do wyświetlenia',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _clientId != null
-                  ? 'Ten klient nie ma jeszcze żadnych inwestycji w produkty.'
-                  : 'Dodaj pierwszy produkt, aby rozpocząć zarządzanie.',
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            if (_clientId == null) ...[
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => _openForm(),
-                child: const Text('Dodaj produkt'),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      child: DataTableWidget<Product>(
-        items: _products,
-        columns: [
-          DataTableColumn(label: 'Nazwa', value: (p) => p.name, numeric: false),
-          DataTableColumn(
-            label: 'Typ',
-            value: (p) => p.type.displayName,
-            numeric: false,
-          ),
-          DataTableColumn(
-            label: 'Firma',
-            value: (p) => p.companyName,
-            numeric: false,
-          ),
-          DataTableColumn(
-            label: 'Status',
-            value: (p) => p.isActive ? 'Aktywny' : 'Nieaktywny',
-            numeric: false,
-          ),
-        ],
-        onRowTap: (p) => _openForm(p),
       ),
     );
   }

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import '../models/client.dart';
 import '../models/investor_summary.dart';
+import '../models/investment.dart';
 import '../services/investor_analytics_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
+import '../widgets/client_notes_widget.dart';
+import '../widgets/client_form.dart';
 
 class InvestorDetailsModal extends StatefulWidget {
   final InvestorSummary investor;
@@ -77,7 +81,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
       end: 1.0,
     ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeIn));
 
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
 
     // Start animations
     _slideController.forward();
@@ -208,37 +212,56 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
     return Column(
       children: [
         _buildHeader(),
+        // TabBar dla tabletu
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          decoration: BoxDecoration(
+            color: AppTheme.backgroundSecondary.withOpacity(0.3),
+            border: Border(bottom: BorderSide(color: AppTheme.borderSecondary)),
+          ),
+          child: TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            labelColor: AppTheme.secondaryGold,
+            unselectedLabelColor: AppTheme.textSecondary,
+            indicatorColor: AppTheme.secondaryGold,
+            tabs: const [
+              Tab(text: 'Informacje', icon: Icon(Icons.person, size: 18)),
+              Tab(text: 'Statystyki', icon: Icon(Icons.analytics, size: 18)),
+              Tab(text: 'Notatki', icon: Icon(Icons.note, size: 18)),
+              Tab(
+                text: 'Inwestycje',
+                icon: Icon(Icons.account_balance_wallet, size: 18),
+              ),
+              Tab(text: 'Kontakt', icon: Icon(Icons.contact_page, size: 18)),
+            ],
+          ),
+        ),
         Expanded(
-          child: SingleChildScrollView(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Lewa kolumna - informacje podstawowe (40%)
-                Expanded(
-                  flex: 40,
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    child: _buildBasicInfo(),
-                  ),
-                ),
-                // Divider
-                Container(width: 1, color: AppTheme.borderSecondary),
-                // Prawa kolumna - szczegóły i akcje (60%)
-                Expanded(
-                  flex: 60,
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        _buildInvestmentStats(),
-                        const SizedBox(height: 16),
-                        _buildActionCenter(),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: _buildBasicInfo(),
+              ),
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: _buildInvestmentStats(),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: _buildNotesTab(),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: _buildInvestmentsTab(),
+              ),
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: _buildContactTab(),
+              ),
+            ],
           ),
         ),
         _buildFooterActions(),
@@ -251,40 +274,56 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
       children: [
         _buildHeader(),
         Expanded(
-          child: DefaultTabController(
-            length: 3,
-            child: Column(
-              children: [
-                TabBar(
-                  labelColor: AppTheme.secondaryGold,
-                  unselectedLabelColor: AppTheme.textSecondary,
-                  indicatorColor: AppTheme.secondaryGold,
-                  tabs: const [
-                    Tab(text: 'Info', icon: Icon(Icons.person, size: 16)),
-                    Tab(text: 'Stats', icon: Icon(Icons.analytics, size: 16)),
-                    Tab(text: 'Akcje', icon: Icon(Icons.settings, size: 16)),
+          child: Column(
+            children: [
+              TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                labelColor: AppTheme.secondaryGold,
+                unselectedLabelColor: AppTheme.textSecondary,
+                indicatorColor: AppTheme.secondaryGold,
+                tabs: const [
+                  Tab(text: 'Info', icon: Icon(Icons.person, size: 16)),
+                  Tab(text: 'Stats', icon: Icon(Icons.analytics, size: 16)),
+                  Tab(text: 'Notatki', icon: Icon(Icons.note, size: 16)),
+                  Tab(
+                    text: 'Inwestycje',
+                    icon: Icon(Icons.account_balance_wallet, size: 16),
+                  ),
+                  Tab(
+                    text: 'Kontakt',
+                    icon: Icon(Icons.contact_page, size: 16),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildBasicInfo(),
+                    ),
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildInvestmentStats(),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildNotesTab(),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildInvestmentsTab(),
+                    ),
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildContactTab(),
+                    ),
                   ],
                 ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      SingleChildScrollView(
-                        padding: const EdgeInsets.all(16),
-                        child: _buildBasicInfo(),
-                      ),
-                      SingleChildScrollView(
-                        padding: const EdgeInsets.all(16),
-                        child: _buildInvestmentStats(),
-                      ),
-                      SingleChildScrollView(
-                        padding: const EdgeInsets.all(16),
-                        child: _buildActionCenter(),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         _buildFooterActions(),
@@ -401,6 +440,8 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
           if (widget.investor.client.notes.isNotEmpty)
             _buildInfoRow('Notatki', widget.investor.client.notes, Icons.note),
         ]),
+        const SizedBox(height: 24),
+        _buildActionCenter(),
       ],
     );
   }
@@ -594,8 +635,8 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         _buildActionCard(
           'Edytuj',
           Icons.edit,
-          AppTheme.primaryColor,
-          () => widget.onEditInvestor?.call(),
+          AppTheme.cryptoColor,
+          () => _showEditClientForm(),
         ),
         const SizedBox(height: 12),
         _buildActionCard(
@@ -691,21 +732,697 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
           const SizedBox(width: 16),
           Expanded(
             child: ElevatedButton(
-              onPressed: () {
-                _closeModal();
-                widget.onViewInvestments?.call();
-              },
+              onPressed: _hasChanges ? _saveChanges : null,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('Zobacz inwestycje'),
+              child: const Text('Zapisz zmiany'),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Nowe zakładki
+  Widget _buildNotesTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.note, color: AppTheme.secondaryGold, size: 20),
+            const SizedBox(width: 8),
+            const Text(
+              'Notatki klienta',
+              style: TextStyle(
+                color: AppTheme.secondaryGold,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundSecondary.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.borderSecondary),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: ClientNotesWidget(
+                clientId: widget.investor.client.id,
+                clientName: widget.investor.client.name,
+                currentUserId: 'current_user', // TODO: Pobierz z auth service
+                currentUserName: 'Użytkownik',
+                isReadOnly: false,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInvestmentsTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.account_balance_wallet,
+              color: AppTheme.secondaryGold,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Inwestycje klienta',
+              style: TextStyle(
+                color: AppTheme.secondaryGold,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: _showFullInvestmentsList,
+              icon: const Icon(Icons.open_in_new, size: 16),
+              label: const Text('Szczegóły'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.primaryColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Expanded(child: _buildInvestmentsList()),
+      ],
+    );
+  }
+
+  Widget _buildInvestmentsList() {
+    if (widget.investor.investments.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 64,
+              color: AppTheme.textSecondary.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Brak inwestycji',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: widget.investor.investments.length,
+      itemBuilder: (context, index) {
+        final investment = widget.investor.investments[index];
+        return _buildInvestmentCard(investment);
+      },
+    );
+  }
+
+  Widget _buildInvestmentCard(Investment investment) {
+    // Pobierz ikonę według typu produktu
+    IconData getProductIcon(Investment investment) {
+      switch (investment.productType.name) {
+        case 'bonds':
+          return Icons.description;
+        case 'shares':
+          return Icons.trending_up;
+        case 'loans':
+          return Icons.account_balance;
+        case 'apartments':
+          return Icons.home;
+        default:
+          return Icons.account_balance_wallet;
+      }
+    }
+
+    // Pobierz kolor statusu
+    Color getStatusColor(InvestmentStatus status) {
+      switch (status) {
+        case InvestmentStatus.active:
+          return AppTheme.successColor;
+        case InvestmentStatus.inactive:
+          return AppTheme.textSecondary;
+        case InvestmentStatus.earlyRedemption:
+          return AppTheme.warningColor;
+        case InvestmentStatus.completed:
+          return AppTheme.infoColor;
+      }
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: AppTheme.backgroundSecondary,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    getProductIcon(investment),
+                    color: AppTheme.primaryColor,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        investment.productName.isNotEmpty
+                            ? investment.productName
+                            : investment.productType.displayName,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (investment.creditorCompany.isNotEmpty)
+                        Text(
+                          investment.creditorCompany,
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      Text(
+                        'ID: ${investment.id.substring(0, 8)}...',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      CurrencyFormatter.formatCurrency(
+                        investment.investmentAmount,
+                      ),
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      investment.currency,
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.backgroundPrimary.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Kapitał pozostały',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          CurrencyFormatter.formatCurrency(
+                            investment.remainingCapital,
+                          ),
+                          style: const TextStyle(
+                            color: AppTheme.successColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Status',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: getStatusColor(
+                              investment.status,
+                            ).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            investment.status.displayName,
+                            style: TextStyle(
+                              color: getStatusColor(investment.status),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Dodatkowe informacje
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 14,
+                  color: AppTheme.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Podpisano: ${investment.signedDate.day.toString().padLeft(2, '0')}.${investment.signedDate.month.toString().padLeft(2, '0')}.${investment.signedDate.year}',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactTab() {
+    final client = widget.investor.client;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.contact_page, color: AppTheme.secondaryGold, size: 20),
+            const SizedBox(width: 8),
+            const Text(
+              'Kontakt z klientem',
+              style: TextStyle(
+                color: AppTheme.secondaryGold,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Email
+        if (client.email.isNotEmpty) ...[
+          _buildContactCard(
+            title: 'Adres e-mail',
+            value: client.email,
+            icon: Icons.email,
+            color: AppTheme.primaryColor,
+            onTap: () => _sendEmail(client.email),
+            actionText: 'Wyślij e-mail',
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Telefon
+        if (client.phone.isNotEmpty) ...[
+          _buildContactCard(
+            title: 'Numer telefonu',
+            value: client.phone,
+            icon: Icons.phone,
+            color: AppTheme.successColor,
+            onTap: () => _makePhoneCall(client.phone),
+            actionText: 'Zadzwoń',
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Adres
+        if (client.address.isNotEmpty) ...[
+          _buildContactCard(
+            title: 'Adres',
+            value: client.address,
+            icon: Icons.location_on,
+            color: AppTheme.infoColor,
+            onTap: () => _openMap(client.address),
+            actionText: 'Pokaż na mapie',
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Informacje dodatkowe
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.backgroundSecondary.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.borderSecondary),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.info, color: AppTheme.secondaryGold, size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Informacje dodatkowe',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (client.pesel?.isNotEmpty == true)
+                _buildInfoDetail('PESEL', client.pesel!),
+              if (client.companyName?.isNotEmpty == true)
+                _buildInfoDetail('Nazwa firmy', client.companyName!),
+              _buildInfoDetail('Typ klienta', _getClientTypeText(client.type)),
+              _buildInfoDetail(
+                'Status głosowania',
+                _getVotingStatusText(client.votingStatus),
+              ),
+              _buildInfoDetail(
+                'Status konta',
+                client.isActive ? 'Aktywny' : 'Nieaktywny',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContactCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    required String actionText,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.2), width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: color, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          value,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_ios, color: color, size: 16),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                actionText,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoDetail(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Akcje kontaktu
+  Future<void> _sendEmail(String email) async {
+    try {
+      // Skopiuj email do schowka
+      await Clipboard.setData(ClipboardData(text: email));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Adres e-mail skopiowany: $email'),
+          backgroundColor: AppTheme.successColor,
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Błąd: $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  Future<void> _makePhoneCall(String phone) async {
+    try {
+      // Skopiuj numer telefonu do schowka
+      await Clipboard.setData(ClipboardData(text: phone));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Numer telefonu skopiowany: $phone'),
+          backgroundColor: AppTheme.successColor,
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Błąd: $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  Future<void> _openMap(String address) async {
+    try {
+      // Skopiuj adres do schowka
+      await Clipboard.setData(ClipboardData(text: address));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Adres skopiowany: $address'),
+          backgroundColor: AppTheme.successColor,
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Błąd: $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  void _showFullInvestmentsList() {
+    // Zamknij modal
+    Navigator.of(context).pop();
+
+    // Nawiguj do ekranu produktów z parametrem clientId w URL
+    final clientId = widget.investor.client.id;
+    final clientName = widget.investor.client.name;
+
+    // Użyj GoRouter do nawigacji z query parameters
+    context.go(
+      '/products?clientId=$clientId&clientName=${Uri.encodeComponent(clientName)}',
+    );
+  }
+
+  void _showEditClientForm() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: AppTheme.backgroundModal,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.edit, color: AppTheme.secondaryGold, size: 24),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Edytuj klienta',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(
+                      Icons.close,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: ClientForm(
+                    client: widget.investor.client,
+                    onSave: (updatedClient) {
+                      Navigator.of(context).pop();
+                      // TODO: Zaktualizuj klienta przez serwis
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Dane klienta zostały zaktualizowane'),
+                          backgroundColor: AppTheme.successColor,
+                        ),
+                      );
+                    },
+                    onCancel: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -763,10 +1480,12 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
   Future<void> _saveChanges() async {
     try {
-      print('🔄 [Modal] Rozpoczynam zapisywanie zmian dla klienta: ${widget.investor.client.id}');
+      print(
+        '🔄 [Modal] Rozpoczynam zapisywanie zmian dla klienta: ${widget.investor.client.id}',
+      );
       print('🔄 [Modal] Nazwa klienta: ${widget.investor.client.name}');
       print('🔄 [Modal] Nowy status głosowania: $_selectedVotingStatus');
-      
+
       if (widget.analyticsService == null) {
         throw Exception('Analytics service nie jest dostępny');
       }
@@ -777,8 +1496,10 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
       }
 
       // Debugowanie - sprawdź format ID
-      print('🔍 [Modal] Format ID: ${widget.investor.client.id} (długość: ${widget.investor.client.id.length})');
-      
+      print(
+        '🔍 [Modal] Format ID: ${widget.investor.client.id} (długość: ${widget.investor.client.id.length})',
+      );
+
       // Zapisz zmiany przez serwis analityki
       await widget.analyticsService!.updateInvestorDetails(
         widget.investor.client.id,
@@ -824,12 +1545,12 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         ),
       );
     } catch (e) {
-      final errorMessage = e.toString().contains('does not exist') 
+      final errorMessage = e.toString().contains('does not exist')
           ? 'Klient nie istnieje w bazie danych. Być może został usunięty.'
           : 'Błąd zapisywania: $e';
-      
+
       print('❌ Błąd zapisu: $errorMessage');
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),
