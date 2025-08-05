@@ -9,7 +9,6 @@ import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/client_notes_widget.dart';
 import '../widgets/client_form.dart';
-import '../widgets/investor_analytics/tabs/voting_changes_tab.dart';
 
 class InvestorDetailsModal extends StatefulWidget {
   final InvestorSummary investor;
@@ -316,7 +315,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
                     text: 'Inwestycje',
                     icon: Icon(Icons.account_balance_wallet, size: 16),
                   ),
-                  Tab(text: 'Zmiany', icon: Icon(Icons.history, size: 16)),
                   Tab(
                     text: 'Kontakt',
                     icon: Icon(Icons.contact_page, size: 16),
@@ -342,10 +340,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: _buildInvestmentsTab(),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: _buildChangesTab(),
                     ),
                     SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
@@ -976,12 +970,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         const SizedBox(height: 16),
         Expanded(child: _buildInvestmentsList()),
       ],
-    );
-  }
-
-  Widget _buildChangesTab() {
-    return VotingChangesTab(
-      investor: widget.investor,
     );
   }
 
