@@ -950,3 +950,46 @@ exports.getProductStats = functions
       );
     }
   });
+
+// 🗑️ FUNKCJA: Czyszczenie cache po aktualizacji danych
+exports.clearAnalyticsCache = functions
+  .region("europe-west1")
+  .runWith({
+    memory: "256MB",
+    timeoutSeconds: 30,
+  })
+  .https.onCall(async (data, context) => {
+    console.log("🗑️ [Clear Cache] Żądanie czyszczenia cache...");
+
+    try {
+      // Wyczyść cache analytics
+      const analyticsKeys = Array.from(cache.keys()).filter(key =>
+        key.includes('analytics_') ||
+        key.includes('clients_') ||
+        key.includes('investments_')
+      );
+
+      analyticsKeys.forEach(key => {
+        cache.delete(key);
+        cacheTimestamps.delete(key);
+      });
+
+      console.log(`🗑️ [Clear Cache] Wyczyszczono ${analyticsKeys.length} kluczy cache`);
+      console.log("✅ [Clear Cache] Cache wyczyszczony pomyślnie");
+
+      return {
+        success: true,
+        clearedKeys: analyticsKeys.length,
+        timestamp: new Date().toISOString(),
+        message: "Cache analytics został wyczyszczony"
+      };
+
+    } catch (error) {
+      console.error("❌ [Clear Cache] Błąd:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Błąd podczas czyszczenia cache",
+        error.message,
+      );
+    }
+  });

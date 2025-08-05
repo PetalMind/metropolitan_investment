@@ -47,6 +47,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   late String _selectedColorCode;
 
   bool _hasChanges = false;
+  bool _isSaving = false; // 🔄 Stan ładowania podczas zapisywania
 
   @override
   void initState() {
@@ -109,6 +110,18 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   }
 
   void _closeModal() async {
+    if (_isSaving) {
+      // Nie pozwalaj zamknąć modalu podczas zapisywania
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⏳ Poczekaj na zakończenie zapisywania...'),
+          backgroundColor: AppTheme.warningColor,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     await _slideController.reverse();
     await _fadeController.reverse();
     if (mounted) {
@@ -181,9 +194,16 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
                         borderRadius: BorderRadius.circular(
                           isSmallMobile ? 12 : 16,
                         ),
-                        child: _buildResponsiveLayout(
-                          isTablet: isTablet,
-                          isSmallMobile: isSmallMobile,
+                        child: Stack(
+                          children: [
+                            _buildResponsiveLayout(
+                              isTablet: isTablet,
+                              isSmallMobile: isSmallMobile,
+                            ),
+                            // 🔄 Loading overlay podczas zapisywania
+                            if (_isSaving) 
+                              _buildLoadingOverlay(),
+                          ],
                         ),
                       ),
                     ),
@@ -543,7 +563,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _saveChanges,
+                    onPressed: _isSaving ? null : _saveChanges, // Wyłącz podczas loading
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.successColor,
                       foregroundColor: Colors.white,
@@ -551,7 +571,26 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text('Zapisz'),
+                    child: _isSaving
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('Zapisywanie...'),
+                            ],
+                          )
+                        : const Text('Zapisz'),
                   ),
                 ),
               ],
@@ -718,7 +757,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         children: [
           Expanded(
             child: OutlinedButton(
-              onPressed: _closeModal,
+              onPressed: _isSaving ? null : _closeModal, // Wyłącz podczas zapisywania
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 side: BorderSide(color: AppTheme.primaryColor),
@@ -726,13 +765,32 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('Zamknij'),
+              child: _isSaving 
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppTheme.textSecondary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Zapisywanie...'),
+                      ],
+                    )
+                  : const Text('Zamknij'),
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: ElevatedButton(
-              onPressed: _hasChanges ? _saveChanges : null,
+              onPressed: (_hasChanges && !_isSaving) ? _saveChanges : null, // Wyłącz podczas loading
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: AppTheme.primaryColor,
@@ -741,10 +799,91 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('Zapisz zmiany'),
+              child: _isSaving
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text('Zapisywanie zmian...'),
+                      ],
+                    )
+                  : const Text('Zapisz zmiany'),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 🔄 Buduje overlay loading podczas zapisywania
+  Widget _buildLoadingOverlay() {
+    return Positioned.fill(
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.backgroundModal.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundPrimary,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.borderPrimary),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppTheme.primaryColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Zapisywanie zmian...',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Dane zostaną automatycznie odświeżone',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1479,6 +1618,12 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   }
 
   Future<void> _saveChanges() async {
+    if (_isSaving) return; // Zapobiegaj wielokrotnym kliknięciom
+
+    setState(() {
+      _isSaving = true; // 🔄 Rozpocznij loading
+    });
+
     try {
       print(
         '🔄 [Modal] Rozpoczynam zapisywanie zmian dla klienta: ${widget.investor.client.id}',
@@ -1510,6 +1655,10 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         isActive: _isActive,
       );
 
+      // Dodatkowo wyczyść cache dla pewności
+      widget.analyticsService!.clearAnalyticsCache();
+      print('🗑️ [Modal] Cache analityk wyczyszczony po zapisaniu zmian');
+
       // Aktualizuj lokalny obiekt klienta
       final updatedClient = widget.investor.client.copyWith(
         votingStatus: _selectedVotingStatus,
@@ -1540,8 +1689,11 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Zmiany zostały zapisane'),
+          content: Text(
+            '✅ Zmiany zostały zapisane i dane zostaną automatycznie odświeżone',
+          ),
           backgroundColor: AppTheme.successColor,
+          duration: Duration(seconds: 3),
         ),
       );
     } catch (e) {
@@ -1558,6 +1710,13 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
           duration: const Duration(seconds: 5),
         ),
       );
+    } finally {
+      // 🔄 Zakończ loading niezależnie od wyniku
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
     }
   }
 
