@@ -1,8 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/client.dart';
 import '../models/investor_summary.dart';
+import '../models/voting_status_change.dart';
 import 'base_service.dart';
 import 'client_service.dart';
 import 'optimized_investment_service.dart';
+import 'enhanced_voting_status_service.dart';
 
 /// Zoptymalizowany serwis analityki inwestorów wykorzystujący indeksy Firestore
 /// zgodnie z OPTIMIZATION_IMPLEMENTATION_REPORT.md
@@ -10,6 +13,7 @@ class OptimizedInvestorAnalyticsService extends BaseService {
   final ClientService _clientService = ClientService();
   final OptimizedInvestmentService _investmentService =
       OptimizedInvestmentService();
+  final EnhancedVotingStatusService _enhancedVotingService = EnhancedVotingStatusService();
 
   // Cache z ekspiracja
   Map<String, dynamic>? _analyticsCache;
@@ -497,20 +501,109 @@ class OptimizedInvestorAnalyticsService extends BaseService {
     print('🗑️ [OptimizedAnalytics] Cache wyczyszczony');
   }
 
-  /// Aktualizuje status głosowania inwestora z invalidacją cache
-  Future<void> updateVotingStatusOptimized(
+  /// Enhanced voting status update with atomic transactions and comprehensive error handling
+  Future<VotingStatusChangeResult> updateVotingStatusOptimized(
     String clientId,
-    VotingStatus newStatus,
-  ) async {
+    VotingStatus newStatus, {
+    String? reason,
+    Map<String, dynamic>? additionalChanges,
+  }) async {
     try {
-      await _clientService.updateClientFields(clientId, {
-        'votingStatus': newStatus.name,
-      });
-      clearCache('analytics');
-      print('✅ [OptimizedAnalytics] Status głosowania zaktualizowany');
+      final result = await _enhancedVotingService.updateVotingStatusWithHistory(
+        clientId,
+        newStatus,
+        reason: reason,
+        additionalChanges: additionalChanges,
+      );
+
+      // Clear analytics cache only if something actually changed
+      if (result.hasChanged) {
+        clearCache('analytics');
+      }
+
+      return result;
     } catch (e) {
       logError('updateVotingStatusOptimized', e);
       rethrow;
+    }
+  }
+
+  /// Batch update multiple voting statuses with optimized transaction handling
+  Future<BatchVotingStatusResult> updateMultipleVotingStatuses(
+    List<VotingStatusUpdate> updates, {
+    String? batchReason,
+  }) async {
+    try {
+      final result = await _enhancedVotingService.updateMultipleVotingStatuses(
+        updates,
+        batchReason: batchReason,
+      );
+
+      // Clear analytics cache if any changes were made
+      if (result.successfulUpdates > 0) {
+        clearCache('analytics');
+      }
+
+      return result;
+    } catch (e) {
+      logError('updateMultipleVotingStatuses', e);
+      rethrow;
+    }
+  }
+
+  /// Pobiera historię zmian statusu głosowania dla inwestora z optymalizowaną paginacją
+  Future<List<VotingStatusChange>> getVotingStatusHistory(
+    String investorId, {
+    int limit = 50,
+    DocumentSnapshot? startAfter,
+  }) async {
+    try {
+      return await _enhancedVotingService.getVotingStatusHistory(
+        investorId,
+        limit: limit,
+        startAfter: startAfter,
+      );
+    } catch (e) {
+      logError('getVotingStatusHistory', e);
+      return [];
+    }
+  }
+
+  /// Pobiera ostatnie zmiany statusów głosowania z zaawansowanym filtrowaniem
+  Future<List<VotingStatusChange>> getRecentVotingStatusChanges({
+    int limit = 50,
+    DateTime? since,
+    List<VotingStatusChangeType>? changeTypes,
+    List<String>? userEmails,
+  }) async {
+    try {
+      return await _enhancedVotingService.getRecentChanges(
+        limit: limit,
+        since: since,
+        changeTypes: changeTypes,
+        userEmails: userEmails,
+      );
+    } catch (e) {
+      logError('getRecentVotingStatusChanges', e);
+      return [];
+    }
+  }
+
+  /// Pobiera kompleksowe statystyki zmian statusów głosowania z cache
+  Future<VotingStatusStatistics> getVotingStatusChangeStatistics({
+    DateTime? fromDate,
+    DateTime? toDate,
+    bool useCache = true,
+  }) async {
+    try {
+      return await _enhancedVotingService.getStatistics(
+        fromDate: fromDate,
+        toDate: toDate,
+        useCache: useCache,
+      );
+    } catch (e) {
+      logError('getVotingStatusChangeStatistics', e);
+      return VotingStatusStatistics.empty();
     }
   }
 }
