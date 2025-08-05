@@ -79,6 +79,40 @@ class Product {
     );
   }
 
+  /// Factory dla danych z Firebase Functions (bez Timestamp)
+  factory Product.fromMap(Map<String, dynamic> data) {
+    return Product(
+      id: data['id'] ?? '',
+      name: data['name'] ?? '',
+      type: ProductType.values.firstWhere(
+        (e) => e.name == data['type'],
+        orElse: () => ProductType.bonds,
+      ),
+      companyId: data['companyId'] ?? '',
+      companyName: data['companyName'] ?? '',
+      interestRate: data['interestRate']?.toDouble(),
+      issueDate: data['issueDate'] != null
+          ? DateTime.tryParse(data['issueDate'].toString())
+          : null,
+      maturityDate: data['maturityDate'] != null
+          ? DateTime.tryParse(data['maturityDate'].toString())
+          : null,
+      sharesCount: data['sharesCount'],
+      sharePrice: data['sharePrice']?.toDouble(),
+      currency: data['currency'] ?? 'PLN',
+      exchangeRate: data['exchangeRate']?.toDouble(),
+      isPrivateIssue: data['isPrivateIssue'] ?? false,
+      metadata: Map<String, dynamic>.from(data['metadata'] ?? {}),
+      createdAt: data['createdAt'] != null
+          ? DateTime.tryParse(data['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      updatedAt: data['updatedAt'] != null
+          ? DateTime.tryParse(data['updatedAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      isActive: data['isActive'] ?? true,
+    );
+  }
+
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,
