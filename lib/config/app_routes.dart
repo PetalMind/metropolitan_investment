@@ -8,11 +8,10 @@ import '../screens/register_screen.dart';
 import '../screens/dashboard_screen.dart';
 import '../screens/investments_screen.dart';
 import '../screens/clients_screen.dart';
-import '../screens/products_screen.dart';
+import '../screens/products_management_screen.dart';
 import '../screens/companies_screen.dart';
 import '../screens/employees_screen.dart';
 import '../screens/analytics_screen.dart';
-import '../screens/unified_products_screen.dart';
 import '../widgets/auth_wrapper.dart';
 import '../widgets/main_layout.dart';
 import '../providers/auth_provider.dart';
@@ -381,7 +380,7 @@ class AppRouter {
             pageBuilder: (context, state) => _buildPageWithTransition(
               context,
               state,
-              const ProductsScreen(),
+              const ProductsManagementScreen(),
             ),
             routes: [
               GoRoute(
@@ -456,14 +455,7 @@ class AppRouter {
             ),
           ),
 
-          GoRoute(
-            path: AppRoutes.unifiedProducts,
-            pageBuilder: (context, state) => _buildPageWithTransition(
-              context,
-              state,
-              const UnifiedProductsScreen(),
-            ),
-          ),
+        
 
           // === DODATKOWE SEKCJE ===
           GoRoute(

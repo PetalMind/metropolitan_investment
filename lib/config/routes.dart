@@ -4,14 +4,12 @@ import 'package:provider/provider.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
-import '../screens/dashboard_screen_complete.dart';
 import '../screens/investments_screen.dart';
 import '../screens/clients_screen.dart';
 import '../screens/products_screen.dart';
 import '../screens/companies_screen.dart';
 import '../screens/employees_screen.dart';
 import '../screens/analytics_screen.dart';
-import '../screens/optimized_investor_analytics_screen.dart';
 import '../widgets/auth_wrapper.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
@@ -85,14 +83,7 @@ class OldAppRouter {
       ShellRoute(
         builder: (context, state, child) => MainScreenShell(child: child),
         routes: [
-          GoRoute(
-            path: OldAppRoutes.main,
-            builder: (context, state) => const DashboardScreenComplete(),
-          ),
-          GoRoute(
-            path: OldAppRoutes.dashboard,
-            builder: (context, state) => const DashboardScreenComplete(),
-          ),
+  
           GoRoute(
             path: OldAppRoutes.investments,
             builder: (context, state) => const InvestmentsScreen(),
@@ -117,11 +108,7 @@ class OldAppRouter {
             path: OldAppRoutes.analytics,
             builder: (context, state) => const AnalyticsScreen(),
           ),
-          GoRoute(
-            path: OldAppRoutes.investorAnalytics,
-            builder: (context, state) =>
-                const OptimizedInvestorAnalyticsScreen(),
-          ),
+          
         ],
       ),
     ],

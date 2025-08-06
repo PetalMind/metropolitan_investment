@@ -44,6 +44,7 @@ class ProductInvestorsService extends BaseService {
       final Map<String, List<Investment>> investmentsByClientId = {};
       for (final investment in investments) {
         final clientId = investment.clientId;
+        print('🔗 [ProductInvestors] Investment ${investment.id} -> Client ID: "$clientId"');
         investmentsByClientId.putIfAbsent(clientId, () => []).add(investment);
       }
 
@@ -193,6 +194,7 @@ class ProductInvestorsService extends BaseService {
   /// Pobiera dane klientów na podstawie listy ID
   Future<List<Client>> _getClientsByIds(List<String> clientIds) async {
     try {
+      print('🔍 [ProductInvestors] Szukam klientów o ID: $clientIds');
       final List<Client> clients = [];
 
       // Firestore nie obsługuje zapytań `whereIn` dla więcej niż 10 elementów
@@ -200,19 +202,25 @@ class ProductInvestorsService extends BaseService {
       const batchSize = 10;
       for (int i = 0; i < clientIds.length; i += batchSize) {
         final batch = clientIds.skip(i).take(batchSize).toList();
+        print('📦 [ProductInvestors] Przetwarzam batch: $batch');
 
         final snapshot = await firestore
             .collection('clients')
             .where(FieldPath.documentId, whereIn: batch)
             .get();
 
+        print('📋 [ProductInvestors] Znaleziono ${snapshot.docs.length} dokumentów klientów w tym batch');
+
         final batchClients = snapshot.docs.map((doc) {
+          print('👤 [ProductInvestors] Przetwarzam klienta: ${doc.id}');
           return Client.fromFirestore(doc);
         }).toList();
 
         clients.addAll(batchClients);
+        print('✅ [ProductInvestors] Dodano ${batchClients.length} klientów do listy');
       }
 
+      print('🎯 [ProductInvestors] Łącznie załadowano ${clients.length} klientów');
       return clients;
     } catch (e) {
       logError('_getClientsByIds', e);
