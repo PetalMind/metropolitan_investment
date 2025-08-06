@@ -26,7 +26,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   String? _clientId;
   String? _clientName;
   int _currentPage = 1;
-  static const int _pageSize = 50;
+  static const int _pageSize =150;
 
   // UI state
   Product? _editingProduct;

@@ -29,9 +29,11 @@ export 'services/email_service.dart';
 export 'services/user_preferences_service.dart';
 export 'services/advanced_analytics_service.dart';
 export 'services/investor_analytics_service.dart';
+export 'services/product_investors_service.dart';
 export 'services/optimized_company_service.dart';
 export 'services/optimized_product_service.dart';
 export 'services/optimized_client_voting_service.dart';
+export 'services/standard_product_investors_service.dart';
 
 // Widget exports - Logo and branding components
 export 'widgets/animated_logo.dart';

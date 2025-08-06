@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import '../theme/app_theme.dart';
 import '../models/investment.dart';
 import '../models/product.dart';
@@ -48,6 +49,9 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   String? _selectedBranch;
   DateTimeRange? _selectedDateRange;
 
+  // Timer dla search delay
+  Timer? _searchTimer;
+
   @override
   void initState() {
     super.initState();
@@ -58,14 +62,16 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
 
   @override
   void dispose() {
+    _searchTimer?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   void _onSearchChanged() {
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (_searchController.text == _searchController.text) {
+    _searchTimer?.cancel();
+    _searchTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted && _searchController.text == _searchController.text) {
         _filterInvestments();
       }
     });
@@ -85,23 +91,27 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
 
   Future<void> _loadInvestmentsPaginated({bool isRefresh = false}) async {
     if (isRefresh) {
-      setState(() {
-        _isInitialLoading = true;
-        _loadingProgress = 0.0;
-        _loadingStage = 'Odświeżanie danych...';
-        _displayedInvestments.clear();
-        _lastDocument = null;
-        _totalLoaded = 0;
-        _hasMoreData = true;
-      });
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = true;
+          _loadingProgress = 0.0;
+          _loadingStage = 'Odświeżanie danych...';
+          _displayedInvestments.clear();
+          _lastDocument = null;
+          _totalLoaded = 0;
+          _hasMoreData = true;
+        });
+      }
     }
 
     try {
-      setState(() {
-        if (!isRefresh) _isInitialLoading = true;
-        _loadingProgress = 0.1;
-        _loadingStage = 'Łączenie z bazą danych...';
-      });
+      if (mounted) {
+        setState(() {
+          if (!isRefresh) _isInitialLoading = true;
+          _loadingProgress = 0.1;
+          _loadingStage = 'Łączenie z bazą danych...';
+        });
+      }
 
       final params = PaginationParams(
         limit: _pageSize,
@@ -110,46 +120,54 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
         descending: true,
       );
 
-      setState(() {
-        _loadingProgress = 0.3;
-        _loadingStage = 'Pobieranie danych...';
-      });
+      if (mounted) {
+        setState(() {
+          _loadingProgress = 0.3;
+          _loadingStage = 'Pobieranie danych...';
+        });
+      }
 
       final result = await _optimizedService.getInvestmentsPaginated(
         params: params,
       );
 
-      setState(() {
-        _loadingProgress = 0.7;
-        _loadingStage = 'Przetwarzanie danych...';
-      });
+      if (mounted) {
+        setState(() {
+          _loadingProgress = 0.7;
+          _loadingStage = 'Przetwarzanie danych...';
+        });
+      }
 
       await Future.delayed(const Duration(milliseconds: 200));
 
-      setState(() {
-        if (isRefresh) {
-          _investments = result.items;
-          _filteredInvestments = result.items;
-          _displayedInvestments = result.items;
-        } else {
-          _investments.addAll(result.items);
-          _filteredInvestments.addAll(result.items);
-          _displayedInvestments.addAll(result.items);
-        }
+      if (mounted) {
+        setState(() {
+          if (isRefresh) {
+            _investments = result.items;
+            _filteredInvestments = result.items;
+            _displayedInvestments = result.items;
+          } else {
+            _investments.addAll(result.items);
+            _filteredInvestments.addAll(result.items);
+            _displayedInvestments.addAll(result.items);
+          }
 
-        _lastDocument = result.lastDocument;
-        _hasMoreData = result.hasMore;
-        _totalLoaded = _displayedInvestments.length;
-        _isInitialLoading = false;
-        _loadingProgress = 1.0;
-        _loadingStage = 'Gotowe!';
-      });
+          _lastDocument = result.lastDocument;
+          _hasMoreData = result.hasMore;
+          _totalLoaded = _displayedInvestments.length;
+          _isInitialLoading = false;
+          _loadingProgress = 1.0;
+          _loadingStage = 'Gotowe!';
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isInitialLoading = false;
-        _loadingProgress = 0.0;
-      });
-      _showErrorSnackBar('Błąd podczas ładowania inwestycji: $e');
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+          _loadingProgress = 0.0;
+        });
+        _showErrorSnackBar('Błąd podczas ładowania inwestycji: $e');
+      }
     }
   }
 
@@ -158,9 +176,11 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       return;
     }
 
-    setState(() {
-      _isLoadingMore = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoadingMore = true;
+      });
+    }
 
     try {
       final params = PaginationParams(
@@ -174,30 +194,36 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
         params: params,
       );
 
-      setState(() {
-        _investments.addAll(result.items);
-        _filteredInvestments.addAll(result.items);
-        _displayedInvestments.addAll(result.items);
-        _lastDocument = result.lastDocument;
-        _hasMoreData = result.hasMore;
-        _totalLoaded = _displayedInvestments.length;
-        _isLoadingMore = false;
-      });
+      if (mounted) {
+        setState(() {
+          _investments.addAll(result.items);
+          _filteredInvestments.addAll(result.items);
+          _displayedInvestments.addAll(result.items);
+          _lastDocument = result.lastDocument;
+          _hasMoreData = result.hasMore;
+          _totalLoaded = _displayedInvestments.length;
+          _isLoadingMore = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoadingMore = false;
-      });
-      _showErrorSnackBar('Błąd podczas ładowania kolejnych inwestycji: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+        _showErrorSnackBar('Błąd podczas ładowania kolejnych inwestycji: $e');
+      }
     }
   }
 
   void _resetPagination() {
-    setState(() {
-      _hasMoreData = true;
-      _displayedInvestments.clear();
-      _lastDocument = null;
-      _totalLoaded = 0;
-    });
+    if (mounted) {
+      setState(() {
+        _hasMoreData = true;
+        _displayedInvestments.clear();
+        _lastDocument = null;
+        _totalLoaded = 0;
+      });
+    }
     _loadInvestmentsPaginated();
   }
 
@@ -215,37 +241,39 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
         _selectedDateRange != null;
 
     if (_isFilterActive) {
-      setState(() {
-        _displayedInvestments = _investments.where((investment) {
-          final matchesSearch =
-              query.isEmpty ||
-              investment.clientName.toLowerCase().contains(query) ||
-              investment.productName.toLowerCase().contains(query) ||
-              investment.employeeFullName.toLowerCase().contains(query);
+      if (mounted) {
+        setState(() {
+          _displayedInvestments = _investments.where((investment) {
+            final matchesSearch =
+                query.isEmpty ||
+                investment.clientName.toLowerCase().contains(query) ||
+                investment.productName.toLowerCase().contains(query) ||
+                investment.employeeFullName.toLowerCase().contains(query);
 
-          final matchesStatus =
-              _selectedStatus == null || investment.status == _selectedStatus;
+            final matchesStatus =
+                _selectedStatus == null || investment.status == _selectedStatus;
 
-          final matchesProductType =
-              _selectedProductType == null ||
-              investment.productType == _selectedProductType;
+            final matchesProductType =
+                _selectedProductType == null ||
+                investment.productType == _selectedProductType;
 
-          final matchesBranch =
-              _selectedBranch == null ||
-              investment.branchCode == _selectedBranch;
+            final matchesBranch =
+                _selectedBranch == null ||
+                investment.branchCode == _selectedBranch;
 
-          final matchesDateRange =
-              _selectedDateRange == null ||
-              (investment.signedDate.isAfter(_selectedDateRange!.start) &&
-                  investment.signedDate.isBefore(_selectedDateRange!.end));
+            final matchesDateRange =
+                _selectedDateRange == null ||
+                (investment.signedDate.isAfter(_selectedDateRange!.start) &&
+                    investment.signedDate.isBefore(_selectedDateRange!.end));
 
-          return matchesSearch &&
-              matchesStatus &&
-              matchesProductType &&
-              matchesBranch &&
-              matchesDateRange;
-        }).toList();
-      });
+            return matchesSearch &&
+                matchesStatus &&
+                matchesProductType &&
+                matchesBranch &&
+                matchesDateRange;
+          }).toList();
+        });
+      }
     } else {
       _resetPagination();
     }
@@ -333,7 +361,11 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                     ),
                   ),
                 ],
-                onChanged: (value) => setState(() => _selectedStatus = value),
+                onChanged: (value) {
+                  if (mounted) {
+                    setState(() => _selectedStatus = value);
+                  }
+                },
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<ProductType>(
@@ -348,15 +380,22 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                     ),
                   ),
                 ],
-                onChanged: (value) =>
-                    setState(() => _selectedProductType = value),
+                onChanged: (value) {
+                  if (mounted) {
+                    setState(() => _selectedProductType = value);
+                  }
+                },
               ),
               const SizedBox(height: 16),
               TextFormField(
                 decoration: const InputDecoration(labelText: 'Oddział'),
-                onChanged: (value) => setState(
-                  () => _selectedBranch = value.isEmpty ? null : value,
-                ),
+                onChanged: (value) {
+                  if (mounted) {
+                    setState(
+                      () => _selectedBranch = value.isEmpty ? null : value,
+                    );
+                  }
+                },
               ),
               const SizedBox(height: 16),
               Row(
@@ -372,7 +411,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                           ),
                           currentDate: DateTime.now(),
                         );
-                        if (dateRange != null) {
+                        if (dateRange != null && mounted) {
                           setState(() => _selectedDateRange = dateRange);
                         }
                       },
@@ -386,8 +425,11 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                   ),
                   if (_selectedDateRange != null)
                     IconButton(
-                      onPressed: () =>
-                          setState(() => _selectedDateRange = null),
+                      onPressed: () {
+                        if (mounted) {
+                          setState(() => _selectedDateRange = null);
+                        }
+                      },
                       icon: const Icon(Icons.clear),
                     ),
                 ],
@@ -398,12 +440,14 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              setState(() {
-                _selectedStatus = null;
-                _selectedProductType = null;
-                _selectedBranch = null;
-                _selectedDateRange = null;
-              });
+              if (mounted) {
+                setState(() {
+                  _selectedStatus = null;
+                  _selectedProductType = null;
+                  _selectedBranch = null;
+                  _selectedDateRange = null;
+                });
+              }
               _filterInvestments();
               Navigator.of(context).pop();
             },
@@ -667,7 +711,11 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
           ),
           const SizedBox(width: 8),
           _buildToolbarButton(
-            onPressed: () => setState(() => _isGridView = !_isGridView),
+            onPressed: () {
+              if (mounted) {
+                setState(() => _isGridView = !_isGridView);
+              }
+            },
             icon: _isGridView ? Icons.table_rows : Icons.grid_view,
             tooltip: _isGridView ? 'Widok tabeli' : 'Widok kafelków',
             color: AppTheme.infoColor,
@@ -1069,13 +1117,15 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                 if (_hasActiveFilters()) ...[
                   OutlinedButton.icon(
                     onPressed: () {
-                      setState(() {
-                        _selectedStatus = null;
-                        _selectedProductType = null;
-                        _selectedBranch = null;
-                        _selectedDateRange = null;
-                        _searchController.clear();
-                      });
+                      if (mounted) {
+                        setState(() {
+                          _selectedStatus = null;
+                          _selectedProductType = null;
+                          _selectedBranch = null;
+                          _selectedDateRange = null;
+                          _searchController.clear();
+                        });
+                      }
                       _filterInvestments();
                     },
                     icon: const Icon(Icons.clear_all),
@@ -1143,20 +1193,29 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   }
 
   void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppTheme.successColor),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppTheme.successColor,
+        ),
+      );
+    }
   }
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppTheme.errorColor),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: AppTheme.errorColor),
+      );
+    }
   }
 
   void _showInfoSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppTheme.infoColor),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: AppTheme.infoColor),
+      );
+    }
   }
 }
