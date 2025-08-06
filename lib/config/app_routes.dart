@@ -12,6 +12,7 @@ import '../screens/products_screen.dart';
 import '../screens/companies_screen.dart';
 import '../screens/employees_screen.dart';
 import '../screens/analytics_screen.dart';
+import '../screens/unified_products_screen.dart';
 import '../widgets/auth_wrapper.dart';
 import '../widgets/main_layout.dart';
 import '../providers/auth_provider.dart';
@@ -34,6 +35,7 @@ class AppRoutes {
   static const String employees = '/employees';
   static const String analytics = '/analytics';
   static const String investorAnalytics = '/investor-analytics';
+  static const String unifiedProducts = '/unified-products';
 
   // === SZCZEGÓŁOWE WIDOKI ===
   static const String investmentDetails = '/investments/:id';
@@ -451,6 +453,15 @@ class AppRouter {
               context,
               state,
               const PremiumInvestorAnalyticsScreen(),
+            ),
+          ),
+
+          GoRoute(
+            path: AppRoutes.unifiedProducts,
+            pageBuilder: (context, state) => _buildPageWithTransition(
+              context,
+              state,
+              const UnifiedProductsScreen(),
             ),
           ),
 
