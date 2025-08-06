@@ -274,10 +274,46 @@ class StandardProductInvestorsService extends BaseService {
         );
       }
 
-      // Utwórz podsumowania inwestorów
+      // Utwórz mapowanie numeryczne ID -> UUID klienta
+      final Map<String, String> numericIdToUuid = {};
+      for (final client in clients) {
+        // Bezpośrednie mapowanie przez excelId
+        if (client.excelId != null && clientIds.contains(client.excelId!)) {
+          numericIdToUuid[client.excelId!] = client.id;
+          print(
+            '🔗 [StandardProductInvestors] Mapowanie przez excelId: ${client.excelId} -> ${client.id}',
+          );
+        } else {
+          // Fallback: spróbuj znaleźć numeryczne ID dla tego klienta przez nazwę
+          for (final numericId in clientIds) {
+            final clientInvestments = investmentsByClientId[numericId] ?? [];
+            // Sprawdź czy któraś z inwestycji ma nazwę tego klienta
+            if (clientInvestments.any((inv) => inv.clientName == client.name)) {
+              numericIdToUuid[numericId] = client.id;
+              print(
+                '🔗 [StandardProductInvestors] Mapowanie przez nazwę: $numericId (${client.name}) -> ${client.id}',
+              );
+              break;
+            }
+          }
+        }
+      }
+
+      print(
+        '🔗 [StandardProductInvestors] Utworzono mapowanie numericId -> UUID: $numericIdToUuid',
+      );
+
+      // Utwórz podsumowania inwestorów używając mapowania
       final List<InvestorSummary> investors = [];
       for (final client in clients) {
-        final clientInvestments = investmentsByClientId[client.id] ?? [];
+        // Znajdź inwestycje dla tego klienta przez mapowanie
+        List<Investment> clientInvestments = [];
+        for (final entry in numericIdToUuid.entries) {
+          if (entry.value == client.id) {
+            clientInvestments.addAll(investmentsByClientId[entry.key] ?? []);
+          }
+        }
+
         if (clientInvestments.isNotEmpty) {
           final investorSummary = InvestorSummary.fromInvestments(
             client,
@@ -306,12 +342,11 @@ class StandardProductInvestorsService extends BaseService {
       print('🔍 [StandardProductInvestors] Szukam klientów o ID: $clientIds');
       final List<Client> clients = [];
 
-      // Firestore nie obsługuje zapytań `whereIn` dla więcej niż 10 elementów
-      // Dzielimy na batche po 10 elementów
+      // Pierwszy krok: próbuj znaleźć po UUID (document ID)
       const batchSize = 10;
       for (int i = 0; i < clientIds.length; i += batchSize) {
         final batch = clientIds.skip(i).take(batchSize).toList();
-        print('🔍 [StandardProductInvestors] Sprawdzam batch: $batch');
+        print('� [StandardProductInvestors] Przetwarzam batch UUID: $batch');
 
         final snapshot = await firestore
             .collection('clients')
@@ -319,12 +354,12 @@ class StandardProductInvestorsService extends BaseService {
             .get();
 
         print(
-          '🔍 [StandardProductInvestors] Znaleziono ${snapshot.docs.length} dokumentów w batch',
+          '� [StandardProductInvestors] Znaleziono ${snapshot.docs.length} dokumentów klientów w batch UUID',
         );
 
         final batchClients = snapshot.docs.map((doc) {
           print(
-            '✅ [StandardProductInvestors] Znaleziono klienta: ${doc.id} - ${doc.data()['imie_nazwisko']}',
+            '👤 [StandardProductInvestors] Przetwarzam klienta UUID: ${doc.id}',
           );
           return Client.fromFirestore(doc);
         }).toList();
@@ -332,8 +367,40 @@ class StandardProductInvestorsService extends BaseService {
         clients.addAll(batchClients);
       }
 
+      // Jeśli nie znaleziono wszystkich klientów, spróbuj przez excelId
+      final foundClientIds = clients.map((c) => c.id).toSet();
+      final missingClientIds = clientIds
+          .where((id) => !foundClientIds.contains(id))
+          .toList();
+
+      if (missingClientIds.isNotEmpty) {
+        print(
+          '🔄 [StandardProductInvestors] Próbuję znaleźć brakujących klientów przez excelId: $missingClientIds',
+        );
+
+        for (final missingId in missingClientIds) {
+          final excelSnapshot = await firestore
+              .collection('clients')
+              .where('excelId', isEqualTo: missingId)
+              .limit(1)
+              .get();
+
+          if (excelSnapshot.docs.isNotEmpty) {
+            final client = Client.fromFirestore(excelSnapshot.docs.first);
+            clients.add(client);
+            print(
+              '✅ [StandardProductInvestors] Znaleziono klienta przez excelId: $missingId -> ${client.id}',
+            );
+          } else {
+            print(
+              '❌ [StandardProductInvestors] Nie znaleziono klienta o ID: $missingId',
+            );
+          }
+        }
+      }
+
       print(
-        '📋 [StandardProductInvestors] Łącznie załadowano ${clients.length} klientów',
+        '🎯 [StandardProductInvestors] Łącznie załadowano ${clients.length} klientów',
       );
       return clients;
     } catch (e) {

@@ -195,9 +195,7 @@ class ProductInvestorsService extends BaseService {
         // Bezpośrednie mapowanie przez excelId
         if (client.excelId != null && clientIds.contains(client.excelId!)) {
           numericIdToUuid[client.excelId!] = client.id;
-          print(
-            '🔗 [ProductInvestors] Mapowanie przez excelId: ${client.excelId} -> ${client.id}',
-          );
+          print('🔗 [ProductInvestors] Mapowanie przez excelId: ${client.excelId} -> ${client.id}');
         } else {
           // Fallback: spróbuj znaleźć numeryczne ID dla tego klienta przez nazwę
           for (final numericId in clientIds) {
@@ -205,9 +203,7 @@ class ProductInvestorsService extends BaseService {
             // Sprawdź czy któraś z inwestycji ma nazwę tego klienta
             if (clientInvestments.any((inv) => inv.clientName == client.name)) {
               numericIdToUuid[numericId] = client.id;
-              print(
-                '🔗 [ProductInvestors] Mapowanie przez nazwę: $numericId (${client.name}) -> ${client.id}',
-              );
+              print('🔗 [ProductInvestors] Mapowanie przez nazwę: $numericId (${client.name}) -> ${client.id}');
               break;
             }
           }
@@ -250,6 +246,7 @@ class ProductInvestorsService extends BaseService {
       print('❌ [ProductInvestors] Błąd: $e');
       return [];
     }
+  }
   }
 
   /// Pobiera inwestorów dla produktu UnifiedProduct

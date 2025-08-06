@@ -74,6 +74,7 @@ class Client {
 
     return Client(
       id: doc.id,
+      excelId: data['excelId']?.toString() ?? data['original_id']?.toString(),
       name: data['imie_nazwisko'] ?? data['name'] ?? '',
       email: data['email'] ?? '',
       phone: data['telefon'] ?? data['phone'] ?? '',
@@ -107,6 +108,8 @@ class Client {
     return {
       'name': name,
       'imie_nazwisko': name, // Dla kompatybilności z Excel
+      'excelId': excelId, // Przechowaj oryginalne numeryczne ID
+      'original_id': excelId, // Dodatkowa kompatybilność
       'email': email,
       'telefon': phone, // Dla kompatybilności z Excel
       'phone': phone,
@@ -131,6 +134,7 @@ class Client {
 
   Client copyWith({
     String? id,
+    String? excelId,
     String? name,
     String? email,
     String? phone,
@@ -149,6 +153,7 @@ class Client {
   }) {
     return Client(
       id: id ?? this.id,
+      excelId: excelId ?? this.excelId,
       name: name ?? this.name,
       email: email ?? this.email,
       phone: phone ?? this.phone,
