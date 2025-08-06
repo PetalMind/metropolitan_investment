@@ -7,11 +7,14 @@ import '../../utils/currency_formatter.dart';
 import '../../services/product_investors_service.dart';
 import 'product_investors_list.dart';
 
-/// Modal ze szczegółami produktu z zakładkami
+/// Modal ze szczegółami produktu
 class ProductDetailsModal extends StatefulWidget {
   final UnifiedProduct product;
 
-  const ProductDetailsModal({super.key, required this.product});
+  const ProductDetailsModal({
+    super.key,
+    required this.product,
+  });
 
   @override
   State<ProductDetailsModal> createState() => _ProductDetailsModalState();
@@ -21,7 +24,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final ProductInvestorsService _investorsService = ProductInvestorsService();
-
+  
   List<InvestorSummary> _investors = [];
   bool _isLoadingInvestors = false;
   String? _investorsError;
@@ -41,26 +44,22 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   }
 
   void _onTabChanged() {
-    if (_tabController.index == 1 &&
-        _investors.isEmpty &&
-        !_isLoadingInvestors) {
+    if (_tabController.index == 1 && _investors.isEmpty && !_isLoadingInvestors) {
       _loadInvestors();
     }
   }
 
   Future<void> _loadInvestors() async {
     if (_isLoadingInvestors) return;
-
+    
     setState(() {
       _isLoadingInvestors = true;
       _investorsError = null;
     });
 
     try {
-      final investors = await _investorsService.getInvestorsForProduct(
-        widget.product,
-      );
-
+      final investors = await _investorsService.getInvestorsForProduct(widget.product);
+      
       if (mounted) {
         setState(() {
           _investors = investors;
@@ -80,7 +79,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   @override
   Widget build(BuildContext context) {
     final isMobile = ResponsiveBreakpoints.of(context).isMobile;
-
+    
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: EdgeInsets.symmetric(
@@ -98,18 +97,111 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           children: [
             _buildHeader(context),
             _buildTabBar(context),
-            Flexible(child: _buildTabBarView(context, isMobile)),
+            Flexible(
+              child: _buildTabBarView(context, isMobile),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    final productColor = AppTheme.getProductTypeColor(
-      widget.product.productType.name,
+  Widget _buildTabBar(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: AppTheme.borderSecondary,
+            width: 1,
+          ),
+        ),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicatorColor: AppTheme.primaryAccent,
+        labelColor: AppTheme.primaryAccent,
+        unselectedLabelColor: AppTheme.textSecondary,
+        labelStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 14,
+        ),
+        tabs: [
+          const Tab(
+            text: 'Szczegóły',
+            icon: Icon(Icons.info_outline, size: 20),
+          ),
+          Tab(
+            text: 'Inwestorzy',
+            icon: const Icon(Icons.people_outline, size: 20),
+          ),
+        ],
+      ),
     );
+  }
 
+  Widget _buildTabBarView(BuildContext context, bool isMobile) {
+    return TabBarView(
+      controller: _tabController,
+      children: [
+        // Zakładka szczegółów
+        _buildDetailsTab(context, isMobile),
+        
+        // Zakładka inwestorów
+        _buildInvestorsTab(context),
+      ],
+    );
+  }
+
+  Widget _buildDetailsTab(BuildContext context, bool isMobile) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Sekcja kwot
+          _buildAmountsSection(context, isMobile),
+          
+          const SizedBox(height: 24),
+          
+          // Sekcja szczegółów
+          _buildDetailsSection(context, isMobile),
+          
+          if (widget.product.productType == UnifiedProductType.bonds) ...[
+            const SizedBox(height: 24),
+            _buildBondsSpecificSection(context, isMobile),
+          ],
+          
+          if (widget.product.productType == UnifiedProductType.shares) ...[
+            const SizedBox(height: 24),
+            _buildSharesSpecificSection(context, isMobile),
+          ],
+          
+          const SizedBox(height: 24),
+          _buildFooterInfo(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvestorsTab(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: ProductInvestorsList(
+        investors: _investors,
+        isLoading: _isLoadingInvestors,
+        errorMessage: _investorsError,
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    final productColor = AppTheme.getProductTypeColor(widget.product.productType.name);
+    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -141,11 +233,15 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                 width: 2,
               ),
             ),
-            child: Icon(_getProductIcon(), color: productColor, size: 28),
+            child: Icon(
+              _getProductIcon(),
+              color: productColor,
+              size: 28,
+            ),
           ),
-
+          
           const SizedBox(width: 16),
-
+          
           // Informacje główne
           Expanded(
             child: Column(
@@ -154,10 +250,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: productColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(16),
@@ -188,8 +281,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (widget.product.companyName != null &&
-                    widget.product.companyName!.isNotEmpty) ...[
+                if (widget.product.companyName != null && widget.product.companyName!.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
                     widget.product.companyName!,
@@ -202,7 +294,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               ],
             ),
           ),
-
+          
           // Przycisk zamknięcia
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -216,16 +308,19 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   }
 
   Widget _buildStatusBadge(BuildContext context) {
-    final statusColor = widget.product.isActive
-        ? AppTheme.successColor
+    final statusColor = widget.product.isActive 
+        ? AppTheme.successColor 
         : AppTheme.errorColor;
-
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: statusColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1),
+        border: Border.all(
+          color: statusColor.withValues(alpha: 0.3),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -252,46 +347,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
-  Widget _buildTabBar(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppTheme.borderSecondary, width: 1),
-        ),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicatorColor: AppTheme.primaryAccent,
-        labelColor: AppTheme.primaryAccent,
-        unselectedLabelColor: AppTheme.textSecondary,
-        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        unselectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
-        tabs: const [
-          Tab(text: 'Szczegóły', icon: Icon(Icons.info_outline, size: 20)),
-          Tab(text: 'Inwestorzy', icon: Icon(Icons.people_outline, size: 20)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabBarView(BuildContext context, bool isMobile) {
-    return TabBarView(
-      controller: _tabController,
-      children: [
-        // Zakładka szczegółów
-        _buildDetailsTab(context, isMobile),
-
-        // Zakładka inwestorów
-        _buildInvestorsTab(context),
-      ],
-    );
-  }
-
-  Widget _buildDetailsTab(BuildContext context, bool isMobile) {
+  Widget _buildContent(BuildContext context, bool isMobile) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -299,36 +355,22 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         children: [
           // Sekcja kwot
           _buildAmountsSection(context, isMobile),
-
+          
           const SizedBox(height: 24),
-
+          
           // Sekcja szczegółów
           _buildDetailsSection(context, isMobile),
-
-          if (widget.product.productType == UnifiedProductType.bonds) ...[
+          
+          if (product.productType == UnifiedProductType.bonds) ...[
             const SizedBox(height: 24),
             _buildBondsSpecificSection(context, isMobile),
           ],
-
-          if (widget.product.productType == UnifiedProductType.shares) ...[
+          
+          if (product.productType == UnifiedProductType.shares) ...[
             const SizedBox(height: 24),
             _buildSharesSpecificSection(context, isMobile),
           ],
-
-          const SizedBox(height: 24),
-          _buildFooterInfo(context),
         ],
-      ),
-    );
-  }
-
-  Widget _buildInvestorsTab(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: ProductInvestorsList(
-        investors: _investors,
-        isLoading: _isLoadingInvestors,
-        errorMessage: _investorsError,
       ),
     );
   }
@@ -348,9 +390,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               fontWeight: FontWeight.w700,
             ),
           ),
-
+          
           const SizedBox(height: 16),
-
+          
           if (isMobile)
             _buildAmountsMobileLayout(context)
           else
@@ -371,9 +413,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
             Icons.account_balance_wallet_outlined,
             AppTheme.primaryAccent,
           ),
-
+        
         const SizedBox(height: 12),
-
+        
         _buildAmountCard(
           context,
           'Wartość całkowita',
@@ -401,7 +443,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           ),
           const SizedBox(width: 16),
         ],
-
+        
         Expanded(
           child: _buildAmountCard(
             context,
@@ -428,12 +470,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isHighlight
+        color: isHighlight 
             ? color.withValues(alpha: 0.05)
             : AppTheme.surfaceCard.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isHighlight
+          color: isHighlight 
               ? color.withValues(alpha: 0.2)
               : AppTheme.borderSecondary,
           width: 1,
@@ -447,7 +489,11 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(
+              icon,
+              color: color,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -491,9 +537,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               fontWeight: FontWeight.w700,
             ),
           ),
-
+          
           const SizedBox(height: 16),
-
+          
           ...widget.product.detailsList.map((detail) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -532,9 +578,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   }
 
   Widget _buildBondsSpecificSection(BuildContext context, bool isMobile) {
-    if (widget.product.realizedCapital == null &&
-        widget.product.remainingCapital == null &&
-        widget.product.realizedInterest == null &&
+    if (widget.product.realizedCapital == null && 
+        widget.product.remainingCapital == null && 
+        widget.product.realizedInterest == null && 
         widget.product.remainingInterest == null) {
       return const SizedBox.shrink();
     }
@@ -553,9 +599,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               fontWeight: FontWeight.w700,
             ),
           ),
-
+          
           const SizedBox(height: 16),
-
+          
           if (isMobile)
             _buildBondsDetailsMobile(context)
           else
@@ -568,35 +614,31 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   Widget _buildBondsDetailsMobile(BuildContext context) {
     return Column(
       children: [
-        if (widget.product.realizedCapital != null &&
-            widget.product.realizedCapital! > 0)
+        if (widget.product.realizedCapital != null && widget.product.realizedCapital! > 0)
           _buildDetailRow(
             context,
             'Zrealizowany kapitał',
             CurrencyFormatter.formatCurrency(widget.product.realizedCapital!),
             AppTheme.successColor,
           ),
-
-        if (widget.product.remainingCapital != null &&
-            widget.product.remainingCapital! > 0)
+        
+        if (widget.product.remainingCapital != null && widget.product.remainingCapital! > 0)
           _buildDetailRow(
             context,
             'Pozostały kapitał',
             CurrencyFormatter.formatCurrency(widget.product.remainingCapital!),
             AppTheme.primaryAccent,
           ),
-
-        if (widget.product.realizedInterest != null &&
-            widget.product.realizedInterest! > 0)
+        
+        if (widget.product.realizedInterest != null && widget.product.realizedInterest! > 0)
           _buildDetailRow(
             context,
             'Zrealizowane odsetki',
             CurrencyFormatter.formatCurrency(widget.product.realizedInterest!),
             AppTheme.successColor,
           ),
-
-        if (widget.product.remainingInterest != null &&
-            widget.product.remainingInterest! > 0)
+        
+        if (widget.product.remainingInterest != null && widget.product.remainingInterest! > 0)
           _buildDetailRow(
             context,
             'Pozostałe odsetki',
@@ -610,9 +652,8 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   Widget _buildBondsDetailsDesktop(BuildContext context) {
     final leftDetails = <Widget>[];
     final rightDetails = <Widget>[];
-
-    if (widget.product.realizedCapital != null &&
-        widget.product.realizedCapital! > 0) {
+    
+    if (widget.product.realizedCapital != null && widget.product.realizedCapital! > 0) {
       leftDetails.add(
         _buildDetailRow(
           context,
@@ -622,9 +663,8 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         ),
       );
     }
-
-    if (widget.product.remainingCapital != null &&
-        widget.product.remainingCapital! > 0) {
+    
+    if (widget.product.remainingCapital != null && widget.product.remainingCapital! > 0) {
       rightDetails.add(
         _buildDetailRow(
           context,
@@ -634,9 +674,8 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         ),
       );
     }
-
-    if (widget.product.realizedInterest != null &&
-        widget.product.realizedInterest! > 0) {
+    
+    if (widget.product.realizedInterest != null && widget.product.realizedInterest! > 0) {
       leftDetails.add(
         _buildDetailRow(
           context,
@@ -646,9 +685,8 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         ),
       );
     }
-
-    if (widget.product.remainingInterest != null &&
-        widget.product.remainingInterest! > 0) {
+    
+    if (widget.product.remainingInterest != null && widget.product.remainingInterest! > 0) {
       rightDetails.add(
         _buildDetailRow(
           context,
@@ -662,16 +700,19 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: Column(children: leftDetails)),
+        Expanded(
+          child: Column(children: leftDetails),
+        ),
         const SizedBox(width: 24),
-        Expanded(child: Column(children: rightDetails)),
+        Expanded(
+          child: Column(children: rightDetails),
+        ),
       ],
     );
   }
 
   Widget _buildSharesSpecificSection(BuildContext context, bool isMobile) {
-    if (widget.product.sharesCount == null &&
-        widget.product.pricePerShare == null) {
+    if (widget.product.sharesCount == null && widget.product.pricePerShare == null) {
       return const SizedBox.shrink();
     }
 
@@ -689,26 +730,23 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               fontWeight: FontWeight.w700,
             ),
           ),
-
+          
           const SizedBox(height: 16),
-
-          if (widget.product.sharesCount != null &&
-              widget.product.sharesCount! > 0)
+          
+          if (widget.product.sharesCount != null && widget.product.sharesCount! > 0)
             _buildDetailRow(
               context,
               'Liczba udziałów',
               '${widget.product.sharesCount}',
               AppTheme.primaryAccent,
             ),
-
-          if (widget.product.pricePerShare != null &&
-              widget.product.pricePerShare! > 0)
+          
+          if (widget.product.pricePerShare != null && widget.product.pricePerShare! > 0)
             _buildDetailRow(
               context,
               'Cena za udział',
               CurrencyFormatter.formatCurrency(widget.product.pricePerShare!),
               AppTheme.secondaryGold,
-            ),
         ],
       ),
     );
@@ -724,14 +762,18 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline, size: 16, color: AppTheme.textTertiary),
+          Icon(
+            Icons.info_outline,
+            size: 16,
+            color: AppTheme.textTertiary,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Źródło danych: ${widget.product.sourceFile}',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppTheme.textTertiary,
+              ),
             ),
           ),
         ],
@@ -752,9 +794,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         children: [
           Text(
             label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
           ),
           Text(
             value,
@@ -770,6 +812,86 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
 
   IconData _getProductIcon() {
     switch (widget.product.productType) {
+      case UnifiedProductType.bonds:
+        return Icons.account_balance;
+      case UnifiedProductType.shares:
+        return Icons.trending_up;
+      case UnifiedProductType.loans:
+        return Icons.handshake;
+      case UnifiedProductType.apartments:
+        return Icons.home;
+      case UnifiedProductType.other:
+        return Icons.category;
+    }
+  }
+
+  Widget _buildDetailRow(
+    BuildContext context,
+    String label,
+    String value,
+    Color valueColor,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: valueColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundSecondary.withValues(alpha: 0.5),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 16,
+            color: AppTheme.textTertiary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Źródło danych: ${product.sourceFile}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppTheme.textTertiary,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Zamknij'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getProductIcon() {
+    switch (product.productType) {
       case UnifiedProductType.bonds:
         return Icons.account_balance;
       case UnifiedProductType.shares:

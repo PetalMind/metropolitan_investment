@@ -7,6 +7,7 @@ import '../services/product_service.dart';
 import '../widgets/data_table_widget.dart';
 import '../widgets/product_form.dart';
 import '../widgets/animated_button.dart';
+import '../widgets/standard_products/advanced_product_dialog.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -26,7 +27,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   String? _clientId;
   String? _clientName;
   int _currentPage = 1;
-  static const int _pageSize = 50;
+  static const int _pageSize = 100;
 
   // UI state
   Product? _editingProduct;
@@ -66,6 +67,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
       _editingProduct = product;
       _showForm = true;
     });
+  }
+
+  void _showAdvancedProductDialog(Product product) {
+    AdvancedProductDialog.show(context, product);
   }
 
   void _closeForm() {
@@ -161,20 +166,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
       FirebaseFunctionsProductsService.clearProductCache();
       _closeForm();
-      await _loadProducts();
-    } catch (e) {
-      setState(() => _error = e.toString());
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _deleteProduct(Product product) async {
-    setState(() => _isLoading = true);
-    try {
-      await _productService.deleteProduct(product.id);
-
-      FirebaseFunctionsProductsService.clearProductCache();
       await _loadProducts();
     } catch (e) {
       setState(() => _error = e.toString());
@@ -551,7 +542,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             numeric: false,
           ),
         ],
-        onRowTap: (p) => _openForm(p),
+        onRowTap: (p) => _showAdvancedProductDialog(p),
       ),
     );
   }
