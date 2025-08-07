@@ -1046,12 +1046,14 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
       }
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: AppTheme.backgroundSecondary,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+    return GestureDetector(
+      onTap: () => _navigateToProductDetails(investment),
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        color: AppTheme.backgroundSecondary,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -1210,6 +1212,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -1820,6 +1823,11 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
   String _getClientTypeText(ClientType type) {
     return type.displayName;
+  }
+
+  void _navigateToProductDetails(Investment investment) {
+    Navigator.of(context).pop(); // Zamknij dialog
+    context.go('/products?productName=${Uri.encodeComponent(investment.productName)}&productType=${investment.productType.name}');
   }
 }
 
