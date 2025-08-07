@@ -202,8 +202,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
                               isSmallMobile: isSmallMobile,
                             ),
                             // 🔄 Loading overlay podczas zapisywania
-                            if (_isSaving) 
-                              _buildLoadingOverlay(),
+                            if (_isSaving) _buildLoadingOverlay(),
                           ],
                         ),
                       ),
@@ -549,64 +548,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
               ),
             ),
           ),
-          if (_hasChanges) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        _selectedVotingStatus =
-                            widget.investor.client.votingStatus;
-                        _hasChanges = false;
-                      });
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: AppTheme.textSecondary),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text('Anuluj'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _saveChanges, // Wyłącz podczas loading
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.successColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: _isSaving
-                        ? Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Text('Zapisywanie...'),
-                            ],
-                          )
-                        : const Text('Zapisz'),
-                  ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );
@@ -768,7 +709,9 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         children: [
           Expanded(
             child: OutlinedButton(
-              onPressed: _isSaving ? null : _closeModal, // Wyłącz podczas zapisywania
+              onPressed: _isSaving
+                  ? null
+                  : _closeModal, // Wyłącz podczas zapisywania
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 side: BorderSide(color: AppTheme.primaryColor),
@@ -776,7 +719,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: _isSaving 
+              child: _isSaving
                   ? Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
@@ -801,7 +744,9 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
           const SizedBox(width: 16),
           Expanded(
             child: ElevatedButton(
-              onPressed: (_hasChanges && !_isSaving) ? _saveChanges : null, // Wyłącz podczas loading
+              onPressed: (_hasChanges && !_isSaving)
+                  ? _saveChanges
+                  : null, // Wyłącz podczas loading
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: AppTheme.primaryColor,
@@ -885,10 +830,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
                 const SizedBox(height: 8),
                 Text(
                   'Dane zostaną automatycznie odświeżone',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -980,9 +922,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   }
 
   Widget _buildChangesTab() {
-    return VotingChangesTab(
-      investor: widget.investor,
-    );
+    return VotingChangesTab(investor: widget.investor);
   }
 
   Widget _buildInvestmentsList() {
@@ -1054,46 +994,68 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      getProductIcon(investment),
+                      color: AppTheme.primaryColor,
+                      size: 20,
+                    ),
                   ),
-                  child: Icon(
-                    getProductIcon(investment),
-                    color: AppTheme.primaryColor,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        investment.productName.isNotEmpty
-                            ? investment.productName
-                            : investment.productType.displayName,
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (investment.creditorCompany.isNotEmpty)
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          investment.creditorCompany,
+                          investment.productName.isNotEmpty
+                              ? investment.productName
+                              : investment.productType.displayName,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (investment.creditorCompany.isNotEmpty)
+                          Text(
+                            investment.creditorCompany,
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        Text(
+                          'ID: ${investment.id.substring(0, 8)}...',
                           style: TextStyle(
                             color: AppTheme.textSecondary,
                             fontSize: 12,
                           ),
                         ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
                       Text(
-                        'ID: ${investment.id.substring(0, 8)}...',
+                        CurrencyFormatter.formatCurrency(
+                          investment.investmentAmount,
+                        ),
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        investment.currency,
                         style: TextStyle(
                           color: AppTheme.textSecondary,
                           fontSize: 12,
@@ -1101,118 +1063,99 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
                       ),
                     ],
                   ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.backgroundPrimary.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                child: Row(
                   children: [
-                    Text(
-                      CurrencyFormatter.formatCurrency(
-                        investment.investmentAmount,
-                      ),
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Kapitał pozostały',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                          Text(
+                            CurrencyFormatter.formatCurrency(
+                              investment.remainingCapital,
+                            ),
+                            style: const TextStyle(
+                              color: AppTheme.successColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Text(
-                      investment.currency,
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Status',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: getStatusColor(
+                                investment.status,
+                              ).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              investment.status.displayName,
+                              style: TextStyle(
+                                color: getStatusColor(investment.status),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.backgroundPrimary.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(8),
               ),
-              child: Row(
+              // Dodatkowe informacje
+              const SizedBox(height: 8),
+              Row(
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Kapitał pozostały',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                        Text(
-                          CurrencyFormatter.formatCurrency(
-                            investment.remainingCapital,
-                          ),
-                          style: const TextStyle(
-                            color: AppTheme.successColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+                  Icon(
+                    Icons.calendar_today,
+                    size: 14,
+                    color: AppTheme.textSecondary,
                   ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Status',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: getStatusColor(
-                              investment.status,
-                            ).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            investment.status.displayName,
-                            style: TextStyle(
-                              color: getStatusColor(investment.status),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
+                  const SizedBox(width: 4),
+                  Text(
+                    'Podpisano: ${investment.signedDate.day.toString().padLeft(2, '0')}.${investment.signedDate.month.toString().padLeft(2, '0')}.${investment.signedDate.year}',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
                     ),
                   ),
                 ],
               ),
-            ),
-            // Dodatkowe informacje
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: 14,
-                  color: AppTheme.textSecondary,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Podpisano: ${investment.signedDate.day.toString().padLeft(2, '0')}.${investment.signedDate.month.toString().padLeft(2, '0')}.${investment.signedDate.year}',
-                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -1827,7 +1770,9 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
   void _navigateToProductDetails(Investment investment) {
     Navigator.of(context).pop(); // Zamknij dialog
-    context.go('/products?productName=${Uri.encodeComponent(investment.productName)}&productType=${investment.productType.name}');
+    context.go(
+      '/products?productName=${Uri.encodeComponent(investment.productName)}&productType=${investment.productType.name}',
+    );
   }
 }
 

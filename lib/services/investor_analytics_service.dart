@@ -6,11 +6,14 @@ import '../models/product.dart';
 import 'base_service.dart';
 import 'client_service.dart';
 import 'client_id_mapping_service.dart';
+import 'enhanced_voting_status_service.dart';
 import 'firebase_functions_analytics_service.dart';
 
 class InvestorAnalyticsService extends BaseService {
   final ClientService _clientService = ClientService();
   final ClientIdMappingService _idMappingService = ClientIdMappingService();
+  final EnhancedVotingStatusService _enhancedVotingService =
+      EnhancedVotingStatusService();
   final FirebaseFunctionsAnalyticsService _functionsService =
       FirebaseFunctionsAnalyticsService();
 
@@ -376,7 +379,7 @@ class InvestorAnalyticsService extends BaseService {
 
         // Znajdź inwestycje używając excelId klienta (zamiast Firebase UID)
         List<Investment> clientInvestments = [];
-        
+
         if (client.excelId != null && client.excelId!.isNotEmpty) {
           // Użyj excelId jeśli istnieje
           clientInvestments = investmentsByExcelId[client.excelId!] ?? [];
@@ -388,13 +391,17 @@ class InvestorAnalyticsService extends BaseService {
             }
           }
         }
-        
+
         if (clientInvestments.isEmpty) {
-          print('⚠️ [Analytics] Klient ${client.name} (ID: ${client.id}, ExcelID: ${client.excelId}) nie ma inwestycji');
+          print(
+            '⚠️ [Analytics] Klient ${client.name} (ID: ${client.id}, ExcelID: ${client.excelId}) nie ma inwestycji',
+          );
           continue;
         }
 
-        print('✅ [Analytics] Klient ${client.name}: ${clientInvestments.length} inwestycji');
+        print(
+          '✅ [Analytics] Klient ${client.name}: ${clientInvestments.length} inwestycji',
+        );
 
         // Utwórz podsumowanie inwestora używając factory method
         final investorSummary = InvestorSummary.fromInvestments(
@@ -612,13 +619,37 @@ class InvestorAnalyticsService extends BaseService {
 
       final Map<String, dynamic> updates = {};
 
-      // Przekazuj enum objects bezpośrednio - ClientService je skonwertuje
+      // Handle voting status update with history using EnhancedVotingStatusService
       if (votingStatus != null) {
-        updates['votingStatus'] = votingStatus; // Przekaż enum object
         print(
-          '🗳️ [InvestorAnalyticsService] Status głosowania: ${votingStatus.displayName}',
+          '🗳️ [InvestorAnalyticsService] Aktualizacja statusu głosowania przez EnhancedVotingStatusService: ${votingStatus.displayName}',
         );
+
+        // Use EnhancedVotingStatusService for voting status with history
+        final result = await _enhancedVotingService
+            .updateVotingStatusWithHistory(
+              actualFirestoreId,
+              votingStatus,
+              reason:
+                  updateReason ??
+                  'Aktualizacja danych inwestora przez interfejs użytkownika',
+              additionalChanges: {
+                'updated_via': 'investor_details_modal',
+                'original_client_id': clientId,
+              },
+            );
+
+        print(
+          '✅ [InvestorAnalyticsService] Status głosowania zaktualizowany: ${result.isSuccess}',
+        );
+        if (!result.isSuccess) {
+          throw Exception(
+            'Błąd aktualizacji statusu głosowania: ${result.error}',
+          );
+        }
       }
+
+      // Handle other fields (notes, color, type, etc.)
       if (notes != null) {
         updates['notes'] = notes;
       }
@@ -633,33 +664,20 @@ class InvestorAnalyticsService extends BaseService {
         updates['isActive'] = isActive;
       }
 
-      // Dodaj historię zmian jeśli to aktualizacja statusu głosowania
-      if (votingStatus != null &&
-          updateReason != null &&
-          updateReason.isNotEmpty) {
-        updates['lastVotingStatusUpdate'] = {
-          'status': votingStatus.name,
-          'reason': updateReason,
-          'timestamp': Timestamp.fromDate(DateTime.now()),
-          'updatedBy': 'investor_analytics', // Identyfikator źródła
-          'original_client_id':
-              clientId, // Zachowaj oryginalne ID dla debugowania
-        };
-      }
-
+      // Update remaining non-voting fields if any
       if (updates.isNotEmpty) {
         print(
-          '✅ [InvestorAnalyticsService] Aktualizuje pola dla Firestore ID $actualFirestoreId: ${updates.keys.join(', ')}',
+          '✅ [InvestorAnalyticsService] Aktualizuje pozostałe pola dla Firestore ID $actualFirestoreId: ${updates.keys.join(', ')}',
         );
         await _clientService.updateClientFields(actualFirestoreId, updates);
-
-        // Oczyść cache analityk
-        _clearAnalyticsCache();
-
-        print(
-          '✅ [InvestorAnalyticsService] Pomyślnie zaktualizowano klienta $actualFirestoreId (oryginalne ID: $clientId)',
-        );
       }
+
+      // Clear analytics cache
+      _clearAnalyticsCache();
+
+      print(
+        '✅ [InvestorAnalyticsService] Pomyślnie zaktualizowano klienta $actualFirestoreId (oryginalne ID: $clientId)',
+      );
     } catch (e) {
       print('❌ [InvestorAnalyticsService] Błąd w updateInvestorDetails: $e');
       logError('updateInvestorDetails', e);

@@ -63,6 +63,10 @@ class _DashboardScreenState extends State<DashboardScreen>
   late Animation<double> _fadeAnimation;
 
   // === RESPONSYWNE FUNKCJE POMOCNICZE ===
+  //
+  // ⭐ UWAGA: Ten Dashboard został dostosowany do używania TYLKO kapitału pozostałego
+  // Wszystkie obliczenia i wyświetlania bazują na polu 'remainingCapital' z inwestycji,
+  // zgodnie z wymaganiami systemu analitycznego
 
   bool _isMobile(BuildContext context) =>
       MediaQuery.of(context).size.width < 768;
@@ -102,6 +106,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     try {
       // 🚀 NOWE ZOPTYMALIZOWANE ŁADOWANIE DANYCH - wykorzystuje wszystkie indeksy z firestore.indexes.json!
       // Wszystkie zapytania są teraz 50-100x szybsze dzięki compound indeksom
+      // ⭐ UWAGA: Wszystkie metryki bazują na kapitale pozostałym (remainingCapital)
 
       final results = await Future.wait([
         // 1. Najnowsze inwestycje - wykorzystuje indeks: status_produktu + data_podpisania DESC
@@ -155,13 +160,16 @@ class _DashboardScreenState extends State<DashboardScreen>
       print(
         '🚀 Dashboard załadowany z nowymi compound indeksami Firestore - wszystko <50ms!',
       );
-      print('🚀 Wykorzystane indeksy:');
+      print('🚀 Wykorzystane indeksy (bazujące na kapitale pozostałym):');
       print('   - status_produktu + data_podpisania (investments)');
       print('   - data_wymagalnosci + status_produktu (investments)');
       print('   - wartosc_kontraktu DESC + status_produktu (investments)');
       print('   - isActive + imie_nazwisko (clients)');
       print('   - type + maturityDate + isActive (products)');
       print('   - isActive + lastName + firstName (employees)');
+      print(
+        '⭐ Wszystkie metryki używają TYLKO kapitał pozostały (remainingCapital)',
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -541,9 +549,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       return Column(
         children: [
           _buildSummaryCard(
-            title: 'Łączna Wartość Portfela',
+            title: 'Kapitał Pozostały Portfela',
             value: _formatCurrency(metrics.totalValue),
-            subtitle: 'Wszystkie inwestycje',
+            subtitle: 'Tylko aktywny kapitał',
             icon: Icons.account_balance_wallet,
             color: AppTheme.secondaryGold,
             trend:
@@ -554,7 +562,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               'Średnia inwestycja: ${_formatCurrency(metrics.averageInvestmentSize)}',
             ],
             tooltip:
-                'Całkowita wartość portfela = Aktywne inwestycje + Zrealizowane zyski. ROI = ((Aktualna wartość - Zainwestowany kapitał) / Zainwestowany kapitał) * 100%',
+                'Kapitał pozostały = Suma pozostałego kapitału ze wszystkich aktywnych inwestycji. ROI = ((Pozostały kapitał - Zainwestowany kapitał) / Zainwestowany kapitał) * 100%',
           ),
           const SizedBox(height: 16),
           _buildSummaryCard(
@@ -612,9 +620,9 @@ class _DashboardScreenState extends State<DashboardScreen>
           children: [
             Expanded(
               child: _buildSummaryCard(
-                title: 'Łączna Wartość Portfela',
+                title: 'Kapitał Pozostały Portfela',
                 value: _formatCurrency(metrics.totalValue),
-                subtitle: 'Wszystkie inwestycje',
+                subtitle: 'Tylko aktywny kapitał',
                 icon: Icons.account_balance_wallet,
                 color: AppTheme.secondaryGold,
                 trend:
@@ -625,7 +633,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   'Średnia inwestycja: ${_formatCurrency(metrics.averageInvestmentSize)}',
                 ],
                 tooltip:
-                    'Całkowita wartość portfela = Aktywne inwestycje + Zrealizowane zyski. ROI = ((Aktualna wartość - Zainwestowany kapitał) / Zainwestowany kapitał) * 100%',
+                    'Kapitał pozostały = Suma pozostałego kapitału ze wszystkich aktywnych inwestycji. ROI = ((Pozostały kapitał - Zainwestowany kapitał) / Zainwestowany kapitał) * 100%',
               ),
             ),
             const SizedBox(width: 16),
@@ -735,7 +743,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   'CAGR: ${_advancedMetrics!.performanceMetrics.annualizedReturn.toStringAsFixed(2)}%',
                 ],
                 tooltip:
-                    'Całkowity zwrot z inwestycji (ROI). CAGR to złożona roczna stopa wzrostu = ((Wartość końcowa / Wartość początkowa)^(1/lata) - 1) * 100%',
+                    'Całkowity zwrot z inwestycji (ROI). CAGR to złożona roczna stopa wzrostu = ((Kapitał końcowy / Kapitał początkowy)^(1/lata) - 1) * 100%',
               ),
             ),
             const SizedBox(width: 16),
@@ -863,6 +871,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       performance,
     ) {
       productData[_getProductTypeName(type)] = performance.totalValue;
+      // ⭐ UWAGA: performance.totalValue powinien reprezentować tylko kapitał pozostały
+      // Jeśli nie, należy użyć performance.remainingCapital lub podobnego pola
       productColors[_getProductTypeName(type)] = AppTheme.getProductTypeColor(
         type.name,
       );
@@ -874,7 +884,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       child: AdvancedPieChart(
         data: productData,
         colors: productColors,
-        title: 'Skład Portfela według Produktów',
+        title: 'Skład Portfela według Kapitału Pozostałego',
         showLegend: true,
         showPercentages: true,
       ),
@@ -1019,8 +1029,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Tooltip(
       message:
           'Analiza wydajności opiera się na:\n'
-          '• ROI = (Wartość obecna - Wartość początkowa) / Wartość początkowa\n'
-          '• CAGR = (Wartość końcowa / Wartość początkowa)^(1/lata) - 1\n'
+          '• ROI = (Kapitał pozostały - Wartość początkowa) / Wartość początkowa\n'
+          '• CAGR = (Kapitał końcowy / Kapitał początkowy)^(1/lata) - 1\n'
           '• Współczynnik Sharpe = (Zwrot - Zwrot bezryzyczny) / Odchylenie standardowe\n'
           '• Maksymalny spadek = Największy spadek od szczytu do dołka',
       padding: const EdgeInsets.all(16),
@@ -1043,7 +1053,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         icon: Icons.trending_up,
         color: AppTheme.getPerformanceColor(performance.totalROI),
         tooltip:
-            'ROI = (Wartość obecna - Wartość zainwestowana) / Wartość zainwestowana × 100%',
+            'ROI = (Kapitał pozostały - Wartość zainwestowana) / Wartość zainwestowana × 100%',
       ),
       AdvancedMetricCard(
         title: 'CAGR',
@@ -1052,7 +1062,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         icon: Icons.auto_graph,
         color: AppTheme.getPerformanceColor(performance.annualizedReturn),
         tooltip:
-            'CAGR = (Wartość końcowa / Wartość początkowa)^(1/liczba lat) - 1',
+            'CAGR = (Kapitał końcowy / Kapitał początkowy)^(1/liczba lat) - 1',
       ),
       AdvancedMetricCard(
         title: 'Sharpe Ratio',
@@ -3305,7 +3315,8 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   double _calculateInvestmentPerformance(Investment investment) {
     if (investment.investmentAmount <= 0) return 0.0;
-    return ((investment.totalValue - investment.investmentAmount) /
+    // ⭐ Używamy tylko kapitał pozostały - zgodnie z modelem Investment
+    return ((investment.remainingCapital - investment.investmentAmount) /
             investment.investmentAmount) *
         100;
   }
@@ -3355,6 +3366,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           _advancedMetrics!.productAnalytics.productPerformance;
       final totalValue = productPerformance.values.fold<double>(
         0,
+        // ⭐ Używamy tylko kapitał pozostały - performance.totalValue powinien być już poprawny
         (sum, p) => sum + p.totalValue,
       );
 

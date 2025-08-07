@@ -3220,13 +3220,28 @@ class _PremiumInvestorAnalyticsScreenState
           children: [
             Expanded(
               child: _buildInvestorStatCard(
+                'Kapitał całkowity',
+                CurrencyFormatter.formatCurrency(
+                  investor.totalInvestmentAmount,
+                ),
+                Icons.account_balance_wallet_rounded,
+                AppTheme.primaryAccent,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildInvestorStatCard(
                 'Liczba inwestycji',
                 investor.investmentCount.toString(),
                 Icons.list_alt_rounded,
                 AppTheme.warningPrimary,
               ),
             ),
-            const SizedBox(width: 12),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
             Expanded(
               child: _buildInvestorStatCard(
                 'Średnia inwestycja',
@@ -3238,6 +3253,15 @@ class _PremiumInvestorAnalyticsScreenState
                 ),
                 Icons.calculate_rounded,
                 AppTheme.secondaryGold,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildInvestorStatCard(
+                'Zwrot kapitału',
+                CurrencyFormatter.formatCurrency(investor.totalRealizedCapital),
+                Icons.trending_up_rounded,
+                AppTheme.successPrimary,
               ),
             ),
           ],
@@ -3355,66 +3379,66 @@ class _PremiumInvestorAnalyticsScreenState
                         : null,
                   ),
                   child: Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isUnviable
-                            ? AppTheme.warningPrimary
-                            : AppTheme.successPrimary,
-                        shape: BoxShape.circle,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: isUnviable
+                              ? AppTheme.warningPrimary
+                              : AppTheme.successPrimary,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              investment.productName,
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
+                              ),
+                            ),
+                            Text(
+                              '${investment.creditorCompany} • ${investment.productType.displayName}',
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            investment.productName,
+                            CurrencyFormatter.formatCurrencyShort(
+                              investment.remainingCapital,
+                            ),
                             style: TextStyle(
                               color: AppTheme.textPrimary,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                               fontSize: 13,
                             ),
                           ),
-                          Text(
-                            '${investment.creditorCompany} • ${investment.productType.displayName}',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 11,
+                          if (isUnviable)
+                            Text(
+                              'NIEWYKONALNA',
+                              style: TextStyle(
+                                color: AppTheme.warningPrimary,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
                         ],
                       ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          CurrencyFormatter.formatCurrencyShort(
-                            investment.remainingCapital,
-                          ),
-                          style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                        ),
-                        if (isUnviable)
-                          Text(
-                            'NIEWYKONALNA',
-                            style: TextStyle(
-                              color: AppTheme.warningPrimary,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -3425,7 +3449,9 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   void _navigateToProductDetails(investment) {
-    context.go('/products?productName=${Uri.encodeComponent(investment.productName)}&productType=${investment.productType.name}');
+    context.go(
+      '/products?productName=${Uri.encodeComponent(investment.productName)}&productType=${investment.productType.name}',
+    );
   }
 
   void _copyInvestorEmail(InvestorSummary investor) {
