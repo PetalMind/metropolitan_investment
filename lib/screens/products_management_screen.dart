@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../models/unified_product.dart';
 import '../models/investor_summary.dart';
@@ -55,6 +56,28 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     _initializeAnimations();
     _loadInitialData();
     _setupSearchListener();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _handleRouteParameters();
+  }
+
+  void _handleRouteParameters() {
+    final state = GoRouterState.of(context);
+    final productName = state.uri.queryParameters['productName'];
+    final productType = state.uri.queryParameters['productType'];
+    
+    if (productName != null && productName.isNotEmpty) {
+      _searchController.text = productName;
+      _applyFiltersAndSearch();
+    }
+    
+    if (productType != null && productType.isNotEmpty) {
+      // Add product type filter if available
+      // This would require extending the filter criteria
+    }
   }
 
   void _initializeService() {

@@ -360,24 +360,41 @@ class InvestorAnalyticsService extends BaseService {
       final allInvestments = await _getAllInvestments();
       print('📊 [Analytics] Znaleziono ${allInvestments.length} inwestycji');
 
-      final Map<String, List<Investment>> investmentsByClientId = {};
+      // Grupa inwestycji według Excel ID (z investment.clientId)
+      final Map<String, List<Investment>> investmentsByExcelId = {};
       for (final investment in allInvestments) {
-        final clientId = investment.clientId;
-        investmentsByClientId.putIfAbsent(clientId, () => []).add(investment);
+        final excelId = investment.clientId; // To jest Excel ID
+        investmentsByExcelId.putIfAbsent(excelId, () => []).add(investment);
       }
 
-      print('📊 [Analytics] Grupowanie inwestycji według klientów...');
+      print('📊 [Analytics] Grupowanie inwestycji według Excel ID...');
 
       final List<InvestorSummary> investors = [];
 
       for (final client in clients) {
         if (!includeInactive && !client.isActive) continue;
 
-        final clientInvestments = investmentsByClientId[client.id] ?? [];
+        // Znajdź inwestycje używając excelId klienta (zamiast Firebase UID)
+        List<Investment> clientInvestments = [];
+        
+        if (client.excelId != null && client.excelId!.isNotEmpty) {
+          // Użyj excelId jeśli istnieje
+          clientInvestments = investmentsByExcelId[client.excelId!] ?? [];
+        } else {
+          // Fallback: spróbuj znaleźć po nazwie (tylko dla legacy data)
+          for (final investment in allInvestments) {
+            if (investment.clientName == client.name) {
+              clientInvestments.add(investment);
+            }
+          }
+        }
+        
         if (clientInvestments.isEmpty) {
-          print('⚠️ [Analytics] Klient ${client.name} nie ma inwestycji');
+          print('⚠️ [Analytics] Klient ${client.name} (ID: ${client.id}, ExcelID: ${client.excelId}) nie ma inwestycji');
           continue;
         }
+
+        print('✅ [Analytics] Klient ${client.name}: ${clientInvestments.length} inwestycji');
 
         // Utwórz podsumowanie inwestora używając factory method
         final investorSummary = InvestorSummary.fromInvestments(

@@ -2,14 +2,17 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../models/client.dart';
 import '../models/investor_summary.dart';
+import '../models/investment.dart';
 import '../services/firebase_functions_analytics_service.dart';
 import '../services/investor_analytics_service.dart' as ia_service;
 import '../widgets/investor_details_modal.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/voting_analysis_manager.dart';
+import '../config/app_routes.dart';
 
 /// 📊 VIEW MODES FOR DATA PRESENTATION
 enum ViewMode {
@@ -3333,21 +3336,25 @@ class _PremiumInvestorAnalyticsScreenState
                 investment.id,
               );
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isUnviable
-                      ? AppTheme.warningPrimary.withOpacity(0.1)
-                      : AppTheme.backgroundTertiary,
-                  borderRadius: BorderRadius.circular(8),
-                  border: isUnviable
-                      ? Border.all(
-                          color: AppTheme.warningPrimary.withOpacity(0.3),
-                        )
-                      : null,
-                ),
-                child: Row(
+              return GestureDetector(
+                onTap: () {
+                  _navigateToProductDetails(investment);
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isUnviable
+                        ? AppTheme.warningPrimary.withOpacity(0.1)
+                        : AppTheme.backgroundTertiary,
+                    borderRadius: BorderRadius.circular(8),
+                    border: isUnviable
+                        ? Border.all(
+                            color: AppTheme.warningPrimary.withOpacity(0.3),
+                          )
+                        : null,
+                  ),
+                  child: Row(
                   children: [
                     Container(
                       width: 8,
@@ -3408,12 +3415,17 @@ class _PremiumInvestorAnalyticsScreenState
                     ),
                   ],
                 ),
+                ),
               );
             },
           ),
         ),
       ],
     );
+  }
+
+  void _navigateToProductDetails(investment) {
+    context.go('/products?productName=${Uri.encodeComponent(investment.productName)}&productType=${investment.productType.name}');
   }
 
   void _copyInvestorEmail(InvestorSummary investor) {

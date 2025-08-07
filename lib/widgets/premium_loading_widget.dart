@@ -24,7 +24,7 @@ class _PremiumLoadingWidgetState extends State<PremiumLoadingWidget>
   late AnimationController _rotationController;
   late AnimationController _scaleController;
   late AnimationController _fadeController;
-  
+
   late Animation<double> _rotationAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
@@ -32,45 +32,33 @@ class _PremiumLoadingWidgetState extends State<PremiumLoadingWidget>
   @override
   void initState() {
     super.initState();
-    
+
     _rotationController = AnimationController(
       duration: const Duration(seconds: 3),
       vsync: this,
     )..repeat();
-    
+
     _scaleController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat(reverse: true);
-    
+
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat(reverse: true);
 
-    _rotationAnimation = Tween<double>(
-      begin: 0,
-      end: 2 * math.pi,
-    ).animate(CurvedAnimation(
-      parent: _rotationController,
-      curve: Curves.linear,
-    ));
+    _rotationAnimation = Tween<double>(begin: 0, end: 2 * math.pi).animate(
+      CurvedAnimation(parent: _rotationController, curve: Curves.linear),
+    );
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.2,
-    ).animate(CurvedAnimation(
-      parent: _scaleController,
-      curve: Curves.easeInOut,
-    ));
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
+    );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.3,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -84,7 +72,7 @@ class _PremiumLoadingWidgetState extends State<PremiumLoadingWidget>
   @override
   Widget build(BuildContext context) {
     final primaryColor = widget.color ?? AppTheme.secondaryGold;
-    
+
     return Container(
       padding: const EdgeInsets.all(32.0),
       child: Column(
@@ -124,7 +112,7 @@ class _PremiumLoadingWidgetState extends State<PremiumLoadingWidget>
                     );
                   },
                 ),
-                
+
                 // Inner pulsing circle
                 AnimatedBuilder(
                   animation: _scaleAnimation,
@@ -146,7 +134,7 @@ class _PremiumLoadingWidgetState extends State<PremiumLoadingWidget>
                     );
                   },
                 ),
-                
+
                 // Center icon
                 AnimatedBuilder(
                   animation: _fadeAnimation,
@@ -179,9 +167,9 @@ class _PremiumLoadingWidgetState extends State<PremiumLoadingWidget>
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Loading message
           AnimatedBuilder(
             animation: _fadeAnimation,
@@ -199,9 +187,9 @@ class _PremiumLoadingWidgetState extends State<PremiumLoadingWidget>
               );
             },
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Animated dots
           AnimatedBuilder(
             animation: _rotationController,
@@ -212,7 +200,7 @@ class _PremiumLoadingWidgetState extends State<PremiumLoadingWidget>
                   final delay = index * 0.3;
                   final progress = (_rotationController.value + delay) % 1.0;
                   final opacity = (math.sin(progress * math.pi * 2) + 1) / 2;
-                  
+
                   return Container(
                     margin: const EdgeInsets.symmetric(horizontal: 3),
                     width: 8,
@@ -236,10 +224,7 @@ class _PremiumLoadingPainter extends CustomPainter {
   final Color color;
   final double progress;
 
-  _PremiumLoadingPainter({
-    required this.color,
-    required this.progress,
-  });
+  _PremiumLoadingPainter({required this.color, required this.progress});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -271,7 +256,7 @@ class _PremiumLoadingPainter extends CustomPainter {
       false,
       paint,
     );
-    
+
     // Draw accent dots
     for (int i = 0; i < 8; i++) {
       final angle = (i / 8) * 2 * math.pi + progress * 2 * math.pi;
@@ -280,11 +265,11 @@ class _PremiumLoadingPainter extends CustomPainter {
         center.dx + (radius + 8) * math.cos(angle),
         center.dy + (radius + 8) * math.sin(angle),
       );
-      
+
       final dotPaint = Paint()
         ..color = color.withOpacity(0.6)
         ..style = PaintingStyle.fill;
-        
+
       canvas.drawCircle(dotCenter, dotRadius, dotPaint);
     }
   }
