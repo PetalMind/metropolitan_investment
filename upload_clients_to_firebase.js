@@ -1,6 +1,7 @@
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 
 // Konfiguracja Firebase Admin
 const serviceAccount = {
@@ -28,32 +29,33 @@ class FirebaseClientUploader {
       startTime: null,
       endTime: null
     };
+    // Opcja kompatybilności - czy używać prostej struktury danych jak w działającym skrypcie
+    this.useSimpleStructure = false;
   }
 
   async initialize() {
     try {
       console.log('🔥 Inicjalizacja Firebase Admin...');
 
-      // Sprawdź czy mamy wszystkie wymagane zmienne środowiskowe
-      const requiredVars = ['FIREBASE_PRIVATE_KEY', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_CLIENT_ID'];
-      const missingVars = requiredVars.filter(varName => !process.env[varName]);
-
-      if (missingVars.length > 0) {
-        console.log('⚠️  Brakuje zmiennych środowiskowych:', missingVars.join(', '));
-        console.log('Próbuję użyć pliku service-account.json...');
-
-        // Spróbuj użyć pliku service account
-        const serviceAccountPath = path.join(__dirname, 'service-account.json');
-        if (fs.existsSync(serviceAccountPath)) {
-          const serviceAccountFile = require(serviceAccountPath);
-          admin.initializeApp({
-            credential: admin.credential.cert(serviceAccountFile),
-            projectId: serviceAccountFile.project_id
-          });
-        } else {
-          throw new Error('Brak pliku service-account.json');
-        }
+      // Spróbuj użyć pliku service account (prostsze i bardziej niezawodne)
+      const serviceAccountPath = path.join(__dirname, 'service-account.json');
+      if (fs.existsSync(serviceAccountPath)) {
+        console.log('📄 Używam pliku service-account.json...');
+        const serviceAccountFile = require(serviceAccountPath);
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccountFile),
+        });
       } else {
+        console.log('⚠️  Brak pliku service-account.json, próbuję zmienne środowiskowe...');
+
+        // Sprawdź czy mamy wszystkie wymagane zmienne środowiskowe
+        const requiredVars = ['FIREBASE_PRIVATE_KEY', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_CLIENT_ID'];
+        const missingVars = requiredVars.filter(varName => !process.env[varName]);
+
+        if (missingVars.length > 0) {
+          throw new Error(`Brakuje zmiennych środowiskowych: ${missingVars.join(', ')} lub pliku service-account.json`);
+        }
+
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
           projectId: serviceAccount.project_id
@@ -63,8 +65,8 @@ class FirebaseClientUploader {
       this.db = admin.firestore();
       console.log('✅ Firebase zainicjalizowany pomyślnie!');
 
-      // Test połączenia
-      await this.db.collection('test').limit(1).get();
+      // Test połączenia - dopiero po inicjalizacji
+      await this.db.collection('clients').limit(1).get();
       console.log('✅ Połączenie z Firestore potwierdzone!');
 
     } catch (error) {
@@ -76,7 +78,7 @@ class FirebaseClientUploader {
   async loadClientsData() {
     try {
       console.log('📄 Ładowanie danych klientów...');
-      const filePath = path.join(__dirname, 'clients_data.json');
+      const filePath = path.join(__dirname, 'clients_data_complete.json');
 
       if (!fs.existsSync(filePath)) {
         throw new Error(`Plik ${filePath} nie istnieje`);
@@ -144,25 +146,69 @@ class FirebaseClientUploader {
       try {
         // Walidacja danych klienta
         if (!client.imie_nazwisko || client.imie_nazwisko.trim() === '') {
-          batchErrors.push(`Klient bez nazwy: ID ${client.id}`);
+          batchErrors.push(`Klient bez nazwy: ExcelID ${client.id}`);
           continue;
         }
 
-        // Przygotuj dane do zapisu
-        const clientData = {
-          id: client.id,
-          imie_nazwisko: client.imie_nazwisko.trim(),
-          nazwa_firmy: client.nazwa_firmy || '',
-          telefon: client.telefon || '',
-          email: client.email || '',
-          created_at: client.created_at || new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          source: 'excel_migration_2025'
-        };
+        if (!client.id) {
+          batchErrors.push(`Klient bez ID: "${client.imie_nazwisko}"`);
+          continue;
+        }
 
-        // Użyj ID jako document ID
-        const docRef = this.db.collection('clients').doc(client.id.toString());
+        // Przygotuj dane do zapisu zgodnie z modelem Client
+        let clientData;
+
+        if (this.useSimpleStructure) {
+          // Prosta struktura jak w działającym skrypcie upload_clients_with_uuid.js
+          clientData = {
+            ...client, // Skopiuj wszystkie oryginalne pola
+            excelId: client.id?.toString(), // Dodaj excelId dla kompatybilności
+            original_id: client.id?.toString() // Dodaj original_id dla kompatybilności
+          };
+        } else {
+          // Pełna struktura zgodna z modelem Client Flutter
+          clientData = {
+            // UUID zostanie użyte jako document ID, ale również zapisane w dokumencie
+            excelId: client.id?.toString(), // Oryginalne numeryczne ID z Excela
+            original_id: client.id?.toString(), // Dodatkowa kompatybilność
+            name: client.imie_nazwisko.trim(),
+            imie_nazwisko: client.imie_nazwisko.trim(), // Kompatybilność z Excel
+            nazwa_firmy: client.nazwa_firmy || '',
+            companyName: client.nazwa_firmy || '',
+            telefon: client.telefon || '',
+            phone: client.telefon || '',
+            email: client.email || '',
+            address: '', // Brak adresu w danych z Excela
+            pesel: '', // Brak PESEL w danych z Excela
+            type: 'individual', // Domyślny typ klienta
+            notes: '',
+            votingStatus: 'undecided',
+            colorCode: '#FFFFFF',
+            unviableInvestments: [],
+            createdAt: admin.firestore.Timestamp.fromDate(
+              client.created_at ? new Date(client.created_at) : new Date()
+            ),
+            updatedAt: admin.firestore.Timestamp.fromDate(new Date()),
+            created_at: client.created_at || new Date().toISOString(), // Kompatybilność z Excel
+            uploaded_at: new Date().toISOString(), // Kompatybilność z Excel
+            isActive: true,
+            additionalInfo: {
+              source_file: 'excel_migration_2025',
+              migration_date: new Date().toISOString()
+            },
+            source_file: 'excel_migration_2025' // Kompatybilność z Excel
+          };
+        }
+
+        // Wygeneruj UUID dla document ID
+        const documentId = uuidv4();
+        const docRef = this.db.collection('clients').doc(documentId);
         batch.set(docRef, clientData, { merge: true });
+
+        // Loguj mapowanie ID dla debugowania (tylko pierwszy w batchu)
+        if (clientsBatch.indexOf(client) === 0) {
+          console.log(`   🔗 Mapowanie: ExcelID ${client.id} -> UUID ${documentId}`);
+        }
 
       } catch (error) {
         batchErrors.push(`Błąd przetwarzania klienta ID ${client.id}: ${error.message}`);
@@ -206,7 +252,7 @@ class FirebaseClientUploader {
       const sampleDocs = await this.db.collection('clients').limit(3).get();
       sampleDocs.forEach(doc => {
         const data = doc.data();
-        console.log(`   - ID: ${data.id}, Nazwa: "${data.imie_nazwisko}", Email: ${data.email}`);
+        console.log(`   - UUID: ${doc.id}, ExcelID: ${data.excelId}, Nazwa: "${data.imie_nazwisko}", Email: ${data.email}`);
       });
 
     } catch (error) {
@@ -214,28 +260,101 @@ class FirebaseClientUploader {
     }
   }
 
+  async verifyClientMapping() {
+    try {
+      console.log('\n🔍 Weryfikacja mapowania ExcelID -> UUID...');
+
+      // Pobierz kilka klientów z różnymi excelId
+      const snapshot = await this.db.collection('clients').limit(5).get();
+
+      console.log('📋 Przykłady mapowania:');
+      const mappingMap = new Map();
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const uuid = doc.id;
+        const excelId = data.excelId;
+
+        console.log(`   ExcelID: ${excelId} ↔ UUID: ${uuid}`);
+        mappingMap.set(excelId, uuid);
+      });
+
+      // Sprawdź czy są duplikaty excelId
+      const allDocs = await this.db.collection('clients').get();
+      const excelIdCounts = new Map();
+
+      allDocs.forEach(doc => {
+        const excelId = doc.data().excelId;
+        excelIdCounts.set(excelId, (excelIdCounts.get(excelId) || 0) + 1);
+      });
+
+      const duplicates = Array.from(excelIdCounts.entries()).filter(([id, count]) => count > 1);
+
+      if (duplicates.length > 0) {
+        console.log('⚠️  Znaleziono duplikaty ExcelID:');
+        duplicates.forEach(([excelId, count]) => {
+          console.log(`   - ExcelID ${excelId}: ${count} wystąpień`);
+        });
+      } else {
+        console.log('✅ Brak duplikatów ExcelID - mapowanie jest unikalne!');
+      }
+
+    } catch (error) {
+      console.error('❌ Błąd weryfikacji mapowania:', error.message);
+    }
+  }
+
   printFinalStats() {
     const duration = Math.round((this.uploadStats.endTime - this.uploadStats.startTime) / 1000);
 
     console.log('\n' + '='.repeat(60));
-    console.log('🎯 PODSUMOWANIE UPLOADU');
+    console.log('🎯 PODSUMOWANIE UPLOADU KLIENTÓW');
     console.log('='.repeat(60));
     console.log(`📊 Całkowity czas: ${duration}s`);
     console.log(`📊 Klientów do uploadu: ${this.uploadStats.total}`);
     console.log(`✅ Pomyślnie zapisanych: ${this.uploadStats.uploaded}`);
     console.log(`❌ Błędów: ${this.uploadStats.errors}`);
     console.log(`📈 Sukces: ${Math.round((this.uploadStats.uploaded / this.uploadStats.total) * 100)}%`);
+    console.log('');
+    console.log('🔗 STRUKTURA DANYCH:');
+    if (this.useSimpleStructure) {
+      console.log('   • TRYB PROSTY: Oryginalne pola z JSON + excelId');
+      console.log('   • Document ID: UUID (generowane automatycznie)');
+      console.log('   • excelId: Oryginalne numeryczne ID z Excela');
+      console.log('   • Pozostałe pola: bez zmian z JSON');
+    } else {
+      console.log('   • TRYB PEŁNY: Zgodny z modelem Client Flutter');
+      console.log('   • Document ID: UUID (generowane automatycznie)');
+      console.log('   • excelId: Oryginalne numeryczne ID z Excela');
+      console.log('   • original_id: Kopia excelId dla kompatybilności');
+      console.log('   • Wszystkie pola zgodne z modelem Client w Flutter');
+    }
+    console.log('');
+    console.log('💡 UŻYCIE:');
+    console.log('   node upload_clients_to_firebase.js         # Tryb pełny');
+    console.log('   node upload_clients_to_firebase.js --simple # Tryb prosty');
     console.log('='.repeat(60));
   }
 }
 
 // Główna funkcja
 async function main() {
-  console.log('🚀 FIREBASE CLIENTS UPLOADER');
+  console.log('🚀 FIREBASE CLIENTS UPLOADER v2.0');
   console.log('📅 Data:', new Date().toLocaleString('pl-PL'));
   console.log('='.repeat(50));
 
+  // Sprawdź argumenty wiersza poleceń
+  const args = process.argv.slice(2);
+  const useSimpleMode = args.includes('--simple');
+
   const uploader = new FirebaseClientUploader();
+  uploader.useSimpleStructure = useSimpleMode;
+
+  if (useSimpleMode) {
+    console.log('🔧 Tryb prosty: kompatybilność z upload_clients_with_uuid.js');
+  } else {
+    console.log('🔧 Tryb pełny: zgodny z modelem Client Flutter');
+  }
 
   try {
     // 1. Inicjalizacja Firebase
@@ -261,6 +380,9 @@ async function main() {
 
     // 6. Weryfikacja
     await uploader.verifyUpload();
+
+    // 7. Weryfikacja mapowania
+    await uploader.verifyClientMapping();
 
     console.log('\n🎉 Upload zakończony pomyślnie!');
     process.exit(0);

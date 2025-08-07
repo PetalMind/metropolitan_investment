@@ -68,12 +68,12 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     final state = GoRouterState.of(context);
     final productName = state.uri.queryParameters['productName'];
     final productType = state.uri.queryParameters['productType'];
-    
+
     if (productName != null && productName.isNotEmpty) {
       _searchController.text = productName;
       _applyFiltersAndSearch();
     }
-    
+
     if (productType != null && productType.isNotEmpty) {
       // Add product type filter if available
       // This would require extending the filter criteria
@@ -692,6 +692,7 @@ class _EnhancedProductDetailsBottomSheetState
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // Rozpocznij ładowanie inwestorów natychmiast
     _loadInvestors();
   }
 
@@ -1073,7 +1074,23 @@ class _EnhancedProductDetailsBottomSheetState
               children: [
                 const Icon(Icons.people_outline, size: 18),
                 const SizedBox(width: 6),
-                Text('Inwestorzy (${_investors.length})'),
+                _isLoadingInvestors
+                    ? const Row(
+                        children: [
+                          Text('Inwestorzy '),
+                          SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation(
+                                AppTheme.secondaryGold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text('Inwestorzy (${_investors.length})'),
               ],
             ),
           ),

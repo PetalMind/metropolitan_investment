@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/investment.dart';
 import '../models/client.dart';
 import '../models/investor_summary.dart';
@@ -40,65 +39,31 @@ class ProductInvestorsService extends BaseService {
         '📈 [ProductInvestors] Znaleziono ${investments.length} inwestycji',
       );
 
-      // Grupuj inwestycje według klientów
-      final Map<String, List<Investment>> investmentsByClientId = {};
+      // Grupuj inwestycje według numerycznych ID klientów
+      final Map<String, List<Investment>> investmentsByNumericId = {};
       for (final investment in investments) {
-        final clientId = investment.clientId;
+        final numericId = investment.clientId; // To jest numeryczne ID z Excela
         print(
-          '🔗 [ProductInvestors] Investment ${investment.id} -> Client ID: "$clientId"',
+          '🔗 [ProductInvestors] Investment ${investment.id} -> Numeric Client ID: "$numericId"',
         );
-        investmentsByClientId.putIfAbsent(clientId, () => []).add(investment);
+        investmentsByNumericId.putIfAbsent(numericId, () => []).add(investment);
       }
 
-      // Pobierz unikalne ID klientów
-      final clientIds = investmentsByClientId.keys.toList();
+      // Pobierz unikalne numeryczne ID klientów
+      final numericClientIds = investmentsByNumericId.keys.toList();
       print(
-        '👥 [ProductInvestors] Znaleziono ${clientIds.length} unikalnych klientów',
+        '👥 [ProductInvestors] Znaleziono ${numericClientIds.length} unikalnych numerycznych ID klientów',
       );
 
-      // Pobierz dane klientów
-      final clients = await _getClientsByIds(clientIds);
-      print('👤 [ProductInvestors] Załadowano dane ${clients.length} klientów');
+      // Pobierz wszystkich klientów z bazy - będziemy wyszukiwać po excelId
+      final clients = await _getClientsByExcelIds(numericClientIds);
+      print('� [ProductInvestors] Załadowano dane ${clients.length} klientów');
 
-      // Utwórz mapowanie numeryczne ID -> UUID klienta
-      final Map<String, String> numericIdToUuid = {};
-      for (final client in clients) {
-        // Bezpośrednie mapowanie przez excelId
-        if (client.excelId != null && clientIds.contains(client.excelId!)) {
-          numericIdToUuid[client.excelId!] = client.id;
-          print(
-            '🔗 [ProductInvestors] Mapowanie przez excelId: ${client.excelId} -> ${client.id}',
-          );
-        } else {
-          // Fallback: spróbuj znaleźć numeryczne ID dla tego klienta przez nazwę
-          for (final numericId in clientIds) {
-            final clientInvestments = investmentsByClientId[numericId] ?? [];
-            // Sprawdź czy któraś z inwestycji ma nazwę tego klienta
-            if (clientInvestments.any((inv) => inv.clientName == client.name)) {
-              numericIdToUuid[numericId] = client.id;
-              print(
-                '🔗 [ProductInvestors] Mapowanie przez nazwę: $numericId (${client.name}) -> ${client.id}',
-              );
-              break;
-            }
-          }
-        }
-      }
-
-      print(
-        '🔗 [ProductInvestors] Utworzono mapowanie numericId -> UUID: $numericIdToUuid',
-      );
-
-      // Utwórz podsumowania inwestorów używając mapowania
+      // Utwórz podsumowania inwestorów
       final List<InvestorSummary> investors = [];
       for (final client in clients) {
-        // Znajdź inwestycje dla tego klienta przez mapowanie
-        List<Investment> clientInvestments = [];
-        for (final entry in numericIdToUuid.entries) {
-          if (entry.value == client.id) {
-            clientInvestments.addAll(investmentsByClientId[entry.key] ?? []);
-          }
-        }
+        // Znajdź inwestycje dla tego klienta po excelId
+        final clientInvestments = investmentsByNumericId[client.excelId] ?? [];
 
         if (clientInvestments.isNotEmpty) {
           final investorSummary = InvestorSummary.fromInvestments(
@@ -106,6 +71,9 @@ class ProductInvestorsService extends BaseService {
             clientInvestments,
           );
           investors.add(investorSummary);
+          print(
+            '✅ [ProductInvestors] Utworzono podsumowanie dla ${client.name}: ${clientInvestments.length} inwestycji',
+          );
         }
       }
 
@@ -172,62 +140,28 @@ class ProductInvestorsService extends BaseService {
         '📈 [ProductInvestors] Znaleziono ${investments.length} inwestycji',
       );
 
-      // Grupuj inwestycje według klientów
-      final Map<String, List<Investment>> investmentsByClientId = {};
+      // Grupuj inwestycje według numerycznych ID klientów
+      final Map<String, List<Investment>> investmentsByNumericId = {};
       for (final investment in investments) {
-        final clientId = investment.clientId;
-        investmentsByClientId.putIfAbsent(clientId, () => []).add(investment);
+        final numericId = investment.clientId; // To jest numeryczne ID z Excela
+        investmentsByNumericId.putIfAbsent(numericId, () => []).add(investment);
       }
 
-      // Pobierz unikalne ID klientów
-      final clientIds = investmentsByClientId.keys.toList();
+      // Pobierz unikalne numeryczne ID klientów
+      final numericClientIds = investmentsByNumericId.keys.toList();
       print(
-        '👥 [ProductInvestors] Znaleziono ${clientIds.length} unikalnych klientów',
+        '👥 [ProductInvestors] Znaleziono ${numericClientIds.length} unikalnych numerycznych ID klientów',
       );
 
-      // Pobierz dane klientów
-      final clients = await _getClientsByIds(clientIds);
-      print('👤 [ProductInvestors] Załadowano dane ${clients.length} klientów');
+      // Pobierz wszystkich klientów z bazy - będziemy wyszukiwać po excelId
+      final clients = await _getClientsByExcelIds(numericClientIds);
+      print('� [ProductInvestors] Załadowano dane ${clients.length} klientów');
 
-      // Utwórz mapowanie numeryczne ID -> UUID klienta (ProductType)
-      final Map<String, String> numericIdToUuid = {};
-      for (final client in clients) {
-        // Bezpośrednie mapowanie przez excelId
-        if (client.excelId != null && clientIds.contains(client.excelId!)) {
-          numericIdToUuid[client.excelId!] = client.id;
-          print(
-            '🔗 [ProductInvestors] Mapowanie przez excelId: ${client.excelId} -> ${client.id}',
-          );
-        } else {
-          // Fallback: spróbuj znaleźć numeryczne ID dla tego klienta przez nazwę
-          for (final numericId in clientIds) {
-            final clientInvestments = investmentsByClientId[numericId] ?? [];
-            // Sprawdź czy któraś z inwestycji ma nazwę tego klienta
-            if (clientInvestments.any((inv) => inv.clientName == client.name)) {
-              numericIdToUuid[numericId] = client.id;
-              print(
-                '🔗 [ProductInvestors] Mapowanie przez nazwę: $numericId (${client.name}) -> ${client.id}',
-              );
-              break;
-            }
-          }
-        }
-      }
-
-      print(
-        '🔗 [ProductInvestors] Utworzono mapowanie numericId -> UUID: $numericIdToUuid',
-      );
-
-      // Utwórz podsumowania inwestorów używając mapowania
+      // Utwórz podsumowania inwestorów
       final List<InvestorSummary> investors = [];
       for (final client in clients) {
-        // Znajdź inwestycje dla tego klienta przez mapowanie
-        List<Investment> clientInvestments = [];
-        for (final entry in numericIdToUuid.entries) {
-          if (entry.value == client.id) {
-            clientInvestments.addAll(investmentsByClientId[entry.key] ?? []);
-          }
-        }
+        // Znajdź inwestycje dla tego klienta po excelId
+        final clientInvestments = investmentsByNumericId[client.excelId] ?? [];
 
         if (clientInvestments.isNotEmpty) {
           final investorSummary = InvestorSummary.fromInvestments(
@@ -235,6 +169,9 @@ class ProductInvestorsService extends BaseService {
             clientInvestments,
           );
           investors.add(investorSummary);
+          print(
+            '✅ [ProductInvestors] Utworzono podsumowanie dla ${client.name}: ${clientInvestments.length} inwestycji',
+          );
         }
       }
 
@@ -265,74 +202,59 @@ class ProductInvestorsService extends BaseService {
     }
   }
 
-  /// Pobiera dane klientów na podstawie listy ID
-  Future<List<Client>> _getClientsByIds(List<String> clientIds) async {
+  /// Pobiera dane klientów na podstawie listy numerycznych Excel ID
+  Future<List<Client>> _getClientsByExcelIds(List<String> excelIds) async {
     try {
-      print('🔍 [ProductInvestors] Szukam klientów o ID: $clientIds');
+      print('🔍 [ProductInvestors] Szukam klientów po excelId: $excelIds');
       final List<Client> clients = [];
 
-      // Pierwszy krok: próbuj znaleźć po UUID (document ID)
-      const batchSize = 10;
-      for (int i = 0; i < clientIds.length; i += batchSize) {
-        final batch = clientIds.skip(i).take(batchSize).toList();
-        print('📦 [ProductInvestors] Przetwarzam batch UUID: $batch');
-
+      // Pobierz klientów gdzie excelId pasuje do numerycznych ID z inwestycji
+      for (final excelId in excelIds) {
         final snapshot = await firestore
             .collection('clients')
-            .where(FieldPath.documentId, whereIn: batch)
+            .where('excelId', isEqualTo: excelId)
+            .limit(1)
             .get();
 
-        print(
-          '📋 [ProductInvestors] Znaleziono ${snapshot.docs.length} dokumentów klientów w batch UUID',
-        );
+        if (snapshot.docs.isNotEmpty) {
+          final client = Client.fromFirestore(snapshot.docs.first);
+          clients.add(client);
+          print(
+            '✅ [ProductInvestors] Znaleziono klienta przez excelId: $excelId -> ${client.name} (${client.id})',
+          );
+        } else {
+          print(
+            '❌ [ProductInvestors] Nie znaleziono klienta o excelId: $excelId',
+          );
 
-        final batchClients = snapshot.docs.map((doc) {
-          print('👤 [ProductInvestors] Przetwarzam klienta UUID: ${doc.id}');
-          return Client.fromFirestore(doc);
-        }).toList();
-
-        clients.addAll(batchClients);
-      }
-
-      // Jeśli nie znaleziono wszystkich klientów, spróbuj przez excelId
-      final foundClientIds = clients.map((c) => c.id).toSet();
-      final missingClientIds = clientIds
-          .where((id) => !foundClientIds.contains(id))
-          .toList();
-
-      if (missingClientIds.isNotEmpty) {
-        print(
-          '🔄 [ProductInvestors] Próbuję znaleźć brakujących klientów przez excelId: $missingClientIds',
-        );
-
-        for (final missingId in missingClientIds) {
-          final excelSnapshot = await firestore
+          // Fallback: spróbuj znaleźć przez original_id dla kompatybilności
+          final originalSnapshot = await firestore
               .collection('clients')
-              .where('excelId', isEqualTo: missingId)
+              .where('original_id', isEqualTo: excelId)
               .limit(1)
               .get();
 
-          if (excelSnapshot.docs.isNotEmpty) {
-            final client = Client.fromFirestore(excelSnapshot.docs.first);
+          if (originalSnapshot.docs.isNotEmpty) {
+            final client = Client.fromFirestore(originalSnapshot.docs.first);
             clients.add(client);
             print(
-              '✅ [ProductInvestors] Znaleziono klienta przez excelId: $missingId -> ${client.id}',
+              '✅ [ProductInvestors] Znaleziono klienta przez original_id: $excelId -> ${client.name} (${client.id})',
             );
           } else {
             print(
-              '❌ [ProductInvestors] Nie znaleziono klienta o ID: $missingId',
+              '⚠️ [ProductInvestors] Nie można dopasować klienta o ID: $excelId',
             );
           }
         }
       }
 
       print(
-        '🎯 [ProductInvestors] Łącznie załadowano ${clients.length} klientów',
+        '🎯 [ProductInvestors] Łącznie załadowano ${clients.length} klientów przez excelId',
       );
       return clients;
     } catch (e) {
-      logError('_getClientsByIds', e);
-      print('❌ [ProductInvestors] Błąd pobierania klientów: $e');
+      logError('_getClientsByExcelIds', e);
+      print('❌ [ProductInvestors] Błąd pobierania klientów przez excelId: $e');
       return [];
     }
   }
