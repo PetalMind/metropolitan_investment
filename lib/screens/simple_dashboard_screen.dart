@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/investment.dart';
 import '../services/web_analytics_service.dart';
+import '../services/dashboard_service.dart';
+import '../services/firebase_functions_data_service.dart';
 import '../widgets/cache_debug_widget.dart';
 import '../utils/currency_formatter.dart';
 
@@ -15,11 +17,17 @@ class SimpleDashboardScreen extends StatefulWidget {
 class _SimpleDashboardScreenState extends State<SimpleDashboardScreen>
     with TickerProviderStateMixin {
   final WebAnalyticsService _analyticsService = WebAnalyticsService();
+  final DashboardService _dashboardService = DashboardService();
+  final FirebaseFunctionsDataService _dataService =
+      FirebaseFunctionsDataService();
 
   // Dane
   List<Investment> _recentInvestments = [];
   List<Investment> _investmentsRequiringAttention = [];
   DashboardMetrics? _dashboardMetrics;
+  ProductTypeStatistics? _productStats;
+  Map<String, dynamic>? _optimizedDashboardData;
+  bool _useOptimizedData = false;
 
   // UI State
   bool _isLoading = false;
@@ -50,19 +58,33 @@ class _SimpleDashboardScreenState extends State<SimpleDashboardScreen>
     setState(() => _isLoading = true);
 
     try {
-      final futures = await Future.wait([
-        _analyticsService.getRecentInvestments(limit: 5),
-        _analyticsService.getInvestmentsRequiringAttention(),
-        _analyticsService.getDashboardMetrics(),
-      ]);
+      if (_useOptimizedData) {
+        // Load optimized data using Firebase Functions
+        final results = await Future.wait([
+          _dashboardService.getOptimizedDashboardData(),
+          _dataService.getProductTypeStatistics(),
+        ]);
 
-      setState(() {
-        _recentInvestments = futures[0] as List<Investment>;
-        _investmentsRequiringAttention = futures[1] as List<Investment>;
-        _dashboardMetrics = futures[2] as DashboardMetrics;
-        _isLoading = false;
-      });
+        setState(() {
+          _optimizedDashboardData = results[0] as Map<String, dynamic>;
+          _productStats = results[1] as ProductTypeStatistics;
+        });
+      } else {
+        // Legacy method
+        final futures = await Future.wait([
+          _analyticsService.getRecentInvestments(limit: 5),
+          _analyticsService.getInvestmentsRequiringAttention(),
+          _analyticsService.getDashboardMetrics(),
+        ]);
 
+        setState(() {
+          _recentInvestments = futures[0] as List<Investment>;
+          _investmentsRequiringAttention = futures[1] as List<Investment>;
+          _dashboardMetrics = futures[2] as DashboardMetrics;
+        });
+      }
+
+      setState(() => _isLoading = false);
       _fadeController.forward();
     } catch (e) {
       setState(() => _isLoading = false);
@@ -88,12 +110,39 @@ class _SimpleDashboardScreenState extends State<SimpleDashboardScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        title: Text(
+          _useOptimizedData ? 'Dashboard (Optimized)' : 'Dashboard (Legacy)',
+        ),
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Icon(_useOptimizedData ? Icons.flash_on : Icons.flash_off),
+            tooltip: _useOptimizedData
+                ? 'Przełącz na Legacy'
+                : 'Przełącz na Firebase Functions',
+            onPressed: () {
+              setState(() {
+                _useOptimizedData = !_useOptimizedData;
+              });
+              _loadDashboardData();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadDashboardData,
+            tooltip: 'Odśwież',
+          ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : FadeTransition(
               opacity: _fadeAnimation,
               child: Column(
                 children: [
+                  if (_useOptimizedData) _buildOptimizedSummary(),
                   _buildTabBar(),
                   Expanded(child: _buildTabContent()),
                 ],
@@ -512,6 +561,207 @@ class _SimpleDashboardScreenState extends State<SimpleDashboardScreen>
 
   Widget _buildCacheDebugTab() {
     return const CacheDebugWidget();
+  }
+
+  Widget _buildOptimizedSummary() {
+    if (_optimizedDashboardData == null || _productStats == null) {
+      return const SizedBox.shrink();
+    }
+
+    final summary = _productStats!.summary;
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.flash_on, color: Colors.green),
+              const SizedBox(width: 8),
+              const Text(
+                'Firebase Functions Dashboard',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green),
+                ),
+                child: const Text(
+                  'OPTIMIZED',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Statystyki podsumowujące
+          Row(
+            children: [
+              Expanded(
+                child: _buildSummaryCard(
+                  'Łączne produkty',
+                  '${summary.totalCount}',
+                  Icons.inventory,
+                  Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSummaryCard(
+                  'Łączna wartość',
+                  '${(summary.totalValue / 1000000).toStringAsFixed(1)}M PLN',
+                  Icons.monetization_on,
+                  Colors.green,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Statystyki poszczególnych typów
+          Row(
+            children: [
+              Expanded(
+                child: _buildProductTypeCard(
+                  'Obligacje',
+                  _productStats!.bonds,
+                  Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildProductTypeCard(
+                  'Udziały',
+                  _productStats!.shares,
+                  Colors.green,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildProductTypeCard(
+                  'Pożyczki',
+                  _productStats!.loans,
+                  Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildProductTypeCard(
+                  'Apartamenty',
+                  _productStats!.apartments,
+                  Colors.purple,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: color.withOpacity(0.8),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductTypeCard(String name, ProductStats stats, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            name,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${stats.count}',
+            style: TextStyle(
+              color: color,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            '${(stats.totalValue / 1000).toStringAsFixed(0)}K',
+            style: TextStyle(color: color.withOpacity(0.7), fontSize: 10),
+          ),
+        ],
+      ),
+    );
   }
 
   int _getGridCrossAxisCount() {

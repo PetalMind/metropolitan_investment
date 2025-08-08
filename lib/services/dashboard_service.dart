@@ -1,20 +1,103 @@
+import 'package:flutter/foundation.dart';
 import '../services/bond_service.dart';
 import '../services/loan_service.dart';
 import '../services/share_service.dart';
+import '../services/apartment_service.dart';
 import '../services/investment_service.dart';
 import '../services/client_service.dart';
 import '../services/employee_service.dart';
+import '../services/firebase_functions_data_service.dart';
 import 'base_service.dart';
 
 class DashboardService extends BaseService {
   final BondService _bondService = BondService();
   final LoanService _loanService = LoanService();
   final ShareService _shareService = ShareService();
+  final ApartmentService _apartmentService = ApartmentService();
   final InvestmentService _investmentService = InvestmentService();
   final ClientService _clientService = ClientService();
   final EmployeeService _employeeService = EmployeeService();
+  final FirebaseFunctionsDataService _dataService =
+      FirebaseFunctionsDataService();
 
-  // Get complete dashboard data
+  // Get dashboard data using Firebase Functions (optimized for large datasets)
+  Future<Map<String, dynamic>> getOptimizedDashboardData() async {
+    return getCachedData('optimized_dashboard_complete', () async {
+      try {
+        if (kDebugMode) {
+          print(
+            '[DashboardService] Pobieranie zoptymalizowanych danych dashboard z Firebase Functions',
+          );
+        }
+
+        // Get product type statistics from Firebase Functions
+        final productStats = await _dataService.getProductTypeStatistics();
+
+        // Get legacy client stats
+        final clientStats = await _clientService.getClientStats();
+        final employeesCount = await _employeeService.getEmployeesCount();
+
+        // Calculate totals from Firebase Functions data
+        final totalPortfolioValue = productStats.summary.totalValue;
+        final totalInvestmentAmount =
+            productStats.summary.totalInvestmentAmount;
+
+        return {
+          'portfolio': {
+            'total_value': totalPortfolioValue,
+            'total_investment_amount': totalInvestmentAmount,
+            'bonds': {
+              'count': productStats.bonds.count,
+              'total_value': productStats.bonds.totalValue,
+              'total_investment_amount':
+                  productStats.bonds.totalInvestmentAmount,
+              'average_value': productStats.bonds.averageValue,
+            },
+            'shares': {
+              'count': productStats.shares.count,
+              'total_value': productStats.shares.totalValue,
+              'total_investment_amount':
+                  productStats.shares.totalInvestmentAmount,
+              'average_value': productStats.shares.averageValue,
+            },
+            'loans': {
+              'count': productStats.loans.count,
+              'total_value': productStats.loans.totalValue,
+              'total_investment_amount':
+                  productStats.loans.totalInvestmentAmount,
+              'average_value': productStats.loans.averageValue,
+            },
+            'apartments': {
+              'count': productStats.apartments.count,
+              'total_value': productStats.apartments.totalValue,
+              'total_investment_amount':
+                  productStats.apartments.totalInvestmentAmount,
+              'average_value': productStats.apartments.averageValue,
+              'total_area': productStats.apartments.totalArea,
+              'average_area': productStats.apartments.averageArea,
+            },
+          },
+          'clients': clientStats,
+          'employees_count': employeesCount,
+          'system_summary': {
+            'total_products': productStats.summary.totalCount,
+            'data_source': 'firebase_functions_optimized',
+            'last_updated': DateTime.now().toIso8601String(),
+          },
+        };
+      } catch (e) {
+        logError('getOptimizedDashboardData', e);
+
+        // Fallback to legacy method
+        if (kDebugMode) {
+          print('[DashboardService] Fallback do legacy dashboard data');
+        }
+        return await getDashboardData();
+      }
+    });
+  }
+
+  // Legacy method - get complete dashboard data
   Future<Map<String, dynamic>> getDashboardData() async {
     return getCachedData('dashboard_complete', () async {
       try {
@@ -23,6 +106,7 @@ class DashboardService extends BaseService {
           _bondService.getBondsStatistics(),
           _loanService.getLoansStatistics(),
           _shareService.getSharesStatistics(),
+          _apartmentService.getApartmentStatistics(),
           _investmentService.getInvestmentStatistics(),
           _clientService.getClientStats(),
           _employeeService.getEmployeesCount(),
@@ -31,24 +115,31 @@ class DashboardService extends BaseService {
         final bondsStats = results[0] as Map<String, dynamic>;
         final loansStats = results[1] as Map<String, dynamic>;
         final sharesStats = results[2] as Map<String, dynamic>;
-        final investmentStats = results[3] as Map<String, dynamic>;
-        final clientStats = results[4] as Map<String, dynamic>;
-        final employeesCount = results[5] as int;
+        final apartmentsStats = results[3] as Map<String, dynamic>;
+        final investmentStats = results[4] as Map<String, dynamic>;
+        final clientStats = results[5] as Map<String, dynamic>;
+        final employeesCount = results[6] as int;
 
         // Calculate total portfolio value - tylko kapital_pozostaly
         final totalBondsValue = bondsStats['total_remaining_capital'] ?? 0.0;
         final totalLoansValue = loansStats['total_investment_amount'] ?? 0.0;
         final totalSharesValue = sharesStats['total_investment_amount'] ?? 0.0;
+        final totalApartmentsValue = apartmentsStats['totalValue'] ?? 0.0;
         final totalInvestmentsValue = investmentStats['totalValue'] ?? 0.0;
 
         final totalPortfolioValue =
             totalBondsValue +
             totalLoansValue +
             totalSharesValue +
+            totalApartmentsValue +
             totalInvestmentsValue;
 
         // Calculate current value - tylko kapital_pozostaly dla obligacji
         final bondsCurrentValue = bondsStats['total_remaining_capital'] ?? 0.0;
+        final apartmentsCurrentValue =
+            apartmentsStats['totalRemainingCapital'] ??
+            apartmentsStats['totalValue'] ??
+            0.0;
 
         return {
           // Overview stats
@@ -84,6 +175,15 @@ class DashboardService extends BaseService {
             'product_types': sharesStats['product_type_counts'] ?? {},
           },
 
+          'apartments': {
+            'count': apartmentsStats['totalApartments'] ?? 0,
+            'total_value': totalApartmentsValue,
+            'current_value': apartmentsCurrentValue,
+            'average_area': apartmentsStats['averageArea'] ?? 0.0,
+            'status_distribution': apartmentsStats['statusDistribution'] ?? {},
+            'type_distribution': apartmentsStats['typeDistribution'] ?? {},
+          },
+
           'investments': {
             'total_count': investmentStats['totalCount'] ?? 0,
             'active_count': investmentStats['activeCount'] ?? 0,
@@ -117,6 +217,10 @@ class DashboardService extends BaseService {
                   : '0',
               'shares_percentage': totalPortfolioValue > 0
                   ? (totalSharesValue / totalPortfolioValue * 100)
+                        .toStringAsFixed(1)
+                  : '0',
+              'apartments_percentage': totalPortfolioValue > 0
+                  ? (totalApartmentsValue / totalPortfolioValue * 100)
                         .toStringAsFixed(1)
                   : '0',
               'investments_percentage': totalPortfolioValue > 0

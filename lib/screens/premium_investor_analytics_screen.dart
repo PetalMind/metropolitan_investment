@@ -596,6 +596,15 @@ class _PremiumInvestorAnalyticsScreenState
             b.client.votingStatus.name,
           );
           break;
+        case 'totalInvestmentAmount':
+          comparison = a.totalInvestmentAmount.compareTo(b.totalInvestmentAmount);
+          break;
+        case 'capitalSecuredByRealEstate':
+          comparison = a.capitalSecuredByRealEstate.compareTo(b.capitalSecuredByRealEstate);
+          break;
+        case 'capitalForRestructuring':
+          comparison = a.capitalForRestructuring.compareTo(b.capitalForRestructuring);
+          break;
         default:
           comparison = a.viableRemainingCapital.compareTo(
             b.viableRemainingCapital,
@@ -1065,6 +1074,9 @@ class _PremiumInvestorAnalyticsScreenState
                   _buildSortChip('viableCapital', 'Kapitał pozostały'),
                   _buildSortChip('investmentCount', 'Liczba inwestycji'),
                   _buildSortChip('votingStatus', 'Status głosowania'),
+                  _buildSortChip('totalInvestmentAmount', 'Kwota inwestycji'),
+                  _buildSortChip('capitalSecuredByRealEstate', 'Kapitał zabezpieczony nieruchomościami'),
+                  _buildSortChip('capitalForRestructuring', 'Kapitał do restrukturyzacji'),
                 ],
               ),
             ),

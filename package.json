@@ -6,6 +6,9 @@
   "scripts": {
     "upload": "node upload.js",
     "upload-clients": "node upload_clients_to_firebase.js",
+    "split-investments": "node tools/split_json_by_investment_type.js",
+    "upload-investments": "node tools/upload_split_investments.js",
+    "process-investments": "./tools/process_investments.sh",
     "install-deps": "npm install firebase-admin"
   },
   "dependencies": {

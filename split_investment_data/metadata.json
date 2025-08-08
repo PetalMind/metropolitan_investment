@@ -1,0 +1,20 @@
+{
+  "sourceFile": "tableConvert.com_n0b2g7.json",
+  "processedAt": "2025-08-08T12:30:03.223Z",
+  "totalRecords": 2133,
+  "statistics": {
+    "bonds": 1184,
+    "shares": 565,
+    "loans": 206,
+    "apartments": 178,
+    "clients": 0,
+    "totalValue": 230827016.02
+  },
+  "files": {
+    "bonds": "bonds.json",
+    "shares": "shares.json",
+    "loans": "loans.json",
+    "apartments": "apartments.json",
+    "clients": null
+  }
+}

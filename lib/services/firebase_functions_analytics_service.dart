@@ -363,6 +363,8 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
       totalValue: (data['totalValue'] ?? 0).toDouble(),
       totalInvestmentAmount: (data['totalInvestmentAmount'] ?? 0).toDouble(),
       totalRealizedCapital: (data['totalRealizedCapital'] ?? 0).toDouble(),
+      capitalSecuredByRealEstate: (data['capitalSecuredByRealEstate'] ?? 0).toDouble(),
+      capitalForRestructuring: (data['capitalForRestructuring'] ?? 0).toDouble(),
       investmentCount: data['investmentCount'] ?? 0,
     );
   }

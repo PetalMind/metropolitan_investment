@@ -11,6 +11,9 @@ class Bond {
   final double realizedTax; // podatek_zrealizowany
   final double remainingTax; // podatek_pozostaly
   final double transferToOtherProduct; // przekaz_na_inny_produkt
+  final double? capitalForRestructuring; // kapital_do_restrukturyzacji
+  final double?
+  capitalSecuredByRealEstate; // kapital_zabezpieczony_nieruchomoscia
   final String sourceFile; // source_file
   final DateTime createdAt; // created_at
   final DateTime uploadedAt; // uploaded_at
@@ -27,6 +30,8 @@ class Bond {
     this.realizedTax = 0.0,
     this.remainingTax = 0.0,
     this.transferToOtherProduct = 0.0,
+    this.capitalForRestructuring,
+    this.capitalSecuredByRealEstate,
     required this.sourceFile,
     required this.createdAt,
     required this.uploadedAt,
@@ -49,7 +54,9 @@ class Bond {
       if (value is double) return value;
       if (value is int) return value.toDouble();
       if (value is String) {
-        final parsed = double.tryParse(value);
+        // Handle comma-separated numbers like "305,700.00"
+        final cleaned = value.replaceAll(',', '');
+        final parsed = double.tryParse(cleaned);
         return parsed ?? defaultValue;
       }
       return defaultValue;
@@ -67,30 +74,51 @@ class Bond {
 
     return Bond(
       id: doc.id,
-      productType: data['typ_produktu'] ?? '',
-      investmentAmount: safeToDouble(data['kwota_inwestycji']),
-      realizedCapital: safeToDouble(data['kapital_zrealizowany']),
-      remainingCapital: safeToDouble(data['kapital_pozostaly']),
+      productType: data['typ_produktu'] ?? data['Typ_produktu'] ?? 'Obligacje',
+      investmentAmount: safeToDouble(
+        data['kwota_inwestycji'] ?? data['Kwota_inwestycji'],
+      ),
+      realizedCapital: safeToDouble(
+        data['kapital_zrealizowany'] ?? data['Kapital zrealizowany'],
+      ),
+      remainingCapital: safeToDouble(
+        data['kapital_pozostaly'] ?? data['Kapital Pozostaly'],
+      ),
       realizedInterest: safeToDouble(data['odsetki_zrealizowane']),
       remainingInterest: safeToDouble(data['odsetki_pozostale']),
       realizedTax: safeToDouble(data['podatek_zrealizowany']),
       remainingTax: safeToDouble(data['podatek_pozostaly']),
-      transferToOtherProduct: safeToDouble(data['przekaz_na_inny_produkt']),
-      sourceFile: data['source_file'] ?? '',
+      transferToOtherProduct: safeToDouble(
+        data['przekaz_na_inny_produkt'] ?? data['Przekaz na inny produkt'],
+      ),
+      capitalForRestructuring: safeToDouble(
+        data['kapital_do_restrukturyzacji'],
+      ),
+      capitalSecuredByRealEstate: safeToDouble(
+        data['kapital_zabezpieczony_nieruchomoscia'],
+      ),
+      sourceFile: data['source_file'] ?? 'imported_data.json',
       createdAt: parseDate(data['created_at']) ?? DateTime.now(),
       uploadedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
       additionalInfo: Map<String, dynamic>.from(data)
         ..removeWhere(
           (key, value) => [
             'typ_produktu',
+            'Typ_produktu',
             'kwota_inwestycji',
+            'Kwota_inwestycji',
             'kapital_zrealizowany',
+            'Kapital zrealizowany',
             'kapital_pozostaly',
+            'Kapital Pozostaly',
             'odsetki_zrealizowane',
             'odsetki_pozostale',
             'podatek_zrealizowany',
             'podatek_pozostaly',
             'przekaz_na_inny_produkt',
+            'Przekaz na inny produkt',
+            'kapital_do_restrukturyzacji',
+            'kapital_zabezpieczony_nieruchomoscia',
             'source_file',
             'created_at',
             'uploaded_at',
@@ -110,6 +138,8 @@ class Bond {
       'podatek_zrealizowany': realizedTax,
       'podatek_pozostaly': remainingTax,
       'przekaz_na_inny_produkt': transferToOtherProduct,
+      'kapital_do_restrukturyzacji': capitalForRestructuring,
+      'kapital_zabezpieczony_nieruchomoscia': capitalSecuredByRealEstate,
       'source_file': sourceFile,
       'created_at': createdAt.toIso8601String(),
       'uploaded_at': uploadedAt.toIso8601String(),
@@ -128,6 +158,8 @@ class Bond {
     double? realizedTax,
     double? remainingTax,
     double? transferToOtherProduct,
+    double? capitalForRestructuring,
+    double? capitalSecuredByRealEstate,
     String? sourceFile,
     DateTime? createdAt,
     DateTime? uploadedAt,
@@ -145,6 +177,10 @@ class Bond {
       remainingTax: remainingTax ?? this.remainingTax,
       transferToOtherProduct:
           transferToOtherProduct ?? this.transferToOtherProduct,
+      capitalForRestructuring:
+          capitalForRestructuring ?? this.capitalForRestructuring,
+      capitalSecuredByRealEstate:
+          capitalSecuredByRealEstate ?? this.capitalSecuredByRealEstate,
       sourceFile: sourceFile ?? this.sourceFile,
       createdAt: createdAt ?? this.createdAt,
       uploadedAt: uploadedAt ?? this.uploadedAt,

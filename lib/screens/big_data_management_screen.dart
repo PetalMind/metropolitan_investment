@@ -3,10 +3,14 @@ import '../services/firebase_functions_data_service.dart';
 import '../models/client.dart';
 import '../models/investment.dart';
 import '../models/product.dart';
+import '../models/bond.dart';
+import '../models/share.dart';
+import '../models/loan.dart';
+import '../models/apartment.dart';
 import '../theme/app_theme.dart';
 
 /// 🚀 ZARZĄDZANIE DUŻYMI ZBIORAMI DANYCH
-/// Demonstracja Firebase Functions dla skalowania
+/// Demonstracja Firebase Functions dla skalowania z nowymi funkcjami
 class BigDataManagementScreen extends StatefulWidget {
   const BigDataManagementScreen({super.key});
 
@@ -18,18 +22,19 @@ class BigDataManagementScreen extends StatefulWidget {
 class _BigDataManagementScreenState extends State<BigDataManagementScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
+  final FirebaseFunctionsDataService _dataService =
+      FirebaseFunctionsDataService();
 
   bool _isLoading = false;
   String? _errorMessage;
 
-  // Clients Tab
+  // Legacy tabs
   List<Client> _clients = [];
   int _clientsCurrentPage = 1;
   int _clientsTotalCount = 0;
   bool _clientsHasNextPage = false;
   final TextEditingController _clientSearchController = TextEditingController();
 
-  // Investments Tab
   List<Investment> _investments = [];
   int _investmentsCurrentPage = 1;
   int _investmentsTotalCount = 0;
@@ -37,14 +42,42 @@ class _BigDataManagementScreenState extends State<BigDataManagementScreen>
   String? _selectedClientFilter;
   String? _selectedProductTypeFilter;
 
-  // System Stats Tab
   SystemStats? _systemStats;
+
+  // New product tabs
+  List<Bond> _bonds = [];
+  int _bondsCurrentPage = 1;
+  BondsResult? _bondsResult;
+
+  List<Share> _shares = [];
+  int _sharesCurrentPage = 1;
+  SharesResult? _sharesResult;
+
+  List<Loan> _loans = [];
+  int _loansCurrentPage = 1;
+  LoansResult? _loansResult;
+
+  List<Apartment> _apartments = [];
+  int _apartmentsCurrentPage = 1;
+  ApartmentsResult? _apartmentsResult;
+
+  ProductTypeStatistics? _productStats;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 8,
+      vsync: this,
+    ); // Zwiększono liczbę zakładek
+    _tabController.addListener(_onTabChanged);
     _loadInitialData();
+  }
+
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) {
+      _loadInitialData(); // Załaduj dane dla nowej zakładki
+    }
   }
 
   @override
@@ -61,12 +94,34 @@ class _BigDataManagementScreenState extends State<BigDataManagementScreen>
     });
 
     try {
-      // Załaduj wszystkie dane równolegle
-      await Future.wait([
-        _loadClients(),
-        _loadInvestments(),
-        _loadSystemStats(),
-      ]);
+      // Załaduj dane z aktualnej zakładki
+      final currentIndex = _tabController.index;
+      switch (currentIndex) {
+        case 0:
+          await _loadClients();
+          break;
+        case 1:
+          await _loadInvestments();
+          break;
+        case 2:
+          await _loadSystemStats();
+          break;
+        case 3:
+          await _loadBonds();
+          break;
+        case 4:
+          await _loadShares();
+          break;
+        case 5:
+          await _loadLoans();
+          break;
+        case 6:
+          await _loadApartments();
+          break;
+        case 7:
+          await _loadProductStats();
+          break;
+      }
     } catch (e) {
       setState(() {
         _errorMessage = 'Błąd ładowania danych: $e';
@@ -149,6 +204,104 @@ class _BigDataManagementScreenState extends State<BigDataManagementScreen>
     }
   }
 
+  // =============================================
+  // NEW PRODUCT DATA LOADING METHODS
+  // =============================================
+
+  Future<void> _loadBonds({int page = 1, bool append = false}) async {
+    try {
+      final result = await _dataService.getBonds(page: page, pageSize: 50);
+
+      setState(() {
+        if (append) {
+          _bonds.addAll(result.bonds);
+        } else {
+          _bonds = result.bonds;
+        }
+        _bondsCurrentPage = result.page;
+        _bondsResult = result;
+      });
+
+      print('📱 [BigData] Załadowano ${result.bonds.length} obligacji');
+    } catch (e) {
+      throw Exception('Błąd ładowania obligacji: $e');
+    }
+  }
+
+  Future<void> _loadShares({int page = 1, bool append = false}) async {
+    try {
+      final result = await _dataService.getShares(page: page, pageSize: 50);
+
+      setState(() {
+        if (append) {
+          _shares.addAll(result.shares);
+        } else {
+          _shares = result.shares;
+        }
+        _sharesCurrentPage = result.page;
+        _sharesResult = result;
+      });
+
+      print('📱 [BigData] Załadowano ${result.shares.length} udziałów');
+    } catch (e) {
+      throw Exception('Błąd ładowania udziałów: $e');
+    }
+  }
+
+  Future<void> _loadLoans({int page = 1, bool append = false}) async {
+    try {
+      final result = await _dataService.getLoans(page: page, pageSize: 50);
+
+      setState(() {
+        if (append) {
+          _loans.addAll(result.loans);
+        } else {
+          _loans = result.loans;
+        }
+        _loansCurrentPage = result.page;
+        _loansResult = result;
+      });
+
+      print('📱 [BigData] Załadowano ${result.loans.length} pożyczek');
+    } catch (e) {
+      throw Exception('Błąd ładowania pożyczek: $e');
+    }
+  }
+
+  Future<void> _loadApartments({int page = 1, bool append = false}) async {
+    try {
+      final result = await _dataService.getApartments(page: page, pageSize: 50);
+
+      setState(() {
+        if (append) {
+          _apartments.addAll(result.apartments);
+        } else {
+          _apartments = result.apartments;
+        }
+        _apartmentsCurrentPage = result.page;
+        _apartmentsResult = result;
+      });
+
+      print('📱 [BigData] Załadowano ${result.apartments.length} apartamentów');
+    } catch (e) {
+      throw Exception('Błąd ładowania apartamentów: $e');
+    }
+  }
+
+  Future<void> _loadProductStats() async {
+    try {
+      final stats = await _dataService.getProductTypeStatistics();
+
+      setState(() {
+        _productStats = stats;
+      });
+
+      print('📱 [BigData] Załadowano statystyki produktów');
+    } catch (e) {
+      throw Exception('Błąd ładowania statystyk produktów: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -158,10 +311,16 @@ class _BigDataManagementScreenState extends State<BigDataManagementScreen>
         foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
           tabs: const [
             Tab(icon: Icon(Icons.people), text: 'Klienci'),
             Tab(icon: Icon(Icons.trending_up), text: 'Inwestycje'),
             Tab(icon: Icon(Icons.analytics), text: 'Statystyki'),
+            Tab(icon: Icon(Icons.description), text: 'Obligacje'),
+            Tab(icon: Icon(Icons.share), text: 'Udziały'),
+            Tab(icon: Icon(Icons.account_balance), text: 'Pożyczki'),
+            Tab(icon: Icon(Icons.apartment), text: 'Apartamenty'),
+            Tab(icon: Icon(Icons.pie_chart), text: 'Stats Produktów'),
           ],
         ),
       ),
@@ -190,6 +349,11 @@ class _BigDataManagementScreenState extends State<BigDataManagementScreen>
                 _buildClientsTab(),
                 _buildInvestmentsTab(),
                 _buildStatsTab(),
+                _buildBondsTab(),
+                _buildSharesTab(),
+                _buildLoansTab(),
+                _buildApartmentsTab(),
+                _buildProductStatsTab(),
               ],
             ),
           if (_isLoading)
@@ -662,6 +826,543 @@ class _BigDataManagementScreenState extends State<BigDataManagementScreen>
             Text(
               value,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =============================================
+  // NEW TAB BUILDERS FOR PRODUCTS
+  // =============================================
+
+  Widget _buildBondsTab() {
+    return RefreshIndicator(
+      onRefresh: () => _loadBonds(),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.description, color: Colors.blue),
+                const SizedBox(width: 8),
+                Text(
+                  'Obligacje (${_bondsResult?.total ?? 0})',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const Spacer(),
+                if (_bondsResult != null)
+                  Text(
+                    'Strona ${_bondsResult!.page}/${_bondsResult!.totalPages}',
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _bonds.isEmpty
+                ? const Center(child: Text('Brak obligacji'))
+                : ListView.builder(
+                    itemCount: _bonds.length,
+                    itemBuilder: (context, index) {
+                      final bond = _bonds[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.blue.shade100,
+                            child: const Icon(
+                              Icons.description,
+                              color: Colors.blue,
+                            ),
+                          ),
+                          title: Text(bond.productType),
+                          subtitle: Text('ID: ${bond.id}'),
+                          trailing: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${bond.remainingCapital.toStringAsFixed(2)} PLN',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Inwestycja: ${bond.investmentAmount.toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          if (_bondsResult?.hasNextPage == true)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton(
+                onPressed: () =>
+                    _loadBonds(page: _bondsCurrentPage + 1, append: true),
+                child: const Text('Załaduj więcej'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSharesTab() {
+    return RefreshIndicator(
+      onRefresh: () => _loadShares(),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.share, color: Colors.green),
+                const SizedBox(width: 8),
+                Text(
+                  'Udziały (${_sharesResult?.total ?? 0})',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const Spacer(),
+                if (_sharesResult != null)
+                  Text(
+                    'Strona ${_sharesResult!.page}/${_sharesResult!.totalPages}',
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _shares.isEmpty
+                ? const Center(child: Text('Brak udziałów'))
+                : ListView.builder(
+                    itemCount: _shares.length,
+                    itemBuilder: (context, index) {
+                      final share = _shares[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.green.shade100,
+                            child: const Icon(Icons.share, color: Colors.green),
+                          ),
+                          title: Text(share.productType),
+                          subtitle: Text('Udziałów: ${share.sharesCount}'),
+                          trailing: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${share.remainingCapital.toStringAsFixed(2)} PLN',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Cena/udział: ${share.pricePerShare.toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          if (_sharesResult?.hasNextPage == true)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton(
+                onPressed: () =>
+                    _loadShares(page: _sharesCurrentPage + 1, append: true),
+                child: const Text('Załaduj więcej'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoansTab() {
+    return RefreshIndicator(
+      onRefresh: () => _loadLoans(),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.account_balance, color: Colors.orange),
+                const SizedBox(width: 8),
+                Text(
+                  'Pożyczki (${_loansResult?.total ?? 0})',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const Spacer(),
+                if (_loansResult != null)
+                  Text(
+                    'Strona ${_loansResult!.page}/${_loansResult!.totalPages}',
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _loans.isEmpty
+                ? const Center(child: Text('Brak pożyczek'))
+                : ListView.builder(
+                    itemCount: _loans.length,
+                    itemBuilder: (context, index) {
+                      final loan = _loans[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.orange.shade100,
+                            child: const Icon(
+                              Icons.account_balance,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          title: Text(
+                            loan.loanNumber ??
+                                'Pożyczka ${loan.id.substring(0, 8)}',
+                          ),
+                          subtitle: Text(
+                            'Pożyczkobiorca: ${loan.borrower ?? 'N/A'}',
+                          ),
+                          trailing: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${loan.remainingCapital.toStringAsFixed(2)} PLN',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Status: ${loan.status ?? 'N/A'}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          if (_loansResult?.hasNextPage == true)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton(
+                onPressed: () =>
+                    _loadLoans(page: _loansCurrentPage + 1, append: true),
+                child: const Text('Załaduj więcej'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApartmentsTab() {
+    return RefreshIndicator(
+      onRefresh: () => _loadApartments(),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.apartment, color: Colors.purple),
+                const SizedBox(width: 8),
+                Text(
+                  'Apartamenty (${_apartmentsResult?.total ?? 0})',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const Spacer(),
+                if (_apartmentsResult != null)
+                  Text(
+                    'Strona ${_apartmentsResult!.page}/${_apartmentsResult!.totalPages}',
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _apartments.isEmpty
+                ? const Center(child: Text('Brak apartamentów'))
+                : ListView.builder(
+                    itemCount: _apartments.length,
+                    itemBuilder: (context, index) {
+                      final apartment = _apartments[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.purple.shade100,
+                            child: const Icon(
+                              Icons.apartment,
+                              color: Colors.purple,
+                            ),
+                          ),
+                          title: Text(
+                            apartment.apartmentNumber.isNotEmpty
+                                ? 'Apartament ${apartment.apartmentNumber}'
+                                : 'Apartament ${apartment.id.substring(0, 8)}',
+                          ),
+                          subtitle: Text(
+                            '${apartment.area}m² | ${apartment.roomCount} pokoje | ${apartment.status.displayName}',
+                          ),
+                          trailing: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${apartment.investmentAmount.toStringAsFixed(2)} PLN',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '${apartment.pricePerSquareMeter.toStringAsFixed(0)} PLN/m²',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          if (_apartmentsResult?.hasNextPage == true)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton(
+                onPressed: () => _loadApartments(
+                  page: _apartmentsCurrentPage + 1,
+                  append: true,
+                ),
+                child: const Text('Załaduj więcej'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductStatsTab() {
+    return RefreshIndicator(
+      onRefresh: () => _loadProductStats(),
+      child: _productStats == null
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // Podsumowanie ogólne
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.pie_chart, color: Colors.blue),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Podsumowanie Systemu',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildStatCard(
+                                  'Łączna liczba',
+                                  '${_productStats!.summary.totalCount}',
+                                  Icons.inventory,
+                                  Colors.blue,
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildStatCard(
+                                  'Łączna wartość',
+                                  '${(_productStats!.summary.totalValue / 1000000).toStringAsFixed(1)}M PLN',
+                                  Icons.monetization_on,
+                                  Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Statystyki poszczególnych typów
+                  _buildProductTypeCard(
+                    'Obligacje',
+                    _productStats!.bonds,
+                    Icons.description,
+                    Colors.blue,
+                  ),
+                  _buildProductTypeCard(
+                    'Udziały',
+                    _productStats!.shares,
+                    Icons.share,
+                    Colors.green,
+                  ),
+                  _buildProductTypeCard(
+                    'Pożyczki',
+                    _productStats!.loans,
+                    Icons.account_balance,
+                    Colors.orange,
+                  ),
+                  _buildProductTypeCardWithArea(
+                    'Apartamenty',
+                    _productStats!.apartments,
+                    Icons.apartment,
+                    Colors.purple,
+                  ),
+                  _buildProductTypeCard(
+                    'Inwestycje',
+                    _productStats!.investments,
+                    Icons.trending_up,
+                    Colors.red,
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _buildProductTypeCard(
+    String title,
+    ProductStats stats,
+    IconData icon,
+    Color color,
+  ) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Liczba: ${stats.count}'),
+                      Text(
+                        'Łączna wartość: ${(stats.totalValue / 1000).toStringAsFixed(1)}K PLN',
+                      ),
+                      Text(
+                        'Średnia: ${stats.averageValue.toStringAsFixed(0)} PLN',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProductTypeCardWithArea(
+    String title,
+    ProductStats stats,
+    IconData icon,
+    Color color,
+  ) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Liczba: ${stats.count}'),
+                      Text(
+                        'Łączna wartość: ${(stats.totalValue / 1000).toStringAsFixed(1)}K PLN',
+                      ),
+                      Text(
+                        'Średnia: ${stats.averageValue.toStringAsFixed(0)} PLN',
+                      ),
+                      if (stats.totalArea != null)
+                        Text(
+                          'Łączna powierzchnia: ${stats.totalArea!.toStringAsFixed(0)} m²',
+                        ),
+                      if (stats.averageArea != null)
+                        Text(
+                          'Średnia powierzchnia: ${stats.averageArea!.toStringAsFixed(1)} m²',
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),

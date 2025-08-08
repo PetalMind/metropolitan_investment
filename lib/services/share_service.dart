@@ -242,4 +242,62 @@ class ShareService extends BaseService {
     clearCache('shares_stats');
     _dataCacheService.invalidateCollectionCache('shares');
   }
+
+  // Get shares with remaining capital
+  Stream<List<Share>> getSharesWithRemainingCapital() {
+    return firestore
+        .collection(_collection)
+        .where('kapital_pozostaly', isGreaterThan: 0)
+        .orderBy('kapital_pozostaly', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Share.fromFirestore(doc)).toList(),
+        );
+  }
+
+  // Get shares with capital for restructuring
+  Stream<List<Share>> getSharesWithRestructuringCapital() {
+    return firestore
+        .collection(_collection)
+        .where('kapital_do_restrukturyzacji', isGreaterThan: 0)
+        .orderBy('kapital_do_restrukturyzacji', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Share.fromFirestore(doc)).toList(),
+        );
+  }
+
+  // Get shares with capital secured by real estate
+  Stream<List<Share>> getSharesWithSecuredCapital() {
+    return firestore
+        .collection(_collection)
+        .where('kapital_zabezpieczony_nieruchomoscia', isGreaterThan: 0)
+        .orderBy('kapital_zabezpieczony_nieruchomoscia', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Share.fromFirestore(doc)).toList(),
+        );
+  }
+
+  // Batch create shares for data import
+  Future<void> createSharesBatch(List<Share> shares) async {
+    try {
+      final batch = firestore.batch();
+
+      for (final share in shares) {
+        final docRef = firestore.collection(_collection).doc();
+        batch.set(docRef, share.copyWith(id: docRef.id).toFirestore());
+      }
+
+      await batch.commit();
+      invalidateCache();
+      print('✅ Successfully created ${shares.length} shares in batch');
+    } catch (e) {
+      logError('createSharesBatch', e);
+      throw Exception('Failed to create shares batch: $e');
+    }
+  }
 }

@@ -567,19 +567,35 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         ),
         const SizedBox(height: 16),
         _buildStatCard(
-          'Łączna wartość',
-          CurrencyFormatter.formatCurrency(widget.investor.totalValue),
+          'kapital_pozostaly',
+          CurrencyFormatter.formatCurrency(widget.investor.totalRemainingCapital),
         ),
         const SizedBox(height: 12),
         _buildStatCard(
-          'Liczba inwestycji',
-          '${widget.investor.investmentCount}',
-        ),
-        const SizedBox(height: 12),
-        _buildStatCard(
-          'Pozostały kapitał',
+          'kapital_zabezpieczony_nieruchomoscia',
           CurrencyFormatter.formatCurrency(
-            widget.investor.totalRemainingCapital,
+            widget.investor.capitalSecuredByRealEstate,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildStatCard(
+          'kapital_zrealizowany',
+          CurrencyFormatter.formatCurrency(
+            widget.investor.totalRealizedCapital,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildStatCard(
+          'kwota_inwestycji',
+          CurrencyFormatter.formatCurrency(
+            widget.investor.totalInvestmentAmount,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildStatCard(
+          'kapital_na_restrukturyzacje',
+          CurrencyFormatter.formatCurrency(
+            widget.investor.capitalForRestructuring,
           ),
         ),
       ],
@@ -1640,6 +1656,8 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         totalValue: widget.investor.totalValue,
         totalInvestmentAmount: widget.investor.totalInvestmentAmount,
         totalRealizedCapital: widget.investor.totalRealizedCapital,
+        capitalSecuredByRealEstate: widget.investor.capitalSecuredByRealEstate,
+        capitalForRestructuring: widget.investor.capitalForRestructuring,
         investmentCount: widget.investor.investmentCount,
       );
 

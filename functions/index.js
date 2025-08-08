@@ -55,30 +55,99 @@ exports.getOptimizedInvestorAnalytics = functions
         `👥 [Analytics Functions] Znaleziono ${clients.length} klientów`,
       );
 
-      // 📊 KROK 2: Pobierz wszystkie inwestycje
+      // 📊 KROK 2: Pobierz wszystkie inwestycje oraz dedykowane kolekcje
       console.log("💼 [Analytics Functions] Pobieranie inwestycji...");
-      const investmentsSnapshot = await db.collection("investments")
-        .limit(50000)
-        .get();
+
+      // Równoległe pobieranie wszystkich kolekcji
+      const [
+        investmentsSnapshot,
+        bondsSnapshot,
+        sharesSnapshot,
+        loansSnapshot,
+        apartmentsSnapshot,
+      ] = await Promise.all([
+        db.collection("investments").limit(50000).get(),
+        db.collection("bonds").limit(50000).get(),
+        db.collection("shares").limit(50000).get(),
+        db.collection("loans").limit(50000).get(),
+        db.collection("apartments").limit(50000).get(),
+      ]);
 
       const investments = investmentsSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
 
+      const bonds = bondsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        collection_type: 'bonds',
+        ...doc.data(),
+      }));
+
+      const shares = sharesSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        collection_type: 'shares',
+        ...doc.data(),
+      }));
+
+      const loans = loansSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        collection_type: 'loans',
+        ...doc.data(),
+      }));
+
+      const apartments = apartmentsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        collection_type: 'apartments',
+        ...doc.data(),
+      }));
+
       console.log(
-        `💰 [Analytics Functions] Znaleziono ${investments.length} ` +
-        `inwestycji`,
+        `💰 [Analytics Functions] Znaleziono dane:`,
+        `\n  - Investments: ${investments.length}`,
+        `\n  - Bonds: ${bonds.length}`,
+        `\n  - Shares: ${shares.length}`,
+        `\n  - Loans: ${loans.length}`,
+        `\n  - Apartments: ${apartments.length}`,
       );
 
-      // 📊 KROK 3: Grupuj inwestycje według klientów
+      // 📊 KROK 3: Grupuj wszystkie inwestycje według klientów
       const investmentsByClient = new Map();
-      investments.forEach((investment) => {
-        const clientName = investment.klient;
-        if (!investmentsByClient.has(clientName)) {
-          investmentsByClient.set(clientName, []);
+
+      // Helper function to add investment to client map
+      const addInvestmentToClient = (investment, clientNameField) => {
+        const clientName = investment[clientNameField] || investment.klient;
+        if (clientName) {
+          if (!investmentsByClient.has(clientName)) {
+            investmentsByClient.set(clientName, []);
+          }
+          investmentsByClient.get(clientName).push(investment);
         }
-        investmentsByClient.get(clientName).push(investment);
+      };
+
+      // Grupuj investments
+      investments.forEach((investment) => {
+        addInvestmentToClient(investment, 'klient');
+      });
+
+      // Grupuj bonds - mogą mieć różne pola dla nazwy klienta
+      bonds.forEach((bond) => {
+        addInvestmentToClient(bond, 'Klient');
+      });
+
+      // Grupuj shares
+      shares.forEach((share) => {
+        addInvestmentToClient(share, 'Klient');
+      });
+
+      // Grupuj loans  
+      loans.forEach((loan) => {
+        addInvestmentToClient(loan, 'Klient');
+      });
+
+      // Grupuj apartments
+      apartments.forEach((apartment) => {
+        addInvestmentToClient(apartment, 'Klient');
       });
 
       console.log(
@@ -556,6 +625,7 @@ exports.getSystemStats = functions
 
 /**
  * Tworzy podsumowanie inwestora z jego inwestycji
+ * Obsługuje wszystkie typy kolekcji: investments, bonds, shares, loans, apartments
  * @param {Object} client - Dane klienta
  * @param {Array} investments - Lista inwestycji
  * @return {Object} InvestorSummary
@@ -563,15 +633,58 @@ exports.getSystemStats = functions
 function createInvestorSummary(client, investments) {
   let totalViableCapital = 0;
   let totalInvestmentAmount = 0;
+  let bondsTotalValue = 0;
+  let sharesTotalValue = 0;
+  let loansTotalValue = 0;
+  let apartmentsTotalValue = 0;
 
   const processedInvestments = investments.map((investment) => {
-    const amount = parseFloat(investment.kwota_inwestycji || 0);
-    // UŻYWAMY TYLKO kapital_pozostaly zgodnie z modelem Dart
-    const remainingCapital = parseFloat(investment.kapital_pozostaly || 0);
+    // Wspólne pola dla wszystkich typów
+    const amount = parseFloat(investment.kwota_inwestycji || investment.Kwota_inwestycji || 0);
+
+    // Dla kapital_pozostaly sprawdzamy różne formaty pola
+    let remainingCapital = 0;
+    if (investment['Kapital Pozostaly']) {
+      const cleaned = investment['Kapital Pozostaly'].toString().replace(/,/g, '');
+      remainingCapital = parseFloat(cleaned) || 0;
+    } else if (investment.kapital_pozostaly) {
+      remainingCapital = parseFloat(investment.kapital_pozostaly) || 0;
+    } else if (investment.remainingCapital) {
+      remainingCapital = parseFloat(investment.remainingCapital) || 0;
+    }
 
     totalInvestmentAmount += amount;
-    // Dla wszystkich typów produktów używamy tylko kapital_pozostaly
     totalViableCapital += remainingCapital;
+
+    // Kategoryzuj według typu kolekcji
+    switch (investment.collection_type) {
+      case 'bonds':
+        bondsTotalValue += remainingCapital;
+        break;
+      case 'shares':
+        sharesTotalValue += remainingCapital;
+        break;
+      case 'loans':
+        loansTotalValue += remainingCapital;
+        break;
+      case 'apartments':
+        apartmentsTotalValue += remainingCapital;
+        break;
+      default:
+        // Dla głównej kolekcji investments próbuj określić typ po polach
+        const productType = investment.typ_produktu || investment.Typ_produktu;
+        if (productType) {
+          if (productType.includes('Obligacje')) {
+            bondsTotalValue += remainingCapital;
+          } else if (productType.includes('Udziały')) {
+            sharesTotalValue += remainingCapital;
+          } else if (productType.includes('Pożyczki')) {
+            loansTotalValue += remainingCapital;
+          } else if (productType.includes('Apartamenty')) {
+            apartmentsTotalValue += remainingCapital;
+          }
+        }
+    }
 
     return {
       ...investment,
@@ -592,13 +705,23 @@ function createInvestorSummary(client, investments) {
     },
     investments: processedInvestments,
     totalRemainingCapital: totalViableCapital,
-    totalSharesValue: 0, // Nie używamy już osobnej kategorii dla udziałów
+    totalSharesValue: sharesTotalValue,
+    totalBondsValue: bondsTotalValue,
+    totalLoansValue: loansTotalValue,
+    totalApartmentsValue: apartmentsTotalValue,
     totalValue: totalViableCapital,
     totalInvestmentAmount,
     totalRealizedCapital: 0, // Nie używamy już zrealizowanego kapitału
     investmentCount: investments.length,
     viableRemainingCapital: totalViableCapital,
     hasUnviableInvestments: false,
+    // Dodatkowe statystyki
+    productTypeDistribution: {
+      bonds: bondsTotalValue,
+      shares: sharesTotalValue,
+      loans: loansTotalValue,
+      apartments: apartmentsTotalValue,
+    },
   };
 }
 
@@ -991,5 +1114,867 @@ exports.clearAnalyticsCache = functions
         "Błąd podczas czyszczenia cache",
         error.message,
       );
+    }
+  });
+
+// ==========================================
+// 🚀 FUNKCJE DLA POSZCZEGÓLNYCH KOLEKCJI
+// ==========================================
+
+// 💰 Pobierz wszystkie obligacje z paginacją i filtrowaniem
+exports.getBonds = functions
+  .region("europe-west1")
+  .runWith({
+    memory: "1GB",
+    timeoutSeconds: 300,
+  })
+  .https.onCall(async (data) => {
+    try {
+      const {
+        page = 1,
+        pageSize = 250,
+        sortBy = 'created_at',
+        sortDirection = 'desc',
+        searchQuery,
+        minRemainingCapital,
+        productType
+      } = data;
+
+      const offset = (page - 1) * pageSize;
+
+      let query = db.collection('bonds')
+        .orderBy(sortBy, sortDirection)
+        .limit(pageSize)
+        .offset(offset);
+
+      // Dodaj filtry jeśli podane
+      if (minRemainingCapital) {
+        query = query.where('kapital_pozostaly', '>=', minRemainingCapital);
+      }
+
+      if (productType) {
+        query = query.where('typ_produktu', '==', productType);
+      }
+
+      const snapshot = await query.get();
+
+      // Mapuj dane zgodnie z modelem Bond.dart
+      const bonds = snapshot.docs.map(doc => {
+        const data = doc.data();
+
+        // Helper do bezpiecznej konwersji na double
+        const safeToDouble = (value, defaultValue = 0.0) => {
+          if (value == null) return defaultValue;
+          if (typeof value === 'number') return value;
+          if (typeof value === 'string') {
+            const cleaned = value.replace(/,/g, '');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) ? defaultValue : parsed;
+          }
+          return defaultValue;
+        };
+
+        return {
+          id: doc.id,
+          productType: data.typ_produktu || data.Typ_produktu || 'Obligacje',
+          investmentAmount: safeToDouble(data.kwota_inwestycji || data.Kwota_inwestycji),
+          realizedCapital: safeToDouble(data.kapital_zrealizowany),
+          remainingCapital: safeToDouble(data.kapital_pozostaly || data['Kapital Pozostaly']),
+          realizedInterest: safeToDouble(data.odsetki_zrealizowane),
+          remainingInterest: safeToDouble(data.odsetki_pozostale),
+          realizedTax: safeToDouble(data.podatek_zrealizowany),
+          remainingTax: safeToDouble(data.podatek_pozostaly),
+          transferToOtherProduct: safeToDouble(data.przekaz_na_inny_produkt),
+          capitalForRestructuring: safeToDouble(data.kapital_do_restrukturyzacji),
+          capitalSecuredByRealEstate: safeToDouble(data.kapital_zabezpieczony_nieruchomoscia),
+          sourceFile: data.source_file || 'imported_data.json',
+          createdAt: data.created_at,
+          uploadedAt: data.uploaded_at,
+          // Bond specific fields
+          bondNumber: data.obligacja_numer,
+          issuer: data.emitent,
+          interestRate: data.oprocentowanie,
+          issueDate: data.data_emisji,
+          maturityDate: data.data_wykupu,
+          accruedInterest: safeToDouble(data.odsetki_naliczone),
+          nominalValue: safeToDouble(data.wartosc_nominalna),
+          currentValue: safeToDouble(data.wartosc_biezaca),
+          couponRate: data.stopa_kuponowa,
+          couponFrequency: data.czestotliwosc_kuponow,
+          rating: data.rating,
+          totalValue: safeToDouble(data.kapital_pozostaly || data['Kapital Pozostaly']),
+          ...data
+        };
+      });
+
+      // Pobierz łączną liczbę dla paginacji
+      const totalQuery = db.collection('bonds');
+      const totalSnapshot = await totalQuery.get();
+      const total = totalSnapshot.size;
+
+      return {
+        bonds,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+        hasNextPage: page * pageSize < total,
+        hasPreviousPage: page > 1,
+        metadata: {
+          searchQuery,
+          minRemainingCapital,
+          productType,
+          processedAt: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error fetching bonds:', error);
+      throw new functions.https.HttpsError('internal', 'Failed to fetch bonds');
+    }
+  });
+
+// 📊 Pobierz wszystkie udziały z zaawansowanym filtrowaniem
+exports.getShares = functions
+  .region("europe-west1")
+  .runWith({
+    memory: "1GB",
+    timeoutSeconds: 300,
+  })
+  .https.onCall(async (data) => {
+    try {
+      const {
+        page = 1,
+        pageSize = 250,
+        sortBy = 'created_at',
+        sortDirection = 'desc',
+        searchQuery,
+        minSharesCount,
+        productType
+      } = data;
+
+      const offset = (page - 1) * pageSize;
+
+      let query = db.collection('shares')
+        .orderBy(sortBy, sortDirection)
+        .limit(pageSize)
+        .offset(offset);
+
+      // Dodaj filtry
+      if (minSharesCount) {
+        query = query.where('ilosc_udzialow', '>=', minSharesCount);
+      }
+
+      if (productType) {
+        query = query.where('typ_produktu', '==', productType);
+      }
+
+      const snapshot = await query.get();
+
+      // Mapuj dane zgodnie z modelem Share.dart
+      const shares = snapshot.docs.map(doc => {
+        const data = doc.data();
+
+        const safeToDouble = (value, defaultValue = 0.0) => {
+          if (value == null) return defaultValue;
+          if (typeof value === 'number') return value;
+          if (typeof value === 'string') {
+            const cleaned = value.replace(/,/g, '');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) ? defaultValue : parsed;
+          }
+          return defaultValue;
+        };
+
+        const safeToInt = (value, defaultValue = 0) => {
+          if (value == null) return defaultValue;
+          if (typeof value === 'number') return Math.floor(value);
+          if (typeof value === 'string') {
+            const parsed = parseInt(value);
+            return isNaN(parsed) ? defaultValue : parsed;
+          }
+          return defaultValue;
+        };
+
+        return {
+          id: doc.id,
+          productType: data.typ_produktu || data.Typ_produktu || 'Udziały',
+          investmentAmount: safeToDouble(data.kwota_inwestycji || data.Kwota_inwestycji),
+          capitalForRestructuring: safeToDouble(data.kapital_do_restrukturyzacji),
+          capitalSecuredByRealEstate: safeToDouble(data.kapital_zabezpieczony_nieruchomoscia),
+          sourceFile: data.source_file || 'imported_data.json',
+          createdAt: data.created_at,
+          uploadedAt: data.uploaded_at,
+          // Share specific fields
+          sharesCount: safeToInt(data.ilosc_udzialow),
+          pricePerShare: safeToDouble(data.cena_za_udzial),
+          company: data.spolka,
+          shareClass: data.klasa_udzialow,
+          nominalValue: safeToDouble(data.wartosc_nominalna),
+          bookValue: safeToDouble(data.wartosc_ksiegowa),
+          marketValue: safeToDouble(data.wartosc_rynkowa),
+          dividendsReceived: safeToDouble(data.dywidendy_otrzymane),
+          votingRights: data.prawa_glosowania === 1 || data.prawa_glosowania === true,
+          totalValue: safeToDouble(data.ilosc_udzialow) * safeToDouble(data.cena_za_udzial),
+          ...data
+        };
+      });
+
+      const totalQuery = db.collection('shares');
+      const totalSnapshot = await totalQuery.get();
+      const total = totalSnapshot.size;
+
+      return {
+        shares,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+        hasNextPage: page * pageSize < total,
+        hasPreviousPage: page > 1,
+        metadata: {
+          searchQuery,
+          minSharesCount,
+          productType,
+          processedAt: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error fetching shares:', error);
+      throw new functions.https.HttpsError('internal', 'Failed to fetch shares');
+    }
+  });
+
+// 💳 Pobierz wszystkie pożyczki z filtrowaniem
+exports.getLoans = functions
+  .region("europe-west1")
+  .runWith({
+    memory: "1GB",
+    timeoutSeconds: 300,
+  })
+  .https.onCall(async (data) => {
+    try {
+      const {
+        page = 1,
+        pageSize = 250,
+        sortBy = 'created_at',
+        sortDirection = 'desc',
+        searchQuery,
+        minRemainingCapital,
+        status,
+        borrower
+      } = data;
+
+      const offset = (page - 1) * pageSize;
+
+      let query = db.collection('loans')
+        .orderBy(sortBy, sortDirection)
+        .limit(pageSize)
+        .offset(offset);
+
+      // Dodaj filtry
+      if (minRemainingCapital) {
+        query = query.where('kapital_pozostaly', '>=', minRemainingCapital);
+      }
+
+      if (status) {
+        query = query.where('status', '==', status);
+      }
+
+      if (borrower) {
+        query = query.where('pozyczkobiorca', '==', borrower);
+      }
+
+      const snapshot = await query.get();
+
+      // Mapuj dane zgodnie z modelem Loan.dart
+      const loans = snapshot.docs.map(doc => {
+        const data = doc.data();
+
+        const safeToDouble = (value, defaultValue = 0.0) => {
+          if (value == null) return defaultValue;
+          if (typeof value === 'number') return value;
+          if (typeof value === 'string') {
+            const cleaned = value.replace(/,/g, '');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) ? defaultValue : parsed;
+          }
+          return defaultValue;
+        };
+
+        const parseDate = (dateStr) => {
+          if (!dateStr || dateStr === 'NULL') return null;
+          try {
+            return new Date(dateStr).toISOString();
+          } catch (e) {
+            return null;
+          }
+        };
+
+        return {
+          id: doc.id,
+          productType: data.typ_produktu || data.Typ_produktu || 'Pożyczki',
+          investmentAmount: safeToDouble(data.kwota_inwestycji || data.Kwota_inwestycji),
+          remainingCapital: safeToDouble(data.kapital_pozostaly || data['Kapital Pozostaly']),
+          capitalForRestructuring: safeToDouble(data.kapital_do_restrukturyzacji),
+          capitalSecuredByRealEstate: safeToDouble(data.kapital_zabezpieczony_nieruchomoscia),
+          sourceFile: data.source_file || 'imported_data.json',
+          createdAt: data.created_at,
+          uploadedAt: data.uploaded_at,
+          // Loan specific fields
+          loanNumber: data.pozyczka_numer,
+          borrower: data.pozyczkobiorca,
+          interestRate: data.oprocentowanie,
+          disbursementDate: parseDate(data.data_udzielenia),
+          repaymentDate: parseDate(data.data_splaty),
+          accruedInterest: safeToDouble(data.odsetki_naliczone),
+          collateral: data.zabezpieczenie,
+          status: data.status,
+          totalValue: safeToDouble(data.kapital_pozostaly || data['Kapital Pozostaly']),
+          ...data
+        };
+      });
+
+      const totalQuery = db.collection('loans');
+      const totalSnapshot = await totalQuery.get();
+      const total = totalSnapshot.size;
+
+      return {
+        loans,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+        hasNextPage: page * pageSize < total,
+        hasPreviousPage: page > 1,
+        metadata: {
+          searchQuery,
+          minRemainingCapital,
+          status,
+          borrower,
+          processedAt: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error fetching loans:', error);
+      throw new functions.https.HttpsError('internal', 'Failed to fetch loans');
+    }
+  });
+
+// 🏢 Pobierz wszystkie apartamenty z zaawansowanym filtrowaniem
+exports.getApartments = functions
+  .region("europe-west1")
+  .runWith({
+    memory: "1GB",
+    timeoutSeconds: 300,
+  })
+  .https.onCall(async (data) => {
+    try {
+      const {
+        page = 1,
+        pageSize = 250,
+        sortBy = 'created_at',
+        sortDirection = 'desc',
+        searchQuery,
+        status,
+        projectName,
+        developer,
+        minArea,
+        maxArea,
+        roomCount
+      } = data;
+
+      const offset = (page - 1) * pageSize;
+
+      let query = db.collection('apartments')
+        .orderBy(sortBy, sortDirection)
+        .limit(pageSize)
+        .offset(offset);
+
+      // Dodaj filtry
+      if (status) {
+        query = query.where('status', '==', status);
+      }
+
+      if (projectName) {
+        query = query.where('nazwa_projektu', '==', projectName);
+      }
+
+      if (developer) {
+        query = query.where('deweloper', '==', developer);
+      }
+
+      if (minArea) {
+        query = query.where('powierzchnia', '>=', minArea);
+      }
+
+      if (maxArea) {
+        query = query.where('powierzchnia', '<=', maxArea);
+      }
+
+      if (roomCount) {
+        query = query.where('liczba_pokoi', '==', roomCount);
+      }
+
+      const snapshot = await query.get();
+
+      // Mapuj dane zgodnie z modelem Apartment.dart
+      const apartments = snapshot.docs.map(doc => {
+        const data = doc.data();
+
+        const safeToDouble = (value, defaultValue = 0.0) => {
+          if (value == null) return defaultValue;
+          if (typeof value === 'number') return value;
+          if (typeof value === 'string') {
+            const cleaned = value.replace(/,/g, '');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) ? defaultValue : parsed;
+          }
+          return defaultValue;
+        };
+
+        const safeToInt = (value, defaultValue = 0) => {
+          if (value == null) return defaultValue;
+          if (typeof value === 'number') return Math.floor(value);
+          if (typeof value === 'string') {
+            const parsed = parseInt(value);
+            return isNaN(parsed) ? defaultValue : parsed;
+          }
+          return defaultValue;
+        };
+
+        const parseDate = (dateStr) => {
+          if (!dateStr || dateStr === 'NULL') return null;
+          try {
+            return new Date(dateStr).toISOString();
+          } catch (e) {
+            return null;
+          }
+        };
+
+        // Map apartment status
+        const mapStatus = (status) => {
+          switch (status?.toLowerCase()) {
+            case 'dostępny':
+            case 'available':
+              return 'Dostępny';
+            case 'sprzedany':
+            case 'sold':
+              return 'Sprzedany';
+            case 'zarezerwowany':
+            case 'reserved':
+              return 'Zarezerwowany';
+            case 'w budowie':
+            case 'under construction':
+              return 'W budowie';
+            case 'gotowy':
+            case 'ready':
+              return 'Gotowy';
+            default:
+              return 'Dostępny';
+          }
+        };
+
+        // Map apartment type based on room count
+        const mapApartmentType = (roomCount) => {
+          switch (roomCount) {
+            case 1:
+              return 'Kawalerka';
+            case 2:
+              return '2 pokoje';
+            case 3:
+              return '3 pokoje';
+            case 4:
+              return '4 pokoje';
+            default:
+              return roomCount > 4 ? 'Penthouse' : 'Inne';
+          }
+        };
+
+        const area = safeToDouble(data.powierzchnia);
+        const pricePerM2 = safeToDouble(data.cena_za_m2);
+        const roomsCount = safeToInt(data.liczba_pokoi);
+
+        return {
+          id: doc.id,
+          productType: data.typ_produktu || data.Typ_produktu || 'Apartamenty',
+          investmentAmount: safeToDouble(data.kwota_inwestycji || data.Kwota_inwestycji),
+          capitalForRestructuring: safeToDouble(data.kapital_do_restrukturyzacji),
+          capitalSecuredByRealEstate: safeToDouble(data.kapital_zabezpieczony_nieruchomoscia),
+          sourceFile: data.source_file || 'imported_data.json',
+          createdAt: data.created_at,
+          uploadedAt: data.uploaded_at,
+          // Apartment specific fields
+          apartmentNumber: data.numer_apartamentu || '',
+          building: data.budynek || '',
+          address: data.adres || '',
+          area: area,
+          roomCount: roomsCount,
+          floor: safeToInt(data.pietro),
+          apartmentType: mapApartmentType(roomsCount),
+          status: mapStatus(data.status),
+          pricePerSquareMeter: pricePerM2,
+          deliveryDate: parseDate(data.data_oddania),
+          developer: data.deweloper,
+          projectName: data.nazwa_projektu || data.Produkt_nazwa,
+          hasBalcony: data.balkon === 1 || data.balkon === true,
+          hasParkingSpace: data.miejsce_parkingowe === 1 || data.miejsce_parkingowe === true,
+          hasStorage: data.komorka_lokatorska === 1 || data.komorka_lokatorska === true,
+          totalValue: area * pricePerM2,
+          remainingValue: safeToDouble(data.kapital_do_restrukturyzacji) || (area * pricePerM2),
+          ...data
+        };
+      });
+
+      const totalQuery = db.collection('apartments');
+      const totalSnapshot = await totalQuery.get();
+      const total = totalSnapshot.size;
+
+      return {
+        apartments,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+        hasNextPage: page * pageSize < total,
+        hasPreviousPage: page > 1,
+        metadata: {
+          searchQuery,
+          status,
+          projectName,
+          developer,
+          minArea,
+          maxArea,
+          roomCount,
+          processedAt: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error fetching apartments:', error);
+      throw new functions.https.HttpsError('internal', 'Failed to fetch apartments');
+    }
+  });
+
+// 📈 Pobierz statystyki dla wszystkich typów produktów
+exports.getProductTypeStatistics = functions
+  .region("europe-west1")
+  .runWith({
+    memory: "1GB",
+    timeoutSeconds: 300,
+  })
+  .https.onCall(async () => {
+    try {
+      const [
+        bondsSnapshot,
+        sharesSnapshot,
+        loansSnapshot,
+        apartmentsSnapshot,
+        investmentsSnapshot
+      ] = await Promise.all([
+        db.collection('bonds').get(),
+        db.collection('shares').get(),
+        db.collection('loans').get(),
+        db.collection('apartments').get(),
+        db.collection('investments').get()
+      ]);
+
+      // Helper function to calculate statistics for a collection
+      const calculateStats = (snapshot, capitalField = 'kapital_pozostaly') => {
+        let total = 0;
+        let totalValue = 0;
+        let totalInvestmentAmount = 0;
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          total++;
+
+          // Pozostały kapitał
+          let remainingValue = 0;
+          if (data[capitalField]) {
+            const cleaned = data[capitalField].toString().replace(/,/g, '');
+            remainingValue = parseFloat(cleaned) || 0;
+          } else if (data['Kapital Pozostaly']) {
+            const cleaned = data['Kapital Pozostaly'].toString().replace(/,/g, '');
+            remainingValue = parseFloat(cleaned) || 0;
+          }
+
+          // Kwota inwestycji
+          let investmentAmount = 0;
+          if (data.kwota_inwestycji) {
+            investmentAmount = parseFloat(data.kwota_inwestycji) || 0;
+          } else if (data.Kwota_inwestycji) {
+            investmentAmount = parseFloat(data.Kwota_inwestycji) || 0;
+          }
+
+          totalValue += remainingValue;
+          totalInvestmentAmount += investmentAmount;
+        });
+
+        return {
+          count: total,
+          totalValue,
+          totalInvestmentAmount,
+          averageValue: total > 0 ? totalValue / total : 0
+        };
+      };
+
+      // Specjalne obliczenie dla apartamentów (powierzchnia * cena za m²)
+      const calculateApartmentStats = (snapshot) => {
+        let total = 0;
+        let totalValue = 0;
+        let totalInvestmentAmount = 0;
+        let totalArea = 0;
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          total++;
+
+          const area = parseFloat(data.powierzchnia) || 0;
+          const pricePerM2 = parseFloat(data.cena_za_m2) || 0;
+          const apartmentValue = area * pricePerM2;
+
+          const investmentAmount = parseFloat(data.kwota_inwestycji || data.Kwota_inwestycji) || 0;
+
+          totalValue += apartmentValue;
+          totalInvestmentAmount += investmentAmount;
+          totalArea += area;
+        });
+
+        return {
+          count: total,
+          totalValue,
+          totalInvestmentAmount,
+          averageValue: total > 0 ? totalValue / total : 0,
+          totalArea,
+          averageArea: total > 0 ? totalArea / total : 0
+        };
+      };
+
+      const bondsStats = calculateStats(bondsSnapshot);
+      const sharesStats = calculateStats(sharesSnapshot);
+      const loansStats = calculateStats(loansSnapshot);
+      const apartmentsStats = calculateApartmentStats(apartmentsSnapshot);
+      const investmentsStats = calculateStats(investmentsSnapshot);
+
+      return {
+        bonds: bondsStats,
+        shares: sharesStats,
+        loans: loansStats,
+        apartments: apartmentsStats,
+        investments: investmentsStats,
+        summary: {
+          totalCount: bondsStats.count + sharesStats.count + loansStats.count + apartmentsStats.count + investmentsStats.count,
+          totalValue: bondsStats.totalValue + sharesStats.totalValue + loansStats.totalValue + apartmentsStats.totalValue + investmentsStats.totalValue,
+          totalInvestmentAmount: bondsStats.totalInvestmentAmount + sharesStats.totalInvestmentAmount + loansStats.totalInvestmentAmount + apartmentsStats.totalInvestmentAmount + investmentsStats.totalInvestmentAmount
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error calculating product statistics:', error);
+      throw new functions.https.HttpsError('internal', 'Failed to calculate statistics');
+    }
+  });
+
+// 💼 Pobierz inwestycje z zaawansowanym filtrowaniem
+exports.getInvestments = functions
+  .region("europe-west1")
+  .runWith({
+    memory: "2GB",
+    timeoutSeconds: 540,
+  })
+  .https.onCall(async (data) => {
+    try {
+      const {
+        page = 1,
+        pageSize = 250,
+        sortBy = 'data_podpisania',
+        sortDirection = 'desc',
+        searchQuery,
+        clientId,
+        productType,
+        status,
+        minRemainingCapital,
+        dateFrom,
+        dateTo
+      } = data;
+
+      const offset = (page - 1) * pageSize;
+
+      let query = db.collection('investments')
+        .orderBy(sortBy, sortDirection)
+        .limit(pageSize)
+        .offset(offset);
+
+      // Dodaj filtry
+      if (clientId) {
+        query = query.where('id_klient', '==', clientId);
+      }
+
+      if (productType) {
+        query = query.where('typ_produktu', '==', productType);
+      }
+
+      if (status) {
+        query = query.where('status_produktu', '==', status);
+      }
+
+      if (minRemainingCapital) {
+        query = query.where('kapital_pozostaly', '>=', minRemainingCapital);
+      }
+
+      if (dateFrom) {
+        query = query.where('data_podpisania', '>=', dateFrom);
+      }
+
+      if (dateTo) {
+        query = query.where('data_podpisania', '<=', dateTo);
+      }
+
+      const snapshot = await query.get();
+
+      // Mapuj dane zgodnie z modelem Investment.dart
+      const investments = snapshot.docs.map(doc => {
+        const data = doc.data();
+
+        const safeToDouble = (value, defaultValue = 0.0) => {
+          if (value == null) return defaultValue;
+          if (typeof value === 'number') return value;
+          if (typeof value === 'string') {
+            const cleaned = value.replace(/,/g, '');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) ? defaultValue : parsed;
+          }
+          return defaultValue;
+        };
+
+        const parseDate = (dateStr) => {
+          if (!dateStr || dateStr === 'NULL') return null;
+          try {
+            return new Date(dateStr).toISOString();
+          } catch (e) {
+            return null;
+          }
+        };
+
+        // Map status
+        const mapStatus = (status) => {
+          switch (status) {
+            case 'Aktywny':
+              return 'active';
+            case 'Nieaktywny':
+              return 'inactive';
+            case 'Wykup wczesniejszy':
+              return 'earlyRedemption';
+            case 'Zakończony':
+              return 'completed';
+            default:
+              return 'active';
+          }
+        };
+
+        // Map market type
+        const mapMarketType = (marketType) => {
+          switch (marketType) {
+            case 'Rynek pierwotny':
+              return 'primary';
+            case 'Rynek wtórny':
+              return 'secondary';
+            case 'Odkup od Klienta':
+              return 'clientRedemption';
+            default:
+              return 'primary';
+          }
+        };
+
+        // Map product type
+        const mapProductType = (productType) => {
+          if (!productType) return 'bonds';
+
+          const type = productType.toLowerCase();
+
+          if (type.includes('pożyczka') || type.includes('pozyczka')) {
+            return 'loans';
+          } else if (type.includes('udział') || type.includes('udziały')) {
+            return 'shares';
+          } else if (type.includes('apartament')) {
+            return 'apartments';
+          } else if (type.includes('obligacje') || type.includes('obligacja')) {
+            return 'bonds';
+          }
+
+          return 'bonds';
+        };
+
+        const remainingCapital = safeToDouble(data.kapital_pozostaly);
+        const investmentAmount = safeToDouble(data.kwota_inwestycji);
+
+        return {
+          id: doc.id,
+          clientId: data.id_klient?.toString() || '',
+          clientName: data.klient || '',
+          employeeId: '',
+          employeeFirstName: data.pracownik_imie || '',
+          employeeLastName: data.pracownik_nazwisko || '',
+          branchCode: data.oddzial || '',
+          status: mapStatus(data.status_produktu),
+          isAllocated: (data.przydzial || 0) === 1,
+          marketType: mapMarketType(data.produkt_status_wejscie),
+          signedDate: parseDate(data.data_podpisania),
+          entryDate: parseDate(data.data_wejscia_do_inwestycji),
+          exitDate: parseDate(data.data_wyjscia_z_inwestycji),
+          proposalId: data.id_propozycja_nabycia?.toString() || '',
+          productType: mapProductType(data.typ_produktu),
+          productName: data.produkt_nazwa || '',
+          creditorCompany: data.wierzyciel_spolka || '',
+          companyId: data.id_spolka || '',
+          issueDate: parseDate(data.data_emisji),
+          redemptionDate: parseDate(data.data_wykupu),
+          sharesCount: data.ilosc_udzialow,
+          investmentAmount: investmentAmount,
+          paidAmount: safeToDouble(data.kwota_wplat),
+          realizedCapital: safeToDouble(data.kapital_zrealizowany),
+          realizedInterest: safeToDouble(data.odsetki_zrealizowane),
+          transferToOtherProduct: safeToDouble(data.przekaz_na_inny_produkt),
+          remainingCapital: remainingCapital,
+          remainingInterest: safeToDouble(data.odsetki_pozostale),
+          plannedTax: safeToDouble(data.planowany_podatek),
+          realizedTax: safeToDouble(data.zrealizowany_podatek),
+          currency: 'PLN',
+          createdAt: parseDate(data.created_at),
+          updatedAt: parseDate(data.uploaded_at),
+          // Calculated fields
+          totalValue: remainingCapital,
+          totalRealized: safeToDouble(data.kapital_zrealizowany) + safeToDouble(data.odsetki_zrealizowane),
+          totalRemaining: remainingCapital + safeToDouble(data.odsetki_pozostale),
+          profitLoss: remainingCapital - investmentAmount,
+          profitLossPercentage: investmentAmount > 0 ? ((remainingCapital - investmentAmount) / investmentAmount) * 100 : 0,
+          ...data
+        };
+      });
+
+      const totalQuery = db.collection('investments');
+      const totalSnapshot = await totalQuery.get();
+      const total = totalSnapshot.size;
+
+      return {
+        investments,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+        hasNextPage: page * pageSize < total,
+        hasPreviousPage: page > 1,
+        metadata: {
+          searchQuery,
+          clientId,
+          productType,
+          status,
+          minRemainingCapital,
+          dateFrom,
+          dateTo,
+          processedAt: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error fetching investments:', error);
+      throw new functions.https.HttpsError('internal', 'Failed to fetch investments');
     }
   });

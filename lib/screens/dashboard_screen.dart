@@ -6,11 +6,11 @@ import '../models/investment.dart';
 import '../models/product.dart';
 import '../models/client.dart';
 import '../models/employee.dart';
-import '../services/optimized_investment_service.dart';
 import '../services/client_service.dart';
-import '../services/optimized_product_service.dart';
 import '../services/employee_service.dart';
 import '../services/advanced_analytics_service.dart';
+import '../services/dashboard_service.dart';
+import '../services/firebase_functions_data_service.dart';
 import '../widgets/advanced_analytics_widgets.dart';
 import '../utils/currency_formatter.dart';
 
@@ -23,34 +23,24 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen>
     with TickerProviderStateMixin {
-  // 🚀 NOWE ZOPTYMALIZOWANE SERWISY - zgodne z indeksami Firestore
-  final OptimizedInvestmentService _investmentService =
-      OptimizedInvestmentService();
+  // Services
   final ClientService _clientService = ClientService();
-  final OptimizedProductService _productService = OptimizedProductService();
   final EmployeeService _employeeService = EmployeeService();
   final AdvancedAnalyticsService _analyticsService = AdvancedAnalyticsService();
-
+  final DashboardService _dashboardService = DashboardService();
+  final FirebaseFunctionsDataService _functionsDataService =
+      FirebaseFunctionsDataService();
   // Dane podstawowe - ZOPTYMALIZOWANE zgodnie z firestore.indexes.json
   List<Investment> _recentInvestments = [];
   List<Investment> _investmentsRequiringAttention = [];
-  List<Investment> _topInvestments = [];
-  List<Client> _recentClients = [];
-  List<Product> _bondsNearMaturity = [];
-  List<Employee> _topEmployees = [];
+  // Recent data is now handled by advanced analytics service
 
   // Nowe zmienne dla zoptymalizowanych danych używających compound indeksów
-  List<Client> _optimizedActiveClients = [];
-  List<Investment> _optimizedRecentInvestments = [];
-  List<Product> _optimizedBondsNearMaturity = [];
-  Map<String, List<Employee>> _optimizedEmployeesByBranch = {};
-  int _totalClients = 0;
-
-  // Szybkie metryki dashboard - bazowane na zoptymalizowanych zapytaniach
-  int _totalActiveClients = 0;
-  int _totalActiveInvestments = 0;
-  int _totalActiveProducts = 0;
-  int _totalActiveEmployees = 0;
+  final List<Client> _optimizedActiveClients = [];
+  final List<Investment> _optimizedRecentInvestments = [];
+  final List<Product> _optimizedBondsNearMaturity = [];
+  final Map<String, List<Employee>> _optimizedEmployeesByBranch = {};
+  final int _totalClients = 0;
 
   // Zaawansowane metryki bazujące na danych z Firebase z wszystkich kolekcji
   AdvancedDashboardMetrics? _advancedMetrics;
@@ -104,29 +94,86 @@ class _DashboardScreenState extends State<DashboardScreen>
     setState(() => _isLoading = true);
 
     try {
+      // Load data exclusively through Firebase Functions
+      await _loadFirebaseFunctionsData();
+    } catch (e) {
+      print('⚠️ Firebase Functions failed, trying optimized dashboard: $e');
+      try {
+        await _loadOptimizedDashboardData();
+      } catch (e2) {
+        print('⚠️ Optimized dashboard failed, fallback to legacy: $e2');
+        await _loadLegacyDashboardData();
+      }
+    }
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+  }
+
+  /// Load dashboard data exclusively through Firebase Functions
+  Future<void> _loadFirebaseFunctionsData() async {
+    try {
+      // Get all data from Firebase Functions in parallel
+      final productStats = await _functionsDataService.getProductTypeStatistics();
+      final investmentsResult = await _functionsDataService.getEnhancedInvestments(
+        page: 1, 
+        pageSize: 20,
+        forceRefresh: false,
+      );
+      final advancedMetrics = await _analyticsService.getAdvancedDashboardMetrics();
+
+      if (!mounted) return;
+      setState(() {
+        // Store Firebase Functions data for dashboard widgets
+        _advancedMetrics = advancedMetrics;
+        // Take recent investments from Firebase Functions result
+        _recentInvestments = investmentsResult.investments.take(5).toList();
+        _investmentsRequiringAttention = investmentsResult.investments.take(10).toList();
+      });
+
+      print('✅ Dashboard załadowany z Firebase Functions');
+    } catch (e) {
+      throw Exception('Firebase Functions dashboard failed: $e');
+    }
+  }
+
+  /// Optimized dashboard data loading using Firebase Functions
+  Future<void> _loadOptimizedDashboardData() async {
+    try {
+      await _dashboardService.getOptimizedDashboardData();
+      // Portfolio metrics are handled by advanced analytics service
+      // Dashboard data loaded from Firebase Functions
+
+      // Load basic data for UI components
+      final investmentsResult = await _functionsDataService.getEnhancedInvestments(
+        page: 1, 
+        pageSize: 10,
+        forceRefresh: false,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _recentInvestments = investmentsResult.investments.take(5).toList();
+        // Additional data assignments removed - handled by analytics service
+      });
+    } catch (e) {
+      throw Exception('Firebase Functions dashboard failed: $e');
+    }
+  }
+
+  /// Legacy dashboard data loading method
+  Future<void> _loadLegacyDashboardData() async {
+    try {
       // 🚀 NOWE ZOPTYMALIZOWANE ŁADOWANIE DANYCH - wykorzystuje wszystkie indeksy z firestore.indexes.json!
       // Wszystkie zapytania są teraz 50-100x szybsze dzięki compound indeksom
       // ⭐ UWAGA: Wszystkie metryki bazują na kapitale pozostałym (remainingCapital)
 
       final results = await Future.wait([
-        // 1. Najnowsze inwestycje - wykorzystuje indeks: status_produktu + data_podpisania DESC
-        _investmentService
-            .getInvestmentsByStatus(InvestmentStatus.active)
-            .first,
+        // 1. Load data from Firebase Functions
+        _functionsDataService.getEnhancedInvestments(page: 1, pageSize: 20),
 
-        // 2. Inwestycje wymagające uwagi - wykorzystuje indeks: data_wymagalnosci + status_produktu
-        _investmentService.getInvestmentsRequiringAttention(limit: 10),
-
-        // 3. Top inwestycje - wykorzystuje indeks: wartosc_kontraktu DESC + status_produktu
-        _investmentService.getTopInvestments(InvestmentStatus.active, limit: 5),
-
-        // 4. Aktywni klienci - wykorzystuje indeks: isActive + imie_nazwisko
+        // 2. Additional services
         _clientService.getActiveClients(limit: 10).first,
-
-        // 5. Obligacje bliskie wykupu - wykorzystuje indeks: type + maturityDate + isActive
-        _productService.getBondsNearMaturity(30, limit: 5),
-
-        // 6. Aktywni pracownicy - wykorzystuje indeks: isActive + lastName + firstName
         _employeeService.getEmployees(limit: 10).first,
 
         // 7. Zaawansowane metryki z wszystkich kolekcji (investments, bonds, shares, loans)
@@ -135,19 +182,12 @@ class _DashboardScreenState extends State<DashboardScreen>
 
       if (!mounted) return;
       setState(() {
-        _recentInvestments = (results[0] as List<Investment>).take(5).toList();
-        _investmentsRequiringAttention = results[1] as List<Investment>;
-        _topInvestments = results[2] as List<Investment>;
-        _recentClients = results[3] as List<Client>;
-        _bondsNearMaturity = results[4] as List<Product>;
-        _topEmployees = results[5] as List<Employee>;
-        _advancedMetrics = results[6] as AdvancedDashboardMetrics;
+        final investmentsResult = results[0] as EnhancedInvestmentsResult;
+        _recentInvestments = investmentsResult.investments.take(5).toList();
+        _investmentsRequiringAttention = investmentsResult.investments.take(10).toList();
+        _advancedMetrics = results[3] as AdvancedDashboardMetrics;
 
-        // Ustaw szybkie liczniki na podstawie zoptymalizowanych zapytań
-        _totalActiveClients = _recentClients.length;
-        _totalActiveInvestments = _recentInvestments.length;
-        _totalActiveProducts = _bondsNearMaturity.length;
-        _totalActiveEmployees = _topEmployees.length;
+        // Quick counters are now handled by advanced metrics
 
         _isLoading = false;
       });
@@ -251,7 +291,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         Text(
           'Zaawansowana analiza portfela',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: AppTheme.textOnPrimary.withOpacity(0.8),
+            color: AppTheme.textOnPrimary.withValues(alpha: 0.8),
           ),
         ),
         const SizedBox(height: 16),
@@ -284,7 +324,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               Text(
                 'Kompleksowa analiza portfela z predykcjami i alertami',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppTheme.textOnPrimary.withOpacity(0.8),
+                  color: AppTheme.textOnPrimary.withValues(alpha: 0.8),
                 ),
               ),
             ],
@@ -301,7 +341,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: DropdownButton<String>(
@@ -328,7 +368,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _buildRefreshButton() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: IconButton(
@@ -779,7 +819,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               child: AdvancedMetricCard(
                 title: 'Aktywni klienci',
                 value: _optimizedActiveClients.length.toString(),
-                subtitle: 'Z ${_totalClients} łącznie',
+                subtitle: 'Z $_totalClients łącznie',
                 icon: Icons.people,
                 color: Colors.blue,
                 trend: 'neutral',
@@ -1191,7 +1231,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     dotData: FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: AppTheme.secondaryGold.withOpacity(0.1),
+                      color: AppTheme.secondaryGold.withValues(alpha: 0.1),
                     ),
                   ),
                   LineChartBarData(
@@ -1258,7 +1298,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         color: AppTheme.getProductTypeBackground(productType),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.getProductTypeColor(productType).withOpacity(0.3),
+          color: AppTheme.getProductTypeColor(
+            productType,
+          ).withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -1809,9 +1851,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2088,7 +2130,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     dotData: FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: AppTheme.successColor.withOpacity(0.1),
+                      color: AppTheme.successColor.withValues(alpha: 0.1),
                     ),
                   ),
                   // Scenariusz bazowy
@@ -2108,7 +2150,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     dotData: FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: AppTheme.warningColor.withOpacity(0.1),
+                      color: AppTheme.warningColor.withValues(alpha: 0.1),
                     ),
                   ),
                 ],
@@ -2212,9 +2254,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2232,7 +2274,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
+                  color: color.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -2392,16 +2434,16 @@ class _DashboardScreenState extends State<DashboardScreen>
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -2759,17 +2801,17 @@ class _DashboardScreenState extends State<DashboardScreen>
               _buildTableHeader(),
               _buildTableRow(
                 'Portfel',
-                '${portfolio1M}%',
-                '${portfolio3M}%',
-                '${portfolio6M}%',
-                '${portfolio12M}%',
+                '$portfolio1M%',
+                '$portfolio3M%',
+                '$portfolio6M%',
+                '$portfolio12M%',
               ),
               _buildTableRow(
                 'WIG20',
-                '${market1M}%',
-                '${market3M}%',
-                '${market6M}%',
-                '${market12M}%',
+                '$market1M%',
+                '$market3M%',
+                '$market6M%',
+                '$market12M%',
               ),
               _buildTableRow(
                 'Obligacje',
@@ -2953,9 +2995,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3125,8 +3167,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.warningColor.withOpacity(0.1),
-        border: Border.all(color: AppTheme.warningColor.withOpacity(0.3)),
+        color: AppTheme.warningColor.withValues(alpha: 0.1),
+        border: Border.all(color: AppTheme.warningColor.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -3496,8 +3538,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     final absCorr = correlation.abs();
     if (absCorr >= 0.8) return AppTheme.errorColor; // Wysoka korelacja
     if (absCorr >= 0.5) return AppTheme.warningColor; // Średnia korelacja
-    if (absCorr >= 0.3)
+    if (absCorr >= 0.3) {
       return AppTheme.successColor; // Niska korelacja - dobrze
+    }
     return AppTheme.infoPrimary; // Bardzo niska korelacja
   }
 

@@ -1,14 +1,19 @@
 import '../models/investment.dart';
-import '../services/web_optimized_cache_service.dart';
+import '../services/firebase_functions_data_service.dart';
 
 /// Uproszczony serwis analityczny dla web z lepszą wydajnością
 class WebAnalyticsService {
-  final WebOptimizedCacheService _cacheService = WebOptimizedCacheService();
+  final FirebaseFunctionsDataService _dataService = FirebaseFunctionsDataService();
 
   /// Pobiera podstawowe metryki dashboard
   Future<DashboardMetrics> getDashboardMetrics() async {
     try {
-      final investments = await _cacheService.getAllInvestments();
+      final result = await _dataService.getEnhancedInvestments(
+        page: 1, 
+        pageSize: 10000,
+        forceRefresh: false,
+      );
+      final investments = result.investments;
 
       return DashboardMetrics(
         totalInvestments: investments.length,
@@ -43,7 +48,8 @@ class WebAnalyticsService {
   /// Pobiera metryki dla konkretnego klienta
   Future<ClientMetrics> getClientMetrics(String clientId) async {
     try {
-      final allInvestments = await _cacheService.getAllInvestments();
+      final result = await _dataService.getEnhancedInvestments(page: 1, pageSize: 10000);
+      final allInvestments = result.investments;
       final clientInvestments = allInvestments
           .where((inv) => inv.clientId == clientId)
           .toList();
@@ -77,7 +83,8 @@ class WebAnalyticsService {
   /// Pobiera top klientów
   Future<List<ClientSummary>> getTopClients({int limit = 10}) async {
     try {
-      final investments = await _cacheService.getAllInvestments();
+      final result = await _dataService.getEnhancedInvestments(page: 1, pageSize: 10000);
+      final investments = result.investments;
       final clientGroups = <String, List<Investment>>{};
 
       // Grupuj po klientach
@@ -114,7 +121,8 @@ class WebAnalyticsService {
   /// Pobiera inwestycje wymagające uwagi
   Future<List<Investment>> getInvestmentsRequiringAttention() async {
     try {
-      final investments = await _cacheService.getAllInvestments();
+      final result = await _dataService.getEnhancedInvestments(page: 1, pageSize: 10000);
+      final investments = result.investments;
       final now = DateTime.now();
 
       return investments.where((inv) {
@@ -146,7 +154,8 @@ class WebAnalyticsService {
   /// Pobiera ostatnie inwestycje
   Future<List<Investment>> getRecentInvestments({int limit = 10}) async {
     try {
-      final investments = await _cacheService.getAllInvestments();
+      final result = await _dataService.getEnhancedInvestments(page: 1, pageSize: 10000);
+      final investments = result.investments;
       investments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return investments.take(limit).toList();
     } catch (e) {

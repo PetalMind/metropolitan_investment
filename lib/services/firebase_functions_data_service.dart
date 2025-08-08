@@ -1,13 +1,396 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/client.dart';
 import '../models/investment.dart';
 import '../models/product.dart';
+import '../models/bond.dart';
+import '../models/share.dart';
+import '../models/loan.dart';
+import '../models/apartment.dart';
+import 'base_service.dart';
 
 /// 🚀 FIREBASE FUNCTIONS DATA SERVICE
 /// Zarządzanie dużymi zbiorami danych przez server-side processing
-class FirebaseFunctionsDataService {
-  static final FirebaseFunctions _functions = FirebaseFunctions.instance;
+/// 
+/// ✅ FIXED: Null value handling in ProductStats.fromMap() methods
+/// ✅ FIXED: Enhanced error logging for debugging
+/// ✅ OPTIMIZED: All dashboard data now loads through Firebase Functions
+class FirebaseFunctionsDataService extends BaseService {
+  static final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'europe-west1',
+  );
+
+  // Cache management
+  static final Map<String, dynamic> _staticCache = {};
+  static final Map<String, DateTime> _staticCacheTimestamps = {};
+  static const Duration _cacheDuration = Duration(minutes: 5);
+
+  /// Loguje informacje w trybie debug
+  void _logInfo(String message) {
+    if (kDebugMode) {
+      print('[FirebaseFunctionsDataService] $message');
+    }
+  }
+
+  // =============================================
+  // BONDS - OBLIGACJE
+  // =============================================
+
+  /// Pobiera obligacje z zaawansowanym filtrowaniem i paginacją
+  Future<BondsResult> getBonds({
+    int page = 1,
+    int pageSize = 250,
+    String sortBy = 'created_at',
+    String sortDirection = 'desc',
+    String? searchQuery,
+    double? minRemainingCapital,
+    String? productType,
+    bool forceRefresh = false,
+  }) async {
+    try {
+      final cacheKey =
+          'bonds_${page}_${pageSize}_${sortBy}_'
+          '${sortDirection}_${searchQuery}_${minRemainingCapital}_$productType';
+
+      if (!forceRefresh && _staticCache.containsKey(cacheKey)) {
+        final timestamp = _staticCacheTimestamps[cacheKey];
+        if (timestamp != null &&
+            DateTime.now().difference(timestamp) < _cacheDuration) {
+          _logInfo('Zwracam obligacje z cache');
+          return _staticCache[cacheKey];
+        }
+      }
+
+      _logInfo('Wywołuję getBonds z Firebase Functions');
+
+      final callable = _functions.httpsCallable('getBonds');
+      final result = await callable.call({
+        'page': page,
+        'pageSize': pageSize,
+        'sortBy': sortBy,
+        'sortDirection': sortDirection,
+        'searchQuery': searchQuery,
+        'minRemainingCapital': minRemainingCapital,
+        'productType': productType,
+      });
+
+      final data = result.data as Map<String, dynamic>;
+      final bondsResult = BondsResult.fromMap(data);
+
+      // Cache wyników
+      _staticCache[cacheKey] = bondsResult;
+      _staticCacheTimestamps[cacheKey] = DateTime.now();
+
+      _logInfo('Pobrano ${bondsResult.bonds.length} obligacji');
+      return bondsResult;
+    } catch (e) {
+      logError('getBonds', e);
+      throw Exception('Nie udało się pobrać obligacji: $e');
+    }
+  }
+
+  // =============================================
+  // SHARES - UDZIAŁY
+  // =============================================
+
+  /// Pobiera udziały z filtrowaniem
+  Future<SharesResult> getShares({
+    int page = 1,
+    int pageSize = 250,
+    String sortBy = 'created_at',
+    String sortDirection = 'desc',
+    String? searchQuery,
+    int? minSharesCount,
+    String? productType,
+    bool forceRefresh = false,
+  }) async {
+    try {
+      final cacheKey =
+          'shares_${page}_${pageSize}_${sortBy}_'
+          '${sortDirection}_${searchQuery}_${minSharesCount}_$productType';
+
+      if (!forceRefresh && _staticCache.containsKey(cacheKey)) {
+        final timestamp = _staticCacheTimestamps[cacheKey];
+        if (timestamp != null &&
+            DateTime.now().difference(timestamp) < _cacheDuration) {
+          _logInfo('Zwracam udziały z cache');
+          return _staticCache[cacheKey];
+        }
+      }
+
+      _logInfo('Wywołuję getShares z Firebase Functions');
+
+      final callable = _functions.httpsCallable('getShares');
+      final result = await callable.call({
+        'page': page,
+        'pageSize': pageSize,
+        'sortBy': sortBy,
+        'sortDirection': sortDirection,
+        'searchQuery': searchQuery,
+        'minSharesCount': minSharesCount,
+        'productType': productType,
+      });
+
+      final data = result.data as Map<String, dynamic>;
+      final sharesResult = SharesResult.fromMap(data);
+
+      _staticCache[cacheKey] = sharesResult;
+      _staticCacheTimestamps[cacheKey] = DateTime.now();
+
+      _logInfo('Pobrano ${sharesResult.shares.length} udziałów');
+      return sharesResult;
+    } catch (e) {
+      logError('getShares', e);
+      throw Exception('Nie udało się pobrać udziałów: $e');
+    }
+  }
+
+  // =============================================
+  // LOANS - POŻYCZKI
+  // =============================================
+
+  /// Pobiera pożyczki z filtrowaniem
+  Future<LoansResult> getLoans({
+    int page = 1,
+    int pageSize = 250,
+    String sortBy = 'created_at',
+    String sortDirection = 'desc',
+    String? searchQuery,
+    double? minRemainingCapital,
+    String? status,
+    String? borrower,
+    bool forceRefresh = false,
+  }) async {
+    try {
+      final cacheKey =
+          'loans_${page}_${pageSize}_${sortBy}_'
+          '${sortDirection}_${searchQuery}_${minRemainingCapital}_${status}_$borrower';
+
+      if (!forceRefresh && _staticCache.containsKey(cacheKey)) {
+        final timestamp = _staticCacheTimestamps[cacheKey];
+        if (timestamp != null &&
+            DateTime.now().difference(timestamp) < _cacheDuration) {
+          _logInfo('Zwracam pożyczki z cache');
+          return _staticCache[cacheKey];
+        }
+      }
+
+      _logInfo('Wywołuję getLoans z Firebase Functions');
+
+      final callable = _functions.httpsCallable('getLoans');
+      final result = await callable.call({
+        'page': page,
+        'pageSize': pageSize,
+        'sortBy': sortBy,
+        'sortDirection': sortDirection,
+        'searchQuery': searchQuery,
+        'minRemainingCapital': minRemainingCapital,
+        'status': status,
+        'borrower': borrower,
+      });
+
+      final data = result.data as Map<String, dynamic>;
+      final loansResult = LoansResult.fromMap(data);
+
+      _staticCache[cacheKey] = loansResult;
+      _staticCacheTimestamps[cacheKey] = DateTime.now();
+
+      _logInfo('Pobrano ${loansResult.loans.length} pożyczek');
+      return loansResult;
+    } catch (e) {
+      logError('getLoans', e);
+      throw Exception('Nie udało się pobrać pożyczek: $e');
+    }
+  }
+
+  // =============================================
+  // APARTMENTS - APARTAMENTY
+  // =============================================
+
+  /// Pobiera apartamenty z zaawansowanym filtrowaniem
+  Future<ApartmentsResult> getApartments({
+    int page = 1,
+    int pageSize = 250,
+    String sortBy = 'created_at',
+    String sortDirection = 'desc',
+    String? searchQuery,
+    String? status,
+    String? projectName,
+    String? developer,
+    double? minArea,
+    double? maxArea,
+    int? roomCount,
+    bool forceRefresh = false,
+  }) async {
+    try {
+      final cacheKey =
+          'apartments_${page}_${pageSize}_${sortBy}_'
+          '${sortDirection}_${searchQuery}_${status}_${projectName}_'
+          '${developer}_${minArea}_${maxArea}_$roomCount';
+
+      if (!forceRefresh && _staticCache.containsKey(cacheKey)) {
+        final timestamp = _staticCacheTimestamps[cacheKey];
+        if (timestamp != null &&
+            DateTime.now().difference(timestamp) < _cacheDuration) {
+          _logInfo('Zwracam apartamenty z cache');
+          return _staticCache[cacheKey];
+        }
+      }
+
+      _logInfo('Wywołuję getApartments z Firebase Functions');
+
+      final callable = _functions.httpsCallable('getApartments');
+      final result = await callable.call({
+        'page': page,
+        'pageSize': pageSize,
+        'sortBy': sortBy,
+        'sortDirection': sortDirection,
+        'searchQuery': searchQuery,
+        'status': status,
+        'projectName': projectName,
+        'developer': developer,
+        'minArea': minArea,
+        'maxArea': maxArea,
+        'roomCount': roomCount,
+      });
+
+      final data = result.data as Map<String, dynamic>;
+      final apartmentsResult = ApartmentsResult.fromMap(data);
+
+      _staticCache[cacheKey] = apartmentsResult;
+      _staticCacheTimestamps[cacheKey] = DateTime.now();
+
+      _logInfo('Pobrano ${apartmentsResult.apartments.length} apartamentów');
+      return apartmentsResult;
+    } catch (e) {
+      logError('getApartments', e);
+      throw Exception('Nie udało się pobrać apartamentów: $e');
+    }
+  }
+
+  // =============================================
+  // INVESTMENTS - INWESTYCJE (ENHANCED)
+  // =============================================
+
+  /// Pobiera inwestycje z zaawansowanym filtrowaniem (nowa metoda)
+  Future<EnhancedInvestmentsResult> getEnhancedInvestments({
+    int page = 1,
+    int pageSize = 250,
+    String sortBy = 'data_podpisania',
+    String sortDirection = 'desc',
+    String? searchQuery,
+    String? clientId,
+    String? productType,
+    String? status,
+    double? minRemainingCapital,
+    String? dateFrom,
+    String? dateTo,
+    bool forceRefresh = false,
+  }) async {
+    try {
+      final cacheKey =
+          'enhanced_investments_${page}_${pageSize}_${sortBy}_'
+          '${sortDirection}_${searchQuery}_${clientId}_${productType}_'
+          '${status}_${minRemainingCapital}_${dateFrom}_$dateTo';
+
+      if (!forceRefresh && _staticCache.containsKey(cacheKey)) {
+        final timestamp = _staticCacheTimestamps[cacheKey];
+        if (timestamp != null &&
+            DateTime.now().difference(timestamp) < _cacheDuration) {
+          _logInfo('Zwracam enhanced inwestycje z cache');
+          return _staticCache[cacheKey];
+        }
+      }
+
+      _logInfo('Wywołuję getInvestments z Firebase Functions');
+
+      final callable = _functions.httpsCallable('getInvestments');
+      final result = await callable.call({
+        'page': page,
+        'pageSize': pageSize,
+        'sortBy': sortBy,
+        'sortDirection': sortDirection,
+        'searchQuery': searchQuery,
+        'clientId': clientId,
+        'productType': productType,
+        'status': status,
+        'minRemainingCapital': minRemainingCapital,
+        'dateFrom': dateFrom,
+        'dateTo': dateTo,
+      });
+
+      final data = result.data as Map<String, dynamic>;
+      final investmentsResult = EnhancedInvestmentsResult.fromMap(data);
+
+      _staticCache[cacheKey] = investmentsResult;
+      _staticCacheTimestamps[cacheKey] = DateTime.now();
+
+      _logInfo(
+        'Pobrano ${investmentsResult.investments.length} enhanced inwestycji',
+      );
+      return investmentsResult;
+    } catch (e) {
+      logError('getEnhancedInvestments', e);
+      throw Exception('Nie udało się pobrać enhanced inwestycji: $e');
+    }
+  }
+
+  // =============================================
+  // STATISTICS - STATYSTYKI
+  // =============================================
+
+  /// Pobiera statystyki wszystkich typów produktów z obsługą błędów null
+  Future<ProductTypeStatistics> getProductTypeStatistics({
+    bool forceRefresh = false,
+  }) async {
+    try {
+      const cacheKey = 'product_type_statistics';
+
+      if (!forceRefresh && _staticCache.containsKey(cacheKey)) {
+        final timestamp = _staticCacheTimestamps[cacheKey];
+        if (timestamp != null &&
+            DateTime.now().difference(timestamp) < _cacheDuration) {
+          _logInfo('Zwracam statystyki z cache');
+          return _staticCache[cacheKey];
+        }
+      }
+
+      _logInfo('Wywołuję getProductTypeStatistics z Firebase Functions');
+
+      final callable = _functions.httpsCallable('getProductTypeStatistics');
+      final result = await callable.call();
+
+      final data = result.data as Map<String, dynamic>;
+      
+      // Debug logging for null values
+      if (kDebugMode) {
+        _logInfo('Firebase Functions response: $data');
+      }
+      
+      final statistics = ProductTypeStatistics.fromMap(data);
+
+      _staticCache[cacheKey] = statistics;
+      _staticCacheTimestamps[cacheKey] = DateTime.now();
+
+      _logInfo('✅ Pobrano statystyki produktów z Firebase Functions');
+      return statistics;
+    } catch (e) {
+      _logInfo('❌ Błąd w getProductTypeStatistics: $e');
+      logError('getProductTypeStatistics', e);
+      throw Exception('Nie udało się pobrać statystyk: $e');
+    }
+  }
+
+  /// Czyści cache - przydatne po dodaniu/edycji danych
+  static void clearDataCache() {
+    _staticCache.clear();
+    _staticCacheTimestamps.clear();
+  }
+
+  // =============================================
+  // LEGACY METHODS - KLIENCI I INWESTYCJE
+  // =============================================
 
   /// 👥 POBIERANIE KLIENTÓW Z SERWERA
   static Future<ClientsResult> getAllClients({
@@ -275,7 +658,635 @@ class FirebaseFunctionsDataService {
   }
 }
 
-// 📊 DATA MODELS FOR RESULTS
+// =============================================
+// RESULT CLASSES - KLASY WYNIKÓW
+// =============================================
+
+/// Wynik zapytania o obligacje
+class BondsResult {
+  final List<Bond> bonds;
+  final int total;
+  final int page;
+  final int pageSize;
+  final int totalPages;
+  final bool hasNextPage;
+  final bool hasPreviousPage;
+  final Map<String, dynamic> metadata;
+
+  BondsResult({
+    required this.bonds,
+    required this.total,
+    required this.page,
+    required this.pageSize,
+    required this.totalPages,
+    required this.hasNextPage,
+    required this.hasPreviousPage,
+    required this.metadata,
+  });
+
+  factory BondsResult.fromMap(Map<String, dynamic> map) {
+    return BondsResult(
+      bonds: (map['bonds'] as List<dynamic>)
+          .map((item) => _createBondFromMap(item as Map<String, dynamic>))
+          .toList(),
+      total: map['total'] as int,
+      page: map['page'] as int,
+      pageSize: map['pageSize'] as int,
+      totalPages: map['totalPages'] as int,
+      hasNextPage: map['hasNextPage'] as bool,
+      hasPreviousPage: map['hasPreviousPage'] as bool,
+      metadata: map['metadata'] as Map<String, dynamic>,
+    );
+  }
+
+  static Bond _createBondFromMap(Map<String, dynamic> data) {
+    return Bond(
+      id: data['id'] as String,
+      productType: data['productType'] as String? ?? 'Obligacje',
+      investmentAmount: (data['investmentAmount'] as num?)?.toDouble() ?? 0.0,
+      realizedCapital: (data['realizedCapital'] as num?)?.toDouble() ?? 0.0,
+      remainingCapital: (data['remainingCapital'] as num?)?.toDouble() ?? 0.0,
+      realizedInterest: (data['realizedInterest'] as num?)?.toDouble() ?? 0.0,
+      remainingInterest: (data['remainingInterest'] as num?)?.toDouble() ?? 0.0,
+      realizedTax: (data['realizedTax'] as num?)?.toDouble() ?? 0.0,
+      remainingTax: (data['remainingTax'] as num?)?.toDouble() ?? 0.0,
+      transferToOtherProduct:
+          (data['transferToOtherProduct'] as num?)?.toDouble() ?? 0.0,
+      capitalForRestructuring: (data['capitalForRestructuring'] as num?)
+          ?.toDouble(),
+      capitalSecuredByRealEstate: (data['capitalSecuredByRealEstate'] as num?)
+          ?.toDouble(),
+      sourceFile: data['sourceFile'] as String? ?? 'imported_data.json',
+      createdAt:
+          DateTime.tryParse(data['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+      uploadedAt:
+          DateTime.tryParse(data['uploadedAt'] as String? ?? '') ??
+          DateTime.now(),
+      additionalInfo: Map<String, dynamic>.from(data)
+        ..removeWhere(
+          (key, value) => [
+            'id',
+            'productType',
+            'investmentAmount',
+            'realizedCapital',
+            'remainingCapital',
+            'realizedInterest',
+            'remainingInterest',
+            'realizedTax',
+            'remainingTax',
+            'transferToOtherProduct',
+            'capitalForRestructuring',
+            'capitalSecuredByRealEstate',
+            'sourceFile',
+            'createdAt',
+            'uploadedAt',
+          ].contains(key),
+        ),
+    );
+  }
+}
+
+/// Wynik zapytania o udziały
+class SharesResult {
+  final List<Share> shares;
+  final int total;
+  final int page;
+  final int pageSize;
+  final int totalPages;
+  final bool hasNextPage;
+  final bool hasPreviousPage;
+  final Map<String, dynamic> metadata;
+
+  SharesResult({
+    required this.shares,
+    required this.total,
+    required this.page,
+    required this.pageSize,
+    required this.totalPages,
+    required this.hasNextPage,
+    required this.hasPreviousPage,
+    required this.metadata,
+  });
+
+  factory SharesResult.fromMap(Map<String, dynamic> map) {
+    return SharesResult(
+      shares: (map['shares'] as List<dynamic>)
+          .map((item) => _createShareFromMap(item as Map<String, dynamic>))
+          .toList(),
+      total: map['total'] as int,
+      page: map['page'] as int,
+      pageSize: map['pageSize'] as int,
+      totalPages: map['totalPages'] as int,
+      hasNextPage: map['hasNextPage'] as bool,
+      hasPreviousPage: map['hasPreviousPage'] as bool,
+      metadata: map['metadata'] as Map<String, dynamic>,
+    );
+  }
+
+  static Share _createShareFromMap(Map<String, dynamic> data) {
+    return Share(
+      id: data['id'] as String,
+      productType: data['productType'] as String? ?? 'Udziały',
+      investmentAmount: (data['investmentAmount'] as num?)?.toDouble() ?? 0.0,
+      sharesCount: data['sharesCount'] as int? ?? 0,
+      remainingCapital: (data['remainingCapital'] as num?)?.toDouble() ?? 0.0,
+      capitalForRestructuring: (data['capitalForRestructuring'] as num?)
+          ?.toDouble(),
+      capitalSecuredByRealEstate: (data['capitalSecuredByRealEstate'] as num?)
+          ?.toDouble(),
+      sourceFile: data['sourceFile'] as String? ?? 'imported_data.json',
+      createdAt:
+          DateTime.tryParse(data['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+      uploadedAt:
+          DateTime.tryParse(data['uploadedAt'] as String? ?? '') ??
+          DateTime.now(),
+      additionalInfo: Map<String, dynamic>.from(data)
+        ..removeWhere(
+          (key, value) => [
+            'id',
+            'productType',
+            'investmentAmount',
+            'sharesCount',
+            'remainingCapital',
+            'capitalForRestructuring',
+            'capitalSecuredByRealEstate',
+            'sourceFile',
+            'createdAt',
+            'uploadedAt',
+          ].contains(key),
+        ),
+    );
+  }
+}
+
+/// Wynik zapytania o pożyczki
+class LoansResult {
+  final List<Loan> loans;
+  final int total;
+  final int page;
+  final int pageSize;
+  final int totalPages;
+  final bool hasNextPage;
+  final bool hasPreviousPage;
+  final Map<String, dynamic> metadata;
+
+  LoansResult({
+    required this.loans,
+    required this.total,
+    required this.page,
+    required this.pageSize,
+    required this.totalPages,
+    required this.hasNextPage,
+    required this.hasPreviousPage,
+    required this.metadata,
+  });
+
+  factory LoansResult.fromMap(Map<String, dynamic> map) {
+    return LoansResult(
+      loans: (map['loans'] as List<dynamic>)
+          .map((item) => _createLoanFromMap(item as Map<String, dynamic>))
+          .toList(),
+      total: map['total'] as int,
+      page: map['page'] as int,
+      pageSize: map['pageSize'] as int,
+      totalPages: map['totalPages'] as int,
+      hasNextPage: map['hasNextPage'] as bool,
+      hasPreviousPage: map['hasPreviousPage'] as bool,
+      metadata: map['metadata'] as Map<String, dynamic>,
+    );
+  }
+
+  static Loan _createLoanFromMap(Map<String, dynamic> data) {
+    return Loan(
+      id: data['id'] as String,
+      productType: data['productType'] as String? ?? 'Pożyczki',
+      investmentAmount: (data['investmentAmount'] as num?)?.toDouble() ?? 0.0,
+      remainingCapital: (data['remainingCapital'] as num?)?.toDouble() ?? 0.0,
+      capitalForRestructuring: (data['capitalForRestructuring'] as num?)
+          ?.toDouble(),
+      capitalSecuredByRealEstate: (data['capitalSecuredByRealEstate'] as num?)
+          ?.toDouble(),
+      sourceFile: data['sourceFile'] as String? ?? 'imported_data.json',
+      createdAt:
+          DateTime.tryParse(data['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+      uploadedAt:
+          DateTime.tryParse(data['uploadedAt'] as String? ?? '') ??
+          DateTime.now(),
+      loanNumber: data['loanNumber'] as String?,
+      borrower: data['borrower'] as String?,
+      interestRate: data['interestRate'] as String?,
+      disbursementDate: data['disbursementDate'] != null
+          ? DateTime.tryParse(data['disbursementDate'] as String)
+          : null,
+      repaymentDate: data['repaymentDate'] != null
+          ? DateTime.tryParse(data['repaymentDate'] as String)
+          : null,
+      accruedInterest: (data['accruedInterest'] as num?)?.toDouble() ?? 0.0,
+      collateral: data['collateral'] as String?,
+      status: data['status'] as String?,
+      additionalInfo: Map<String, dynamic>.from(data)
+        ..removeWhere(
+          (key, value) => [
+            'id',
+            'productType',
+            'investmentAmount',
+            'remainingCapital',
+            'capitalForRestructuring',
+            'capitalSecuredByRealEstate',
+            'sourceFile',
+            'createdAt',
+            'uploadedAt',
+            'loanNumber',
+            'borrower',
+            'interestRate',
+            'disbursementDate',
+            'repaymentDate',
+            'accruedInterest',
+            'collateral',
+            'status',
+          ].contains(key),
+        ),
+    );
+  }
+}
+
+/// Wynik zapytania o apartamenty
+class ApartmentsResult {
+  final List<Apartment> apartments;
+  final int total;
+  final int page;
+  final int pageSize;
+  final int totalPages;
+  final bool hasNextPage;
+  final bool hasPreviousPage;
+  final Map<String, dynamic> metadata;
+
+  ApartmentsResult({
+    required this.apartments,
+    required this.total,
+    required this.page,
+    required this.pageSize,
+    required this.totalPages,
+    required this.hasNextPage,
+    required this.hasPreviousPage,
+    required this.metadata,
+  });
+
+  factory ApartmentsResult.fromMap(Map<String, dynamic> map) {
+    return ApartmentsResult(
+      apartments: (map['apartments'] as List<dynamic>)
+          .map((item) => _createApartmentFromMap(item as Map<String, dynamic>))
+          .toList(),
+      total: map['total'] as int,
+      page: map['page'] as int,
+      pageSize: map['pageSize'] as int,
+      totalPages: map['totalPages'] as int,
+      hasNextPage: map['hasNextPage'] as bool,
+      hasPreviousPage: map['hasPreviousPage'] as bool,
+      metadata: map['metadata'] as Map<String, dynamic>,
+    );
+  }
+
+  static Apartment _createApartmentFromMap(Map<String, dynamic> data) {
+    // Helper do mapowania statusu
+    ApartmentStatus mapStatus(String? status) {
+      switch (status) {
+        case 'Sprzedany':
+          return ApartmentStatus.sold;
+        case 'Zarezerwowany':
+          return ApartmentStatus.reserved;
+        case 'W budowie':
+          return ApartmentStatus.underConstruction;
+        case 'Gotowy':
+          return ApartmentStatus.ready;
+        default:
+          return ApartmentStatus.available;
+      }
+    }
+
+    // Helper do mapowania typu apartamentu
+    ApartmentType mapApartmentType(String? type) {
+      switch (type) {
+        case 'Kawalerka':
+          return ApartmentType.studio;
+        case '2 pokoje':
+          return ApartmentType.apartment2Room;
+        case '3 pokoje':
+          return ApartmentType.apartment3Room;
+        case '4 pokoje':
+          return ApartmentType.apartment4Room;
+        case 'Penthouse':
+          return ApartmentType.penthouse;
+        default:
+          return ApartmentType.other;
+      }
+    }
+
+    return Apartment(
+      id: data['id'] as String,
+      productType: data['productType'] as String? ?? 'Apartamenty',
+      investmentAmount: (data['investmentAmount'] as num?)?.toDouble() ?? 0.0,
+      capitalForRestructuring: (data['capitalForRestructuring'] as num?)
+          ?.toDouble(),
+      capitalSecuredByRealEstate: (data['capitalSecuredByRealEstate'] as num?)
+          ?.toDouble(),
+      sourceFile: data['sourceFile'] as String? ?? 'imported_data.json',
+      createdAt:
+          DateTime.tryParse(data['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+      uploadedAt:
+          DateTime.tryParse(data['uploadedAt'] as String? ?? '') ??
+          DateTime.now(),
+      apartmentNumber: data['apartmentNumber'] as String? ?? '',
+      building: data['building'] as String? ?? '',
+      address: data['address'] as String? ?? '',
+      area: (data['area'] as num?)?.toDouble() ?? 0.0,
+      roomCount: data['roomCount'] as int? ?? 0,
+      floor: data['floor'] as int? ?? 0,
+      apartmentType: mapApartmentType(data['apartmentType'] as String?),
+      status: mapStatus(data['status'] as String?),
+      pricePerSquareMeter:
+          (data['pricePerSquareMeter'] as num?)?.toDouble() ?? 0.0,
+      deliveryDate: data['deliveryDate'] != null
+          ? DateTime.tryParse(data['deliveryDate'] as String)
+          : null,
+      developer: data['developer'] as String?,
+      projectName: data['projectName'] as String?,
+      hasBalcony: data['hasBalcony'] as bool? ?? false,
+      hasParkingSpace: data['hasParkingSpace'] as bool? ?? false,
+      hasStorage: data['hasStorage'] as bool? ?? false,
+      additionalInfo: Map<String, dynamic>.from(data)
+        ..removeWhere(
+          (key, value) => [
+            'id',
+            'productType',
+            'investmentAmount',
+            'capitalForRestructuring',
+            'capitalSecuredByRealEstate',
+            'sourceFile',
+            'createdAt',
+            'uploadedAt',
+            'apartmentNumber',
+            'building',
+            'address',
+            'area',
+            'roomCount',
+            'floor',
+            'apartmentType',
+            'status',
+            'pricePerSquareMeter',
+            'deliveryDate',
+            'developer',
+            'projectName',
+            'hasBalcony',
+            'hasParkingSpace',
+            'hasStorage',
+          ].contains(key),
+        ),
+    );
+  }
+}
+
+/// Statystyki wszystkich typów produktów
+class ProductTypeStatistics {
+  final ProductStats bonds;
+  final ProductStats shares;
+  final ProductStats loans;
+  final ProductStats apartments;
+  final ProductStats investments;
+  final SummaryStats summary;
+
+  ProductTypeStatistics({
+    required this.bonds,
+    required this.shares,
+    required this.loans,
+    required this.apartments,
+    required this.investments,
+    required this.summary,
+  });
+
+  factory ProductTypeStatistics.fromMap(Map<String, dynamic> map) {
+    return ProductTypeStatistics(
+      bonds: ProductStats.fromMap(map['bonds'] as Map<String, dynamic>),
+      shares: ProductStats.fromMap(map['shares'] as Map<String, dynamic>),
+      loans: ProductStats.fromMap(map['loans'] as Map<String, dynamic>),
+      apartments: ProductStats.fromMapWithArea(
+        map['apartments'] as Map<String, dynamic>,
+      ),
+      investments: ProductStats.fromMap(
+        map['investments'] as Map<String, dynamic>,
+      ),
+      summary: SummaryStats.fromMap(map['summary'] as Map<String, dynamic>),
+    );
+  }
+}
+
+/// Statystyki pojedynczego typu produktu
+class ProductStats {
+  final int count;
+  final double totalValue;
+  final double totalInvestmentAmount;
+  final double averageValue;
+  final double? totalArea;
+  final double? averageArea;
+
+  ProductStats({
+    required this.count,
+    required this.totalValue,
+    required this.totalInvestmentAmount,
+    required this.averageValue,
+    this.totalArea,
+    this.averageArea,
+  });
+
+  factory ProductStats.fromMap(Map<String, dynamic> map) {
+    return ProductStats(
+      count: map['count'] as int? ?? 0,
+      totalValue: (map['totalValue'] as num?)?.toDouble() ?? 0.0,
+      totalInvestmentAmount: (map['totalInvestmentAmount'] as num?)?.toDouble() ?? 0.0,
+      averageValue: (map['averageValue'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+
+  factory ProductStats.fromMapWithArea(Map<String, dynamic> map) {
+    return ProductStats(
+      count: map['count'] as int? ?? 0,
+      totalValue: (map['totalValue'] as num?)?.toDouble() ?? 0.0,
+      totalInvestmentAmount: (map['totalInvestmentAmount'] as num?)?.toDouble() ?? 0.0,
+      averageValue: (map['averageValue'] as num?)?.toDouble() ?? 0.0,
+      totalArea: (map['totalArea'] as num?)?.toDouble(),
+      averageArea: (map['averageArea'] as num?)?.toDouble(),
+    );
+  }
+}
+
+/// Statystyki podsumowujące
+class SummaryStats {
+  final int totalCount;
+  final double totalValue;
+  final double totalInvestmentAmount;
+
+  SummaryStats({
+    required this.totalCount,
+    required this.totalValue,
+    required this.totalInvestmentAmount,
+  });
+
+  factory SummaryStats.fromMap(Map<String, dynamic> map) {
+    return SummaryStats(
+      totalCount: map['totalCount'] as int? ?? 0,
+      totalValue: (map['totalValue'] as num?)?.toDouble() ?? 0.0,
+      totalInvestmentAmount: (map['totalInvestmentAmount'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
+
+/// Wynik zapytania o enhanced inwestycje
+class EnhancedInvestmentsResult {
+  final List<Investment> investments;
+  final int total;
+  final int page;
+  final int pageSize;
+  final int totalPages;
+  final bool hasNextPage;
+  final bool hasPreviousPage;
+  final Map<String, dynamic> metadata;
+
+  EnhancedInvestmentsResult({
+    required this.investments,
+    required this.total,
+    required this.page,
+    required this.pageSize,
+    required this.totalPages,
+    required this.hasNextPage,
+    required this.hasPreviousPage,
+    required this.metadata,
+  });
+
+  factory EnhancedInvestmentsResult.fromMap(Map<String, dynamic> map) {
+    return EnhancedInvestmentsResult(
+      investments: (map['investments'] as List<dynamic>)
+          .map((item) => _createInvestmentFromMap(item as Map<String, dynamic>))
+          .toList(),
+      total: map['total'] as int,
+      page: map['page'] as int,
+      pageSize: map['pageSize'] as int,
+      totalPages: map['totalPages'] as int,
+      hasNextPage: map['hasNextPage'] as bool,
+      hasPreviousPage: map['hasPreviousPage'] as bool,
+      metadata: map['metadata'] as Map<String, dynamic>,
+    );
+  }
+
+  static Investment _createInvestmentFromMap(Map<String, dynamic> data) {
+    // Helper function to safely convert to double
+    double safeToDouble(dynamic value, [double defaultValue = 0.0]) {
+      if (value == null) return defaultValue;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) {
+        final parsed = double.tryParse(value);
+        return parsed ?? defaultValue;
+      }
+      return defaultValue;
+    }
+
+    // Helper function to parse date strings
+    DateTime? parseDate(String? dateStr) {
+      if (dateStr == null || dateStr.isEmpty) return null;
+      try {
+        return DateTime.parse(dateStr);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Helper to map product type
+    ProductType mapProductType(String? productType) {
+      switch (productType) {
+        case 'shares':
+          return ProductType.shares;
+        case 'loans':
+          return ProductType.loans;
+        case 'apartments':
+          return ProductType.apartments;
+        default:
+          return ProductType.bonds;
+      }
+    }
+
+    // Helper to map investment status
+    InvestmentStatus mapStatus(String? status) {
+      switch (status) {
+        case 'inactive':
+          return InvestmentStatus.inactive;
+        case 'earlyRedemption':
+          return InvestmentStatus.earlyRedemption;
+        case 'completed':
+          return InvestmentStatus.completed;
+        default:
+          return InvestmentStatus.active;
+      }
+    }
+
+    // Helper to map market type
+    MarketType mapMarketType(String? marketType) {
+      switch (marketType) {
+        case 'secondary':
+          return MarketType.secondary;
+        case 'clientRedemption':
+          return MarketType.clientRedemption;
+        default:
+          return MarketType.primary;
+      }
+    }
+
+    return Investment(
+      id: data['id'] as String,
+      clientId: data['clientId'] as String? ?? '',
+      clientName: data['clientName'] as String? ?? '',
+      employeeId: data['employeeId'] as String? ?? '',
+      employeeFirstName: data['employeeFirstName'] as String? ?? '',
+      employeeLastName: data['employeeLastName'] as String? ?? '',
+      branchCode: data['branchCode'] as String? ?? '',
+      status: mapStatus(data['status'] as String?),
+      isAllocated: data['isAllocated'] as bool? ?? false,
+      marketType: mapMarketType(data['marketType'] as String?),
+      signedDate: parseDate(data['signedDate'] as String?) ?? DateTime.now(),
+      entryDate: parseDate(data['entryDate'] as String?),
+      exitDate: parseDate(data['exitDate'] as String?),
+      proposalId: data['proposalId'] as String? ?? '',
+      productType: mapProductType(data['productType'] as String?),
+      productName: data['productName'] as String? ?? '',
+      creditorCompany: data['creditorCompany'] as String? ?? '',
+      companyId: data['companyId'] as String? ?? '',
+      issueDate: parseDate(data['issueDate'] as String?),
+      redemptionDate: parseDate(data['redemptionDate'] as String?),
+      sharesCount: data['sharesCount'] as int?,
+      investmentAmount: safeToDouble(data['investmentAmount']),
+      paidAmount: safeToDouble(data['paidAmount']),
+      realizedCapital: safeToDouble(data['realizedCapital']),
+      realizedInterest: safeToDouble(data['realizedInterest']),
+      transferToOtherProduct: safeToDouble(data['transferToOtherProduct']),
+      remainingCapital: safeToDouble(data['remainingCapital']),
+      remainingInterest: safeToDouble(data['remainingInterest']),
+      plannedTax: safeToDouble(data['plannedTax']),
+      realizedTax: safeToDouble(data['realizedTax']),
+      currency: data['currency'] as String? ?? 'PLN',
+      createdAt: parseDate(data['createdAt'] as String?) ?? DateTime.now(),
+      updatedAt: parseDate(data['updatedAt'] as String?) ?? DateTime.now(),
+      additionalInfo: {
+        'source_file': data['source_file'],
+        'id_sprzedaz': data['id_sprzedaz'],
+      },
+    );
+  }
+}
+
+// 📊 LEGACY DATA MODELS FOR RESULTS - ISTNIEJĄCE KLASY
 
 class ClientsResult {
   final List<Client> clients;

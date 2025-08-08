@@ -239,4 +239,88 @@ class LoanService extends BaseService {
     clearCache('loans_stats');
     _dataCacheService.invalidateCollectionCache('loans');
   }
+
+  // Get loans with remaining capital
+  Stream<List<Loan>> getLoansWithRemainingCapital() {
+    return firestore
+        .collection(_collection)
+        .where('kapital_pozostaly', isGreaterThan: 0)
+        .orderBy('kapital_pozostaly', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Loan.fromFirestore(doc)).toList(),
+        );
+  }
+
+  // Get loans by status
+  Stream<List<Loan>> getLoansByStatus(String status) {
+    return firestore
+        .collection(_collection)
+        .where('status', isEqualTo: status)
+        .orderBy('created_at', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Loan.fromFirestore(doc)).toList(),
+        );
+  }
+
+  // Get loans by borrower
+  Stream<List<Loan>> getLoansByBorrower(String borrower) {
+    return firestore
+        .collection(_collection)
+        .where('pozyczkobiorca', isEqualTo: borrower)
+        .orderBy('created_at', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Loan.fromFirestore(doc)).toList(),
+        );
+  }
+
+  // Get loans with capital for restructuring
+  Stream<List<Loan>> getLoansWithRestructuringCapital() {
+    return firestore
+        .collection(_collection)
+        .where('kapital_do_restrukturyzacji', isGreaterThan: 0)
+        .orderBy('kapital_do_restrukturyzacji', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Loan.fromFirestore(doc)).toList(),
+        );
+  }
+
+  // Get loans with capital secured by real estate
+  Stream<List<Loan>> getLoansWithSecuredCapital() {
+    return firestore
+        .collection(_collection)
+        .where('kapital_zabezpieczony_nieruchomoscia', isGreaterThan: 0)
+        .orderBy('kapital_zabezpieczony_nieruchomoscia', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Loan.fromFirestore(doc)).toList(),
+        );
+  }
+
+  // Batch create loans for data import
+  Future<void> createLoansBatch(List<Loan> loans) async {
+    try {
+      final batch = firestore.batch();
+
+      for (final loan in loans) {
+        final docRef = firestore.collection(_collection).doc();
+        batch.set(docRef, loan.copyWith(id: docRef.id).toFirestore());
+      }
+
+      await batch.commit();
+      invalidateCache();
+      print('✅ Successfully created ${loans.length} loans in batch');
+    } catch (e) {
+      logError('createLoansBatch', e);
+      throw Exception('Failed to create loans batch: $e');
+    }
+  }
 }

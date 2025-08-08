@@ -10,10 +10,15 @@ import '../models/investment.dart';
 import '../models/client.dart';
 import '../models/product.dart';
 import '../models/employee.dart';
+import '../models/apartment.dart';
+import '../models/unified_product.dart';
 import 'optimized_investment_service.dart';
 import 'client_service.dart';
 import 'optimized_product_service.dart';
 import 'employee_service.dart';
+import 'apartment_service.dart';
+import 'unified_product_service.dart';
+import 'enhanced_unified_product_service.dart';
 import 'base_service.dart';
 
 class OptimizedServicesExamples {
@@ -913,5 +918,72 @@ class _OptimizedInvestmentListWidgetState extends State<OptimizedInvestmentListW
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+}
+
+/// ===== 🏠 APARTAMENTY - ApartmentService =====
+
+class ApartmentServiceExamples {
+  /// Przykład użycia ApartmentService
+  Future<void> exampleApartmentService() async {
+    final service = ApartmentService();
+    
+    // Pobierz wszystkie apartamenty
+    final apartments = await service.getAllApartments();
+    print('💡 Znaleziono ${apartments.length} apartamentów');
+    
+    // Pobierz apartamenty według statusu
+    final available = await service.getApartmentsByStatus(ApartmentStatus.available);
+    print('🏠 Dostępne apartamenty: ${available.length}');
+    
+    // Pobierz apartamenty według projektu
+    final projectApartments = await service.getApartmentsByProject('Nowy Projekt');
+    print('🏗️ Apartamenty w projekcie: ${projectApartments.length}');
+    
+    // Pobierz statystyki apartamentów
+    final stats = await service.getApartmentStatistics();
+    print('📊 Statystyki apartamentów: ${stats['totalApartments']} apartamentów');
+    print('💰 Całkowita wartość: ${stats['totalValue']} PLN');
+    print('📐 Średnia powierzchnia: ${stats['averageArea']} m²');
+  }
+  
+  /// Przykład użycia UnifiedProductService z apartamentami
+  Future<void> exampleUnifiedProducts() async {
+    final service = UnifiedProductService();
+    
+    // Pobierz wszystkie produkty (w tym apartamenty)
+    final products = await service.getAllProducts();
+    final apartments = products.where((p) => p.productType == UnifiedProductType.apartments).toList();
+    print('🏠 Apartamenty w unified products: ${apartments.length}');
+    
+    // Pobierz tylko apartamenty
+    final onlyApartments = await service.getProductsByType(UnifiedProductType.apartments);
+    print('🏠 Tylko apartamenty: ${onlyApartments.length}');
+    
+    // Wyszukaj apartamenty
+    final searchResults = await service.searchProducts('apartament');
+    print('🔍 Wyniki wyszukiwania "apartament": ${searchResults.length}');
+    
+    // Pobierz statystyki
+    final stats = await service.getProductStatistics();
+    print('📊 Całkowita wartość portfela: ${stats.totalValue} PLN');
+  }
+  
+  /// Przykład użycia EnhancedUnifiedProductService
+  Future<void> exampleEnhancedUnifiedProducts() async {
+    final service = EnhancedUnifiedProductService();
+    
+    // Sprawdź diagnostyki apartamentów
+    final diagnostics = await service.getApartmentsDiagnostics();
+    print('🔍 Apartamenty w kolekcji apartments: ${diagnostics['apartments_in_apartments_collection']}');
+    print('🔍 Apartamenty w kolekcji products: ${diagnostics['apartments_in_products']}');
+    print('💡 Rekomendacja: ${diagnostics['recommended_action']}');
+    
+    // Debug informacje
+    await service.debugLogSources();
+    
+    // Pobierz wszystkie produkty z enhanced service
+    final products = await service.getAllProducts();
+    print('🚀 Enhanced products: ${products.length}');
   }
 }

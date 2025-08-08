@@ -308,6 +308,8 @@ class _ImprovedInvestorDetailsDialogState
         totalValue: widget.investor.totalValue,
         totalInvestmentAmount: widget.investor.totalInvestmentAmount,
         totalRealizedCapital: widget.investor.totalRealizedCapital,
+        capitalSecuredByRealEstate: widget.investor.capitalSecuredByRealEstate,
+        capitalForRestructuring: widget.investor.capitalForRestructuring,
         investmentCount: widget.investor.investmentCount,
       );
 

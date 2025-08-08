@@ -10,6 +10,8 @@ class InvestorSummary {
   final double totalValue; // Suma kapitału pozostałego + udziały
   final double totalInvestmentAmount;
   final double totalRealizedCapital;
+  final double capitalSecuredByRealEstate; // kapital_zabezpieczony_nieruchomoscia
+  final double capitalForRestructuring; // kapital_na_restrukturyzacje
   final int investmentCount;
 
   InvestorSummary({
@@ -20,6 +22,8 @@ class InvestorSummary {
     required this.totalValue,
     required this.totalInvestmentAmount,
     required this.totalRealizedCapital,
+    required this.capitalSecuredByRealEstate,
+    required this.capitalForRestructuring,
     required this.investmentCount,
   });
 
@@ -32,6 +36,8 @@ class InvestorSummary {
         0; // Zachowujemy dla kompatybilności, ale zawsze = 0
     double totalInvestmentAmount = 0;
     double totalRealizedCapital = 0;
+    double capitalSecuredByRealEstate = 0;
+    double capitalForRestructuring = 0;
 
     for (final investment in investments) {
       // ⭐ TYLKO KAPITAŁ POZOSTAŁY - dla wszystkich typów produktów
@@ -40,6 +46,11 @@ class InvestorSummary {
       // Zachowujemy inne pola dla kompatybilności wstecznej
       totalInvestmentAmount += investment.investmentAmount;
       totalRealizedCapital += investment.realizedCapital;
+      
+      // Sprawdź czy investment ma pole capitalSecuredByRealEstate
+      // Na razie ustalmy na 0, można to rozszerzyć później
+      // capitalSecuredByRealEstate += 0; // Dodaj logikę jeśli potrzeba
+      // capitalForRestructuring += 0; // Dodaj logikę jeśli potrzeba
     }
 
     // ⭐ WARTOŚĆ CAŁKOWITA = TYLKO kapitał pozostały
@@ -53,6 +64,8 @@ class InvestorSummary {
       totalValue: totalValue,
       totalInvestmentAmount: totalInvestmentAmount,
       totalRealizedCapital: totalRealizedCapital,
+      capitalSecuredByRealEstate: capitalSecuredByRealEstate,
+      capitalForRestructuring: capitalForRestructuring,
       investmentCount: investments.length,
     );
   }

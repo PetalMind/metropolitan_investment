@@ -8,6 +8,8 @@ export 'models/company.dart';
 export 'models/bond.dart';
 export 'models/loan.dart';
 export 'models/share.dart';
+export 'models/apartment.dart';
+export 'models/unified_product.dart';
 export 'models/investor_summary.dart';
 export 'models/excel_import_models.dart';
 
@@ -23,6 +25,9 @@ export 'services/company_service.dart';
 export 'services/bond_service.dart';
 export 'services/loan_service.dart';
 export 'services/share_service.dart';
+export 'services/apartment_service.dart';
+export 'services/unified_product_service.dart';
+export 'services/enhanced_unified_product_service.dart';
 export 'services/dashboard_service.dart';
 export 'services/auth_service.dart';
 export 'services/email_service.dart';
@@ -30,9 +35,6 @@ export 'services/user_preferences_service.dart';
 export 'services/advanced_analytics_service.dart';
 export 'services/investor_analytics_service.dart';
 export 'services/product_investors_service.dart';
-export 'services/optimized_company_service.dart';
-export 'services/optimized_product_service.dart';
-export 'services/optimized_client_voting_service.dart';
 export 'services/standard_product_investors_service.dart';
 
 // Widget exports - Logo and branding components

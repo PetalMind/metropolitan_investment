@@ -100,9 +100,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
     });
 
     try {
+      print('🔍 [ProductsScreen] Ładowanie produktów...');
+      
+      // Używaj mniejszej paginacji dla lepszej wydajności
       final result = await _functionsService.getOptimizedProducts(
-        page: _currentPage,
-        pageSize: _pageSize,
+        page: 1, // Zawsze pierwsza strona
+        pageSize: 50, // Zmniejszony rozmiar
         searchQuery: _search.isNotEmpty ? _search : null,
         productType: _filterType,
         clientId: _clientId,
@@ -110,14 +113,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
         sortAscending: true,
       );
 
+      print('✅ [ProductsScreen] Załadowano ${result.products.length} produktów');
+
       setState(() {
         _products = result.products;
         _stats = result.stats;
         _isLoading = false;
       });
     } catch (e) {
+      print('❌ [ProductsScreen] Błąd ładowania: $e');
       setState(() {
-        _error = e.toString();
+        _error = 'Błąd podczas ładowania produktów: $e';
         _isLoading = false;
       });
     }
@@ -206,12 +212,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.secondaryGold.withOpacity(
+                                    color: AppTheme.secondaryGold.withValues(alpha: 
                                       0.2,
                                     ),
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
-                                      color: AppTheme.secondaryGold.withOpacity(
+                                      color: AppTheme.secondaryGold.withValues(alpha: 
                                         0.5,
                                       ),
                                     ),
@@ -248,7 +254,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 : 'Obligacje, Udziały, Pożyczki, Apartamenty',
                             style: Theme.of(context).textTheme.bodyLarge
                                 ?.copyWith(
-                                  color: AppTheme.textOnPrimary.withOpacity(
+                                  color: AppTheme.textOnPrimary.withValues(alpha: 
                                     0.8,
                                   ),
                                 ),
@@ -269,7 +275,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 Text('Usuń filtr'),
                               ],
                             ),
-                            backgroundColor: AppTheme.warningColor.withOpacity(
+                            backgroundColor: AppTheme.warningColor.withValues(alpha: 
                               0.8,
                             ),
                             foregroundColor: AppTheme.textOnPrimary,
@@ -392,7 +398,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           // Loading overlay
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: const Center(child: CircularProgressIndicator()),
             ),
           // Form dialog

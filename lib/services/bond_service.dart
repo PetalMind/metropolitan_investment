@@ -147,7 +147,64 @@ class BondService extends BaseService {
         );
   }
 
-  // Search bonds
+  // Get bonds with remaining capital
+  Stream<List<Bond>> getBondsWithRemainingCapital() {
+    return firestore
+        .collection(_collection)
+        .where('kapital_pozostaly', isGreaterThan: 0)
+        .orderBy('kapital_pozostaly', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Bond.fromFirestore(doc)).toList(),
+        );
+  }
+
+  // Get bonds with capital for restructuring
+  Stream<List<Bond>> getBondsWithRestructuringCapital() {
+    return firestore
+        .collection(_collection)
+        .where('kapital_do_restrukturyzacji', isGreaterThan: 0)
+        .orderBy('kapital_do_restrukturyzacji', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Bond.fromFirestore(doc)).toList(),
+        );
+  }
+
+  // Get bonds with capital secured by real estate
+  Stream<List<Bond>> getBondsWithSecuredCapital() {
+    return firestore
+        .collection(_collection)
+        .where('kapital_zabezpieczony_nieruchomoscia', isGreaterThan: 0)
+        .orderBy('kapital_zabezpieczony_nieruchomoscia', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Bond.fromFirestore(doc)).toList(),
+        );
+  }
+
+  // Batch create bonds for data import
+  Future<void> createBondsBatch(List<Bond> bonds) async {
+    try {
+      final batch = firestore.batch();
+
+      for (final bond in bonds) {
+        final docRef = firestore.collection(_collection).doc();
+        batch.set(docRef, bond.copyWith(id: docRef.id).toFirestore());
+      }
+
+      await batch.commit();
+      clearCache('bonds_stats');
+      print('✅ Successfully created ${bonds.length} bonds in batch');
+    } catch (e) {
+      logError('createBondsBatch', e);
+      throw Exception('Failed to create bonds batch: $e');
+    }
+  }
+
   Stream<List<Bond>> searchBonds(String query) {
     if (query.isEmpty) return getAllBonds();
 

@@ -2,6 +2,7 @@ import 'bond.dart';
 import 'share.dart';
 import 'loan.dart';
 import 'product.dart';
+import 'apartment.dart';
 
 /// Enum reprezentujący typy produktów w systemie
 enum UnifiedProductType {
@@ -11,8 +12,12 @@ enum UnifiedProductType {
   apartments('Apartamenty', 'apartments', 'Inwestycje w nieruchomości'),
   other('Inne', 'other', 'Pozostałe produkty inwestycyjne');
 
-  const UnifiedProductType(this.displayName, this.collectionName, this.description);
-  
+  const UnifiedProductType(
+    this.displayName,
+    this.collectionName,
+    this.description,
+  );
+
   final String displayName;
   final String collectionName;
   final String description;
@@ -42,7 +47,7 @@ enum ProductStatus {
   suspended('Zawieszony', 'Produkt został czasowo zawieszony');
 
   const ProductStatus(this.displayName, this.description);
-  
+
   final String displayName;
   final String description;
 }
@@ -58,16 +63,16 @@ abstract class IUnifiedProduct {
   String get sourceFile;
   ProductStatus get status;
   Map<String, dynamic> get additionalInfo;
-  
+
   /// Zwraca wartość całkowitą produktu
   double get totalValue;
-  
+
   /// Zwraca opis produktu
   String get description;
-  
+
   /// Sprawdza czy produkt jest aktywny
   bool get isActive;
-  
+
   /// Konwertuje do mapy do wyświetlenia
   Map<String, dynamic> toDisplayMap();
 }
@@ -76,28 +81,28 @@ abstract class IUnifiedProduct {
 class UnifiedProduct implements IUnifiedProduct {
   @override
   final String id;
-  
+
   @override
   final String name;
-  
+
   @override
   final UnifiedProductType productType;
-  
+
   @override
   final double investmentAmount;
-  
+
   @override
   final DateTime createdAt;
-  
+
   @override
   final DateTime uploadedAt;
-  
+
   @override
   final String sourceFile;
-  
+
   @override
   final ProductStatus status;
-  
+
   @override
   final Map<String, dynamic> additionalInfo;
 
@@ -116,7 +121,7 @@ class UnifiedProduct implements IUnifiedProduct {
   final String? companyName;
   final String? companyId;
   final String? currency;
-  
+
   // Przechowywanie oryginalnego obiektu dla szczegółowych operacji
   final dynamic originalProduct;
 
@@ -151,7 +156,9 @@ class UnifiedProduct implements IUnifiedProduct {
   factory UnifiedProduct.fromBond(Bond bond) {
     return UnifiedProduct(
       id: bond.id,
-      name: bond.productType.isNotEmpty ? bond.productType : 'Obligacja ${bond.id}',
+      name: bond.productType.isNotEmpty
+          ? bond.productType
+          : 'Obligacja ${bond.id}',
       productType: UnifiedProductType.bonds,
       investmentAmount: bond.investmentAmount,
       createdAt: bond.createdAt,
@@ -173,7 +180,9 @@ class UnifiedProduct implements IUnifiedProduct {
   factory UnifiedProduct.fromShare(Share share) {
     return UnifiedProduct(
       id: share.id,
-      name: share.productType.isNotEmpty ? share.productType : 'Udział ${share.id}',
+      name: share.productType.isNotEmpty
+          ? share.productType
+          : 'Udział ${share.id}',
       productType: UnifiedProductType.shares,
       investmentAmount: share.investmentAmount,
       createdAt: share.createdAt,
@@ -190,7 +199,9 @@ class UnifiedProduct implements IUnifiedProduct {
   factory UnifiedProduct.fromLoan(Loan loan) {
     return UnifiedProduct(
       id: loan.id,
-      name: loan.productType.isNotEmpty ? loan.productType : 'Pożyczka ${loan.id}',
+      name: loan.productType.isNotEmpty
+          ? loan.productType
+          : 'Pożyczka ${loan.id}',
       productType: UnifiedProductType.loans,
       investmentAmount: loan.investmentAmount,
       createdAt: loan.createdAt,
@@ -198,6 +209,40 @@ class UnifiedProduct implements IUnifiedProduct {
       sourceFile: loan.sourceFile,
       additionalInfo: loan.additionalInfo,
       originalProduct: loan,
+    );
+  }
+
+  /// Factory method dla Apartment
+  factory UnifiedProduct.fromApartment(Apartment apartment) {
+    return UnifiedProduct(
+      id: apartment.id,
+      name: apartment.projectName?.isNotEmpty == true
+          ? '${apartment.projectName} - ${apartment.apartmentNumber}'
+          : 'Apartament ${apartment.apartmentNumber}',
+      productType: UnifiedProductType.apartments,
+      investmentAmount: apartment.investmentAmount,
+      createdAt: apartment.createdAt,
+      uploadedAt: apartment.uploadedAt,
+      sourceFile: apartment.sourceFile,
+      status: apartment.status == ApartmentStatus.available
+          ? ProductStatus.active
+          : ProductStatus.inactive,
+      additionalInfo: {
+        ...apartment.additionalInfo,
+        'apartmentNumber': apartment.apartmentNumber,
+        'building': apartment.building,
+        'address': apartment.address,
+        'area': apartment.area,
+        'roomCount': apartment.roomCount,
+        'floor': apartment.floor,
+        'apartmentType': apartment.apartmentType.displayName,
+        'pricePerSquareMeter': apartment.pricePerSquareMeter,
+        'hasBalcony': apartment.hasBalcony,
+        'hasParkingSpace': apartment.hasParkingSpace,
+        'hasStorage': apartment.hasStorage,
+      },
+      companyName: apartment.developer,
+      originalProduct: apartment,
     );
   }
 
@@ -250,6 +295,18 @@ class UnifiedProduct implements IUnifiedProduct {
       case UnifiedProductType.loans:
         return investmentAmount;
       case UnifiedProductType.apartments:
+        // Dla apartamentów: powierzchnia * cena za m² lub kwota inwestycji
+        if (additionalInfo['area'] != null &&
+            additionalInfo['pricePerSquareMeter'] != null) {
+          final area = additionalInfo['area'] as num?;
+          final pricePerM2 = additionalInfo['pricePerSquareMeter'] as num?;
+          if (area != null &&
+              pricePerM2 != null &&
+              area > 0 &&
+              pricePerM2 > 0) {
+            return (area * pricePerM2).toDouble();
+          }
+        }
         return investmentAmount;
       case UnifiedProductType.other:
         return investmentAmount;
@@ -262,16 +319,22 @@ class UnifiedProduct implements IUnifiedProduct {
       case UnifiedProductType.bonds:
         final parts = <String>[];
         if (realizedCapital != null && realizedCapital! > 0) {
-          parts.add('Zrealizowany kapitał: ${realizedCapital!.toStringAsFixed(2)} PLN');
+          parts.add(
+            'Zrealizowany kapitał: ${realizedCapital!.toStringAsFixed(2)} PLN',
+          );
         }
         if (remainingCapital != null && remainingCapital! > 0) {
-          parts.add('Pozostały kapitał: ${remainingCapital!.toStringAsFixed(2)} PLN');
+          parts.add(
+            'Pozostały kapitał: ${remainingCapital!.toStringAsFixed(2)} PLN',
+          );
         }
         if (interestRate != null) {
           parts.add('Oprocentowanie: ${interestRate!.toStringAsFixed(2)}%');
         }
-        return parts.isNotEmpty ? parts.join(' • ') : 'Obligacja bez szczegółów';
-        
+        return parts.isNotEmpty
+            ? parts.join(' • ')
+            : 'Obligacja bez szczegółów';
+
       case UnifiedProductType.shares:
         final parts = <String>[];
         if (sharesCount != null && sharesCount! > 0) {
@@ -284,7 +347,30 @@ class UnifiedProduct implements IUnifiedProduct {
           parts.add('Spółka: $companyName');
         }
         return parts.isNotEmpty ? parts.join(' • ') : 'Udział bez szczegółów';
-        
+
+      case UnifiedProductType.apartments:
+        final parts = <String>[];
+        if (additionalInfo['area'] != null && additionalInfo['area'] > 0) {
+          parts.add('Powierzchnia: ${additionalInfo['area']} m²');
+        }
+        if (additionalInfo['roomCount'] != null &&
+            additionalInfo['roomCount'] > 0) {
+          parts.add('Pokoje: ${additionalInfo['roomCount']}');
+        }
+        if (additionalInfo['floor'] != null) {
+          parts.add('Piętro: ${additionalInfo['floor']}');
+        }
+        if (additionalInfo['apartmentType'] != null) {
+          parts.add('Typ: ${additionalInfo['apartmentType']}');
+        }
+        if (additionalInfo['address'] != null &&
+            additionalInfo['address'].toString().isNotEmpty) {
+          parts.add('Adres: ${additionalInfo['address']}');
+        }
+        return parts.isNotEmpty
+            ? parts.join(' • ')
+            : 'Apartament bez szczegółów';
+
       case UnifiedProductType.loans:
         final parts = <String>[];
         if (interestRate != null) {
@@ -294,7 +380,7 @@ class UnifiedProduct implements IUnifiedProduct {
           parts.add('Termin spłaty: ${maturityDate!.toString().split(' ')[0]}');
         }
         return parts.isNotEmpty ? parts.join(' • ') : 'Pożyczka bez szczegółów';
-        
+
       default:
         return productType.description;
     }
@@ -335,40 +421,133 @@ class UnifiedProduct implements IUnifiedProduct {
   /// Zwraca szczegółowe informacje o produkcie w formie listy
   List<MapEntry<String, String>> get detailsList {
     final details = <MapEntry<String, String>>[];
-    
+
     details.add(MapEntry('Typ produktu', productType.displayName));
-    details.add(MapEntry('Kwota inwestycji', '${investmentAmount.toStringAsFixed(2)} PLN'));
-    details.add(MapEntry('Wartość całkowita', '${totalValue.toStringAsFixed(2)} PLN'));
+    details.add(
+      MapEntry(
+        'Kwota inwestycji',
+        '${investmentAmount.toStringAsFixed(2)} PLN',
+      ),
+    );
+    details.add(
+      MapEntry('Wartość całkowita', '${totalValue.toStringAsFixed(2)} PLN'),
+    );
     details.add(MapEntry('Status', status.displayName));
-    details.add(MapEntry('Data utworzenia', createdAt.toString().split(' ')[0]));
+    details.add(
+      MapEntry('Data utworzenia', createdAt.toString().split(' ')[0]),
+    );
     details.add(MapEntry('Źródło danych', sourceFile));
 
     // Dodaj szczegóły specyficzne dla typu produktu
     switch (productType) {
       case UnifiedProductType.bonds:
         if (realizedCapital != null && realizedCapital! > 0) {
-          details.add(MapEntry('Zrealizowany kapitał', '${realizedCapital!.toStringAsFixed(2)} PLN'));
+          details.add(
+            MapEntry(
+              'Zrealizowany kapitał',
+              '${realizedCapital!.toStringAsFixed(2)} PLN',
+            ),
+          );
         }
         if (remainingCapital != null && remainingCapital! > 0) {
-          details.add(MapEntry('Pozostały kapitał', '${remainingCapital!.toStringAsFixed(2)} PLN'));
+          details.add(
+            MapEntry(
+              'Pozostały kapitał',
+              '${remainingCapital!.toStringAsFixed(2)} PLN',
+            ),
+          );
         }
         if (realizedInterest != null && realizedInterest! > 0) {
-          details.add(MapEntry('Zrealizowane odsetki', '${realizedInterest!.toStringAsFixed(2)} PLN'));
+          details.add(
+            MapEntry(
+              'Zrealizowane odsetki',
+              '${realizedInterest!.toStringAsFixed(2)} PLN',
+            ),
+          );
         }
         if (remainingInterest != null && remainingInterest! > 0) {
-          details.add(MapEntry('Pozostałe odsetki', '${remainingInterest!.toStringAsFixed(2)} PLN'));
+          details.add(
+            MapEntry(
+              'Pozostałe odsetki',
+              '${remainingInterest!.toStringAsFixed(2)} PLN',
+            ),
+          );
         }
         break;
-        
+
       case UnifiedProductType.shares:
         if (sharesCount != null && sharesCount! > 0) {
           details.add(MapEntry('Liczba udziałów', sharesCount.toString()));
         }
         if (pricePerShare != null && pricePerShare! > 0) {
-          details.add(MapEntry('Cena za udział', '${pricePerShare!.toStringAsFixed(2)} PLN'));
+          details.add(
+            MapEntry(
+              'Cena za udział',
+              '${pricePerShare!.toStringAsFixed(2)} PLN',
+            ),
+          );
         }
         break;
-        
+
+      case UnifiedProductType.apartments:
+        if (additionalInfo['apartmentNumber'] != null) {
+          details.add(
+            MapEntry(
+              'Numer apartamentu',
+              additionalInfo['apartmentNumber'].toString(),
+            ),
+          );
+        }
+        if (additionalInfo['building'] != null &&
+            additionalInfo['building'].toString().isNotEmpty) {
+          details.add(
+            MapEntry('Budynek', additionalInfo['building'].toString()),
+          );
+        }
+        if (additionalInfo['area'] != null && additionalInfo['area'] > 0) {
+          details.add(MapEntry('Powierzchnia', '${additionalInfo['area']} m²'));
+        }
+        if (additionalInfo['roomCount'] != null &&
+            additionalInfo['roomCount'] > 0) {
+          details.add(
+            MapEntry('Liczba pokoi', additionalInfo['roomCount'].toString()),
+          );
+        }
+        if (additionalInfo['floor'] != null) {
+          details.add(MapEntry('Piętro', additionalInfo['floor'].toString()));
+        }
+        if (additionalInfo['apartmentType'] != null) {
+          details.add(
+            MapEntry(
+              'Typ apartamentu',
+              additionalInfo['apartmentType'].toString(),
+            ),
+          );
+        }
+        if (additionalInfo['pricePerSquareMeter'] != null &&
+            additionalInfo['pricePerSquareMeter'] > 0) {
+          details.add(
+            MapEntry(
+              'Cena za m²',
+              '${additionalInfo['pricePerSquareMeter']} PLN/m²',
+            ),
+          );
+        }
+        if (additionalInfo['hasBalcony'] == true) {
+          details.add(MapEntry('Balkon', 'Tak'));
+        }
+        if (additionalInfo['hasParkingSpace'] == true) {
+          details.add(MapEntry('Miejsce parkingowe', 'Tak'));
+        }
+        if (additionalInfo['hasStorage'] == true) {
+          details.add(MapEntry('Komórka lokatorska', 'Tak'));
+        }
+        if (additionalInfo['address'] != null &&
+            additionalInfo['address'].toString().isNotEmpty) {
+          details.add(MapEntry('Adres', additionalInfo['address'].toString()));
+        }
+        break;
+
       default:
         break;
     }
@@ -376,13 +555,17 @@ class UnifiedProduct implements IUnifiedProduct {
     if (companyName != null && companyName!.isNotEmpty) {
       details.add(MapEntry('Spółka', companyName!));
     }
-    
+
     if (interestRate != null) {
-      details.add(MapEntry('Oprocentowanie', '${interestRate!.toStringAsFixed(2)}%'));
+      details.add(
+        MapEntry('Oprocentowanie', '${interestRate!.toStringAsFixed(2)}%'),
+      );
     }
-    
+
     if (maturityDate != null) {
-      details.add(MapEntry('Data zapadalności', maturityDate.toString().split(' ')[0]));
+      details.add(
+        MapEntry('Data zapadalności', maturityDate.toString().split(' ')[0]),
+      );
     }
 
     return details;
@@ -429,7 +612,8 @@ class UnifiedProduct implements IUnifiedProduct {
       remainingInterest: remainingInterest ?? this.remainingInterest,
       realizedTax: realizedTax ?? this.realizedTax,
       remainingTax: remainingTax ?? this.remainingTax,
-      transferToOtherProduct: transferToOtherProduct ?? this.transferToOtherProduct,
+      transferToOtherProduct:
+          transferToOtherProduct ?? this.transferToOtherProduct,
       sharesCount: sharesCount ?? this.sharesCount,
       pricePerShare: pricePerShare ?? this.pricePerShare,
       interestRate: interestRate ?? this.interestRate,
@@ -472,27 +656,29 @@ class ProductFilterCriteria {
     if (productTypes != null && !productTypes!.contains(product.productType)) {
       return false;
     }
-    
+
     if (statuses != null && !statuses!.contains(product.status)) {
       return false;
     }
-    
-    if (minInvestmentAmount != null && product.investmentAmount < minInvestmentAmount!) {
+
+    if (minInvestmentAmount != null &&
+        product.investmentAmount < minInvestmentAmount!) {
       return false;
     }
-    
-    if (maxInvestmentAmount != null && product.investmentAmount > maxInvestmentAmount!) {
+
+    if (maxInvestmentAmount != null &&
+        product.investmentAmount > maxInvestmentAmount!) {
       return false;
     }
-    
+
     if (createdAfter != null && product.createdAt.isBefore(createdAfter!)) {
       return false;
     }
-    
+
     if (createdBefore != null && product.createdAt.isAfter(createdBefore!)) {
       return false;
     }
-    
+
     if (searchText != null && searchText!.isNotEmpty) {
       final searchLower = searchText!.toLowerCase();
       if (!product.name.toLowerCase().contains(searchLower) &&
@@ -501,23 +687,25 @@ class ProductFilterCriteria {
         return false;
       }
     }
-    
+
     if (companyName != null && companyName!.isNotEmpty) {
       if (product.companyName?.toLowerCase() != companyName!.toLowerCase()) {
         return false;
       }
     }
-    
-    if (minInterestRate != null && 
-        (product.interestRate == null || product.interestRate! < minInterestRate!)) {
+
+    if (minInterestRate != null &&
+        (product.interestRate == null ||
+            product.interestRate! < minInterestRate!)) {
       return false;
     }
-    
-    if (maxInterestRate != null && 
-        (product.interestRate == null || product.interestRate! > maxInterestRate!)) {
+
+    if (maxInterestRate != null &&
+        (product.interestRate == null ||
+            product.interestRate! > maxInterestRate!)) {
       return false;
     }
-    
+
     return true;
   }
 }

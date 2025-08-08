@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/investor_summary.dart';
 import '../../../models/voting_status_change.dart';
-import '../../../services/optimized_investor_analytics_service.dart';
+import '../../../services/investor_analytics_service.dart';
 import '../../../theme/app_theme.dart';
 
 class VotingChangesTab extends StatefulWidget {
@@ -16,8 +16,8 @@ class VotingChangesTab extends StatefulWidget {
 }
 
 class _VotingChangesTabState extends State<VotingChangesTab> {
-  final OptimizedInvestorAnalyticsService _analyticsService =
-      OptimizedInvestorAnalyticsService();
+  final InvestorAnalyticsService _analyticsService =
+      InvestorAnalyticsService();
 
   List<VotingStatusChange> _changes = [];
   bool _isLoading = true;
@@ -46,14 +46,13 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
         _error = null;
       });
 
-      final changes = await _analyticsService.getVotingStatusHistory(
-        widget.investor.client.id,
-      );
+      // TODO: Replace with Firebase Functions call
+      // final changes = await _analyticsService.getVotingStatusHistory(
+      //   widget.investor.client.id,
+      // );
 
-      print('✅ [VotingChangesTab] Otrzymano ${changes.length} zmian');
-      for (final change in changes) {
-        print('   📝 ${change.formattedDate}: ${change.changeDescription}');
-      }
+      print('⚠️ [VotingChangesTab] Voting history temporarily disabled');
+      final changes = <VotingStatusChange>[];
 
       setState(() {
         _changes = changes;

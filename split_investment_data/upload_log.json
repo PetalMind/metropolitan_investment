@@ -1,0 +1,14 @@
+{
+  "uploadedAt": "2025-08-08T13:29:28.662Z",
+  "duration": "49.97s",
+  "totalRecords": 2133,
+  "collections": {
+    "bonds": 1184,
+    "shares": 565,
+    "loans": 206,
+    "apartments": 178,
+    "clients": 0,
+    "investments": 2133
+  },
+  "sourceDirectory": "split_investment_data"
+}

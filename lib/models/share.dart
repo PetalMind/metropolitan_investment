@@ -5,6 +5,10 @@ class Share {
   final String productType; // typ_produktu
   final double investmentAmount; // kwota_inwestycji
   final int sharesCount; // ilosc_udzialow
+  final double remainingCapital; // kapital_pozostaly
+  final double? capitalForRestructuring; // kapital_do_restrukturyzacji
+  final double?
+  capitalSecuredByRealEstate; // kapital_zabezpieczony_nieruchomoscia
   final String sourceFile; // source_file
   final DateTime createdAt; // created_at
   final DateTime uploadedAt; // uploaded_at
@@ -14,7 +18,10 @@ class Share {
     required this.id,
     required this.productType,
     required this.investmentAmount,
-    required this.sharesCount,
+    this.sharesCount = 0,
+    this.remainingCapital = 0.0,
+    this.capitalForRestructuring,
+    this.capitalSecuredByRealEstate,
     required this.sourceFile,
     required this.createdAt,
     required this.uploadedAt,
@@ -24,6 +31,7 @@ class Share {
   // Calculated properties
   double get pricePerShare =>
       sharesCount > 0 ? investmentAmount / sharesCount : 0.0;
+  double get totalValue => remainingCapital;
 
   factory Share.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -34,7 +42,9 @@ class Share {
       if (value is double) return value;
       if (value is int) return value.toDouble();
       if (value is String) {
-        final parsed = double.tryParse(value);
+        // Handle comma-separated numbers like "305,700.00"
+        final cleaned = value.replaceAll(',', '');
+        final parsed = double.tryParse(cleaned);
         return parsed ?? defaultValue;
       }
       return defaultValue;
@@ -64,18 +74,36 @@ class Share {
 
     return Share(
       id: doc.id,
-      productType: data['typ_produktu'] ?? '',
-      investmentAmount: safeToDouble(data['kwota_inwestycji']),
-      sharesCount: safeToInt(data['ilosc_udzialow']),
-      sourceFile: data['source_file'] ?? '',
+      productType: data['typ_produktu'] ?? data['Typ_produktu'] ?? 'Udziały',
+      investmentAmount: safeToDouble(
+        data['kwota_inwestycji'] ?? data['Kwota_inwestycji'],
+      ),
+      sharesCount: safeToInt(data['ilosc_udzialow'] ?? data['Ilosc_Udzialow']),
+      remainingCapital: safeToDouble(
+        data['kapital_pozostaly'] ?? data['Kapital Pozostaly'],
+      ),
+      capitalForRestructuring: safeToDouble(
+        data['kapital_do_restrukturyzacji'],
+      ),
+      capitalSecuredByRealEstate: safeToDouble(
+        data['kapital_zabezpieczony_nieruchomoscia'],
+      ),
+      sourceFile: data['source_file'] ?? 'imported_data.json',
       createdAt: parseDate(data['created_at']) ?? DateTime.now(),
       uploadedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
       additionalInfo: Map<String, dynamic>.from(data)
         ..removeWhere(
           (key, value) => [
             'typ_produktu',
+            'Typ_produktu',
             'kwota_inwestycji',
+            'Kwota_inwestycji',
             'ilosc_udzialow',
+            'Ilosc_Udzialow',
+            'kapital_pozostaly',
+            'Kapital Pozostaly',
+            'kapital_do_restrukturyzacji',
+            'kapital_zabezpieczony_nieruchomoscia',
             'source_file',
             'created_at',
             'uploaded_at',
@@ -89,6 +117,9 @@ class Share {
       'typ_produktu': productType,
       'kwota_inwestycji': investmentAmount,
       'ilosc_udzialow': sharesCount,
+      'kapital_pozostaly': remainingCapital,
+      'kapital_do_restrukturyzacji': capitalForRestructuring,
+      'kapital_zabezpieczony_nieruchomoscia': capitalSecuredByRealEstate,
       'source_file': sourceFile,
       'created_at': createdAt.toIso8601String(),
       'uploaded_at': uploadedAt.toIso8601String(),
@@ -101,6 +132,9 @@ class Share {
     String? productType,
     double? investmentAmount,
     int? sharesCount,
+    double? remainingCapital,
+    double? capitalForRestructuring,
+    double? capitalSecuredByRealEstate,
     String? sourceFile,
     DateTime? createdAt,
     DateTime? uploadedAt,
@@ -111,6 +145,11 @@ class Share {
       productType: productType ?? this.productType,
       investmentAmount: investmentAmount ?? this.investmentAmount,
       sharesCount: sharesCount ?? this.sharesCount,
+      remainingCapital: remainingCapital ?? this.remainingCapital,
+      capitalForRestructuring:
+          capitalForRestructuring ?? this.capitalForRestructuring,
+      capitalSecuredByRealEstate:
+          capitalSecuredByRealEstate ?? this.capitalSecuredByRealEstate,
       sourceFile: sourceFile ?? this.sourceFile,
       createdAt: createdAt ?? this.createdAt,
       uploadedAt: uploadedAt ?? this.uploadedAt,
