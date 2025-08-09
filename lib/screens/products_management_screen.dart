@@ -11,7 +11,7 @@ import '../widgets/premium_error_widget.dart';
 import '../widgets/product_card_widget.dart';
 import '../widgets/product_stats_widget.dart';
 import '../widgets/product_filter_widget.dart';
-import '../widgets/product_details_dialog.dart';
+import '../widgets/dialogs/product_details_dialog.dart';
 
 /// Ekran zarządzania produktami z wszystkich kolekcji Firebase
 /// Wykorzystuje UnifiedProductService do pobierania danych z bonds, shares, loans, apartments
