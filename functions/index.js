@@ -605,9 +605,14 @@ exports.getSystemStats = onCall({
 
     totalCapitalSnapshot.docs.forEach((doc) => {
       const data = doc.data();
-      // UŻYWAMY TYLKO kapital_pozostaly zgodnie z modelem Dart
-      const remaining = parseFloat(data.kapital_pozostaly || 0);
-      const productType = data.typ_produktu || "Nieznany";
+      // UŻYWAMY TYLKO kapital_pozostaly zgodnie z modelem Dart - sprawdzaj nowe pola
+      const remaining = parseFloat(
+        data['Kapital Pozostaly']?.toString().replace(/,/g, '') ||
+        data.kapital_pozostaly ||
+        data.remainingCapital ||
+        0
+      );
+      const productType = data.Typ_produktu || data.typ_produktu || data.productType || "Nieznany";
 
       totalRemainingCapital += remaining;
 
@@ -674,17 +679,18 @@ function createInvestorSummary(client, investments) {
   let totalCapitalForRestructuring = 0;
 
   const processedInvestments = investments.map((investment) => {
-    // 📊 MAPOWANIE KWOTY INWESTYCJI - uwzględnij wszystkie warianty
+    // 📊 MAPOWANIE KWOTY INWESTYCJI - nowe pola mają wyższy priorytet
     const amount = parseFloat(
-      investment.kwota_inwestycji ||
-      investment.Kwota_inwestycji ||
-      investment.investmentAmount ||
+      investment.Kwota_inwestycji ||        // Nowe pole (string)
+      investment.kwota_inwestycji ||        // Stare pole (number) 
+      investment.investmentAmount ||        // Backup pole (number)
       0
     );
 
-    // 📊 MAPOWANIE KAPITAŁU POZOSTAŁEGO - uwzględnij wszystkie warianty  
+    // 📊 MAPOWANIE KAPITAŁU POZOSTAŁEGO - obsłuż różne formaty ze stringami z przecinkami
     let remainingCapital = 0;
     if (investment['Kapital Pozostaly']) {
+      // String z przecinkami: "200,000.00"
       const cleaned = investment['Kapital Pozostaly'].toString().replace(/,/g, '');
       remainingCapital = parseFloat(cleaned) || 0;
     } else if (investment.kapital_pozostaly) {
@@ -696,17 +702,20 @@ function createInvestorSummary(client, investments) {
       remainingCapital = parseFloat(investment.kapital_do_restrukturyzacji) || 0;
     }
 
-    // 🐛 DEBUG: Loguj pierwsze kilka inwestycji z kapitałem
+    // 🐛 DEBUG: Loguj pierwsze kilka inwestycji z kapitałem - sprawdź nowe pola
     if (remainingCapital > 0 && Math.random() < 0.01) { // 1% szans na log dla wydajności
-      console.log(`🔍 [DEBUG] Investment mapping:`, {
-        productType: investment.typ_produktu || investment.Typ_produktu,
+      console.log(`🔍 [DEBUG] Investment mapping (Updated Firebase):`, {
+        productType: investment.Typ_produktu || investment.typ_produktu || investment.productType,
         collectionType: investment.collection_type,
         remainingCapital: remainingCapital,
+        clientId: investment.ID_Klient || investment.id_klient,
         fields: {
+          'Kapital Pozostaly': investment['Kapital Pozostaly'],
           'kapital_pozostaly': investment.kapital_pozostaly,
+          'Kwota_inwestycji': investment.Kwota_inwestycji,
+          'kwota_inwestycji': investment.kwota_inwestycji,
           'kapital_do_restrukturyzacji': investment.kapital_do_restrukturyzacji,
-          'kapital_zabezpieczony_nieruchomoscia': investment.kapital_zabezpieczony_nieruchomoscia,
-          'kwota_inwestycji': investment.kwota_inwestycji
+          'kapital_zabezpieczony_nieruchomoscia': investment.kapital_zabezpieczony_nieruchomoscia
         }
       });
     }

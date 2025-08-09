@@ -615,7 +615,7 @@ class _StandardProductAnalyticsTabState
                           if (index >= 0 && index < _trends!.length) {
                             final month = _trends![index]['month'] as String;
                             return SideTitleWidget(
-                              axisSide: meta.axisSide,
+                              meta: meta,
                               child: Text(
                                 month.substring(5), // Pokazuj tylko miesiąc
                                 style: theme.textTheme.bodySmall,

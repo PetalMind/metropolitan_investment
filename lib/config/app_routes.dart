@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../screens/premium_investor_analytics_screen.dart';
-import '../screens/calendar_screen.dart';
+import '../screens/calendar_screen_enhanced.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
 import '../screens/dashboard_screen_refactored.dart';
@@ -475,7 +475,7 @@ class AppRouter {
             pageBuilder: (context, state) => _buildPageWithTransition(
               context,
               state,
-              const CalendarScreen(),
+              const CalendarScreenEnhanced(),
             ),
           ),
 
@@ -562,7 +562,7 @@ class _ErrorPage extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           decoration: AppTheme.premiumCardDecoration.copyWith(
             border: Border.all(
-              color: AppTheme.errorColor.withOpacity(0.3),
+              color: AppTheme.errorColor.withValues(alpha: 0.3),
               width: 1,
             ),
           ),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/investor_summary.dart';
 import '../../../models/voting_status_change.dart';
-import '../../../services/investor_analytics_service.dart';
+import '../../../services/enhanced_voting_status_service.dart';
+import '../../../services/voting_status_change_service.dart';
 import '../../../theme/app_theme.dart';
 
 class VotingChangesTab extends StatefulWidget {
@@ -16,8 +16,8 @@ class VotingChangesTab extends StatefulWidget {
 }
 
 class _VotingChangesTabState extends State<VotingChangesTab> {
-  final InvestorAnalyticsService _analyticsService =
-      InvestorAnalyticsService();
+  final EnhancedVotingStatusService _votingService = EnhancedVotingStatusService();
+  final VotingStatusChangeService _changeService = VotingStatusChangeService();
 
   List<VotingStatusChange> _changes = [];
   bool _isLoading = true;
@@ -37,34 +37,72 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
       print(
         '🔍 [VotingChangesTab] Nazwa klienta: ${widget.investor.client.name}',
       );
-      print(
-        '🔍 [VotingChangesTab] ExcelId klienta: ${widget.investor.client.excelId}',
-      );
 
       setState(() {
         _isLoading = true;
         _error = null;
       });
 
-      // TODO: Replace with Firebase Functions call
-      // final changes = await _analyticsService.getVotingStatusHistory(
-      //   widget.investor.client.id,
-      // );
+      // Spróbuj różne metody identyfikacji klienta
+      List<VotingStatusChange> changes = [];
 
-      print('⚠️ [VotingChangesTab] Voting history temporarily disabled');
-      final changes = <VotingStatusChange>[];
+      // 1. Sprawdź po investorId (główny identyfikator)
+      changes = await _votingService.getVotingStatusHistory(widget.investor.client.id);
+      
+      if (changes.isEmpty) {
+        // 2. Sprawdź po clientId (alternatywny identyfikator)
+        changes = await _changeService.getChangesForClient(widget.investor.client.id);
+      }
 
-      setState(() {
-        _changes = changes;
-        _isLoading = false;
-      });
+      // 3. Jeśli nadal pusty, spróbuj po excelId jeśli istnieje
+      if (changes.isEmpty && widget.investor.client.excelId != null && widget.investor.client.excelId!.isNotEmpty) {
+        changes = await _changeService.getChangesForClient(widget.investor.client.excelId!);
+      }
+
+      // 4. Jako ostateczność, sprawdź po wszystkich możliwych identyfikatorach tego klienta
+      if (changes.isEmpty) {
+        changes = await _searchByAllClientIdentifiers();
+      }
+
+      print('✅ [VotingChangesTab] Znaleziono ${changes.length} zmian w historii');
+
+      if (mounted) {
+        setState(() {
+          _changes = changes;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       print('❌ [VotingChangesTab] Błąd ładowania historii: $e');
-      setState(() {
-        _error = 'Błąd ładowania historii zmian: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Błąd ładowania historii zmian: $e';
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  Future<List<VotingStatusChange>> _searchByAllClientIdentifiers() async {
+    List<VotingStatusChange> allChanges = [];
+    
+    try {
+      // Pobierz ostatnie zmiany i przeszukaj po nazwie klienta
+      final recentChanges = await _changeService.getAllRecentChanges(limit: 500);
+      
+      final clientName = widget.investor.client.name.toLowerCase().trim();
+      final matchingChanges = recentChanges.where((change) {
+        return change.clientName.toLowerCase().trim() == clientName;
+      }).toList();
+
+      print('🔍 [VotingChangesTab] Znaleziono ${matchingChanges.length} zmian po nazwie klienta');
+      allChanges.addAll(matchingChanges);
+      
+    } catch (e) {
+      print('❌ [VotingChangesTab] Błąd wyszukiwania po nazwie: $e');
+    }
+    
+    return allChanges;
   }
 
   @override

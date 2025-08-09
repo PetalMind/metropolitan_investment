@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/investment.dart';
 import '../models/client.dart';
 import '../models/investor_summary.dart';
@@ -7,6 +8,7 @@ import 'base_service.dart';
 /// Usługa do pobierania inwestorów dla konkretnych produktów
 class ProductInvestorsService extends BaseService {
   final String _investmentsCollection = 'investments';
+  final String _clientsCollection = 'clients';
 
   /// Pobiera inwestorów dla danego produktu na podstawie nazwy produktu
   Future<List<InvestorSummary>> getInvestorsByProductName(
@@ -17,76 +19,131 @@ class ProductInvestorsService extends BaseService {
         '📊 [ProductInvestors] Pobieranie inwestorów dla produktu: $productName',
       );
 
-      // Pobierz wszystkie inwestycje dla danego produktu
-      final snapshot = await firestore
-          .collection(_investmentsCollection)
-          .where('produkt_nazwa', isEqualTo: productName)
-          .get();
+      // Pobierz wszystkie inwestycje dla danego produktu - sprawdzaj nowe i stare pola nazw
+      QuerySnapshot<Map<String, dynamic>> snapshot;
+      
+      try {
+        snapshot = await firestore
+            .collection(_investmentsCollection)
+            .where('Produkt_nazwa', isEqualTo: productName)  // Nowe pole
+            .get();
+      } catch (e) {
+        // Jeśli błąd z indeksem dla Produkt_nazwa, spróbuj starego pola
+        print('⚠️ [ProductInvestors] Błąd z Produkt_nazwa, próbuję produkt_nazwa: $e');
+        snapshot = await firestore
+            .collection(_investmentsCollection) 
+            .where('produkt_nazwa', isEqualTo: productName)  // Stare pole
+            .get();
+      }
 
+      // Jeśli nie znaleziono przez nowe pole, spróbuj starego
       if (snapshot.docs.isEmpty) {
-        print(
-          '⚠️ [ProductInvestors] Brak inwestycji dla produktu: $productName',
-        );
-        return [];
-      }
-
-      // Konwertuj na obiekty Investment
-      final investments = snapshot.docs.map((doc) {
-        return Investment.fromFirestore(doc);
-      }).toList();
-
-      print(
-        '📈 [ProductInvestors] Znaleziono ${investments.length} inwestycji',
-      );
-
-      // Grupuj inwestycje według numerycznych ID klientów
-      final Map<String, List<Investment>> investmentsByNumericId = {};
-      for (final investment in investments) {
-        final numericId = investment.clientId; // To jest numeryczne ID z Excela
-        print(
-          '🔗 [ProductInvestors] Investment ${investment.id} -> Numeric Client ID: "$numericId"',
-        );
-        investmentsByNumericId.putIfAbsent(numericId, () => []).add(investment);
-      }
-
-      // Pobierz unikalne numeryczne ID klientów
-      final numericClientIds = investmentsByNumericId.keys.toList();
-      print(
-        '👥 [ProductInvestors] Znaleziono ${numericClientIds.length} unikalnych numerycznych ID klientów',
-      );
-
-      // Pobierz wszystkich klientów z bazy - będziemy wyszukiwać po excelId
-      final clients = await _getClientsByExcelIds(numericClientIds);
-      print('� [ProductInvestors] Załadowano dane ${clients.length} klientów');
-
-      // Utwórz podsumowania inwestorów
-      final List<InvestorSummary> investors = [];
-      for (final client in clients) {
-        // Znajdź inwestycje dla tego klienta po excelId
-        final clientInvestments = investmentsByNumericId[client.excelId] ?? [];
-
-        if (clientInvestments.isNotEmpty) {
-          final investorSummary = InvestorSummary.fromInvestments(
-            client,
-            clientInvestments,
-          );
-          investors.add(investorSummary);
-          print(
-            '✅ [ProductInvestors] Utworzono podsumowanie dla ${client.name}: ${clientInvestments.length} inwestycji',
-          );
+        print('⚠️ [ProductInvestors] Brak wyników dla Produkt_nazwa, próbuję produkt_nazwa...');
+        final fallbackSnapshot = await firestore
+            .collection(_investmentsCollection) 
+            .where('produkt_nazwa', isEqualTo: productName)  // Stare pole
+            .get();
+        
+        if (fallbackSnapshot.docs.isEmpty) {
+          print('⚠️ [ProductInvestors] Brak inwestycji dla produktu: $productName');
+          return [];
         }
+        snapshot = fallbackSnapshot;
       }
 
-      // Sortuj według wartości inwestycji (malejąco)
-      investors.sort((a, b) => b.totalValue.compareTo(a.totalValue));
-
-      print(
-        '✅ [ProductInvestors] Utworzono ${investors.length} podsumowań inwestorów',
-      );
-      return investors;
+      return await _processInvestmentSnapshot(snapshot, productName);
     } catch (e) {
       logError('getInvestorsByProductName', e);
       print('❌ [ProductInvestors] Błąd: $e');
+      return [];
+    }
+  }
+
+  /// Przetwarza snapshot inwestycji i tworzy podsumowania inwestorów
+  Future<List<InvestorSummary>> _processInvestmentSnapshot(
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+    String productName,
+  ) async {
+    try {
+      print(
+        '📋 [ProductInvestors] Przetwarzanie ${snapshot.docs.length} inwestycji dla produktu: $productName',
+      );
+
+      // Grupuj inwestycje według ID klienta
+      final Map<String, List<Investment>> investmentsByClientId = {};
+
+      for (final doc in snapshot.docs) {
+        final investment = Investment.fromFirestore(doc);
+        
+        // Sprawdź czy inwestycja ma ID klienta (nowe i stare pola)
+        String clientId = investment.clientId;
+        if (clientId.isEmpty) {
+          // Spróbuj starszego pola
+          final legacyClientId = doc.data()['klient_id'] as String?;
+          clientId = legacyClientId ?? '';
+        }
+        
+        if (clientId.isNotEmpty) {
+          investmentsByClientId.putIfAbsent(clientId, () => []);
+          investmentsByClientId[clientId]!.add(investment);
+        } else {
+          print('⚠️ [ProductInvestors] Inwestycja bez ID klienta: ${doc.id}');
+        }
+      }
+
+      // Pobierz dane klientów
+      final List<InvestorSummary> investors = [];
+      
+      for (final entry in investmentsByClientId.entries) {
+        final clientId = entry.key;
+        final investments = entry.value;
+
+        try {
+          final clientDoc = await firestore
+              .collection(_clientsCollection)
+              .doc(clientId)
+              .get();
+
+          if (clientDoc.exists) {
+            final client = Client.fromFirestore(clientDoc);
+            
+            // Ręcznie stwórz InvestorSummary
+            double totalValue = 0.0;
+            
+            for (final investment in investments) {
+              totalValue += investment.remainingCapital;
+            }
+            
+            final investor = InvestorSummary(
+              client: client,
+              investments: investments,
+              totalRemainingCapital: totalValue,
+              totalSharesValue: 0.0,
+              totalValue: totalValue, 
+              totalInvestmentAmount: investments.fold<double>(0.0, (sum, inv) => sum + inv.investmentAmount),
+              totalRealizedCapital: investments.fold<double>(0.0, (sum, inv) => sum + inv.realizedCapital),
+              capitalSecuredByRealEstate: 0.0,
+              capitalForRestructuring: 0.0,
+              investmentCount: investments.length,
+            );
+            
+            investors.add(investor);
+          } else {
+            print('⚠️ [ProductInvestors] Nie znaleziono klienta o ID: $clientId');
+          }
+        } catch (e) {
+          print('❌ [ProductInvestors] Błąd podczas pobierania klienta $clientId: $e');
+        }
+      }
+
+      print(
+        '✅ [ProductInvestors] Znaleziono ${investors.length} inwestorów dla produktu: $productName',
+      );
+
+      return investors;
+    } catch (e) {
+      logError('_processInvestmentSnapshot', e);
+      print('❌ [ProductInvestors] Błąd podczas przetwarzania: $e');
       return [];
     }
   }
@@ -120,68 +177,28 @@ class ProductInvestorsService extends BaseService {
           break;
       }
 
-      // Pobierz wszystkie inwestycje dla danego typu produktu
+      // Pobierz wszystkie inwestycje dla danego typu produktu - sprawdzaj nowe i stare pola
       final snapshot = await firestore
           .collection(_investmentsCollection)
-          .where('typ_produktu', isEqualTo: typeStr)
+          .where('Typ_produktu', isEqualTo: typeStr)  // Nowe pole
           .get();
 
+      // Jeśli nie znaleziono przez nowe pole, spróbuj starego  
       if (snapshot.docs.isEmpty) {
-        print('⚠️ [ProductInvestors] Brak inwestycji dla typu: $typeStr');
-        return [];
-      }
-
-      // Konwertuj na obiekty Investment
-      final investments = snapshot.docs.map((doc) {
-        return Investment.fromFirestore(doc);
-      }).toList();
-
-      print(
-        '📈 [ProductInvestors] Znaleziono ${investments.length} inwestycji',
-      );
-
-      // Grupuj inwestycje według numerycznych ID klientów
-      final Map<String, List<Investment>> investmentsByNumericId = {};
-      for (final investment in investments) {
-        final numericId = investment.clientId; // To jest numeryczne ID z Excela
-        investmentsByNumericId.putIfAbsent(numericId, () => []).add(investment);
-      }
-
-      // Pobierz unikalne numeryczne ID klientów
-      final numericClientIds = investmentsByNumericId.keys.toList();
-      print(
-        '👥 [ProductInvestors] Znaleziono ${numericClientIds.length} unikalnych numerycznych ID klientów',
-      );
-
-      // Pobierz wszystkich klientów z bazy - będziemy wyszukiwać po excelId
-      final clients = await _getClientsByExcelIds(numericClientIds);
-      print('� [ProductInvestors] Załadowano dane ${clients.length} klientów');
-
-      // Utwórz podsumowania inwestorów
-      final List<InvestorSummary> investors = [];
-      for (final client in clients) {
-        // Znajdź inwestycje dla tego klienta po excelId
-        final clientInvestments = investmentsByNumericId[client.excelId] ?? [];
-
-        if (clientInvestments.isNotEmpty) {
-          final investorSummary = InvestorSummary.fromInvestments(
-            client,
-            clientInvestments,
-          );
-          investors.add(investorSummary);
-          print(
-            '✅ [ProductInvestors] Utworzono podsumowanie dla ${client.name}: ${clientInvestments.length} inwestycji',
-          );
+        print('⚠️ [ProductInvestors] Brak wyników dla Typ_produktu, próbuję typ_produktu...');
+        final fallbackSnapshot = await firestore
+            .collection(_investmentsCollection)
+            .where('typ_produktu', isEqualTo: typeStr)  // Stare pole
+            .get();
+            
+        if (fallbackSnapshot.docs.isEmpty) {
+          print('⚠️ [ProductInvestors] Brak inwestycji dla typu: $typeStr');
+          return [];
         }
+        return _processInvestmentSnapshot(fallbackSnapshot, 'Type: $typeStr');
       }
 
-      // Sortuj według wartości inwestycji (malejąco)
-      investors.sort((a, b) => b.totalValue.compareTo(a.totalValue));
-
-      print(
-        '✅ [ProductInvestors] Utworzono ${investors.length} podsumowań inwestorów',
-      );
-      return investors;
+      return _processInvestmentSnapshot(snapshot, 'Type: $typeStr');
     } catch (e) {
       logError('getInvestorsByProductType', e);
       print('❌ [ProductInvestors] Błąd: $e');
@@ -402,63 +419,6 @@ class ProductInvestorsService extends BaseService {
     return 0;
   }
 
-  /// Pobiera dane klientów na podstawie listy numerycznych Excel ID
-  Future<List<Client>> _getClientsByExcelIds(List<String> excelIds) async {
-    try {
-      print('🔍 [ProductInvestors] Szukam klientów po excelId: $excelIds');
-      final List<Client> clients = [];
-
-      // Pobierz klientów gdzie excelId pasuje do numerycznych ID z inwestycji
-      for (final excelId in excelIds) {
-        final snapshot = await firestore
-            .collection('clients')
-            .where('excelId', isEqualTo: excelId)
-            .limit(1)
-            .get();
-
-        if (snapshot.docs.isNotEmpty) {
-          final client = Client.fromFirestore(snapshot.docs.first);
-          clients.add(client);
-          print(
-            '✅ [ProductInvestors] Znaleziono klienta przez excelId: $excelId -> ${client.name} (${client.id})',
-          );
-        } else {
-          print(
-            '❌ [ProductInvestors] Nie znaleziono klienta o excelId: $excelId',
-          );
-
-          // Fallback: spróbuj znaleźć przez original_id dla kompatybilności
-          final originalSnapshot = await firestore
-              .collection('clients')
-              .where('original_id', isEqualTo: excelId)
-              .limit(1)
-              .get();
-
-          if (originalSnapshot.docs.isNotEmpty) {
-            final client = Client.fromFirestore(originalSnapshot.docs.first);
-            clients.add(client);
-            print(
-              '✅ [ProductInvestors] Znaleziono klienta przez original_id: $excelId -> ${client.name} (${client.id})',
-            );
-          } else {
-            print(
-              '⚠️ [ProductInvestors] Nie można dopasować klienta o ID: $excelId',
-            );
-          }
-        }
-      }
-
-      print(
-        '🎯 [ProductInvestors] Łącznie załadowano ${clients.length} klientów przez excelId',
-      );
-      return clients;
-    } catch (e) {
-      logError('_getClientsByExcelIds', e);
-      print('❌ [ProductInvestors] Błąd pobierania klientów przez excelId: $e');
-      return [];
-    }
-  }
-
   /// Pobiera statystyki inwestorów dla produktu
   Future<Map<String, dynamic>> getProductInvestorsStats(
     UnifiedProduct product,
@@ -477,7 +437,7 @@ class ProductInvestorsService extends BaseService {
 
       final totalValue = investors.fold<double>(
         0.0,
-        (sum, investor) => sum + investor.totalValue,
+        (sum, investor) => sum + investor.totalRemainingCapital,
       );
 
       final activeInvestors = investors

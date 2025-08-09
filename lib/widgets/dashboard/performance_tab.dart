@@ -320,7 +320,7 @@ class PerformanceTab extends StatelessWidget {
                       interval: 1,
                       getTitlesWidget: (double value, TitleMeta meta) {
                         return SideTitleWidget(
-                          axisSide: meta.axisSide,
+                          meta: meta,
                           child: Text(
                             _getMonthLabel(value.toInt()),
                             style: AppTextStyles.bodySmall.copyWith(

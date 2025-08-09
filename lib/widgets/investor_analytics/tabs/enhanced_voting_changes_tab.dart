@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/investor_summary.dart';
 import '../../../models/voting_status_change.dart';
 import '../../../services/enhanced_voting_status_service.dart';
+import '../../../services/voting_status_change_service.dart';
 import '../../../theme/app_theme.dart';
 
 class EnhancedVotingChangesTab extends StatefulWidget {
@@ -51,27 +52,53 @@ class _EnhancedVotingChangesTabState extends State<EnhancedVotingChangesTab> {
 
   Future<void> _loadChanges() async {
     try {
+      print('🔍 [EnhancedVotingChangesTab] Ładowanie historii zmian dla: ${widget.investor.client.name}');
       setState(() {
         _isLoading = true;
         _error = null;
       });
 
-      final changes = await _votingService.getVotingStatusHistory(
+      // Spróbuj różne metody identyfikacji klienta
+      List<VotingStatusChange> changes = [];
+
+      // 1. Sprawdź po investorId (główny identyfikator)
+      changes = await _votingService.getVotingStatusHistory(
         widget.investor.client.id,
         limit: 20,
       );
 
-      setState(() {
-        _changes = changes;
-        _lastDocument = changes.isNotEmpty ? null : null; // Will be set properly with pagination
-        _hasMoreData = changes.length == 20;
-        _isLoading = false;
-      });
+      if (changes.isEmpty) {
+        // 2. Sprawdź po clientId przez VotingStatusChangeService
+        final changeService = VotingStatusChangeService();
+        changes = await changeService.getChangesForClient(widget.investor.client.id);
+        changes = changes.take(20).toList();
+      }
+
+      // 3. Sprawdź po excelId jeśli istnieje
+      if (changes.isEmpty && widget.investor.client.excelId != null && widget.investor.client.excelId!.isNotEmpty) {
+        final changeService = VotingStatusChangeService();
+        changes = await changeService.getChangesForClient(widget.investor.client.excelId!);
+        changes = changes.take(20).toList();
+      }
+
+      print('✅ [EnhancedVotingChangesTab] Znaleziono ${changes.length} zmian w historii');
+
+      if (mounted) {
+        setState(() {
+          _changes = changes;
+          _lastDocument = changes.isNotEmpty ? null : null;
+          _hasMoreData = changes.length == 20;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Błąd ładowania historii zmian: $e';
-        _isLoading = false;
-      });
+      print('❌ [EnhancedVotingChangesTab] Błąd ładowania historii: $e');
+      if (mounted) {
+        setState(() {
+          _error = 'Błąd ładowania historii zmian: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 

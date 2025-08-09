@@ -418,15 +418,15 @@ function createProductInvestorSummary(client, investments) {
   let totalRealizedCapital = 0;
 
   const processedInvestments = investments.map(investment => {
-    // Mapowanie kwoty inwestycji - sprawdź pola w kolejności priorytetów
+    // Mapowanie kwoty inwestycji - sprawdź pola w kolejności priorytetów - NOWE POLA MAJĄ WYŻSZY PRIORYTET
     const amount = parseFloat(
-      investment.kwota_inwestycji ||      // number pole
-      investment.Kwota_inwestycji ||      // string pole z danymi
-      investment.investmentAmount ||      // number backup pole
+      investment.Kwota_inwestycji ||        // Nowe pole (string)
+      investment.kwota_inwestycji ||        // Stare pole (number)
+      investment.investmentAmount ||        // Backup pole (number)
       0
     );
 
-    // Mapowanie kapitału pozostałego - obsłuż różne formaty
+    // Mapowanie kapitału pozostałego - obsłuż różne formaty - NOWE POLA MAJĄ WYŻSZY PRIORYTET
     let remainingCapital = 0;
 
     if (investment['Kapital Pozostaly']) {
@@ -444,12 +444,13 @@ function createProductInvestorSummary(client, investments) {
       remainingCapital = parseFloat(investment.kapital_do_restrukturyzacji) || 0;
     }
 
-    // Mapowanie zrealizowanego kapitału
+    // Mapowanie zrealizowanego kapitału - NOWE POLA MAJĄ WYŻSZY PRIORYTET
     let realizedCapital = 0;
 
     if (investment['Kapital zrealizowany']) {
       // String pole: "0.00"
-      realizedCapital = parseFloat(investment['Kapital zrealizowany']) || 0;
+      const cleaned = investment['Kapital zrealizowany'].toString().replace(/,/g, '');
+      realizedCapital = parseFloat(cleaned) || 0;
     } else if (investment.kapital_zrealizowany) {
       // Number pole
       realizedCapital = parseFloat(investment.kapital_zrealizowany) || 0;
