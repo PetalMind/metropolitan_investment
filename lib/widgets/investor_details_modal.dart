@@ -565,6 +565,13 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
             fontWeight: FontWeight.bold,
           ),
         ),
+                const SizedBox(height: 16),
+          _buildStatCard(
+          'kwota_inwestycji',
+          CurrencyFormatter.formatCurrency(
+            widget.investor.totalInvestmentAmount,
+          ),
+        ),
         const SizedBox(height: 16),
         _buildStatCard(
           'kapital_pozostaly',
@@ -579,13 +586,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
             widget.investor.capitalSecuredByRealEstate,
           ),
         ),
-        const SizedBox(height: 12),
-        _buildStatCard(
-          'kwota_inwestycji',
-          CurrencyFormatter.formatCurrency(
-            widget.investor.totalInvestmentAmount,
-          ),
-        ),
+    
         const SizedBox(height: 12),
         _buildStatCard(
           'kapital_do_restrukturyzacji',

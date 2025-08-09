@@ -21,31 +21,37 @@ class ProductInvestorsService extends BaseService {
 
       // Pobierz wszystkie inwestycje dla danego produktu - sprawdzaj nowe i stare pola nazw
       QuerySnapshot<Map<String, dynamic>> snapshot;
-      
+
       try {
         snapshot = await firestore
             .collection(_investmentsCollection)
-            .where('Produkt_nazwa', isEqualTo: productName)  // Nowe pole
+            .where('Produkt_nazwa', isEqualTo: productName) // Nowe pole
             .get();
       } catch (e) {
         // Jeśli błąd z indeksem dla Produkt_nazwa, spróbuj starego pola
-        print('⚠️ [ProductInvestors] Błąd z Produkt_nazwa, próbuję produkt_nazwa: $e');
+        print(
+          '⚠️ [ProductInvestors] Błąd z Produkt_nazwa, próbuję produkt_nazwa: $e',
+        );
         snapshot = await firestore
-            .collection(_investmentsCollection) 
-            .where('produkt_nazwa', isEqualTo: productName)  // Stare pole
+            .collection(_investmentsCollection)
+            .where('produkt_nazwa', isEqualTo: productName) // Stare pole
             .get();
       }
 
       // Jeśli nie znaleziono przez nowe pole, spróbuj starego
       if (snapshot.docs.isEmpty) {
-        print('⚠️ [ProductInvestors] Brak wyników dla Produkt_nazwa, próbuję produkt_nazwa...');
+        print(
+          '⚠️ [ProductInvestors] Brak wyników dla Produkt_nazwa, próbuję produkt_nazwa...',
+        );
         final fallbackSnapshot = await firestore
-            .collection(_investmentsCollection) 
-            .where('produkt_nazwa', isEqualTo: productName)  // Stare pole
+            .collection(_investmentsCollection)
+            .where('produkt_nazwa', isEqualTo: productName) // Stare pole
             .get();
-        
+
         if (fallbackSnapshot.docs.isEmpty) {
-          print('⚠️ [ProductInvestors] Brak inwestycji dla produktu: $productName');
+          print(
+            '⚠️ [ProductInvestors] Brak inwestycji dla produktu: $productName',
+          );
           return [];
         }
         snapshot = fallbackSnapshot;
@@ -74,7 +80,7 @@ class ProductInvestorsService extends BaseService {
 
       for (final doc in snapshot.docs) {
         final investment = Investment.fromFirestore(doc);
-        
+
         // Sprawdź czy inwestycja ma ID klienta (nowe i stare pola)
         String clientId = investment.clientId;
         if (clientId.isEmpty) {
@@ -82,7 +88,7 @@ class ProductInvestorsService extends BaseService {
           final legacyClientId = doc.data()['klient_id'] as String?;
           clientId = legacyClientId ?? '';
         }
-        
+
         if (clientId.isNotEmpty) {
           investmentsByClientId.putIfAbsent(clientId, () => []);
           investmentsByClientId[clientId]!.add(investment);
@@ -93,7 +99,7 @@ class ProductInvestorsService extends BaseService {
 
       // Pobierz dane klientów
       final List<InvestorSummary> investors = [];
-      
+
       for (final entry in investmentsByClientId.entries) {
         final clientId = entry.key;
         final investments = entry.value;
@@ -106,33 +112,43 @@ class ProductInvestorsService extends BaseService {
 
           if (clientDoc.exists) {
             final client = Client.fromFirestore(clientDoc);
-            
+
             // Ręcznie stwórz InvestorSummary
             double totalValue = 0.0;
-            
+
             for (final investment in investments) {
               totalValue += investment.remainingCapital;
             }
-            
+
             final investor = InvestorSummary(
               client: client,
               investments: investments,
               totalRemainingCapital: totalValue,
               totalSharesValue: 0.0,
-              totalValue: totalValue, 
-              totalInvestmentAmount: investments.fold<double>(0.0, (sum, inv) => sum + inv.investmentAmount),
-              totalRealizedCapital: investments.fold<double>(0.0, (sum, inv) => sum + inv.realizedCapital),
+              totalValue: totalValue,
+              totalInvestmentAmount: investments.fold<double>(
+                0.0,
+                (sum, inv) => sum + inv.investmentAmount,
+              ),
+              totalRealizedCapital: investments.fold<double>(
+                0.0,
+                (sum, inv) => sum + inv.realizedCapital,
+              ),
               capitalSecuredByRealEstate: 0.0,
               capitalForRestructuring: 0.0,
               investmentCount: investments.length,
             );
-            
+
             investors.add(investor);
           } else {
-            print('⚠️ [ProductInvestors] Nie znaleziono klienta o ID: $clientId');
+            print(
+              '⚠️ [ProductInvestors] Nie znaleziono klienta o ID: $clientId',
+            );
           }
         } catch (e) {
-          print('❌ [ProductInvestors] Błąd podczas pobierania klienta $clientId: $e');
+          print(
+            '❌ [ProductInvestors] Błąd podczas pobierania klienta $clientId: $e',
+          );
         }
       }
 
@@ -180,17 +196,19 @@ class ProductInvestorsService extends BaseService {
       // Pobierz wszystkie inwestycje dla danego typu produktu - sprawdzaj nowe i stare pola
       final snapshot = await firestore
           .collection(_investmentsCollection)
-          .where('Typ_produktu', isEqualTo: typeStr)  // Nowe pole
+          .where('Typ_produktu', isEqualTo: typeStr) // Nowe pole
           .get();
 
-      // Jeśli nie znaleziono przez nowe pole, spróbuj starego  
+      // Jeśli nie znaleziono przez nowe pole, spróbuj starego
       if (snapshot.docs.isEmpty) {
-        print('⚠️ [ProductInvestors] Brak wyników dla Typ_produktu, próbuję typ_produktu...');
+        print(
+          '⚠️ [ProductInvestors] Brak wyników dla Typ_produktu, próbuję typ_produktu...',
+        );
         final fallbackSnapshot = await firestore
             .collection(_investmentsCollection)
-            .where('typ_produktu', isEqualTo: typeStr)  // Stare pole
+            .where('typ_produktu', isEqualTo: typeStr) // Stare pole
             .get();
-            
+
         if (fallbackSnapshot.docs.isEmpty) {
           print('⚠️ [ProductInvestors] Brak inwestycji dla typu: $typeStr');
           return [];

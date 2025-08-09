@@ -48,7 +48,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   // Kontrola wyświetlania
   bool _showFilters = false;
   bool _showStatistics = true;
-  ViewMode _viewMode = ViewMode.grid;
+  ViewMode _viewMode = ViewMode.list;
 
   @override
   void initState() {
