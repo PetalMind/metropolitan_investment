@@ -10,7 +10,8 @@ class InvestorSummary {
   final double totalValue; // Suma kapitału pozostałego + udziały
   final double totalInvestmentAmount;
   final double totalRealizedCapital;
-  final double capitalSecuredByRealEstate; // kapital_zabezpieczony_nieruchomoscia
+  final double
+  capitalSecuredByRealEstate; // kapital_zabezpieczony_nieruchomoscia
   final double capitalForRestructuring; // kapital_na_restrukturyzacje
   final int investmentCount;
 
@@ -46,11 +47,27 @@ class InvestorSummary {
       // Zachowujemy inne pola dla kompatybilności wstecznej
       totalInvestmentAmount += investment.investmentAmount;
       totalRealizedCapital += investment.realizedCapital;
-      
-      // Sprawdź czy investment ma pole capitalSecuredByRealEstate
-      // Na razie ustalmy na 0, można to rozszerzyć później
-      // capitalSecuredByRealEstate += 0; // Dodaj logikę jeśli potrzeba
-      // capitalForRestructuring += 0; // Dodaj logikę jeśli potrzeba
+
+      // 🏗️ PRÓBUJ POBRAĆ DODATKOWE POLA Z ADDITIONALINFO - dla aparamentów i innych produktów
+      if (investment.additionalInfo['kapital_zabezpieczony_nieruchomoscia'] !=
+          null) {
+        final value =
+            investment.additionalInfo['kapital_zabezpieczony_nieruchomoscia'];
+        if (value is num) {
+          capitalSecuredByRealEstate += value.toDouble();
+        } else if (value is String) {
+          capitalSecuredByRealEstate += double.tryParse(value) ?? 0;
+        }
+      }
+
+      if (investment.additionalInfo['kapital_do_restrukturyzacji'] != null) {
+        final value = investment.additionalInfo['kapital_do_restrukturyzacji'];
+        if (value is num) {
+          capitalForRestructuring += value.toDouble();
+        } else if (value is String) {
+          capitalForRestructuring += double.tryParse(value) ?? 0;
+        }
+      }
     }
 
     // ⭐ WARTOŚĆ CAŁKOWITA = TYLKO kapitał pozostały

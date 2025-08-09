@@ -112,6 +112,20 @@ exports.getOptimizedInvestorAnalytics = onCall({
       ...doc.data(),
     }));
 
+    // 🐛 DEBUG: Loguj przykład apartamentu dla weryfikacji
+    if (apartments.length > 0) {
+      const sampleApartment = apartments[0];
+      console.log(`🏠 [DEBUG] Sample apartment data:`, {
+        id: sampleApartment.id,
+        typ_produktu: sampleApartment.typ_produktu,
+        kwota_inwestycji: sampleApartment.kwota_inwestycji,
+        kapital_do_restrukturyzacji: sampleApartment.kapital_do_restrukturyzacji,
+        kapital_zabezpieczony_nieruchomoscia: sampleApartment.kapital_zabezpieczony_nieruchomoscia,
+        klient: sampleApartment.Klient,
+        numer_apartamentu: sampleApartment.numer_apartamentu
+      });
+    }
+
     console.log(
       `💰 [Analytics Functions] Znaleziono dane:`,
       `\n  - Investments: ${investments.length}`,
@@ -458,26 +472,31 @@ exports.getAllInvestments = onCall({
       query = query.where("typ_produktu", "==", productTypeFilter);
     }
 
-    // Sortowanie - użyj indeksów które już istnieją lub tylko proste sortowanie
-    if (sortBy === "data_kontraktu" && !clientFilter && !productTypeFilter) {
-      // Tylko jeśli nie ma filtrów - użyj prostego sortowania
-      query = query.orderBy("data_kontraktu", "desc");
-    } else if (sortBy && !clientFilter && !productTypeFilter) {
-      // Inne sortowanie tylko bez filtrów
+    // Sortowanie - używaj tylko jeśli nie ma problemów z indeksami
+    if (sortBy && sortBy.length > 0 && !clientFilter && !productTypeFilter) {
+      // Tylko jeśli nie ma filtrów i sortBy jest niepusty - użyj sortowania
       try {
-        query = query.orderBy(sortBy);
+        if (sortBy === "data_kontraktu") {
+          query = query.orderBy("data_kontraktu", "desc");
+        } else {
+          query = query.orderBy(sortBy);
+        }
       } catch (e) {
-        console.log(`⚠️ [Get All Investments] Nie można sortować po ${sortBy}, używam domyślnego`);
+        console.log(`⚠️ [Get All Investments] Nie można sortować po ${sortBy}, używam bez sortowania`);
         // Fallback - bez sortowania
       }
     }
-    // Jeśli są filtry, nie używaj sortowania aby uniknąć błędów indeksów
+    // Jeśli są filtry lub brak sortBy, nie używaj sortowania aby uniknąć błędów indeksów
+
+    console.log(`🔍 [Get All Investments] Query: page=${page}, pageSize=${pageSize}, clientFilter=${clientFilter}, productTypeFilter=${productTypeFilter}, sortBy=${sortBy}`);
 
     // Paginacja
     const snapshot = await query
       .limit(pageSize)
       .offset((page - 1) * pageSize)
       .get();
+
+    console.log(`📊 [Get All Investments] Pobrano ${snapshot.docs.length} dokumentów z Firestore`);
 
     const investments = snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -493,6 +512,8 @@ exports.getAllInvestments = onCall({
       ),
       realizedCapital: parseFloat(investment.realizedCapital || 0),
     }));
+
+    console.log(`⚙️ [Get All Investments] Przetworzono ${processedInvestments.length} inwestycji`);
 
     // Policz total dla bieżących filtrów
     let countQuery = db.collection("investments");
@@ -520,11 +541,12 @@ exports.getAllInvestments = onCall({
         productTypeFilter,
       },
       source: "firebase-functions",
+      processingTimeMs: Date.now() - Date.now(), // Will be calculated properly
     };
 
     await setCachedResult(cacheKey, result, 300);
     console.log(
-      `✅ [Get All Investments] Zwrócono ${investments.length} inwestycji`,
+      `✅ [Get All Investments] Zwrócono ${processedInvestments.length} z ${totalCount} inwestycji (strona ${page})`,
     );
     return result;
   } catch (error) {
@@ -641,12 +663,19 @@ function createInvestorSummary(client, investments) {
   let sharesTotalValue = 0;
   let loansTotalValue = 0;
   let apartmentsTotalValue = 0;
+  let totalCapitalSecuredByRealEstate = 0;
+  let totalCapitalForRestructuring = 0;
 
   const processedInvestments = investments.map((investment) => {
-    // Wspólne pola dla wszystkich typów
-    const amount = parseFloat(investment.kwota_inwestycji || investment.Kwota_inwestycji || 0);
+    // 📊 MAPOWANIE KWOTY INWESTYCJI - uwzględnij wszystkie warianty
+    const amount = parseFloat(
+      investment.kwota_inwestycji ||
+      investment.Kwota_inwestycji ||
+      investment.investmentAmount ||
+      0
+    );
 
-    // Dla kapital_pozostaly sprawdzamy różne formaty pola
+    // 📊 MAPOWANIE KAPITAŁU POZOSTAŁEGO - uwzględnij wszystkie warianty  
     let remainingCapital = 0;
     if (investment['Kapital Pozostaly']) {
       const cleaned = investment['Kapital Pozostaly'].toString().replace(/,/g, '');
@@ -655,10 +684,44 @@ function createInvestorSummary(client, investments) {
       remainingCapital = parseFloat(investment.kapital_pozostaly) || 0;
     } else if (investment.remainingCapital) {
       remainingCapital = parseFloat(investment.remainingCapital) || 0;
+    } else if (investment.kapital_do_restrukturyzacji) {
+      // 🔄 Fallback na kapitał do restrukturyzacji
+      remainingCapital = parseFloat(investment.kapital_do_restrukturyzacji) || 0;
     }
+
+    // 🐛 DEBUG: Loguj pierwsze kilka inwestycji z kapitałem
+    if (remainingCapital > 0 && Math.random() < 0.01) { // 1% szans na log dla wydajności
+      console.log(`🔍 [DEBUG] Investment mapping:`, {
+        productType: investment.typ_produktu || investment.Typ_produktu,
+        collectionType: investment.collection_type,
+        remainingCapital: remainingCapital,
+        fields: {
+          'kapital_pozostaly': investment.kapital_pozostaly,
+          'kapital_do_restrukturyzacji': investment.kapital_do_restrukturyzacji,
+          'kapital_zabezpieczony_nieruchomoscia': investment.kapital_zabezpieczony_nieruchomoscia,
+          'kwota_inwestycji': investment.kwota_inwestycji
+        }
+      });
+    }
+
+    // 📊 MAPOWANIE KAPITAŁU ZABEZPIECZONEGO NIERUCHOMOŚCIĄ
+    const capitalSecuredByRealEstate = parseFloat(
+      investment.kapital_zabezpieczony_nieruchomoscia ||
+      investment.capitalSecuredByRealEstate ||
+      0
+    );
+
+    // 📊 MAPOWANIE KAPITAŁU DO RESTRUKTURYZACJI  
+    const capitalForRestructuring = parseFloat(
+      investment.kapital_do_restrukturyzacji ||
+      investment.capitalForRestructuring ||
+      0
+    );
 
     totalInvestmentAmount += amount;
     totalViableCapital += remainingCapital;
+    totalCapitalSecuredByRealEstate += capitalSecuredByRealEstate;
+    totalCapitalForRestructuring += capitalForRestructuring;
 
     // Kategoryzuj według typu kolekcji
     switch (investment.collection_type) {
@@ -694,6 +757,8 @@ function createInvestorSummary(client, investments) {
       ...investment,
       investmentAmount: amount,
       remainingCapital: remainingCapital,
+      capitalSecuredByRealEstate: capitalSecuredByRealEstate,
+      capitalForRestructuring: capitalForRestructuring,
     };
   });
 
@@ -716,6 +781,8 @@ function createInvestorSummary(client, investments) {
     totalValue: totalViableCapital,
     totalInvestmentAmount,
     totalRealizedCapital: 0, // Nie używamy już zrealizowanego kapitału
+    capitalSecuredByRealEstate: totalCapitalSecuredByRealEstate,
+    capitalForRestructuring: totalCapitalForRestructuring,
     investmentCount: investments.length,
     viableRemainingCapital: totalViableCapital,
     hasUnviableInvestments: false,
@@ -1782,10 +1849,23 @@ exports.getInvestments = onCall({
 
     const offset = (page - 1) * pageSize;
 
-    let query = db.collection('investments')
-      .orderBy(sortBy, sortDirection)
-      .limit(pageSize)
-      .offset(offset);
+    let query = db.collection('investments');
+
+    // Sortowanie z zabezpieczeniem przed błędami indeksów
+    if (sortBy && sortDirection && !clientId && !productType && !status && !minRemainingCapital && !dateFrom && !dateTo) {
+      // Tylko jeśli nie ma filtrów - użyj sortowania
+      try {
+        query = query.orderBy(sortBy, sortDirection);
+        console.log(`📊 [Get Investments] Używam sortowania: ${sortBy} ${sortDirection}`);
+      } catch (e) {
+        console.log(`⚠️ [Get Investments] Nie można sortować po ${sortBy}, używam bez sortowania`);
+        // Fallback - bez sortowania
+      }
+    } else {
+      console.log(`📊 [Get Investments] Pomijam sortowanie (mam filtry lub brak sortBy)`);
+    }
+
+    query = query.limit(pageSize).offset(offset);
 
     // Dodaj filtry
     if (clientId) {

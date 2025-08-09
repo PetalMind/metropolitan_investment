@@ -44,6 +44,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _loadEvents() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final events = await _calendarService.getEventsInRange(
@@ -51,6 +52,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         endDate: _selectedWeekStart.add(const Duration(days: 7)),
       );
 
+      if (!mounted) return;
       setState(() {
         _events = events;
         _filteredEvents = events;
@@ -59,17 +61,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
       _applyFilters();
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Błąd podczas ładowania wydarzeń: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd podczas ładowania wydarzeń: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   void _applyFilters() {
+    if (!mounted) return;
     setState(() {
       _filteredEvents = _events.where((event) {
         // Category filter
@@ -104,6 +110,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _navigateWeek(int direction) {
+    if (!mounted) return;
     setState(() {
       _selectedWeekStart = _selectedWeekStart.add(
         Duration(days: 7 * direction),
@@ -263,12 +270,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
           Expanded(
             flex: 2,
             child: TextField(
+              key: const Key('calendar_search_field'),
               decoration: const InputDecoration(
                 hintText: 'Szukaj wydarzeń...',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
               ),
               onChanged: (value) {
+                if (!mounted) return;
                 setState(() => _searchQuery = value);
                 _applyFilters();
               },
@@ -292,6 +301,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
               ],
               onChanged: (value) {
+                if (!mounted) return;
                 setState(() => _selectedCategory = value ?? 'all');
                 _applyFilters();
               },
@@ -315,6 +325,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 DropdownMenuItem(value: 'cancelled', child: Text('Anulowane')),
               ],
               onChanged: (value) {
+                if (!mounted) return;
                 setState(() => _selectedStatus = value ?? 'all');
                 _applyFilters();
               },

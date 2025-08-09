@@ -363,8 +363,10 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
       totalValue: (data['totalValue'] ?? 0).toDouble(),
       totalInvestmentAmount: (data['totalInvestmentAmount'] ?? 0).toDouble(),
       totalRealizedCapital: (data['totalRealizedCapital'] ?? 0).toDouble(),
-      capitalSecuredByRealEstate: (data['capitalSecuredByRealEstate'] ?? 0).toDouble(),
-      capitalForRestructuring: (data['capitalForRestructuring'] ?? 0).toDouble(),
+      capitalSecuredByRealEstate: (data['capitalSecuredByRealEstate'] ?? 0)
+          .toDouble(),
+      capitalForRestructuring: (data['capitalForRestructuring'] ?? 0)
+          .toDouble(),
       investmentCount: data['investmentCount'] ?? 0,
     );
   }
@@ -410,7 +412,10 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
       realizedInterest: (data['odsetki_zrealizowane'] ?? 0).toDouble(),
       transferToOtherProduct: (data['przekaz_na_inny_produkt'] ?? 0).toDouble(),
       remainingCapital:
-          (data['remainingCapital'] ?? data['kapital_pozostaly'] ?? 0)
+          (data['remainingCapital'] ??
+                  data['kapital_pozostaly'] ??
+                  data['kapital_do_restrukturyzacji'] ??
+                  0)
               .toDouble(),
       remainingInterest: (data['odsetki_pozostale'] ?? 0).toDouble(),
       plannedTax: (data['planowany_podatek'] ?? 0).toDouble(),

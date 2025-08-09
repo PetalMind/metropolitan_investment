@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import '../models/investment.dart';
-import '../theme/app_theme.dart';
+import '../theme/app_theme_professional.dart';
 import '../utils/currency_formatter.dart';
 
 class InvestmentCard extends StatelessWidget {
@@ -20,22 +19,20 @@ class InvestmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
+    return Container(
+      decoration: AppThemePro.premiumCardDecoration.copyWith(
+        border: Border.all(
+          color: AppThemePro.getInvestmentTypeColor(
+            investment.productType.name,
+          ).withOpacity(0.3),
+          width: 2,
+        ),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Container(
+        child: Padding(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppTheme.getProductTypeColor(
-                investment.productType.name,
-              ).withOpacity(0.3),
-              width: 2,
-            ),
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -49,15 +46,15 @@ class InvestmentCard extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.getProductTypeColor(
+                      color: AppThemePro.getInvestmentTypeColor(
                         investment.productType.name,
-                      ).withOpacity(0.1),
+                      ).withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       investment.productType.displayName,
                       style: TextStyle(
-                        color: AppTheme.getProductTypeColor(
+                        color: AppThemePro.getInvestmentTypeColor(
                           investment.productType.name,
                         ),
                         fontSize: 10,
@@ -66,6 +63,8 @@ class InvestmentCard extends StatelessWidget {
                     ),
                   ),
                   PopupMenuButton<String>(
+                    iconColor: AppThemePro.textSecondary,
+                    color: AppThemePro.surfaceCard,
                     onSelected: (value) {
                       switch (value) {
                         case 'edit':
@@ -77,28 +76,46 @@ class InvestmentCard extends StatelessWidget {
                       }
                     },
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(Icons.edit, size: 16),
-                            SizedBox(width: 8),
-                            Text('Edytuj'),
+                            Icon(
+                              Icons.edit,
+                              size: 16,
+                              color: AppThemePro.textSecondary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Edytuj',
+                              style: TextStyle(color: AppThemePro.textPrimary),
+                            ),
                           ],
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete, size: 16, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Usuń', style: TextStyle(color: Colors.red)),
+                            Icon(
+                              Icons.delete,
+                              size: 16,
+                              color: AppThemePro.statusError,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Usuń',
+                              style: TextStyle(color: AppThemePro.statusError),
+                            ),
                           ],
                         ),
                       ),
                     ],
-                    child: const Icon(Icons.more_vert, size: 16),
+                    child: Icon(
+                      Icons.more_vert,
+                      size: 16,
+                      color: AppThemePro.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -108,9 +125,11 @@ class InvestmentCard extends StatelessWidget {
               // Client name
               Text(
                 investment.clientName,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppThemePro.textPrimary,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -120,9 +139,10 @@ class InvestmentCard extends StatelessWidget {
               // Product name
               Text(
                 investment.productName,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppThemePro.textSecondary,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -132,8 +152,9 @@ class InvestmentCard extends StatelessWidget {
               // ⭐ Kapitał pozostały (nie kwota pierwotnej inwestycji)
               Text(
                 _formatCurrency(investment.remainingCapital),
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppTheme.primaryColor,
+                style: TextStyle(
+                  fontSize: 20,
+                  color: AppThemePro.accentGold,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -147,15 +168,16 @@ class InvestmentCard extends StatelessWidget {
                     width: 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: AppTheme.getStatusColor(investment.status.name),
+                      color: AppThemePro.getStatusColor(investment.status.name),
                       shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     investment.status.displayName,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.getStatusColor(investment.status.name),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppThemePro.getStatusColor(investment.status.name),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -170,14 +192,15 @@ class InvestmentCard extends StatelessWidget {
                   Icon(
                     Icons.calendar_today,
                     size: 12,
-                    color: AppTheme.textHint,
+                    color: AppThemePro.textMuted,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     _formatDate(investment.signedDate),
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: AppTheme.textHint),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppThemePro.textMuted,
+                    ),
                   ),
                 ],
               ),
@@ -186,14 +209,15 @@ class InvestmentCard extends StatelessWidget {
 
               Row(
                 children: [
-                  Icon(Icons.person, size: 12, color: AppTheme.textHint),
+                  Icon(Icons.person, size: 12, color: AppThemePro.textMuted),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       investment.employeeFullName,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: AppTheme.textHint),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppThemePro.textMuted,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -201,13 +225,13 @@ class InvestmentCard extends StatelessWidget {
                 ],
               ),
 
-              const Spacer(),
+              const SizedBox(height: 12),
 
               // Progress indicator for profit/loss
               Container(
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[200],
+                  color: AppThemePro.surfaceInteractive,
                   borderRadius: BorderRadius.circular(2),
                 ),
                 child: FractionallySizedBox(
@@ -217,8 +241,8 @@ class InvestmentCard extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       color: investment.profitLoss >= 0
-                          ? AppTheme.successColor
-                          : AppTheme.errorColor,
+                          ? AppThemePro.profitGreen
+                          : AppThemePro.lossRed,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -233,16 +257,20 @@ class InvestmentCard extends StatelessWidget {
                 children: [
                   Text(
                     'Zwrot',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: AppTheme.textHint),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppThemePro.textMuted,
+                    ),
                   ),
                   Text(
-                    '${investment.profitLossPercentage.toStringAsFixed(1)}%',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    CurrencyFormatter.formatPercentage(
+                      investment.profitLossPercentage,
+                    ),
+                    style: TextStyle(
+                      fontSize: 12,
                       color: investment.profitLoss >= 0
-                          ? AppTheme.successColor
-                          : AppTheme.errorColor,
+                          ? AppThemePro.profitGreen
+                          : AppThemePro.lossRed,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

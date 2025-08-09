@@ -12,7 +12,7 @@ import 'base_service.dart';
 
 /// 🚀 FIREBASE FUNCTIONS DATA SERVICE
 /// Zarządzanie dużymi zbiorami danych przez server-side processing
-/// 
+///
 /// ✅ FIXED: Null value handling in ProductStats.fromMap() methods
 /// ✅ FIXED: Enhanced error logging for debugging
 /// ✅ OPTIMIZED: All dashboard data now loads through Firebase Functions
@@ -362,12 +362,12 @@ class FirebaseFunctionsDataService extends BaseService {
       final result = await callable.call();
 
       final data = result.data as Map<String, dynamic>;
-      
+
       // Debug logging for null values
       if (kDebugMode) {
         _logInfo('Firebase Functions response: $data');
       }
-      
+
       final statistics = ProductTypeStatistics.fromMap(data);
 
       _staticCache[cacheKey] = statistics;
@@ -1106,7 +1106,8 @@ class ProductStats {
     return ProductStats(
       count: map['count'] as int? ?? 0,
       totalValue: (map['totalValue'] as num?)?.toDouble() ?? 0.0,
-      totalInvestmentAmount: (map['totalInvestmentAmount'] as num?)?.toDouble() ?? 0.0,
+      totalInvestmentAmount:
+          (map['totalInvestmentAmount'] as num?)?.toDouble() ?? 0.0,
       averageValue: (map['averageValue'] as num?)?.toDouble() ?? 0.0,
     );
   }
@@ -1115,7 +1116,8 @@ class ProductStats {
     return ProductStats(
       count: map['count'] as int? ?? 0,
       totalValue: (map['totalValue'] as num?)?.toDouble() ?? 0.0,
-      totalInvestmentAmount: (map['totalInvestmentAmount'] as num?)?.toDouble() ?? 0.0,
+      totalInvestmentAmount:
+          (map['totalInvestmentAmount'] as num?)?.toDouble() ?? 0.0,
       averageValue: (map['averageValue'] as num?)?.toDouble() ?? 0.0,
       totalArea: (map['totalArea'] as num?)?.toDouble(),
       averageArea: (map['averageArea'] as num?)?.toDouble(),
@@ -1139,7 +1141,8 @@ class SummaryStats {
     return SummaryStats(
       totalCount: map['totalCount'] as int? ?? 0,
       totalValue: (map['totalValue'] as num?)?.toDouble() ?? 0.0,
-      totalInvestmentAmount: (map['totalInvestmentAmount'] as num?)?.toDouble() ?? 0.0,
+      totalInvestmentAmount:
+          (map['totalInvestmentAmount'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

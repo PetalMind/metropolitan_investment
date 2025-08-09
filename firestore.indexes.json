@@ -1,5 +1,4 @@
-cd /home/deb/Documents/metropolitan_investment
-firebase deploy --only functions{
+{
   "indexes": [
     {
       "collectionGroup": "clients",

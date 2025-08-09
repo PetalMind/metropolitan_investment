@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import '../theme/app_theme.dart';
+import '../theme/app_theme_professional.dart';
 
 class CustomLoadingWidget extends StatefulWidget {
   final String? message;
@@ -59,7 +59,7 @@ class _CustomLoadingWidgetState extends State<CustomLoadingWidget>
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = widget.color ?? AppTheme.secondaryGold;
+    final primaryColor = widget.color ?? AppThemePro.accentGold;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -129,7 +129,7 @@ class _CustomLoadingWidgetState extends State<CustomLoadingWidget>
                 ),
                 child: Icon(
                   Icons.trending_up,
-                  color: AppTheme.textOnSecondary,
+                  color: AppThemePro.primaryDark,
                   size: 20,
                 ),
               ),
@@ -144,18 +144,19 @@ class _CustomLoadingWidgetState extends State<CustomLoadingWidget>
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceElevated,
+                      color: AppThemePro.surfaceElevated,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: AppTheme.borderSecondary,
+                        color: AppThemePro.borderSecondary,
                         width: 0.5,
                       ),
                     ),
                     child: Text(
                       '${(widget.progress! * 100).toInt()}%',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      style: TextStyle(
                         color: primaryColor,
                         fontWeight: FontWeight.w600,
+                        fontSize: 12,
                       ),
                     ),
                   ),
@@ -169,9 +170,10 @@ class _CustomLoadingWidgetState extends State<CustomLoadingWidget>
           if (widget.message != null) ...[
             Text(
               widget.message!,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppTheme.textPrimary,
+              style: TextStyle(
+                color: AppThemePro.textPrimary,
                 fontWeight: FontWeight.w500,
+                fontSize: 16,
               ),
               textAlign: TextAlign.center,
             ),
@@ -195,7 +197,7 @@ class _CustomLoadingWidgetState extends State<CustomLoadingWidget>
                     height: 6,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppTheme.textTertiary.withOpacity(opacity),
+                      color: AppThemePro.textTertiary.withOpacity(opacity),
                     ),
                   );
                 }),
@@ -294,9 +296,7 @@ class ProgressLoadingWidget extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               details!,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
+              style: TextStyle(color: AppThemePro.textTertiary, fontSize: 12),
               textAlign: TextAlign.center,
             ),
           ],
