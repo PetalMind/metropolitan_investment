@@ -16,6 +16,7 @@ export 'models/excel_import_models.dart';
 // Services exports
 export 'services/base_service.dart';
 export 'services/client_service.dart';
+export 'services/firebase_functions_client_service.dart';
 export 'services/client_notes_service.dart';
 export 'services/client_id_mapping_service.dart';
 export 'services/employee_service.dart';

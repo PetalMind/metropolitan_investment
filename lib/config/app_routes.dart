@@ -8,7 +8,7 @@ import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
 import '../screens/dashboard_screen_refactored.dart';
 import '../screens/investments_screen.dart';
-import '../screens/clients_screen.dart';
+import '../screens/enhanced_clients_screen.dart';
 import '../screens/products_management_screen.dart';
 import '../screens/companies_screen.dart';
 import '../screens/employees_screen.dart';
@@ -351,7 +351,7 @@ class AppRouter {
           GoRoute(
             path: AppRoutes.clients,
             pageBuilder: (context, state) =>
-                _buildPageWithTransition(context, state, const ClientsScreen()),
+                _buildPageWithTransition(context, state, const EnhancedClientsScreen()),
             routes: [
               GoRoute(
                 path: 'add',

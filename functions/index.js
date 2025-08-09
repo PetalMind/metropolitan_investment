@@ -2050,6 +2050,76 @@ exports.getInvestments = onCall({
   }
 });
 
+/**
+ * Pobiera aktywnych klientów z optymalizacją 
+ * Specjalna funkcja dla szybkiego ładowania aktywnych klientów
+ */
+exports.getActiveClients = onCall({
+  memory: "512MiB",
+  timeoutSeconds: 180,
+}, async (request) => {
+  const data = request.data || {};
+  console.log("⚡ [Get Active Clients] Pobieranie aktywnych klientów...", data);
+
+  try {
+    const { forceRefresh = false } = data;
+
+    // Cache dla aktywnych klientów
+    const cacheKey = "active_clients";
+    if (!forceRefresh) {
+      const cached = await getCachedResult(cacheKey);
+      if (cached) {
+        console.log("⚡ [Get Active Clients] Zwracam z cache");
+        return cached;
+      }
+    }
+
+    // Pobierz wszystkich klientów bez sortowania (szybsza operacja)
+    const snapshot = await db.collection("clients")
+      .limit(5000) // Rozsądny limit
+      .get();
+
+    const clients = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    // Filtruj aktywnych klientów
+    // Klienci z danych Excel domyślnie są aktywni, więc pobieramy wszystkich
+    const activeClients = clients.filter(client => {
+      // Podstawowe kryteria aktywności
+      const hasEmail = client.email && client.email !== '' && client.email !== 'brak';
+      const hasName = client.imie_nazwisko && client.imie_nazwisko !== '';
+      const isNotDeleted = client.isActive !== false; // Domyślnie true
+
+      return hasName && (hasEmail || client.telefon) && isNotDeleted;
+    });
+
+    console.log(`⚡ [Get Active Clients] Znaleziono ${activeClients.length} aktywnych z ${clients.length} klientów`);
+
+    const result = {
+      clients: activeClients,
+      totalActiveClients: activeClients.length,
+      totalClients: clients.length,
+      activityRate: clients.length > 0 ? (activeClients.length / clients.length * 100).toFixed(1) : "0",
+      source: "firebase-functions-active",
+    };
+
+    // Cache na 5 minut
+    await setCachedResult(cacheKey, result, 300);
+
+    console.log(`✅ [Get Active Clients] Zwrócono ${activeClients.length} aktywnych klientów`);
+    return result;
+  } catch (error) {
+    console.error("❌ [Get Active Clients] Błąd:", error);
+    throw new HttpsError(
+      "internal",
+      "Błąd pobierania aktywnych klientów",
+      error.message,
+    );
+  }
+});
+
 // 🔥 EKSPORT FUNKCJI ZAAWANSOWANEJ ANALITYKI
 
 // Advanced Analytics Functions - przeniesionych z dashboard_screen.dart
