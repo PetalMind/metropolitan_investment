@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
-import '../../../models/unified_product.dart';
-import '../../../models/investor_summary.dart';
-import '../../../services/product_investors_service.dart';
+import '../../models/unified_product.dart';
+import '../../models/investor_summary.dart';
+import '../../services/product_investors_service.dart';
 
 /// Service do obsługi logiki dialogu szczegółów produktu
 class ProductDetailsService {
   final ProductInvestorsService _investorsService = ProductInvestorsService();
 
-  /// Pobiera inwestorów dla danego produktu
+  /// Pobiera inwestorów dla danego produktu używając zoptymalizowanej Firebase Function
   Future<List<InvestorSummary>> getInvestorsForProduct(
     UnifiedProduct product,
   ) async {
     try {
-      print('🔍 [ProductDetailsService] Ładowanie inwestorów dla produktu:');
+      print('� [ProductDetailsService] Używam zoptymalizowanego serwisu...');
       print('  - Nazwa: "${product.name}"');
       print('  - Typ: ${product.productType.displayName}');
 
-      // Używamy ulepszonej metody getInvestorsForProduct z zaawansowanymi strategiami
+      // Używamy zoptymalizowanej Firebase Function
       final investors = await _investorsService.getInvestorsForProduct(product);
 
       print(
-        '✅ [ProductDetailsService] Załadowano ${investors.length} inwestorów',
+        '✅ [ProductDetailsService] Załadowano ${investors.length} inwestorów (zoptymalizowane)',
       );
 
       return investors;

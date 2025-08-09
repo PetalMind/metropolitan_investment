@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "metropolitan-investment"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

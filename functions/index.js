@@ -6,14 +6,21 @@ const admin = require("firebase-admin");
 // Import modularnych funkcji analitycznych
 const advancedAnalytics = require("./advanced-analytics");
 const dashboardSpecialized = require("./dashboard-specialized");
+const productInvestorsOptimization = require("./product-investors-optimization");
+const testFunction = require("./test-function");
 
 admin.initializeApp();
 const db = admin.firestore();
 
-// Global options for all functions (region)
+// Global options for all functions (region)  
 setGlobalOptions({
   region: "europe-west1",
-  cors: true  // Enable CORS for all functions
+  cors: [
+    "http://localhost:8080",
+    "http://0.0.0.0:8080",
+    "https://metropolitan-investment.web.app",
+    "https://metropolitan-investment.firebaseapp.com"
+  ]
 });
 
 /**
@@ -2053,3 +2060,9 @@ exports.getDashboardPerformanceMetrics = dashboardSpecialized.getDashboardPerfor
 exports.getDashboardRiskMetrics = dashboardSpecialized.getDashboardRiskMetrics;
 exports.getDashboardPredictions = dashboardSpecialized.getDashboardPredictions;
 exports.getDashboardBenchmarks = dashboardSpecialized.getDashboardBenchmarks;
+
+// Product Investors Optimization - optymalizacja pobierania inwestorów produktów
+exports.getProductInvestorsOptimized = productInvestorsOptimization.getProductInvestorsOptimized;
+
+// Test Function - sprawdzenie czy Firebase Functions działają
+exports.testFunction = testFunction.testFunction;

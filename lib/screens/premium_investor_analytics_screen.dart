@@ -40,7 +40,9 @@ enum ViewMode {
 /// • 🌟 Smooth animations i micro-interactions
 /// • 💎 Professional financial color coding
 class PremiumInvestorAnalyticsScreen extends StatefulWidget {
-  const PremiumInvestorAnalyticsScreen({super.key});
+  final String? initialSearchQuery;
+
+  const PremiumInvestorAnalyticsScreen({super.key, this.initialSearchQuery});
 
   @override
   State<PremiumInvestorAnalyticsScreen> createState() =>
@@ -129,6 +131,23 @@ class _PremiumInvestorAnalyticsScreenState
   @override
   void initState() {
     super.initState();
+
+    // Ustaw początkowy search query jeśli został przekazany
+    if (widget.initialSearchQuery != null &&
+        widget.initialSearchQuery!.isNotEmpty) {
+      _searchQuery = widget.initialSearchQuery!;
+      _searchController.text = _searchQuery;
+
+      // Automatycznie przełącz na zakładkę Inwestorzy i pokaż filtry
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _tabController.animateTo(1); // Index 1 = Inwestorzy tab
+          setState(() => _isFilterVisible = true);
+          _filterAnimationController.forward();
+        }
+      });
+    }
+
     _initializeAnimations();
     _initializeListeners();
     _startPeriodicRefresh();
@@ -478,6 +497,16 @@ class _PremiumInvestorAnalyticsScreenState
     if (_currentResult != null) {
       _calculateMajorityAnalysis();
       _calculateVotingAnalysis();
+    }
+
+    // Jeśli mamy initial search query, zastosuj filtry po załadowaniu danych
+    if (widget.initialSearchQuery != null &&
+        widget.initialSearchQuery!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _applyFiltersAndSort();
+        }
+      });
     }
   }
 
@@ -1019,26 +1048,81 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildSearchBar() {
+    final hasInitialSearch =
+        widget.initialSearchQuery != null &&
+        widget.initialSearchQuery!.isNotEmpty;
+
     return SliverToBoxAdapter(
-      child: Container(
-        margin: EdgeInsets.all(_isTablet ? 16 : 12),
-        child: TextField(
-          controller: _searchController,
-          decoration: InputDecoration(
-            hintText: 'Szukaj inwestorów...',
-            prefixIcon: Icon(Icons.search_rounded),
-            suffixIcon: _searchQuery.isNotEmpty
-                ? IconButton(
-                    icon: Icon(Icons.clear_rounded),
+      child: Column(
+        children: [
+          // Info banner gdy wyszukiwanie przez link
+          if (hasInitialSearch &&
+              _searchQuery == widget.initialSearchQuery) ...[
+            Container(
+              margin: EdgeInsets.all(_isTablet ? 16 : 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.infoPrimary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.infoPrimary.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: AppTheme.infoPrimary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Wyszukano inwestora: "${widget.initialSearchQuery}"',
+                      style: TextStyle(
+                        color: AppTheme.infoPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  TextButton(
                     onPressed: () {
                       _searchController.clear();
                       setState(() => _searchQuery = '');
                       _applyFiltersAndSort();
                     },
-                  )
-                : null,
+                    child: Text(
+                      'Wyczyść',
+                      style: TextStyle(color: AppTheme.infoPrimary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Search bar
+          Container(
+            margin: EdgeInsets.all(_isTablet ? 16 : 12),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Szukaj inwestorów...',
+                prefixIcon: Icon(Icons.search_rounded),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear_rounded),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                          _applyFiltersAndSort();
+                        },
+                      )
+                    : null,
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -1785,8 +1869,11 @@ class _PremiumInvestorAnalyticsScreenState
               ),
               const SizedBox(height: 8),
               Text(
-                'Spróbuj zmienić filtry wyszukiwania',
+                _searchQuery.isNotEmpty
+                    ? 'Nie znaleziono inwestorów dla: "$_searchQuery"'
+                    : 'Spróbuj zmienić filtry wyszukiwania',
                 style: TextStyle(color: AppTheme.textTertiary),
+                textAlign: TextAlign.center,
               ),
             ],
           ),

@@ -124,7 +124,7 @@ class ProductDetailsTabs extends StatelessWidget {
             ),
           ),
         ],
-        labelColor: AppTheme.secondaryGold,
+        labelColor: AppTheme.apartmentsBackground,
         unselectedLabelColor: AppTheme.textTertiary,
         indicatorColor: AppTheme.secondaryGold,
         indicatorWeight: 3,

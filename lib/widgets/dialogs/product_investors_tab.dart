@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
 import '../../models/unified_product.dart';
 import '../../models/investor_summary.dart';
@@ -745,9 +746,12 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
   }
 
   void _showInvestorDetails(InvestorSummary investor) {
-    showDialog(
-      context: context,
-      builder: (context) => _InvestorDetailsDialog(investor: investor),
+    // Zamknij dialog produktu i przejdź do analityki inwestorów
+    Navigator.of(context).pop(); // Zamknij dialog produktu
+
+    // Przejdź do analityki inwestorów z wyszukiwaniem imienia inwestora
+    context.go(
+      '/investor-analytics?search=${Uri.encodeComponent(investor.client.name)}',
     );
   }
 
@@ -787,89 +791,5 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       case VotingStatus.undecided:
         return 'NIEZDECYD.';
     }
-  }
-}
-
-/// Dialog z szczegółami inwestora
-class _InvestorDetailsDialog extends StatelessWidget {
-  final InvestorSummary investor;
-
-  const _InvestorDetailsDialog({required this.investor});
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppTheme.backgroundModal,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(
-        'Szczegóły Inwestora',
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-          color: AppTheme.textPrimary,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildDetailRow('Nazwa', investor.client.name),
-          if (investor.client.email.isNotEmpty)
-            _buildDetailRow('Email', investor.client.email),
-          if (investor.client.phone.isNotEmpty)
-            _buildDetailRow('Telefon', investor.client.phone),
-          if (investor.client.companyName?.isNotEmpty == true)
-            _buildDetailRow('Firma', investor.client.companyName!),
-          _buildDetailRow(
-            'Liczba inwestycji',
-            investor.investmentCount.toString(),
-          ),
-          _buildDetailRow(
-            'Kapitał dostępny',
-            ProductDetailsService().formatCurrency(
-              investor.viableRemainingCapital,
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text(
-            'Zamknij',
-            style: TextStyle(color: AppTheme.secondaryGold),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

@@ -456,11 +456,14 @@ class AppRouter {
 
           GoRoute(
             path: AppRoutes.investorAnalytics,
-            pageBuilder: (context, state) => _buildPageWithTransition(
-              context,
-              state,
-              const PremiumInvestorAnalyticsScreen(),
-            ),
+            pageBuilder: (context, state) {
+              final searchQuery = state.uri.queryParameters['search'];
+              return _buildPageWithTransition(
+                context,
+                state,
+                PremiumInvestorAnalyticsScreen(initialSearchQuery: searchQuery),
+              );
+            },
           ),
 
           // === KALENDARZ ===
