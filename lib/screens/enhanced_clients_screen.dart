@@ -16,19 +16,21 @@ class EnhancedClientsScreen extends StatefulWidget {
 
 class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
   // Używamy nowego serwisu Firebase Functions
-  final FirebaseFunctionsClientService _clientService = FirebaseFunctionsClientService();
-  final ClientService _legacyClientService = ClientService(); // Do operacji CRUD
+  final FirebaseFunctionsClientService _clientService =
+      FirebaseFunctionsClientService();
+  final ClientService _legacyClientService =
+      ClientService(); // Do operacji CRUD
   final TextEditingController _searchController = TextEditingController();
 
   ClientsResult? _currentResult;
   List<Client> _activeClients = [];
   ClientStats? _clientStats;
-  
+
   bool _isLoading = true;
   bool _isLoadingMore = false;
   bool _showActiveOnly = false;
   String _errorMessage = '';
-  
+
   // Parametry paginacji
   int _currentPage = 1;
   final int _pageSize = 250; // Zwiększony rozmiar strony dla lepszej wydajności
@@ -100,7 +102,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
     if (!mounted) return;
 
     final query = _searchController.text.trim();
-    
+
     setState(() {
       _isLoading = true;
       _currentPage = 1;
@@ -141,8 +143,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
       final nextResult = await _clientService.getAllClients(
         page: _currentPage + 1,
         pageSize: _pageSize,
-        searchQuery: _searchController.text.trim().isEmpty 
-            ? null 
+        searchQuery: _searchController.text.trim().isEmpty
+            ? null
             : _searchController.text.trim(),
         sortBy: _sortBy,
         forceRefresh: false,
@@ -155,7 +157,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
             ..._currentResult!.clients,
             ...nextResult.clients,
           ];
-          
+
           _currentResult = ClientsResult(
             clients: updatedClients,
             totalCount: nextResult.totalCount,
@@ -165,7 +167,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
             hasPreviousPage: nextResult.hasPreviousPage,
             source: nextResult.source,
           );
-          
+
           _currentPage = nextResult.currentPage;
           _isLoadingMore = false;
         });
@@ -184,7 +186,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
   void _toggleActiveClients() {
     setState(() {
       _showActiveOnly = !_showActiveOnly;
-      
+
       if (_showActiveOnly) {
         // Pokaż tylko aktywnych klientów
         _currentResult = ClientsResult(
@@ -244,7 +246,10 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
                   const Spacer(),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close, color: AppTheme.textSecondary),
+                    icon: const Icon(
+                      Icons.close,
+                      color: AppTheme.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -257,7 +262,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
                   client: client,
                   onSave: (savedClient) async {
                     Navigator.of(context).pop();
-                    
+
                     try {
                       if (client == null) {
                         // Nowy klient
@@ -265,14 +270,16 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
                         _showSuccessSnackBar('Klient został dodany');
                       } else {
                         // Aktualizacja klienta
-                        await _legacyClientService.updateClient(client.id, savedClient);
+                        await _legacyClientService.updateClient(
+                          client.id,
+                          savedClient,
+                        );
                         _showSuccessSnackBar('Klient został zaktualizowany');
                       }
-                      
+
                       // Wyczyść cache i odśwież dane
                       await _clientService.clearAllCaches();
                       await _refreshData();
-                      
                     } catch (e) {
                       _showErrorSnackBar('Błąd podczas zapisywania: $e');
                     }
@@ -297,9 +304,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
             _buildHeader(),
             _buildStatsBar(),
             _buildToolbar(),
-            Expanded(
-              child: _buildContent(),
-            ),
+            Expanded(child: _buildContent()),
           ],
         ),
       ),
@@ -383,17 +388,11 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
           _buildStatChip(
             icon: Icons.account_balance_wallet,
             label: 'Pozostały kapitał',
-            value: '${(_clientStats!.totalRemainingCapital / 1000000).toStringAsFixed(1)}M PLN',
+            value:
+                '${(_clientStats!.totalRemainingCapital / 1000000).toStringAsFixed(1)}M PLN',
             color: AppTheme.successColor,
           ),
           const Spacer(),
-          Text(
-            'Źródło: ${_currentResult?.source ?? "loading"}',
-            style: const TextStyle(
-              color: AppTheme.textTertiary,
-              fontSize: 12,
-            ),
-          ),
         ],
       ),
     );
@@ -472,7 +471,10 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
                           _searchController.clear();
                           _performSearch();
                         },
-                        icon: const Icon(Icons.clear, color: AppTheme.textSecondary),
+                        icon: const Icon(
+                          Icons.clear,
+                          color: AppTheme.textSecondary,
+                        ),
                       )
                     : null,
                 filled: true,
@@ -500,7 +502,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
             ),
           ),
           const SizedBox(width: 16),
-          
+
           // Przełącznik aktywnych klientów
           FilterChip(
             label: Text(
@@ -523,7 +525,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
             tooltip: 'Filtruj aktywnych klientów - szybsze ładowanie',
           ),
           const SizedBox(width: 16),
-          
+
           // Menu opcji
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary),
@@ -597,10 +599,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
 
     return Column(
       children: [
-        Expanded(
-          child: _buildClientsList(),
-        ),
-        if (_isLoadingMore) 
+        Expanded(child: _buildClientsList()),
+        if (_isLoadingMore)
           const Padding(
             padding: EdgeInsets.all(16),
             child: CircularProgressIndicator(),
@@ -610,7 +610,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
             padding: const EdgeInsets.all(16),
             child: ElevatedButton(
               onPressed: _loadNextPage,
-              child: Text('Załaduj więcej (${_currentResult!.totalCount - _currentResult!.clients.length} pozostało)'),
+              child: Text(
+                'Załaduj więcej (${_currentResult!.totalCount - _currentResult!.clients.length} pozostało)',
+              ),
             ),
           ),
       ],
@@ -657,7 +659,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
           widget: (client) => Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: client.isActive 
+              color: client.isActive
                   ? AppTheme.successColor.withValues(alpha: 0.1)
                   : AppTheme.errorColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
@@ -665,7 +667,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
             child: Text(
               client.isActive ? 'Aktywny' : 'Nieaktywny',
               style: TextStyle(
-                color: client.isActive ? AppTheme.successColor : AppTheme.errorColor,
+                color: client.isActive
+                    ? AppTheme.successColor
+                    : AppTheme.errorColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -702,24 +706,20 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 80,
-            color: AppTheme.errorColor,
-          ),
+          Icon(Icons.error_outline, size: 80, color: AppTheme.errorColor),
           const SizedBox(height: 16),
           Text(
             'Wystąpił błąd',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 8),
           Text(
             _errorMessage,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: AppTheme.textTertiary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -746,18 +746,18 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
           const SizedBox(height: 16),
           Text(
             'Brak klientów',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 8),
           Text(
             _searchController.text.isNotEmpty
                 ? 'Nie znaleziono klientów spełniających kryteria wyszukiwania'
                 : 'Dodaj pierwszego klienta, aby rozpocząć',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: AppTheme.textTertiary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -813,7 +813,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.of(context).pop();
-              
+
               try {
                 await _legacyClientService.deleteClient(client.id);
                 _showSuccessSnackBar('Klient został usunięty');

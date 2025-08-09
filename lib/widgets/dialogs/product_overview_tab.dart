@@ -497,7 +497,6 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
             AppTheme.secondaryGold,
           ),
           const SizedBox(height: 20),
-          _buildDetailRow('ID Produktu', widget.product.id),
           _buildDetailRow(
             'Typ produktu',
             widget.product.productType.displayName,
@@ -518,7 +517,6 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
             'Ostatnia aktualizacja',
             _service.formatDate(widget.product.uploadedAt),
           ),
-          _buildDetailRow('Źródło danych', widget.product.sourceFile),
           _buildDetailRow('Waluta', widget.product.currency ?? 'PLN'),
         ],
       ),

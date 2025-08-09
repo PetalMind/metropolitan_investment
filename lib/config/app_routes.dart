@@ -12,7 +12,7 @@ import '../screens/enhanced_clients_screen.dart';
 import '../screens/products_management_screen.dart';
 import '../screens/companies_screen.dart';
 import '../screens/employees_screen.dart';
-import '../screens/analytics_screen.dart';
+import '../screens/analytics_screen_refactored.dart';
 import '../widgets/auth_wrapper.dart';
 import '../widgets/main_layout.dart';
 import '../providers/auth_provider.dart';
@@ -350,8 +350,11 @@ class AppRouter {
           // === KLIENCI ===
           GoRoute(
             path: AppRoutes.clients,
-            pageBuilder: (context, state) =>
-                _buildPageWithTransition(context, state, const EnhancedClientsScreen()),
+            pageBuilder: (context, state) => _buildPageWithTransition(
+              context,
+              state,
+              const EnhancedClientsScreen(),
+            ),
             routes: [
               GoRoute(
                 path: 'add',
@@ -450,7 +453,7 @@ class AppRouter {
             pageBuilder: (context, state) => _buildPageWithTransition(
               context,
               state,
-              const AnalyticsScreen(),
+              const AnalyticsScreenRefactored(),
             ),
           ),
 

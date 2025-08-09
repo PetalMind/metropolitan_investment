@@ -5,6 +5,9 @@ import '../models/investor_summary.dart';
 import '../services/product_investors_service.dart';
 import 'premium_loading_widget.dart';
 import 'premium_error_widget.dart';
+import 'dialogs/product_edit_dialog.dart';
+import 'dialogs/product_delete_dialog.dart';
+
 /// Enhanced widget do wyświetlania szczegółów produktu w modal dialog
 class EnhancedProductDetailsDialog extends StatefulWidget {
   final UnifiedProduct product;
@@ -25,6 +28,9 @@ class _EnhancedProductDetailsDialogState
   List<InvestorSummary> _investors = [];
   bool _isLoadingInvestors = true;
   String? _investorsError;
+
+  // Stany dla operacji edycji i usuwania
+  bool _isPerformingAction = false;
 
   @override
   void initState() {
@@ -77,6 +83,92 @@ class _EnhancedProductDetailsDialogState
     }
   }
 
+  /// Obsługuje edycję produktu
+  Future<void> _handleEditProduct() async {
+    setState(() {
+      _isPerformingAction = true;
+    });
+
+    try {
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => ProductEditDialog(
+          product: widget.product,
+          onProductUpdated: () {
+            // Odśwież dane po aktualizacji
+            _loadInvestors();
+          },
+        ),
+      );
+
+      if (result == true) {
+        // Dialog został zamknięty po pomyślnej edycji
+        // Możemy tutaj odświeżyć dane lub zamknąć aktualny dialog
+        print('✅ Produkt został zaktualizowany pomyślnie');
+      }
+    } catch (e) {
+      print('❌ Błąd podczas edycji produktu: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Wystąpił błąd podczas edycji: $e'),
+            backgroundColor: AppTheme.errorPrimary,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPerformingAction = false;
+        });
+      }
+    }
+  }
+
+  /// Obsługuje usuwanie produktu
+  Future<void> _handleDeleteProduct() async {
+    setState(() {
+      _isPerformingAction = true;
+    });
+
+    try {
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => ProductDeleteDialog(
+          product: widget.product,
+          onProductDeleted: () {
+            // Zamknij aktualny dialog po usunięciu produktu
+            Navigator.of(context).pop();
+          },
+        ),
+      );
+
+      if (result == true) {
+        // Dialog został zamknięty po pomyślnym usunięciu
+        print('✅ Produkt został usunięty pomyślnie');
+        Navigator.of(context).pop(); // Zamknij dialog szczegółów produktu
+      }
+    } catch (e) {
+      print('❌ Błąd podczas usuwania produktu: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Wystąpił błąd podczas usuwania: $e'),
+            backgroundColor: AppTheme.errorPrimary,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPerformingAction = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -117,25 +209,43 @@ class _EnhancedProductDetailsDialogState
             ),
           ],
         ),
-        child: Column(
+        child: Stack(
           children: [
-            // Header z gradientem i przyciskiem zamknięcia
-            _buildDialogHeader(),
+            Column(
+              children: [
+                // Header z gradientem i przyciskiem zamknięcia
+                _buildDialogHeader(),
 
-            // Tab Bar
-            _buildTabBar(),
+                // Tab Bar
+                _buildTabBar(),
 
-            // Tab Bar View
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildOverviewTab(),
-                  _buildInvestorsTab(),
-                  _buildAnalyticsTab(),
-                ],
-              ),
+                // Tab Bar View
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildOverviewTab(),
+                      _buildInvestorsTab(),
+                      _buildAnalyticsTab(),
+                    ],
+                  ),
+                ),
+              ],
             ),
+
+            // Loading overlay
+            if (_isPerformingAction)
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Center(
+                  child: PremiumLoadingWidget(
+                    message: 'Przetwarzanie żądania...',
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -171,10 +281,83 @@ class _EnhancedProductDetailsDialogState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Przycisk zamknięcia
+          // Górna sekcja z przyciskami akcji
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // Przyciski edycji i usuwania
+              Row(
+                children: [
+                  // Przycisk edycji
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: IconButton(
+                      onPressed: _isPerformingAction
+                          ? null
+                          : _handleEditProduct,
+                      icon: _isPerformingAction
+                          ? SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : const Icon(
+                              Icons.edit,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                      style: IconButton.styleFrom(
+                        padding: const EdgeInsets.all(8),
+                        minimumSize: const Size(36, 36),
+                      ),
+                      tooltip: 'Edytuj produkt',
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  // Przycisk usuwania
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.errorPrimary.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.errorPrimary.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: IconButton(
+                      onPressed: _isPerformingAction
+                          ? null
+                          : _handleDeleteProduct,
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      style: IconButton.styleFrom(
+                        padding: const EdgeInsets.all(8),
+                        minimumSize: const Size(36, 36),
+                      ),
+                      tooltip: 'Usuń produkt',
+                    ),
+                  ),
+                ],
+              ),
+
+              // Przycisk zamknięcia
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.15),
@@ -186,15 +369,12 @@ class _EnhancedProductDetailsDialogState
                 ),
                 child: IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  icon: const Icon(Icons.close, color: Colors.white, size: 20),
                   style: IconButton.styleFrom(
                     padding: const EdgeInsets.all(8),
                     minimumSize: const Size(36, 36),
                   ),
+                  tooltip: 'Zamknij',
                 ),
               ),
             ],
@@ -324,10 +504,7 @@ class _EnhancedProductDetailsDialogState
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  color.withOpacity(0.8),
-                  color,
-                ],
+                colors: [color.withOpacity(0.8), color],
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
@@ -1853,11 +2030,11 @@ class _EnhancedProductDetailsDialogState
           ...widget.product.additionalInfo.entries
               .where((entry) => !_isSpecialField(entry.key))
               .map(
-            (entry) => _buildDetailRow(
-              _formatFieldName(entry.key),
-              entry.value.toString(),
-            ),
-          ),
+                (entry) => _buildDetailRow(
+                  _formatFieldName(entry.key),
+                  entry.value.toString(),
+                ),
+              ),
         ],
       ),
     );
@@ -1946,9 +2123,9 @@ class _EnhancedProductDetailsDialogState
       'status_pozyczki': 'Status pożyczki',
     };
 
-    return translations[fieldName] ?? 
-           fieldName.replaceAll('_', ' ').toUpperCase()[0] + 
-           fieldName.replaceAll('_', ' ').substring(1);
+    return translations[fieldName] ??
+        fieldName.replaceAll('_', ' ').toUpperCase()[0] +
+            fieldName.replaceAll('_', ' ').substring(1);
   }
 
   /// Formatuje datę

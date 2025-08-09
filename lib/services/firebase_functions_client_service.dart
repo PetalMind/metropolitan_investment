@@ -5,7 +5,7 @@ import 'base_service.dart';
 /// Serwis klientów wykorzystujący Firebase Functions
 /// Zapewnia szybsze ładowanie poprzez przetwarzanie po stronie serwera
 class FirebaseFunctionsClientService extends BaseService {
-  static FirebaseFunctions get _functions => 
+  static FirebaseFunctions get _functions =>
       FirebaseFunctions.instanceFor(region: 'europe-west1');
 
   /// Pobiera wszystkich klientów z wykorzystaniem Firebase Functions
@@ -18,29 +18,31 @@ class FirebaseFunctionsClientService extends BaseService {
     bool forceRefresh = false,
   }) async {
     try {
-      logError('getAllClients', 
-          'Pobieranie klientów: page=$page, pageSize=$pageSize, search="$searchQuery"');
+      logError(
+        'getAllClients',
+        'Pobieranie klientów: page=$page, pageSize=$pageSize, search="$searchQuery"',
+      );
 
       // Wywołaj Firebase Function
-      final result = await _functions
-          .httpsCallable('getAllClients')
-          .call({
-            'page': page,
-            'pageSize': pageSize,
-            'searchQuery': searchQuery?.trim(),
-            'sortBy': sortBy,
-            'forceRefresh': forceRefresh,
-          });
+      final result = await _functions.httpsCallable('getAllClients').call({
+        'page': page,
+        'pageSize': pageSize,
+        'searchQuery': searchQuery?.trim(),
+        'sortBy': sortBy,
+        'forceRefresh': forceRefresh,
+      });
 
       final data = result.data;
-      
+
       // Konwertuj dane na obiekty Client
       final clients = (data['clients'] as List)
           .map((clientData) => _convertToClient(clientData))
           .toList();
 
-      logError('getAllClients', 
-          'Pobrano ${clients.length} z ${data['totalCount']} klientów');
+      logError(
+        'getAllClients',
+        'Pobrano ${clients.length} z ${data['totalCount']} klientów',
+      );
 
       return ClientsResult(
         clients: clients,
@@ -61,19 +63,22 @@ class FirebaseFunctionsClientService extends BaseService {
   Future<List<Client>> getActiveClients({bool forceRefresh = false}) async {
     try {
       // Wykorzystaj dedykowaną funkcję Firebase Functions dla aktywnych klientów
-      final result = await _functions
-          .httpsCallable('getActiveClients')
-          .call({'forceRefresh': forceRefresh});
+      final result = await _functions.httpsCallable('getActiveClients').call({
+        'forceRefresh': forceRefresh,
+      });
 
       final data = result.data;
-      
+
       // Konwertuj dane na obiekty Client
       final activeClients = (data['clients'] as List)
           .map((clientData) => _convertToClient(clientData))
           .toList();
 
-      logError('getActiveClients', 'Pobrano ${activeClients.length} aktywnych klientów (wskaźnik aktywności: ${data['activityRate']}%)');
-      
+      logError(
+        'getActiveClients',
+        'Pobrano ${activeClients.length} aktywnych klientów (wskaźnik aktywności: ${data['activityRate']}%)',
+      );
+
       return activeClients;
     } catch (e) {
       logError('getActiveClients', e);
@@ -84,17 +89,19 @@ class FirebaseFunctionsClientService extends BaseService {
   /// Pobiera statystyki klientów z Firebase Functions
   Future<ClientStats> getClientStats({bool forceRefresh = false}) async {
     try {
-      final result = await _functions
-          .httpsCallable('getSystemStats')
-          .call({'forceRefresh': forceRefresh});
+      final result = await _functions.httpsCallable('getSystemStats').call({
+        'forceRefresh': forceRefresh,
+      });
 
       final data = result.data;
-      
+
       final stats = ClientStats(
         totalClients: data['totalClients'] ?? 0,
         totalInvestments: data['totalInvestments'] ?? 0,
-        totalRemainingCapital: (data['totalRemainingCapital'] ?? 0.0).toDouble(),
-        averageCapitalPerClient: (data['averageCapitalPerClient'] ?? 0.0).toDouble(),
+        totalRemainingCapital: (data['totalRemainingCapital'] ?? 0.0)
+            .toDouble(),
+        averageCapitalPerClient: (data['averageCapitalPerClient'] ?? 0.0)
+            .toDouble(),
         lastUpdated: data['lastUpdated'] ?? DateTime.now().toIso8601String(),
         source: data['source'] ?? 'firebase-functions',
       );
@@ -120,9 +127,11 @@ class FirebaseFunctionsClientService extends BaseService {
         forceRefresh: false,
       );
 
-      logError('searchClients', 
-          'Wyszukiwanie "${query}" zwróciło ${result.clients.length} wyników');
-      
+      logError(
+        'searchClients',
+        'Wyszukiwanie "${query}" zwróciło ${result.clients.length} wyników',
+      );
+
       return result.clients;
     } catch (e) {
       logError('searchClients', e);
@@ -159,9 +168,7 @@ class FirebaseFunctionsClientService extends BaseService {
       clearAllCache();
 
       // Wyczyść cache w Firebase Functions
-      await _functions
-          .httpsCallable('clearAnalyticsCache')
-          .call();
+      await _functions.httpsCallable('clearAnalyticsCache').call();
 
       logError('clearAllCaches', 'Cache wyczyszczony pomyślnie');
     } catch (e) {
@@ -174,7 +181,7 @@ class FirebaseFunctionsClientService extends BaseService {
     // Helper do parsowania dat
     DateTime? parseDate(dynamic dateValue) {
       if (dateValue == null) return null;
-      
+
       if (dateValue is String) {
         try {
           return DateTime.parse(dateValue);
@@ -182,13 +189,13 @@ class FirebaseFunctionsClientService extends BaseService {
           return null;
         }
       }
-      
+
       if (dateValue is Map && dateValue.containsKey('_seconds')) {
         // Timestamp z Firestore
         final seconds = dateValue['_seconds'] as int;
         return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
       }
-      
+
       return null;
     }
 
@@ -212,15 +219,17 @@ class FirebaseFunctionsClientService extends BaseService {
       ),
       colorCode: data['colorCode'] ?? '#FFFFFF',
       unviableInvestments: List<String>.from(data['unviableInvestments'] ?? []),
-      createdAt: parseDate(data['createdAt']) ?? 
-                  parseDate(data['created_at']) ?? 
-                  DateTime.now(),
-      updatedAt: parseDate(data['updatedAt']) ?? 
-                  parseDate(data['uploaded_at']) ?? 
-                  DateTime.now(),
+      createdAt:
+          parseDate(data['createdAt']) ??
+          parseDate(data['created_at']) ??
+          DateTime.now(),
+      updatedAt:
+          parseDate(data['updatedAt']) ??
+          parseDate(data['uploaded_at']) ??
+          DateTime.now(),
       isActive: data['isActive'] ?? true,
       additionalInfo: Map<String, dynamic>.from(
-        data['additionalInfo'] ?? {'source_file': data['source_file']}
+        data['additionalInfo'] ?? {'source_file': data['source_file']},
       ),
     );
   }
@@ -247,7 +256,7 @@ class ClientsResult {
   });
 
   int get totalPages => (totalCount / pageSize).ceil();
-  
+
   bool get isEmpty => clients.isEmpty;
   bool get isNotEmpty => clients.isNotEmpty;
 }
