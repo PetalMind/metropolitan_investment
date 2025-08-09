@@ -6,7 +6,7 @@ import '../screens/premium_investor_analytics_screen.dart';
 import '../screens/calendar_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
-import '../screens/dashboard_screen.dart';
+import '../screens/dashboard_screen_refactored.dart';
 import '../screens/investments_screen.dart';
 import '../screens/clients_screen.dart';
 import '../screens/products_management_screen.dart';
