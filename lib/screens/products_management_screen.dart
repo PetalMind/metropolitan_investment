@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../models/unified_product.dart';
+import '../models/bond.dart';
+import '../models/loan.dart';
 import '../services/unified_product_service.dart';
 import '../widgets/premium_loading_widget.dart';
 import '../widgets/premium_error_widget.dart';
@@ -72,11 +74,16 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     final state = GoRouterState.of(context);
     final productName = state.uri.queryParameters['productName'];
     final productType = state.uri.queryParameters['productType'];
+    final clientId = state.uri.queryParameters['clientId'];
+    final clientName = state.uri.queryParameters['clientName'];
 
     print('🔍 [ProductsManagementScreen] Parametry z URL:');
     print('🔍 [ProductsManagementScreen] productName: $productName');
     print('🔍 [ProductsManagementScreen] productType: $productType');
+    print('🔍 [ProductsManagementScreen] clientId: $clientId');
+    print('🔍 [ProductsManagementScreen] clientName: $clientName');
 
+    // Obsługa wyszukiwania po nazwie produktu
     if (productName != null && productName.isNotEmpty) {
       print(
         '🔍 [ProductsManagementScreen] Ustawianie wyszukiwania: $productName',
@@ -85,10 +92,25 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       _applyFiltersAndSearch();
     }
 
+    // Obsługa wyszukiwania po nazwie klienta
+    if (clientName != null && clientName.isNotEmpty) {
+      print(
+        '🔍 [ProductsManagementScreen] Wyszukiwanie po kliencie: $clientName',
+      );
+      _searchController.text = clientName;
+      _applyFiltersAndSearch();
+    }
+
+    // TODO: Dodać obsługę filtrowania po productType
     if (productType != null && productType.isNotEmpty) {
       print('🔍 [ProductsManagementScreen] Typ produktu: $productType');
-      // Add product type filter if available
-      // This would require extending the filter criteria
+      // Wymagałoby rozszerzenia ProductFilterCriteria o typ produktu
+      // setState(() {
+      //   _filterCriteria = _filterCriteria.copyWith(
+      //     productTypes: [ProductType.fromString(productType)],
+      //   );
+      // });
+      // _applyFiltersAndSearch();
     }
   }
 
@@ -208,14 +230,18 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             ) ||
             (product.companyName?.toLowerCase().contains(searchLower) ?? false);
 
-        // Dodatkowe wyszukiwanie w additionalInfo
+        // Dodatkowe wyszukiwanie w additionalInfo z polskimi nazwami pól
         if (!matches && product.additionalInfo.isNotEmpty) {
           for (final entry in product.additionalInfo.entries) {
             final key = entry.key.toString().toLowerCase();
             final value = entry.value.toString().toLowerCase();
 
-            // Sprawdź klucze które mogą zawierać nazwy produktów
+            // Sprawdź polskie klucze które mogą zawierać nazwy produktów
             if ((key.contains('nazwa') ||
+                    key.contains('produkt_nazwa') ||
+                    key.contains('klient') ||
+                    key.contains('wierzyciel_spolka') ||
+                    key.contains('pozyczkobiorca') ||
                     key.contains('product') ||
                     key.contains('name')) &&
                 value.contains(searchLower)) {
@@ -238,6 +264,29 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         // Sprawdź też ID produktu
         if (!matches && product.id.toLowerCase().contains(searchLower)) {
           matches = true;
+        }
+
+        // Sprawdź specyficzne pola dla Bond
+        if (!matches && product.originalProduct is Bond) {
+          final bond = product.originalProduct as Bond;
+          if ((bond.productName?.toLowerCase().contains(searchLower) ??
+                  false) ||
+              (bond.clientName?.toLowerCase().contains(searchLower) ?? false) ||
+              (bond.companyId?.toLowerCase().contains(searchLower) ?? false) ||
+              (bond.advisor?.toLowerCase().contains(searchLower) ?? false)) {
+            matches = true;
+          }
+        }
+
+        // Sprawdź specyficzne pola dla Loan
+        if (!matches && product.originalProduct is Loan) {
+          final loan = product.originalProduct as Loan;
+          if ((loan.borrower?.toLowerCase().contains(searchLower) ?? false) ||
+              (loan.creditorCompany?.toLowerCase().contains(searchLower) ??
+                  false) ||
+              (loan.loanNumber?.toLowerCase().contains(searchLower) ?? false)) {
+            matches = true;
+          }
         }
 
         if (matches) {

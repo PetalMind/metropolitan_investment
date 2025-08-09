@@ -114,10 +114,10 @@ class Share {
 
   Map<String, dynamic> toFirestore() {
     return {
-      'typ_produktu': productType,
-      'kwota_inwestycji': investmentAmount,
-      'ilosc_udzialow': sharesCount,
-      'kapital_pozostaly': remainingCapital,
+      'Typ_produktu': productType,
+      'Kwota_inwestycji': investmentAmount,
+      'Ilosc_Udzialow': sharesCount,
+      'Kapital Pozostaly': remainingCapital,
       'kapital_do_restrukturyzacji': capitalForRestructuring,
       'kapital_zabezpieczony_nieruchomoscia': capitalSecuredByRealEstate,
       'source_file': sourceFile,

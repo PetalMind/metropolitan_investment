@@ -916,37 +916,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   Widget _buildInvestmentsTab() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.account_balance_wallet,
-              color: AppTheme.secondaryGold,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'Inwestycje klienta',
-              style: TextStyle(
-                color: AppTheme.secondaryGold,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const Spacer(),
-            TextButton.icon(
-              onPressed: _showFullInvestmentsList,
-              icon: const Icon(Icons.open_in_new, size: 16),
-              label: const Text('Szczegóły'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.primaryColor,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Expanded(child: _buildInvestmentsList()),
-      ],
+      children: [Expanded(child: _buildInvestmentsList())],
     );
   }
 
@@ -1483,20 +1453,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
     }
   }
 
-  void _showFullInvestmentsList() {
-    // Zamknij modal
-    Navigator.of(context).pop();
-
-    // Nawiguj do ekranu produktów z parametrem clientId w URL
-    final clientId = widget.investor.client.id;
-    final clientName = widget.investor.client.name;
-
-    // Użyj GoRouter do nawigacji z query parameters
-    context.go(
-      '/products?clientId=$clientId&clientName=${Uri.encodeComponent(clientName)}',
-    );
-  }
-
   void _showEditClientForm() {
     showDialog(
       context: context,
@@ -1826,17 +1782,44 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   void _navigateToProductDetails(Investment investment) {
     Navigator.of(context).pop(); // Zamknij dialog
 
-    // Sprawdź czy inwestycja ma właściwości potrzebne do nawigacji
-    if (investment.productName.isNotEmpty) {
-      // Używamy parametru productName do wyszukiwania konkretnej inwestycji
-      final productName = Uri.encodeComponent(investment.productName);
-      final productType = investment.productType.name.toLowerCase();
+    // Strategia wyszukiwania - preferujemy najbardziej specyficzne terminy
+    String searchTerm = '';
+    String strategy = '';
 
-      context.go('/products?productName=$productName&productType=$productType');
-    } else {
-      // Fallback - przejdź do listy produktów z filtrem typu
-      context.go('/products?productType=${investment.productType.name}');
+    // 1. Najpierw sprawdź productName jeśli jest dostępne i nie jest zbyt ogólne
+    if (investment.productName.isNotEmpty &&
+        investment.productName.toLowerCase() != 'obligacja' &&
+        investment.productName.toLowerCase() != 'pożyczka' &&
+        investment.productName.toLowerCase() != 'akcja' &&
+        investment.productName.toLowerCase() != 'mieszkanie') {
+      searchTerm = investment.productName;
+      strategy = 'productName';
     }
+    // 2. Jeśli brak dobrego productName, użyj creditorCompany dla pożyczek
+    else if (investment.creditorCompany.isNotEmpty &&
+        investment.productType.name == 'loans') {
+      searchTerm = investment.creditorCompany;
+      strategy = 'creditorCompany';
+    }
+    // 3. Jako ostateczność użyj ID inwestycji (pierwsze 8 znaków)
+    else if (investment.id.isNotEmpty) {
+      searchTerm = investment.id.substring(0, 8);
+      strategy = 'investmentId';
+    }
+    // 4. Fallback - typ produktu
+    else {
+      searchTerm = investment.productType.displayName;
+      strategy = 'productType';
+    }
+
+    // Nawiguj do ekranu produktów z terminem wyszukiwania
+    final encodedSearchTerm = Uri.encodeComponent(searchTerm);
+    print('🔍 [InvestorModal] Nawigacja do produktów:');
+    print('🔍 [InvestorModal] - Strategia: $strategy');
+    print('🔍 [InvestorModal] - Termin: "$searchTerm"');
+    print('🔍 [InvestorModal] - Typ produktu: ${investment.productType.name}');
+
+    context.go('/products?productName=$encodedSearchTerm');
   }
 }
 

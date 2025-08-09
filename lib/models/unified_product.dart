@@ -156,7 +156,9 @@ class UnifiedProduct implements IUnifiedProduct {
   factory UnifiedProduct.fromBond(Bond bond) {
     return UnifiedProduct(
       id: bond.id,
-      name: bond.productType.isNotEmpty
+      name: bond.productName?.isNotEmpty == true
+          ? bond.productName!
+          : bond.productType.isNotEmpty
           ? bond.productType
           : 'Obligacja ${bond.id}',
       productType: UnifiedProductType.bonds,
@@ -172,6 +174,12 @@ class UnifiedProduct implements IUnifiedProduct {
       realizedTax: bond.realizedTax,
       remainingTax: bond.remainingTax,
       transferToOtherProduct: bond.transferToOtherProduct,
+      interestRate: bond.interestRate != null
+          ? double.tryParse(bond.interestRate!)
+          : null,
+      maturityDate: bond.maturityDate,
+      companyName: bond.companyId,
+      companyId: bond.companyId,
       originalProduct: bond,
     );
   }
@@ -199,7 +207,9 @@ class UnifiedProduct implements IUnifiedProduct {
   factory UnifiedProduct.fromLoan(Loan loan) {
     return UnifiedProduct(
       id: loan.id,
-      name: loan.productType.isNotEmpty
+      name: loan.loanNumber?.isNotEmpty == true
+          ? '${loan.productType} - ${loan.loanNumber}'
+          : loan.productType.isNotEmpty
           ? loan.productType
           : 'Pożyczka ${loan.id}',
       productType: UnifiedProductType.loans,
@@ -207,7 +217,18 @@ class UnifiedProduct implements IUnifiedProduct {
       createdAt: loan.createdAt,
       uploadedAt: loan.uploadedAt,
       sourceFile: loan.sourceFile,
-      additionalInfo: loan.additionalInfo,
+      additionalInfo: {
+        ...loan.additionalInfo,
+        'borrower': loan.borrower,
+        'creditorCompany': loan.creditorCompany,
+        'collateral': loan.collateral,
+        'status': loan.status,
+      },
+      companyName: loan.creditorCompany,
+      interestRate: loan.interestRate != null
+          ? double.tryParse(loan.interestRate!)
+          : null,
+      maturityDate: loan.repaymentDate,
       originalProduct: loan,
     );
   }
@@ -331,6 +352,14 @@ class UnifiedProduct implements IUnifiedProduct {
         if (interestRate != null) {
           parts.add('Oprocentowanie: ${interestRate!.toStringAsFixed(2)}%');
         }
+        if (companyName != null && companyName!.isNotEmpty) {
+          parts.add('Emitent: $companyName');
+        }
+        if (maturityDate != null) {
+          parts.add(
+            'Termin zapadalności: ${maturityDate!.toString().split(' ')[0]}',
+          );
+        }
         return parts.isNotEmpty
             ? parts.join(' • ')
             : 'Obligacja bez szczegółów';
@@ -378,6 +407,18 @@ class UnifiedProduct implements IUnifiedProduct {
         }
         if (maturityDate != null) {
           parts.add('Termin spłaty: ${maturityDate!.toString().split(' ')[0]}');
+        }
+        if (additionalInfo['borrower'] != null &&
+            additionalInfo['borrower'].toString().isNotEmpty) {
+          parts.add('Pożyczkobiorca: ${additionalInfo['borrower']}');
+        }
+        if (additionalInfo['creditorCompany'] != null &&
+            additionalInfo['creditorCompany'].toString().isNotEmpty) {
+          parts.add('Wierzyciel: ${additionalInfo['creditorCompany']}');
+        }
+        if (additionalInfo['collateral'] != null &&
+            additionalInfo['collateral'].toString().isNotEmpty) {
+          parts.add('Zabezpieczenie: ${additionalInfo['collateral']}');
         }
         return parts.isNotEmpty ? parts.join(' • ') : 'Pożyczka bez szczegółów';
 

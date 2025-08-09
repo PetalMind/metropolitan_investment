@@ -12,9 +12,10 @@ class Loan {
   final DateTime createdAt; // created_at
   final DateTime uploadedAt; // uploaded_at
 
-  // Loan specific fields
+  // Loan specific fields from Firebase
   final String? loanNumber; // pozyczka_numer
   final String? borrower; // pozyczkobiorca
+  final String? creditorCompany; // wierzyciel_spolka
   final String? interestRate; // oprocentowanie
   final DateTime? disbursementDate; // data_udzielenia
   final DateTime? repaymentDate; // data_splaty
@@ -36,6 +37,7 @@ class Loan {
     required this.uploadedAt,
     this.loanNumber,
     this.borrower,
+    this.creditorCompany,
     this.interestRate,
     this.disbursementDate,
     this.repaymentDate,
@@ -65,12 +67,33 @@ class Loan {
       return defaultValue;
     }
 
-    // Helper function to parse date strings
+    // Helper function to parse date strings with multiple formats
     DateTime? parseDate(String? dateStr) {
       if (dateStr == null || dateStr.isEmpty || dateStr == 'NULL') return null;
       try {
+        // Handle different date formats
+        if (dateStr.contains('-')) {
+          // ISO format like "2018-08-29 00:00:00"
+          return DateTime.parse(dateStr.split(' ')[0]);
+        } else if (dateStr.contains('/')) {
+          // Format like "9/18/18" or "3/18/20"
+          final parts = dateStr.split('/');
+          if (parts.length == 3) {
+            final month = int.parse(parts[0]);
+            final day = int.parse(parts[1]);
+            var year = int.parse(parts[2]);
+
+            // Convert 2-digit year to 4-digit
+            if (year < 100) {
+              year += year < 30 ? 2000 : 1900;
+            }
+
+            return DateTime(year, month, day);
+          }
+        }
         return DateTime.parse(dateStr);
       } catch (e) {
+        print('Error parsing date: $dateStr - $e');
         return null;
       }
     }
@@ -97,6 +120,7 @@ class Loan {
       // Loan specific fields
       loanNumber: data['pozyczka_numer'],
       borrower: data['pozyczkobiorca'],
+      creditorCompany: data['wierzyciel_spolka'],
       interestRate: data['oprocentowanie'],
       disbursementDate: parseDate(data['data_udzielenia']),
       repaymentDate: parseDate(data['data_splaty']),
@@ -120,6 +144,7 @@ class Loan {
             'uploaded_at',
             'pozyczka_numer',
             'pozyczkobiorca',
+            'wierzyciel_spolka',
             'oprocentowanie',
             'data_udzielenia',
             'data_splaty',
@@ -145,6 +170,7 @@ class Loan {
       // Loan specific fields
       'pozyczka_numer': loanNumber,
       'pozyczkobiorca': borrower,
+      'wierzyciel_spolka': creditorCompany,
       'oprocentowanie': interestRate,
       'data_udzielenia': disbursementDate?.toIso8601String(),
       'data_splaty': repaymentDate?.toIso8601String(),
