@@ -18,11 +18,23 @@ This is a Flutter-based investment management platform with Firebase backend and
 - **Authentication**: Firebase Auth with custom `AuthProvider`
 
 ### Critical Service Pattern
-All services extend `BaseService` and follow this pattern:
+All services extend `BaseService` with built-in caching (5-minute TTL):
 - Use `FirebaseFirestore.instance` directly
 - Implement error handling with try-catch
 - Return `Future<List<T>>` or `Future<T?>`
-- Cache frequently accessed data
+- Cache with `getCachedData<T>(cacheKey, query)` method
+
+### Data Architecture Pattern
+Critical distinction for analytics calculations:
+```dart
+// Investment model: Database field -> Code property
+'kapital_pozostaly' (Firestore) -> remainingCapital (Dart)
+'kwota_inwestycji' (Firestore) -> investmentAmount (Dart)
+
+// InvestorSummary: Only executable investments count
+investor.viableRemainingCapital  // Excludes unviable investments
+investor.totalRemainingCapital   // All investments (legacy)
+```
 
 ## Development Workflows
 
@@ -41,18 +53,28 @@ firebase deploy --only functions  # Deploy to Europe-West1
 ```
 
 ### Data Migration Tools
-Use scripts in `tools/` directory for Excel imports:
+Use scripts in `tools/` directory for Excel imports and data analysis:
 ```bash
 dart run tools/complete_client_extractor.dart    # Extract clients from Excel
+dart run tools/complete_investment_extractor.dart # Extract investments
 node upload_clients_to_firebase.js               # Upload to Firestore
+node split_json_by_investment_type_complete.js   # Split by product type
+```
+
+### Database Management
+Critical indexes in `firestore.indexes.json` - required for performance:
+```bash
+./deploy_indexes.sh                    # Deploy Firestore indexes
+./check_firestore_indexes.sh          # Verify index status
+firebase deploy --only functions      # Deploy to Europe-West1
 ```
 
 ## Project-Specific Conventions
 
 ### Model Structure
-- **Client**: `imie_nazwisko`, `email`, `telefon`, `nazwa_firmy`
-- **Investment**: Uses `kapital_pozostaly` field (NOT `remainingCapital`) for consistency
-- **InvestorSummary**: Aggregates client + investments with `viableRemainingCapital`
+- **Client**: `imie_nazwisko`, `email`, `telefon`, `nazwa_firmy`, `votingStatus`
+- **Investment**: Uses `kapital_pozostaly` field (stored) mapped to `remainingCapital` (code) - CRITICAL naming convention
+- **InvestorSummary**: Aggregates client + investments with `viableRemainingCapital` (only executable investments)
 
 ### Service Naming
 - Optimized services: `optimized_*_service.dart` for performance-critical operations
@@ -123,3 +145,11 @@ ref.watch(clientsProvider)
 - **Firestore indexes**: Check `firestore.indexes.json` for required composite indexes
 - **CORS**: Documented in `CORS_DEVELOPMENT_GUIDE.md`
 - **Memory**: Firebase Functions use 2GB memory for analytics operations
+
+## Documentation Files
+Key documentation files in root directory:
+- `PREMIUM_ANALYTICS_FILTERING_GUIDE.md` - Filter system architecture
+- `INVESTOR_ANALYTICS_README.md` - Analytics feature documentation
+- `FIRESTORE_INDEXES_OPTIMIZED.md` - Database performance patterns
+- `MAJORITY_COALITION_ANALYSIS.md` - Voting status analytics
+- `CLAUDE.md` - Alternative AI assistant guidelines

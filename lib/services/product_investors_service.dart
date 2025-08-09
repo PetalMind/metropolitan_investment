@@ -189,17 +189,217 @@ class ProductInvestorsService extends BaseService {
     }
   }
 
-  /// Pobiera inwestorów dla produktu UnifiedProduct
+  /// Pobiera inwestorów dla produktu UnifiedProduct z zaawansowanymi strategiami wyszukiwania
   Future<List<InvestorSummary>> getInvestorsForProduct(
     UnifiedProduct product,
   ) async {
-    // Sprawdź czy produkt ma konkretną nazwę do wyszukiwania
+    print(
+      '🔍 [ProductInvestors] Zaawansowane wyszukiwanie dla produktu: "${product.name}"',
+    );
+
+    // Strategia 1: Wyszukaj po dokładnej nazwie produktu
     if (product.name.isNotEmpty && product.name != 'Nieznany produkt') {
-      return await getInvestorsByProductName(product.name);
-    } else {
-      // Użyj typu produktu jako fallback
-      return await getInvestorsByProductType(product.productType);
+      final investorsByName = await getInvestorsByProductName(product.name);
+      if (investorsByName.isNotEmpty) {
+        print(
+          '✅ [ProductInvestors] Znaleziono ${investorsByName.length} inwestorów po nazwie',
+        );
+        return investorsByName;
+      }
     }
+
+    // Strategia 2: Wyszukaj po typie produktu
+    print(
+      '📋 [ProductInvestors] Próbuję wyszukiwanie po typie: ${product.productType.displayName}',
+    );
+    final investorsByType = await getInvestorsByProductType(
+      product.productType,
+    );
+    if (investorsByType.isNotEmpty) {
+      print(
+        '✅ [ProductInvestors] Znaleziono ${investorsByType.length} inwestorów po typie produktu',
+      );
+      return investorsByType;
+    }
+
+    // Strategia 3: Wyszukiwanie częściowe dla apartamentów
+    if (product.productType == UnifiedProductType.apartments &&
+        product.name.isNotEmpty) {
+      print(
+        '🏢 [ProductInvestors] Próbuję częściowe wyszukiwanie apartamentów...',
+      );
+      return await _searchApartmentsByPartialName(product.name);
+    }
+
+    // Strategia 4: Wyszukiwanie wszystkich produktów danego typu i próba dopasowania
+    if (product.name.isNotEmpty) {
+      print(
+        '🔍 [ProductInvestors] Próbuję wyszukiwanie podobne do nazwy: "${product.name}"',
+      );
+      return await _searchBySimilarName(product.name, product.productType);
+    }
+
+    print('❌ [ProductInvestors] Nie znaleziono inwestorów żadną strategią');
+    return [];
+  }
+
+  /// Wyszukuje apartamenty po częściowej nazwie
+  Future<List<InvestorSummary>> _searchApartmentsByPartialName(
+    String productName,
+  ) async {
+    try {
+      // Wydziel główną część nazwy (przed myślnikiem)
+      final mainName = productName.split(' - ').first.trim();
+      print(
+        '🏢 [ProductInvestors] Szukam apartamentów podobnych do: "$mainName"',
+      );
+
+      // Pobierz wszystkie inwestycje typu Apartamenty
+      final snapshot = await firestore
+          .collection(_investmentsCollection)
+          .where('typ_produktu', isEqualTo: 'Apartamenty')
+          .get();
+
+      print(
+        '📊 [ProductInvestors] Znaleziono ${snapshot.docs.length} inwestycji typu Apartamenty',
+      );
+
+      if (snapshot.docs.isEmpty) return [];
+
+      // Znajdź pasujące nazwy produktów
+      final Set<String> matchingProductNames = {};
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final dbProductName = data['produkt_nazwa'] as String? ?? '';
+
+        if (dbProductName.isNotEmpty) {
+          // Sprawdź czy zawiera główną część nazwy
+          if (dbProductName.toLowerCase().contains(mainName.toLowerCase()) ||
+              mainName.toLowerCase().contains(dbProductName.toLowerCase())) {
+            matchingProductNames.add(dbProductName);
+            print('✅ [ProductInvestors] Dopasowana nazwa: "$dbProductName"');
+          }
+        }
+      }
+
+      // Pobierz inwestorów dla wszystkich dopasowanych nazw
+      final List<InvestorSummary> allInvestors = [];
+      for (final matchedName in matchingProductNames) {
+        final investors = await getInvestorsByProductName(matchedName);
+        allInvestors.addAll(investors);
+      }
+
+      // Usuń duplikaty na podstawie ID klienta
+      final Map<String, InvestorSummary> uniqueInvestors = {};
+      for (final investor in allInvestors) {
+        uniqueInvestors[investor.client.id] = investor;
+      }
+
+      final result = uniqueInvestors.values.toList();
+      print(
+        '🎯 [ProductInvestors] Znaleziono ${result.length} unikalnych inwestorów po częściowej nazwie',
+      );
+      return result;
+    } catch (e) {
+      logError('_searchApartmentsByPartialName', e);
+      return [];
+    }
+  }
+
+  /// Wyszukuje po podobnej nazwie w ramach typu produktu
+  Future<List<InvestorSummary>> _searchBySimilarName(
+    String searchName,
+    UnifiedProductType productType,
+  ) async {
+    try {
+      // Mapowanie typu na nazwę w bazie
+      String typeInDb;
+      switch (productType) {
+        case UnifiedProductType.bonds:
+          typeInDb = 'Obligacje';
+          break;
+        case UnifiedProductType.shares:
+          typeInDb = 'Udziały';
+          break;
+        case UnifiedProductType.loans:
+          typeInDb = 'Pożyczki';
+          break;
+        case UnifiedProductType.apartments:
+          typeInDb = 'Apartamenty';
+          break;
+        case UnifiedProductType.other:
+          typeInDb = 'Inne';
+          break;
+      }
+
+      print('🔍 [ProductInvestors] Szukam podobnych nazw w typie: $typeInDb');
+
+      // Pobierz wszystkie inwestycje danego typu
+      final snapshot = await firestore
+          .collection(_investmentsCollection)
+          .where('typ_produktu', isEqualTo: typeInDb)
+          .get();
+
+      if (snapshot.docs.isEmpty) return [];
+
+      // Znajdź najbardziej podobną nazwę
+      String? bestMatch;
+      int bestScore = 0;
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final dbProductName = data['produkt_nazwa'] as String? ?? '';
+
+        if (dbProductName.isNotEmpty) {
+          final score = _calculateSimilarity(searchName, dbProductName);
+          if (score > bestScore && score > 50) {
+            // Minimum 50% podobieństwa
+            bestScore = score;
+            bestMatch = dbProductName;
+          }
+        }
+      }
+
+      if (bestMatch != null) {
+        print(
+          '✅ [ProductInvestors] Najlepsze dopasowanie: "$bestMatch" (${bestScore}% podobieństwa)',
+        );
+        return await getInvestorsByProductName(bestMatch);
+      }
+
+      return [];
+    } catch (e) {
+      logError('_searchBySimilarName', e);
+      return [];
+    }
+  }
+
+  /// Oblicza procentowe podobieństwo między dwoma stringami
+  int _calculateSimilarity(String str1, String str2) {
+    final s1 = str1.toLowerCase();
+    final s2 = str2.toLowerCase();
+
+    // Proste sprawdzenie zawierania
+    if (s1 == s2) return 100;
+    if (s1.contains(s2) || s2.contains(s1)) return 80;
+
+    // Sprawdź wspólne słowa
+    final words1 = s1.split(' ');
+    final words2 = s2.split(' ');
+
+    int commonWords = 0;
+    for (final word in words1) {
+      if (words2.any((w) => w.contains(word) || word.contains(w))) {
+        commonWords++;
+      }
+    }
+
+    if (words1.isNotEmpty) {
+      return (commonWords * 100 / words1.length).round();
+    }
+
+    return 0;
   }
 
   /// Pobiera dane klientów na podstawie listy numerycznych Excel ID

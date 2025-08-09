@@ -96,10 +96,14 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.account_balance,
-                    color: AppTheme.textOnSecondary,
-                    size: 32,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Image.asset(
+                      'assets/logos/logo.png',
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
                 if (_isRailExtended) ...[

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../screens/premium_investor_analytics_screen.dart';
+import '../screens/calendar_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
 import '../screens/dashboard_screen.dart';
@@ -34,6 +35,7 @@ class AppRoutes {
   static const String employees = '/employees';
   static const String analytics = '/analytics';
   static const String investorAnalytics = '/investor-analytics';
+  static const String calendar = '/calendar';
   static const String unifiedProducts = '/unified-products';
 
   // === SZCZEGÓŁOWE WIDOKI ===
@@ -194,6 +196,12 @@ class MainNavigationItems {
       label: 'Analiza Inwestorów',
       icon: Icons.group_outlined,
       selectedIcon: Icons.group,
+    ),
+    NavigationItem(
+      route: AppRoutes.calendar,
+      label: 'Kalendarz',
+      icon: Icons.calendar_today_outlined,
+      selectedIcon: Icons.calendar_today,
     ),
   ];
 
@@ -455,7 +463,15 @@ class AppRouter {
             ),
           ),
 
-        
+          // === KALENDARZ ===
+          GoRoute(
+            path: AppRoutes.calendar,
+            pageBuilder: (context, state) => _buildPageWithTransition(
+              context,
+              state,
+              const CalendarScreen(),
+            ),
+          ),
 
           // === DODATKOWE SEKCJE ===
           GoRoute(

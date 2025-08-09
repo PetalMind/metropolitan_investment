@@ -47,7 +47,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final state = GoRouterState.of(context);
     final clientId = state.uri.queryParameters['clientId'];
     final clientName = state.uri.queryParameters['clientName'];
+    final productName = state.uri.queryParameters['productName'];
+    final productType = state.uri.queryParameters['productType'];
 
+    // Obsługa parametrów klienta
     if (clientId != null && clientId != _clientId) {
       setState(() {
         _clientId = clientId;
@@ -57,8 +60,39 @@ class _ProductsScreenState extends State<ProductsScreen> {
         }
       });
       _loadProducts();
+    }
+    // Obsługa wyszukiwania produktu
+    else if (productName != null && productName.isNotEmpty) {
+      setState(() {
+        _search = productName;
+        // Jeśli jest typ produktu, ustaw też filtr
+        if (productType != null) {
+          _filterType = _parseProductTypeFromString(productType);
+        }
+        _currentPage = 1;
+      });
+      _loadProducts();
     } else if (_products.isEmpty) {
       _loadProducts();
+    }
+  }
+
+  ProductType? _parseProductTypeFromString(String typeString) {
+    switch (typeString.toLowerCase()) {
+      case 'bonds':
+      case 'obligacje':
+        return ProductType.bonds;
+      case 'shares':
+      case 'udziały':
+        return ProductType.shares;
+      case 'loans':
+      case 'pożyczki':
+        return ProductType.loans;
+      case 'apartments':
+      case 'apartamenty':
+        return ProductType.apartments;
+      default:
+        return null;
     }
   }
 
@@ -101,7 +135,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     try {
       print('🔍 [ProductsScreen] Ładowanie produktów...');
-      
+
       // Używaj mniejszej paginacji dla lepszej wydajności
       final result = await _functionsService.getOptimizedProducts(
         page: 1, // Zawsze pierwsza strona
@@ -113,7 +147,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
         sortAscending: true,
       );
 
-      print('✅ [ProductsScreen] Załadowano ${result.products.length} produktów');
+      print(
+        '✅ [ProductsScreen] Załadowano ${result.products.length} produktów',
+      );
 
       setState(() {
         _products = result.products;
@@ -212,13 +248,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.secondaryGold.withValues(alpha: 
-                                      0.2,
+                                    color: AppTheme.secondaryGold.withValues(
+                                      alpha: 0.2,
                                     ),
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
-                                      color: AppTheme.secondaryGold.withValues(alpha: 
-                                        0.5,
+                                      color: AppTheme.secondaryGold.withValues(
+                                        alpha: 0.5,
                                       ),
                                     ),
                                   ),
@@ -254,8 +290,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 : 'Obligacje, Udziały, Pożyczki, Apartamenty',
                             style: Theme.of(context).textTheme.bodyLarge
                                 ?.copyWith(
-                                  color: AppTheme.textOnPrimary.withValues(alpha: 
-                                    0.8,
+                                  color: AppTheme.textOnPrimary.withValues(
+                                    alpha: 0.8,
                                   ),
                                 ),
                           ),
@@ -275,8 +311,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 Text('Usuń filtr'),
                               ],
                             ),
-                            backgroundColor: AppTheme.warningColor.withValues(alpha: 
-                              0.8,
+                            backgroundColor: AppTheme.warningColor.withValues(
+                              alpha: 0.8,
                             ),
                             foregroundColor: AppTheme.textOnPrimary,
                           ),

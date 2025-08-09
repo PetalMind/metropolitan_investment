@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../widgets/animated_logo.dart';
 import '../theme/app_theme.dart';
 
 /// Ekran ładowania aplikacji z animowanym logo Metropolitan
@@ -14,9 +13,13 @@ class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late AnimationController _backgroundController;
   late AnimationController _contentController;
+  late AnimationController _pulseController;
+  late AnimationController _progressController;
 
   late Animation<double> _backgroundAnimation;
   late Animation<double> _contentAnimation;
+  late Animation<double> _pulseAnimation;
+  late Animation<double> _progressAnimation;
 
   @override
   void initState() {
@@ -36,12 +39,30 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     );
 
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _progressController = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    );
+
     _backgroundAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _backgroundController, curve: Curves.easeInOut),
     );
 
     _contentAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _contentController, curve: Curves.easeInOut),
+    );
+
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _progressAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _progressController, curve: Curves.easeInOut),
     );
   }
 
@@ -53,6 +74,14 @@ class _SplashScreenState extends State<SplashScreen>
     Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) {
         _contentController.forward();
+        _pulseController.repeat(reverse: true);
+      }
+    });
+
+    // Progress bar
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _progressController.forward();
       }
     });
   }
@@ -61,6 +90,8 @@ class _SplashScreenState extends State<SplashScreen>
   void dispose() {
     _backgroundController.dispose();
     _contentController.dispose();
+    _pulseController.dispose();
+    _progressController.dispose();
     super.dispose();
   }
 
@@ -91,16 +122,135 @@ class _SplashScreenState extends State<SplashScreen>
               child: Center(
                 child: FadeTransition(
                   opacity: _contentAnimation,
-                  child: const MetropolitanLoadingLogo(
-                    size: 160.0,
-                    subtitle: 'Ładowanie...',
-                  ),
+                  child: _buildLoadingContent(),
                 ),
               ),
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildLoadingContent() {
+    const double logoSize = 160.0;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Logo z animacją pulse
+        AnimatedBuilder(
+          animation: _pulseAnimation,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _pulseAnimation.value,
+              child: Container(
+                width: logoSize,
+                height: logoSize,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(logoSize * 0.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(logoSize * 0.2),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.primaryGradient,
+                    ),
+                    padding: EdgeInsets.all(logoSize * 0.1),
+                    child: Image.asset(
+                      'assets/logos/logo.png',
+                      width: logoSize * 0.8,
+                      height: logoSize * 0.8,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+
+        SizedBox(height: logoSize * 0.3),
+
+        // Tekst aplikacji
+        Column(
+          children: [
+            Text(
+              'METROPOLITAN',
+              style: TextStyle(
+                fontSize: logoSize * 0.15,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary,
+                letterSpacing: logoSize * 0.02,
+                height: 1.1,
+              ),
+            ),
+            SizedBox(height: logoSize * 0.05),
+            Text(
+              'INVESTMENT',
+              style: TextStyle(
+                fontSize: logoSize * 0.1,
+                fontWeight: FontWeight.w400,
+                color: AppTheme.secondaryGold,
+                letterSpacing: logoSize * 0.015,
+                height: 1.2,
+              ),
+            ),
+            SizedBox(height: logoSize * 0.1),
+            Text(
+              'Ładowanie...',
+              style: TextStyle(
+                fontSize: logoSize * 0.08,
+                fontWeight: FontWeight.w300,
+                color: AppTheme.textSecondary,
+                letterSpacing: logoSize * 0.01,
+              ),
+            ),
+          ],
+        ),
+
+        SizedBox(height: logoSize * 0.4),
+
+        // Progress indicator
+        AnimatedBuilder(
+          animation: _progressAnimation,
+          builder: (context, child) {
+            return Container(
+              width: logoSize * 0.8,
+              height: 3,
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceInteractive,
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: _progressAnimation.value,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.goldGradient,
+                    borderRadius: BorderRadius.circular(1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.secondaryGold.withOpacity(0.4),
+                        blurRadius: 4,
+                        offset: const Offset(0, 0),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }
@@ -140,11 +290,27 @@ class LoadingOverlay extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (showLogo) ...[
-                AnimatedMetropolitanLogo(
-                  size: logoSize,
-                  isLoading: true,
-                  variant: LogoVariant.svg,
-                  enableHoverEffect: false,
+                Container(
+                  width: logoSize,
+                  height: logoSize,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(logoSize * 0.2),
+                    gradient: AppTheme.primaryGradient,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  padding: EdgeInsets.all(logoSize * 0.1),
+                  child: Image.asset(
+                    'assets/logos/logo.png',
+                    width: logoSize * 0.8,
+                    height: logoSize * 0.8,
+                    fit: BoxFit.contain,
+                  ),
                 ),
                 const SizedBox(height: 24),
               ],

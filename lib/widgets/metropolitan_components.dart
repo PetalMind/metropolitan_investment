@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../widgets/animated_logo.dart';
 import '../theme/app_theme.dart';
 
 /// AppBar z animowanym logo Metropolitan
@@ -55,11 +54,14 @@ class MetropolitanAppBar extends StatelessWidget
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AnimatedMetropolitanLogo(
-          size: 32.0,
-          variant: LogoVariant.svg,
-          enableHoverEffect: true,
+        GestureDetector(
           onTap: onLogoTap,
+          child: Image.asset(
+            'assets/logos/logo.png',
+            width: 42.0,
+            height: 42.0,
+            fit: BoxFit.contain,
+          ),
         ),
         const SizedBox(width: 12),
         Flexible(
@@ -115,10 +117,11 @@ class MetropolitanFAB extends StatelessWidget {
       foregroundColor: AppTheme.textOnPrimary,
       elevation: 8.0,
       child: showLogo
-          ? AnimatedMetropolitanLogo(
-              size: size * 0.6,
-              variant: LogoVariant.svg,
-              enableHoverEffect: false,
+          ? Image.asset(
+              'assets/logos/logo.png',
+              width: size * 0.6,
+              height: size * 0.6,
+              fit: BoxFit.contain,
             )
           : Icon(icon, size: size * 0.5),
     );
@@ -163,10 +166,11 @@ class MetropolitanCardHeader extends StatelessWidget {
       child: Row(
         children: [
           if (showLogo) ...[
-            AnimatedMetropolitanLogo(
-              size: 24.0,
-              variant: LogoVariant.svg,
-              enableHoverEffect: false,
+            Image.asset(
+              'assets/logos/logo.png',
+              width: 24.0,
+              height: 24.0,
+              fit: BoxFit.contain,
             ),
             const SizedBox(width: 12),
           ],
@@ -225,10 +229,11 @@ class MetropolitanWatermark extends StatelessWidget {
         alignment: alignment,
         child: Opacity(
           opacity: opacity,
-          child: AnimatedMetropolitanLogo(
-            size: size,
-            variant: LogoVariant.svg,
-            enableHoverEffect: false,
+          child: Image.asset(
+            'assets/logos/logo.png',
+            width: size,
+            height: size,
+            fit: BoxFit.contain,
           ),
         ),
       ),
@@ -285,10 +290,11 @@ class MetropolitanBottomSheetHeader extends StatelessWidget {
           Row(
             children: [
               if (showLogo) ...[
-                AnimatedMetropolitanLogo(
-                  size: 28.0,
-                  variant: LogoVariant.svg,
-                  enableHoverEffect: false,
+                Image.asset(
+                  'assets/logos/logo.png',
+                  width: 28.0,
+                  height: 28.0,
+                  fit: BoxFit.contain,
                 ),
                 const SizedBox(width: 12),
               ],

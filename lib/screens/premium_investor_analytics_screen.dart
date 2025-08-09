@@ -6,13 +6,11 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../models/client.dart';
 import '../models/investor_summary.dart';
-import '../models/investment.dart';
 import '../services/firebase_functions_analytics_service.dart';
 import '../services/investor_analytics_service.dart' as ia_service;
 import '../widgets/investor_details_modal.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/voting_analysis_manager.dart';
-import '../config/app_routes.dart';
 
 /// 📊 VIEW MODES FOR DATA PRESENTATION
 enum ViewMode {
@@ -597,13 +595,19 @@ class _PremiumInvestorAnalyticsScreenState
           );
           break;
         case 'totalInvestmentAmount':
-          comparison = a.totalInvestmentAmount.compareTo(b.totalInvestmentAmount);
+          comparison = a.totalInvestmentAmount.compareTo(
+            b.totalInvestmentAmount,
+          );
           break;
         case 'capitalSecuredByRealEstate':
-          comparison = a.capitalSecuredByRealEstate.compareTo(b.capitalSecuredByRealEstate);
+          comparison = a.capitalSecuredByRealEstate.compareTo(
+            b.capitalSecuredByRealEstate,
+          );
           break;
         case 'capitalForRestructuring':
-          comparison = a.capitalForRestructuring.compareTo(b.capitalForRestructuring);
+          comparison = a.capitalForRestructuring.compareTo(
+            b.capitalForRestructuring,
+          );
           break;
         default:
           comparison = a.viableRemainingCapital.compareTo(
@@ -1075,8 +1079,14 @@ class _PremiumInvestorAnalyticsScreenState
                   _buildSortChip('investmentCount', 'Liczba inwestycji'),
                   _buildSortChip('votingStatus', 'Status głosowania'),
                   _buildSortChip('totalInvestmentAmount', 'Kwota inwestycji'),
-                  _buildSortChip('capitalSecuredByRealEstate', 'Kapitał zabezpieczony nieruchomościami'),
-                  _buildSortChip('capitalForRestructuring', 'Kapitał do restrukturyzacji'),
+                  _buildSortChip(
+                    'capitalSecuredByRealEstate',
+                    'Kapitał zabezpieczony nieruchomościami',
+                  ),
+                  _buildSortChip(
+                    'capitalForRestructuring',
+                    'Kapitał do restrukturyzacji',
+                  ),
                 ],
               ),
             ),
@@ -3090,7 +3100,7 @@ class _PremiumInvestorAnalyticsScreenState
         // Możliwość dodania dodatkowej logiki edycji
       },
       onViewInvestments: () {
-        // Możliwość dodania logiki wyświetlania inwestycji
+        // Funkcjonalność przeniesiona do wnętrza modalu - przycisk automatycznie przełączy na zakładkę
       },
       onUpdateInvestor: (updatedInvestor) {
         // Odśwież dane po aktualizacji z wymuszeniem przeładowania z serwera
@@ -3099,6 +3109,7 @@ class _PremiumInvestorAnalyticsScreenState
     );
   }
 
+  // ignore: unused_element
   Widget _buildInvestorInfoSection(InvestorSummary investor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3186,6 +3197,7 @@ class _PremiumInvestorAnalyticsScreenState
     );
   }
 
+  // ignore: unused_element
   Widget _buildInvestorStatsSection(InvestorSummary investor) {
     final totalCapital = _votingManager.totalViableCapital;
     final investorShare = totalCapital > 0
@@ -3328,6 +3340,7 @@ class _PremiumInvestorAnalyticsScreenState
     );
   }
 
+  // ignore: unused_element
   Widget _buildInvestorInvestmentsSection(InvestorSummary investor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3461,41 +3474,15 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   void _navigateToProductDetails(investment) {
-    context.go(
-      '/products?productName=${Uri.encodeComponent(investment.productName)}&productType=${investment.productType.name}',
-    );
-  }
-
-  void _copyInvestorEmail(InvestorSummary investor) {
-    if (investor.client.email.isNotEmpty) {
-      Clipboard.setData(ClipboardData(text: investor.client.email));
-      Navigator.pop(context);
-      _showSuccessSnackBar('Email skopiowany do schowka');
+    // Sprawdź czy inwestycja ma właściwości potrzebne do nawigacji
+    if (investment.productName != null && investment.productName.isNotEmpty) {
+      context.go(
+        '/products/${Uri.encodeComponent(investment.productName)}?productType=${investment.productType.name}',
+      );
     } else {
-      _showErrorSnackBar('Brak adresu email dla tego inwestora');
+      // Fallback - przejdź do listy produktów z filtrem typu
+      context.go('/products?productType=${investment.productType.name}');
     }
-  }
-
-  void _exportInvestorData(InvestorSummary investor) {
-    final data = [
-      'Dane inwestora: ${investor.client.name}',
-      'Email: ${investor.client.email}',
-      'Telefon: ${investor.client.phone}',
-      'Typ: ${investor.client.type.displayName}',
-      'Status głosowania: ${investor.client.votingStatus.displayName}',
-      'Kapitał pozostały: ${CurrencyFormatter.formatCurrency(investor.viableRemainingCapital)}',
-      'Liczba inwestycji: ${investor.investmentCount}',
-      '',
-      'Lista inwestycji:',
-      ...investor.investments.map(
-        (inv) =>
-            '${inv.productName};${inv.creditorCompany};${CurrencyFormatter.formatCurrency(inv.remainingCapital)};${investor.client.unviableInvestments.contains(inv.id) ? "NIEWYKONALNA" : "WYKONALNA"}',
-      ),
-    ];
-
-    Clipboard.setData(ClipboardData(text: data.join('\n')));
-    Navigator.pop(context);
-    _showSuccessSnackBar('Dane inwestora skopiowane do schowka');
   }
 
   void _exportEmails() {

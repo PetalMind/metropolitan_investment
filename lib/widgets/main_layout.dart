@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../config/app_routes.dart';
-import 'animated_logo.dart';
 
 /// Główny layout aplikacji z nawigacją boczną
 class MainLayout extends StatefulWidget {
@@ -108,13 +107,33 @@ class _MainLayoutState extends State<MainLayout> {
       children: [
         const SizedBox(height: 16),
 
-        // Animowane logo aplikacji
-        AnimatedMetropolitanLogo(
-          size: _isRailExtended ? 80.0 : 60.0,
-          variant: LogoVariant.svg,
-          showText: false,
-          enableHoverEffect: true,
+        // Logo aplikacji
+        GestureDetector(
           onTap: () => context.go(AppRoutes.dashboard),
+          child: Container(
+            width: _isRailExtended ? 80.0 : 60.0,
+            height: _isRailExtended ? 80.0 : 60.0,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(
+                (_isRailExtended ? 80.0 : 60.0) * 0.2,
+              ),
+              gradient: AppTheme.primaryGradient,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryColor.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            padding: EdgeInsets.all((_isRailExtended ? 80.0 : 60.0) * 0.1),
+            child: Image.asset(
+              'assets/logos/logo.png',
+              width: (_isRailExtended ? 80.0 : 60.0) * 0.8,
+              height: (_isRailExtended ? 80.0 : 60.0) * 0.8,
+              fit: BoxFit.contain,
+            ),
+          ),
         ),
 
         // Nazwa aplikacji (gdy nawigacja rozwinięta)

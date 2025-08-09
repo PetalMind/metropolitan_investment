@@ -38,6 +38,5 @@ export 'services/product_investors_service.dart';
 export 'services/standard_product_investors_service.dart';
 
 // Widget exports - Logo and branding components
-export 'widgets/animated_logo.dart';
 export 'widgets/metropolitan_components.dart';
 export 'screens/splash_screen.dart';

@@ -568,20 +568,15 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         const SizedBox(height: 16),
         _buildStatCard(
           'kapital_pozostaly',
-          CurrencyFormatter.formatCurrency(widget.investor.totalRemainingCapital),
+          CurrencyFormatter.formatCurrency(
+            widget.investor.totalRemainingCapital,
+          ),
         ),
         const SizedBox(height: 12),
         _buildStatCard(
           'kapital_zabezpieczony_nieruchomoscia',
           CurrencyFormatter.formatCurrency(
             widget.investor.capitalSecuredByRealEstate,
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildStatCard(
-          'kapital_zrealizowany',
-          CurrencyFormatter.formatCurrency(
-            widget.investor.totalRealizedCapital,
           ),
         ),
         const SizedBox(height: 12),
@@ -593,7 +588,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         ),
         const SizedBox(height: 12),
         _buildStatCard(
-          'kapital_na_restrukturyzacje',
+          'kapital_do_restrukturyzacji',
           CurrencyFormatter.formatCurrency(
             widget.investor.capitalForRestructuring,
           ),
@@ -613,7 +608,10 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(color: AppTheme.textSecondary)),
+          Text(
+            _getStatTitle(title),
+            style: const TextStyle(color: AppTheme.textSecondary),
+          ),
           Text(
             value,
             style: const TextStyle(
@@ -624,6 +622,21 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         ],
       ),
     );
+  }
+
+  String _getStatTitle(String key) {
+    switch (key) {
+      case 'kapital_pozostaly':
+        return 'Kapitał pozostały';
+      case 'kapital_zabezpieczony_nieruchomoscia':
+        return 'Kapitał zabezpieczony nieruchomością';
+      case 'kwota_inwestycji':
+        return 'Kwota inwestycji';
+      case 'kapital_do_restrukturyzacji':
+        return 'Kapitał do restrukturyzacji';
+      default:
+        return key;
+    }
   }
 
   Widget _buildActionCenter() {
@@ -650,7 +663,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
           'Inwestycje',
           Icons.account_balance_wallet,
           AppTheme.successColor,
-          () => widget.onViewInvestments?.call(),
+          () => _showInvestmentsTab(),
         ),
         const SizedBox(height: 12),
         _buildActionCard(
@@ -1703,20 +1716,44 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
   Future<void> _contactInvestor() async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Funkcja kontaktu będzie dostępna wkrótce'),
-          backgroundColor: AppTheme.infoColor,
-        ),
-      );
+      // Kopiuj email do schowka
+      if (widget.investor.client.email.isNotEmpty) {
+        await Clipboard.setData(
+          ClipboardData(text: widget.investor.client.email),
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Email skopiowany do schowka'),
+              backgroundColor: AppTheme.successColor,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Brak adresu email dla tego klienta'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Błąd inicjowania kontaktu: $e'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd kopiowania email: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
     }
+  }
+
+  void _showInvestmentsTab() {
+    // Przełącz na zakładkę z inwestycjami (index 1)
+    _tabController.animateTo(1);
   }
 
   // Helper functions
@@ -1788,9 +1825,18 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
   void _navigateToProductDetails(Investment investment) {
     Navigator.of(context).pop(); // Zamknij dialog
-    context.go(
-      '/products?productName=${Uri.encodeComponent(investment.productName)}&productType=${investment.productType.name}',
-    );
+
+    // Sprawdź czy inwestycja ma właściwości potrzebne do nawigacji
+    if (investment.productName.isNotEmpty) {
+      // Używamy parametru productName do wyszukiwania konkretnej inwestycji
+      final productName = Uri.encodeComponent(investment.productName);
+      final productType = investment.productType.name.toLowerCase();
+
+      context.go('/products?productName=$productName&productType=$productType');
+    } else {
+      // Fallback - przejdź do listy produktów z filtrem typu
+      context.go('/products?productType=${investment.productType.name}');
+    }
   }
 }
 

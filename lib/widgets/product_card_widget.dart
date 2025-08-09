@@ -131,19 +131,19 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
                     // Główna zawartość
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Nazwa produktu
                             _buildProductName(),
 
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
 
                             // Typ produktu
                             _buildProductType(),
 
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
 
                             // Wartości finansowe
                             _buildFinancialInfo(),
@@ -182,13 +182,13 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
               onLongPress: widget.onLongPress,
               child: Container(
                 decoration: _getCardDecoration(),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
                     // Ikona produktu
                     _buildProductIcon(),
 
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
 
                     // Główne informacje
                     Expanded(
@@ -201,15 +201,15 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
                               _buildStatusBadge(),
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 3),
                           _buildProductType(),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           _buildFinancialInfoHorizontal(),
                         ],
                       ),
                     ),
 
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
 
                     // Strzałka
                     Icon(Icons.chevron_right, color: AppTheme.textTertiary),
@@ -263,7 +263,7 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
 
   Widget _buildCardHeader() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.getProductTypeBackground(
           widget.product.productType.collectionName,
@@ -281,13 +281,13 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
 
   Widget _buildProductIcon() {
     return Container(
-      width: 48,
-      height: 48,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
         color: AppTheme.getProductTypeColor(
           widget.product.productType.collectionName,
         ).withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: AppTheme.getProductTypeColor(
             widget.product.productType.collectionName,
@@ -300,7 +300,7 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
         color: AppTheme.getProductTypeColor(
           widget.product.productType.collectionName,
         ),
-        size: 24,
+        size: 20,
       ),
     );
   }
