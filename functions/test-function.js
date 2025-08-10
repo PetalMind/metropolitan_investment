@@ -2,7 +2,7 @@
  * 🧪 FUNKCJA TESTOWA - sprawdzenie czy Firebase Functions działają
  */
 
-const { onCall } = require("firebase-functions/v2/https");
+const {onCall} = require("firebase-functions/v2/https");
 
 exports.testFunction = onCall({
   region: "europe-west1",

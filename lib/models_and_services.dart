@@ -19,6 +19,8 @@ export 'services/client_service.dart';
 export 'services/firebase_functions_client_service.dart';
 export 'services/client_notes_service.dart';
 export 'services/client_id_mapping_service.dart';
+export 'services/enhanced_client_id_mapping_service.dart';
+export 'services/client_mapping_diagnostic_service.dart';
 export 'services/employee_service.dart';
 export 'services/investment_service.dart';
 export 'services/product_service.dart';

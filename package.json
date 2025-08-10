@@ -9,7 +9,12 @@
     "split-investments": "node tools/split_json_by_investment_type.js",
     "upload-investments": "node tools/upload_split_investments.js",
     "process-investments": "./tools/process_investments.sh",
-    "install-deps": "npm install firebase-admin"
+    "install-deps": "npm install firebase-admin",
+    "upload-normalized": "node upload_normalized_data_to_firebase.js",
+    "upload-normalized:dry-run": "node upload_normalized_data_to_firebase.js --dry-run",
+    "upload-normalized:cleanup": "node upload_normalized_data_to_firebase.js --cleanup",
+    "upload-normalized:full": "node upload_normalized_data_to_firebase.js --cleanup --report",
+    "test-firebase": "node test_firebase_connection.js"
   },
   "dependencies": {
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",

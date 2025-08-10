@@ -223,6 +223,9 @@ class UnifiedProduct implements IUnifiedProduct {
         'creditorCompany': loan.creditorCompany,
         'collateral': loan.collateral,
         'status': loan.status,
+        'loanNumber': loan.loanNumber,
+        'remainingCapital': loan.remainingCapital,
+        'investmentAmount': loan.investmentAmount,
       },
       companyName: loan.creditorCompany,
       interestRate: loan.interestRate != null
@@ -261,6 +264,8 @@ class UnifiedProduct implements IUnifiedProduct {
         'hasBalcony': apartment.hasBalcony,
         'hasParkingSpace': apartment.hasParkingSpace,
         'hasStorage': apartment.hasStorage,
+        'investmentAmount': apartment.investmentAmount,
+        'productType': apartment.productType,
       },
       companyName: apartment.developer,
       originalProduct: apartment,

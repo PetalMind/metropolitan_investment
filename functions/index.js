@@ -9,6 +9,18 @@ const dashboardSpecialized = require("./dashboard-specialized");
 const productInvestorsOptimization = require("./product-investors-optimization");
 const testFunction = require("./test-function");
 
+// Import utils do mapowania pól
+const {
+  getFieldValue,
+  safeToDouble,
+  safeToInt,
+  safeToString,
+  safeToBoolean,
+  parseDate,
+  createNormalizedClient,
+  createNormalizedInvestment
+} = require("./field-mapping-utils");
+
 admin.initializeApp();
 const db = admin.firestore();
 
@@ -63,10 +75,9 @@ exports.getOptimizedInvestorAnalytics = onCall({
       .limit(5000)
       .get();
 
-    const clients = clientsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const clients = clientsSnapshot.docs.map((doc) => 
+      createNormalizedClient(doc.id, doc.data())
+    );
 
     console.log(
       `👥 [Analytics Functions] Znaleziono ${clients.length} klientów`,
@@ -90,46 +101,37 @@ exports.getOptimizedInvestorAnalytics = onCall({
       db.collection("apartments").limit(50000).get(),
     ]);
 
-    const investments = investmentsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const investments = investmentsSnapshot.docs.map((doc) => 
+      createNormalizedInvestment(doc.id, doc.data())
+    );
 
-    const bonds = bondsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      collection_type: 'bonds',
-      ...doc.data(),
-    }));
+    const bonds = bondsSnapshot.docs.map((doc) => 
+      createNormalizedInvestment(doc.id, { ...doc.data(), collectionType: 'bonds' })
+    );
 
-    const shares = sharesSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      collection_type: 'shares',
-      ...doc.data(),
-    }));
+    const shares = sharesSnapshot.docs.map((doc) => 
+      createNormalizedInvestment(doc.id, { ...doc.data(), collectionType: 'shares' })
+    );
 
-    const loans = loansSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      collection_type: 'loans',
-      ...doc.data(),
-    }));
+    const loans = loansSnapshot.docs.map((doc) => 
+      createNormalizedInvestment(doc.id, { ...doc.data(), collectionType: 'loans' })
+    );
 
-    const apartments = apartmentsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      collection_type: 'apartments',
-      ...doc.data(),
-    }));
+    const apartments = apartmentsSnapshot.docs.map((doc) => 
+      createNormalizedInvestment(doc.id, { ...doc.data(), collectionType: 'apartments' })
+    );
 
     // 🐛 DEBUG: Loguj przykład apartamentu dla weryfikacji
     if (apartments.length > 0) {
       const sampleApartment = apartments[0];
       console.log(`🏠 [DEBUG] Sample apartment data:`, {
         id: sampleApartment.id,
-        typ_produktu: sampleApartment.typ_produktu,
-        kwota_inwestycji: sampleApartment.kwota_inwestycji,
-        kapital_do_restrukturyzacji: sampleApartment.kapital_do_restrukturyzacji,
-        kapital_zabezpieczony_nieruchomoscia: sampleApartment.kapital_zabezpieczony_nieruchomoscia,
-        klient: sampleApartment.Klient,
-        numer_apartamentu: sampleApartment.numer_apartamentu
+        productType: sampleApartment.productType,
+        investmentAmount: sampleApartment.investmentAmount,
+        capitalForRestructuring: sampleApartment.capitalForRestructuring,
+        capitalSecuredByRealEstate: sampleApartment.capitalSecuredByRealEstate,
+        client: sampleApartment.client,
+        apartmentNumber: sampleApartment.apartmentNumber
       });
     }
 
@@ -144,41 +146,89 @@ exports.getOptimizedInvestorAnalytics = onCall({
 
     // 📊 KROK 3: Grupuj wszystkie inwestycje według klientów
     const investmentsByClient = new Map();
+    const clientsMap = new Map(); // Mapowanie Excel ID -> Client Data
 
-    // Helper function to add investment to client map
-    const addInvestmentToClient = (investment, clientNameField) => {
-      const clientName = investment[clientNameField] || investment.klient;
+    // Najpierw pobierz wszystkich klientów dla mapowania
+    const clientsMappingSnapshot = await db.collection('clients').get();
+    clientsMappingSnapshot.docs.forEach((doc) => {
+      const clientData = createNormalizedClient(doc.id, doc.data());
+      const excelId = clientData.excelId;
+      const clientName = clientData.fullName;
+
+      if (excelId) {
+        clientsMap.set(excelId, {
+          firestoreId: doc.id,
+          name: clientName,
+          excelId: excelId,
+        });
+      }
+
+      // Mapowanie też przez nazwę (fallback)
       if (clientName) {
-        if (!investmentsByClient.has(clientName)) {
-          investmentsByClient.set(clientName, []);
+        clientsMap.set(clientName, {
+          firestoreId: doc.id,
+          name: clientName,
+          excelId: excelId,
+        });
+      }
+    });
+
+    console.log(`👥 [Analytics Functions] Załadowano ${clientsMap.size} mapowań klientów`);
+
+    // Helper function to add investment to client map with proper ID resolution
+    const addInvestmentToClient = (investment, clientIdField, clientNameField) => {
+      const excelClientId = investment[clientIdField];
+      const clientName = investment[clientNameField];
+
+      // Strategia 1: Mapowanie przez Excel ID
+      let clientKey = null;
+      if (excelClientId && clientsMap.has(excelClientId)) {
+        const clientInfo = clientsMap.get(excelClientId);
+        clientKey = clientInfo.name; // Używamy nazwy jako klucza dla spójności
+        console.log(`🔗 [Analytics Functions] Zmapowano przez Excel ID: ${excelClientId} -> ${clientKey}`);
+      }
+      // Strategia 2: Mapowanie przez nazwę (fallback)
+      else if (clientName && clientsMap.has(clientName)) {
+        clientKey = clientName;
+        console.log(`🔗 [Analytics Functions] Zmapowano przez nazwę: ${clientName}`);
+      }
+
+      if (clientKey) {
+        if (!investmentsByClient.has(clientKey)) {
+          investmentsByClient.set(clientKey, []);
         }
-        investmentsByClient.get(clientName).push(investment);
+        investmentsByClient.get(clientKey).push({
+          ...investment,
+          resolvedClientFirestoreId: clientsMap.get(excelClientId || clientName)?.firestoreId,
+        });
+      } else {
+        console.warn(`⚠️ [Analytics Functions] Nie znaleziono klienta dla: Excel ID: ${excelClientId}, Nazwa: ${clientName}`);
       }
     };
 
     // Grupuj investments
     investments.forEach((investment) => {
-      addInvestmentToClient(investment, 'klient');
+      addInvestmentToClient(investment, 'clientId', 'client');
     });
 
-    // Grupuj bonds - mogą mieć różne pola dla nazwy klienta
+    // Grupuj bonds - używamy Excel ID i nazwy klienta
     bonds.forEach((bond) => {
-      addInvestmentToClient(bond, 'Klient');
+      addInvestmentToClient(bond, 'clientId', 'client');
     });
 
     // Grupuj shares
     shares.forEach((share) => {
-      addInvestmentToClient(share, 'Klient');
+      addInvestmentToClient(share, 'clientId', 'client');
     });
 
     // Grupuj loans  
     loans.forEach((loan) => {
-      addInvestmentToClient(loan, 'Klient');
+      addInvestmentToClient(loan, 'clientId', 'client');
     });
 
     // Grupuj apartments
     apartments.forEach((apartment) => {
-      addInvestmentToClient(apartment, 'Klient');
+      addInvestmentToClient(apartment, 'clientId', 'client');
     });
 
     console.log(
@@ -216,7 +266,7 @@ exports.getOptimizedInvestorAnalytics = onCall({
 
       // Spróbuj dopasować po nazwie klienta
       const clientInvestments =
-        investmentsByClient.get(client.imie_nazwisko) || [];
+        investmentsByClient.get(client.fullName) || [];
 
       if (clientInvestments.length === 0) continue;
 
@@ -227,9 +277,9 @@ exports.getOptimizedInvestorAnalytics = onCall({
       if (searchQuery) {
         const searchLower = searchQuery.toLowerCase();
         const nameMatch =
-          client.imie_nazwisko.toLowerCase().includes(searchLower);
+          client.fullName.toLowerCase().includes(searchLower);
         const emailMatch =
-          (client.email || "").toLowerCase().includes(searchLower);
+          client.email.toLowerCase().includes(searchLower);
 
         if (!nameMatch && !emailMatch) {
           continue;
@@ -350,7 +400,7 @@ exports.getAllClients = onCall({
       page = 1,
       pageSize = 500,
       searchQuery = null,
-      sortBy = "imie_nazwisko",
+      sortBy = "fullName",
       forceRefresh = false,
     } = data;
 
@@ -371,17 +421,16 @@ exports.getAllClients = onCall({
       // Firestore nie ma full-text search, więc pobieramy wszystko
       // i filtrujemy lokalnie
       const allSnapshot = await query.limit(10000).get();
-      const allClients = allSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const allClients = allSnapshot.docs.map((doc) => 
+        createNormalizedClient(doc.id, doc.data())
+      );
 
       const searchLower = searchQuery.toLowerCase();
       const filteredClients = allClients.filter((client) =>
-        (client.imie_nazwisko || "").toLowerCase()
-          .includes(searchLower) ||
+        (client.fullName || "").toLowerCase().includes(searchLower) ||
         (client.email || "").toLowerCase().includes(searchLower) ||
-        (client.telefon || "").toLowerCase().includes(searchLower),
+        (client.phone || "").toLowerCase().includes(searchLower) ||
+        (client.companyName || "").toLowerCase().includes(searchLower)
       ); // Paginacja po filtrowaniu
       const totalCount = filteredClients.length;
       const startIndex = (page - 1) * pageSize;
@@ -402,16 +451,15 @@ exports.getAllClients = onCall({
       return result;
     }
 
-    // Bez wyszukiwania - zwykła paginacja bez sortowania dla większej niezawodności
+    // Bez wyszukiwania - zwykła paginacja
     const snapshot = await query
       .limit(pageSize)
       .offset((page - 1) * pageSize)
       .get();
 
-    const clients = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const clients = snapshot.docs.map((doc) => 
+      createNormalizedClient(doc.id, doc.data())
+    );
 
     // Policz total (może być kosztowne dla dużych zbiorów)
     const countSnapshot = await db.collection("clients").count().get();
@@ -471,20 +519,20 @@ exports.getAllInvestments = onCall({
 
     let query = db.collection("investments");
 
-    // Zastosuj filtry
+    // Zastosuj filtry - use correct field names
     if (clientFilter) {
-      query = query.where("klient", "==", clientFilter);
+      query = query.where("clientId", "==", clientFilter);
     }
     if (productTypeFilter) {
-      query = query.where("typ_produktu", "==", productTypeFilter);
+      query = query.where("productType", "==", productTypeFilter);
     }
 
     // Sortowanie - używaj tylko jeśli nie ma problemów z indeksami
     if (sortBy && sortBy.length > 0 && !clientFilter && !productTypeFilter) {
       // Tylko jeśli nie ma filtrów i sortBy jest niepusty - użyj sortowania
       try {
-        if (sortBy === "data_kontraktu") {
-          query = query.orderBy("data_kontraktu", "desc");
+        if (sortBy === "contractDate" || sortBy === "data_kontraktu" || sortBy === "signingDate") {
+          query = query.orderBy("signingDate", "desc");
         } else {
           query = query.orderBy(sortBy);
         }
@@ -505,32 +553,22 @@ exports.getAllInvestments = onCall({
 
     console.log(`📊 [Get All Investments] Pobrano ${snapshot.docs.length} dokumentów z Firestore`);
 
-    const investments = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const investments = snapshot.docs.map((doc) => 
+      createNormalizedInvestment(doc.id, doc.data())
+    );
 
-    // Dodaj obliczone pola
-    const processedInvestments = investments.map((investment) => ({
-      ...investment,
-      investmentAmount: parseFloat(investment.wartosc_kontraktu || 0),
-      remainingCapital: parseFloat(
-        investment.remainingCapital || investment.wartosc_kontraktu || 0,
-      ),
-      realizedCapital: parseFloat(investment.realizedCapital || 0),
-    }));
+    // Dodaj obliczone pola są już obsługiwane w createNormalizedInvestment
+    const processedInvestments = investments;
 
     console.log(`⚙️ [Get All Investments] Przetworzono ${processedInvestments.length} inwestycji`);
 
-    // Policz total dla bieżących filtrów
+    // Policz total dla bieżących filtrów - use correct field names
     let countQuery = db.collection("investments");
     if (clientFilter) {
-      countQuery = countQuery.where("klient", "==", clientFilter);
+      countQuery = countQuery.where("clientId", "==", clientFilter);
     }
     if (productTypeFilter) {
-      countQuery = countQuery.where(
-        "typ_produktu", "==", productTypeFilter,
-      );
+      countQuery = countQuery.where("productType", "==", productTypeFilter);
     }
 
     const countSnapshot = await countQuery.count().get();
@@ -604,15 +642,10 @@ exports.getSystemStats = onCall({
     const productTypeStats = new Map();
 
     totalCapitalSnapshot.docs.forEach((doc) => {
-      const data = doc.data();
-      // UŻYWAMY TYLKO kapital_pozostaly zgodnie z modelem Dart - sprawdzaj nowe pola
-      const remaining = parseFloat(
-        data['Kapital Pozostaly']?.toString().replace(/,/g, '') ||
-        data.kapital_pozostaly ||
-        data.remainingCapital ||
-        0
-      );
-      const productType = data.Typ_produktu || data.typ_produktu || data.productType || "Nieznany";
+      const investment = createNormalizedInvestment(doc.id, doc.data());
+      
+      const remaining = investment.remainingCapital;
+      const productType = investment.productType;
 
       totalRemainingCapital += remaining;
 
@@ -669,6 +702,18 @@ exports.getSystemStats = onCall({
  * @return {Object} InvestorSummary
  */
 function createInvestorSummary(client, investments) {
+  // Helper do bezpiecznej konwersji na double
+  const safeToDouble = (value, defaultValue = 0.0) => {
+    if (value == null || value === '') return defaultValue;
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/,/g, '');
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? defaultValue : parsed;
+    }
+    return defaultValue;
+  };
+
   let totalViableCapital = 0;
   let totalInvestmentAmount = 0;
   let bondsTotalValue = 0;
@@ -679,60 +724,25 @@ function createInvestorSummary(client, investments) {
   let totalCapitalForRestructuring = 0;
 
   const processedInvestments = investments.map((investment) => {
-    // 📊 MAPOWANIE KWOTY INWESTYCJI - nowe pola mają wyższy priorytet
-    const amount = parseFloat(
-      investment.Kwota_inwestycji ||        // Nowe pole (string)
-      investment.kwota_inwestycji ||        // Stare pole (number) 
-      investment.investmentAmount ||        // Backup pole (number)
-      0
-    );
+    // Użyj znormalizowanej inwestycji zamiast manualnego mapowania
+    const normalizedInvestment = typeof investment.investmentAmount !== 'undefined' 
+      ? investment // Już znormalizowane
+      : createNormalizedInvestment(investment.id, investment);
 
-    // 📊 MAPOWANIE KAPITAŁU POZOSTAŁEGO - obsłuż różne formaty ze stringami z przecinkami
-    let remainingCapital = 0;
-    if (investment['Kapital Pozostaly']) {
-      // String z przecinkami: "200,000.00"
-      const cleaned = investment['Kapital Pozostaly'].toString().replace(/,/g, '');
-      remainingCapital = parseFloat(cleaned) || 0;
-    } else if (investment.kapital_pozostaly) {
-      remainingCapital = parseFloat(investment.kapital_pozostaly) || 0;
-    } else if (investment.remainingCapital) {
-      remainingCapital = parseFloat(investment.remainingCapital) || 0;
-    } else if (investment.kapital_do_restrukturyzacji) {
-      // 🔄 Fallback na kapitał do restrukturyzacji
-      remainingCapital = parseFloat(investment.kapital_do_restrukturyzacji) || 0;
-    }
+    const amount = normalizedInvestment.investmentAmount;
+    const remainingCapital = normalizedInvestment.remainingCapital;
+    const capitalSecuredByRealEstate = normalizedInvestment.capitalSecuredByRealEstate;
+    const capitalForRestructuring = normalizedInvestment.capitalForRestructuring;
 
-    // 🐛 DEBUG: Loguj pierwsze kilka inwestycji z kapitałem - sprawdź nowe pola
+    // 🐛 DEBUG: Loguj pierwsze kilka inwestycji z kapitałem - sprawdź znormalizowane pola
     if (remainingCapital > 0 && Math.random() < 0.01) { // 1% szans na log dla wydajności
-      console.log(`🔍 [DEBUG] Investment mapping (Updated Firebase):`, {
-        productType: investment.Typ_produktu || investment.typ_produktu || investment.productType,
-        collectionType: investment.collection_type,
+      console.log(`🔍 [DEBUG] Investment mapping (Normalized):`, {
+        productType: normalizedInvestment.productType,
+        collectionType: normalizedInvestment.collectionType,
         remainingCapital: remainingCapital,
-        clientId: investment.ID_Klient || investment.id_klient,
-        fields: {
-          'Kapital Pozostaly': investment['Kapital Pozostaly'],
-          'kapital_pozostaly': investment.kapital_pozostaly,
-          'Kwota_inwestycji': investment.Kwota_inwestycji,
-          'kwota_inwestycji': investment.kwota_inwestycji,
-          'kapital_do_restrukturyzacji': investment.kapital_do_restrukturyzacji,
-          'kapital_zabezpieczony_nieruchomoscia': investment.kapital_zabezpieczony_nieruchomoscia
-        }
+        clientId: normalizedInvestment.clientId,
       });
     }
-
-    // 📊 MAPOWANIE KAPITAŁU ZABEZPIECZONEGO NIERUCHOMOŚCIĄ
-    const capitalSecuredByRealEstate = parseFloat(
-      investment.kapital_zabezpieczony_nieruchomoscia ||
-      investment.capitalSecuredByRealEstate ||
-      0
-    );
-
-    // 📊 MAPOWANIE KAPITAŁU DO RESTRUKTURYZACJI  
-    const capitalForRestructuring = parseFloat(
-      investment.kapital_do_restrukturyzacji ||
-      investment.capitalForRestructuring ||
-      0
-    );
 
     totalInvestmentAmount += amount;
     totalViableCapital += remainingCapital;
@@ -740,7 +750,7 @@ function createInvestorSummary(client, investments) {
     totalCapitalForRestructuring += capitalForRestructuring;
 
     // Kategoryzuj według typu kolekcji
-    switch (investment.collection_type) {
+    switch (normalizedInvestment.collectionType) {
       case 'bonds':
         bondsTotalValue += remainingCapital;
         break;
@@ -755,7 +765,7 @@ function createInvestorSummary(client, investments) {
         break;
       default:
         // Dla głównej kolekcji investments próbuj określić typ po polach
-        const productType = investment.typ_produktu || investment.Typ_produktu;
+        const productType = investment.productType || investment.typ_produktu || investment.Typ_produktu;
         if (productType) {
           if (productType.includes('Obligacje')) {
             bondsTotalValue += remainingCapital;
@@ -778,15 +788,20 @@ function createInvestorSummary(client, investments) {
     };
   });
 
+  // Użyj znormalizowanego klienta
+  const normalizedClient = typeof client.fullName !== 'undefined' 
+    ? client // Już znormalizowane
+    : createNormalizedClient(client.id, client);
+
   return {
     client: {
-      id: client.id,
-      name: client.imie_nazwisko || client.name,
-      email: client.email || "",
-      phone: client.telefon || client.phone || "",
-      isActive: client.isActive !== false,
-      votingStatus: client.votingStatus || "undecided",
-      unviableInvestments: client.unviableInvestments || [],
+      id: normalizedClient.id,
+      name: normalizedClient.fullName,
+      email: normalizedClient.email,
+      phone: normalizedClient.phone,
+      isActive: normalizedClient.isActive,
+      votingStatus: normalizedClient.votingStatus,
+      unviableInvestments: normalizedClient.unviableInvestments,
     },
     investments: processedInvestments,
     totalRemainingCapital: totalViableCapital,
@@ -2088,20 +2103,19 @@ exports.getActiveClients = onCall({
       .limit(5000) // Rozsądny limit
       .get();
 
-    const clients = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const clients = snapshot.docs.map((doc) => 
+      createNormalizedClient(doc.id, doc.data())
+    );
 
     // Filtruj aktywnych klientów
     // Klienci z danych Excel domyślnie są aktywni, więc pobieramy wszystkich
     const activeClients = clients.filter(client => {
       // Podstawowe kryteria aktywności
       const hasEmail = client.email && client.email !== '' && client.email !== 'brak';
-      const hasName = client.imie_nazwisko && client.imie_nazwisko !== '';
+      const hasName = client.fullName && client.fullName !== '';
       const isNotDeleted = client.isActive !== false; // Domyślnie true
 
-      return hasName && (hasEmail || client.telefon) && isNotDeleted;
+      return hasName && (hasEmail || client.phone) && isNotDeleted;
     });
 
     console.log(`⚡ [Get Active Clients] Znaleziono ${activeClients.length} aktywnych z ${clients.length} klientów`);
@@ -2142,6 +2156,11 @@ exports.getDashboardBenchmarks = dashboardSpecialized.getDashboardBenchmarks;
 
 // Product Investors Optimization - optymalizacja pobierania inwestorów produktów
 exports.getProductInvestorsOptimized = productInvestorsOptimization.getProductInvestorsOptimized;
+
+// Client Mapping Diagnostic - diagnostyka mapowania ID klientów
+const clientMappingDiagnostic = require('./client-mapping-diagnostic');
+exports.diagnosticClientMapping = clientMappingDiagnostic.diagnosticClientMapping;
+exports.testClientMapping = clientMappingDiagnostic.testClientMapping;
 
 // Test Function - sprawdzenie czy Firebase Functions działają
 exports.testFunction = testFunction.testFunction;

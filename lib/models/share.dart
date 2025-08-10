@@ -12,6 +12,11 @@ class Share {
   final String sourceFile; // source_file
   final DateTime createdAt; // created_at
   final DateTime uploadedAt; // uploaded_at
+
+  // Client identification fields
+  final String? clientId; // ID_Klient (Excel numeryczne ID)
+  final String? clientName; // Klient (nazwa klienta)
+
   final Map<String, dynamic> additionalInfo;
 
   Share({
@@ -25,6 +30,8 @@ class Share {
     required this.sourceFile,
     required this.createdAt,
     required this.uploadedAt,
+    this.clientId,
+    this.clientName,
     this.additionalInfo = const {},
   });
 
@@ -74,39 +81,74 @@ class Share {
 
     return Share(
       id: doc.id,
-      productType: data['typ_produktu'] ?? data['Typ_produktu'] ?? 'Udziały',
+      productType:
+          data['productType'] ??
+          data['typ_produktu'] ??
+          data['Typ_produktu'] ??
+          'Udziały',
       investmentAmount: safeToDouble(
-        data['kwota_inwestycji'] ?? data['Kwota_inwestycji'],
+        data['investmentAmount'] ??
+            data['kwota_inwestycji'] ??
+            data['Kwota_inwestycji'],
       ),
-      sharesCount: safeToInt(data['ilosc_udzialow'] ?? data['Ilosc_Udzialow']),
+      sharesCount: safeToInt(
+        data['shareCount'] ?? data['ilosc_udzialow'] ?? data['Ilosc_Udzialow'],
+      ),
       remainingCapital: safeToDouble(
-        data['kapital_pozostaly'] ?? data['Kapital Pozostaly'],
+        data['remainingCapital'] ??
+            data['kapital_pozostaly'] ??
+            data['Kapital Pozostaly'],
       ),
       capitalForRestructuring: safeToDouble(
-        data['kapital_do_restrukturyzacji'],
+        data['capitalForRestructuring'] ?? data['kapital_do_restrukturyzacji'],
       ),
       capitalSecuredByRealEstate: safeToDouble(
-        data['kapital_zabezpieczony_nieruchomoscia'],
+        data['realEstateSecuredCapital'] ??
+            data['kapital_zabezpieczony_nieruchomoscia'],
       ),
-      sourceFile: data['source_file'] ?? 'imported_data.json',
-      createdAt: parseDate(data['created_at']) ?? DateTime.now(),
-      uploadedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
+      sourceFile:
+          data['sourceFile'] ?? data['source_file'] ?? 'imported_data.json',
+      createdAt:
+          parseDate(data['createdAt']) ??
+          parseDate(data['created_at']) ??
+          DateTime.now(),
+      uploadedAt:
+          parseDate(data['uploadedAt']) ??
+          parseDate(data['uploaded_at']) ??
+          DateTime.now(),
+
+      // Client identification fields
+      clientId: data['clientId'] ?? data['ID_Klient'],
+      clientName: data['clientName'] ?? data['Klient'],
       additionalInfo: Map<String, dynamic>.from(data)
         ..removeWhere(
           (key, value) => [
+            'productType',
             'typ_produktu',
             'Typ_produktu',
+            'investmentAmount',
             'kwota_inwestycji',
             'Kwota_inwestycji',
+            'shareCount',
             'ilosc_udzialow',
             'Ilosc_Udzialow',
+            'remainingCapital',
             'kapital_pozostaly',
             'Kapital Pozostaly',
+            'capitalForRestructuring',
             'kapital_do_restrukturyzacji',
+            'realEstateSecuredCapital',
             'kapital_zabezpieczony_nieruchomoscia',
+            'sourceFile',
             'source_file',
+            'createdAt',
             'created_at',
+            'uploadedAt',
             'uploaded_at',
+            'clientId',
+            'ID_Klient',
+            'clientName',
+            'Klient',
           ].contains(key),
         ),
     );
@@ -114,15 +156,36 @@ class Share {
 
   Map<String, dynamic> toFirestore() {
     return {
+      // Znormalizowane nazwy (priorytet)
+      'productType': productType,
+      'investmentAmount': investmentAmount,
+      'shareCount': sharesCount,
+      'remainingCapital': remainingCapital,
+      'capitalForRestructuring': capitalForRestructuring,
+      'realEstateSecuredCapital': capitalSecuredByRealEstate,
+      'sourceFile': sourceFile,
+      'createdAt': createdAt.toIso8601String(),
+      'uploadedAt': uploadedAt.toIso8601String(),
+      'clientId': clientId,
+      'clientName': clientName,
+
+      // Stare nazwy dla kompatybilności wstecznej
       'Typ_produktu': productType,
+      'typ_produktu': productType,
       'Kwota_inwestycji': investmentAmount,
+      'kwota_inwestycji': investmentAmount,
       'Ilosc_Udzialow': sharesCount,
+      'ilosc_udzialow': sharesCount,
       'Kapital Pozostaly': remainingCapital,
+      'kapital_pozostaly': remainingCapital,
       'kapital_do_restrukturyzacji': capitalForRestructuring,
       'kapital_zabezpieczony_nieruchomoscia': capitalSecuredByRealEstate,
       'source_file': sourceFile,
       'created_at': createdAt.toIso8601String(),
       'uploaded_at': uploadedAt.toIso8601String(),
+      'ID_Klient': clientId,
+      'Klient': clientName,
+
       ...additionalInfo,
     };
   }

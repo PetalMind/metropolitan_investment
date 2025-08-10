@@ -9,7 +9,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "imie_nazwisko",
+          "fieldPath": "fullName",
           "order": "ASCENDING"
         }
       ]
@@ -23,7 +23,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "imie_nazwisko",
+          "fieldPath": "fullName",
           "order": "ASCENDING"
         }
       ]
@@ -37,7 +37,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "imie_nazwisko",
+          "fieldPath": "fullName",
           "order": "ASCENDING"
         }
       ]
@@ -65,7 +65,77 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "imie_nazwisko",
+          "fieldPath": "fullName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "clients",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fullName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "bonds",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "clientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "productName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "shares",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "clientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "productName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "loans",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "clientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "borrower",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "apartments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "clientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "projectName",
           "order": "ASCENDING"
         }
       ]
@@ -75,11 +145,25 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "klient",
+          "fieldPath": "clientId",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "data_kontraktu",
+          "fieldPath": "productName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "investments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "clientName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contractDate",
           "order": "DESCENDING"
         }
       ]
@@ -89,11 +173,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "typ_produktu",
+          "fieldPath": "productType",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "data_kontraktu",
+          "fieldPath": "contractDate",
           "order": "DESCENDING"
         }
       ]
@@ -103,11 +187,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "status_produktu",
+          "fieldPath": "productStatus",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "data_podpisania",
+          "fieldPath": "signingDate",
           "order": "DESCENDING"
         }
       ]
@@ -117,11 +201,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "klient",
+          "fieldPath": "clientName",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "data_podpisania",
+          "fieldPath": "signingDate",
           "order": "DESCENDING"
         }
       ]
@@ -131,11 +215,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "typ_produktu",
+          "fieldPath": "productType",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "data_podpisania",
+          "fieldPath": "signingDate",
           "order": "DESCENDING"
         }
       ]
@@ -145,15 +229,15 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "pracownik_imie",
+          "fieldPath": "employeeFirstName",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "pracownik_nazwisko",
+          "fieldPath": "employeeLastName",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "data_podpisania",
+          "fieldPath": "signingDate",
           "order": "DESCENDING"
         }
       ]
@@ -163,11 +247,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "data_wymagalnosci",
+          "fieldPath": "maturityDate",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "status_produktu",
+          "fieldPath": "productStatus",
           "order": "ASCENDING"
         }
       ]
@@ -177,11 +261,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "kod_oddzialu",
+          "fieldPath": "branchCode",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "data_podpisania",
+          "fieldPath": "signingDate",
           "order": "DESCENDING"
         }
       ]
@@ -191,11 +275,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "wartosc_kontraktu",
+          "fieldPath": "contractValue",
           "order": "DESCENDING"
         },
         {
-          "fieldPath": "status_produktu",
+          "fieldPath": "productStatus",
           "order": "ASCENDING"
         }
       ]
@@ -337,11 +421,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "typ_produktu",
+          "fieldPath": "productType",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "data_podpisania",
+          "fieldPath": "signingDate",
           "order": "DESCENDING"
         }
       ]
@@ -351,11 +435,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "typ_produktu",
+          "fieldPath": "productType",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "data_podpisania",
+          "fieldPath": "signingDate",
           "order": "DESCENDING"
         }
       ]
@@ -365,11 +449,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "typ_produktu",
+          "fieldPath": "productType",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -379,11 +463,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "typ_produktu",
+          "fieldPath": "productType",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -393,11 +477,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "typ_produktu",
+          "fieldPath": "productType",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -407,11 +491,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "produkt_nazwa",
+          "fieldPath": "productName",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "kapital_pozostaly",
+          "fieldPath": "remainingCapital",
           "order": "DESCENDING"
         }
       ]
@@ -421,11 +505,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "status_produktu",
+          "fieldPath": "productStatus",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "wartosc_kontraktu",
+          "fieldPath": "contractValue",
           "order": "DESCENDING"
         }
       ]
@@ -435,11 +519,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "status_produktu",
+          "fieldPath": "productStatus",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "data_wymagalnosci",
+          "fieldPath": "maturityDate",
           "order": "ASCENDING"
         }
       ]
@@ -521,11 +605,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "kapital_pozostaly",
+          "fieldPath": "remainingCapital",
           "order": "DESCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -535,11 +619,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "kapital_pozostaly",
+          "fieldPath": "remainingCapital",
           "order": "DESCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -549,11 +633,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "kapital_pozostaly",
+          "fieldPath": "remainingCapital",
           "order": "DESCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -567,7 +651,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -577,11 +661,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "pozyczkobiorca",
+          "fieldPath": "borrower",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -591,11 +675,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "typ_produktu",
+          "fieldPath": "productType",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -609,7 +693,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -619,11 +703,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "nazwa_projektu",
+          "fieldPath": "projectName",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -633,11 +717,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "deweloper",
+          "fieldPath": "developer",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -647,11 +731,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "kapital_pozostaly",
+          "fieldPath": "remainingCapital",
           "order": "DESCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -661,11 +745,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "kapital_do_restrukturyzacji",
+          "fieldPath": "capitalForRestructuring",
           "order": "DESCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -675,11 +759,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "kapital_do_restrukturyzacji",
+          "fieldPath": "capitalForRestructuring",
           "order": "DESCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -689,11 +773,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "kapital_do_restrukturyzacji",
+          "fieldPath": "capitalForRestructuring",
           "order": "DESCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -703,11 +787,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "kapital_zabezpieczony_nieruchomoscia",
+          "fieldPath": "realEstateSecuredCapital",
           "order": "DESCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -717,11 +801,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "kapital_zabezpieczony_nieruchomoscia",
+          "fieldPath": "realEstateSecuredCapital",
           "order": "DESCENDING"
         },
         {
-          "fieldPath": "created_at",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -731,29 +815,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "kapital_zabezpieczony_nieruchomoscia",
+          "fieldPath": "realEstateSecuredCapital",
           "order": "DESCENDING"
         },
         {
-          "fieldPath": "created_at",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "investments",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "status_produktu",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "typ_produktu",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "wartosc_kontraktu",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]
@@ -763,11 +829,29 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "data_podpisania",
+          "fieldPath": "productStatus",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "data_wymagalnosci",
+          "fieldPath": "productType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contractValue",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "investments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "signingDate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "maturityDate",
           "order": "ASCENDING"
         }
       ]
@@ -777,15 +861,15 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "przydzial",
+          "fieldPath": "allocation",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "status_produktu",
+          "fieldPath": "productStatus",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "data_podpisania",
+          "fieldPath": "signingDate",
           "order": "DESCENDING"
         }
       ]

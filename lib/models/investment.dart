@@ -213,82 +213,112 @@ class Investment {
 
     return Investment(
       id: doc.id,
-      // ⭐ NOWE MAPOWANIE PÓL FIREBASE
+      // ⭐ NOWE MAPOWANIE PÓL FIREBASE - znormalizowane nazwy mają priorytet
       clientId:
-          data['ID_Klient']?.toString() ?? data['id_klient']?.toString() ?? '',
-      clientName: data['Klient'] ?? data['klient'] ?? '',
+          data['clientId']?.toString() ??
+          data['ID_Klient']?.toString() ??
+          data['id_klient']?.toString() ??
+          '',
+      clientName: data['clientName'] ?? data['Klient'] ?? data['klient'] ?? '',
       employeeId: '', // Not directly available in Firebase structure
-      employeeFirstName: data['pracownik_imie'] ?? '',
-      employeeLastName: data['pracownik_nazwisko'] ?? '',
-      branchCode: data['Oddzial'] ?? data['oddzial'] ?? '',
+      employeeFirstName:
+          data['employeeFirstName'] ?? data['pracownik_imie'] ?? '',
+      employeeLastName:
+          data['employeeLastName'] ?? data['pracownik_nazwisko'] ?? '',
+      branchCode: data['branch'] ?? data['Oddzial'] ?? data['oddzial'] ?? '',
       status: mapStatus(
-        data['Status_produktu'] ?? data['status_produktu'] ?? data['status'],
+        data['productStatus'] ??
+            data['Status_produktu'] ??
+            data['status_produktu'] ??
+            data['status'],
       ),
-      isAllocated: (data['przydzial'] ?? 0) == 1,
+      isAllocated: (data['allocation'] ?? data['przydzial'] ?? 0) == 1,
       marketType: mapMarketType(
-        data['Produkt_status_wejscie'] ?? data['produkt_status_wejscie'],
+        data['productStatusEntry'] ??
+            data['Produkt_status_wejscie'] ??
+            data['produkt_status_wejscie'],
       ),
       signedDate:
+          parseDate(data['signingDate']) ??
           parseDate(data['Data_podpisania']) ??
           parseDate(data['data_podpisania']) ??
           DateTime.now(),
       entryDate:
+          parseDate(data['investmentEntryDate']) ??
           parseDate(data['Data_wejscia_do_inwestycji']) ??
           parseDate(data['data_wejscia_do_inwestycji']),
-      exitDate: parseDate(data['data_wyjscia_z_inwestycji']),
+      exitDate: parseDate(
+        data['investmentExitDate'] ?? data['data_wyjscia_z_inwestycji'],
+      ),
       proposalId:
+          data['saleId']?.toString() ??
           data['ID_Sprzedaz']?.toString() ??
           data['id_sprzedaz']?.toString() ??
           data['id_propozycja_nabycia']?.toString() ??
           '',
       productType: mapProductType(
-        data['Typ_produktu'] ?? data['typ_produktu'] ?? data['productType'],
+        data['productType'] ?? data['Typ_produktu'] ?? data['typ_produktu'],
       ),
-      productName: data['Produkt_nazwa'] ?? data['produkt_nazwa'] ?? '',
-      creditorCompany: data['wierzyciel_spolka'] ?? '',
-      companyId: data['ID_Spolka'] ?? data['id_spolka'] ?? '',
+      productName:
+          data['productName'] ??
+          data['Produkt_nazwa'] ??
+          data['produkt_nazwa'] ??
+          '',
+      creditorCompany:
+          data['creditorCompany'] ?? data['wierzyciel_spolka'] ?? '',
+      companyId:
+          data['companyId'] ?? data['ID_Spolka'] ?? data['id_spolka'] ?? '',
       issueDate:
-          parseDate(data['data_emisji']) ?? parseDate(data['emisja_data']),
+          parseDate(data['issueDate']) ??
+          parseDate(data['data_emisji']) ??
+          parseDate(data['emisja_data']),
       redemptionDate:
-          parseDate(data['data_wykupu']) ?? parseDate(data['wykup_data']),
-      sharesCount:
-          data['Ilosc_Udzialow'] != null && data['Ilosc_Udzialow'] != 'NULL'
+          parseDate(data['redemptionDate']) ??
+          parseDate(data['data_wykupu']) ??
+          parseDate(data['wykup_data']),
+      sharesCount: data['shareCount'] != null && data['shareCount'] != 'NULL'
+          ? int.tryParse(data['shareCount'].toString())
+          : data['Ilosc_Udzialow'] != null && data['Ilosc_Udzialow'] != 'NULL'
           ? int.tryParse(data['Ilosc_Udzialow'].toString())
           : data['ilosc_udzialow'],
-      // ⭐ KWOTA INWESTYCJI - nowe pola mają wyższy priorytet
-      investmentAmount: safeToDouble(data['Kwota_inwestycji']) != 0
+      // ⭐ KWOTA INWESTYCJI - znormalizowane nazwy mają priorytet
+      investmentAmount: safeToDouble(data['investmentAmount']) != 0
+          ? safeToDouble(data['investmentAmount'])
+          : safeToDouble(data['Kwota_inwestycji']) != 0
           ? safeToDouble(data['Kwota_inwestycji'])
-          : safeToDouble(data['kwota_inwestycji']) != 0
-          ? safeToDouble(data['kwota_inwestycji'])
-          : safeToDouble(data['investmentAmount']),
-      paidAmount: safeToDouble(data['Kwota_wplat']) != 0
+          : safeToDouble(data['kwota_inwestycji']),
+      paidAmount: safeToDouble(data['paidAmount']) != 0
+          ? safeToDouble(data['paidAmount'])
+          : safeToDouble(data['Kwota_wplat']) != 0
           ? safeToDouble(data['Kwota_wplat'])
           : safeToDouble(data['kwota_wplat']),
       // ⭐ KAPITAŁ ZREALIZOWANY - obsługa stringów z przecinkami
       realizedCapital: parseCapitalValue(
-        data['Kapital zrealizowany'] ??
-            data['kapital_zrealizowany'] ??
-            data['realizedCapital'],
+        data['realizedCapital'] ??
+            data['Kapital zrealizowany'] ??
+            data['kapital_zrealizowany'],
       ),
-      realizedInterest: safeToDouble(data['odsetki_zrealizowane']) != 0
-          ? safeToDouble(data['odsetki_zrealizowane'])
-          : safeToDouble(data['realizedInterest']),
+      realizedInterest: safeToDouble(data['realizedInterest']) != 0
+          ? safeToDouble(data['realizedInterest'])
+          : safeToDouble(data['odsetki_zrealizowane']),
       transferToOtherProduct: parseCapitalValue(
-        data['Przekaz na inny produkt'] ??
-            data['przekaz_na_inny_produkt'] ??
+        data['transferToOtherProduct'] ??
+            data['Przekaz na inny produkt'] ??
             data['przekaz_na_inny_produkt'],
       ),
       // ⭐ KAPITAŁ POZOSTAŁY - obsługa stringów z przecinkami
       remainingCapital: parseCapitalValue(
-        data['Kapital Pozostaly'] ??
-            data['kapital_pozostaly'] ??
-            data['remainingCapital'],
+        data['remainingCapital'] ??
+            data['Kapital Pozostaly'] ??
+            data['kapital_pozostaly'],
       ),
-      remainingInterest: safeToDouble(data['odsetki_pozostale']) != 0
-          ? safeToDouble(data['odsetki_pozostale'])
-          : safeToDouble(data['remainingInterest']),
-      plannedTax: safeToDouble(data['podatek_pozostaly']),
-      realizedTax: safeToDouble(data['podatek_zrealizowany']),
+      remainingInterest: safeToDouble(data['remainingInterest']) != 0
+          ? safeToDouble(data['remainingInterest'])
+          : safeToDouble(data['odsetki_pozostale']),
+      plannedTax: safeToDouble(data['plannedTax'] ?? data['podatek_pozostaly']),
+      realizedTax: safeToDouble(
+        data['realizedTax'] ?? data['podatek_zrealizowany'],
+      ),
       currency: 'PLN', // Default currency
       exchangeRate: null, // Not available in Firebase structure
       createdAt:
@@ -297,32 +327,59 @@ class Investment {
           DateTime.now(),
       updatedAt:
           parseDate(data['updatedAt']) ??
+          parseDate(data['uploadedAt']) ??
           parseDate(data['uploaded_at']) ??
           DateTime.now(),
       additionalInfo: {
-        'source_file': data['source_file'],
-        'id_sprzedaz': data['ID_Sprzedaz'] ?? data['id_sprzedaz'],
-        'opiekun_z_misa': data['Opiekun z MISA'],
-        'nazwa_obligacji': data['nazwa_obligacji'],
-        'oprocentowanie': data['oprocentowanie'],
-        'emitent': data['emitent'],
-        'pozyczka_numer': data['pozyczka_numer'],
-        'pozyczkobiorca': data['pozyczkobiorca'],
-        'zabezpieczenie': data['zabezpieczenie'],
+        'sourceFile': data['sourceFile'] ?? data['source_file'],
+        'saleId': data['saleId'] ?? data['ID_Sprzedaz'] ?? data['id_sprzedaz'],
+        'misaGuardian': data['misaGuardian'] ?? data['Opiekun z MISA'],
+        'bondName': data['bondName'] ?? data['nazwa_obligacji'],
+        'interestRate': data['interestRate'] ?? data['oprocentowanie'],
+        'issuer': data['issuer'] ?? data['emitent'],
+        'loanNumber': data['loanNumber'] ?? data['pozyczka_numer'],
+        'borrower': data['borrower'] ?? data['pozyczkobiorca'],
+        'collateral': data['collateral'] ?? data['zabezpieczenie'],
         // Dodaj dodatkowe pola które mogą być przydatne
-        'kapital_zabezpieczony_nieruchomoscia':
+        'realEstateSecuredCapital':
+            data['realEstateSecuredCapital'] ??
             data['kapital_zabezpieczony_nieruchomoscia'],
-        'kapital_do_restrukturyzacji': data['kapital_do_restrukturyzacji'],
-        'data_splaty': data['data_splaty'],
-        'data_udzielenia': data['data_udzielenia'],
-        'odsetki_naliczone': data['odsetki_naliczone'],
+        'capitalForRestructuring':
+            data['capitalForRestructuring'] ??
+            data['kapital_do_restrukturyzacji'],
+        'repaymentDate': data['repaymentDate'] ?? data['data_splaty'],
+        'disbursementDate': data['disbursementDate'] ?? data['data_udzielenia'],
+        'accruedInterest': data['accruedInterest'] ?? data['odsetki_naliczone'],
       },
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
-      // ⭐ NOWE POLA FIREBASE - duże litery zgodnie z aktualną strukturą
+      // ⭐ ZNORMALIZOWANE NAZWY (priorytet) - zgodne z nowym schematem
+      'clientId': clientId,
+      'clientName': clientName,
+      'branch': branchCode,
+      'productStatus': status.displayName,
+      'productStatusEntry': marketType.displayName,
+      'signingDate': signedDate.toIso8601String(),
+      'investmentEntryDate': entryDate?.toIso8601String(),
+      'saleId': proposalId,
+      'productType': productType.displayName,
+      'productName': productName,
+      'companyId': companyId,
+      'shareCount': sharesCount?.toString() ?? 'NULL',
+      'investmentAmount': investmentAmount.toString(),
+      'paidAmount': paidAmount.toString(),
+      'realizedCapital': realizedCapital.toStringAsFixed(2),
+      'transferToOtherProduct': transferToOtherProduct.toStringAsFixed(2),
+      'remainingCapital': remainingCapital.toStringAsFixed(2),
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      'uploadedAt': updatedAt.toIso8601String(),
+      'sourceFile': additionalInfo['sourceFile'] ?? 'manual_entry',
+
+      // Zachowaj stare nazwy dla kompatybilności wstecznej (duże litery)
       'ID_Klient': clientId,
       'Klient': clientName,
       'Oddzial': branchCode,
@@ -341,7 +398,7 @@ class Investment {
       'Przekaz na inny produkt': transferToOtherProduct.toStringAsFixed(2),
       'Kapital Pozostaly': remainingCapital.toStringAsFixed(2),
 
-      // Zachowaj stare pola dla kompatybilności wstecznej (małe litery)
+      // Zachowaj stare nazwy dla kompatybilności wstecznej (małe litery)
       'id_klient': int.tryParse(clientId) ?? 0,
       'klient': clientName,
       'pracownik_imie': employeeFirstName,
@@ -374,36 +431,56 @@ class Investment {
       'podatek_zrealizowany': realizedTax,
       'planowany_podatek': plannedTax,
       'zrealizowany_podatek': realizedTax,
-
-      // Timestamps
-      'createdAt': createdAt.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
       'uploaded_at': updatedAt.toIso8601String(),
+      'source_file':
+          additionalInfo['sourceFile'] ??
+          additionalInfo['source_file'] ??
+          'manual_entry',
 
-      // Additional info
-      'source_file': additionalInfo['source_file'] ?? 'manual_entry',
-      'opiekun_z_misa': additionalInfo['Opiekun z MISA'],
-      'nazwa_obligacji': additionalInfo['nazwa_obligacji'],
-      'oprocentowanie': additionalInfo['oprocentowanie'],
-      'emitent': additionalInfo['emitent'],
-      'pozyczka_numer': additionalInfo['pozyczka_numer'],
-      'pozyczkobiorca': additionalInfo['pozyczkobiorca'],
-      'zabezpieczenie': additionalInfo['zabezpieczenie'],
+      // Additional info z znormalizowanymi nazwami
+      'misaGuardian': additionalInfo['misaGuardian'],
+      'opiekun_z_misa':
+          additionalInfo['misaGuardian'] ?? additionalInfo['Opiekun z MISA'],
+      'bondName': additionalInfo['bondName'],
+      'nazwa_obligacji':
+          additionalInfo['bondName'] ?? additionalInfo['nazwa_obligacji'],
+      'interestRate': additionalInfo['interestRate'],
+      'oprocentowanie':
+          additionalInfo['interestRate'] ?? additionalInfo['oprocentowanie'],
+      'issuer': additionalInfo['issuer'],
+      'emitent': additionalInfo['issuer'] ?? additionalInfo['emitent'],
+      'loanNumber': additionalInfo['loanNumber'],
+      'pozyczka_numer':
+          additionalInfo['loanNumber'] ?? additionalInfo['pozyczka_numer'],
+      'borrower': additionalInfo['borrower'],
+      'pozyczkobiorca':
+          additionalInfo['borrower'] ?? additionalInfo['pozyczkobiorca'],
+      'collateral': additionalInfo['collateral'],
+      'zabezpieczenie':
+          additionalInfo['collateral'] ?? additionalInfo['zabezpieczenie'],
+      'realEstateSecuredCapital': additionalInfo['realEstateSecuredCapital'],
       'kapital_zabezpieczony_nieruchomoscia':
+          additionalInfo['realEstateSecuredCapital'] ??
           additionalInfo['kapital_zabezpieczony_nieruchomoscia'],
+      'capitalForRestructuring': additionalInfo['capitalForRestructuring'],
       'kapital_do_restrukturyzacji':
+          additionalInfo['capitalForRestructuring'] ??
           additionalInfo['kapital_do_restrukturyzacji'],
-      'data_splaty': additionalInfo['data_splaty'],
-      'data_udzielenia': additionalInfo['data_udzielenia'],
-      'odsetki_naliczone': additionalInfo['odsetki_naliczone'],
+      'repaymentDate': additionalInfo['repaymentDate'],
+      'data_splaty':
+          additionalInfo['repaymentDate'] ?? additionalInfo['data_splaty'],
+      'disbursementDate': additionalInfo['disbursementDate'],
+      'data_udzielenia':
+          additionalInfo['disbursementDate'] ??
+          additionalInfo['data_udzielenia'],
+      'accruedInterest': additionalInfo['accruedInterest'],
+      'odsetki_naliczone':
+          additionalInfo['accruedInterest'] ??
+          additionalInfo['odsetki_naliczone'],
 
       // Dodatkowe pola z nowej struktury
-      'productType': productType.displayName,
       'investment_type': productType.name.toLowerCase(),
-      'investmentAmount': investmentAmount,
-      'realizedCapital': realizedCapital,
-      'remainingCapital': remainingCapital,
       'realizedInterest': realizedInterest,
       'remainingInterest': remainingInterest,
     };

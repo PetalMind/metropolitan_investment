@@ -137,7 +137,7 @@ exports.getAdvancedDashboardMetrics = onCall({
  */
 function convertExcelDataToInvestment(id, data) {
   const safeToDouble = (value, defaultValue = 0.0) => {
-    if (value == null) return defaultValue;
+    if (value == null || value === '') return defaultValue;
     if (typeof value === "number") return value;
     if (typeof value === "string") {
       const cleaned = value.replace(/,/g, "");
@@ -167,23 +167,23 @@ function convertExcelDataToInvestment(id, data) {
 
   return {
     id: id,
-    clientId: data.id_klient?.toString() || "",
-    clientName: data.klient || "",
+    clientId: data.clientId?.toString() || data.id_klient?.toString() || "",
+    clientName: data.clientName || data.klient || "",
     employeeFirstName: data.pracownik_imie || "",
     employeeLastName: data.pracownik_nazwisko || "",
     branchCode: data.kod_oddzialu || "",
-    productType: mapProductType(data.typ_produktu),
-    productName: data.produkt_nazwa || "",
-    signedDate: parseDate(data.data_podpisania) || new Date().toISOString(),
-    investmentAmount: safeToDouble(data.wartosc_kontraktu),
-    realizedCapital: safeToDouble(data.kapital_zrealizowany),
+    productType: mapProductType(data.productType || data.typ_produktu),
+    productName: data.productName || data.produkt_nazwa || "",
+    signedDate: parseDate(data.signingDate || data.data_podpisania) || new Date().toISOString(),
+    investmentAmount: safeToDouble(data.investmentAmount || data.wartosc_kontraktu),
+    realizedCapital: safeToDouble(data.realizedCapital || data.kapital_zrealizowany),
     realizedInterest: safeToDouble(data.odsetki_zrealizowane),
-    remainingCapital: safeToDouble(data.kapital_pozostaly),
+    remainingCapital: safeToDouble(data.remainingCapital || data.kapital_pozostaly),
     remainingInterest: safeToDouble(data.odsetki_pozostale),
-    totalValue: safeToDouble(data.kapital_pozostaly) + safeToDouble(data.odsetki_pozostale),
-    profitLoss: safeToDouble(data.kapital_pozostaly) - safeToDouble(data.wartosc_kontraktu),
-    profitLossPercentage: safeToDouble(data.wartosc_kontraktu) > 0 ?
-      ((safeToDouble(data.kapital_pozostaly) - safeToDouble(data.wartosc_kontraktu)) / safeToDouble(data.wartosc_kontraktu)) * 100 : 0,
+    totalValue: safeToDouble(data.remainingCapital || data.kapital_pozostaly) + safeToDouble(data.odsetki_pozostale),
+    profitLoss: safeToDouble(data.remainingCapital || data.kapital_pozostaly) - safeToDouble(data.investmentAmount || data.wartosc_kontraktu),
+    profitLossPercentage: safeToDouble(data.investmentAmount || data.wartosc_kontraktu) > 0 ?
+      ((safeToDouble(data.remainingCapital || data.kapital_pozostaly) - safeToDouble(data.investmentAmount || data.wartosc_kontraktu)) / safeToDouble(data.investmentAmount || data.wartosc_kontraktu)) * 100 : 0,
     status: "active",
     source: "investments",
   };
@@ -194,7 +194,7 @@ function convertExcelDataToInvestment(id, data) {
  */
 function convertBondToInvestment(id, data) {
   const safeToDouble = (value, defaultValue = 0.0) => {
-    if (value == null) return defaultValue;
+    if (value == null || value === '') return defaultValue;
     if (typeof value === "number") return value;
     if (typeof value === "string") {
       const cleaned = value.replace(/,/g, "");
@@ -235,7 +235,7 @@ function convertBondToInvestment(id, data) {
  */
 function convertShareToInvestment(id, data) {
   const safeToDouble = (value, defaultValue = 0.0) => {
-    if (value == null) return defaultValue;
+    if (value == null || value === '') return defaultValue;
     if (typeof value === "number") return value;
     if (typeof value === "string") {
       const cleaned = value.replace(/,/g, "");
@@ -281,7 +281,7 @@ function convertShareToInvestment(id, data) {
  */
 function convertLoanToInvestment(id, data) {
   const safeToDouble = (value, defaultValue = 0.0) => {
-    if (value == null) return defaultValue;
+    if (value == null || value === '') return defaultValue;
     if (typeof value === "number") return value;
     if (typeof value === "string") {
       const cleaned = value.replace(/,/g, "");
@@ -326,7 +326,7 @@ function convertLoanToInvestment(id, data) {
  */
 function convertApartmentToInvestment(id, data) {
   const safeToDouble = (value, defaultValue = 0.0) => {
-    if (value == null) return defaultValue;
+    if (value == null || value === '') return defaultValue;
     if (typeof value === "number") return value;
     if (typeof value === "string") {
       const cleaned = value.replace(/,/g, "");

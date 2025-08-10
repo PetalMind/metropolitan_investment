@@ -75,12 +75,12 @@ class Client {
     return Client(
       id: doc.id,
       excelId: data['excelId']?.toString() ?? data['original_id']?.toString(),
-      name: data['imie_nazwisko'] ?? data['name'] ?? '',
+      name: data['fullName'] ?? data['imie_nazwisko'] ?? data['name'] ?? '',
       email: data['email'] ?? '',
-      phone: data['telefon'] ?? data['phone'] ?? '',
+      phone: data['phone'] ?? data['telefon'] ?? '',
       address: data['address'] ?? '', // Może być puste dla danych z Excel
       pesel: data['pesel'], // PESEL jest już obsługiwany
-      companyName: data['nazwa_firmy'] ?? data['companyName'],
+      companyName: data['companyName'] ?? data['nazwa_firmy'],
       type: ClientType.values.firstWhere(
         (e) => e.name == data['type'],
         orElse: () => ClientType.individual,
@@ -94,25 +94,31 @@ class Client {
       unviableInvestments: List<String>.from(data['unviableInvestments'] ?? []),
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
-          : parseDate(data['created_at']) ?? DateTime.now(),
+          : parseDate(data['createdAt']) ??
+                parseDate(data['created_at']) ??
+                DateTime.now(),
       updatedAt: data['updatedAt'] != null
           ? (data['updatedAt'] as Timestamp).toDate()
-          : parseDate(data['uploaded_at']) ?? DateTime.now(),
+          : parseDate(data['uploadedAt']) ??
+                parseDate(data['uploaded_at']) ??
+                DateTime.now(),
       isActive: data['isActive'] ?? true,
       additionalInfo:
-          data['additionalInfo'] ?? {'source_file': data['source_file']},
+          data['additionalInfo'] ??
+          {'sourceFile': data['sourceFile'] ?? data['source_file']},
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
+      'fullName': name,
       'name': name,
       'imie_nazwisko': name, // Dla kompatybilności z Excel
       'excelId': excelId, // Przechowaj oryginalne numeryczne ID
       'original_id': excelId, // Dodatkowa kompatybilność
       'email': email,
-      'telefon': phone, // Dla kompatybilności z Excel
       'phone': phone,
+      'telefon': phone, // Dla kompatybilności z Excel
       'address': address,
       'pesel': pesel,
       'companyName': companyName,
@@ -126,9 +132,17 @@ class Client {
       'updatedAt': Timestamp.fromDate(updatedAt),
       'created_at': createdAt.toIso8601String(), // Dla kompatybilności z Excel
       'uploaded_at': updatedAt.toIso8601String(), // Dla kompatybilności z Excel
+      'uploadedAt': updatedAt.toIso8601String(), // Znormalizowana nazwa
       'isActive': isActive,
       'additionalInfo': additionalInfo,
-      'source_file': additionalInfo['source_file'] ?? 'manual_entry',
+      'sourceFile':
+          additionalInfo['sourceFile'] ??
+          additionalInfo['source_file'] ??
+          'manual_entry',
+      'source_file':
+          additionalInfo['sourceFile'] ??
+          additionalInfo['source_file'] ??
+          'manual_entry', // Kompatybilność
     };
   }
 

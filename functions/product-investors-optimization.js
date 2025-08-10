@@ -86,19 +86,36 @@ exports.getProductInvestorsOptimized = onCall({
     // 📊 KROK 2: Przygotuj mapę klientów dla szybkiego wyszukiwania
     const clientsMap = new Map();
     const clientsByExcelId = new Map();
+    const clientsByName = new Map();
 
     clientsSnapshot.docs.forEach(doc => {
       const client = { id: doc.id, ...doc.data() };
       clientsMap.set(client.id, client);
 
-      // Mapowanie po excelId dla kompatybilności
+      // Mapowanie po excelId dla Excel ID -> Firestore UUID
       if (client.excelId) {
-        clientsByExcelId.set(client.excelId, client);
+        clientsByExcelId.set(client.excelId.toString(), client);
       }
       if (client.original_id) {
-        clientsByExcelId.set(client.original_id, client);
+        clientsByExcelId.set(client.original_id.toString(), client);
+      }
+
+      // Mapowanie przez stare pole 'id' (numeryczne Excel ID)
+      if (client.id && typeof client.id === 'number') {
+        clientsByExcelId.set(client.id.toString(), client);
+      }
+
+      // Mapowanie po nazwie klienta (fallback)
+      const clientName = client.fullName || client.imie_nazwisko || client.name;
+      if (clientName) {
+        clientsByName.set(clientName, client);
       }
     });
+
+    console.log(`👥 [Product Investors] Utworzono mapowania:
+      - UUID: ${clientsMap.size}
+      - Excel ID: ${clientsByExcelId.size}  
+      - Nazwy: ${clientsByName.size}`);
 
     console.log(`👥 [Product Investors] Mapa klientów: ${clientsMap.size} total, ${clientsByExcelId.size} z Excel ID`);
 
@@ -178,9 +195,62 @@ exports.getProductInvestorsOptimized = onCall({
       return emptyResult;
     }
 
-    // 📊 KROK 5: Grupowanie inwestycji według klientów
+    // 📊 KROK 5: Grupowanie inwestycji według klientów z ulepszonym mapowaniem
     console.log("🔄 [Product Investors] Grupowanie według klientów...");
     const investmentsByClient = new Map();
+    let mappedInvestments = 0;
+    let unmappedInvestments = 0;
+
+    matchingInvestments.forEach(investment => {
+      // Pobierz identyfikatory klienta z inwestycji
+      const excelClientId = investment.clientId || investment.ID_Klient || investment.id_klient?.toString();
+      const clientName = investment.clientName || investment.Klient || investment.klient;
+
+      let resolvedClient = null;
+
+      // Strategia 1: Mapowanie przez Excel ID
+      if (excelClientId && clientsByExcelId.has(excelClientId)) {
+        resolvedClient = clientsByExcelId.get(excelClientId);
+        mappedInvestments++;
+        console.log(`✅ [Product Investors] Zmapowano przez Excel ID: ${excelClientId} -> ${resolvedClient.fullName || resolvedClient.imie_nazwisko || resolvedClient.name}`);
+      }
+      // Strategia 2: Mapowanie przez nazwę klienta (fallback)
+      else if (clientName && clientsByName.has(clientName)) {
+        resolvedClient = clientsByName.get(clientName);
+        mappedInvestments++;
+        console.log(`✅ [Product Investors] Zmapowano przez nazwę: ${clientName}`);
+      }
+      // Strategia 3: Nie udało się zmapować - loguj problem
+      else {
+        unmappedInvestments++;
+        if (!excelClientId && !clientName) {
+          console.warn(`⚠️ [Product Investors] Inwestycja bez ID klienta: ${investment.id}`);
+        } else {
+          console.warn(`❌ [Product Investors] Nie znaleziono klienta o ID: ${excelClientId} lub nazwie: ${clientName}`);
+        }
+        return; // Pomiń tę inwestycję
+      }
+
+      // Dodaj inwestycję do grupy klienta
+      const clientKey = resolvedClient.id;
+      if (!investmentsByClient.has(clientKey)) {
+        investmentsByClient.set(clientKey, {
+          client: resolvedClient,
+          investments: []
+        });
+      }
+
+      investmentsByClient.get(clientKey).investments.push({
+        ...investment,
+        resolvedClientId: resolvedClient.id,
+        mappingMethod: excelClientId ? 'excelId' : 'name',
+      });
+    });
+
+    console.log(`📊 [Product Investors] Statystyki mapowania:
+      - Zmapowane inwestycje: ${mappedInvestments}
+      - Niezmapowane inwestycje: ${unmappedInvestments}
+      - Unikalnych klientów: ${investmentsByClient.size}`);
 
     matchingInvestments.forEach(investment => {
       // Spróbuj różne sposoby identyfikacji klienta

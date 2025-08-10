@@ -167,64 +167,115 @@ class Apartment {
     return Apartment(
       id: doc.id,
       productType:
-          data['typ_produktu'] ?? data['Typ_produktu'] ?? 'Apartamenty',
+          data['productType'] ??
+          data['typ_produktu'] ??
+          data['Typ_produktu'] ??
+          'Apartamenty',
       investmentAmount: safeToDouble(
-        data['kwota_inwestycji'] ?? data['Kwota_inwestycji'],
+        data['investmentAmount'] ??
+            data['kwota_inwestycji'] ??
+            data['Kwota_inwestycji'],
       ),
       capitalForRestructuring: safeToDouble(
-        data['kapital_do_restrukturyzacji'],
+        data['capitalForRestructuring'] ?? data['kapital_do_restrukturyzacji'],
       ),
       capitalSecuredByRealEstate: safeToDouble(
-        data['kapital_zabezpieczony_nieruchomoscia'],
+        data['realEstateSecuredCapital'] ??
+            data['kapital_zabezpieczony_nieruchomoscia'],
       ),
-      sourceFile: data['source_file'] ?? 'imported_data.json',
-      createdAt: parseDate(data['created_at']) ?? DateTime.now(),
-      uploadedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
+      sourceFile:
+          data['sourceFile'] ?? data['source_file'] ?? 'imported_data.json',
+      createdAt:
+          parseDate(data['createdAt']) ??
+          parseDate(data['created_at']) ??
+          DateTime.now(),
+      uploadedAt:
+          parseDate(data['uploadedAt']) ??
+          parseDate(data['uploaded_at']) ??
+          DateTime.now(),
 
-      apartmentNumber: data['numer_apartamentu'] ?? '',
-      building: data['budynek'] ?? '',
-      address: data['adres'] ?? '',
-      area: safeToDouble(data['powierzchnia']),
-      roomCount: safeToInt(data['liczba_pokoi']),
-      floor: safeToInt(data['pietro']),
-      apartmentType: mapApartmentType(safeToInt(data['liczba_pokoi'])),
+      apartmentNumber:
+          data['apartmentNumber'] ?? data['numer_apartamentu'] ?? '',
+      building: data['building'] ?? data['budynek'] ?? '',
+      address: data['address'] ?? data['adres'] ?? '',
+      area: safeToDouble(data['area'] ?? data['powierzchnia']),
+      roomCount: safeToInt(data['roomCount'] ?? data['liczba_pokoi']),
+      floor: safeToInt(data['floor'] ?? data['pietro']),
+      apartmentType: mapApartmentType(
+        safeToInt(data['roomCount'] ?? data['liczba_pokoi']),
+      ),
       status: mapStatus(data['status']),
-      pricePerSquareMeter: safeToDouble(data['cena_za_m2']),
-      deliveryDate: parseDate(data['data_oddania']),
-      developer: data['deweloper'],
-      projectName: data['nazwa_projektu'] ?? data['Produkt_nazwa'],
-      hasBalcony: data['balkon'] == 1 || data['balkon'] == true,
+      pricePerSquareMeter: safeToDouble(
+        data['pricePerM2'] ?? data['cena_za_m2'],
+      ),
+      deliveryDate: parseDate(data['deliveryDate'] ?? data['data_oddania']),
+      developer: data['developer'] ?? data['deweloper'],
+      projectName:
+          data['projectName'] ??
+          data['nazwa_projektu'] ??
+          data['Produkt_nazwa'],
+      hasBalcony:
+          data['balcony'] == 1 ||
+          data['balcony'] == true ||
+          data['balkon'] == 1 ||
+          data['balkon'] == true,
       hasParkingSpace:
-          data['miejsce_parkingowe'] == 1 || data['miejsce_parkingowe'] == true,
+          data['parkingSpace'] == 1 ||
+          data['parkingSpace'] == true ||
+          data['miejsce_parkingowe'] == 1 ||
+          data['miejsce_parkingowe'] == true,
       hasStorage:
-          data['komorka_lokatorska'] == 1 || data['komorka_lokatorska'] == true,
+          data['storageRoom'] == 1 ||
+          data['storageRoom'] == true ||
+          data['komorka_lokatorska'] == 1 ||
+          data['komorka_lokatorska'] == true,
 
       additionalInfo: Map<String, dynamic>.from(data)
         ..removeWhere(
           (key, value) => [
+            'productType',
             'typ_produktu',
             'Typ_produktu',
+            'investmentAmount',
             'kwota_inwestycji',
             'Kwota_inwestycji',
+            'capitalForRestructuring',
             'kapital_do_restrukturyzacji',
+            'realEstateSecuredCapital',
             'kapital_zabezpieczony_nieruchomoscia',
+            'sourceFile',
             'source_file',
+            'createdAt',
             'created_at',
+            'uploadedAt',
             'uploaded_at',
+            'apartmentNumber',
             'numer_apartamentu',
+            'building',
             'budynek',
+            'address',
             'adres',
+            'area',
             'powierzchnia',
+            'roomCount',
             'liczba_pokoi',
+            'floor',
             'pietro',
             'status',
+            'pricePerM2',
             'cena_za_m2',
+            'deliveryDate',
             'data_oddania',
+            'developer',
             'deweloper',
+            'projectName',
             'nazwa_projektu',
             'Produkt_nazwa',
+            'balcony',
             'balkon',
+            'parkingSpace',
             'miejsce_parkingowe',
+            'storageRoom',
             'komorka_lokatorska',
           ].contains(key),
         ),
@@ -233,6 +284,31 @@ class Apartment {
 
   Map<String, dynamic> toFirestore() {
     return {
+      // Znormalizowane nazwy (priorytet)
+      'productType': productType,
+      'investmentAmount': investmentAmount,
+      'capitalForRestructuring': capitalForRestructuring,
+      'realEstateSecuredCapital': capitalSecuredByRealEstate,
+      'sourceFile': sourceFile,
+      'createdAt': createdAt.toIso8601String(),
+      'uploadedAt': uploadedAt.toIso8601String(),
+      'apartmentNumber': apartmentNumber,
+      'building': building,
+      'address': address,
+      'area': area,
+      'roomCount': roomCount,
+      'floor': floor,
+      'apartmentType': apartmentType.name,
+      'status': status.displayName,
+      'pricePerM2': pricePerSquareMeter,
+      'deliveryDate': deliveryDate?.toIso8601String(),
+      'developer': developer,
+      'projectName': projectName,
+      'balcony': hasBalcony ? 1 : 0,
+      'parkingSpace': hasParkingSpace ? 1 : 0,
+      'storageRoom': hasStorage ? 1 : 0,
+
+      // Stare nazwy dla kompatybilności wstecznej
       'typ_produktu': productType,
       'kwota_inwestycji': investmentAmount,
       'kapital_do_restrukturyzacji': capitalForRestructuring,
@@ -240,7 +316,6 @@ class Apartment {
       'source_file': sourceFile,
       'created_at': createdAt.toIso8601String(),
       'uploaded_at': uploadedAt.toIso8601String(),
-
       'numer_apartamentu': apartmentNumber,
       'budynek': building,
       'adres': address,
@@ -248,7 +323,6 @@ class Apartment {
       'liczba_pokoi': roomCount,
       'pietro': floor,
       'typ_apartamentu': apartmentType.name,
-      'status': status.displayName,
       'cena_za_m2': pricePerSquareMeter,
       'data_oddania': deliveryDate?.toIso8601String(),
       'deweloper': developer,

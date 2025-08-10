@@ -1,11 +1,11 @@
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const { setGlobalOptions } = require("firebase-functions/v2");
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {setGlobalOptions} = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 
 // Set global options
 setGlobalOptions({
   region: "europe-west1",
-  cors: true  // Enable CORS for all functions
+  cors: true, // Enable CORS for all functions
 });
 
 /**
@@ -23,8 +23,8 @@ exports.getFilteredInvestorAnalytics = onCall({
   const data = request.data || {};
   const startTime = Date.now();
   console.log(
-    "🎛️ [Premium Filter] Rozpoczynam zaawansowane filtrowanie...",
-    data,
+      "🎛️ [Premium Filter] Rozpoczynam zaawansowane filtrowanie...",
+      data,
   );
 
   try {
@@ -56,14 +56,14 @@ exports.getFilteredInvestorAnalytics = onCall({
     ]);
 
     const clients = clientsSnapshot.docs.map((doc) => (
-      { id: doc.id, ...doc.data() }
+      {id: doc.id, ...doc.data()}
     ));
     const investments = investmentsSnapshot.docs.map((doc) => (
-      { id: doc.id, ...doc.data() }
+      {id: doc.id, ...doc.data()}
     ));
 
     console.log(
-      `📊 [Premium Filter] Dane: ${clients.length} klientów, ` +
+        `📊 [Premium Filter] Dane: ${clients.length} klientów, ` +
       `${investments.length} inwestycji`,
     );
 
@@ -72,11 +72,11 @@ exports.getFilteredInvestorAnalytics = onCall({
 
     // 📊 KROK 3: Utwórz podsumowania inwestorów
     console.log(
-      "🔄 [Premium Filter] Tworzę podsumowania inwestorów...",
+        "🔄 [Premium Filter] Tworzę podsumowania inwestorów...",
     );
     const allInvestors = createInvestorSummaries(
-      clients,
-      investmentsByClient,
+        clients,
+        investmentsByClient,
     );
 
     // 📊 KROK 4: Zastosuj filtry
@@ -98,7 +98,7 @@ exports.getFilteredInvestorAnalytics = onCall({
     });
 
     console.log(
-      `🎯 [Premium Filter] Po filtrach: ${filteredInvestors.length} ` +
+        `🎯 [Premium Filter] Po filtrach: ${filteredInvestors.length} ` +
       `z ${allInvestors.length} inwestorów`,
     );
 
@@ -111,14 +111,14 @@ exports.getFilteredInvestorAnalytics = onCall({
     const startIndex = (page - 1) * pageSize;
     const endIndex = Math.min(startIndex + pageSize, totalCount);
     const paginatedInvestors = filteredInvestors.slice(
-      startIndex,
-      endIndex,
+        startIndex,
+        endIndex,
     );
 
     // 📊 KROK 7: Oblicz statystyki
     const analytics = calculateAdvancedAnalytics(
-      filteredInvestors,
-      allInvestors,
+        filteredInvestors,
+        allInvestors,
     );
 
     const result = {
@@ -147,15 +147,15 @@ exports.getFilteredInvestorAnalytics = onCall({
     };
 
     console.log(
-      `✅ [Premium Filter] Zakończono w ${result.executionTime}ms`,
+        `✅ [Premium Filter] Zakończono w ${result.executionTime}ms`,
     );
     return result;
   } catch (error) {
     console.error("❌ [Premium Filter] Błąd:", error);
     throw new HttpsError(
-      "internal",
-      "Błąd podczas zaawansowanego filtrowania",
-      error.message,
+        "internal",
+        "Błąd podczas zaawansowanego filtrowania",
+        error.message,
     );
   }
 });
@@ -169,19 +169,19 @@ exports.getSmartSearchSuggestions = onCall({
   console.log("🔍 [Smart Search] Generuję sugestie wyszukiwania...", data);
 
   try {
-    const { query = "", limit = 10 } = data;
+    const {query = "", limit = 10} = data;
 
     if (query.length < 2) {
-      return { suggestions: [] };
+      return {suggestions: []};
     }
 
     const searchLower = query.toLowerCase();
 
     // Wyszukaj w klientach
     const clientsSnapshot = await admin.firestore()
-      .collection("clients")
-      .limit(1000)
-      .get();
+        .collection("clients")
+        .limit(1000)
+        .get();
 
     const suggestions = [];
 
@@ -221,20 +221,20 @@ exports.getSmartSearchSuggestions = onCall({
 
     // Usuń duplikaty i ogranicz wyniki
     const uniqueSuggestions = suggestions
-      .filter((item, index, self) =>
-        index === self.findIndex((s) =>
-          s.value === item.value && s.type === item.type,
-        ),
-      )
-      .slice(0, limit);
+        .filter((item, index, self) =>
+          index === self.findIndex((s) =>
+            s.value === item.value && s.type === item.type,
+          ),
+        )
+        .slice(0, limit);
 
-    return { suggestions: uniqueSuggestions };
+    return {suggestions: uniqueSuggestions};
   } catch (error) {
     console.error("❌ [Smart Search] Błąd:", error);
     throw new HttpsError(
-      "internal",
-      "Błąd podczas wyszukiwania sugestii",
-      error.message,
+        "internal",
+        "Błąd podczas wyszukiwania sugestii",
+        error.message,
     );
   }
 });
@@ -320,13 +320,13 @@ exports.getAnalyticsDashboardPresets = onCall({
       },
     ];
 
-    return { presets };
+    return {presets};
   } catch (error) {
     console.error("❌ [Dashboard Presets] Błąd:", error);
     throw new HttpsError(
-      "internal",
-      "Błąd podczas pobierania presetów",
-      error.message,
+        "internal",
+        "Błąd podczas pobierania presetów",
+        error.message,
     );
   }
 });
@@ -487,9 +487,9 @@ function applyAdvancedFilters(investors, filters) {
     // High diversification filter
     if (filters.requireHighDiversification) {
       const productTypes = investor.investments
-        .map((inv) => inv.typ_produktu)
-        .filter((type, index, arr) => arr.indexOf(type) === index)
-        .length;
+          .map((inv) => inv.typ_produktu)
+          .filter((type, index, arr) => arr.indexOf(type) === index)
+          .length;
 
       if (productTypes < 3) {
         return false;
@@ -547,7 +547,7 @@ function sortInvestors(investors, sortBy, ascending) {
         bVal = b.investmentCount;
         break;
       case "votingStatus": {
-        const statusOrder = { yes: 1, no: 2, abstain: 3, undecided: 4 };
+        const statusOrder = {yes: 1, no: 2, abstain: 3, undecided: 4};
         aVal = statusOrder[a.client.votingStatus] || 4;
         bVal = statusOrder[b.client.votingStatus] || 4;
         break;
@@ -569,18 +569,18 @@ function sortInvestors(investors, sortBy, ascending) {
  */
 function calculateAdvancedAnalytics(filteredInvestors, allInvestors) {
   const filteredCapital = filteredInvestors.reduce(
-    (sum, inv) => sum + inv.viableRemainingCapital, 0,
+      (sum, inv) => sum + inv.viableRemainingCapital, 0,
   );
   const totalCapital = allInvestors.reduce(
-    (sum, inv) => sum + inv.viableRemainingCapital, 0,
+      (sum, inv) => sum + inv.viableRemainingCapital, 0,
   );
 
   // Voting distribution
   const votingDistribution = {
-    yes: { count: 0, capital: 0 },
-    no: { count: 0, capital: 0 },
-    abstain: { count: 0, capital: 0 },
-    undecided: { count: 0, capital: 0 },
+    yes: {count: 0, capital: 0},
+    no: {count: 0, capital: 0},
+    abstain: {count: 0, capital: 0},
+    undecided: {count: 0, capital: 0},
   };
 
   filteredInvestors.forEach((investor) => {
@@ -596,20 +596,20 @@ function calculateAdvancedAnalytics(filteredInvestors, allInvestors) {
   // Capital distribution by size
   const capitalDistribution = {
     small: filteredInvestors.filter(
-      (inv) => inv.viableRemainingCapital < 100000,
+        (inv) => inv.viableRemainingCapital < 100000,
     ).length,
     medium: filteredInvestors.filter((inv) =>
       inv.viableRemainingCapital >= 100000 &&
       inv.viableRemainingCapital < 1000000,
     ).length,
     large: filteredInvestors.filter(
-      (inv) => inv.viableRemainingCapital >= 1000000,
+        (inv) => inv.viableRemainingCapital >= 1000000,
     ).length,
   };
 
   // Majority holders analysis
   const sortedByCapital = [...filteredInvestors].sort(
-    (a, b) => b.viableRemainingCapital - a.viableRemainingCapital,
+      (a, b) => b.viableRemainingCapital - a.viableRemainingCapital,
   );
 
   let cumulativeCapital = 0;
@@ -643,7 +643,7 @@ function calculateAdvancedAnalytics(filteredInvestors, allInvestors) {
     averageCapital: filteredInvestors.length > 0 ?
       filteredCapital / filteredInvestors.length : 0,
     medianCapital: calculateMedian(
-      filteredInvestors.map((inv) => inv.viableRemainingCapital),
+        filteredInvestors.map((inv) => inv.viableRemainingCapital),
     ),
 
     diversificationStats: calculateDiversificationStats(filteredInvestors),
@@ -672,13 +672,13 @@ function calculateMedian(values) {
  * @return {Object} Diversification statistics
  */
 function calculateDiversificationStats(investors) {
-  if (investors.length === 0) return { averageProducts: 0, highlyDiversified: 0 };
+  if (investors.length === 0) return {averageProducts: 0, highlyDiversified: 0};
 
   const productCounts = investors.map((investor) => {
     return investor.investments
-      .map((inv) => inv.typ_produktu)
-      .filter((type, index, arr) => arr.indexOf(type) === index)
-      .length;
+        .map((inv) => inv.typ_produktu)
+        .filter((type, index, arr) => arr.indexOf(type) === index)
+        .length;
   });
 
   const averageProducts = productCounts.reduce((sum, count) => sum + count, 0) /
