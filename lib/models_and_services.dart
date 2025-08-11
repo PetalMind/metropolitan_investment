@@ -13,6 +13,9 @@ export 'models/unified_product.dart';
 export 'models/investor_summary.dart';
 export 'models/excel_import_models.dart';
 
+// Analytics models exports
+export 'models/analytics/overview_analytics_models.dart';
+
 // Services exports
 export 'services/base_service.dart';
 export 'services/client_service.dart';

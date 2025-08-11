@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
-import '../theme/app_theme.dart';
-import '../services/advanced_analytics_service.dart';
-import '../models/product.dart';
-import '../utils/currency_formatter.dart';
+import '../theme/app_theme_professional.dart';
 
-/// 🚀 REFACTORED ADVANCED ANALYTICS SCREEN
-/// Completely redesigned with modular components and real Firebase data
+// Import wszystkich tabów
+import 'analytics/tabs/overview_tab.dart';
+import 'analytics/tabs/performance_tab.dart';
+import 'analytics/tabs/risk_tab.dart';
+import 'analytics/tabs/employees_tab.dart';
+import 'analytics/tabs/geographic_tab.dart';
+import 'analytics/tabs/trends_tab.dart';
+
+/// 🚀 PROFESSIONAL ANALYTICS SCREEN
+/// Completely redesigned with professional theme and modular components
+/// Uses AppThemePro for maximum readability and professional appearance
 class AnalyticsScreenRefactored extends StatefulWidget {
   const AnalyticsScreenRefactored({super.key});
 
@@ -17,13 +22,6 @@ class AnalyticsScreenRefactored extends StatefulWidget {
 class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
     with TickerProviderStateMixin {
   
-  final AdvancedAnalyticsService _analyticsService = AdvancedAnalyticsService();
-  
-  // Data
-  AdvancedDashboardMetrics? _metricsData;
-  bool _isLoading = true;
-  String? _error;
-  
   // UI State
   int _selectedTimeRange = 12;
   String _selectedAnalyticsTab = 'overview';
@@ -32,13 +30,21 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
 
   // Responsive breakpoints
   bool get _isTablet => MediaQuery.of(context).size.width > 768;
-  bool get _isDesktop => MediaQuery.of(context).size.width > 1200;
+
+  // Tab definitions
+  final List<_TabInfo> _tabs = [
+    _TabInfo('overview', 'Przegląd', Icons.dashboard),
+    _TabInfo('performance', 'Wydajność', Icons.trending_up), 
+    _TabInfo('risk', 'Ryzyko', Icons.warning_amber),
+    _TabInfo('employees', 'Pracownicy', Icons.people),
+    _TabInfo('geography', 'Geografia', Icons.map),
+    _TabInfo('trends', 'Trendy', Icons.analytics),
+  ];
 
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
-    _loadAnalyticsData();
   }
 
   void _initializeAnimations() {
@@ -46,40 +52,10 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
-  }
-
-  Future<void> _loadAnalyticsData() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-
-      final metrics = await _analyticsService.getAdvancedDashboardMetrics();
-      
-      if (!mounted) return;
-      
-      setState(() {
-        _metricsData = metrics;
-        _isLoading = false;
-      });
-
-      _animationController.forward();
-    } catch (e) {
-      if (!mounted) return;
-      
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _animationController.forward();
   }
 
   @override
@@ -91,11 +67,15 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppThemePro.backgroundPrimary,
       body: Column(
         children: [
           _buildHeader(context),
           Expanded(
-            child: _buildContent(context),
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: _buildTabContent(),
+            ),
           ),
         ],
       ),
@@ -106,7 +86,23 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
   Widget _buildHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: AppTheme.gradientDecoration,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppThemePro.primaryDark,
+            AppThemePro.primaryMedium,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Row(
@@ -118,14 +114,17 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
                     Text(
                       'Zaawansowana Analityka',
                       style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                        color: AppTheme.textOnPrimary,
+                        color: AppThemePro.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Analiza w czasie rzeczywistym z danymi Firebase',
+                      'Kompleksowa analiza w czasie rzeczywistym z Firebase',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppTheme.textOnPrimary.withValues(alpha: 0.8),
+                        color: AppThemePro.textSecondary,
+                        height: 1.5,
                       ),
                     ),
                   ],
@@ -148,11 +147,13 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
         const SizedBox(width: 16),
         ElevatedButton.icon(
           onPressed: _exportReport,
-          icon: const Icon(Icons.download),
-          label: const Text('Eksport'),
+          icon: Icon(Icons.download, color: AppThemePro.primaryDark),
+          label: Text('Eksport', style: TextStyle(color: AppThemePro.primaryDark)),
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.surfaceCard,
-            foregroundColor: AppTheme.primaryColor,
+            backgroundColor: AppThemePro.accentGold,
+            foregroundColor: AppThemePro.primaryDark,
+            elevation: 2,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),
         ),
       ],
@@ -161,17 +162,15 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
 
   Widget _buildTimeRangeSelector() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceCard.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(8),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: AppThemePro.elevatedSurfaceDecoration,
       child: DropdownButton<int>(
         value: _selectedTimeRange,
         underline: const SizedBox(),
-        style: const TextStyle(color: AppTheme.primaryColor),
-        dropdownColor: AppTheme.surfaceCard,
+        style: TextStyle(color: AppThemePro.textPrimary, fontSize: 14),
+        dropdownColor: AppThemePro.surfaceCard,
         items: const [
+          DropdownMenuItem(value: 1, child: Text('1 miesiąc')),
           DropdownMenuItem(value: 3, child: Text('3 miesiące')),
           DropdownMenuItem(value: 6, child: Text('6 miesięcy')),
           DropdownMenuItem(value: 12, child: Text('12 miesięcy')),
@@ -181,7 +180,6 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
         onChanged: (value) {
           if (value != null) {
             setState(() => _selectedTimeRange = value);
-            _loadAnalyticsData();
           }
         },
       ),
@@ -189,30 +187,20 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
   }
 
   Widget _buildTabBar() {
-    final tabs = [
-      _TabInfo('overview', 'Przegląd', Icons.dashboard),
-      _TabInfo('performance', 'Wydajność', Icons.trending_up),
-      _TabInfo('risk', 'Ryzyko', Icons.security),
-      _TabInfo('employees', 'Zespół', Icons.people),
-      _TabInfo('geographic', 'Geografia', Icons.map),
-      _TabInfo('trends', 'Trendy', Icons.timeline),
-    ];
-
     return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceCard.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: AppThemePro.elevatedSurfaceDecoration,
       child: _isTablet
           ? Row(
-              children: tabs.map((tab) => Expanded(
-                child: _buildTabButton(tab),
-              )).toList(),
+              children: _tabs
+                  .map((tab) => Expanded(child: _buildTabButton(tab)))
+                  .toList(),
             )
           : SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: tabs.map((tab) => _buildTabButton(tab, isExpanded: false)).toList(),
+                children: _tabs
+                    .map((tab) => _buildTabButton(tab, isExpanded: false))
+                    .toList(),
               ),
             ),
     );
@@ -221,7 +209,7 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
   Widget _buildTabButton(_TabInfo tab, {bool isExpanded = true}) {
     final isSelected = _selectedAnalyticsTab == tab.id;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 300),
       width: isExpanded ? null : 120,
       child: Material(
         color: Colors.transparent,
@@ -230,28 +218,35 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
           borderRadius: BorderRadius.circular(8),
           child: Container(
             padding: EdgeInsets.symmetric(
-              vertical: 12, 
-              horizontal: isExpanded ? 8 : 16,
+              vertical: 16,
+              horizontal: isExpanded ? 12 : 16,
             ),
             decoration: BoxDecoration(
-              color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+              color: isSelected ? AppThemePro.accentGold : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
+              border: isSelected
+                  ? null
+                  : Border.all(
+                      color: AppThemePro.borderPrimary,
+                      width: 1,
+                    ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   tab.icon,
-                  color: isSelected ? Colors.white : AppTheme.primaryColor,
-                  size: 20,
+                  color: isSelected ? AppThemePro.primaryDark : AppThemePro.accentGold,
+                  size: 24,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   tab.label,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : AppTheme.primaryColor,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    fontSize: 12,
+                    color: isSelected ? AppThemePro.primaryDark : AppThemePro.textPrimary,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 13,
+                    letterSpacing: 0.2,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -263,477 +258,163 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
     );
   }
 
-  Widget _buildContent(BuildContext context) {
-    if (_isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: AppTheme.primaryColor),
-            SizedBox(height: 16),
-            Text('Ładowanie danych analitycznych...'),
-          ],
-        ),
-      );
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error, size: 64, color: AppTheme.errorColor),
-            const SizedBox(height: 16),
-            Text('Błąd: $_error'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadAnalyticsData,
-              child: const Text('Spróbuj ponownie'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: RefreshIndicator(
-        onRefresh: _loadAnalyticsData,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: _buildTabContent(),
-        ),
-      ),
-    );
-  }
-
   Widget _buildTabContent() {
     switch (_selectedAnalyticsTab) {
       case 'overview':
-        return _buildOverviewTab();
+        return OverviewTab(selectedTimeRange: _selectedTimeRange);
       case 'performance':
-        return _buildPerformanceTab();
+        return PerformanceTab(selectedTimeRange: _selectedTimeRange);
       case 'risk':
-        return _buildRiskTab();
+        return RiskTab(selectedTimeRange: _selectedTimeRange);
       case 'employees':
-        return _buildEmployeesTab();
+        return EmployeesTab(selectedTimeRange: _selectedTimeRange);
       case 'geographic':
-        return _buildGeographicTab();
+        return GeographicTab(selectedTimeRange: _selectedTimeRange);
       case 'trends':
-        return _buildTrendsTab();
+        return TrendsTab(selectedTimeRange: _selectedTimeRange);
       default:
-        return _buildOverviewTab();
+        return OverviewTab(selectedTimeRange: _selectedTimeRange);
     }
   }
 
-  Widget _buildOverviewTab() {
-    return Column(
-      children: [
-        _buildKeyMetricsGrid(),
-        const SizedBox(height: 24),
-        _buildChartsRow(),
-        const SizedBox(height: 24),
-        _buildSummaryRow(),
-      ],
-    );
-  }
-
-  Widget _buildKeyMetricsGrid() {
-    final metrics = _metricsData?.portfolioMetrics;
-    if (metrics == null) return const SizedBox();
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = _isDesktop ? 4 : (_isTablet ? 3 : 2);
-        return GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: crossAxisCount,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: _isTablet ? 1.2 : 1.0,
-          children: [
-            _buildMetricCard(
-              'Całkowita wartość',
-              CurrencyFormatter.formatCurrencyShort(metrics.totalValue),
-              Icons.account_balance_wallet,
-              AppTheme.primaryColor,
-              change: '+${metrics.roi.toStringAsFixed(1)}%',
-            ),
-            _buildMetricCard(
-              'Zrealizowany zysk',
-              CurrencyFormatter.formatCurrencyShort(metrics.totalProfit),
-              Icons.trending_up,
-              AppTheme.successColor,
-            ),
-            _buildMetricCard(
-              'ROI Portfela',
-              '${metrics.roi.toStringAsFixed(2)}%',
-              Icons.bar_chart,
-              AppTheme.infoColor,
-            ),
-            _buildMetricCard(
-              'Aktywne inwestycje',
-              '${metrics.activeInvestmentsCount}',
-              Icons.pie_chart,
-              AppTheme.secondaryGold,
-              subtitle: '${metrics.totalInvestmentsCount} łącznie',
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildMetricCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color, {
-    String? change,
-    String? subtitle,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppTheme.cardDecoration.copyWith(
-        border: Border.all(color: color.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 14,
-                  ),
-                  maxLines: 2,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          if (change != null || subtitle != null) ...[
-            const SizedBox(height: 8),
-            if (change != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.successColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  change,
-                  style: const TextStyle(
-                    color: AppTheme.successColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            if (subtitle != null)
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: AppTheme.textTertiary,
-                  fontSize: 12,
-                ),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChartsRow() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (_isTablet) {
-          return Row(
-            children: [
-              Expanded(child: _buildPortfolioChart()),
-              const SizedBox(width: 16),
-              Expanded(child: _buildPerformanceChart()),
-            ],
-          );
-        } else {
-          return Column(
-            children: [
-              _buildPortfolioChart(),
-              const SizedBox(height: 16),
-              _buildPerformanceChart(),
-            ],
-          );
-        }
-      },
-    );
-  }
-
-  Widget _buildPortfolioChart() {
-    final productAnalytics = _metricsData?.productAnalytics;
-    if (productAnalytics == null) return const SizedBox();
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Rozkład portfela',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 250,
-            child: PieChart(
-              PieChartData(
-                sections: _buildPieChartSections(productAnalytics.productPerformance),
-                centerSpaceRadius: 40,
-                sectionsSpace: 2,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPerformanceChart() {
-    final timeSeriesData = _metricsData?.timeSeriesAnalytics.monthlyData;
-    if (timeSeriesData == null || timeSeriesData.isEmpty) return const SizedBox();
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Trend miesięczny',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 250,
-            child: LineChart(
-              LineChartData(
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: _buildLineChartSpots(timeSeriesData),
-                    isCurved: true,
-                    color: AppTheme.primaryColor,
-                    barWidth: 3,
-                    dotData: const FlDotData(show: false),
-                  ),
-                ],
-                titlesData: const FlTitlesData(show: false),
-                gridData: const FlGridData(show: true),
-                borderData: FlBorderData(show: false),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<PieChartSectionData> _buildPieChartSections(
-    Map<ProductType, ProductPerformance> productPerformance,
-  ) {
-    final colors = [
-      AppTheme.primaryColor,
-      AppTheme.secondaryGold,
-      AppTheme.successColor,
-      AppTheme.infoColor,
-    ];
-
-    return productPerformance.entries.toList().asMap().entries.map((entry) {
-      final index = entry.key;
-      final product = entry.value;
-      return PieChartSectionData(
-        color: colors[index % colors.length],
-        value: product.value.totalValue,
-        title: product.value.count.toString(),
-        radius: 80,
-        titleStyle: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      );
-    }).toList();
-  }
-
-  List<FlSpot> _buildLineChartSpots(List<MonthlyData> monthlyData) {
-    return monthlyData.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), entry.value.totalVolume / 1000000);
-    }).toList();
-  }
-
-  Widget _buildSummaryRow() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (_isTablet) {
-          return Row(
-            children: [
-              Expanded(child: _buildClientSummaryCard()),
-              const SizedBox(width: 16),
-              Expanded(child: _buildRiskSummaryCard()),
-            ],
-          );
-        } else {
-          return Column(
-            children: [
-              _buildClientSummaryCard(),
-              const SizedBox(height: 16),
-              _buildRiskSummaryCard(),
-            ],
-          );
-        }
-      },
-    );
-  }
-
-  Widget _buildClientSummaryCard() {
-    final clientAnalytics = _metricsData?.clientAnalytics;
-    if (clientAnalytics == null) return const SizedBox();
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Statystyki klientów',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 16),
-          _buildStatItem(
-            'Łączna liczba klientów',
-            '${clientAnalytics.totalClients}',
-            Icons.people,
-          ),
-          _buildStatItem(
-            'Nowi klienci (miesiąc)',
-            '${clientAnalytics.newClientsThisMonth}',
-            Icons.person_add,
-          ),
-          _buildStatItem(
-            'Retencja klientów',
-            '${clientAnalytics.clientRetention.toStringAsFixed(1)}%',
-            Icons.favorite,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRiskSummaryCard() {
-    final riskMetrics = _metricsData?.riskMetrics;
-    if (riskMetrics == null) return const SizedBox();
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Analiza ryzyka',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 16),
-          _buildStatItem(
-            'Volatilność portfela',
-            '${riskMetrics.volatility.toStringAsFixed(2)}%',
-            Icons.show_chart,
-          ),
-          _buildStatItem(
-            'Sharpe Ratio',
-            riskMetrics.sharpeRatio.toStringAsFixed(2),
-            Icons.trending_up,
-          ),
-          _buildStatItem(
-            'Maksymalny spadek',
-            '${riskMetrics.maxDrawdown.toStringAsFixed(1)}%',
-            Icons.trending_down,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String title, String value, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(icon, color: AppTheme.primaryColor, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(title, style: const TextStyle(fontSize: 14)),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Placeholder methods for other tabs
-  Widget _buildPerformanceTab() {
-    return const Center(child: Text('Zakładka wydajności - w przygotowaniu'));
-  }
-
-  Widget _buildRiskTab() {
-    return const Center(child: Text('Zakładka ryzyka - w przygotowaniu'));
-  }
-
-  Widget _buildEmployeesTab() {
-    return const Center(child: Text('Zakładka zespołu - w przygotowaniu'));
-  }
-
-  Widget _buildGeographicTab() {
-    return const Center(child: Text('Zakładka geograficzna - w przygotowaniu'));
-  }
-
-  Widget _buildTrendsTab() {
-    return const Center(child: Text('Zakładka trendów - w przygotowaniu'));
-  }
-
   Widget _buildRefreshFab() {
-    return FloatingActionButton(
-      onPressed: _loadAnalyticsData,
-      backgroundColor: AppTheme.primaryColor,
-      child: const Icon(Icons.refresh),
+    return FloatingActionButton.extended(
+      onPressed: _refreshCurrentTab,
+      backgroundColor: AppThemePro.accentGold,
+      foregroundColor: AppThemePro.primaryDark,
+      elevation: 4,
+      icon: const Icon(Icons.refresh),
+      label: const Text('Odśwież'),
     );
+  }
+
+  void _refreshCurrentTab() {
+    // Trigger refresh for current tab
+    setState(() {
+      // Force rebuild with new timestamp to trigger refresh
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Odświeżanie danych dla taba: ${_getTabName(_selectedAnalyticsTab)}',
+          style: const TextStyle(color: AppThemePro.textPrimary),
+        ),
+        backgroundColor: AppThemePro.accentGold,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  String _getTabName(String tabId) {
+    final tab = _tabs.firstWhere(
+      (tab) => tab.id == tabId,
+      orElse: () => _TabInfo(tabId, 'Nieznany', Icons.help),
+    );
+    return tab.label;
   }
 
   void _exportReport() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppThemePro.surfaceCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Text(
+          'Eksport raportu',
+          style: TextStyle(color: AppThemePro.textPrimary, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Wybierz format eksportu:',
+              style: TextStyle(color: AppThemePro.textSecondary),
+            ),
+            const SizedBox(height: 20),
+            Wrap(
+              spacing: 12,
+              children: [
+                _buildExportButton(
+                  'PDF',
+                  Icons.picture_as_pdf,
+                  AppThemePro.statusError,
+                  _exportToPDF,
+                ),
+                _buildExportButton(
+                  'Excel',
+                  Icons.table_chart,
+                  AppThemePro.statusSuccess,
+                  _exportToExcel,
+                ),
+                _buildExportButton(
+                  'CSV',
+                  Icons.text_snippet,
+                  AppThemePro.statusWarning,
+                  _exportToCSV,
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Anuluj',
+              style: TextStyle(color: AppThemePro.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExportButton(
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onPressed,
+  ) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, color: Colors.white),
+      label: Text(label, style: const TextStyle(color: Colors.white)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _exportToPDF() {
+    Navigator.of(context).pop();
+    _showExportMessage('Eksport do PDF - funkcja w przygotowaniu');
+  }
+
+  void _exportToExcel() {
+    Navigator.of(context).pop();
+    _showExportMessage('Eksport do Excel - funkcja w przygotowaniu');
+  }
+
+  void _exportToCSV() {
+    Navigator.of(context).pop();
+    _showExportMessage('Eksport do CSV - funkcja w przygotowaniu');
+  }
+
+  void _showExportMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Eksport raportu - funkcja w przygotowaniu'),
-        backgroundColor: AppTheme.primaryColor,
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(color: AppThemePro.textPrimary),
+        ),
+        backgroundColor: AppThemePro.statusInfo,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }

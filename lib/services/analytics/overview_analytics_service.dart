@@ -1,14 +1,15 @@
 import 'dart:math' as math;
-import '../../models/analytics/overview_analytics_models.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models_and_services.dart';
+import '../debug/firestore_data_inspector.dart';
 import '../base_service.dart';
 import '../../models/investment.dart';
 import '../../models/client.dart';
-import '../firebase_functions_analytics_service.dart';
+import '../debug_firestore_service.dart';
 
 /// Serwis analityki przeglądu
 class OverviewAnalyticsService extends BaseService {
-  final FirebaseFunctionsAnalyticsService _functionsService =
-      FirebaseFunctionsAnalyticsService();
+  bool _debugRunOnce = false;
 
   /// Pobiera dane analityki przeglądu
   Future<OverviewAnalytics> getOverviewAnalytics({
@@ -29,11 +30,20 @@ class OverviewAnalyticsService extends BaseService {
     try {
       print('🔍 [OverviewAnalytics] Rozpoczynam obliczenia...');
 
+      // DEBUG: Uruchom test Firestore przy pierwszym wywołaniu
+      if (!_debugRunOnce) {
+        _debugRunOnce = true;
+        await DebugFirestoreService.testFirestoreConnection();
+      }
+
       // Pobierz surowe dane
-      final [investments, clients] = await Future.wait([
+      final futures = await Future.wait([
         _getAllInvestments(timeRangeMonths),
         _getAllClients(),
       ]);
+      
+      final investments = futures[0] as List<Investment>;
+      final clients = futures[1] as List<Client>;
 
       print(
         '🔍 [OverviewAnalytics] Pobrano ${investments.length} inwestycji i ${clients.length} klientów',
@@ -63,6 +73,7 @@ class OverviewAnalyticsService extends BaseService {
   /// Pobiera wszystkie inwestycje w określonym przedziale czasowym
   Future<List<Investment>> _getAllInvestments(int timeRangeMonths) async {
     try {
+      print('🔍 [DEBUG] Pobieranie inwestycji z kolekcji "investments"');
       final query = firestore.collection('investments');
 
       // Dodaj filtr czasowy jeśli nie "cały okres"
@@ -70,19 +81,55 @@ class OverviewAnalyticsService extends BaseService {
         final startDate = DateTime.now().subtract(
           Duration(days: timeRangeMonths * 30),
         );
+        print('🔍 [DEBUG] Filtrowanie od daty: ${startDate.toIso8601String()}');
+        
+        // Użyj Timestamp zamiast ISO string dla Firestore
+        final startTimestamp = Timestamp.fromDate(startDate);
         final snapshot = await query
-            .where('signedDate', isGreaterThan: startDate.toIso8601String())
+            .where('signingDate', isGreaterThan: startTimestamp)
             .get();
+        print('🔍 [DEBUG] Znaleziono ${snapshot.docs.length} dokumentów z filtrem czasowym');
         return snapshot.docs
             .map((doc) => _convertInvestmentFromDocument(doc))
             .toList();
       } else {
+        print('🔍 [DEBUG] Pobieranie wszystkich dokumentów (cały okres)');
         final snapshot = await query.get();
-        return snapshot.docs
+        print('🔍 [DEBUG] Znaleziono ${snapshot.docs.length} dokumentów bez filtra');
+        
+        if (snapshot.docs.isNotEmpty) {
+          // Debug pierwszego dokumentu
+          final firstDoc = snapshot.docs.first;
+          final data = firstDoc.data();
+          print('🔍 [DEBUG] Pierwszy dokument:');
+          print('🔍 [DEBUG] - ID: ${firstDoc.id}');
+          print('🔍 [DEBUG] - clientName: ${data['clientName']}');
+          print('🔍 [DEBUG] - productType: ${data['productType']}');
+          print('🔍 [DEBUG] - investmentAmount: ${data['investmentAmount']}');
+          print('🔍 [DEBUG] - remainingCapital: ${data['remainingCapital']}');
+          print('🔍 [DEBUG] - signingDate: ${data['signingDate']}');
+          print('🔍 [DEBUG] - Wszystkie klucze: ${data.keys.toList()}');
+        }
+        
+        final investments = snapshot.docs
             .map((doc) => _convertInvestmentFromDocument(doc))
             .toList();
+        
+        print('🔍 [DEBUG] Pomyślnie przekonwertowano ${investments.length} inwestycji');
+        if (investments.isNotEmpty) {
+          final first = investments.first;
+          print('🔍 [DEBUG] Pierwsza inwestycja po konwersji:');
+          print('🔍 [DEBUG] - clientName: ${first.clientName}');
+          print('🔍 [DEBUG] - productType: ${first.productType}');
+          print('🔍 [DEBUG] - investmentAmount: ${first.investmentAmount}');
+          print('🔍 [DEBUG] - remainingCapital: ${first.remainingCapital}');
+          print('🔍 [DEBUG] - totalValue: ${first.totalValue}');
+        }
+        
+        return investments;
       }
     } catch (e) {
+      print('❌ [ERROR] _getAllInvestments: $e');
       logError('_getAllInvestments', e);
       throw Exception('Błąd pobierania inwestycji: $e');
     }
@@ -191,23 +238,23 @@ class OverviewAnalyticsService extends BaseService {
         0,
         (sum, inv) => sum + inv.totalValue,
       );
-      final percentage = totalValue > 0 ? (productValue / totalValue) * 100 : 0;
+      final percentage = totalValue > 0 ? (productValue / totalValue) * 100 : 0.0;
       final averageReturn = investments.isNotEmpty
           ? investments.fold<double>(
                   0,
                   (sum, inv) => sum + inv.profitLossPercentage,
                 ) /
-                investments.length
-          : 0;
+                investments.length.toDouble()
+          : 0.0;
 
       breakdown.add(
         ProductBreakdownItem(
           productType: productType,
           productName: _getProductTypeName(productType),
           value: productValue,
-          percentage: percentage,
+          percentage: percentage.toDouble(),
           count: investments.length,
-          averageReturn: averageReturn,
+          averageReturn: averageReturn.toDouble(),
         ),
       );
     }
@@ -251,8 +298,8 @@ class OverviewAnalyticsService extends BaseService {
                   0,
                   (sum, inv) => sum + inv.profitLossPercentage,
                 ) /
-                monthInvestments.length
-          : 0;
+                monthInvestments.length.toDouble()
+          : 0.0;
 
       // Oblicz wzrost w stosunku do poprzedniego miesiąca
       double growthRate = 0;
@@ -274,7 +321,7 @@ class OverviewAnalyticsService extends BaseService {
           month: month,
           totalValue: totalValue,
           totalVolume: totalVolume,
-          averageReturn: averageReturn,
+          averageReturn: averageReturn.toDouble(),
           transactionCount: monthInvestments.length,
           growthRate: growthRate,
         ),
@@ -335,8 +382,8 @@ class OverviewAnalyticsService extends BaseService {
     // Oblicz średnią wartość klienta
     final averageClientValue = clientInvestmentMap.isNotEmpty
         ? topClients.fold<double>(0, (sum, client) => sum + client.value) /
-              topClients.length
-        : 0;
+              topClients.length.toDouble()
+        : 0.0;
 
     return ClientMetricsData(
       totalClients: clientInvestmentMap.length,
@@ -344,7 +391,7 @@ class OverviewAnalyticsService extends BaseService {
           clientInvestmentMap.length, // Zakładamy, że wszyscy są aktywni
       newClientsThisMonth: newClientsThisMonth,
       clientRetentionRate: clientRetentionRate,
-      averageClientValue: averageClientValue,
+      averageClientValue: averageClientValue.toDouble(),
       topClients: top10Clients,
     );
   }
@@ -563,12 +610,65 @@ class OverviewAnalyticsService extends BaseService {
   // Metody konwersji dokumentów
 
   Investment _convertInvestmentFromDocument(doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return Investment.fromFirestore(doc.id, data);
+    try {
+      final investment = Investment.fromFirestore(doc);
+      // Debug tylko dla pierwszych kilku dokumentów
+      if (doc.id.length < 10) { // Prosty sposób na ograniczenie debugów
+        print('🔍 [DEBUG] Konwersja dokumentu ${doc.id}:');
+        print('🔍 [DEBUG] - clientName: ${investment.clientName}');
+        print('🔍 [DEBUG] - investmentAmount: ${investment.investmentAmount}');
+        print('🔍 [DEBUG] - remainingCapital: ${investment.remainingCapital}');
+        print('🔍 [DEBUG] - totalValue: ${investment.totalValue}');
+        print('🔍 [DEBUG] - productType: ${investment.productType}');
+        print('🔍 [DEBUG] - signedDate: ${investment.signedDate}');
+        print('🔍 [DEBUG] - status: ${investment.status}');
+      }
+      return investment;
+    } catch (e) {
+      print('❌ [ERROR] Błąd konwersji dokumentu ${doc.id}: $e');
+      rethrow;
+    }
   }
 
   Client _convertClientFromDocument(doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return Client.fromFirestore(doc.id, data);
+    return Client.fromFirestore(doc);
+  }
+
+  /// 🔍 NOWA METODA: Głęboki debug z inspekcją rzeczywistych danych
+  Future<Map<String, dynamic>> debugRealData() async {
+    print('\n🔍 === DEEP DEBUG: RZECZYWISTE DANE FIRESTORE ===\n');
+
+    try {
+      // Użyj inspektora do analizy rzeczywistych danych  
+      final inspectionResult = await FirestoreDataInspector.inspectRealData();
+      
+      print('📊 Wyniki inspekcji:');
+      print('  • Investments: ${inspectionResult['collections']['investments']['totalCount']} dokumentów');
+      print('  • Clients: ${inspectionResult['collections']['clients']['totalCount']} dokumentów');
+      
+      // Wyświetl rekomendacje
+      final recommendations = inspectionResult['recommendations'] as List;
+      if (recommendations.isNotEmpty) {
+        print('\n💡 Rekomendacje:');
+        for (final rec in recommendations) {
+          print('  $rec');
+        }
+      }
+      
+      // Sprawdź kompatybilność modeli
+      final modelCompat = inspectionResult['modelCompatibility'];
+      print('\n🧪 Kompatybilność modeli:');
+      print('  • Investment: ${modelCompat['Investment']['success'] ? '✅' : '❌'} ${modelCompat['Investment']['message']}');
+      print('  • Client: ${modelCompat['Client']['success'] ? '✅' : '❌'} ${modelCompat['Client']['message']}');
+      
+      return inspectionResult;
+      
+    } catch (e) {
+      print('❌ Błąd podczas głębokiego debugowania: $e');
+      return {
+        'error': e.toString(),
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+    }
   }
 }

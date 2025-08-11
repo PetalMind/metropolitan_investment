@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_theme.dart';
+import '../../../theme/app_theme_professional.dart';
 
-/// Tab geograficzny - kompletna implementacja
+/// Tab geograficzny - profesjonalna implementacja z AppThemePro
 class GeographicTab extends StatefulWidget {
   final int selectedTimeRange;
 
@@ -11,15 +11,49 @@ class GeographicTab extends StatefulWidget {
   State<GeographicTab> createState() => _GeographicTabState();
 }
 
-class _GeographicTabState extends State<GeographicTab> {
+class _GeographicTabState extends State<GeographicTab> with TickerProviderStateMixin {
   bool _isLoading = false;
   String? _error;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppTheme.primaryColor),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              color: AppThemePro.accentGold,
+              strokeWidth: 3,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Analizowanie danych geograficznych...',
+              style: TextStyle(color: AppThemePro.textSecondary, fontSize: 16),
+            ),
+          ],
+        ),
       );
     }
 
@@ -28,96 +62,222 @@ class _GeographicTabState extends State<GeographicTab> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error, size: 64, color: AppTheme.errorColor),
+            Icon(Icons.error_outline, size: 64, color: AppThemePro.statusError),
             const SizedBox(height: 16),
-            Text('Błąd: $_error'),
-            const SizedBox(height: 16),
-            ElevatedButton(
+            Text(
+              'Błąd ładowania danych',
+              style: TextStyle(
+                color: AppThemePro.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: TextStyle(color: AppThemePro.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
               onPressed: () => setState(() => _error = null),
-              child: const Text('Spróbuj ponownie'),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Spróbuj ponownie'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppThemePro.accentGold,
+                foregroundColor: AppThemePro.primaryDark,
+              ),
             ),
           ],
         ),
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            _buildHeaderCard(),
+            const SizedBox(height: 24),
+            _buildGeographicMetrics(),
+            const SizedBox(height: 24),
+            _buildTopRegions(),
+            const SizedBox(height: 24),
+            _buildRegionalAnalysis(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: AppThemePro.premiumCardDecoration,
       child: Column(
         children: [
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(32),
-            decoration: AppTheme.cardDecoration,
-            child: Column(
-              children: [
-                Icon(Icons.map, size: 96, color: AppTheme.primaryColor),
-                const SizedBox(height: 24),
-                Text(
-                  'Analityka Geograficzna',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Pełna implementacja analityki geograficznej z:\n\n'
-                  '• Mapa wyników według województw\n'
-                  '• Wydajność oddziałów regionalnych\n'
-                  '• Koncentracja klientów geograficzna\n'
-                  '• Analiza rynków lokalnych\n'
-                  '• Potencjał ekspansji\n'
-                  '• Kanały dystrybucji regionalne',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Okres analizy: ${_getTimeRangeName(widget.selectedTimeRange)}',
-                  style: TextStyle(
-                    color: AppTheme.primaryColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppThemePro.statusInfo.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(50),
+              border: Border.all(
+                color: AppThemePro.statusInfo.withOpacity(0.3),
+                width: 2,
+              ),
+            ),
+            child: Icon(
+              Icons.public,
+              size: 64,
+              color: AppThemePro.statusInfo,
             ),
           ),
           const SizedBox(height: 24),
-          _buildRegionalMetrics(),
+          Text(
+            'Analityka Geograficzna',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: AppThemePro.textPrimary,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Kompleksowa analiza geograficzna z rozłożeniem wyników\n'
+            'według regionów, potencjałem ekspansji i mapą rynków',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: AppThemePro.textSecondary,
+              height: 1.6,
+            ),
+          ),
           const SizedBox(height: 24),
-          _buildTopRegions(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppThemePro.accentGold.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppThemePro.accentGold.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              'Okres analizy: ${_getTimeRangeName(widget.selectedTimeRange)}',
+              style: TextStyle(
+                color: AppThemePro.accentGold,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildRegionalMetrics() {
+  Widget _buildGeographicMetrics() {
+    final isTablet = MediaQuery.of(context).size.width > 768;
+    
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: MediaQuery.of(context).size.width > 768 ? 4 : 2,
+      crossAxisCount: isTablet ? 4 : 2,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: 1.2,
+      childAspectRatio: isTablet ? 1.3 : 1.1,
       children: [
-        _buildMetricCard(
-          'Aktywne regiony',
+        _buildGeographicMetricCard(
+          'Aktywne Regiony',
           '16',
+          'z 16 województw',
           Icons.location_on,
-          AppTheme.primaryColor,
+          AppThemePro.statusSuccess,
         ),
-        _buildMetricCard('Oddziały', '23', Icons.business, AppTheme.infoColor),
-        _buildMetricCard(
-          'Top region',
+        _buildGeographicMetricCard(
+          'Oddziały',
+          '23',
+          'Punkty sprzedaży',
+          Icons.business,
+          AppThemePro.statusInfo,
+        ),
+        _buildGeographicMetricCard(
+          'Top Region',
           '18.4M zł',
+          'Mazowieckie',
           Icons.emoji_events,
-          AppTheme.secondaryGold,
+          AppThemePro.accentGold,
         ),
-        _buildMetricCard(
-          'Pokrycie kraju',
+        _buildGeographicMetricCard(
+          'Pokrycie Kraju',
           '87.5%',
-          Icons.public,
-          AppTheme.successColor,
+          'Populacji objętej',
+          Icons.map,
+          AppThemePro.statusSuccess,
         ),
       ],
+    );
+  }
+
+  Widget _buildGeographicMetricCard(
+    String title,
+    String primaryValue,
+    String secondaryValue,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: AppThemePro.premiumCardDecoration.copyWith(
+        border: Border.all(color: color.withOpacity(0.2), width: 1),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            primaryValue,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppThemePro.textPrimary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            secondaryValue,
+            style: TextStyle(
+              fontSize: 12,
+              color: AppThemePro.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
@@ -126,49 +286,62 @@ class _GeographicTabState extends State<GeographicTab> {
       {
         'name': 'Mazowieckie',
         'revenue': '18.4M zł',
-        'clients': '1247',
+        'clients': '1,247',
         'growth': '+12.8%',
+        'share': '28.4%',
       },
       {
         'name': 'Małopolskie',
         'revenue': '12.7M zł',
         'clients': '892',
         'growth': '+8.4%',
+        'share': '19.6%',
       },
       {
         'name': 'Śląskie',
         'revenue': '11.2M zł',
         'clients': '756',
         'growth': '+15.2%',
+        'share': '17.3%',
       },
       {
         'name': 'Wielkopolskie',
         'revenue': '9.8M zł',
         'clients': '634',
         'growth': '+6.7%',
+        'share': '15.1%',
       },
       {
         'name': 'Dolnośląskie',
         'revenue': '8.4M zł',
         'clients': '521',
         'growth': '+11.3%',
+        'share': '12.9%',
       },
       {
         'name': 'Pomorskie',
         'revenue': '6.9M zł',
         'clients': '423',
         'growth': '+9.1%',
+        'share': '10.6%',
       },
     ];
 
     return Container(
-      decoration: AppTheme.cardDecoration,
+      decoration: AppThemePro.premiumCardDecoration,
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.1),
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  AppThemePro.accentGold.withOpacity(0.1),
+                  AppThemePro.statusSuccess.withOpacity(0.05),
+                ],
+              ),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),
@@ -176,14 +349,14 @@ class _GeographicTabState extends State<GeographicTab> {
             ),
             child: Row(
               children: [
-                Icon(Icons.leaderboard, color: AppTheme.primaryColor),
-                const SizedBox(width: 12),
+                Icon(Icons.leaderboard, color: AppThemePro.accentGold, size: 28),
+                const SizedBox(width: 16),
                 Text(
                   'Najlepsze Regiony',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
+                    color: AppThemePro.textPrimary,
                   ),
                 ),
               ],
@@ -193,48 +366,120 @@ class _GeographicTabState extends State<GeographicTab> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: regions.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
+            separatorBuilder: (context, index) => Divider(
+              height: 1,
+              color: AppThemePro.borderPrimary,
+            ),
             itemBuilder: (context, index) {
               final region = regions[index];
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(
+              Color positionColor;
+              
+              switch (index) {
+                case 0:
+                  positionColor = AppThemePro.accentGold;
+                  break;
+                case 1:
+                  positionColor = AppThemePro.textSecondary;
+                  break;
+                case 2:
+                  positionColor = AppThemePro.statusWarning;
+                  break;
+                default:
+                  positionColor = AppThemePro.statusInfo;
+              }
+
+              return Container(
+                padding: const EdgeInsets.symmetric(
                   horizontal: 24,
-                  vertical: 12,
+                  vertical: 16,
                 ),
-                leading: CircleAvatar(
-                  backgroundColor: AppTheme.primaryColor,
-                  child: Text(
-                    '${index + 1}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                title: Text(
-                  region['name']!,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text('${region['clients']} klientów'),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                child: Row(
                   children: [
-                    Text(
-                      region['revenue']!,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: positionColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: positionColor.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color: positionColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
                     ),
-                    Text(
-                      region['growth']!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.successColor,
-                        fontWeight: FontWeight.w600,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            region['name'] as String,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppThemePro.textPrimary,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                '${region['clients']} klientów',
+                                style: TextStyle(
+                                  color: AppThemePro.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(' • ', style: TextStyle(color: AppThemePro.textMuted)),
+                              Text(
+                                '${region['share']} udziału',
+                                style: TextStyle(
+                                  color: AppThemePro.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          region['revenue'] as String,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: positionColor,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppThemePro.statusSuccess.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            region['growth'] as String,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppThemePro.statusSuccess,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -246,33 +491,138 @@ class _GeographicTabState extends State<GeographicTab> {
     );
   }
 
-  Widget _buildMetricCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
+  Widget _buildRegionalAnalysis() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: AppTheme.cardDecoration,
+      decoration: AppThemePro.premiumCardDecoration,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  AppThemePro.statusInfo.withOpacity(0.1),
+                  AppThemePro.accentGold.withOpacity(0.05),
+                ],
+              ),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.analytics, color: AppThemePro.statusInfo, size: 28),
+                const SizedBox(width: 16),
+                Text(
+                  'Analiza Regionalna',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppThemePro.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                _buildAnalysisRow(
+                  'Penetracja rynku',
+                  '23.7%',
+                  'Średnia dla wszystkich regionów',
+                  AppThemePro.statusSuccess,
+                  Icons.trending_up,
+                ),
+                _buildAnalysisRow(
+                  'Potencjał wzrostu',
+                  'Wysoki',
+                  'Szczególnie w regionach wschodnich',
+                  AppThemePro.statusWarning,
+                  Icons.landscape,
+                ),
+                _buildAnalysisRow(
+                  'Konkurencja regionalna',
+                  'Umiarkowana',
+                  'Silna w dużych miastach',
+                  AppThemePro.statusInfo,
+                  Icons.group_work,
+                ),
+                _buildAnalysisRow(
+                  'Efektywność kanałów',
+                  '78.4%',
+                  'Powyżej średniej krajowej',
+                  AppThemePro.statusSuccess,
+                  Icons.route,
+                ),
+                _buildAnalysisRow(
+                  'Sezonowość regionalna',
+                  'Stabilna',
+                  'Niskie wahania międzysezonowe',
+                  AppThemePro.statusSuccess,
+                  Icons.calendar_today,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalysisRow(
+    String metric,
+    String value,
+    String description,
+    Color color,
+    IconData icon,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  metric,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppThemePro.textPrimary,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: AppThemePro.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
           Text(
             value,
             style: TextStyle(
-              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: color,
+              fontSize: 16,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-            textAlign: TextAlign.center,
           ),
         ],
       ),

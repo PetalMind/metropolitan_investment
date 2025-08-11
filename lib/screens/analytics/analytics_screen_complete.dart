@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/currency_formatter.dart';
 
 // Import wszystkich tabów
 import 'tabs/overview_tab.dart';
@@ -30,7 +29,6 @@ class _AnalyticsScreenCompleteState extends State<AnalyticsScreenComplete>
 
   // Responsive breakpoints
   bool get _isTablet => MediaQuery.of(context).size.width > 768;
-  bool get _isDesktop => MediaQuery.of(context).size.width > 1200;
 
   // Tab definitions
   final _tabs = [

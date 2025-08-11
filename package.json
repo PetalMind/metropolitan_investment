@@ -14,6 +14,13 @@
     "upload-normalized:dry-run": "node upload_normalized_data_to_firebase.js --dry-run",
     "upload-normalized:cleanup": "node upload_normalized_data_to_firebase.js --cleanup",
     "upload-normalized:full": "node upload_normalized_data_to_firebase.js --cleanup --report",
+    "upload-normalized-clients": "node upload_normalized_clients.js",
+    "upload-normalized-clients:dry-run": "node upload_normalized_clients.js --dry-run",
+    "upload-normalized-clients:cleanup": "node upload_normalized_clients.js --cleanup",
+    "upload-normalized-clients:full": "node upload_normalized_clients.js --cleanup --report",
+    "fix-missing-clients": "node fix_missing_clients.js",
+    "fix-missing-clients:dry-run": "node fix_missing_clients.js --dry-run",
+    "check-missing-clients": "node fix_missing_clients.js --dry-run --report",
     "test-firebase": "node test_firebase_connection.js"
   },
   "dependencies": {

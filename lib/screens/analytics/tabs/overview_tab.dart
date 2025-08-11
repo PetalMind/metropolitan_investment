@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import '../../../theme/app_theme.dart';
 import '../../../services/analytics/overview_analytics_service.dart';
 import '../../../models/analytics/overview_analytics_models.dart';
@@ -30,10 +29,53 @@ class _OverviewTabState extends State<OverviewTab> {
   bool get _isTablet => MediaQuery.of(context).size.width > 768;
   bool get _isDesktop => MediaQuery.of(context).size.width > 1200;
 
-  @override
+    @override
   void initState() {
     super.initState();
     _loadData();
+    _testFirestoreConnection(); // Dodaj test połączenia
+  }
+
+  /// 🔍 TEST: Połączenie z Firestore i debug danych
+  void _testFirestoreConnection() async {
+    print('\n🚀 === OVERVIEW TAB: TEST POŁĄCZENIA ===\n');
+    
+    try {
+      // Użyj nowej metody debug z serwisu
+      final debugResult = await _service.debugRealData();
+      
+      print('📊 Debug wynik z Overview Tab:');
+      print('  • Timestamp: ${debugResult['timestamp']}');
+      
+      if (debugResult.containsKey('error')) {
+        print('❌ Błąd debug: ${debugResult['error']}');
+      } else {
+        print('✅ Debug zakończony pomyślnie');
+        
+        // Wyświetl rekomendacje w UI jeśli są
+        final recommendations = debugResult['recommendations'] as List?;
+        if (recommendations != null && recommendations.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('🔍 Debug: ${recommendations.length} rekomendacji'),
+              backgroundColor: Colors.blue,
+            ),
+          );
+        }
+      }
+      
+    } catch (e) {
+      print('❌ Błąd testu połączenia: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Test połączenia nieudany: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -88,9 +130,20 @@ class _OverviewTabState extends State<OverviewTab> {
             const SizedBox(height: 16),
             Text('Błąd: $_error'),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadData,
-              child: const Text('Spróbuj ponownie'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: _loadData,
+                  child: const Text('Spróbuj ponownie'),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _testFirestoreConnection,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                  child: const Text('🔍 Debug Firestore'),
+                ),
+              ],
             ),
           ],
         ),
