@@ -3,13 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
-import '../models/unified_product.dart';
-import '../models/bond.dart';
-import '../models/loan.dart';
-import '../models/investment.dart';
-import '../services/firebase_functions_products_service.dart';
-import '../services/firebase_functions_product_investors_service.dart';
-import '../services/deduplicated_product_service.dart';
+import '../models_and_services.dart';
+import '../services/firebase_functions_products_service.dart' as fb;
 import '../adapters/product_statistics_adapter.dart';
 import '../widgets/premium_loading_widget.dart';
 import '../widgets/premium_error_widget.dart';
@@ -61,7 +56,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   List<UnifiedProduct> _filteredProducts = [];
   List<DeduplicatedProduct> _deduplicatedProducts = [];
   List<DeduplicatedProduct> _filteredDeduplicatedProducts = [];
-  ProductStatistics? _statistics;
+  fb.ProductStatistics? _statistics;
   UnifiedProductsMetadata? _metadata;
   bool _isLoading = true;
   bool _isRefreshing = false;
@@ -77,7 +72,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   bool _showFilters = false;
   bool _showStatistics = true;
   ViewMode _viewMode = ViewMode.list;
-  bool _showDeduplicatedView = false; // Przełącznik między widokami
+  bool _showDeduplicatedView = true; // Domyślnie pokazuj deduplikowane produkty
 
   @override
   void initState() {
@@ -415,7 +410,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       ]);
 
       final productsResult = results[0] as UnifiedProductsResult;
-      final statistics = results[1] as ProductStatistics;
+      final statistics = results[1] as fb.ProductStatistics;
       final deduplicatedProducts = results[2] as List<DeduplicatedProduct>;
 
       if (mounted) {
@@ -846,7 +841,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           },
           tooltip: _showDeduplicatedView
               ? 'Pokaż wszystkie inwestycje'
-              : 'Pokaż deduplikowane produkty',
+              : 'Pokaż produkty unikalne',
         ),
         IconButton(
           icon: Icon(

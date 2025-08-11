@@ -11,6 +11,7 @@ import '../screens/enhanced_clients_screen.dart';
 import '../screens/products_management_screen.dart';
 import '../screens/employees_screen.dart';
 import '../screens/analytics_screen_refactored.dart';
+import '../screens/product_dashboard_screen.dart';
 import '../widgets/auth_wrapper.dart';
 import '../widgets/main_layout.dart';
 import '../providers/auth_provider.dart';
@@ -35,6 +36,7 @@ class AppRoutes {
   static const String investorAnalytics = '/investor-analytics';
   static const String calendar = '/calendar';
   static const String unifiedProducts = '/unified-products';
+  static const String productDashboard = '/product-dashboard';
 
   // === SZCZEGÓŁOWE WIDOKI ===
   static const String investmentDetails = '/investments/:id';
@@ -187,6 +189,12 @@ class MainNavigationItems {
       label: 'Kalendarz',
       icon: Icons.calendar_today_outlined,
       selectedIcon: Icons.calendar_today,
+    ),
+    NavigationItem(
+      route: AppRoutes.productDashboard,
+      label: 'Dashboard Produktów',
+      icon: Icons.dashboard_customize_outlined,
+      selectedIcon: Icons.dashboard_customize,
     ),
   ];
 
@@ -415,6 +423,16 @@ class AppRouter {
               context,
               state,
               const CalendarScreenEnhanced(),
+            ),
+          ),
+
+          // === DASHBOARD PRODUKTÓW ===
+          GoRoute(
+            path: AppRoutes.productDashboard,
+            pageBuilder: (context, state) => _buildPageWithTransition(
+              context,
+              state,
+              const ProductDashboardScreen(),
             ),
           ),
 

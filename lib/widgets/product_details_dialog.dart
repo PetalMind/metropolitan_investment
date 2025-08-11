@@ -1916,7 +1916,6 @@ class _EnhancedProductDetailsDialogState
             'Ostatnia aktualizacja',
             _formatDate(widget.product.uploadedAt),
           ),
-          _buildDetailRow('Źródło danych', widget.product.sourceFile),
           _buildDetailRow('Waluta', widget.product.currency ?? 'PLN'),
         ],
       ),

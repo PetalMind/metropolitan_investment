@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import '../services/firebase_functions_advanced_analytics_service.dart';
+import '../models_and_services.dart';
 import '../widgets/dashboard/overview_tab.dart';
 import '../widgets/dashboard/performance_tab.dart';
 import '../widgets/dashboard/risk_tab.dart';

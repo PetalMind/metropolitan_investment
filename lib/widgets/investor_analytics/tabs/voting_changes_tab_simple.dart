@@ -3,7 +3,7 @@ import '../../../models/investor_summary.dart';
 import '../../../services/voting_status_change_service.dart';
 import '../../../theme/app_theme.dart';
 
-/// Voting changes tab that displays voting status history for an investor
+/// Simplified voting changes tab that works with the current service architecture
 class VotingChangesTab extends StatefulWidget {
   final InvestorSummary investor;
 
@@ -33,14 +33,15 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
         _error = null;
       });
 
+      // Try to get changes for this client
       List<VotingStatusChangeRecord> changes = [];
 
-      // Try by client ID first
+      // 1. Try by client ID
       changes = await _changeService.getClientVotingStatusHistory(
         widget.investor.client.id,
       );
 
-      // If empty and excelId exists, try that
+      // 2. If empty and excelId exists, try that
       if (changes.isEmpty && widget.investor.client.excelId != null) {
         changes = await _changeService.getClientVotingStatusHistory(
           widget.investor.client.excelId!,

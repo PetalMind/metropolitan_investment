@@ -448,7 +448,7 @@ class FirebaseFunctionsDataService extends BaseService {
     try {
       print('💰 [Firebase Functions] Pobieranie inwestycji - strona $page');
 
-      final callable = _functions.httpsCallable('getAllInvestments');
+      final callable = _functions.httpsCallable('getUnifiedProducts');
       final result = await callable.call({
         'page': page,
         'pageSize': pageSize,
@@ -461,17 +461,25 @@ class FirebaseFunctionsDataService extends BaseService {
       final data = result.data as Map<String, dynamic>;
 
       // Konwertuj surowe dane na modele Investment
-      final List<Investment> investments = (data['investments'] as List)
+      // getUnifiedProducts zwraca 'products' nie 'investments'
+      final productsData = data['products'] as List?;
+      if (productsData == null) {
+        throw Exception('Brak danych produktów w odpowiedzi z serwera');
+      }
+
+      final List<Investment> investments = productsData
           .map((investmentData) => _convertToInvestment(investmentData))
           .toList();
 
+      final pagination = data['pagination'] as Map<String, dynamic>? ?? {};
+
       return InvestmentsResult(
         investments: investments,
-        totalCount: data['totalCount'] ?? 0,
-        currentPage: data['currentPage'] ?? 1,
-        pageSize: data['pageSize'] ?? pageSize,
-        hasNextPage: data['hasNextPage'] ?? false,
-        hasPreviousPage: data['hasPreviousPage'] ?? false,
+        totalCount: pagination['totalItems'] ?? 0,
+        currentPage: pagination['currentPage'] ?? 1,
+        pageSize: pagination['pageSize'] ?? pageSize,
+        hasNextPage: pagination['hasNext'] ?? false,
+        hasPreviousPage: pagination['hasPrevious'] ?? false,
         appliedFilters: AppliedFilters(
           clientFilter: data['appliedFilters']?['clientFilter'],
           productTypeFilter: data['appliedFilters']?['productTypeFilter'],
@@ -585,50 +593,92 @@ class FirebaseFunctionsDataService extends BaseService {
     }
 
     // Helper function to parse date strings
-    DateTime? parseDate(String? dateStr) {
-      if (dateStr == null || dateStr.isEmpty) return null;
+    DateTime? parseDate(dynamic dateValue) {
+      if (dateValue == null) return null;
+      if (dateValue is DateTime) return dateValue;
+      if (dateValue is String && dateValue.isEmpty) return null;
       try {
-        return DateTime.parse(dateStr);
+        return DateTime.parse(dateValue.toString());
       } catch (e) {
         return null;
       }
     }
 
+    // Helper function to safely convert to string
+    String safeToString(dynamic value, [String defaultValue = '']) {
+      if (value == null) return defaultValue;
+      if (value is String) return value;
+      if (value is Map || value is List)
+        return defaultValue; // Don't convert complex objects
+      return value.toString();
+    }
+
+    Map<String, dynamic> _buildSafeAdditionalInfo(Map<String, dynamic> data) {
+      final additionalInfo = <String, dynamic>{};
+
+      // Safely add basic fields
+      if (data['source_file'] != null) {
+        additionalInfo['source_file'] = safeToString(data['source_file']);
+      }
+      if (data['id_sprzedaz'] != null) {
+        additionalInfo['id_sprzedaz'] = safeToString(data['id_sprzedaz']);
+      }
+
+      // Safely merge nested additionalInfo
+      final nestedInfo = data['additionalInfo'];
+      if (nestedInfo is Map<String, dynamic>) {
+        nestedInfo.forEach((key, value) {
+          // Only add simple values to avoid type issues
+          if (value is! Map && value is! List) {
+            additionalInfo[key] = value;
+          }
+        });
+      }
+
+      return additionalInfo;
+    }
+
+    // Support both Polish field names (legacy) and English field names (getUnifiedProducts)
     return Investment(
-      id: data['id'] ?? '',
-      clientId: data['id_klient']?.toString() ?? '',
-      clientName: data['klient'] ?? '',
+      id: safeToString(data['id']),
+      clientId: safeToString(data['clientId'] ?? data['id_klient']),
+      clientName: safeToString(data['clientName'] ?? data['klient']),
       employeeId: '', // Not directly available
-      employeeFirstName: data['pracownik_imie'] ?? '',
-      employeeLastName: data['pracownik_nazwisko'] ?? '',
-      branchCode: data['oddzial'] ?? '',
-      status: InvestmentStatus.values.firstWhere(
-        (e) => e.displayName == data['status_produktu'],
-        orElse: () => InvestmentStatus.active,
+      employeeFirstName: safeToString(data['pracownik_imie']),
+      employeeLastName: safeToString(data['pracownik_nazwisko']),
+      branchCode: safeToString(data['oddzial']),
+      status: _parseInvestmentStatus(
+        safeToString(data['status'] ?? data['status_produktu']),
       ),
-      isAllocated: (data['przydzial'] ?? 0) == 1,
+      isAllocated: (data['przydzial'] ?? 0) == 1 || (data['isActive'] == true),
       marketType: MarketType.values.firstWhere(
-        (e) => e.displayName == data['produkt_status_wejscie'],
+        (e) => e.displayName == safeToString(data['produkt_status_wejscie']),
         orElse: () => MarketType.primary,
       ),
       signedDate:
+          parseDate(data['createdAt']) ??
           parseDate(data['data_podpisania']) ??
           parseDate(data['data_kontraktu']) ??
           DateTime.now(),
       entryDate: parseDate(data['data_wejscia_do_inwestycji']),
       exitDate: parseDate(data['data_wyjscia_z_inwestycji']),
-      proposalId: data['id_propozycja_nabycia']?.toString() ?? '',
-      productType: ProductType.values.firstWhere(
-        (e) => e.displayName == data['typ_produktu'],
-        orElse: () => ProductType.bonds,
+      proposalId: safeToString(data['id_propozycja_nabycia']),
+      productType: _parseProductType(
+        safeToString(data['productType'] ?? data['typ_produktu']),
       ),
-      productName: data['produkt_nazwa'] ?? '',
-      creditorCompany: data['wierzyciel_spolka'] ?? '',
-      companyId: data['id_spolka'] ?? '',
+      productName: safeToString(
+        data['name'] ?? data['productName'] ?? data['produkt_nazwa'],
+      ),
+      creditorCompany: safeToString(
+        data['companyName'] ?? data['wierzyciel_spolka'],
+      ),
+      companyId: safeToString(data['companyId'] ?? data['id_spolka']),
       issueDate: parseDate(data['data_emisji']),
       redemptionDate: parseDate(data['data_wykupu']),
       sharesCount: data['ilosc_udzialow'],
-      investmentAmount: safeToDouble(data['kwota_inwestycji']) != 0
+      investmentAmount: safeToDouble(data['investmentAmount']) != 0
+          ? safeToDouble(data['investmentAmount'])
+          : safeToDouble(data['kwota_inwestycji']) != 0
           ? safeToDouble(data['kwota_inwestycji'])
           : safeToDouble(data['wartosc_kontraktu']),
       paidAmount: safeToDouble(data['kwota_wplat']),
@@ -637,7 +687,9 @@ class FirebaseFunctionsDataService extends BaseService {
           : safeToDouble(data['realizedCapital']),
       realizedInterest: safeToDouble(data['odsetki_zrealizowane']),
       transferToOtherProduct: safeToDouble(data['przekaz_na_inny_produkt']),
-      remainingCapital: safeToDouble(data['kapital_pozostaly']) != 0
+      remainingCapital: safeToDouble(data['totalValue']) != 0
+          ? safeToDouble(data['totalValue'])
+          : safeToDouble(data['kapital_pozostaly']) != 0
           ? safeToDouble(data['kapital_pozostaly'])
           : safeToDouble(data['remainingCapital']) != 0
           ? safeToDouble(data['remainingCapital'])
@@ -649,12 +701,52 @@ class FirebaseFunctionsDataService extends BaseService {
       exchangeRate: null,
       createdAt: parseDate(data['created_at']) ?? DateTime.now(),
       updatedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
-      additionalInfo: {
-        'source_file': data['source_file'],
-        'id_sprzedaz': data['id_sprzedaz'],
-        ...data['additionalInfo'] ?? {},
-      },
+      additionalInfo: _buildSafeAdditionalInfo(data),
     );
+  }
+
+  /// Helper function to parse investment status from string
+  static InvestmentStatus _parseInvestmentStatus(String? status) {
+    if (status == null) return InvestmentStatus.active;
+
+    switch (status.toLowerCase()) {
+      case 'active':
+      case 'aktywny':
+        return InvestmentStatus.active;
+      case 'inactive':
+      case 'nieaktywny':
+        return InvestmentStatus.inactive;
+      case 'completed':
+      case 'zakończony':
+        return InvestmentStatus.completed;
+      case 'earlyredemption':
+      case 'wykup wczesniejszy':
+        return InvestmentStatus.earlyRedemption;
+      default:
+        return InvestmentStatus.active;
+    }
+  }
+
+  /// Helper function to parse product type from string
+  static ProductType _parseProductType(String? productType) {
+    if (productType == null) return ProductType.bonds;
+
+    switch (productType.toLowerCase()) {
+      case 'bonds':
+      case 'obligacje':
+        return ProductType.bonds;
+      case 'loans':
+      case 'pozyczki':
+        return ProductType.loans;
+      case 'shares':
+      case 'udzialy':
+        return ProductType.shares;
+      case 'apartments':
+      case 'mieszkania':
+        return ProductType.apartments;
+      default:
+        return ProductType.bonds;
+    }
   }
 }
 

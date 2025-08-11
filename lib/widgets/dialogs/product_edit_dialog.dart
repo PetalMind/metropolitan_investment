@@ -668,7 +668,6 @@ class _ProductEditDialogState extends State<ProductEditDialog>
             'Ostatnia aktualizacja:',
             _formatDate(widget.product.uploadedAt),
           ),
-          _buildInfoRow('Źródło danych:', widget.product.sourceFile),
         ],
       ),
     );

@@ -12,6 +12,7 @@ export 'models/apartment.dart';
 export 'models/unified_product.dart';
 export 'models/investor_summary.dart';
 export 'models/excel_import_models.dart';
+export 'models/voting_status_change.dart';
 
 // Analytics models exports
 export 'models/analytics/overview_analytics_models.dart';
@@ -24,26 +25,37 @@ export 'services/integrated_client_service.dart';
 export 'services/client_notes_service.dart';
 export 'services/client_id_mapping_service.dart';
 export 'services/enhanced_client_id_mapping_service.dart';
-export 'services/client_mapping_diagnostic_service.dart';
 export 'services/employee_service.dart';
 export 'services/investment_service.dart';
 export 'services/product_service.dart';
 export 'services/company_service.dart';
-export 'services/bond_service.dart';
-export 'services/loan_service.dart';
-export 'services/share_service.dart';
-export 'services/apartment_service.dart';
 export 'services/unified_product_service.dart';
 export 'services/enhanced_unified_product_service.dart';
 export 'services/deduplicated_product_service.dart';
+export 'services/firebase_functions_data_service.dart' hide ClientsResult;
+export 'services/firebase_functions_products_service.dart' hide ProductStatistics;
+export 'services/firebase_functions_product_investors_service.dart';
+export 'services/firebase_functions_advanced_analytics_service.dart';
+export 'services/firebase_functions_analytics_service_updated.dart' hide ClientsResult, ProductInvestorsResult, PaginationInfo, ProductTypeStatistics;
 export 'services/dashboard_service.dart';
 export 'services/auth_service.dart';
 export 'services/email_service.dart';
 export 'services/user_preferences_service.dart';
-export 'services/advanced_analytics_service.dart';
-export 'services/investor_analytics_service.dart';
-export 'services/product_investors_service.dart';
+export 'services/advanced_analytics_service.dart' hide AdvancedDashboardMetrics;
+export 'services/investor_analytics_service.dart' hide InvestorAnalyticsResult;
 export 'services/standard_product_investors_service.dart';
+
+// New voting and analytics services
+export 'services/enhanced_voting_status_service.dart';
+export 'services/voting_status_change_service.dart';
+export 'services/unified_statistics_utils.dart';
+export 'services/debug_firestore_service.dart';
+
+// Legacy services (deprecated)
+export 'services/bond_service.dart';
+export 'services/loan_service.dart';
+export 'services/share_service.dart';
+export 'services/apartment_service.dart';
 
 // Widget exports - Logo and branding components
 export 'widgets/metropolitan_components.dart';

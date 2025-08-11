@@ -727,20 +727,6 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         color: AppTheme.backgroundSecondary.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline, size: 16, color: AppTheme.textTertiary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Źródło danych: ${widget.product.sourceFile}',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

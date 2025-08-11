@@ -1,8 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../services/bond_service.dart';
-import '../services/loan_service.dart';
-import '../services/share_service.dart';
-import '../services/apartment_service.dart';
+import '../models_and_services.dart';
 import '../services/investment_service.dart';
 import '../services/client_service.dart';
 import '../services/employee_service.dart';
@@ -10,10 +7,6 @@ import '../services/firebase_functions_data_service.dart';
 import 'base_service.dart';
 
 class DashboardService extends BaseService {
-  final BondService _bondService = BondService();
-  final LoanService _loanService = LoanService();
-  final ShareService _shareService = ShareService();
-  final ApartmentService _apartmentService = ApartmentService();
   final InvestmentService _investmentService = InvestmentService();
   final ClientService _clientService = ClientService();
   final EmployeeService _employeeService = EmployeeService();
@@ -97,99 +90,75 @@ class DashboardService extends BaseService {
     });
   }
 
-  // Legacy method - get complete dashboard data
+  // Legacy method - get complete dashboard data (now uses unified services)
   Future<Map<String, dynamic>> getDashboardData() async {
     return getCachedData('dashboard_complete', () async {
       try {
         // Execute all requests in parallel for better performance
+        // Now using unified investment service for all product types
         final results = await Future.wait([
-          _bondService.getBondsStatistics(),
-          _loanService.getLoansStatistics(),
-          _shareService.getSharesStatistics(),
-          _apartmentService.getApartmentStatistics(),
           _investmentService.getInvestmentStatistics(),
           _clientService.getClientStats(),
           _employeeService.getEmployeesCount(),
         ]);
 
-        final bondsStats = results[0] as Map<String, dynamic>;
-        final loansStats = results[1] as Map<String, dynamic>;
-        final sharesStats = results[2] as Map<String, dynamic>;
-        final apartmentsStats = results[3] as Map<String, dynamic>;
-        final investmentStats = results[4] as Map<String, dynamic>;
-        final clientStats = results[5] as Map<String, dynamic>;
-        final employeesCount = results[6] as int;
+        final investmentStats = results[0] as Map<String, dynamic>;
+        final clientStats = results[1] as Map<String, dynamic>;
+        final employeesCount = results[2] as int;
 
-        // Calculate total portfolio value - tylko kapital_pozostaly
-        final totalBondsValue = bondsStats['total_remaining_capital'] ?? 0.0;
-        final totalLoansValue = loansStats['total_investment_amount'] ?? 0.0;
-        final totalSharesValue = sharesStats['total_investment_amount'] ?? 0.0;
-        final totalApartmentsValue = apartmentsStats['totalValue'] ?? 0.0;
-        final totalInvestmentsValue = investmentStats['totalValue'] ?? 0.0;
+        // Calculate total portfolio value from unified investment stats
+        final totalPortfolioValue = investmentStats['totalValue'] ?? 0.0;
 
-        final totalPortfolioValue =
-            totalBondsValue +
-            totalLoansValue +
-            totalSharesValue +
-            totalApartmentsValue +
-            totalInvestmentsValue;
-
-        // Calculate current value - tylko kapital_pozostaly dla obligacji
-        final bondsCurrentValue = bondsStats['total_remaining_capital'] ?? 0.0;
-        final apartmentsCurrentValue =
-            apartmentsStats['totalRemainingCapital'] ??
-            apartmentsStats['totalValue'] ??
-            0.0;
+        // Calculate current value from unified investment stats
+        final currentValue = investmentStats['totalRemainingCapital'] ?? 0.0;
+        0.0;
 
         return {
-          // Overview stats
+          // Overview stats - now from unified investment statistics
           'total_portfolio_value': totalPortfolioValue,
           'total_clients': clientStats['total_clients'] ?? 0,
           'total_employees': employeesCount,
           'total_active_investments': investmentStats['activeCount'] ?? 0,
 
-          // Detailed breakdowns
-          'bonds': {
-            'count': bondsStats['total_count'] ?? 0,
-            'total_value': totalBondsValue, // tylko kapital_pozostaly
-            'current_value': bondsCurrentValue, // tylko kapital_pozostaly
-            'realized_profit': 0.0, // nie uwzględniamy zrealizowanych zysków
-            'remaining_capital': bondsStats['total_remaining_capital'] ?? 0.0,
-            'remaining_interest': 0.0, // nie uwzględniamy odsetek
-            'product_types': bondsStats['product_type_counts'] ?? {},
-          },
-
-          'loans': {
-            'count': loansStats['total_count'] ?? 0,
-            'total_value': totalLoansValue,
-            'average_amount': loansStats['average_loan_amount'] ?? 0.0,
-            'product_types': loansStats['product_type_counts'] ?? {},
-          },
-
-          'shares': {
-            'count': sharesStats['total_count'] ?? 0,
-            'total_value': totalSharesValue,
-            'total_shares_count': sharesStats['total_shares_count'] ?? 0,
-            'average_price_per_share':
-                sharesStats['average_price_per_share'] ?? 0.0,
-            'product_types': sharesStats['product_type_counts'] ?? {},
-          },
-
-          'apartments': {
-            'count': apartmentsStats['totalApartments'] ?? 0,
-            'total_value': totalApartmentsValue,
-            'current_value': apartmentsCurrentValue,
-            'average_area': apartmentsStats['averageArea'] ?? 0.0,
-            'status_distribution': apartmentsStats['statusDistribution'] ?? {},
-            'type_distribution': apartmentsStats['typeDistribution'] ?? {},
-          },
-
+          // Unified investments (replaces individual product type stats)
           'investments': {
             'total_count': investmentStats['totalCount'] ?? 0,
             'active_count': investmentStats['activeCount'] ?? 0,
-            'inactive_count': investmentStats['inactiveCount'] ?? 0,
-            'total_value': totalInvestmentsValue,
-            'product_types': investmentStats['productTypes'] ?? {},
+            'total_value': totalPortfolioValue,
+            'current_value': currentValue,
+            'product_type_distribution':
+                investmentStats['productTypeDistribution'] ?? {},
+            'status_distribution': investmentStats['statusDistribution'] ?? {},
+          },
+
+          // Legacy sections (maintained for backward compatibility - now use unified data)
+          'bonds': {
+            'count': investmentStats['bondCount'] ?? 0,
+            'total_value': investmentStats['bondValue'] ?? 0.0,
+            'current_value': investmentStats['bondRemainingCapital'] ?? 0.0,
+            'remaining_capital': investmentStats['bondRemainingCapital'] ?? 0.0,
+          },
+
+          'loans': {
+            'count': investmentStats['loanCount'] ?? 0,
+            'total_value': investmentStats['loanValue'] ?? 0.0,
+            'average_amount': investmentStats['averageLoanAmount'] ?? 0.0,
+          },
+
+          'shares': {
+            'count': investmentStats['shareCount'] ?? 0,
+            'total_value': investmentStats['shareValue'] ?? 0.0,
+            'total_shares_count': investmentStats['totalSharesCount'] ?? 0,
+            'average_price_per_share':
+                investmentStats['averageSharePrice'] ?? 0.0,
+          },
+
+          'apartments': {
+            'count': investmentStats['apartmentCount'] ?? 0,
+            'total_value': investmentStats['apartmentValue'] ?? 0.0,
+            'current_value':
+                investmentStats['apartmentRemainingCapital'] ?? 0.0,
+            'average_area': investmentStats['averageApartmentArea'] ?? 0.0,
           },
 
           'clients': {
@@ -202,32 +171,11 @@ class DashboardService extends BaseService {
             'company_percentage': clientStats['company_percentage'] ?? '0',
           },
 
-          // Performance metrics - tylko kapital_pozostaly dla obligacji
+          // Performance metrics - unified approach
           'performance': {
-            'total_profit_loss': 0.0, // nie uwzględniamy profit/loss
-            'bonds_performance': 0.0, // nie uwzględniamy performance
-            'portfolio_diversification': {
-              'bonds_percentage': totalPortfolioValue > 0
-                  ? (totalBondsValue / totalPortfolioValue * 100)
-                        .toStringAsFixed(1)
-                  : '0',
-              'loans_percentage': totalPortfolioValue > 0
-                  ? (totalLoansValue / totalPortfolioValue * 100)
-                        .toStringAsFixed(1)
-                  : '0',
-              'shares_percentage': totalPortfolioValue > 0
-                  ? (totalSharesValue / totalPortfolioValue * 100)
-                        .toStringAsFixed(1)
-                  : '0',
-              'apartments_percentage': totalPortfolioValue > 0
-                  ? (totalApartmentsValue / totalPortfolioValue * 100)
-                        .toStringAsFixed(1)
-                  : '0',
-              'investments_percentage': totalPortfolioValue > 0
-                  ? (totalInvestmentsValue / totalPortfolioValue * 100)
-                        .toStringAsFixed(1)
-                  : '0',
-            },
+            'total_profit_loss': 0.0, // Simplified - not tracking detailed P&L
+            'portfolio_diversification':
+                investmentStats['productTypeDistribution'] ?? {},
           },
 
           // Timestamps
@@ -244,20 +192,76 @@ class DashboardService extends BaseService {
     });
   }
 
-  // Get top performers across all asset types
+  // Get top performers across all asset types (now unified)
   Future<Map<String, dynamic>> getTopPerformers() async {
     return getCachedData('top_performers', () async {
       try {
-        final results = await Future.wait([
-          _bondService.getTopPerformingBonds(limit: 5),
-          _shareService.getSharesWithHighestValue(limit: 5),
-          _loanService.getLargestLoans(limit: 5),
-        ]);
+        // Get active investments and sort by remaining capital
+        final investmentsStream = _investmentService.getInvestmentsByStatus(
+          InvestmentStatus.active,
+        );
+        final allInvestments = await investmentsStream.first;
+
+        // Sort by remaining capital descending and take top 15
+        allInvestments.sort(
+          (a, b) => b.remainingCapital.compareTo(a.remainingCapital),
+        );
+        final topInvestments = allInvestments.take(15).toList();
+
+        // Group by product type
+        final topBonds = topInvestments
+            .where(
+              (inv) =>
+                  inv.productType.toString().toLowerCase().contains('bond'),
+            )
+            .take(5)
+            .toList();
+        final topShares = topInvestments
+            .where(
+              (inv) =>
+                  inv.productType.toString().toLowerCase().contains('share'),
+            )
+            .take(5)
+            .toList();
+        final topLoans = topInvestments
+            .where(
+              (inv) =>
+                  inv.productType.toString().toLowerCase().contains('loan'),
+            )
+            .take(5)
+            .toList();
 
         return {
-          'top_bonds': results[0],
-          'top_shares': results[1],
-          'largest_loans': results[2],
+          'top_bonds': topBonds
+              .map(
+                (inv) => {
+                  'id': inv.id,
+                  'clientName': inv.clientName,
+                  'remainingCapital': inv.remainingCapital,
+                  'productName': inv.productName,
+                },
+              )
+              .toList(),
+          'top_shares': topShares
+              .map(
+                (inv) => {
+                  'id': inv.id,
+                  'clientName': inv.clientName,
+                  'remainingCapital': inv.remainingCapital,
+                  'productName': inv.productName,
+                },
+              )
+              .toList(),
+          'largest_loans': topLoans
+              .map(
+                (inv) => {
+                  'id': inv.id,
+                  'clientName': inv.clientName,
+                  'remainingCapital': inv.remainingCapital,
+                  'productName': inv.productName,
+                },
+              )
+              .toList(),
           'last_updated': DateTime.now().toIso8601String(),
         };
       } catch (e) {
@@ -312,10 +316,11 @@ class DashboardService extends BaseService {
     try {
       final List<Map<String, dynamic>> alerts = [];
 
-      // Check for bonds with remaining capital - zmienione z wysokich odsetek na kapitał pozostały
-      final bondsStats = await _bondService.getBondsStatistics();
+      // Check investment statistics (now unified)
+      final investmentStats = await _investmentService
+          .getInvestmentStatistics();
       final totalRemainingCapital =
-          bondsStats['total_remaining_capital'] ?? 0.0;
+          investmentStats['totalRemainingCapital'] ?? 0.0;
 
       if (totalRemainingCapital > 100000) {
         alerts.add({
@@ -323,7 +328,7 @@ class DashboardService extends BaseService {
           'title': 'Wysoki kapitał pozostały',
           'message':
               'Kapitał pozostały do dyspozycji: ${totalRemainingCapital.toStringAsFixed(0)} PLN',
-          'action': 'bonds_view',
+          'action': 'investments_view',
         });
       }
 

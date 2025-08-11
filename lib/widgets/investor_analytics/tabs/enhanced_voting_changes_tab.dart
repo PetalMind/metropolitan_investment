@@ -1,34 +1,872 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/investor_summary.dart';
-import '../../../models/voting_status_change.dart';
-import '../../../services/enhanced_voting_status_service.dart';
+import '../../../models/client.dart'; // For VotingStatus enum
 import '../../../services/voting_status_change_service.dart';
-import '../../../theme/app_theme.dart';
+import '../../../services/enhanced_voting_status_service.dart';
 
+/// Enhanced voting changes tab with pagination, filtering and statistics
 class EnhancedVotingChangesTab extends StatefulWidget {
   final InvestorSummary investor;
 
-  const EnhancedVotingChangesTab({
-    super.key,
-    required this.investor,
-  });
+  const EnhancedVotingChangesTab({super.key, required this.investor});
 
   @override
   State<EnhancedVotingChangesTab> createState() => _EnhancedVotingChangesTabState();
 }
 
 class _EnhancedVotingChangesTabState extends State<EnhancedVotingChangesTab> {
+  final VotingStatusChangeService _changeService = VotingStatusChangeService();
   final EnhancedVotingStatusService _votingService = EnhancedVotingStatusService();
-  
-  List<VotingStatusChange> _changes = [];
+
+  List<VotingStatusChangeRecord> _changes = [];
   VotingStatusStatistics? _statistics;
   bool _isLoading = true;
+  bool _isLoadingMore = false;
   String? _error;
-  bool _showStatistics = false;
-  DocumentSnapshot? _lastDocument;
-  bool _hasMoreData = true;
-  final ScrollController _scrollController = ScrollController();
+  
+  // Pagination
+  int _currentPage = 1;
+  final int _pageSize = 20;
+  bool _hasMorePages = true;
+
+  // Filtering
+  String? _selectedChangeType;
+  DateTimeRange? _selectedDateRange;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    await Future.wait([
+      _loadChanges(refresh: true),
+      _loadStatistics(),
+    ]);
+  }
+
+  Future<void> _loadChanges({bool refresh = false}) async {
+    if (refresh) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+        _currentPage = 1;
+        _hasMorePages = true;
+        _changes.clear();
+      });
+    } else {
+      setState(() => _isLoadingMore = true);
+    }
+
+    try {
+      List<VotingStatusChangeRecord> newChanges = [];
+      
+      // Get changes for this client
+      newChanges = await _changeService.getClientVotingStatusHistory(widget.investor.client.id);
+      
+      // If no changes found and excelId exists, try that
+      if (newChanges.isEmpty && widget.investor.client.excelId != null) {
+        newChanges = await _changeService.getClientVotingStatusHistory(widget.investor.client.excelId!);
+      }
+
+      if (mounted) {
+        setState(() {
+          _changes = changes;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(),
+          const SizedBox(height: 16),
+          Expanded(child: _buildContent()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        Icon(Icons.analytics, color: AppTheme.primaryColor),
+        const SizedBox(width: 8),
+        Text(
+          'Zaawansowana Historia Zmian',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryColor,
+          ),
+        ),
+        const Spacer(),
+        IconButton(
+          onPressed: _loadChanges,
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Odśwież',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            const SizedBox(height: 16),
+            Text('Błąd: $_error'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadChanges,
+              child: const Text('Spróbuj ponownie'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_changes.isEmpty) {
+      return const Center(
+        child: Text('Brak danych'),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _changes.length,
+      itemBuilder: (context, index) {
+        final change = _changes[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              child: Text('${index + 1}'),
+            ),
+            title: Text('Zmiana statusu'),
+            subtitle: Text('${change.oldStatus.displayName} → ${change.newStatus.displayName}'),
+            trailing: Text(_formatDate(change.timestamp)),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+}
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChanges();
+  }
+
+  Future<void> _loadChanges() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      List<VotingStatusChangeRecord> changes = [];
+      
+      changes = await _changeService.getClientVotingStatusHistory(widget.investor.client.id);
+      
+      if (changes.isEmpty && widget.investor.client.excelId != null) {
+        changes = await _changeService.getClientVotingStatusHistory(widget.investor.client.excelId!);
+      }
+
+      if (mounted) {
+        setState(() {
+          _changes = changes;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(),
+          const SizedBox(height: 16),
+          Expanded(child: _buildContent()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        Icon(Icons.analytics, color: AppTheme.primaryColor),
+        const SizedBox(width: 8),
+        Text(
+          'Zaawansowana Historia Zmian',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryColor,
+          ),
+        ),
+        const Spacer(),
+        IconButton(
+          onPressed: _loadChanges,
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Odśwież',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            const SizedBox(height: 16),
+            Text('Błąd: $_error'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadChanges,
+              child: const Text('Spróbuj ponownie'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_changes.isEmpty) {
+      return const Center(
+        child: Text('Brak danych'),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _changes.length,
+      itemBuilder: (context, index) {
+        final change = _changes[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              child: Text('${index + 1}'),
+            ),
+            title: Text('Zmiana statusu'),
+            subtitle: Text('${change.oldStatus.displayName} → ${change.newStatus.displayName}'),
+            trailing: Text(_formatDate(change.timestamp)),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+}
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChanges();
+  }
+
+  Future<void> _loadChanges() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      List<VotingStatusChangeRecord> changes = [];
+      
+      // Try by client ID first
+      changes = await _changeService.getClientVotingStatusHistory(widget.investor.client.id);
+      
+      // If empty and excelId exists, try that
+      if (changes.isEmpty && widget.investor.client.excelId != null) {
+        changes = await _changeService.getClientVotingStatusHistory(widget.investor.client.excelId!);
+      }
+
+      print('✅ [EnhancedVotingChangesTab] Loaded ${changes.length} changes for ${widget.investor.client.name}');
+
+      if (mounted) {
+        setState(() {
+          _changes = changes;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('❌ [EnhancedVotingChangesTab] Error loading changes: $e');
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(),
+          const SizedBox(height: 16),
+          if (_showStatistics) ...[
+            _buildStatisticsCard(),
+            const SizedBox(height: 16),
+          ],
+          Expanded(child: _buildContent()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        Icon(Icons.analytics, color: AppTheme.primaryColor),
+        const SizedBox(width: 8),
+        Text(
+          'Zaawansowana Historia Zmian',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryColor,
+          ),
+        ),
+        const Spacer(),
+        IconButton(
+          onPressed: () {
+            setState(() {
+              _showStatistics = !_showStatistics;
+            });
+          },
+          icon: Icon(_showStatistics ? Icons.analytics_outlined : Icons.analytics),
+          tooltip: _showStatistics ? 'Ukryj statystyki' : 'Pokaż statystyki',
+        ),
+        IconButton(
+          onPressed: _loadChanges,
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Odśwież',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatisticsCard() {
+    final totalChanges = _changes.length;
+    if (totalChanges == 0) {
+      return const SizedBox.shrink();
+    }
+
+    // Calculate basic statistics
+    final statusChanges = <String, int>{};
+    DateTime? earliest, latest;
+
+    for (final change in _changes) {
+      final status = change.newStatus.displayName;
+      statusChanges[status] = (statusChanges[status] ?? 0) + 1;
+      
+      if (earliest == null || change.timestamp.isBefore(earliest)) {
+        earliest = change.timestamp;
+      }
+      if (latest == null || change.timestamp.isAfter(latest)) {
+        latest = change.timestamp;
+      }
+    }
+
+    final mostCommonStatus = statusChanges.entries.isEmpty 
+        ? 'N/A' 
+        : statusChanges.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.bar_chart, color: AppTheme.primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Statystyki zmian',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatItem(
+                    'Łączna liczba zmian',
+                    totalChanges.toString(),
+                    Icons.timeline,
+                  ),
+                ),
+                Expanded(
+                  child: _buildStatItem(
+                    'Najczęstszy status',
+                    mostCommonStatus,
+                    Icons.trending_up,
+                  ),
+                ),
+              ],
+            ),
+            if (earliest != null && latest != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatItem(
+                      'Pierwsza zmiana',
+                      _formatDate(earliest),
+                      Icons.first_page,
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildStatItem(
+                      'Ostatnia zmiana',
+                      _formatDate(latest),
+                      Icons.last_page,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: Colors.grey[600]),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Ładowanie zaawansowanych danych...'),
+          ],
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            const SizedBox(height: 16),
+            Text(
+              'Błąd podczas ładowania danych',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadChanges,
+              child: const Text('Spróbuj ponownie'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_changes.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.history_toggle_off, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Brak danych do analizy',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ten inwestor nie ma jeszcze żadnych zapisanych zmian statusu głosowania.',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _changes.length,
+      itemBuilder: (context, index) {
+        final change = _changes[index];
+        return _buildEnhancedChangeCard(change, index);
+      },
+    );
+  }
+
+  Widget _buildEnhancedChangeCard(VotingStatusChangeRecord change, int index) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12.0),
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: _getStatusColor(change.newStatus).withOpacity(0.2),
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _getStatusColor(change.newStatus),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Zmiana statusu głosowania',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatDate(change.timestamp),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(change.newStatus).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _getStatusColor(change.newStatus).withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    change.newStatus.displayName,
+                    style: TextStyle(
+                      color: _getStatusColor(change.newStatus),
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildDetailedStatusChange(change),
+            if (change.reason.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildReasonSection(change.reason),
+            ],
+            if (change.metadata.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildMetadataSection(change.metadata),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailedStatusChange(VotingStatusChangeRecord change) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Poprzedni status',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    change.oldStatus.displayName,
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Icon(Icons.arrow_forward, size: 20),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Nowy status',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(change.newStatus).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _getStatusColor(change.newStatus).withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    change.newStatus.displayName,
+                    style: TextStyle(
+                      color: _getStatusColor(change.newStatus),
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReasonSection(String reason) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.comment, size: 16, color: Colors.blue[700]),
+              const SizedBox(width: 8),
+              Text(
+                'Powód zmiany',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.blue[700],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            reason,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetadataSection(Map<String, dynamic> metadata) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orange[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.info_outline, size: 16, color: Colors.orange[700]),
+              const SizedBox(width: 8),
+              Text(
+                'Dodatkowe informacje',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.orange[700],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...metadata.entries.map((entry) => Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 80,
+                  child: Text(
+                    '${entry.key}:',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    entry.value.toString(),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(dynamic status) {
+    final statusString = status.toString().toLowerCase();
+    
+    if (statusString.contains('yes') || statusString.contains('tak')) {
+      return Colors.green;
+    } else if (statusString.contains('no') || statusString.contains('nie')) {
+      return Colors.red;
+    } else if (statusString.contains('abstain') || statusString.contains('wstrzymuje')) {
+      return Colors.orange;
+    } else {
+      return Colors.grey;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year} '
+           '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}
 
   @override
   void initState() {
@@ -58,27 +896,17 @@ class _EnhancedVotingChangesTabState extends State<EnhancedVotingChangesTab> {
         _error = null;
       });
 
-      // Spróbuj różne metody identyfikacji klienta
-      List<VotingStatusChange> changes = [];
+      // Use VotingStatusChangeService to get the data
+      List<VotingStatusChangeRecord> changes = [];
+      final changeService = VotingStatusChangeService();
 
-      // 1. Sprawdź po investorId (główny identyfikator)
-      changes = await _votingService.getVotingStatusHistory(
-        widget.investor.client.id,
-        limit: 20,
-      );
-
-      if (changes.isEmpty) {
-        // 2. Sprawdź po clientId przez VotingStatusChangeService
-        final changeService = VotingStatusChangeService();
-        changes = await changeService.getChangesForClient(widget.investor.client.id);
-        changes = changes.take(20).toList();
+      // 1. Try by client ID first
+      changes = await changeService.getClientVotingStatusHistory(widget.investor.client.id);
+      
+      // 2. If empty and excelId exists, try that
+      if (changes.isEmpty && widget.investor.client.excelId != null) {
+        changes = await changeService.getClientVotingStatusHistory(widget.investor.client.excelId!);
       }
-
-      // 3. Sprawdź po excelId jeśli istnieje
-      if (changes.isEmpty && widget.investor.client.excelId != null && widget.investor.client.excelId!.isNotEmpty) {
-        final changeService = VotingStatusChangeService();
-        changes = await changeService.getChangesForClient(widget.investor.client.excelId!);
-        changes = changes.take(20).toList();
       }
 
       print('✅ [EnhancedVotingChangesTab] Znaleziono ${changes.length} zmian w historii');

@@ -144,7 +144,6 @@ class FirebaseFunctionsDialogsUpdated {
                 Text(
                   '⬅️ Ma poprzednią: ${clientsResult.hasPreviousPage ? "Tak" : "Nie"}',
                 ),
-                Text('🔥 Źródło: ${clientsResult.source}'),
                 if (clientsResult.processingTime != null)
                   Text(
                     '⚡ Czas przetwarzania: ${clientsResult.processingTime}ms',

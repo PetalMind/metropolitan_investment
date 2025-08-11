@@ -70,7 +70,6 @@ class FirebaseFunctionsDialogs {
                 Text(
                   '🕒 Ostatnia aktualizacja: ${DateFormat('dd.MM.yyyy HH:mm').format(stats.lastUpdated)}',
                 ),
-                Text('🔥 Źródło: ${stats.source}'),
               ],
             ),
           ),

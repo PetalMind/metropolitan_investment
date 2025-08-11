@@ -4,15 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
-import '../models/client.dart';
-import '../models/investor_summary.dart';
+import '../models_and_services.dart';
 import '../services/firebase_functions_analytics_service_updated.dart'
     as ff_service;
 import '../services/investor_analytics_service.dart' as ia_service;
 import '../widgets/investor_details_modal.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/voting_analysis_manager.dart';
-import '../models/investment.dart';
 
 /// 📊 VIEW MODES FOR DATA PRESENTATION
 enum ViewMode {
@@ -116,7 +114,7 @@ class _PremiumInvestorAnalyticsScreenState
 
   // 🖼️ VIEW CONFIGURATION
   bool _isFilterVisible = false;
-  bool _showDeduplicatedProducts = false;
+  bool _showDeduplicatedProducts = true; // Domyślnie pokazuj deduplikowane produkty
 
   // 📊 VIEW MODES
   ViewMode _investorsViewMode = ViewMode.cards;
@@ -672,7 +670,7 @@ class _PremiumInvestorAnalyticsScreenState
       _includeInactive = false;
       _showOnlyWithUnviableInvestments = false;
       _showOnlyMajorityHolders = false;
-      _showDeduplicatedProducts = false;
+      _showDeduplicatedProducts = true; // Domyślnie deduplikowane produkty
       _minCapitalFilter = 0.0;
       _maxCapitalFilter = double.infinity;
       _searchQuery = '';
