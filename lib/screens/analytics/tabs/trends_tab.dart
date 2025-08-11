@@ -183,7 +183,7 @@ class _TrendsTabState extends State<TrendsTab> with TickerProviderStateMixin {
 
   Widget _buildTrendMetrics() {
     final isTablet = MediaQuery.of(context).size.width > 768;
-    
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -270,10 +270,7 @@ class _TrendsTabState extends State<TrendsTab> with TickerProviderStateMixin {
           const SizedBox(height: 4),
           Text(
             secondaryValue,
-            style: TextStyle(
-              fontSize: 12,
-              color: AppThemePro.textSecondary,
-            ),
+            style: TextStyle(fontSize: 12, color: AppThemePro.textSecondary),
             textAlign: TextAlign.center,
           ),
         ],
@@ -343,7 +340,11 @@ class _TrendsTabState extends State<TrendsTab> with TickerProviderStateMixin {
             ),
             child: Row(
               children: [
-                Icon(Icons.psychology, color: AppThemePro.statusSuccess, size: 28),
+                Icon(
+                  Icons.psychology,
+                  color: AppThemePro.statusSuccess,
+                  size: 28,
+                ),
                 const SizedBox(width: 16),
                 Text(
                   'Prognozy i Predykcje',
@@ -360,10 +361,8 @@ class _TrendsTabState extends State<TrendsTab> with TickerProviderStateMixin {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: predictions.length,
-            separatorBuilder: (context, index) => Divider(
-              height: 1,
-              color: AppThemePro.borderPrimary,
-            ),
+            separatorBuilder: (context, index) =>
+                Divider(height: 1, color: AppThemePro.borderPrimary),
             itemBuilder: (context, index) {
               final prediction = predictions[index];
               final color = prediction['color'] as Color;
@@ -437,7 +436,10 @@ class _TrendsTabState extends State<TrendsTab> with TickerProviderStateMixin {
                         ),
                         const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: color.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),

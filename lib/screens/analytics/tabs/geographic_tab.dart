@@ -11,7 +11,8 @@ class GeographicTab extends StatefulWidget {
   State<GeographicTab> createState() => _GeographicTabState();
 }
 
-class _GeographicTabState extends State<GeographicTab> with TickerProviderStateMixin {
+class _GeographicTabState extends State<GeographicTab>
+    with TickerProviderStateMixin {
   bool _isLoading = false;
   String? _error;
   late AnimationController _animationController;
@@ -129,11 +130,7 @@ class _GeographicTabState extends State<GeographicTab> with TickerProviderStateM
                 width: 2,
               ),
             ),
-            child: Icon(
-              Icons.public,
-              size: 64,
-              color: AppThemePro.statusInfo,
-            ),
+            child: Icon(Icons.public, size: 64, color: AppThemePro.statusInfo),
           ),
           const SizedBox(height: 24),
           Text(
@@ -183,7 +180,7 @@ class _GeographicTabState extends State<GeographicTab> with TickerProviderStateM
 
   Widget _buildGeographicMetrics() {
     final isTablet = MediaQuery.of(context).size.width > 768;
-    
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -270,10 +267,7 @@ class _GeographicTabState extends State<GeographicTab> with TickerProviderStateM
           const SizedBox(height: 4),
           Text(
             secondaryValue,
-            style: TextStyle(
-              fontSize: 12,
-              color: AppThemePro.textSecondary,
-            ),
+            style: TextStyle(fontSize: 12, color: AppThemePro.textSecondary),
             textAlign: TextAlign.center,
           ),
         ],
@@ -349,7 +343,11 @@ class _GeographicTabState extends State<GeographicTab> with TickerProviderStateM
             ),
             child: Row(
               children: [
-                Icon(Icons.leaderboard, color: AppThemePro.accentGold, size: 28),
+                Icon(
+                  Icons.leaderboard,
+                  color: AppThemePro.accentGold,
+                  size: 28,
+                ),
                 const SizedBox(width: 16),
                 Text(
                   'Najlepsze Regiony',
@@ -366,14 +364,12 @@ class _GeographicTabState extends State<GeographicTab> with TickerProviderStateM
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: regions.length,
-            separatorBuilder: (context, index) => Divider(
-              height: 1,
-              color: AppThemePro.borderPrimary,
-            ),
+            separatorBuilder: (context, index) =>
+                Divider(height: 1, color: AppThemePro.borderPrimary),
             itemBuilder: (context, index) {
               final region = regions[index];
               Color positionColor;
-              
+
               switch (index) {
                 case 0:
                   positionColor = AppThemePro.accentGold;
@@ -440,7 +436,10 @@ class _GeographicTabState extends State<GeographicTab> with TickerProviderStateM
                                   fontSize: 12,
                                 ),
                               ),
-                              Text(' • ', style: TextStyle(color: AppThemePro.textMuted)),
+                              Text(
+                                ' • ',
+                                style: TextStyle(color: AppThemePro.textMuted),
+                              ),
                               Text(
                                 '${region['share']} udziału',
                                 style: TextStyle(
@@ -465,7 +464,10 @@ class _GeographicTabState extends State<GeographicTab> with TickerProviderStateM
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: AppThemePro.statusSuccess.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),

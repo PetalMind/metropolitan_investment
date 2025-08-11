@@ -11,6 +11,7 @@ import '../services/firebase_functions_products_service.dart';
 import '../services/firebase_functions_product_investors_service.dart';
 import '../services/deduplicated_product_service.dart';
 import '../adapters/product_statistics_adapter.dart';
+import '../widgets/dialogs/deduplicated_product_details_dialog.dart';
 import '../widgets/premium_loading_widget.dart';
 import '../widgets/premium_error_widget.dart';
 import '../widgets/product_card_widget.dart';
@@ -62,6 +63,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   List<DeduplicatedProduct> _deduplicatedProducts = [];
   List<DeduplicatedProduct> _filteredDeduplicatedProducts = [];
   ProductStatistics? _statistics;
+  DeduplicationStats? _deduplicationStats;
   UnifiedProductsMetadata? _metadata;
   bool _isLoading = true;
   bool _isRefreshing = false;
@@ -303,7 +305,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         _filteredProducts = [targetProduct!];
       });
 
-      // Automatycznie otwórz szczegóły tego produktu po krótkim opóżnieniu
+      // Automatycznie otwórz szczegóły tego produktu po krótkim opóźnieniu
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
           _showProductDetails(targetProduct!);
@@ -412,11 +414,13 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         ),
         _productService.getProductStatistics(),
         _deduplicatedProductService.getAllUniqueProducts(),
+        _deduplicatedProductService.getDeduplicationStats(),
       ]);
 
       final productsResult = results[0] as UnifiedProductsResult;
       final statistics = results[1] as ProductStatistics;
       final deduplicatedProducts = results[2] as List<DeduplicatedProduct>;
+      final deduplicationStats = results[3] as DeduplicationStats;
 
       if (mounted) {
         setState(() {
@@ -427,6 +431,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           _deduplicatedProducts = deduplicatedProducts;
           _filteredDeduplicatedProducts = List.from(deduplicatedProducts);
           _statistics = statistics;
+          _deduplicationStats = deduplicationStats;
           _metadata = productsResult.metadata;
           _isLoading = false;
         });
@@ -1343,91 +1348,21 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   }
 
   void _showDeduplicatedProductDetails(DeduplicatedProduct product) {
-    print(
-      '🔍 [ProductsManagement] Pokazywanie szczegółów deduplikowanego produktu:',
-    );
-    print('  - Nazwa: "${product.name}"');
-    print('  - Typ: ${product.productType.displayName}');
-    print('  - ID: ${product.id}');
-    print('  - Wartość: ${product.totalValue}');
-
-    // Konwertujemy DeduplicatedProduct na UnifiedProduct
-    final unifiedProduct = _convertDeduplicatedToUnified(product);
-
-    print(
-      '✅ [ProductsManagement] Konwersja zakończona, wywołuję EnhancedProductDetailsDialog',
-    );
-
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) {
-        print('🎯 [ProductsManagement] Builder dialogu wywołany');
-        return EnhancedProductDetailsDialog(
-          product: unifiedProduct,
-          onShowInvestors: () => _showProductInvestors(unifiedProduct),
-        );
-      },
-    );
-  }
-
-  /// Konwertuje DeduplicatedProduct na UnifiedProduct
-  UnifiedProduct _convertDeduplicatedToUnified(DeduplicatedProduct deduped) {
-    return UnifiedProduct(
-      id: deduped.id,
-      name: deduped.name,
-      productType: deduped.productType,
-      investmentAmount: deduped.totalValue,
-      createdAt: deduped.earliestInvestmentDate,
-      uploadedAt: deduped.latestInvestmentDate,
-      sourceFile: 'Deduplikowane z ${deduped.totalInvestments} inwestycji',
-      status: deduped.status,
-      companyName: deduped.companyName,
-      companyId: deduped.companyId,
-      maturityDate: deduped.maturityDate,
-      interestRate: deduped.interestRate,
-      remainingCapital: deduped.totalRemainingCapital,
-      currency: 'PLN',
-      originalProduct: deduped,
-      additionalInfo: {
-        'isDeduplicated': true,
-        'totalInvestments': deduped.totalInvestments,
-        'uniqueInvestors': deduped.uniqueInvestors,
-        'averageInvestment': deduped.averageInvestment,
-        'duplicationRatio': deduped.duplicationRatio,
-        'hasDuplicates': deduped.hasDuplicates,
-        'capitalReturnPercentage': deduped.capitalReturnPercentage,
-        'originalInvestmentIds': deduped.originalInvestmentIds,
-        'deduplication_stats': {
-          'earliestDate': deduped.earliestInvestmentDate.toIso8601String(),
-          'latestDate': deduped.latestInvestmentDate.toIso8601String(),
-          'dateRange': deduped.latestInvestmentDate
-              .difference(deduped.earliestInvestmentDate)
-              .inDays,
-        },
-        ...deduped.metadata,
-      },
+      builder: (context) => DeduplicatedProductDetailsDialog(product: product),
     );
   }
 
   void _showProductDetails(UnifiedProduct product) {
-    print(
-      '🔍 [ProductsManagement] Pokazywanie szczegółów normalnego produktu:',
-    );
-    print('  - Nazwa: "${product.name}"');
-    print('  - Typ: ${product.productType.displayName}');
-    print('  - ID: ${product.id}');
-
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) {
-        print('🎯 [ProductsManagement] Builder normalnego dialogu wywołany');
-        return EnhancedProductDetailsDialog(
-          product: product,
-          onShowInvestors: () => _showProductInvestors(product),
-        );
-      },
+      builder: (context) => EnhancedProductDetailsDialog(
+        product: product,
+        onShowInvestors: () => _showProductInvestors(product),
+      ),
     );
   }
 

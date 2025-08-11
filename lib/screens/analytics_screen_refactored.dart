@@ -16,12 +16,12 @@ class AnalyticsScreenRefactored extends StatefulWidget {
   const AnalyticsScreenRefactored({super.key});
 
   @override
-  State<AnalyticsScreenRefactored> createState() => _AnalyticsScreenRefactoredState();
+  State<AnalyticsScreenRefactored> createState() =>
+      _AnalyticsScreenRefactoredState();
 }
 
 class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
     with TickerProviderStateMixin {
-  
   // UI State
   int _selectedTimeRange = 12;
   String _selectedAnalyticsTab = 'overview';
@@ -34,7 +34,7 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
   // Tab definitions
   final List<_TabInfo> _tabs = [
     _TabInfo('overview', 'Przegląd', Icons.dashboard),
-    _TabInfo('performance', 'Wydajność', Icons.trending_up), 
+    _TabInfo('performance', 'Wydajność', Icons.trending_up),
     _TabInfo('risk', 'Ryzyko', Icons.warning_amber),
     _TabInfo('employees', 'Pracownicy', Icons.people),
     _TabInfo('geography', 'Geografia', Icons.map),
@@ -90,10 +90,7 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppThemePro.primaryDark,
-            AppThemePro.primaryMedium,
-          ],
+          colors: [AppThemePro.primaryDark, AppThemePro.primaryMedium],
         ),
         boxShadow: [
           BoxShadow(
@@ -113,11 +110,12 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
                   children: [
                     Text(
                       'Zaawansowana Analityka',
-                      style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                        color: AppThemePro.textPrimary,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.5,
-                      ),
+                      style: Theme.of(context).textTheme.displayMedium
+                          ?.copyWith(
+                            color: AppThemePro.textPrimary,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.5,
+                          ),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -148,7 +146,10 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
         ElevatedButton.icon(
           onPressed: _exportReport,
           icon: Icon(Icons.download, color: AppThemePro.primaryDark),
-          label: Text('Eksport', style: TextStyle(color: AppThemePro.primaryDark)),
+          label: Text(
+            'Eksport',
+            style: TextStyle(color: AppThemePro.primaryDark),
+          ),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppThemePro.accentGold,
             foregroundColor: AppThemePro.primaryDark,
@@ -226,24 +227,25 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
               borderRadius: BorderRadius.circular(8),
               border: isSelected
                   ? null
-                  : Border.all(
-                      color: AppThemePro.borderPrimary,
-                      width: 1,
-                    ),
+                  : Border.all(color: AppThemePro.borderPrimary, width: 1),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   tab.icon,
-                  color: isSelected ? AppThemePro.primaryDark : AppThemePro.accentGold,
+                  color: isSelected
+                      ? AppThemePro.primaryDark
+                      : AppThemePro.accentGold,
                   size: 24,
                 ),
                 const SizedBox(height: 6),
                 Text(
                   tab.label,
                   style: TextStyle(
-                    color: isSelected ? AppThemePro.primaryDark : AppThemePro.textPrimary,
+                    color: isSelected
+                        ? AppThemePro.primaryDark
+                        : AppThemePro.textPrimary,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                     fontSize: 13,
                     letterSpacing: 0.2,
@@ -324,7 +326,10 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
           'Eksport raportu',
-          style: TextStyle(color: AppThemePro.textPrimary, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppThemePro.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,

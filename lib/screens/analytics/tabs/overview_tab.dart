@@ -29,7 +29,7 @@ class _OverviewTabState extends State<OverviewTab> {
   bool get _isTablet => MediaQuery.of(context).size.width > 768;
   bool get _isDesktop => MediaQuery.of(context).size.width > 1200;
 
-    @override
+  @override
   void initState() {
     super.initState();
     _loadData();
@@ -39,19 +39,19 @@ class _OverviewTabState extends State<OverviewTab> {
   /// 🔍 TEST: Połączenie z Firestore i debug danych
   void _testFirestoreConnection() async {
     print('\n🚀 === OVERVIEW TAB: TEST POŁĄCZENIA ===\n');
-    
+
     try {
       // Użyj nowej metody debug z serwisu
       final debugResult = await _service.debugRealData();
-      
+
       print('📊 Debug wynik z Overview Tab:');
       print('  • Timestamp: ${debugResult['timestamp']}');
-      
+
       if (debugResult.containsKey('error')) {
         print('❌ Błąd debug: ${debugResult['error']}');
       } else {
         print('✅ Debug zakończony pomyślnie');
-        
+
         // Wyświetl rekomendacje w UI jeśli są
         final recommendations = debugResult['recommendations'] as List?;
         if (recommendations != null && recommendations.isNotEmpty) {
@@ -63,10 +63,9 @@ class _OverviewTabState extends State<OverviewTab> {
           );
         }
       }
-      
     } catch (e) {
       print('❌ Błąd testu połączenia: $e');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

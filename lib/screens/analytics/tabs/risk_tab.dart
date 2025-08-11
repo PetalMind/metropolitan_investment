@@ -183,7 +183,7 @@ class _RiskTabState extends State<RiskTab> with TickerProviderStateMixin {
 
   Widget _buildRiskMetricsGrid() {
     final isTablet = MediaQuery.of(context).size.width > 768;
-    
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -284,10 +284,7 @@ class _RiskTabState extends State<RiskTab> with TickerProviderStateMixin {
           const SizedBox(height: 4),
           Text(
             secondaryValue,
-            style: TextStyle(
-              fontSize: 12,
-              color: AppThemePro.textSecondary,
-            ),
+            style: TextStyle(fontSize: 12, color: AppThemePro.textSecondary),
             textAlign: TextAlign.center,
           ),
         ],

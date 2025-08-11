@@ -11,7 +11,8 @@ class EmployeesTab extends StatefulWidget {
   State<EmployeesTab> createState() => _EmployeesTabState();
 }
 
-class _EmployeesTabState extends State<EmployeesTab> with TickerProviderStateMixin {
+class _EmployeesTabState extends State<EmployeesTab>
+    with TickerProviderStateMixin {
   bool _isLoading = false;
   String? _error;
   late AnimationController _animationController;
@@ -183,7 +184,7 @@ class _EmployeesTabState extends State<EmployeesTab> with TickerProviderStateMix
 
   Widget _buildTeamMetricsGrid() {
     final isTablet = MediaQuery.of(context).size.width > 768;
-    
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -284,10 +285,7 @@ class _EmployeesTabState extends State<EmployeesTab> with TickerProviderStateMix
           const SizedBox(height: 4),
           Text(
             secondaryValue,
-            style: TextStyle(
-              fontSize: 12,
-              color: AppThemePro.textSecondary,
-            ),
+            style: TextStyle(fontSize: 12, color: AppThemePro.textSecondary),
             textAlign: TextAlign.center,
           ),
         ],
@@ -356,7 +354,11 @@ class _EmployeesTabState extends State<EmployeesTab> with TickerProviderStateMix
             ),
             child: Row(
               children: [
-                Icon(Icons.leaderboard, color: AppThemePro.accentGold, size: 28),
+                Icon(
+                  Icons.leaderboard,
+                  color: AppThemePro.accentGold,
+                  size: 28,
+                ),
                 const SizedBox(width: 16),
                 Text(
                   'Top 5 Pracowników',
@@ -373,15 +375,13 @@ class _EmployeesTabState extends State<EmployeesTab> with TickerProviderStateMix
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: topPerformers.length,
-            separatorBuilder: (context, index) => Divider(
-              height: 1,
-              color: AppThemePro.borderPrimary,
-            ),
+            separatorBuilder: (context, index) =>
+                Divider(height: 1, color: AppThemePro.borderPrimary),
             itemBuilder: (context, index) {
               final performer = topPerformers[index];
               final position = performer['position'] as int;
               Color positionColor;
-              
+
               switch (position) {
                 case 1:
                   positionColor = AppThemePro.accentGold;
@@ -448,7 +448,10 @@ class _EmployeesTabState extends State<EmployeesTab> with TickerProviderStateMix
                                   fontSize: 12,
                                 ),
                               ),
-                              Text(' • ', style: TextStyle(color: AppThemePro.textMuted)),
+                              Text(
+                                ' • ',
+                                style: TextStyle(color: AppThemePro.textMuted),
+                              ),
                               Text(
                                 '${performer['conversion']} konwersja',
                                 style: TextStyle(

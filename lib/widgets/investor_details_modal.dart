@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../models/client.dart';
 import '../models/investor_summary.dart';
 import '../models/investment.dart';
+import '../models/unified_product.dart';
+import '../models/product.dart';
 import '../services/investor_analytics_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
@@ -49,6 +51,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
   bool _hasChanges = false;
   bool _isSaving = false; // 🔄 Stan ładowania podczas zapisywania
+  bool _showDeduplicatedProducts = false; // 📦 Toggle deduplikacji produktów
 
   @override
   void initState() {
@@ -928,7 +931,70 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   Widget _buildInvestmentsTab() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [Expanded(child: _buildInvestmentsList())],
+      children: [
+        // Toggle deduplikacji
+        Container(
+          padding: const EdgeInsets.all(12),
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: AppTheme.backgroundSecondary.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppTheme.borderSecondary),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _showDeduplicatedProducts
+                    ? Icons.layers_clear_rounded
+                    : Icons.layers_rounded,
+                color: AppTheme.primaryColor,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _showDeduplicatedProducts
+                          ? 'Widok zdeduplikowany'
+                          : 'Widok wszystkich inwestycji',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      _showDeduplicatedProducts
+                          ? 'Produkty grupowane według nazwy, typu i firmy'
+                          : 'Każda inwestycja wyświetlana osobno',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _showDeduplicatedProducts,
+                onChanged: (value) {
+                  setState(() {
+                    _showDeduplicatedProducts = value;
+                  });
+                },
+                activeColor: AppTheme.primaryColor,
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _showDeduplicatedProducts
+              ? _buildDeduplicatedProductsList()
+              : _buildInvestmentsList(),
+        ),
+      ],
     );
   }
 
@@ -1812,6 +1878,313 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
     print('🎯 [InvestorModal] Nawiguj do: ${uri.toString()}');
     context.go(uri.toString());
+  }
+
+  // Helper do konwersji ProductType do UnifiedProductType
+  UnifiedProductType _convertToUnifiedProductType(ProductType productType) {
+    switch (productType) {
+      case ProductType.bonds:
+        return UnifiedProductType.bonds;
+      case ProductType.shares:
+        return UnifiedProductType.shares;
+      case ProductType.loans:
+        return UnifiedProductType.loans;
+      case ProductType.apartments:
+        return UnifiedProductType.apartments;
+    }
+  }
+
+  Widget _buildDeduplicatedProductsList() {
+    final productGroups = <String, List<Investment>>{};
+
+    // Grupuj inwestycje według produktu
+    for (final investment in widget.investor.investments) {
+      final productKey =
+          '${investment.productName}_${investment.productType.name}_${investment.creditorCompany}';
+      productGroups.putIfAbsent(productKey, () => []);
+      productGroups[productKey]!.add(investment);
+    }
+
+    if (productGroups.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 64,
+              color: AppTheme.textSecondary.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Brak produktów',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: productGroups.length,
+      itemBuilder: (context, index) {
+        final productKey = productGroups.keys.elementAt(index);
+        final productInvestments = productGroups[productKey]!;
+        final firstInvestment = productInvestments.first;
+
+        // Oblicz zagregowane wartości
+        final totalCapital = productInvestments.fold<double>(
+          0.0,
+          (sum, inv) => sum + inv.remainingCapital,
+        );
+        final totalOriginalAmount = productInvestments.fold<double>(
+          0.0,
+          (sum, inv) => sum + inv.investmentAmount,
+        );
+
+        final hasUnviable = productInvestments.any(
+          (inv) => widget.investor.client.unviableInvestments.contains(inv.id),
+        );
+
+        return _buildDeduplicatedProductCard(
+          firstInvestment,
+          productInvestments.length,
+          totalCapital,
+          totalOriginalAmount,
+          hasUnviable,
+        );
+      },
+    );
+  }
+
+  Widget _buildDeduplicatedProductCard(
+    Investment sampleInvestment,
+    int count,
+    double totalRemaining,
+    double totalOriginal,
+    bool hasUnviable,
+  ) {
+    // Pobierz ikonę według typu produktu
+    IconData getProductIcon(Investment investment) {
+      switch (investment.productType.name) {
+        case 'bonds':
+          return Icons.description;
+        case 'shares':
+          return Icons.trending_up;
+        case 'loans':
+          return Icons.account_balance;
+        case 'apartments':
+          return Icons.home;
+        default:
+          return Icons.account_balance_wallet;
+      }
+    }
+
+    return GestureDetector(
+      onTap: () => _navigateToProductDetails(sampleInvestment),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: hasUnviable
+              ? AppTheme.warningColor.withOpacity(0.1)
+              : AppTheme.backgroundSecondary,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: hasUnviable
+                ? AppTheme.warningColor.withOpacity(0.3)
+                : AppTheme.borderSecondary,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _convertToUnifiedProductType(
+                        sampleInvestment.productType,
+                      ).color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      getProductIcon(sampleInvestment),
+                      color: _convertToUnifiedProductType(
+                        sampleInvestment.productType,
+                      ).color,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                sampleInvestment.productName,
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${count}x',
+                                style: TextStyle(
+                                  color: AppTheme.primaryColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Text(
+                              sampleInvestment.creditorCompany,
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _convertToUnifiedProductType(
+                                  sampleInvestment.productType,
+                                ).color.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                sampleInvestment.productType.displayName,
+                                style: TextStyle(
+                                  color: _convertToUnifiedProductType(
+                                    sampleInvestment.productType,
+                                  ).color,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.backgroundTertiary.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Kapitał pozostały:',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          CurrencyFormatter.formatCurrency(totalRemaining),
+                          style: TextStyle(
+                            color: AppTheme.successColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Kapitał początkowy:',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          CurrencyFormatter.formatCurrency(totalOriginal),
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (hasUnviable) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.warningColor.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.warning_rounded,
+                              color: AppTheme.warningColor,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'CZĘŚĆ NIEWYKONALNA',
+                              style: TextStyle(
+                                color: AppTheme.warningColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

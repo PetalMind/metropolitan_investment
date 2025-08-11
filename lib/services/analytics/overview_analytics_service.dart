@@ -41,7 +41,7 @@ class OverviewAnalyticsService extends BaseService {
         _getAllInvestments(timeRangeMonths),
         _getAllClients(),
       ]);
-      
+
       final investments = futures[0] as List<Investment>;
       final clients = futures[1] as List<Client>;
 
@@ -82,21 +82,25 @@ class OverviewAnalyticsService extends BaseService {
           Duration(days: timeRangeMonths * 30),
         );
         print('🔍 [DEBUG] Filtrowanie od daty: ${startDate.toIso8601String()}');
-        
+
         // Użyj Timestamp zamiast ISO string dla Firestore
         final startTimestamp = Timestamp.fromDate(startDate);
         final snapshot = await query
             .where('signingDate', isGreaterThan: startTimestamp)
             .get();
-        print('🔍 [DEBUG] Znaleziono ${snapshot.docs.length} dokumentów z filtrem czasowym');
+        print(
+          '🔍 [DEBUG] Znaleziono ${snapshot.docs.length} dokumentów z filtrem czasowym',
+        );
         return snapshot.docs
             .map((doc) => _convertInvestmentFromDocument(doc))
             .toList();
       } else {
         print('🔍 [DEBUG] Pobieranie wszystkich dokumentów (cały okres)');
         final snapshot = await query.get();
-        print('🔍 [DEBUG] Znaleziono ${snapshot.docs.length} dokumentów bez filtra');
-        
+        print(
+          '🔍 [DEBUG] Znaleziono ${snapshot.docs.length} dokumentów bez filtra',
+        );
+
         if (snapshot.docs.isNotEmpty) {
           // Debug pierwszego dokumentu
           final firstDoc = snapshot.docs.first;
@@ -110,12 +114,14 @@ class OverviewAnalyticsService extends BaseService {
           print('🔍 [DEBUG] - signingDate: ${data['signingDate']}');
           print('🔍 [DEBUG] - Wszystkie klucze: ${data.keys.toList()}');
         }
-        
+
         final investments = snapshot.docs
             .map((doc) => _convertInvestmentFromDocument(doc))
             .toList();
-        
-        print('🔍 [DEBUG] Pomyślnie przekonwertowano ${investments.length} inwestycji');
+
+        print(
+          '🔍 [DEBUG] Pomyślnie przekonwertowano ${investments.length} inwestycji',
+        );
         if (investments.isNotEmpty) {
           final first = investments.first;
           print('🔍 [DEBUG] Pierwsza inwestycja po konwersji:');
@@ -125,7 +131,7 @@ class OverviewAnalyticsService extends BaseService {
           print('🔍 [DEBUG] - remainingCapital: ${first.remainingCapital}');
           print('🔍 [DEBUG] - totalValue: ${first.totalValue}');
         }
-        
+
         return investments;
       }
     } catch (e) {
@@ -238,7 +244,9 @@ class OverviewAnalyticsService extends BaseService {
         0,
         (sum, inv) => sum + inv.totalValue,
       );
-      final percentage = totalValue > 0 ? (productValue / totalValue) * 100 : 0.0;
+      final percentage = totalValue > 0
+          ? (productValue / totalValue) * 100
+          : 0.0;
       final averageReturn = investments.isNotEmpty
           ? investments.fold<double>(
                   0,
@@ -613,7 +621,8 @@ class OverviewAnalyticsService extends BaseService {
     try {
       final investment = Investment.fromFirestore(doc);
       // Debug tylko dla pierwszych kilku dokumentów
-      if (doc.id.length < 10) { // Prosty sposób na ograniczenie debugów
+      if (doc.id.length < 10) {
+        // Prosty sposób na ograniczenie debugów
         print('🔍 [DEBUG] Konwersja dokumentu ${doc.id}:');
         print('🔍 [DEBUG] - clientName: ${investment.clientName}');
         print('🔍 [DEBUG] - investmentAmount: ${investment.investmentAmount}');
@@ -639,13 +648,17 @@ class OverviewAnalyticsService extends BaseService {
     print('\n🔍 === DEEP DEBUG: RZECZYWISTE DANE FIRESTORE ===\n');
 
     try {
-      // Użyj inspektora do analizy rzeczywistych danych  
+      // Użyj inspektora do analizy rzeczywistych danych
       final inspectionResult = await FirestoreDataInspector.inspectRealData();
-      
+
       print('📊 Wyniki inspekcji:');
-      print('  • Investments: ${inspectionResult['collections']['investments']['totalCount']} dokumentów');
-      print('  • Clients: ${inspectionResult['collections']['clients']['totalCount']} dokumentów');
-      
+      print(
+        '  • Investments: ${inspectionResult['collections']['investments']['totalCount']} dokumentów',
+      );
+      print(
+        '  • Clients: ${inspectionResult['collections']['clients']['totalCount']} dokumentów',
+      );
+
       // Wyświetl rekomendacje
       final recommendations = inspectionResult['recommendations'] as List;
       if (recommendations.isNotEmpty) {
@@ -654,15 +667,18 @@ class OverviewAnalyticsService extends BaseService {
           print('  $rec');
         }
       }
-      
+
       // Sprawdź kompatybilność modeli
       final modelCompat = inspectionResult['modelCompatibility'];
       print('\n🧪 Kompatybilność modeli:');
-      print('  • Investment: ${modelCompat['Investment']['success'] ? '✅' : '❌'} ${modelCompat['Investment']['message']}');
-      print('  • Client: ${modelCompat['Client']['success'] ? '✅' : '❌'} ${modelCompat['Client']['message']}');
-      
+      print(
+        '  • Investment: ${modelCompat['Investment']['success'] ? '✅' : '❌'} ${modelCompat['Investment']['message']}',
+      );
+      print(
+        '  • Client: ${modelCompat['Client']['success'] ? '✅' : '❌'} ${modelCompat['Client']['message']}',
+      );
+
       return inspectionResult;
-      
     } catch (e) {
       print('❌ Błąd podczas głębokiego debugowania: $e');
       return {

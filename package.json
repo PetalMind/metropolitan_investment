@@ -21,7 +21,8 @@
     "fix-missing-clients": "node fix_missing_clients.js",
     "fix-missing-clients:dry-run": "node fix_missing_clients.js --dry-run",
     "check-missing-clients": "node fix_missing_clients.js --dry-run --report",
-    "test-firebase": "node test_firebase_connection.js"
+    "test-firebase": "node test_firebase_connection.js",
+    "upload-all": "node upload_to_firebase.js"
   },
   "dependencies": {
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",

@@ -13,7 +13,7 @@ class FirestoreDataInspector {
       'collections': {},
       'fieldMappings': {},
       'modelCompatibility': {},
-      'recommendations': []
+      'recommendations': [],
     };
 
     try {
@@ -38,22 +38,32 @@ class FirestoreDataInspector {
           'id': doc.id,
           'fieldCount': data.keys.length,
           'fields': data.keys.toList(),
-          'sampleValues': <String, dynamic>{}
+          'sampleValues': <String, dynamic>{},
         };
 
         // Zbierz próbkowe wartości dla kluczowych pól
         final keyFields = [
-          'clientName', 'klient', 'Klient',
-          'investmentAmount', 'kwota_inwestycji', 'Kwota_inwestycji',
-          'remainingCapital', 'kapital_pozostaly', 'Kapital Pozostaly',
-          'productType', 'typ_produktu', 'Typ_produktu'
+          'clientName',
+          'klient',
+          'Klient',
+          'investmentAmount',
+          'kwota_inwestycji',
+          'Kwota_inwestycji',
+          'remainingCapital',
+          'kapital_pozostaly',
+          'Kapital Pozostaly',
+          'productType',
+          'typ_produktu',
+          'Typ_produktu',
         ];
 
         for (final field in keyFields) {
           if (data.containsKey(field)) {
-            (sampleDoc['sampleValues'] as Map<String, dynamic>)[field] = data[field];
-            (results['collections']['investments']['fieldTypes'] as Map<String, String>)[field] = 
-                data[field].runtimeType.toString();
+            (sampleDoc['sampleValues'] as Map<String, dynamic>)[field] =
+                data[field];
+            (results['collections']['investments']['fieldTypes']
+                as Map<String, String>)[field] = data[field].runtimeType
+                .toString();
           }
         }
 
@@ -64,11 +74,13 @@ class FirestoreDataInspector {
       }
 
       // Konwertuj Set na List dla JSON serialization
-      results['collections']['investments']['uniqueFields'] = 
+      results['collections']['investments']['uniqueFields'] =
           results['collections']['investments']['uniqueFields'].toList();
 
       print('📊 Znaleziono ${investmentsSnapshot.size} dokumentów investments');
-      print('📊 Unikalne pola: ${results['collections']['investments']['uniqueFields'].length}');
+      print(
+        '📊 Unikalne pola: ${results['collections']['investments']['uniqueFields'].length}',
+      );
 
       // 👥 Sprawdź kolekcję clients
       print('👥 Analizuję kolekcję clients...');
@@ -90,21 +102,28 @@ class FirestoreDataInspector {
           'id': doc.id,
           'fieldCount': data.keys.length,
           'fields': data.keys.toList(),
-          'sampleValues': <String, dynamic>{}
+          'sampleValues': <String, dynamic>{},
         };
 
         final keyFields = [
-          'fullName', 'imie_nazwisko', 'name',
-          'email', 'phone', 'telefon',
-          'companyName', 'nazwa_firmy',
-          'votingStatus'
+          'fullName',
+          'imie_nazwisko',
+          'name',
+          'email',
+          'phone',
+          'telefon',
+          'companyName',
+          'nazwa_firmy',
+          'votingStatus',
         ];
 
         for (final field in keyFields) {
           if (data.containsKey(field)) {
-            (sampleDoc['sampleValues'] as Map<String, dynamic>)[field] = data[field];
-            (results['collections']['clients']['fieldTypes'] as Map<String, String>)[field] = 
-                data[field].runtimeType.toString();
+            (sampleDoc['sampleValues'] as Map<String, dynamic>)[field] =
+                data[field];
+            (results['collections']['clients']['fieldTypes']
+                as Map<String, String>)[field] = data[field].runtimeType
+                .toString();
           }
         }
 
@@ -112,19 +131,19 @@ class FirestoreDataInspector {
         results['collections']['clients']['sampleDocuments'].add(sampleDoc);
       }
 
-      results['collections']['clients']['uniqueFields'] = 
+      results['collections']['clients']['uniqueFields'] =
           results['collections']['clients']['uniqueFields'].toList();
 
       print('👥 Znaleziono ${clientsSnapshot.size} dokumentów clients');
 
       // 🧪 Test konwersji modeli
       print('🧪 Testuję konwersję modeli...');
-      
+
       if (investmentsSnapshot.docs.isNotEmpty) {
         try {
           final investmentDoc = investmentsSnapshot.docs.first;
           final investment = Investment.fromFirestore(investmentDoc);
-          
+
           results['modelCompatibility']['Investment'] = {
             'success': true,
             'convertedId': investment.id,
@@ -132,13 +151,13 @@ class FirestoreDataInspector {
             'investmentAmount': investment.investmentAmount,
             'remainingCapital': investment.remainingCapital,
             'productType': investment.productType.name,
-            'message': 'Investment model konwersja udana'
+            'message': 'Investment model konwersja udana',
           };
         } catch (e) {
           results['modelCompatibility']['Investment'] = {
             'success': false,
             'error': e.toString(),
-            'message': 'Błąd konwersji Investment model'
+            'message': 'Błąd konwersji Investment model',
           };
         }
       }
@@ -147,7 +166,7 @@ class FirestoreDataInspector {
         try {
           final clientDoc = clientsSnapshot.docs.first;
           final client = Client.fromFirestore(clientDoc);
-          
+
           results['modelCompatibility']['Client'] = {
             'success': true,
             'convertedId': client.id,
@@ -155,13 +174,13 @@ class FirestoreDataInspector {
             'email': client.email,
             'phone': client.phone,
             'votingStatus': client.votingStatus.name,
-            'message': 'Client model konwersja udana'
+            'message': 'Client model konwersja udana',
           };
         } catch (e) {
           results['modelCompatibility']['Client'] = {
             'success': false,
             'error': e.toString(),
-            'message': 'Błąd konwersji Client model'
+            'message': 'Błąd konwersji Client model',
           };
         }
       }
@@ -170,7 +189,6 @@ class FirestoreDataInspector {
       _generateRecommendations(results);
 
       print('✅ Analiza zakończona pomyślnie');
-      
     } catch (e) {
       print('❌ Błąd podczas analizy: $e');
       results['error'] = e.toString();
@@ -183,25 +201,39 @@ class FirestoreDataInspector {
     final recommendations = <String>[];
 
     // Sprawdź mappingi pól investments
-    final investmentFields = results['collections']['investments']['uniqueFields'] as List;
-    
-    if (investmentFields.contains('clientName') && investmentFields.contains('klient')) {
-      recommendations.add('🔄 Investments: Zarówno "clientName" jak i "klient" są obecne - sprawdź mapowanie');
-    }
-    
-    if (investmentFields.contains('investmentAmount') && investmentFields.contains('kwota_inwestycji')) {
-      recommendations.add('💰 Investments: Duplikaty pól kwoty inwestycji - możliwa normalizacja');
+    final investmentFields =
+        results['collections']['investments']['uniqueFields'] as List;
+
+    if (investmentFields.contains('clientName') &&
+        investmentFields.contains('klient')) {
+      recommendations.add(
+        '🔄 Investments: Zarówno "clientName" jak i "klient" są obecne - sprawdź mapowanie',
+      );
     }
 
-    if (investmentFields.contains('remainingCapital') && investmentFields.contains('kapital_pozostaly')) {
-      recommendations.add('💰 Investments: Duplikaty pól kapitału pozostałego - sprawdź mapowanie');
+    if (investmentFields.contains('investmentAmount') &&
+        investmentFields.contains('kwota_inwestycji')) {
+      recommendations.add(
+        '💰 Investments: Duplikaty pól kwoty inwestycji - możliwa normalizacja',
+      );
     }
 
-    // Sprawdź mappingi pól clients  
-    final clientFields = results['collections']['clients']['uniqueFields'] as List;
-    
-    if (clientFields.contains('fullName') && clientFields.contains('imie_nazwisko')) {
-      recommendations.add('👤 Clients: Zarówno "fullName" jak i "imie_nazwisko" są obecne - sprawdź mapowanie');
+    if (investmentFields.contains('remainingCapital') &&
+        investmentFields.contains('kapital_pozostaly')) {
+      recommendations.add(
+        '💰 Investments: Duplikaty pól kapitału pozostałego - sprawdź mapowanie',
+      );
+    }
+
+    // Sprawdź mappingi pól clients
+    final clientFields =
+        results['collections']['clients']['uniqueFields'] as List;
+
+    if (clientFields.contains('fullName') &&
+        clientFields.contains('imie_nazwisko')) {
+      recommendations.add(
+        '👤 Clients: Zarówno "fullName" jak i "imie_nazwisko" są obecne - sprawdź mapowanie',
+      );
     }
 
     // Sprawdź kompatybilność modeli
@@ -218,59 +250,67 @@ class FirestoreDataInspector {
     // Sprawdź liczby dokumentów
     final investmentCount = results['collections']['investments']['totalCount'];
     final clientCount = results['collections']['clients']['totalCount'];
-    
+
     if (investmentCount == 0 && clientCount > 0) {
-      recommendations.add('⚠️ 0 investments vs $clientCount clients - prawdopodobnie błąd w query lub indeksach');
+      recommendations.add(
+        '⚠️ 0 investments vs $clientCount clients - prawdopodobnie błąd w query lub indeksach',
+      );
     }
 
     results['recommendations'] = recommendations;
   }
 
   /// 🔍 Sprawdź konkretny dokument investment
-  static Future<Map<String, dynamic>> inspectInvestmentDocument(String docId) async {
+  static Future<Map<String, dynamic>> inspectInvestmentDocument(
+    String docId,
+  ) async {
     try {
       final doc = await _firestore.collection('investments').doc(docId).get();
-      
+
       if (!doc.exists) {
         return {'error': 'Dokument $docId nie istnieje'};
       }
 
       final data = doc.data()!;
-      
+
       return {
         'id': doc.id,
         'exists': doc.exists,
         'fieldCount': data.keys.length,
         'allFields': data.keys.toList(),
         'fieldValues': data,
-        'fieldTypes': data.map((key, value) => MapEntry(key, value.runtimeType.toString())),
+        'fieldTypes': data.map(
+          (key, value) => MapEntry(key, value.runtimeType.toString()),
+        ),
       };
-      
     } catch (e) {
       return {'error': e.toString()};
     }
   }
 
-  /// 🔍 Sprawdź konkretny dokument client  
-  static Future<Map<String, dynamic>> inspectClientDocument(String docId) async {
+  /// 🔍 Sprawdź konkretny dokument client
+  static Future<Map<String, dynamic>> inspectClientDocument(
+    String docId,
+  ) async {
     try {
       final doc = await _firestore.collection('clients').doc(docId).get();
-      
+
       if (!doc.exists) {
         return {'error': 'Dokument $docId nie istnieje'};
       }
 
       final data = doc.data()!;
-      
+
       return {
         'id': doc.id,
         'exists': doc.exists,
         'fieldCount': data.keys.length,
         'allFields': data.keys.toList(),
         'fieldValues': data,
-        'fieldTypes': data.map((key, value) => MapEntry(key, value.runtimeType.toString())),
+        'fieldTypes': data.map(
+          (key, value) => MapEntry(key, value.runtimeType.toString()),
+        ),
       };
-      
     } catch (e) {
       return {'error': e.toString()};
     }
@@ -279,16 +319,13 @@ class FirestoreDataInspector {
   /// 📊 Statystyki wszystkich kolekcji
   static Future<Map<String, dynamic>> getCollectionStats() async {
     final stats = <String, dynamic>{};
-    
+
     final collections = ['investments', 'clients', 'products', 'employees'];
-    
+
     for (final collection in collections) {
       try {
         final snapshot = await _firestore.collection(collection).count().get();
-        stats[collection] = {
-          'count': snapshot.count,
-          'exists': true,
-        };
+        stats[collection] = {'count': snapshot.count, 'exists': true};
       } catch (e) {
         stats[collection] = {
           'count': 0,
@@ -297,7 +334,7 @@ class FirestoreDataInspector {
         };
       }
     }
-    
+
     return stats;
   }
 }

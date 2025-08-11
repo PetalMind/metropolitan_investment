@@ -61,15 +61,35 @@ class InvestorSummary {
       totalInvestmentAmount += investment.investmentAmount;
       totalRealizedCapital += investment.realizedCapital;
 
-      // 🏗️ PRÓBUJ POBRAĆ DODATKOWE POLA Z ADDITIONALINFO - dla aparamentów i innych produktów
-      if (investment.additionalInfo['kapital_zabezpieczony_nieruchomoscia'] !=
+      // 🏗️ PRÓBUJ POBRAĆ DODATKOWE POLA Z ADDITIONALINFO - dla apartamentów i innych produktów
+      // Mapowanie dla kapitału zabezpieczonego nieruchomością
+      if (investment.additionalInfo['realEstateSecuredCapital'] != null) {
+        final value = investment.additionalInfo['realEstateSecuredCapital'];
+        capitalSecuredByRealEstate += parseCapitalValue(value);
+      } else if (investment
+              .additionalInfo['Kapitał zabezpieczony nieruchomością'] !=
+          null) {
+        final value =
+            investment.additionalInfo['Kapitał zabezpieczony nieruchomością'];
+        capitalSecuredByRealEstate += parseCapitalValue(value);
+      } else if (investment
+              .additionalInfo['kapital_zabezpieczony_nieruchomoscia'] !=
           null) {
         final value =
             investment.additionalInfo['kapital_zabezpieczony_nieruchomoscia'];
         capitalSecuredByRealEstate += parseCapitalValue(value);
       }
 
-      if (investment.additionalInfo['kapital_do_restrukturyzacji'] != null) {
+      // Mapowanie dla kapitału do restrukturyzacji
+      if (investment.additionalInfo['capitalForRestructuring'] != null) {
+        final value = investment.additionalInfo['capitalForRestructuring'];
+        capitalForRestructuring += parseCapitalValue(value);
+      } else if (investment.additionalInfo['Kapitał do restrukturyzacji'] !=
+          null) {
+        final value = investment.additionalInfo['Kapitał do restrukturyzacji'];
+        capitalForRestructuring += parseCapitalValue(value);
+      } else if (investment.additionalInfo['kapital_do_restrukturyzacji'] !=
+          null) {
         final value = investment.additionalInfo['kapital_do_restrukturyzacji'];
         capitalForRestructuring += parseCapitalValue(value);
       }

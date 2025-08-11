@@ -17,9 +17,11 @@ class DebugFirestoreService {
           .collection('investments')
           .limit(3)
           .get();
-      
-      print('🔍 [DEBUG] - Znaleziono ${investmentsSnapshot.docs.length} dokumentów investments');
-      
+
+      print(
+        '🔍 [DEBUG] - Znaleziono ${investmentsSnapshot.docs.length} dokumentów investments',
+      );
+
       if (investmentsSnapshot.docs.isNotEmpty) {
         for (int i = 0; i < investmentsSnapshot.docs.length; i++) {
           final doc = investmentsSnapshot.docs[i];
@@ -29,15 +31,19 @@ class DebugFirestoreService {
           print('🔍 [DEBUG]   - productType: ${data['productType']}');
           print('🔍 [DEBUG]   - investmentAmount: ${data['investmentAmount']}');
           print('🔍 [DEBUG]   - remainingCapital: ${data['remainingCapital']}');
-          print('🔍 [DEBUG]   - signingDate: ${data['signingDate']} (type: ${data['signingDate'].runtimeType})');
-          
+          print(
+            '🔍 [DEBUG]   - signingDate: ${data['signingDate']} (type: ${data['signingDate'].runtimeType})',
+          );
+
           // Test konwersji do modelu
           try {
             final investment = Investment.fromFirestore(doc);
             print('🔍 [DEBUG]   - Model konwersja: ✅ SUCCESS');
             print('🔍 [DEBUG]   - Model clientName: ${investment.clientName}');
             print('🔍 [DEBUG]   - Model totalValue: ${investment.totalValue}');
-            print('🔍 [DEBUG]   - Model productType: ${investment.productType}');
+            print(
+              '🔍 [DEBUG]   - Model productType: ${investment.productType}',
+            );
           } catch (e) {
             print('🔍 [DEBUG]   - Model konwersja: ❌ ERROR - $e');
           }
@@ -52,9 +58,11 @@ class DebugFirestoreService {
           .collection('clients')
           .limit(3)
           .get();
-      
-      print('🔍 [DEBUG] - Znaleziono ${clientsSnapshot.docs.length} dokumentów clients');
-      
+
+      print(
+        '🔍 [DEBUG] - Znaleziono ${clientsSnapshot.docs.length} dokumentów clients',
+      );
+
       if (clientsSnapshot.docs.isNotEmpty) {
         for (int i = 0; i < clientsSnapshot.docs.length; i++) {
           final doc = clientsSnapshot.docs[i];
@@ -63,7 +71,7 @@ class DebugFirestoreService {
           print('🔍 [DEBUG]   - fullName: ${data['fullName']}');
           print('🔍 [DEBUG]   - companyName: ${data['companyName']}');
           print('🔍 [DEBUG]   - email: ${data['email']}');
-          
+
           // Test konwersji do modelu
           try {
             final client = Client.fromFirestore(doc);
@@ -79,22 +87,29 @@ class DebugFirestoreService {
 
       // Test 3: Sprawdź inne kolekcje
       print('🔍 [DEBUG] Test 3: Sprawdzanie innych kolekcji...');
-      final collections = ['products', 'bonds', 'shares', 'loans', 'apartments'];
-      
+      final collections = [
+        'products',
+        'bonds',
+        'shares',
+        'loans',
+        'apartments',
+      ];
+
       for (final collectionName in collections) {
         try {
           final snapshot = await _firestore
               .collection(collectionName)
               .limit(1)
               .get();
-          print('🔍 [DEBUG] - Kolekcja $collectionName: ${snapshot.docs.length} dokumentów');
+          print(
+            '🔍 [DEBUG] - Kolekcja $collectionName: ${snapshot.docs.length} dokumentów',
+          );
         } catch (e) {
           print('🔍 [DEBUG] - Kolekcja $collectionName: ERROR - $e');
         }
       }
 
       print('🔍 [DEBUG] === KONIEC TESTU FIRESTORE ===');
-
     } catch (e) {
       print('❌ [ERROR] Test Firestore connection failed: $e');
       rethrow;
@@ -118,7 +133,9 @@ class DebugFirestoreService {
           .limit(5)
           .get();
 
-      print('🔍 [DEBUG] - Znaleziono ${filteredSnapshot.docs.length} dokumentów z filtrem daty');
+      print(
+        '🔍 [DEBUG] - Znaleziono ${filteredSnapshot.docs.length} dokumentów z filtrem daty',
+      );
 
       // Test: Zapytanie po productType
       final apartmentQuery = await _firestore
@@ -127,8 +144,9 @@ class DebugFirestoreService {
           .limit(5)
           .get();
 
-      print('🔍 [DEBUG] - Znaleziono ${apartmentQuery.docs.length} apartamentów');
-
+      print(
+        '🔍 [DEBUG] - Znaleziono ${apartmentQuery.docs.length} apartamentów',
+      );
     } catch (e) {
       print('❌ [ERROR] Test specific queries failed: $e');
       rethrow;

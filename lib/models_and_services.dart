@@ -35,6 +35,7 @@ export 'services/share_service.dart';
 export 'services/apartment_service.dart';
 export 'services/unified_product_service.dart';
 export 'services/enhanced_unified_product_service.dart';
+export 'services/deduplicated_product_service.dart';
 export 'services/dashboard_service.dart';
 export 'services/auth_service.dart';
 export 'services/email_service.dart';

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'bond.dart';
 import 'share.dart';
 import 'loan.dart';
@@ -240,7 +241,7 @@ class UnifiedProduct implements IUnifiedProduct {
   factory UnifiedProduct.fromApartment(Apartment apartment) {
     return UnifiedProduct(
       id: apartment.id,
-      name: apartment.projectName?.isNotEmpty == true
+      name: apartment.projectName.isNotEmpty
           ? '${apartment.projectName} - ${apartment.apartmentNumber}'
           : 'Apartament ${apartment.apartmentNumber}',
       productType: UnifiedProductType.apartments,
@@ -873,4 +874,23 @@ enum SortDirection {
 
   const SortDirection(this.displayName);
   final String displayName;
+}
+
+/// Rozszerzenie dla UnifiedProductType dodające kolory
+extension UnifiedProductTypeColors on UnifiedProductType {
+  /// Zwraca kolor dla danego typu produktu
+  Color get color {
+    switch (this) {
+      case UnifiedProductType.bonds:
+        return const Color(0xFF2196F3); // Niebieski
+      case UnifiedProductType.shares:
+        return const Color(0xFF4CAF50); // Zielony
+      case UnifiedProductType.loans:
+        return const Color(0xFFFF9800); // Pomarańczowy
+      case UnifiedProductType.apartments:
+        return const Color(0xFF9C27B0); // Fioletowy
+      case UnifiedProductType.other:
+        return const Color(0xFF607D8B); // Szary
+    }
+  }
 }

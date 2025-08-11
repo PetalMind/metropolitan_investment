@@ -357,9 +357,11 @@ class Investment {
         // Dodaj dodatkowe pola które mogą być przydatne
         'realEstateSecuredCapital':
             data['realEstateSecuredCapital'] ??
+            data['Kapitał zabezpieczony nieruchomością'] ??
             data['kapital_zabezpieczony_nieruchomoscia'],
         'capitalForRestructuring':
             data['capitalForRestructuring'] ??
+            data['Kapitał do restrukturyzacji'] ??
             data['kapital_do_restrukturyzacji'],
         'repaymentDate': data['repaymentDate'] ?? data['data_splaty'],
         'disbursementDate': data['disbursementDate'] ?? data['data_udzielenia'],
@@ -475,12 +477,22 @@ class Investment {
       'zabezpieczenie':
           additionalInfo['collateral'] ?? additionalInfo['zabezpieczenie'],
       'realEstateSecuredCapital': additionalInfo['realEstateSecuredCapital'],
+      'Kapitał zabezpieczony nieruchomością':
+          additionalInfo['realEstateSecuredCapital'] ??
+          additionalInfo['Kapitał zabezpieczony nieruchomością'] ??
+          additionalInfo['kapital_zabezpieczony_nieruchomoscia'],
       'kapital_zabezpieczony_nieruchomoscia':
           additionalInfo['realEstateSecuredCapital'] ??
+          additionalInfo['Kapitał zabezpieczony nieruchomością'] ??
           additionalInfo['kapital_zabezpieczony_nieruchomoscia'],
       'capitalForRestructuring': additionalInfo['capitalForRestructuring'],
+      'Kapitał do restrukturyzacji':
+          additionalInfo['capitalForRestructuring'] ??
+          additionalInfo['Kapitał do restrukturyzacji'] ??
+          additionalInfo['kapital_do_restrukturyzacji'],
       'kapital_do_restrukturyzacji':
           additionalInfo['capitalForRestructuring'] ??
+          additionalInfo['Kapitał do restrukturyzacji'] ??
           additionalInfo['kapital_do_restrukturyzacji'],
       'repaymentDate': additionalInfo['repaymentDate'],
       'data_splaty':

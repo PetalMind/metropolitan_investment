@@ -12,6 +12,7 @@ import '../services/investor_analytics_service.dart' as ia_service;
 import '../widgets/investor_details_modal.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/voting_analysis_manager.dart';
+import '../models/investment.dart';
 
 /// 📊 VIEW MODES FOR DATA PRESENTATION
 enum ViewMode {
@@ -115,6 +116,7 @@ class _PremiumInvestorAnalyticsScreenState
 
   // 🖼️ VIEW CONFIGURATION
   bool _isFilterVisible = false;
+  bool _showDeduplicatedProducts = false;
 
   // 📊 VIEW MODES
   ViewMode _investorsViewMode = ViewMode.cards;
@@ -670,6 +672,7 @@ class _PremiumInvestorAnalyticsScreenState
       _includeInactive = false;
       _showOnlyWithUnviableInvestments = false;
       _showOnlyMajorityHolders = false;
+      _showDeduplicatedProducts = false;
       _minCapitalFilter = 0.0;
       _maxCapitalFilter = double.infinity;
       _searchQuery = '';
@@ -1077,6 +1080,16 @@ class _PremiumInvestorAnalyticsScreenState
   Widget _buildSpecialFilters() {
     return Column(
       children: [
+        CheckboxListTile(
+          title: Text('Widok zdeduplikowanych produktów'),
+          subtitle: Text('Grupuj produkty według nazwy, typu i firmy'),
+          value: _showDeduplicatedProducts,
+          onChanged: (value) {
+            setState(() => _showDeduplicatedProducts = value ?? false);
+            // Opcjonalnie: odśwież dane jeśli potrzeba
+          },
+          activeColor: AppTheme.primaryAccent,
+        ),
         CheckboxListTile(
           title: Text(
             'Tylko posiadacze większości (≥${_majorityThreshold.toStringAsFixed(0)}%)',
@@ -3517,7 +3530,9 @@ class _PremiumInvestorAnalyticsScreenState
         Row(
           children: [
             Text(
-              'Inwestycje (${investor.investments.length})',
+              _showDeduplicatedProducts
+                  ? 'Produkty (${_getUniqueProductsCount(investor)})'
+                  : 'Inwestycje (${investor.investments.length})',
               style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 16,
@@ -3525,8 +3540,27 @@ class _PremiumInvestorAnalyticsScreenState
               ),
             ),
             const Spacer(),
+            if (_showDeduplicatedProducts)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryAccent.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'DEDUPLIKOWANE',
+                  style: TextStyle(
+                    color: AppTheme.primaryAccent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             if (investor.client.unviableInvestments.isNotEmpty)
               Container(
+                margin: EdgeInsets.only(
+                  left: _showDeduplicatedProducts ? 8 : 0,
+                ),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppTheme.warningPrimary.withOpacity(0.2),
@@ -3546,97 +3580,9 @@ class _PremiumInvestorAnalyticsScreenState
         const SizedBox(height: 12),
         Container(
           constraints: BoxConstraints(maxHeight: 200),
-          child: ListView.builder(
-            itemCount: investor.investments.length,
-            itemBuilder: (context, index) {
-              final investment = investor.investments[index];
-              final isUnviable = investor.client.unviableInvestments.contains(
-                investment.id,
-              );
-
-              return GestureDetector(
-                onTap: () {
-                  _navigateToProductDetails(investment);
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isUnviable
-                        ? AppTheme.warningPrimary.withOpacity(0.1)
-                        : AppTheme.backgroundTertiary,
-                    borderRadius: BorderRadius.circular(8),
-                    border: isUnviable
-                        ? Border.all(
-                            color: AppTheme.warningPrimary.withOpacity(0.3),
-                          )
-                        : null,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: isUnviable
-                              ? AppTheme.warningPrimary
-                              : AppTheme.successPrimary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              investment.productName,
-                              style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                              ),
-                            ),
-                            Text(
-                              '${investment.creditorCompany} • ${investment.productType.displayName}',
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            CurrencyFormatter.formatCurrencyShort(
-                              investment.remainingCapital,
-                            ),
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                          if (isUnviable)
-                            Text(
-                              'NIEWYKONALNA',
-                              style: TextStyle(
-                                color: AppTheme.warningPrimary,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+          child: _showDeduplicatedProducts
+              ? _buildDeduplicatedProductsList(investor)
+              : _buildRegularInvestmentsList(investor),
         ),
       ],
     );
@@ -4822,4 +4768,241 @@ class VotingPieChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+/// Helper extension methods for _PremiumInvestorAnalyticsScreenState
+extension _PremiumInvestorAnalyticsScreenDeduplication
+    on _PremiumInvestorAnalyticsScreenState {
+  int _getUniqueProductsCount(InvestorSummary investor) {
+    final uniqueProducts = <String>{};
+    for (final investment in investor.investments) {
+      final productKey =
+          '${investment.productName}_${investment.productType.name}_${investment.creditorCompany}';
+      uniqueProducts.add(productKey);
+    }
+    return uniqueProducts.length;
+  }
+
+  Widget _buildDeduplicatedProductsList(InvestorSummary investor) {
+    final productGroups = <String, List<Investment>>{};
+
+    // Grupuj inwestycje według produktu
+    for (final investment in investor.investments) {
+      final productKey =
+          '${investment.productName}_${investment.productType.name}_${investment.creditorCompany}';
+      productGroups.putIfAbsent(productKey, () => []);
+      productGroups[productKey]!.add(investment);
+    }
+
+    return ListView.builder(
+      itemCount: productGroups.length,
+      itemBuilder: (context, index) {
+        final productKey = productGroups.keys.elementAt(index);
+        final productInvestments = productGroups[productKey]!;
+        final firstInvestment = productInvestments.first;
+
+        // Oblicz zagregowane wartości
+        final totalCapital = productInvestments.fold<double>(
+          0.0,
+          (sum, inv) => sum + inv.remainingCapital,
+        );
+
+        final hasUnviable = productInvestments.any(
+          (inv) => investor.client.unviableInvestments.contains(inv.id),
+        );
+
+        return GestureDetector(
+          onTap: () => _navigateToProductDetails(firstInvestment),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: hasUnviable
+                  ? AppTheme.warningPrimary.withOpacity(0.1)
+                  : AppTheme.backgroundTertiary,
+              borderRadius: BorderRadius.circular(8),
+              border: hasUnviable
+                  ? Border.all(color: AppTheme.warningPrimary.withOpacity(0.3))
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: hasUnviable
+                        ? AppTheme.warningPrimary
+                        : AppTheme.successPrimary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              firstInvestment.productName,
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryAccent.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${productInvestments.length}x',
+                              style: TextStyle(
+                                color: AppTheme.primaryAccent,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '${firstInvestment.creditorCompany} • ${firstInvestment.productType.displayName}',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      CurrencyFormatter.formatCurrencyShort(totalCapital),
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    if (hasUnviable)
+                      Text(
+                        'CZĘŚĆ NIEWYKONALNA',
+                        style: TextStyle(
+                          color: AppTheme.warningPrimary,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRegularInvestmentsList(InvestorSummary investor) {
+    return ListView.builder(
+      itemCount: investor.investments.length,
+      itemBuilder: (context, index) {
+        final investment = investor.investments[index];
+        final isUnviable = investor.client.unviableInvestments.contains(
+          investment.id,
+        );
+
+        return GestureDetector(
+          onTap: () {
+            _navigateToProductDetails(investment);
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isUnviable
+                  ? AppTheme.warningPrimary.withOpacity(0.1)
+                  : AppTheme.backgroundTertiary,
+              borderRadius: BorderRadius.circular(8),
+              border: isUnviable
+                  ? Border.all(color: AppTheme.warningPrimary.withOpacity(0.3))
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: isUnviable
+                        ? AppTheme.warningPrimary
+                        : AppTheme.successPrimary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        investment.productName,
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        '${investment.creditorCompany} • ${investment.productType.displayName}',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      CurrencyFormatter.formatCurrencyShort(
+                        investment.remainingCapital,
+                      ),
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    if (isUnviable)
+                      Text(
+                        'NIEWYKONALNA',
+                        style: TextStyle(
+                          color: AppTheme.warningPrimary,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }

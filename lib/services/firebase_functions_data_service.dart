@@ -1000,24 +1000,53 @@ class ApartmentsResult {
       uploadedAt:
           DateTime.tryParse(data['uploadedAt'] as String? ?? '') ??
           DateTime.now(),
-      apartmentNumber: data['apartmentNumber'] as String? ?? '',
-      building: data['building'] as String? ?? '',
-      address: data['address'] as String? ?? '',
+
+      // Investment fields from the new model
+      saleId: data['saleId'] as String? ?? '',
+      clientId: data['clientId'] as String? ?? '',
+      clientName: data['clientName'] as String? ?? '',
+      advisor: data['advisor'] as String? ?? '',
+      branch: data['branch'] as String? ?? '',
+      productStatus: data['productStatus'] as String? ?? '',
+      marketEntry: data['marketEntry'] as String? ?? '',
+      signedDate: data['signedDate'] != null
+          ? DateTime.tryParse(data['signedDate'] as String)
+          : null,
+      investmentEntryDate: data['investmentEntryDate'] != null
+          ? DateTime.tryParse(data['investmentEntryDate'] as String)
+          : null,
+      projectName: data['projectName'] as String? ?? '',
+      creditorCompany: data['creditorCompany'] as String? ?? '',
+      companyId: data['companyId'] as String? ?? '',
+      issueDate: data['issueDate'] != null
+          ? DateTime.tryParse(data['issueDate'] as String)
+          : null,
+      redemptionDate: data['redemptionDate'] != null
+          ? DateTime.tryParse(data['redemptionDate'] as String)
+          : null,
+      shareCount: data['shareCount'] as String?,
+      paymentAmount: (data['paymentAmount'] as num?)?.toDouble() ?? 0.0,
+      realizedCapital: (data['realizedCapital'] as num?)?.toDouble() ?? 0.0,
+      transferToOtherProduct:
+          (data['transferToOtherProduct'] as num?)?.toDouble() ?? 0.0,
+      remainingCapital: (data['remainingCapital'] as num?)?.toDouble() ?? 0.0,
+
+      // Apartment-specific fields
+      apartmentNumber: data['apartmentNumber'] as String? ?? 'N/A',
+      building: data['building'] as String? ?? 'N/A',
+      address: data['address'] as String? ?? 'N/A',
       area: (data['area'] as num?)?.toDouble() ?? 0.0,
       roomCount: data['roomCount'] as int? ?? 0,
       floor: data['floor'] as int? ?? 0,
-      apartmentType: mapApartmentType(data['apartmentType'] as String?),
       status: mapStatus(data['status'] as String?),
+      apartmentType: mapApartmentType(data['apartmentType'] as String?),
       pricePerSquareMeter:
           (data['pricePerSquareMeter'] as num?)?.toDouble() ?? 0.0,
-      deliveryDate: data['deliveryDate'] != null
-          ? DateTime.tryParse(data['deliveryDate'] as String)
-          : null,
-      developer: data['developer'] as String?,
-      projectName: data['projectName'] as String?,
       hasBalcony: data['hasBalcony'] as bool? ?? false,
       hasParkingSpace: data['hasParkingSpace'] as bool? ?? false,
       hasStorage: data['hasStorage'] as bool? ?? false,
+      developer: data['developer'] as String? ?? 'N/A',
+
       additionalInfo: Map<String, dynamic>.from(data)
         ..removeWhere(
           (key, value) => [
@@ -1029,21 +1058,38 @@ class ApartmentsResult {
             'sourceFile',
             'createdAt',
             'uploadedAt',
+            'saleId',
+            'clientId',
+            'clientName',
+            'advisor',
+            'branch',
+            'productStatus',
+            'marketEntry',
+            'signedDate',
+            'investmentEntryDate',
+            'projectName',
+            'creditorCompany',
+            'companyId',
+            'issueDate',
+            'redemptionDate',
+            'shareCount',
+            'paymentAmount',
+            'realizedCapital',
+            'transferToOtherProduct',
+            'remainingCapital',
             'apartmentNumber',
             'building',
             'address',
             'area',
             'roomCount',
             'floor',
-            'apartmentType',
             'status',
+            'apartmentType',
             'pricePerSquareMeter',
-            'deliveryDate',
-            'developer',
-            'projectName',
             'hasBalcony',
             'hasParkingSpace',
             'hasStorage',
+            'developer',
           ].contains(key),
         ),
     );

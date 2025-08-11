@@ -2,40 +2,39 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Bond {
   final String id;
-  final String productType; // Typ_produktu
-  final double investmentAmount; // Kwota_inwestycji
-  final double realizedCapital; // Kapital zrealizowany
-  final double remainingCapital; // Kapital Pozostaly
-  final double realizedInterest; // odsetki_zrealizowane
-  final double remainingInterest; // odsetki_pozostale
-  final double realizedTax; // podatek_zrealizowany
-  final double remainingTax; // podatek_pozostaly
-  final double transferToOtherProduct; // Przekaz na inny produkt
-  final double? capitalForRestructuring; // kapital_do_restrukturyzacji
-  final double?
-  capitalSecuredByRealEstate; // kapital_zabezpieczony_nieruchomoscia
-  final String sourceFile; // source_file
-  final DateTime createdAt; // created_at
-  final DateTime uploadedAt; // uploaded_at
+  final String productType;
+  final double investmentAmount;
+  final double realizedCapital;
+  final double remainingCapital;
+  final double realizedInterest;
+  final double remainingInterest;
+  final double realizedTax;
+  final double remainingTax;
+  final double transferToOtherProduct;
+  final double? capitalForRestructuring;
+  final double? capitalSecuredByRealEstate;
+  final String sourceFile;
+  final DateTime createdAt;
+  final DateTime uploadedAt;
 
-  // Dodatne pola z Firebase
-  final String? clientId; // ID_Klient
-  final String? clientName; // Klient
-  final String? companyId; // ID_Spolka
-  final String? salesId; // ID_Sprzedaz
-  final int? sharesCount; // Ilosc_Udzialow
-  final double? paymentAmount; // Kwota_wplat
-  final String? branch; // Oddzial
-  final String? advisor; // Opiekun z MISA
-  final String? productName; // Produkt_nazwa
-  final String? productStatusEntry; // Produkt_status_wejscie
-  final String? productStatus; // Status_produktu
-  final DateTime? signedDate; // Data_podpisania
-  final DateTime? investmentEntryDate; // Data_wejscia_do_inwestycji
-  final DateTime? issueDate; // data_emisji
-  final DateTime? maturityDate; // data_splaty
-  final DateTime? redemptionDate; // data_wykupu
-  final String? interestRate; // oprocentowanie
+  // Client and transaction info
+  final String? clientId;
+  final String? clientName;
+  final String? companyId;
+  final String? salesId;
+  final int? sharesCount;
+  final double? paymentAmount;
+  final String? branch;
+  final String? advisor;
+  final String? productName;
+  final String? productStatusEntry;
+  final String? productStatus;
+  final DateTime? signedDate;
+  final DateTime? investmentEntryDate;
+  final DateTime? issueDate;
+  final DateTime? maturityDate;
+  final DateTime? redemptionDate;
+  final String? interestRate;
 
   final Map<String, dynamic> additionalInfo;
 
@@ -143,91 +142,119 @@ class Bond {
 
     return Bond(
       id: doc.id,
-      productType: data['Typ_produktu'] ?? data['typ_produktu'] ?? 'Obligacje',
+      productType: data['productType'] ?? data['Typ_produktu'] ?? 'Obligacje',
       investmentAmount: safeToDouble(
-        data['Kwota_inwestycji'] ?? data['kwota_inwestycji'],
+        data['investmentAmount'] ?? data['Kwota_inwestycji'],
       ),
       realizedCapital: safeToDouble(
-        data['Kapital zrealizowany'] ?? data['kapital_zrealizowany'],
+        data['realizedCapital'] ?? data['Kapital zrealizowany'],
       ),
       remainingCapital: safeToDouble(
-        data['Kapital Pozostaly'] ?? data['kapital_pozostaly'],
+        data['remainingCapital'] ?? data['Kapital Pozostaly'],
       ),
-      realizedInterest: safeToDouble(data['odsetki_zrealizowane']),
-      remainingInterest: safeToDouble(data['odsetki_pozostale']),
-      realizedTax: safeToDouble(data['podatek_zrealizowany']),
-      remainingTax: safeToDouble(data['podatek_pozostaly']),
+      realizedInterest: safeToDouble(
+        data['realizedInterest'] ?? data['odsetki_zrealizowane'],
+      ),
+      remainingInterest: safeToDouble(
+        data['remainingInterest'] ?? data['odsetki_pozostale'],
+      ),
+      realizedTax: safeToDouble(
+        data['realizedTax'] ?? data['podatek_zrealizowany'],
+      ),
+      remainingTax: safeToDouble(
+        data['remainingTax'] ?? data['podatek_pozostaly'],
+      ),
       transferToOtherProduct: safeToDouble(
-        data['Przekaz na inny produkt'] ?? data['przekaz_na_inny_produkt'],
+        data['transferToOtherProduct'] ?? data['Przekaz na inny produkt'],
       ),
       capitalForRestructuring: safeToDouble(
-        data['kapital_do_restrukturyzacji'],
+        data['capitalForRestructuring'] ?? data['Kapitał do restrukturyzacji'],
       ),
       capitalSecuredByRealEstate: safeToDouble(
-        data['kapital_zabezpieczony_nieruchomoscia'],
+        data['capitalSecuredByRealEstate'] ??
+            data['Kapitał zabezpieczony nieruchomością'],
       ),
-      sourceFile: data['source_file'] ?? 'imported_data.json',
-      createdAt: parseDate(data['created_at']) ?? DateTime.now(),
-      uploadedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
+      sourceFile:
+          data['sourceFile'] ?? data['source_file'] ?? 'imported_data.json',
+      createdAt:
+          parseDate(data['createdAt'] ?? data['created_at']) ?? DateTime.now(),
+      uploadedAt:
+          parseDate(data['uploadedAt'] ?? data['uploaded_at']) ??
+          DateTime.now(),
 
-      // Nowe pola z Firebase
-      clientId: data['ID_Klient'],
-      clientName: data['Klient'],
-      companyId: data['ID_Spolka'],
-      salesId: data['ID_Sprzedaz'],
-      sharesCount: safeToIntNullable(data['Ilosc_Udzialow']),
-      paymentAmount: safeToDouble(data['Kwota_wplat']),
-      branch: data['Oddzial'],
-      advisor: data['Opiekun z MISA'],
-      productName: data['Produkt_nazwa'],
-      productStatusEntry: data['Produkt_status_wejscie'],
-      productStatus: data['Status_produktu'],
-      signedDate: parseDate(data['Data_podpisania']),
-      investmentEntryDate: parseDate(data['Data_wejscia_do_inwestycji']),
-      issueDate: parseDate(data['data_emisji']),
-      maturityDate: parseDate(data['data_splaty']),
-      redemptionDate: parseDate(data['data_wykupu']),
-      interestRate: data['oprocentowanie'],
+      // Client and transaction info
+      clientId: data['clientId'] ?? data['ID_Klient'],
+      clientName: data['clientName'] ?? data['Klient'],
+      companyId: data['companyId'] ?? data['ID_Spolka'],
+      salesId: data['salesId'] ?? data['ID_Sprzedaz'],
+      sharesCount: safeToIntNullable(
+        data['sharesCount'] ?? data['Ilosc_Udzialow'],
+      ),
+      paymentAmount: safeToDouble(data['paymentAmount'] ?? data['Kwota_wplat']),
+      branch: data['branch'] ?? data['Oddzial'],
+      advisor: data['advisor'] ?? data['Opiekun z MISA'],
+      productName: data['productName'] ?? data['Produkt_nazwa'],
+      productStatusEntry:
+          data['productStatusEntry'] ?? data['Produkt_status_wejscie'],
+      productStatus: data['productStatus'] ?? data['Status_produktu'],
+      signedDate: parseDate(data['signedDate'] ?? data['Data_podpisania']),
+      investmentEntryDate: parseDate(
+        data['investmentEntryDate'] ?? data['Data_wejscia_do_inwestycji'],
+      ),
+      issueDate: parseDate(data['issueDate'] ?? data['data_emisji']),
+      maturityDate: parseDate(
+        data['maturityDate'] ?? data['data_splaty'] ?? data['data_wykupu'],
+      ),
+      redemptionDate: parseDate(data['redemptionDate'] ?? data['data_wykupu']),
+      interestRate: data['interestRate'] ?? data['oprocentowanie'],
 
       additionalInfo: Map<String, dynamic>.from(data)
         ..removeWhere(
           (key, value) => [
-            'typ_produktu',
+            // English field names
+            'productType',
+            'investmentAmount',
+            'realizedCapital',
+            'remainingCapital',
+            'realizedInterest',
+            'remainingInterest',
+            'realizedTax',
+            'remainingTax',
+            'transferToOtherProduct',
+            'capitalForRestructuring',
+            'capitalSecuredByRealEstate',
+            'sourceFile', 'createdAt', 'uploadedAt', 'clientId', 'clientName',
+            'companyId', 'salesId', 'sharesCount', 'paymentAmount', 'branch',
+            'advisor', 'productName', 'productStatusEntry', 'productStatus',
+            'signedDate', 'investmentEntryDate', 'issueDate', 'maturityDate',
+            'redemptionDate', 'interestRate',
+            // Polish field names (legacy)
             'Typ_produktu',
-            'kwota_inwestycji',
+            'typ_produktu',
             'Kwota_inwestycji',
-            'kapital_zrealizowany',
+            'kwota_inwestycji',
             'Kapital zrealizowany',
-            'kapital_pozostaly',
+            'kapital_zrealizowany',
             'Kapital Pozostaly',
+            'kapital_pozostaly',
             'odsetki_zrealizowane',
             'odsetki_pozostale',
             'podatek_zrealizowany',
             'podatek_pozostaly',
-            'przekaz_na_inny_produkt',
             'Przekaz na inny produkt',
+            'przekaz_na_inny_produkt',
+            'Kapitał do restrukturyzacji',
             'kapital_do_restrukturyzacji',
+            'Kapitał zabezpieczony nieruchomością',
             'kapital_zabezpieczony_nieruchomoscia',
             'source_file',
             'created_at',
             'uploaded_at',
-            'ID_Klient',
-            'Klient',
-            'ID_Spolka',
-            'ID_Sprzedaz',
-            'Ilosc_Udzialow',
-            'Kwota_wplat',
-            'Oddzial',
-            'Opiekun z MISA',
-            'Produkt_nazwa',
-            'Produkt_status_wejscie',
-            'Status_produktu',
-            'Data_podpisania',
-            'Data_wejscia_do_inwestycji',
-            'data_emisji',
-            'data_splaty',
-            'data_wykupu',
-            'oprocentowanie',
+            'ID_Klient', 'Klient', 'ID_Spolka', 'ID_Sprzedaz', 'Ilosc_Udzialow',
+            'Kwota_wplat', 'Oddzial', 'Opiekun z MISA', 'Produkt_nazwa',
+            'Produkt_status_wejscie', 'Status_produktu', 'Data_podpisania',
+            'Data_wejscia_do_inwestycji', 'data_emisji', 'data_splaty',
+            'data_wykupu', 'oprocentowanie',
           ].contains(key),
         ),
     );
@@ -235,39 +262,39 @@ class Bond {
 
   Map<String, dynamic> toFirestore() {
     return {
-      'Typ_produktu': productType,
-      'Kwota_inwestycji': investmentAmount,
-      'Kapital zrealizowany': realizedCapital,
-      'Kapital Pozostaly': remainingCapital,
-      'odsetki_zrealizowane': realizedInterest,
-      'odsetki_pozostale': remainingInterest,
-      'podatek_zrealizowany': realizedTax,
-      'podatek_pozostaly': remainingTax,
-      'Przekaz na inny produkt': transferToOtherProduct,
-      'kapital_do_restrukturyzacji': capitalForRestructuring,
-      'kapital_zabezpieczony_nieruchomoscia': capitalSecuredByRealEstate,
-      'source_file': sourceFile,
-      'created_at': createdAt.toIso8601String(),
-      'uploaded_at': uploadedAt.toIso8601String(),
+      'productType': productType,
+      'investmentAmount': investmentAmount,
+      'realizedCapital': realizedCapital,
+      'remainingCapital': remainingCapital,
+      'realizedInterest': realizedInterest,
+      'remainingInterest': remainingInterest,
+      'realizedTax': realizedTax,
+      'remainingTax': remainingTax,
+      'transferToOtherProduct': transferToOtherProduct,
+      'capitalForRestructuring': capitalForRestructuring,
+      'capitalSecuredByRealEstate': capitalSecuredByRealEstate,
+      'sourceFile': sourceFile,
+      'createdAt': createdAt.toIso8601String(),
+      'uploadedAt': uploadedAt.toIso8601String(),
 
-      // Nowe pola
-      'ID_Klient': clientId,
-      'Klient': clientName,
-      'ID_Spolka': companyId,
-      'ID_Sprzedaz': salesId,
-      'Ilosc_Udzialow': sharesCount,
-      'Kwota_wplat': paymentAmount,
-      'Oddzial': branch,
-      'Opiekun z MISA': advisor,
-      'Produkt_nazwa': productName,
-      'Produkt_status_wejscie': productStatusEntry,
-      'Status_produktu': productStatus,
-      'Data_podpisania': signedDate?.toIso8601String(),
-      'Data_wejscia_do_inwestycji': investmentEntryDate?.toIso8601String(),
-      'data_emisji': issueDate?.toIso8601String(),
-      'data_splaty': maturityDate?.toIso8601String(),
-      'data_wykupu': redemptionDate?.toIso8601String(),
-      'oprocentowanie': interestRate,
+      // Client and transaction info
+      'clientId': clientId,
+      'clientName': clientName,
+      'companyId': companyId,
+      'salesId': salesId,
+      'sharesCount': sharesCount,
+      'paymentAmount': paymentAmount,
+      'branch': branch,
+      'advisor': advisor,
+      'productName': productName,
+      'productStatusEntry': productStatusEntry,
+      'productStatus': productStatus,
+      'signedDate': signedDate?.toIso8601String(),
+      'investmentEntryDate': investmentEntryDate?.toIso8601String(),
+      'issueDate': issueDate?.toIso8601String(),
+      'maturityDate': maturityDate?.toIso8601String(),
+      'redemptionDate': redemptionDate?.toIso8601String(),
+      'interestRate': interestRate,
 
       ...additionalInfo,
     };
@@ -289,6 +316,23 @@ class Bond {
     String? sourceFile,
     DateTime? createdAt,
     DateTime? uploadedAt,
+    String? clientId,
+    String? clientName,
+    String? companyId,
+    String? salesId,
+    int? sharesCount,
+    double? paymentAmount,
+    String? branch,
+    String? advisor,
+    String? productName,
+    String? productStatusEntry,
+    String? productStatus,
+    DateTime? signedDate,
+    DateTime? investmentEntryDate,
+    DateTime? issueDate,
+    DateTime? maturityDate,
+    DateTime? redemptionDate,
+    String? interestRate,
     Map<String, dynamic>? additionalInfo,
   }) {
     return Bond(
@@ -310,6 +354,23 @@ class Bond {
       sourceFile: sourceFile ?? this.sourceFile,
       createdAt: createdAt ?? this.createdAt,
       uploadedAt: uploadedAt ?? this.uploadedAt,
+      clientId: clientId ?? this.clientId,
+      clientName: clientName ?? this.clientName,
+      companyId: companyId ?? this.companyId,
+      salesId: salesId ?? this.salesId,
+      sharesCount: sharesCount ?? this.sharesCount,
+      paymentAmount: paymentAmount ?? this.paymentAmount,
+      branch: branch ?? this.branch,
+      advisor: advisor ?? this.advisor,
+      productName: productName ?? this.productName,
+      productStatusEntry: productStatusEntry ?? this.productStatusEntry,
+      productStatus: productStatus ?? this.productStatus,
+      signedDate: signedDate ?? this.signedDate,
+      investmentEntryDate: investmentEntryDate ?? this.investmentEntryDate,
+      issueDate: issueDate ?? this.issueDate,
+      maturityDate: maturityDate ?? this.maturityDate,
+      redemptionDate: redemptionDate ?? this.redemptionDate,
+      interestRate: interestRate ?? this.interestRate,
       additionalInfo: additionalInfo ?? this.additionalInfo,
     );
   }

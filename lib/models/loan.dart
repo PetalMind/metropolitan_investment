@@ -2,30 +2,41 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Loan {
   final String id;
-  final String productType; // typ_produktu
-  final double investmentAmount; // kwota_inwestycji
-  final double remainingCapital; // kapital_pozostaly
-  final double? capitalForRestructuring; // kapital_do_restrukturyzacji
-  final double?
-  capitalSecuredByRealEstate; // kapital_zabezpieczony_nieruchomoscia
-  final String sourceFile; // source_file
-  final DateTime createdAt; // created_at
-  final DateTime uploadedAt; // uploaded_at
+  final String productType;
+  final double investmentAmount;
+  final double remainingCapital;
+  final double? capitalForRestructuring;
+  final double? capitalSecuredByRealEstate;
+  final String sourceFile;
+  final DateTime createdAt;
+  final DateTime uploadedAt;
 
-  // Client identification fields
-  final String? clientId; // ID_Klient (Excel numeryczne ID)
-  final String? clientName; // Klient (nazwa klienta)
+  // Client and transaction info
+  final String? clientId;
+  final String? clientName;
+  final String? companyId;
+  final String? salesId;
+  final double? paymentAmount;
+  final String? branch;
+  final String? advisor;
+  final String? productName;
+  final String? productStatusEntry;
+  final String? productStatus;
+  final DateTime? signedDate;
+  final DateTime? investmentEntryDate;
+  final DateTime? issueDate;
+  final DateTime? maturityDate;
 
-  // Loan specific fields from Firebase
-  final String? loanNumber; // pozyczka_numer
-  final String? borrower; // pozyczkobiorca
-  final String? creditorCompany; // wierzyciel_spolka
-  final String? interestRate; // oprocentowanie
-  final DateTime? disbursementDate; // data_udzielenia
-  final DateTime? repaymentDate; // data_splaty
-  final double accruedInterest; // odsetki_naliczone
-  final String? collateral; // zabezpieczenie
-  final String? status; // status
+  // Loan specific fields
+  final String? loanNumber;
+  final String? borrower;
+  final String? creditorCompany;
+  final String? interestRate;
+  final DateTime? disbursementDate;
+  final DateTime? repaymentDate;
+  final double accruedInterest;
+  final String? collateral;
+  final String? status;
 
   final Map<String, dynamic> additionalInfo;
 
@@ -41,6 +52,18 @@ class Loan {
     required this.uploadedAt,
     this.clientId,
     this.clientName,
+    this.companyId,
+    this.salesId,
+    this.paymentAmount,
+    this.branch,
+    this.advisor,
+    this.productName,
+    this.productStatusEntry,
+    this.productStatus,
+    this.signedDate,
+    this.investmentEntryDate,
+    this.issueDate,
+    this.maturityDate,
     this.loanNumber,
     this.borrower,
     this.creditorCompany,
@@ -106,101 +129,117 @@ class Loan {
 
     return Loan(
       id: doc.id,
-      productType:
-          data['productType'] ??
-          data['typ_produktu'] ??
-          data['Typ_produktu'] ??
-          'Pożyczki',
+      productType: data['productType'] ?? data['Typ_produktu'] ?? 'Pożyczka',
       investmentAmount: safeToDouble(
-        data['investmentAmount'] ??
-            data['kwota_inwestycji'] ??
-            data['Kwota_inwestycji'],
+        data['investmentAmount'] ?? data['Kwota_inwestycji'],
       ),
       remainingCapital: safeToDouble(
-        data['remainingCapital'] ??
-            data['kapital_pozostaly'] ??
-            data['Kapital Pozostaly'],
+        data['remainingCapital'] ?? data['Kapital Pozostaly'],
       ),
       capitalForRestructuring: safeToDouble(
-        data['capitalForRestructuring'] ?? data['kapital_do_restrukturyzacji'],
+        data['capitalForRestructuring'] ?? data['Kapitał do restrukturyzacji'],
       ),
       capitalSecuredByRealEstate: safeToDouble(
-        data['realEstateSecuredCapital'] ??
-            data['kapital_zabezpieczony_nieruchomoscia'],
+        data['capitalSecuredByRealEstate'] ??
+            data['Kapitał zabezpieczony nieruchomością'],
       ),
       sourceFile:
           data['sourceFile'] ?? data['source_file'] ?? 'imported_data.json',
       createdAt:
-          parseDate(data['createdAt']) ??
-          parseDate(data['created_at']) ??
-          DateTime.now(),
+          parseDate(data['createdAt'] ?? data['created_at']) ?? DateTime.now(),
       uploadedAt:
-          parseDate(data['uploadedAt']) ??
-          parseDate(data['uploaded_at']) ??
+          parseDate(data['uploadedAt'] ?? data['uploaded_at']) ??
           DateTime.now(),
 
-      // Client identification fields
+      // Client and transaction info
       clientId: data['clientId'] ?? data['ID_Klient'],
       clientName: data['clientName'] ?? data['Klient'],
+      companyId: data['companyId'] ?? data['ID_Spolka'],
+      salesId: data['salesId'] ?? data['ID_Sprzedaz'],
+      paymentAmount: safeToDouble(data['paymentAmount'] ?? data['Kwota_wplat']),
+      branch: data['branch'] ?? data['Oddzial'],
+      advisor: data['advisor'] ?? data['Opiekun z MISA'],
+      productName: data['productName'] ?? data['Produkt_nazwa'],
+      productStatusEntry:
+          data['productStatusEntry'] ?? data['Produkt_status_wejscie'],
+      productStatus: data['productStatus'] ?? data['Status_produktu'],
+      signedDate: parseDate(data['signedDate'] ?? data['Data_podpisania']),
+      investmentEntryDate: parseDate(
+        data['investmentEntryDate'] ?? data['Data_wejscia_do_inwestycji'],
+      ),
+      issueDate: parseDate(data['issueDate'] ?? data['data_emisji']),
+      maturityDate: parseDate(data['maturityDate'] ?? data['data_wykupu']),
 
       // Loan specific fields
       loanNumber: data['loanNumber'] ?? data['pozyczka_numer'],
-      borrower: data['borrower'] ?? data['pozyczkobiorca'],
+      borrower: data['borrower'] ?? data['pozyczkobiorca'] ?? data['Klient'],
       creditorCompany: data['creditorCompany'] ?? data['wierzyciel_spolka'],
       interestRate: data['interestRate'] ?? data['oprocentowanie'],
       disbursementDate: parseDate(
-        data['disbursementDate'] ?? data['data_udzielenia'],
+        data['disbursementDate'] ??
+            data['data_udzielenia'] ??
+            data['Data_wejscia_do_inwestycji'],
       ),
-      repaymentDate: parseDate(data['repaymentDate'] ?? data['data_splaty']),
+      repaymentDate: parseDate(
+        data['repaymentDate'] ?? data['data_splaty'] ?? data['data_wykupu'],
+      ),
       accruedInterest: safeToDouble(
         data['accruedInterest'] ?? data['odsetki_naliczone'],
       ),
       collateral: data['collateral'] ?? data['zabezpieczenie'],
-      status: data['status'],
+      status: data['status'] ?? data['Status_produktu'],
 
       additionalInfo: Map<String, dynamic>.from(data)
         ..removeWhere(
           (key, value) => [
+            // English field names
             'productType',
-            'typ_produktu',
-            'Typ_produktu',
             'investmentAmount',
-            'kwota_inwestycji',
-            'Kwota_inwestycji',
             'remainingCapital',
-            'kapital_pozostaly',
-            'Kapital Pozostaly',
             'capitalForRestructuring',
-            'kapital_do_restrukturyzacji',
-            'realEstateSecuredCapital',
-            'kapital_zabezpieczony_nieruchomoscia',
+            'capitalSecuredByRealEstate',
             'sourceFile',
-            'source_file',
             'createdAt',
-            'created_at',
             'uploadedAt',
-            'uploaded_at',
-            'clientId',
-            'ID_Klient',
-            'clientName',
-            'Klient',
-            'loanNumber',
-            'pozyczka_numer',
-            'borrower',
-            'pozyczkobiorca',
-            'creditorCompany',
-            'wierzyciel_spolka',
-            'interestRate',
-            'oprocentowanie',
+            'clientId', 'clientName', 'companyId', 'salesId', 'paymentAmount',
+            'branch',
+            'advisor',
+            'productName',
+            'productStatusEntry',
+            'productStatus',
+            'signedDate', 'investmentEntryDate', 'issueDate', 'maturityDate',
+            'loanNumber', 'borrower', 'creditorCompany', 'interestRate',
             'disbursementDate',
-            'data_udzielenia',
             'repaymentDate',
-            'data_splaty',
             'accruedInterest',
-            'odsetki_naliczone',
             'collateral',
-            'zabezpieczenie',
             'status',
+            // Polish field names (legacy)
+            'Typ_produktu',
+            'typ_produktu',
+            'Kwota_inwestycji',
+            'kwota_inwestycji',
+            'Kapital Pozostaly',
+            'kapital_pozostaly',
+            'Kapitał do restrukturyzacji',
+            'kapital_do_restrukturyzacji',
+            'Kapitał zabezpieczony nieruchomością',
+            'kapital_zabezpieczony_nieruchomoscia',
+            'source_file',
+            'created_at',
+            'uploaded_at',
+            'ID_Klient', 'Klient', 'ID_Spolka', 'ID_Sprzedaz', 'Kwota_wplat',
+            'Oddzial',
+            'Opiekun z MISA',
+            'Produkt_nazwa',
+            'Produkt_status_wejscie',
+            'Status_produktu', 'Data_podpisania', 'Data_wejscia_do_inwestycji',
+            'data_emisji', 'data_wykupu', 'pozyczka_numer', 'pozyczkobiorca',
+            'wierzyciel_spolka',
+            'oprocentowanie',
+            'data_udzielenia',
+            'data_splaty',
+            'odsetki_naliczone', 'zabezpieczenie',
           ].contains(key),
         ),
     );
@@ -208,17 +247,28 @@ class Loan {
 
   Map<String, dynamic> toFirestore() {
     return {
-      // Znormalizowane nazwy (priorytet)
       'productType': productType,
       'investmentAmount': investmentAmount,
       'remainingCapital': remainingCapital,
       'capitalForRestructuring': capitalForRestructuring,
-      'realEstateSecuredCapital': capitalSecuredByRealEstate,
+      'capitalSecuredByRealEstate': capitalSecuredByRealEstate,
       'sourceFile': sourceFile,
       'createdAt': createdAt.toIso8601String(),
       'uploadedAt': uploadedAt.toIso8601String(),
       'clientId': clientId,
       'clientName': clientName,
+      'companyId': companyId,
+      'salesId': salesId,
+      'paymentAmount': paymentAmount,
+      'branch': branch,
+      'advisor': advisor,
+      'productName': productName,
+      'productStatusEntry': productStatusEntry,
+      'productStatus': productStatus,
+      'signedDate': signedDate?.toIso8601String(),
+      'investmentEntryDate': investmentEntryDate?.toIso8601String(),
+      'issueDate': issueDate?.toIso8601String(),
+      'maturityDate': maturityDate?.toIso8601String(),
       'loanNumber': loanNumber,
       'borrower': borrower,
       'creditorCompany': creditorCompany,
@@ -228,26 +278,6 @@ class Loan {
       'accruedInterest': accruedInterest,
       'collateral': collateral,
       'status': status,
-
-      // Stare nazwy dla kompatybilności wstecznej
-      'typ_produktu': productType,
-      'kwota_inwestycji': investmentAmount,
-      'kapital_pozostaly': remainingCapital,
-      'kapital_do_restrukturyzacji': capitalForRestructuring,
-      'kapital_zabezpieczony_nieruchomoscia': capitalSecuredByRealEstate,
-      'source_file': sourceFile,
-      'created_at': createdAt.toIso8601String(),
-      'uploaded_at': uploadedAt.toIso8601String(),
-      'ID_Klient': clientId,
-      'Klient': clientName,
-      'pozyczka_numer': loanNumber,
-      'pozyczkobiorca': borrower,
-      'wierzyciel_spolka': creditorCompany,
-      'oprocentowanie': interestRate,
-      'data_udzielenia': disbursementDate?.toIso8601String(),
-      'data_splaty': repaymentDate?.toIso8601String(),
-      'odsetki_naliczone': accruedInterest,
-      'zabezpieczenie': collateral,
 
       ...additionalInfo,
     };
@@ -263,8 +293,23 @@ class Loan {
     String? sourceFile,
     DateTime? createdAt,
     DateTime? uploadedAt,
+    String? clientId,
+    String? clientName,
+    String? companyId,
+    String? salesId,
+    double? paymentAmount,
+    String? branch,
+    String? advisor,
+    String? productName,
+    String? productStatusEntry,
+    String? productStatus,
+    DateTime? signedDate,
+    DateTime? investmentEntryDate,
+    DateTime? issueDate,
+    DateTime? maturityDate,
     String? loanNumber,
     String? borrower,
+    String? creditorCompany,
     String? interestRate,
     DateTime? disbursementDate,
     DateTime? repaymentDate,
@@ -285,8 +330,23 @@ class Loan {
       sourceFile: sourceFile ?? this.sourceFile,
       createdAt: createdAt ?? this.createdAt,
       uploadedAt: uploadedAt ?? this.uploadedAt,
+      clientId: clientId ?? this.clientId,
+      clientName: clientName ?? this.clientName,
+      companyId: companyId ?? this.companyId,
+      salesId: salesId ?? this.salesId,
+      paymentAmount: paymentAmount ?? this.paymentAmount,
+      branch: branch ?? this.branch,
+      advisor: advisor ?? this.advisor,
+      productName: productName ?? this.productName,
+      productStatusEntry: productStatusEntry ?? this.productStatusEntry,
+      productStatus: productStatus ?? this.productStatus,
+      signedDate: signedDate ?? this.signedDate,
+      investmentEntryDate: investmentEntryDate ?? this.investmentEntryDate,
+      issueDate: issueDate ?? this.issueDate,
+      maturityDate: maturityDate ?? this.maturityDate,
       loanNumber: loanNumber ?? this.loanNumber,
       borrower: borrower ?? this.borrower,
+      creditorCompany: creditorCompany ?? this.creditorCompany,
       interestRate: interestRate ?? this.interestRate,
       disbursementDate: disbursementDate ?? this.disbursementDate,
       repaymentDate: repaymentDate ?? this.repaymentDate,
