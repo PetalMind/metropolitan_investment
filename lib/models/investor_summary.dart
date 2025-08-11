@@ -61,7 +61,7 @@ class InvestorSummary {
       totalInvestmentAmount += investment.investmentAmount;
       totalRealizedCapital += investment.realizedCapital;
 
-      // 🏗️ PRÓBUJ POBRAĆ DODATKOWE POLA Z ADDITIONALINFO - dla apartamentów i innych produktów
+      // 🏗️ POBIERZ DODATKOWE POLA - sprawdź główny poziom PIERWSZE, potem additionalInfo
       // Mapowanie dla kapitału zabezpieczonego nieruchomością
       if (investment.additionalInfo['realEstateSecuredCapital'] != null) {
         final value = investment.additionalInfo['realEstateSecuredCapital'];

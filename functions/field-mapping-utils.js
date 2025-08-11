@@ -42,7 +42,7 @@ const FIELD_MAPPINGS = {
   remainingCapital: ['kapital_pozostaly'], // Polish in JSON
   realizedCapital: ['kapital_zrealizowany'], // Polish in JSON
   capitalForRestructuring: ['capitalForRestructuring', 'kapital_do_restrukturyzacji'], // Mixed
-  capitalSecuredByRealEstate: ['realEstateSecuredCapital', 'kapital_zabezpieczony_nieruchomoscia'], // Mixed
+  capitalSecuredByRealEstate: ['capitalSecuredByRealEstate', 'realEstateSecuredCapital', 'kapital_zabezpieczony_nieruchomoscia'], // Mixed - główny poziom JSON FIRST
   productType: ['productType', 'typ_produktu'], // Mixed
   contractDate: ['signingDate', 'data_podpisania'], // Mixed
   clientId: ['clientId', 'ID_Klient'], // Mixed
@@ -249,7 +249,7 @@ function createNormalizedInvestment(id, data, collectionType = null) {
     remainingCapital: safeToDouble(data.kapital_pozostaly || data.remainingCapital),
     realizedCapital: safeToDouble(data.kapital_zrealizowany || data.realizedCapital),
     capitalForRestructuring: safeToDouble(data.capitalForRestructuring || data.kapital_do_restrukturyzacji),
-    capitalSecuredByRealEstate: safeToDouble(data.realEstateSecuredCapital || data.kapital_zabezpieczony_nieruchomoscia),
+    capitalSecuredByRealEstate: safeToDouble(data.capitalSecuredByRealEstate || data.realEstateSecuredCapital || data.kapital_zabezpieczony_nieruchomoscia),
 
     // === KLIENT I SPRZEDAŻ === - exact field names from JSON  
     clientId: safeToString(data.clientId || data.ID_Klient),

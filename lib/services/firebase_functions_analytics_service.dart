@@ -6,6 +6,7 @@ import '../models/investment.dart';
 import '../models/product.dart';
 import 'base_service.dart';
 import 'firebase_functions_data_service.dart';
+import 'unified_statistics_utils.dart'; // DODANE - zunifikowane definicje
 
 /// 🚀 FIREBASE FUNCTIONS ANALYTICS SERVICE
 /// Wykorzystuje server-side processing dla maksymalnej wydajności

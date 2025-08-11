@@ -1,6 +1,6 @@
 /**
  * Analytics Service
- * Podstawowe funkcje analityczne - teraz z pełną implementacją
+ * Podstawowe funkcje analityczne - ZUNIFIKOWANE WERSJA
  */
 
 const { onCall } = require("firebase-functions/v2/https");
@@ -8,6 +8,14 @@ const { HttpsError } = require("firebase-functions/v2/https");
 const { getCachedResult, setCachedResult, clearCache } = require("../utils/cache-utils");
 const { safeToDouble } = require("../utils/data-mapping");
 const { admin, db } = require("../utils/firebase-config");
+const {
+  calculateUnifiedTotalValue,
+  calculateUnifiedViableCapital,
+  calculateMajorityThreshold,
+  calculateUnifiedSystemStats,
+  getUnifiedField,
+  normalizeInvestmentDocument
+} = require("../utils/unified-statistics");
 
 /**
  * Podstawowa analityka inwestorów - teraz z pełną implementacją
@@ -42,11 +50,11 @@ const getOptimizedInvestorAnalytics = onCall({
 
     console.log(`📊 [Analytics] Dane: ${clients.length} klientów, ${investments.length} inwestycji`);
 
-    // 📊 Grupuj inwestycje według klientów - UŻYWAJ TYLKO ANGIELSKICH NAZW
+    // 📊 Grupuj inwestycje według klientów - UŻYWAJ ZUNIFIKOWANYCH FUNKCJI
     const investmentsByClient = new Map();
     investments.forEach((investment) => {
-      // UŻYJ clientName z twoich danych Firebase
-      const clientName = investment.clientName;
+      // UŻYJ zunifikowanej funkcji dla clientName
+      const clientName = getUnifiedField(investment, 'clientName');
       if (!clientName) {
         console.log("⚠️ [Analytics] Investment bez clientName:", investment.id);
         return;
@@ -59,7 +67,7 @@ const getOptimizedInvestorAnalytics = onCall({
 
     console.log(`📊 [Analytics] Mapa inwestycji: ${investmentsByClient.size} unique clientNames`);
 
-    // 📊 Utwórz podsumowania inwestorów - UŻYWAJ fullName
+    // 📊 Utwórz podsumowania inwestorów - UŻYWAJ ZUNIFIKOWANYCH OBLICZEŃ
     const allInvestors = [];
     clients.forEach((client) => {
       const clientName = client.fullName; // UŻYWAJ fullName z twoich danych
@@ -71,17 +79,32 @@ const getOptimizedInvestorAnalytics = onCall({
       }
 
       let totalViableCapital = 0;
+      let totalCapitalSecuredByRealEstate = 0;
+      let totalCapitalForRestructuring = 0;
+      let unifiedTotalValue = 0;
+
       const processedInvestments = clientInvestments.map((investment) => {
-        // UŻYWAJ remainingCapital bezpośrednio z twoich danych
-        const remainingCapital = safeToDouble(investment.remainingCapital);
-        totalViableCapital += remainingCapital;
+        // UŻYWAJ ZUNIFIKOWANYCH FUNKCJI
+        const normalizedInvestment = normalizeInvestmentDocument(investment);
+        const viableCapital = calculateUnifiedViableCapital(investment);
+        const totalValue = calculateUnifiedTotalValue(investment);
+
+        const capitalSecuredByRealEstate = safeToDouble(investment.capitalSecuredByRealEstate);
+        const capitalForRestructuring = safeToDouble(investment.capitalForRestructuring);
+
+        totalViableCapital += viableCapital;
+        totalCapitalSecuredByRealEstate += capitalSecuredByRealEstate;
+        totalCapitalForRestructuring += capitalForRestructuring;
+        unifiedTotalValue += totalValue;
+
         return {
-          ...investment,
-          remainingCapital,
+          ...normalizedInvestment,
+          capitalSecuredByRealEstate,
+          capitalForRestructuring,
         };
       });
 
-      console.log(`✅ [Analytics] Klient ${clientName}: ${clientInvestments.length} inwestycji, kapitał: ${totalViableCapital.toFixed(2)}`);
+      console.log(`✅ [Analytics] Klient ${clientName}: ${clientInvestments.length} inwestycji, unifiedTotalValue: ${unifiedTotalValue.toFixed(2)}, viableCapital: ${totalViableCapital.toFixed(2)}`);
 
       allInvestors.push({
         client: {
@@ -96,7 +119,10 @@ const getOptimizedInvestorAnalytics = onCall({
         },
         investments: processedInvestments,
         viableRemainingCapital: totalViableCapital,
-        totalInvestmentAmount: processedInvestments.reduce((sum, inv) => sum + safeToDouble(inv.investmentAmount), 0),
+        unifiedTotalValue: unifiedTotalValue, // ⭐ DODANE - zunifikowana wartość całkowita
+        totalInvestmentAmount: processedInvestments.reduce((sum, inv) => sum + getUnifiedField(inv.originalData, 'investmentAmount'), 0),
+        capitalSecuredByRealEstate: totalCapitalSecuredByRealEstate, // ⭐ DODANE
+        capitalForRestructuring: totalCapitalForRestructuring,       // ⭐ DODANE
         investmentCount: clientInvestments.length,
       });
     });
@@ -132,8 +158,11 @@ const getOptimizedInvestorAnalytics = onCall({
 
     console.log(`📄 [Analytics] Paginacja: strona ${page}, rozmiar ${pageSize}, zwracam ${paginatedInvestors.length}/${allInvestors.length} inwestorów`);
 
-    // 📊 Oblicz statystyki
-    const totalCapital = allInvestors.reduce((sum, inv) => sum + inv.viableRemainingCapital, 0);
+    // 📊 Oblicz statystyki - UŻYJ ZUNIFIKOWANYCH FUNKCJI
+    const systemStats = calculateUnifiedSystemStats(investments);
+    const totalCapital = systemStats.totalViableCapital;
+    const totalValue = systemStats.totalValue;
+    const majorityThreshold = systemStats.majorityThreshold;
 
     // 📊 Oblicz rozkład głosowania
     const votingDistribution = {
@@ -160,12 +189,16 @@ const getOptimizedInvestorAnalytics = onCall({
       hasNextPage: endIndex < allInvestors.length,
       hasPreviousPage: page > 1,
       totalViableCapital: totalCapital,
+      unifiedTotalValue: totalValue, // ⭐ DODANE - zunifikowana wartość całkowita
+      majorityThreshold: majorityThreshold, // ⭐ DODANE - próg większościowy
+      systemStats: systemStats, // ⭐ DODANE - pełne statystyki systemu
       votingDistribution: votingDistribution,
       executionTimeMs: Date.now() - startTime,
       timestamp: new Date().toISOString(),
       cacheUsed: false,
-      source: "analytics-service-js-updated",
-      message: "Analiza z poprawionymi mapowaniami pól",
+      source: "unified-analytics-service",
+      message: "Analiza z zunifikowanymi obliczeniami statystyk",
+      unifiedVersion: "1.0",
     };
 
     // 💾 Cache wyników na 10 minut

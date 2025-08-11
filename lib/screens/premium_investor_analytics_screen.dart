@@ -1466,36 +1466,49 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildStatsGrid() {
+    // Oblicz kapitał pozostały (viableCapital)
+    final totalViableCapital = _votingManager.totalViableCapital;
+
+    // Oblicz kapitał całkowity (uwzględniając wszystkie inwestycje)
+    final totalCapital = _allInvestors.fold<double>(
+      0.0,
+      (sum, investor) => sum + investor.totalInvestmentAmount,
+    );
+
+    // Oblicz próg 51% kapitału
+    final majorityCapitalThreshold = totalViableCapital * 0.51;
+
+    // Oblicz próg 51% liczby inwestorów
+    final majorityInvestorCount = (_totalCount * 0.51).ceil();
+
     final stats = [
       _StatItem(
-        'Łączny kapitał',
+        'Kapitał pozostały',
         CurrencyFormatter.formatCurrency(
-          _votingManager.totalViableCapital,
+          totalViableCapital,
           showDecimals: false,
         ),
         Icons.account_balance_wallet_rounded,
         AppTheme.successPrimary,
       ),
       _StatItem(
-        'Inwestorzy',
-        '${_totalCount}',
-        Icons.people_rounded,
-        AppTheme.infoPrimary,
-      ),
-      _StatItem(
-        'Posiadacze większości',
-        '${_majorityHolders.length}',
+        'Większość kapitału (51%)',
+        CurrencyFormatter.formatCurrency(
+          majorityCapitalThreshold,
+          showDecimals: false,
+        ),
         Icons.gavel_rounded,
         AppTheme.secondaryGold,
       ),
       _StatItem(
-        'Średni kapitał',
-        _totalCount > 0
-            ? CurrencyFormatter.formatCurrency(
-                _votingManager.totalViableCapital / _totalCount,
-                showDecimals: false,
-              )
-            : '0 PLN',
+        'Większość osobowa (51%)',
+        '${majorityInvestorCount} z ${_totalCount}',
+        Icons.people_rounded,
+        AppTheme.infoPrimary,
+      ),
+      _StatItem(
+        'Kapitał całkowity',
+        CurrencyFormatter.formatCurrency(totalCapital, showDecimals: false),
         Icons.trending_up_rounded,
         AppTheme.warningPrimary,
       ),

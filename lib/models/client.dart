@@ -73,15 +73,11 @@ class Client {
       if (dateValue == null) return DateTime.now();
 
       if (dateValue is Timestamp) {
-        print('🔍 [Client.fromFirestore] Parsowanie Timestamp: $dateValue');
         return dateValue.toDate();
       }
 
       if (dateValue is String && dateValue.isNotEmpty) {
         try {
-          print(
-            '🔍 [Client.fromFirestore] Parsowanie String daty: "$dateValue"',
-          );
           return DateTime.parse(dateValue);
         } catch (e) {
           print(

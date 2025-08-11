@@ -1,5 +1,13 @@
 // NOWY index.js - Modularny system Firebase Functions z rozszerzonym systemem analitycznym
 const functions = require('firebase-functions');
+const { setGlobalOptions } = require("firebase-functions/v2");
+const cors = require('cors')({ origin: true });
+
+// Ustawienia globalne dla wszystkich funkcji
+setGlobalOptions({
+  region: "europe-west1",
+  cors: true, // Enable CORS for all functions
+});
 
 // Import modularnych serwisów
 const productsService = require("./services/products-service");
@@ -150,6 +158,9 @@ module.exports = {
   // Funkcje debug
   ...debugService,
 
-  // Funkcje wyszukiwania inwestorów produktów
+  // Funkcje wyszukiwania inwestorów produktów - z prawidłowym CORS
   ...productInvestorsService,
+
+  // Import funkcji premium analytics z CORS
+  ...require('./premium-analytics-filters'),
 };

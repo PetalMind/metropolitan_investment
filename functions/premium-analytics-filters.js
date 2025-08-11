@@ -2,6 +2,14 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 const { safeToDouble } = require("./utils/data-mapping");
+const {
+  calculateUnifiedTotalValue,
+  calculateUnifiedViableCapital,
+  calculateMajorityThreshold,
+  calculateUnifiedSystemStats,
+  getUnifiedField,
+  normalizeInvestmentDocument
+} = require("./utils/unified-statistics");
 
 // Set global options
 setGlobalOptions({
@@ -68,21 +76,30 @@ exports.getFilteredInvestorAnalytics = onCall({
       `${investments.length} inwestycji`,
     );
 
-    // 📊 KROK 2: Grupuj inwestycje według klientów
+    // 📊 KROK 2: Grupuj inwestycje według klientów - ZUNIFIKOWANE
     const investmentsByClient = groupInvestmentsByClient(investments);
 
-    // 📊 KROK 3: Utwórz podsumowania inwestorów
+    // 📊 KROK 3: Utwórz podsumowania inwestorów - ZUNIFIKOWANE
     console.log(
-      "🔄 [Premium Filter] Tworzę podsumowania inwestorów...",
+      "🔄 [Premium Filter] Tworzę podsumowania inwestorów (ZUNIFIKOWANE)...",
     );
-    const allInvestors = createInvestorSummaries(
+    const allInvestors = createUnifiedInvestorSummaries(
       clients,
       investmentsByClient,
     );
 
+    // 📊 Oblicz zunifikowane statystyki systemu
+    const systemStats = calculateUnifiedSystemStats(investments);
+    console.log(`📊 [Unified Analytics] Zunifikowane statystyki:`, {
+      totalValue: systemStats.totalValue.toFixed(2),
+      totalViableCapital: systemStats.totalViableCapital.toFixed(2),
+      majorityThreshold: systemStats.majorityThreshold.toFixed(2),
+      activeCount: systemStats.activeCount,
+      totalCount: systemStats.totalCount
+    });
+
     console.log(`📊 [Analytics] Znaleziono ${investments.length} inwestycji`);
-    console.log(`📊 [Analytics] Grupowanie inwestycji według Excel ID...`);
-    console.log(`📊 [Analytics] Utworzono ${allInvestors.length} podsumowań inwestorów`);
+    console.log(`📊 [Analytics] Utworzono ${allInvestors.length} zunifikowanych podsumowań inwestorów`);
 
     // 📊 KROK 4: Zastosuj filtry
     console.log("🎛️ [Premium Filter] Zastosowuję filtry...");
@@ -120,10 +137,11 @@ exports.getFilteredInvestorAnalytics = onCall({
       endIndex,
     );
 
-    // 📊 KROK 7: Oblicz statystyki
-    const analytics = calculateAdvancedAnalytics(
+    // 📊 KROK 7: Oblicz zunifikowane statystyki
+    const analytics = calculateUnifiedAdvancedAnalytics(
       filteredInvestors,
       allInvestors,
+      systemStats
     );
 
     console.log(`📊 [Analytics] Po filtrowaniu: ${filteredInvestors.length} inwestorów`);
@@ -369,12 +387,12 @@ function groupInvestmentsByClient(investments) {
 }
 
 /**
- * Creates investor summaries from clients and grouped investments
+ * Creates UNIFIED investor summaries from clients and grouped investments
  * @param {Array} clients - Array of client objects
  * @param {Map} investmentsByClient - Map of investments grouped by client
- * @return {Array} Array of investor summary objects
+ * @return {Array} Array of unified investor summary objects
  */
-function createInvestorSummaries(clients, investmentsByClient) {
+function createUnifiedInvestorSummaries(clients, investmentsByClient) {
   const investors = [];
 
   clients.forEach((client) => {
@@ -383,9 +401,9 @@ function createInvestorSummaries(clients, investmentsByClient) {
 
     if (clientInvestments.length === 0) return;
 
-    console.log(`✅ [Analytics] Klient ${client.imie_nazwisko}: ${clientInvestments.length} inwestycji`);
+    console.log(`✅ [Unified Analytics] Klient ${client.imie_nazwisko}: ${clientInvestments.length} inwestycji`);
 
-    const summary = createInvestorSummary(client, clientInvestments);
+    const summary = createUnifiedInvestorSummary(client, clientInvestments);
     investors.push(summary);
   });
 
@@ -393,59 +411,40 @@ function createInvestorSummaries(clients, investmentsByClient) {
 }
 
 /**
- * Creates a summary for a single investor
+ * Creates a UNIFIED summary for a single investor
  * @param {Object} client - Client object
  * @param {Array} investments - Array of investments for this client
- * @return {Object} Investor summary object
+ * @return {Object} Unified investor summary object
  */
-function createInvestorSummary(client, investments) {
+function createUnifiedInvestorSummary(client, investments) {
   let totalViableCapital = 0;
+  let unifiedTotalValue = 0;
   let totalInvestmentAmount = 0;
 
-  console.log(`🔍 [Analytics] Przetwarzanie inwestora: ${client.imie_nazwisko || "Nieznany"}, inwestycji: ${investments.length}`);
+  console.log(`🔍 [Unified Analytics] Przetwarzanie inwestora: ${client.imie_nazwisko || "Nieznany"}, inwestycji: ${investments.length}`);
 
   const processedInvestments = investments.map((investment) => {
-    // Bezpieczna konwersja wartości z obsługą NULL, pustych stringów i przecinków
-    const rawAmount = investment.kwota_inwestycji || investment.investmentAmount;
-    const rawCapital = investment.kapital_pozostaly || investment.remainingCapital;
+    // UŻYWAJ ZUNIFIKOWANYCH FUNKCJI
+    const normalizedInvestment = normalizeInvestmentDocument(investment);
+    const viableCapital = calculateUnifiedViableCapital(investment);
+    const totalValue = calculateUnifiedTotalValue(investment);
+    const investmentAmount = getUnifiedField(investment, 'investmentAmount');
 
-    console.log(`🔍 [Analytics] Parsowanie wartości z przecinkiem: "${rawCapital}"`);
+    console.log(`🔍 [Unified Analytics] Investment ${normalizedInvestment.id}: viableCapital=${viableCapital.toFixed(2)}, totalValue=${totalValue.toFixed(2)}`);
 
-    let amount = 0;
-    let remainingCapital = 0;
-
-    try {
-      amount = safeToDouble(rawAmount);
-      remainingCapital = safeToDouble(rawCapital);
-
-      if (isNaN(amount) || amount < 0) {
-        console.log(`⚠️ [Analytics] Nieprawidłowa kwota inwestycji: "${rawAmount}" -> 0`);
-        amount = 0;
-      }
-
-      if (isNaN(remainingCapital) || remainingCapital < 0) {
-        console.log(`⚠️ [Analytics] Nieprawidłowy kapitał pozostały: "${rawCapital}" -> 0`);
-        remainingCapital = 0;
-      }
-
-    } catch (error) {
-      console.log(`❌ [Analytics] Nie można sparsować: "${rawCapital}" -> "${rawCapital}"`);
-      amount = 0;
-      remainingCapital = 0;
-    }
-
-    totalInvestmentAmount += amount;
-    // Dla wszystkich typów produktów używamy tylko kapital_pozostaly
-    totalViableCapital += remainingCapital;
+    totalViableCapital += viableCapital;
+    unifiedTotalValue += totalValue;
+    totalInvestmentAmount += investmentAmount;
 
     return {
-      ...investment,
-      investmentAmount: amount,
-      remainingCapital: remainingCapital,
+      ...normalizedInvestment,
+      // Zachowaj oryginalne pola dla kompatybilności
+      investmentAmount: investmentAmount,
+      remainingCapital: normalizedInvestment.remainingCapital,
     };
   });
 
-  console.log(`📊 [Analytics] Inwestor ${client.imie_nazwisko || "Nieznany"}: kapitał wykonalny ${totalViableCapital.toFixed(2)} PLN`);
+  console.log(`📊 [Unified Analytics] Inwestor ${client.imie_nazwisko || "Nieznany"}: viableCapital=${totalViableCapital.toFixed(2)}, unifiedTotalValue=${unifiedTotalValue.toFixed(2)} PLN`);
 
   return {
     client: {
@@ -459,14 +458,19 @@ function createInvestorSummary(client, investments) {
       unviableInvestments: client.unviableInvestments || [],
     },
     investments: processedInvestments,
-    totalRemainingCapital: totalViableCapital,
+    totalRemainingCapital: totalViableCapital, // LEGACY - dla kompatybilności 
     totalSharesValue: 0, // Nie używamy już osobnej kategorii dla udziałów
-    totalValue: totalViableCapital,
+    totalValue: unifiedTotalValue, // ⭐ ZUNIFIKOWANA wartość całkowita
+    unifiedTotalValue: unifiedTotalValue, // ⭐ EXPLICITE zunifikowana wartość
     totalInvestmentAmount,
     totalRealizedCapital: 0, // Nie używamy już zrealizowanego kapitału
     investmentCount: investments.length,
-    viableRemainingCapital: totalViableCapital,
+    viableRemainingCapital: totalViableCapital, // ⭐ ZUNIFIKOWANY kapitał zdatny do głosowania
     hasUnviableInvestments: (client.unviableInvestments || []).length > 0,
+
+    // Metadata zunifikacji
+    unifiedVersion: "1.0",
+    calculationMethod: "unified-statistics"
   };
 }
 
@@ -609,18 +613,25 @@ function sortInvestors(investors, sortBy, ascending) {
 }
 
 /**
- * Calculates advanced analytics for filtered investors
+ * Calculates UNIFIED advanced analytics for filtered investors
  * @param {Array} filteredInvestors - Filtered investor array
  * @param {Array} allInvestors - All investors array
- * @return {Object} Analytics object
+ * @param {Object} systemStats - Zunifikowane statystyki systemu
+ * @return {Object} Unified analytics object
  */
-function calculateAdvancedAnalytics(filteredInvestors, allInvestors) {
-  const filteredCapital = filteredInvestors.reduce(
+function calculateUnifiedAdvancedAnalytics(filteredInvestors, allInvestors, systemStats) {
+  // UŻYJ zunifikowanych wartości
+  const filteredViableCapital = filteredInvestors.reduce(
     (sum, inv) => sum + inv.viableRemainingCapital, 0,
   );
-  const totalCapital = allInvestors.reduce(
-    (sum, inv) => sum + inv.viableRemainingCapital, 0,
+  const filteredTotalValue = filteredInvestors.reduce(
+    (sum, inv) => sum + (inv.unifiedTotalValue || inv.totalValue), 0,
   );
+
+  // Używaj systemStats dla spójności
+  const totalViableCapital = systemStats.totalViableCapital;
+  const totalValue = systemStats.totalValue;
+  const majorityThreshold = systemStats.majorityThreshold;
 
   // Voting distribution
   const votingDistribution = {
@@ -654,29 +665,39 @@ function calculateAdvancedAnalytics(filteredInvestors, allInvestors) {
     ).length,
   };
 
-  // Majority holders analysis
+  // Majority holders analysis - UŻYJ zunifikowanego progu
   const sortedByCapital = [...filteredInvestors].sort(
     (a, b) => b.viableRemainingCapital - a.viableRemainingCapital,
   );
 
   let cumulativeCapital = 0;
-  const majorityThreshold = filteredCapital * 0.51;
+  const unifiedMajorityThreshold = calculateMajorityThreshold(filteredViableCapital);
   const majorityHolders = [];
 
   for (const investor of sortedByCapital) {
     cumulativeCapital += investor.viableRemainingCapital;
     majorityHolders.push(investor);
 
-    if (cumulativeCapital >= majorityThreshold) {
+    if (cumulativeCapital >= unifiedMajorityThreshold) {
       break;
     }
   }
 
   return {
-    totalCapital: filteredCapital,
-    originalCapital: totalCapital,
-    capitalPercentage: totalCapital > 0 ?
-      (filteredCapital / totalCapital) * 100 : 0,
+    // ZUNIFIKOWANE wartości główne
+    totalCapital: filteredViableCapital, // Kapitał zdatny do głosowania (filtered)
+    totalValue: filteredTotalValue, // Całkowita wartość (filtered) 
+    unifiedTotalValue: filteredTotalValue, // EXPLICIT zunifikowana wartość
+
+    // Kontekst systemowy
+    systemTotalViableCapital: totalViableCapital,
+    systemTotalValue: totalValue,
+    systemMajorityThreshold: majorityThreshold,
+
+    // Legacy dla kompatybilności
+    originalCapital: totalViableCapital,
+    capitalPercentage: totalViableCapital > 0 ?
+      (filteredViableCapital / totalViableCapital) * 100 : 0,
 
     investorCount: filteredInvestors.length,
     originalInvestorCount: allInvestors.length,
@@ -686,14 +707,22 @@ function calculateAdvancedAnalytics(filteredInvestors, allInvestors) {
     votingDistribution,
     capitalDistribution,
     majorityHolders,
+    unifiedMajorityThreshold: unifiedMajorityThreshold,
 
     averageCapital: filteredInvestors.length > 0 ?
-      filteredCapital / filteredInvestors.length : 0,
+      filteredViableCapital / filteredInvestors.length : 0,
+    averageTotalValue: filteredInvestors.length > 0 ?
+      filteredTotalValue / filteredInvestors.length : 0,
     medianCapital: calculateMedian(
       filteredInvestors.map((inv) => inv.viableRemainingCapital),
     ),
 
     diversificationStats: calculateDiversificationStats(filteredInvestors),
+
+    // Metadata zunifikacji
+    unifiedVersion: "1.0",
+    calculationMethod: "unified-statistics",
+    systemStats: systemStats
   };
 }
 
@@ -741,8 +770,8 @@ function calculateDiversificationStats(investors) {
 
 module.exports = {
   groupInvestmentsByClient,
-  createInvestorSummaries,
+  createUnifiedInvestorSummaries,
   applyAdvancedFilters,
   sortInvestors,
-  calculateAdvancedAnalytics,
+  calculateUnifiedAdvancedAnalytics,
 };
