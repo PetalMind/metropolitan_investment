@@ -4,7 +4,8 @@ import '../../models/unified_product.dart';
 import '../../models/investor_summary.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/currency_formatter.dart';
-import '../../services/product_investors_service.dart';
+import '../../services/firebase_functions_product_investors_service.dart';
+import '../dialogs/product_investors_tab.dart';
 
 /// Modal ze szczegółami produktu z zakładkami
 class ProductDetailsModal extends StatefulWidget {
@@ -19,17 +20,12 @@ class ProductDetailsModal extends StatefulWidget {
 class _ProductDetailsModalState extends State<ProductDetailsModal>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final ProductInvestorsService _investorsService = ProductInvestorsService();
+  final FirebaseFunctionsProductInvestorsService _investorsService =
+      FirebaseFunctionsProductInvestorsService();
 
   List<InvestorSummary> _investors = [];
-  List<InvestorSummary> _filteredInvestors = [];
   bool _isLoadingInvestors = false;
   String? _investorsError;
-  
-  // Filtry i wyszukiwanie
-  final TextEditingController _searchController = TextEditingController();
-  String _selectedSortBy = 'name';
-  bool _sortAscending = true;
 
   @override
   void initState() {
@@ -43,7 +39,6 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   void dispose() {
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -64,14 +59,18 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     });
 
     try {
-      final investors = await _investorsService.getInvestorsForProduct(
-        widget.product,
+      final result = await _investorsService.getProductInvestors(
+        productId: widget.product.id,
+        productName: widget.product.name,
+        productType: widget.product.productType.name.toLowerCase(),
+        searchStrategy: 'comprehensive',
       );
+      final investors = result.investors;
 
       if (mounted) {
         setState(() {
           _investors = investors;
-          _filteredInvestors = investors;
+          _investors = investors;
           _isLoadingInvestors = false;
         });
       }
@@ -102,11 +101,10 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         ),
         decoration: AppTheme.premiumCardDecoration,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
             _buildHeader(context),
             _buildTabBar(context),
-            Flexible(child: _buildTabBarView(context, isMobile)),
+            Expanded(child: _buildTabBarView(context, isMobile)),
           ],
         ),
       ),
@@ -281,7 +279,10 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         tabs: const [
           Tab(text: 'Przegląd', icon: Icon(Icons.dashboard_outlined, size: 20)),
           Tab(text: 'Inwestorzy', icon: Icon(Icons.people_outline, size: 20)),
-          Tab(text: 'Analityka', icon: Icon(Icons.analytics_outlined, size: 20)),
+          Tab(
+            text: 'Analityka',
+            icon: Icon(Icons.analytics_outlined, size: 20),
+          ),
           Tab(text: 'Szczegóły', icon: Icon(Icons.info_outline, size: 20)),
         ],
       ),
@@ -339,447 +340,27 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   }
 
   Widget _buildInvestorsTab(BuildContext context) {
-    return Column(
-      children: [
-        // Panel wyszukiwania i filtrów
-        _buildInvestorsHeader(context),
-        
-        // Lista inwestorów
-        Expanded(
-          child: _buildEnhancedInvestorsList(context),
-        ),
-      ],
+    return ProductInvestorsTab(
+      product: widget.product,
+      investors: _investors,
+      isLoading: _isLoadingInvestors,
+      error: _investorsError,
+      onRefresh: _loadInvestors,
     );
   }
 
-  Widget _buildInvestorsHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.backgroundSecondary,
-        border: Border(bottom: BorderSide(color: AppTheme.borderPrimary)),
-      ),
-      child: Column(
-        children: [
-          // Wyszukiwanie
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: _filterInvestors,
-                  decoration: InputDecoration(
-                    hintText: 'Szukaj inwestorów...',
-                    prefixIcon: Icon(Icons.search, color: AppTheme.textSecondary),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: AppTheme.borderPrimary),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: AppTheme.primaryAccent),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              
-              // Sortowanie
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppTheme.borderPrimary),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButton<String>(
-                  value: _selectedSortBy,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedSortBy = value!;
-                      _sortAndFilterInvestors();
-                    });
-                  },
-                  underline: Container(),
-                  items: const [
-                    DropdownMenuItem(value: 'name', child: Text('Nazwa')),
-                    DropdownMenuItem(value: 'value', child: Text('Wartość')),
-                    DropdownMenuItem(value: 'investments', child: Text('Inwestycje')),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(width: 8),
-              
-              // Kierunek sortowania
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _sortAscending = !_sortAscending;
-                    _sortAndFilterInvestors();
-                  });
-                },
-                icon: Icon(
-                  _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                  color: AppTheme.primaryAccent,
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Statystyki
-          Row(
-            children: [
-              Icon(Icons.people, color: AppTheme.primaryAccent, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Wyświetlono ${_filteredInvestors.length} z ${_investors.length} inwestorów',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Spacer(),
-              
-              if (_filteredInvestors.isNotEmpty) ...[
-                Text(
-                  'Łączna wartość: ',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 14,
-                  ),
-                ),
-                Text(
-                  CurrencyFormatter.formatCurrencyShort(
-                    _filteredInvestors.fold(0.0, (sum, investor) => sum + investor.totalValue)
-                  ),
-                  style: TextStyle(
-                    color: AppTheme.primaryAccent,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEnhancedInvestorsList(BuildContext context) {
-    if (_isLoadingInvestors) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text(
-              'Ładowanie inwestorów...',
-              style: TextStyle(color: AppTheme.textSecondary),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_investorsError != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: AppTheme.errorPrimary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Błąd ładowania inwestorów',
-              style: TextStyle(
-                color: AppTheme.errorPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _investorsError!,
-              style: TextStyle(color: AppTheme.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadInvestors,
-              child: const Text('Spróbuj ponownie'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_filteredInvestors.isEmpty) {
-      final hasSearchQuery = _searchController.text.isNotEmpty;
-      
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              hasSearchQuery ? Icons.search_off : Icons.people_outline,
-              size: 64,
-              color: AppTheme.textSecondary.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              hasSearchQuery ? 'Brak wyników' : 'Brak inwestorów',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              hasSearchQuery 
-                  ? 'Spróbuj zmienić kryteria wyszukiwania'
-                  : 'Ten produkt nie ma jeszcze inwestorów',
-              style: TextStyle(color: AppTheme.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            if (hasSearchQuery) ...[
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  _searchController.clear();
-                  _filterInvestors('');
-                },
-                child: const Text('Wyczyść filtry'),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: _filteredInvestors.length,
-      itemBuilder: (context, index) {
-        final investor = _filteredInvestors[index];
-        return _buildEnhancedInvestorCard(investor, index);
-      },
-    );
-  }
-
-  Widget _buildEnhancedInvestorCard(InvestorSummary investor, int index) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppTheme.backgroundSecondary,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderPrimary),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        childrenPadding: const EdgeInsets.only(
-          left: 16,
-          right: 16,
-          bottom: 16,
-        ),
-        leading: CircleAvatar(
-          backgroundColor: _getInvestorColor(index),
-          child: Text(
-            investor.client.name.isNotEmpty 
-                ? investor.client.name[0].toUpperCase()
-                : '?',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              investor.client.name,
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (investor.client.email.isNotEmpty)
-              Text(
-                investor.client.email,
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12,
-                ),
-              ),
-          ],
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Row(
-            children: [
-              _buildInvestorBadge(
-                '${investor.investmentCount}',
-                'Inwestycji',
-                AppTheme.primaryAccent,
-              ),
-              const SizedBox(width: 12),
-              _buildInvestorBadge(
-                CurrencyFormatter.formatCurrencyShort(investor.totalValue),
-                'Łączna wartość',
-                AppTheme.successPrimary,
-              ),
-            ],
-          ),
-        ),
-        children: [
-          _buildInvestorDetails(investor),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInvestorBadge(String value, String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInvestorDetails(InvestorSummary investor) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.backgroundPrimary.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Podstawowe informacje
-          Row(
-            children: [
-              Expanded(
-                child: _buildDetailRow(
-                  'Typ klienta',
-                  investor.client.type.displayName,
-                  Icons.person_outline,
-                ),
-              ),
-              Expanded(
-                child: _buildDetailRow(
-                  'Status',
-                  investor.client.isActive ? 'Aktywny' : 'Nieaktywny',
-                  Icons.circle,
-                  color: investor.client.isActive 
-                      ? AppTheme.successPrimary 
-                      : AppTheme.errorPrimary,
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Kontakt
-          if (investor.client.phone.isNotEmpty)
-            _buildDetailRow(
-              'Telefon',
-              investor.client.phone,
-              Icons.phone_outlined,
-            ),
-          
-          const SizedBox(height: 12),
-          
-          // Finansowe
-          Row(
-            children: [
-              Expanded(
-                child: _buildDetailRow(
-                  'Pozostały kapitał',
-                  CurrencyFormatter.formatCurrency(investor.viableRemainingCapital),
-                  Icons.account_balance_wallet_outlined,
-                  color: AppTheme.warningPrimary,
-                ),
-              ),
-              Expanded(
-                child: _buildDetailRow(
-                  'Kwota inwestycji',
-                  CurrencyFormatter.formatCurrency(investor.totalInvestmentAmount),
-                  Icons.trending_up_outlined,
-                  color: AppTheme.primaryAccent,
-                ),
-              ),
-            ],
-          ),
-          
-          if (investor.client.notes.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _buildDetailRow(
-              'Notatki',
-              investor.client.notes,
-              Icons.note_outlined,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value, IconData icon, {Color? color}) {
+  Widget _buildDetailRow(
+    String label,
+    String value,
+    IconData icon, {
+    Color? color,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 16,
-            color: color ?? AppTheme.textSecondary,
-          ),
+          Icon(icon, size: 16, color: color ?? AppTheme.textSecondary),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -798,7 +379,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                   style: TextStyle(
                     color: color ?? AppTheme.textPrimary,
                     fontSize: 13,
-                    fontWeight: color != null ? FontWeight.w600 : FontWeight.w500,
+                    fontWeight: color != null
+                        ? FontWeight.w600
+                        : FontWeight.w500,
                   ),
                 ),
               ],
@@ -807,56 +390,6 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         ],
       ),
     );
-  }
-
-  Color _getInvestorColor(int index) {
-    const colors = [
-      AppTheme.primaryAccent,
-      AppTheme.successPrimary,
-      AppTheme.warningPrimary,
-      AppTheme.errorPrimary,
-      AppTheme.secondaryGold,
-    ];
-    return colors[index % colors.length];
-  }
-
-  void _filterInvestors(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _filteredInvestors = List.from(_investors);
-      } else {
-        _filteredInvestors = _investors.where((investor) {
-          return investor.client.name.toLowerCase().contains(query.toLowerCase()) ||
-                 investor.client.email.toLowerCase().contains(query.toLowerCase()) ||
-                 investor.client.phone.toLowerCase().contains(query.toLowerCase());
-        }).toList();
-      }
-      _sortFilteredInvestors();
-    });
-  }
-
-  void _sortAndFilterInvestors() {
-    _filterInvestors(_searchController.text);
-  }
-
-  void _sortFilteredInvestors() {
-    _filteredInvestors.sort((a, b) {
-      int comparison = 0;
-      
-      switch (_selectedSortBy) {
-        case 'name':
-          comparison = a.client.name.compareTo(b.client.name);
-          break;
-        case 'value':
-          comparison = a.totalValue.compareTo(b.totalValue);
-          break;
-        case 'investments':
-          comparison = a.investmentCount.compareTo(b.investmentCount);
-          break;
-      }
-      
-      return _sortAscending ? comparison : -comparison;
-    });
   }
 
   Widget _buildAmountsSection(BuildContext context, bool isMobile) {
@@ -1265,7 +798,6 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
-
   Widget _buildOverviewTab(BuildContext context, bool isMobile) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -1274,19 +806,19 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         children: [
           // Statystyki główne
           _buildMainStatsCards(context, isMobile),
-          
+
           const SizedBox(height: 24),
-          
+
           // Sekcja kwot - uproszczona w przegladzie
           _buildQuickAmountsSection(context, isMobile),
-          
+
           const SizedBox(height: 24),
-          
+
           // Top inwestorzy - podgląd
           _buildTopInvestorsPreview(context),
-          
+
           const SizedBox(height: 24),
-          
+
           // Status i kluczowe informacje
           _buildKeyInfoSection(context),
         ],
@@ -1302,19 +834,19 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         children: [
           // Wykresy i analiza
           _buildAnalyticsCharts(context, isMobile),
-          
+
           const SizedBox(height: 24),
-          
+
           // Metryki performensu
           _buildPerformanceMetrics(context, isMobile),
-          
+
           const SizedBox(height: 24),
-          
+
           // Analiza inwestorów
           _buildInvestorAnalytics(context, isMobile),
-          
+
           const SizedBox(height: 24),
-          
+
           // Trendy i prognozy
           _buildTrendsSection(context, isMobile),
         ],
@@ -1325,8 +857,10 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   Widget _buildMainStatsCards(BuildContext context, bool isMobile) {
     final totalInvestors = _investors.length;
     final totalInvestment = widget.product.totalValue;
-    final averageInvestment = totalInvestors > 0 ? totalInvestment / totalInvestors : 0.0;
-    
+    final averageInvestment = totalInvestors > 0
+        ? totalInvestment / totalInvestors
+        : 0.0;
+
     return GridView.count(
       crossAxisCount: isMobile ? 2 : 4,
       shrinkWrap: true,
@@ -1363,7 +897,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1388,10 +927,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           const SizedBox(height: 4),
           Text(
             title,
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
             textAlign: TextAlign.center,
           ),
         ],
@@ -1405,7 +941,11 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       children: [
         Row(
           children: [
-            Icon(Icons.account_balance_wallet, color: AppTheme.primaryAccent, size: 20),
+            Icon(
+              Icons.account_balance_wallet,
+              color: AppTheme.primaryAccent,
+              size: 20,
+            ),
             const SizedBox(width: 8),
             Text(
               'Przegląd finansowy',
@@ -1418,7 +958,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           ],
         ),
         const SizedBox(height: 16),
-        
+
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1457,7 +997,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
-  Widget _buildAmountInfo(String label, double amount, IconData icon, Color color) {
+  Widget _buildAmountInfo(
+    String label,
+    double amount,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -1474,10 +1019,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 12,
-          ),
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
         ),
       ],
     );
@@ -1492,7 +1034,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     }
 
     final topInvestors = _investors.take(3).toList();
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1520,7 +1062,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           ],
         ),
         const SizedBox(height: 16),
-        
+
         if (topInvestors.isEmpty)
           Container(
             padding: const EdgeInsets.all(16),
@@ -1536,60 +1078,64 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
             ),
           )
         else
-          ...topInvestors.map((investor) => Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.backgroundSecondary,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.borderPrimary),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: AppTheme.primaryAccent.withValues(alpha: 0.1),
-                  child: Text(
-                    investor.client.name.isNotEmpty 
-                        ? investor.client.name[0].toUpperCase()
-                        : '?',
+          ...topInvestors.map(
+            (investor) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.backgroundSecondary,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.borderPrimary),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: AppTheme.primaryAccent.withValues(
+                      alpha: 0.1,
+                    ),
+                    child: Text(
+                      investor.client.name.isNotEmpty
+                          ? investor.client.name[0].toUpperCase()
+                          : '?',
+                      style: TextStyle(
+                        color: AppTheme.primaryAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          investor.client.name,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          '${investor.investmentCount} inwestycji',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    CurrencyFormatter.formatCurrencyShort(investor.totalValue),
                     style: TextStyle(
                       color: AppTheme.primaryAccent,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        investor.client.name,
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        '${investor.investmentCount} inwestycji',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  CurrencyFormatter.formatCurrencyShort(investor.totalValue),
-                  style: TextStyle(
-                    color: AppTheme.primaryAccent,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          )),
+          ),
       ],
     );
   }
@@ -1613,7 +1159,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           ],
         ),
         const SizedBox(height: 16),
-        
+
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1623,7 +1169,10 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           ),
           child: Column(
             children: [
-              _buildKeyInfoRow('Typ produktu', widget.product.productType.displayName),
+              _buildKeyInfoRow(
+                'Typ produktu',
+                widget.product.productType.displayName,
+              ),
               const Divider(),
               _buildKeyInfoRow('Nazwa', widget.product.name),
               const Divider(),
@@ -1631,8 +1180,8 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               if (widget.product.maturityDate != null) ...[
                 const Divider(),
                 _buildKeyInfoRow(
-                  'Data zapadalności', 
-                  '${widget.product.maturityDate!.day.toString().padLeft(2, '0')}.${widget.product.maturityDate!.month.toString().padLeft(2, '0')}.${widget.product.maturityDate!.year}'
+                  'Data zapadalności',
+                  '${widget.product.maturityDate!.day.toString().padLeft(2, '0')}.${widget.product.maturityDate!.month.toString().padLeft(2, '0')}.${widget.product.maturityDate!.year}',
                 ),
               ],
             ],
@@ -1662,10 +1211,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
             ),
           ),
         ],
@@ -1692,7 +1238,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           ],
         ),
         const SizedBox(height: 16),
-        
+
         Container(
           height: 200,
           padding: const EdgeInsets.all(16),
@@ -1709,18 +1255,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                 const SizedBox(height: 12),
                 Text(
                   'Wykres wydajności w czasie',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Funkcjonalność będzie dostępna wkrótce',
-                  style: TextStyle(
-                    color: AppTheme.textTertiary,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
                 ),
               ],
             ),
@@ -1731,11 +1271,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   }
 
   Widget _buildPerformanceMetrics(BuildContext context, bool isMobile) {
-    final profitLoss = widget.product.totalValue - widget.product.investmentAmount;
-    final profitLossPercentage = widget.product.investmentAmount > 0 
-        ? (profitLoss / widget.product.investmentAmount) * 100 
+    final profitLoss =
+        widget.product.totalValue - widget.product.investmentAmount;
+    final profitLossPercentage = widget.product.investmentAmount > 0
+        ? (profitLoss / widget.product.investmentAmount) * 100
         : 0.0;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1754,7 +1295,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           ],
         ),
         const SizedBox(height: 16),
-        
+
         GridView.count(
           crossAxisCount: isMobile ? 1 : 3,
           shrinkWrap: true,
@@ -1772,13 +1313,19 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
             _buildPerformanceCard(
               'ROI',
               '${profitLossPercentage.toStringAsFixed(1)}%',
-              profitLossPercentage >= 0 ? AppTheme.successPrimary : AppTheme.errorPrimary,
-              profitLossPercentage >= 0 ? Icons.arrow_upward : Icons.arrow_downward,
+              profitLossPercentage >= 0
+                  ? AppTheme.successPrimary
+                  : AppTheme.errorPrimary,
+              profitLossPercentage >= 0
+                  ? Icons.arrow_upward
+                  : Icons.arrow_downward,
             ),
             _buildPerformanceCard(
               'Średnia na inwestora',
               CurrencyFormatter.formatCurrencyShort(
-                _investors.isNotEmpty ? widget.product.totalValue / _investors.length : 0
+                _investors.isNotEmpty
+                    ? widget.product.totalValue / _investors.length
+                    : 0,
               ),
               AppTheme.primaryAccent,
               Icons.person,
@@ -1789,7 +1336,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
-  Widget _buildPerformanceCard(String title, String value, Color color, IconData icon) {
+  Widget _buildPerformanceCard(
+    String title,
+    String value,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1814,10 +1366,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           const SizedBox(height: 4),
           Text(
             title,
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
             textAlign: TextAlign.center,
           ),
         ],
@@ -1828,7 +1377,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   Widget _buildInvestorAnalytics(BuildContext context, bool isMobile) {
     final activeInvestors = _investors.where((i) => i.client.isActive).length;
     final inactiveInvestors = _investors.length - activeInvestors;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1847,7 +1396,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           ],
         ),
         const SizedBox(height: 16),
-        
+
         Row(
           children: [
             Expanded(
@@ -1856,7 +1405,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                 decoration: BoxDecoration(
                   color: AppTheme.backgroundSecondary,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.successPrimary.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppTheme.successPrimary.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -1888,7 +1439,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                 decoration: BoxDecoration(
                   color: AppTheme.backgroundSecondary,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.warningPrimary.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppTheme.warningPrimary.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -1938,7 +1491,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           ],
         ),
         const SizedBox(height: 16),
-        
+
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1952,18 +1505,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               const SizedBox(height: 12),
               Text(
                 'Analiza trendów',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
               ),
               const SizedBox(height: 8),
               Text(
                 'Zaawansowane prognozy i analiza trendów będą dostępne wkrótce',
-                style: TextStyle(
-                  color: AppTheme.textTertiary,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -1976,8 +1523,10 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   String _getProductStatusText() {
     if (widget.product.maturityDate != null) {
       final now = DateTime.now();
-      final daysToMaturity = widget.product.maturityDate!.difference(now).inDays;
-      
+      final daysToMaturity = widget.product.maturityDate!
+          .difference(now)
+          .inDays;
+
       if (daysToMaturity < 0) {
         return 'Przeterminowany';
       } else if (daysToMaturity < 30) {
@@ -1992,8 +1541,10 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   Color _getProductStatusColor() {
     if (widget.product.maturityDate != null) {
       final now = DateTime.now();
-      final daysToMaturity = widget.product.maturityDate!.difference(now).inDays;
-      
+      final daysToMaturity = widget.product.maturityDate!
+          .difference(now)
+          .inDays;
+
       if (daysToMaturity < 0) {
         return AppTheme.errorPrimary;
       } else if (daysToMaturity < 30) {

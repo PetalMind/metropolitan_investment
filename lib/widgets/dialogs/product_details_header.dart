@@ -7,11 +7,13 @@ import 'product_details_service.dart';
 class ProductDetailsHeader extends StatefulWidget {
   final UnifiedProduct product;
   final VoidCallback onClose;
+  final VoidCallback? onShowInvestors;
 
   const ProductDetailsHeader({
     super.key,
     required this.product,
     required this.onClose,
+    this.onShowInvestors,
   });
 
   @override

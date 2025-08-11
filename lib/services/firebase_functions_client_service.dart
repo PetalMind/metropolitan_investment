@@ -14,7 +14,8 @@ class FirebaseFunctionsClientService extends BaseService {
     int page = 1,
     int pageSize = 500,
     String? searchQuery,
-    String sortBy = 'imie_nazwisko',
+    String sortBy =
+        'fullName', // Zmieniono z 'imie_nazwisko' na rzeczywiste pole w Firestore
     bool forceRefresh = false,
   }) async {
     try {
@@ -27,15 +28,40 @@ class FirebaseFunctionsClientService extends BaseService {
       final result = await _functions.httpsCallable('getAllClients').call({
         'page': page,
         'pageSize': pageSize,
-        'searchQuery': searchQuery?.trim(),
+        'searchQuery': searchQuery?.trim().isEmpty == true
+            ? null
+            : searchQuery?.trim(),
         'sortBy': sortBy,
         'forceRefresh': forceRefresh,
       });
 
       final data = result.data;
 
-      // Konwertuj dane na obiekty Client
-      final clients = (data['clients'] as List)
+      // Sprawdź czy data nie jest null i zawiera clients
+      if (data == null) {
+        logError('getAllClients', 'Otrzymano null z Firebase Functions');
+        throw Exception('Otrzymano puste dane z serwera');
+      }
+
+      // Bezpieczne konwertowanie danych na obiekty Client
+      final clientsData = data['clients'];
+      if (clientsData == null) {
+        logError(
+          'getAllClients',
+          'Pole clients jest null w odpowiedzi serwera',
+        );
+        return ClientsResult(
+          clients: [],
+          totalCount: 0,
+          currentPage: page,
+          pageSize: pageSize,
+          hasNextPage: false,
+          hasPreviousPage: false,
+          source: 'firebase-functions-empty',
+        );
+      }
+
+      final clients = (clientsData as List)
           .map((clientData) => _convertToClient(clientData))
           .toList();
 
@@ -69,8 +95,23 @@ class FirebaseFunctionsClientService extends BaseService {
 
       final data = result.data;
 
+      // Sprawdź czy data nie jest null i zawiera clients
+      if (data == null) {
+        logError('getActiveClients', 'Otrzymano null z Firebase Functions');
+        throw Exception('Otrzymano puste dane z serwera');
+      }
+
+      final clientsData = data['clients'];
+      if (clientsData == null) {
+        logError(
+          'getActiveClients',
+          'Pole clients jest null w odpowiedzi serwera',
+        );
+        return [];
+      }
+
       // Konwertuj dane na obiekty Client
-      final activeClients = (data['clients'] as List)
+      final activeClients = (clientsData as List)
           .map((clientData) => _convertToClient(clientData))
           .toList();
 
@@ -158,6 +199,21 @@ class FirebaseFunctionsClientService extends BaseService {
     } catch (e) {
       logError('getClientById', e);
       return null;
+    }
+  }
+
+  /// Testowa funkcja do diagnozowania problemów z Firebase Functions
+  Future<Map<String, dynamic>> debugTest() async {
+    try {
+      final result = await _functions.httpsCallable('debugClientsTest').call();
+
+      logError('debugTest', 'Test Firebase Functions zakończony pomyślnie');
+      logError('debugTest', 'Wynik: ${result.data}');
+
+      return Map<String, dynamic>.from(result.data ?? {});
+    } catch (e) {
+      logError('debugTest', e);
+      throw Exception('Błąd podczas testu Firebase Functions: $e');
     }
   }
 

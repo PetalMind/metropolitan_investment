@@ -5,6 +5,7 @@ const { onCall } = require("firebase-functions/v2/https");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const { HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const { safeToDouble, safeToString, parseDate, mapProductType } = require("./utils/data-mapping");
 
 // Set global options for all functions
 setGlobalOptions({
@@ -136,17 +137,6 @@ exports.getAdvancedDashboardMetrics = onCall({
  * Konwertuje dane Excel do zunifikowanego formatu investment
  */
 function convertExcelDataToInvestment(id, data) {
-  const safeToDouble = (value, defaultValue = 0.0) => {
-    if (value == null || value === '') return defaultValue;
-    if (typeof value === "number") return value;
-    if (typeof value === "string") {
-      const cleaned = value.replace(/,/g, "");
-      const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? defaultValue : parsed;
-    }
-    return defaultValue;
-  };
-
   const parseDate = (dateStr) => {
     if (!dateStr || dateStr === "NULL") return null;
     try {
@@ -165,6 +155,13 @@ function convertExcelDataToInvestment(id, data) {
     return "bonds";
   };
 
+  // Używamy bezpiecznej funkcji safeToDouble z utils
+  const investmentAmount = safeToDouble(data.investmentAmount || data.wartosc_kontraktu);
+  const remainingCapital = safeToDouble(data.remainingCapital || data.kapital_pozostaly);
+  const realizedCapital = safeToDouble(data.realizedCapital || data.kapital_zrealizowany);
+  const realizedInterest = safeToDouble(data.odsetki_zrealizowane);
+  const remainingInterest = safeToDouble(data.odsetki_pozostale);
+
   return {
     id: id,
     clientId: data.clientId?.toString() || data.id_klient?.toString() || "",
@@ -175,15 +172,15 @@ function convertExcelDataToInvestment(id, data) {
     productType: mapProductType(data.productType || data.typ_produktu),
     productName: data.productName || data.produkt_nazwa || "",
     signedDate: parseDate(data.signingDate || data.data_podpisania) || new Date().toISOString(),
-    investmentAmount: safeToDouble(data.investmentAmount || data.wartosc_kontraktu),
-    realizedCapital: safeToDouble(data.realizedCapital || data.kapital_zrealizowany),
-    realizedInterest: safeToDouble(data.odsetki_zrealizowane),
-    remainingCapital: safeToDouble(data.remainingCapital || data.kapital_pozostaly),
-    remainingInterest: safeToDouble(data.odsetki_pozostale),
-    totalValue: safeToDouble(data.remainingCapital || data.kapital_pozostaly) + safeToDouble(data.odsetki_pozostale),
-    profitLoss: safeToDouble(data.remainingCapital || data.kapital_pozostaly) - safeToDouble(data.investmentAmount || data.wartosc_kontraktu),
-    profitLossPercentage: safeToDouble(data.investmentAmount || data.wartosc_kontraktu) > 0 ?
-      ((safeToDouble(data.remainingCapital || data.kapital_pozostaly) - safeToDouble(data.investmentAmount || data.wartosc_kontraktu)) / safeToDouble(data.investmentAmount || data.wartosc_kontraktu)) * 100 : 0,
+    investmentAmount,
+    realizedCapital,
+    realizedInterest,
+    remainingCapital,
+    remainingInterest,
+    totalValue: remainingCapital + remainingInterest,
+    profitLoss: remainingCapital - investmentAmount,
+    profitLossPercentage: investmentAmount > 0 ?
+      ((remainingCapital - investmentAmount) / investmentAmount) * 100 : 0,
     status: "active",
     source: "investments",
   };
@@ -193,19 +190,11 @@ function convertExcelDataToInvestment(id, data) {
  * Konwertuje obligacje do zunifikowanego formatu
  */
 function convertBondToInvestment(id, data) {
-  const safeToDouble = (value, defaultValue = 0.0) => {
-    if (value == null || value === '') return defaultValue;
-    if (typeof value === "number") return value;
-    if (typeof value === "string") {
-      const cleaned = value.replace(/,/g, "");
-      const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? defaultValue : parsed;
-    }
-    return defaultValue;
-  };
-
   const investmentAmount = safeToDouble(data.kwota_inwestycji || data.Kwota_inwestycji);
   const remainingCapital = safeToDouble(data.kapital_pozostaly || data["Kapital Pozostaly"]);
+  const realizedCapital = safeToDouble(data.kapital_zrealizowany);
+  const realizedInterest = safeToDouble(data.odsetki_zrealizowane);
+  const remainingInterest = safeToDouble(data.odsetki_pozostale);
 
   return {
     id: id,
@@ -217,12 +206,12 @@ function convertBondToInvestment(id, data) {
     productType: "bonds",
     productName: data.typ_produktu || data.Typ_produktu || "Obligacje",
     signedDate: data.created_at || new Date().toISOString(),
-    investmentAmount: investmentAmount,
-    realizedCapital: safeToDouble(data.kapital_zrealizowany),
-    realizedInterest: safeToDouble(data.odsetki_zrealizowane),
-    remainingCapital: remainingCapital,
-    remainingInterest: safeToDouble(data.odsetki_pozostale),
-    totalValue: remainingCapital + safeToDouble(data.odsetki_pozostale),
+    investmentAmount,
+    realizedCapital,
+    realizedInterest,
+    remainingCapital,
+    remainingInterest,
+    totalValue: remainingCapital + remainingInterest,
     profitLoss: remainingCapital - investmentAmount,
     profitLossPercentage: investmentAmount > 0 ? ((remainingCapital - investmentAmount) / investmentAmount) * 100 : 0,
     status: "active",
@@ -234,21 +223,11 @@ function convertBondToInvestment(id, data) {
  * Konwertuje udziały do zunifikowanego formatu
  */
 function convertShareToInvestment(id, data) {
-  const safeToDouble = (value, defaultValue = 0.0) => {
-    if (value == null || value === '') return defaultValue;
-    if (typeof value === "number") return value;
-    if (typeof value === "string") {
-      const cleaned = value.replace(/,/g, "");
-      const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? defaultValue : parsed;
-    }
-    return defaultValue;
-  };
-
   const investmentAmount = safeToDouble(data.kwota_inwestycji || data.Kwota_inwestycji);
   const sharesCount = safeToDouble(data.ilosc_udzialow) || 0;
   const pricePerShare = safeToDouble(data.cena_za_udzial) || 0;
   const currentValue = sharesCount * pricePerShare;
+  const dividendsReceived = safeToDouble(data.dywidendy_otrzymane);
 
   return {
     id: id,
@@ -260,9 +239,9 @@ function convertShareToInvestment(id, data) {
     productType: "shares",
     productName: data.typ_produktu || data.Typ_produktu || "Udziały",
     signedDate: data.created_at || new Date().toISOString(),
-    investmentAmount: investmentAmount,
+    investmentAmount,
     realizedCapital: 0,
-    realizedInterest: safeToDouble(data.dywidendy_otrzymane),
+    realizedInterest: dividendsReceived,
     remainingCapital: currentValue,
     remainingInterest: 0,
     totalValue: currentValue,
@@ -280,19 +259,9 @@ function convertShareToInvestment(id, data) {
  * Konwertuje pożyczki do zunifikowanego formatu
  */
 function convertLoanToInvestment(id, data) {
-  const safeToDouble = (value, defaultValue = 0.0) => {
-    if (value == null || value === '') return defaultValue;
-    if (typeof value === "number") return value;
-    if (typeof value === "string") {
-      const cleaned = value.replace(/,/g, "");
-      const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? defaultValue : parsed;
-    }
-    return defaultValue;
-  };
-
   const investmentAmount = safeToDouble(data.kwota_inwestycji || data.Kwota_inwestycji);
   const remainingCapital = safeToDouble(data.kapital_pozostaly || data["Kapital Pozostaly"]);
+  const interestAccrued = safeToDouble(data.odsetki_naliczone);
 
   return {
     id: id,
@@ -304,10 +273,10 @@ function convertLoanToInvestment(id, data) {
     productType: "loans",
     productName: data.typ_produktu || data.Typ_produktu || "Pożyczki",
     signedDate: data.created_at || data.data_udzielenia || new Date().toISOString(),
-    investmentAmount: investmentAmount,
+    investmentAmount,
     realizedCapital: 0,
-    realizedInterest: safeToDouble(data.odsetki_naliczone),
-    remainingCapital: remainingCapital,
+    realizedInterest: interestAccrued,
+    remainingCapital,
     remainingInterest: 0,
     totalValue: remainingCapital,
     profitLoss: remainingCapital - investmentAmount,
@@ -316,7 +285,7 @@ function convertLoanToInvestment(id, data) {
     source: "loans",
     // Dodatkowe pola dla pożyczek
     borrower: data.pozyczkobiorca || "",
-    interestRate: data.oprocentowanie || 0,
+    interestRate: safeToDouble(data.oprocentowanie) || 0,
     collateral: data.zabezpieczenie || "",
   };
 }
@@ -325,21 +294,11 @@ function convertLoanToInvestment(id, data) {
  * Konwertuje apartamenty do zunifikowanego formatu
  */
 function convertApartmentToInvestment(id, data) {
-  const safeToDouble = (value, defaultValue = 0.0) => {
-    if (value == null || value === '') return defaultValue;
-    if (typeof value === "number") return value;
-    if (typeof value === "string") {
-      const cleaned = value.replace(/,/g, "");
-      const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? defaultValue : parsed;
-    }
-    return defaultValue;
-  };
-
   const area = safeToDouble(data.powierzchnia);
   const pricePerM2 = safeToDouble(data.cena_za_m2);
   const investmentAmount = safeToDouble(data.kwota_inwestycji || data.Kwota_inwestycji);
   const currentValue = area * pricePerM2;
+  const roomCount = safeToDouble(data.liczba_pokoi) || 0;
 
   return {
     id: id,
@@ -364,7 +323,7 @@ function convertApartmentToInvestment(id, data) {
     // Dodatkowe pola dla apartamentów
     area: area,
     pricePerM2: pricePerM2,
-    roomCount: data.liczba_pokoi || 0,
+    roomCount: roomCount,
     apartmentNumber: data.numer_apartamentu || "",
     developer: data.deweloper || "",
   };

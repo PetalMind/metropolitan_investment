@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../theme/app_theme.dart';
-import '../../services/firebase_functions_dashboard_service.dart';
+import '../../services/firebase_functions_advanced_analytics_service.dart';
 
-/// 📊 BENCHMARK TAB - Zakładka z porównaniami do benchmarków
+/// 📊 BENCHMARK TAB - Market benchmark comparisons tab
 ///
-/// Wyświetla:
-/// - Porównania z indeksami rynkowymi
-/// - Analiza względnej wydajności
-/// - Tracking error i correlation
-/// - Beta i Alpha calculations
+/// Displays:
+/// - Market index comparisons
+/// - Relative performance analysis
+/// - Tracking error and correlation
+/// - Beta and Alpha calculations
 class BenchmarkTab extends StatefulWidget {
   const BenchmarkTab({super.key});
 
@@ -23,14 +23,14 @@ class _BenchmarkTabState extends State<BenchmarkTab> {
   String _selectedBenchmark = 'market';
 
   final List<Map<String, String>> _benchmarkTypes = [
-    {'id': 'market', 'name': 'Rynek Ogólny', 'description': 'WIG20, S&P500'},
-    {'id': 'industry', 'name': 'Branżowy', 'description': 'Sektor finansowy'},
-    {'id': 'bond', 'name': 'Obligacje', 'description': 'Indeksy obligacji'},
+    {'id': 'market', 'name': 'General Market', 'description': 'WIG20, S&P500'},
     {
-      'id': 'real_estate',
-      'name': 'Nieruchomości',
-      'description': 'REIT indices',
+      'id': 'industry',
+      'name': 'Sector-based',
+      'description': 'Financial sector',
     },
+    {'id': 'bond', 'name': 'Bonds', 'description': 'Bond indices'},
+    {'id': 'real_estate', 'name': 'Real Estate', 'description': 'REIT indices'},
   ];
 
   @override
@@ -43,10 +43,11 @@ class _BenchmarkTabState extends State<BenchmarkTab> {
     setState(() => _isLoading = true);
 
     try {
-      final data = await FirebaseFunctionsDashboardService.getBenchmarks(
-        benchmarkType: _selectedBenchmark,
-        forceRefresh: false,
-      );
+      final data =
+          await FirebaseFunctionsAdvancedAnalyticsService.getDashboardBenchmarks(
+            benchmarkType: _selectedBenchmark,
+            forceRefresh: false,
+          );
 
       setState(() {
         _benchmarkData = data;

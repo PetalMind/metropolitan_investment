@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models_and_services.dart';
+import '../services/integrated_client_service.dart';
 import '../widgets/data_table_widget.dart';
 import '../widgets/custom_loading_widget.dart';
 import '../widgets/client_form.dart';
@@ -13,7 +14,7 @@ class ClientsScreen extends StatefulWidget {
 }
 
 class _ClientsScreenState extends State<ClientsScreen> {
-  final ClientService _clientService = ClientService();
+  final IntegratedClientService _clientService = IntegratedClientService();
   final TextEditingController _searchController = TextEditingController();
 
   List<Client> _clients = [];
@@ -45,8 +46,10 @@ class _ClientsScreenState extends State<ClientsScreen> {
     });
 
     try {
-      // Ładowanie wszystkich klientów
-      final clients = await _clientService.loadAllClientsWithProgress(
+      // Ładowanie wszystkich klientów za pomocą zintegrowanego serwisu
+      final clients = await _clientService.getAllClients(
+        page: 1,
+        pageSize: 10000, // Pobierz wszystkich klientów
         onProgress: (progress, stage) {
           if (mounted) {
             setState(() {
@@ -63,9 +66,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
           _loadingStage = 'Ładowanie aktywnych klientów...';
         });
 
-        // Ładowanie aktywnych klientów z wykorzystaniem indeksu
-        final activeClientsStream = _clientService.getActiveClients();
-        final activeClients = await activeClientsStream.first;
+        // Ładowanie aktywnych klientów z wykorzystaniem zintegrowanego serwisu
+        final activeClients = await _clientService.getActiveClients();
 
         setState(() {
           _clients = clients;
@@ -359,6 +361,9 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 case 'import':
                   _showInfoSnackBar('Import - w przygotowaniu');
                   break;
+                case 'debug':
+                  _debugFirebaseFunctions();
+                  break;
               }
             },
             itemBuilder: (context) => [
@@ -383,6 +388,19 @@ class _ClientsScreenState extends State<ClientsScreen> {
                     SizedBox(width: 8),
                     Text(
                       'Import',
+                      style: TextStyle(color: AppTheme.textPrimary),
+                    ),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'debug',
+                child: Row(
+                  children: [
+                    Icon(Icons.bug_report, color: AppTheme.textSecondary),
+                    SizedBox(width: 8),
+                    Text(
+                      'Debug Firebase Functions',
                       style: TextStyle(color: AppTheme.textPrimary),
                     ),
                   ],
@@ -545,5 +563,52 @@ class _ClientsScreenState extends State<ClientsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppTheme.infoColor),
     );
+  }
+
+  /// Debug Firebase Functions
+  void _debugFirebaseFunctions() async {
+    try {
+      _showInfoSnackBar('Testowanie Firebase Functions...');
+
+      final result = await _clientService.debugTest();
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppTheme.backgroundModal,
+            title: const Text(
+              'Debug Firebase Functions',
+              style: TextStyle(color: AppTheme.textPrimary),
+            ),
+            content: SingleChildScrollView(
+              child: Text(
+                'Status: ${result['functionStatus']}\n'
+                'Klienci w bazie: ${result['database']?['clientsCount'] ?? 'N/A'}\n'
+                'Inwestycje w bazie: ${result['database']?['investmentsCount'] ?? 'N/A'}\n'
+                'Czas przetwarzania: ${result['processingTime'] ?? 'N/A'}ms\n'
+                'Wersja: ${result['version'] ?? 'N/A'}\n\n'
+                'Pełny wynik:\n${result.toString()}',
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.secondaryGold,
+                ),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      _showErrorSnackBar('Błąd podczas testowania Firebase Functions: $e');
+    }
   }
 }

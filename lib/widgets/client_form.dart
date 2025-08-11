@@ -58,11 +58,12 @@ class _ClientFormState extends State<ClientForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Nazwa/Imię i nazwisko
+            // Nazwa/Imię i nazwisko (zapisywane jako fullName w Firebase)
             TextFormField(
               initialValue: _name,
               decoration: const InputDecoration(
                 labelText: 'Imię i nazwisko / Nazwa',
+                helperText: 'Zapisywane jako "fullName" w Firebase',
               ),
               validator: (v) => v == null || v.isEmpty ? 'Wymagane' : null,
               onSaved: (v) => _name = v!,

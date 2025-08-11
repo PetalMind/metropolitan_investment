@@ -9,8 +9,13 @@ import 'product_details_service.dart';
 /// Enhanced widget do wyświetlania szczegółów produktu w modal dialog
 class EnhancedProductDetailsDialog extends StatefulWidget {
   final UnifiedProduct product;
+  final VoidCallback? onShowInvestors;
 
-  const EnhancedProductDetailsDialog({super.key, required this.product});
+  const EnhancedProductDetailsDialog({
+    super.key,
+    required this.product,
+    this.onShowInvestors,
+  });
 
   @override
   State<EnhancedProductDetailsDialog> createState() =>
@@ -121,6 +126,7 @@ class _EnhancedProductDetailsDialogState
             ProductDetailsHeader(
               product: widget.product,
               onClose: () => Navigator.of(context).pop(),
+              onShowInvestors: widget.onShowInvestors,
             ),
 
             // Tab Content

@@ -54,6 +54,17 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   void initState() {
     super.initState();
 
+    // 🔍 DEBUG: Sprawdź dane otrzymane przez modal
+    print('🔍 [InvestorModal] DEBUG - Dane klienta:');
+    print('  - ID: ${widget.investor.client.id}');
+    print('  - ExcelID: ${widget.investor.client.excelId}');
+    print('  - Nazwa: "${widget.investor.client.name}"');
+    print('  - Email: "${widget.investor.client.email}"');
+    print('  - Telefon: "${widget.investor.client.phone}"');
+    print('  - Firma: "${widget.investor.client.companyName ?? 'brak'}"');
+    print('  - Liczba inwestycji: ${widget.investor.investments.length}');
+    print('  - Całkowita wartość: ${widget.investor.totalValue}');
+
     // Initialize controllers
     _notesController = TextEditingController(
       text: widget.investor.client.notes,
@@ -565,8 +576,8 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
             fontWeight: FontWeight.bold,
           ),
         ),
-                const SizedBox(height: 16),
-          _buildStatCard(
+        const SizedBox(height: 16),
+        _buildStatCard(
           'kwota_inwestycji',
           CurrencyFormatter.formatCurrency(
             widget.investor.totalInvestmentAmount,
@@ -586,7 +597,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
             widget.investor.capitalSecuredByRealEstate,
           ),
         ),
-    
+
         const SizedBox(height: 12),
         _buildStatCard(
           'kapital_do_restrukturyzacji',
@@ -1783,44 +1794,24 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   void _navigateToProductDetails(Investment investment) {
     Navigator.of(context).pop(); // Zamknij dialog
 
-    // Strategia wyszukiwania - preferujemy najbardziej specyficzne terminy
-    String searchTerm = '';
-    String strategy = '';
+    print('🎯 [InvestorModal] Nawigacja do konkretnego produktu:');
+    print('🎯 [InvestorModal] - Investment ID: ${investment.id}');
+    print('🎯 [InvestorModal] - Product Name: ${investment.productName}');
+    print('🎯 [InvestorModal] - Product Type: ${investment.productType.name}');
 
-    // 1. Najpierw sprawdź productName jeśli jest dostępne i nie jest zbyt ogólne
-    if (investment.productName.isNotEmpty &&
-        investment.productName.toLowerCase() != 'obligacja' &&
-        investment.productName.toLowerCase() != 'pożyczka' &&
-        investment.productName.toLowerCase() != 'akcja' &&
-        investment.productName.toLowerCase() != 'mieszkanie') {
-      searchTerm = investment.productName;
-      strategy = 'productName';
-    }
-    // 2. Jeśli brak dobrego productName, użyj creditorCompany dla pożyczek
-    else if (investment.creditorCompany.isNotEmpty &&
-        investment.productType.name == 'loans') {
-      searchTerm = investment.creditorCompany;
-      strategy = 'creditorCompany';
-    }
-    // 3. Jako ostateczność użyj ID inwestycji (pierwsze 8 znaków)
-    else if (investment.id.isNotEmpty) {
-      searchTerm = investment.id.substring(0, 8);
-      strategy = 'investmentId';
-    }
-    // 4. Fallback - typ produktu
-    else {
-      searchTerm = investment.productType.displayName;
-      strategy = 'productType';
-    }
+    // Użyj nowego systemu nawigacji z konkretnym ID inwestycji
+    final uri = Uri(
+      path: '/products',
+      queryParameters: {
+        'investmentId': investment.id,
+        // Dodatkowe parametry jako fallback dla debugowania
+        'productName': investment.productName,
+        'productType': investment.productType.name,
+      },
+    );
 
-    // Nawiguj do ekranu produktów z terminem wyszukiwania
-    final encodedSearchTerm = Uri.encodeComponent(searchTerm);
-    print('🔍 [InvestorModal] Nawigacja do produktów:');
-    print('🔍 [InvestorModal] - Strategia: $strategy');
-    print('🔍 [InvestorModal] - Termin: "$searchTerm"');
-    print('🔍 [InvestorModal] - Typ produktu: ${investment.productType.name}');
-
-    context.go('/products?productName=$encodedSearchTerm');
+    print('🎯 [InvestorModal] Nawiguj do: ${uri.toString()}');
+    context.go(uri.toString());
   }
 }
 

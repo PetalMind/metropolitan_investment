@@ -5,8 +5,11 @@
  */
 
 const { onCall } = require("firebase-functions/v2/https");
+const { setGlobalOptions } = require("firebase-functions/v2");
 const { HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const { safeToDouble } = require("./utils/data-mapping");
+const { getCachedResult, setCachedResult } = require("./utils/cache-utils");
 
 // 🎯 GŁÓWNA FUNKCJA: Pobieranie inwestorów dla produktu z zaawansowaną optymalizacją
 exports.getProductInvestorsOptimized = onCall({
@@ -25,17 +28,18 @@ exports.getProductInvestorsOptimized = onCall({
   try {
     const {
       productName,
+      productId,    // Dodane nowe pole - ID produktu dla dokładnego wyszukiwania
       productType, // 'bonds', 'shares', 'loans', 'apartments', 'other'
-      searchStrategy = 'comprehensive', // 'exact', 'type', 'comprehensive'
+      searchStrategy = 'comprehensive', // 'exact', 'type', 'comprehensive', 'id'
       forceRefresh = false,
     } = data;
 
-    if (!productName && !productType) {
-      throw new HttpsError('invalid-argument', 'Wymagana nazwa produktu lub typ produktu');
+    if (!productName && !productType && !productId) {
+      throw new HttpsError('invalid-argument', 'Wymagana nazwa produktu, ID produktu lub typ produktu');
     }
 
     // 💾 Cache Key
-    const cacheKey = `product_investors_${productName || productType}_${searchStrategy}`;
+    const cacheKey = `product_investors_${productId || productName || productType}_${searchStrategy}`;
 
     if (!forceRefresh) {
       const cached = await getCachedResult(cacheKey);
@@ -49,38 +53,25 @@ exports.getProductInvestorsOptimized = onCall({
       }
     }
 
-    // 📊 KROK 1: Równoległe pobieranie wszystkich potrzebnych danych
-    console.log("📋 [Product Investors] Pobieranie danych...");
+    // 📊 KROK 1: Pobieranie danych TYLKO z kolekcji 'investments'
+    console.log("📋 [Product Investors] Pobieranie danych z kolekcji 'investments'...");
 
-    // Zmniejsz limity dla testów
-    const dataLimit = 1000; // Zamiast 50000
-    const clientLimit = 500; // Zamiast 10000
+    // Zwiększ limit dla pełnych danych
+    const dataLimit = 5000; // Zwiększony limit dla kolekcji investments
+    const clientLimit = 1000; // Limit dla klientów
 
     const [
       investmentsSnapshot,
-      bondsSnapshot,
-      sharesSnapshot,
-      loansSnapshot,
-      apartmentsSnapshot,
       clientsSnapshot,
     ] = await Promise.all([
-      // Pobierz z głównej kolekcji investments (ograniczony limit)
+      // Pobierz z głównej kolekcji investments (wszystkie typy produktów)
       db.collection('investments').limit(dataLimit).get(),
-      // Pobierz z dedykowanych kolekcji (ograniczone limity)
-      db.collection('bonds').limit(dataLimit).get(),
-      db.collection('shares').limit(dataLimit).get(),
-      db.collection('loans').limit(dataLimit).get(),
-      db.collection('apartments').limit(dataLimit).get(),
-      // Pobierz klientów (ograniczony limit)
+      // Pobierz klientów
       db.collection('clients').limit(clientLimit).get(),
     ]);
 
     console.log(`📊 [Product Investors] Pobrane dane:
       - Investments: ${investmentsSnapshot.docs.length}
-      - Bonds: ${bondsSnapshot.docs.length}  
-      - Shares: ${sharesSnapshot.docs.length}
-      - Loans: ${loansSnapshot.docs.length}
-      - Apartments: ${apartmentsSnapshot.docs.length}
       - Clients: ${clientsSnapshot.docs.length}`);
 
     // 📊 KROK 2: Przygotuj mapę klientów dla szybkiego wyszukiwania
@@ -114,7 +105,7 @@ exports.getProductInvestorsOptimized = onCall({
 
     console.log(`👥 [Product Investors] Utworzono mapowania:
       - UUID: ${clientsMap.size}
-      - Excel ID: ${clientsByExcelId.size}  
+      - Excel ID: ${clientsByExcelId.size}
       - Nazwy: ${clientsByName.size}`);
 
     console.log(`👥 [Product Investors] Mapa klientów: ${clientsMap.size} total, ${clientsByExcelId.size} z Excel ID`);
@@ -133,18 +124,43 @@ exports.getProductInvestorsOptimized = onCall({
       });
     };
 
+    // Dodaj wszystkie inwestycje z kolekcji 'investments'
     addInvestments(investmentsSnapshot, 'investments');
-    addInvestments(bondsSnapshot, 'bonds');
-    addInvestments(sharesSnapshot, 'shares');
-    addInvestments(loansSnapshot, 'loans');
-    addInvestments(apartmentsSnapshot, 'apartments');
 
     console.log(`💼 [Product Investors] Łącznie inwestycji: ${allInvestments.length}`);
 
     // 📊 KROK 4: Filtrowanie inwestycji według strategii wyszukiwania
     let matchingInvestments = [];
 
-    if (searchStrategy === 'exact' && productName) {
+    if (searchStrategy === 'id' && productId) {
+      // Strategia według ID produktu (najdokładniejsza)
+      console.log(`🔍 [Product Investors] Szukam inwestycji z productId: ${productId}`);
+
+      // Debug: sprawdź kilka pierwszych inwestycji
+      console.log(`🔍 [Product Investors] Próbka pierwszych 3 inwestycji:`);
+      allInvestments.slice(0, 3).forEach((inv, index) => {
+        const invId = getInvestmentProductId(inv);
+        const invName = getInvestmentProductName(inv);
+        console.log(`  ${index}: productId="${invId}", productName="${invName}"`);
+      });
+
+      matchingInvestments = allInvestments.filter(investment => {
+        const investmentProductId = getInvestmentProductId(investment);
+        return investmentProductId === productId;
+      });
+      console.log(`🎯 [Product Investors] Strategia ID: ${matchingInvestments.length} inwestycji`);
+
+      // Fallback: jeśli nie znaleziono po ID, spróbuj po nazwie
+      if (matchingInvestments.length === 0 && productName) {
+        console.log(`🔄 [Product Investors] Fallback ID->Name dla: ${productName}`);
+        matchingInvestments = allInvestments.filter(investment => {
+          const investmentProductName = getInvestmentProductName(investment);
+          return investmentProductName === productName;
+        });
+        console.log(`🎯 [Product Investors] Fallback Name: ${matchingInvestments.length} inwestycji`);
+      }
+
+    } else if (searchStrategy === 'exact' && productName) {
       // Strategia dokładnej nazwy
       matchingInvestments = allInvestments.filter(investment => {
         const investmentProductName = getInvestmentProductName(investment);
@@ -164,11 +180,12 @@ exports.getProductInvestorsOptimized = onCall({
       console.log(`🎯 [Product Investors] Strategia typ: ${matchingInvestments.length} inwestycji`);
 
     } else {
-      // Strategia komprehensywna (domyślna)
+      // Strategia komprehensywna (domyślna) z preferencją dla ID
       matchingInvestments = findInvestmentsByComprehensiveSearch(
         allInvestments,
         productName,
-        productType
+        productType,
+        productId  // Dodano productId jako nowy parametr
       );
       console.log(`🎯 [Product Investors] Strategia komprehensywna: ${matchingInvestments.length} inwestycji`);
     }
@@ -276,7 +293,7 @@ exports.getProductInvestorsOptimized = onCall({
               clientDbName.toLowerCase().includes(clientName.toLowerCase()) ||
               clientName.toLowerCase().includes(clientDbName.toLowerCase())) {
               matchedClient = client;
-              console.log(`✅ [Product Investors] Dopasowano klienta po nazwie: "${clientName}" -> "${clientDbName}"`);
+              console.log(`✅[Product Investors] Dopasowano klienta po nazwie: "${clientName}" -> "${clientDbName}"`);
               break;
             }
           }
@@ -371,14 +388,26 @@ exports.getProductInvestorsOptimized = onCall({
 // 🛠️ HELPER FUNCTIONS
 
 /**
+ * Wyciąga ID produktu z inwestycji (mapowanie na rzeczywiste pola Firestore)
+ */
+function getInvestmentProductId(investment) {
+  // Użyj dokładnych nazw pól z Firestore dla ID produktu
+  return investment.productId ||       // Główne pole ID produktu w Firestore
+    investment.product_id ||           // Alternatywna nazwa
+    investment.id_produktu ||          // Polskie pole z ID
+    investment.ID_Produktu ||          // Legacy polskie pole z dużymi literami
+    '';
+}
+
+/**
  * Wyciąga nazwę produktu z inwestycji (mapowanie na rzeczywiste pola Firestore)
  */
 function getInvestmentProductName(investment) {
-  // Użyj dokładnych nazw pól z Firestore
-  return investment.Produkt_nazwa || // Główne pole
-    investment.nazwa_obligacji ||  // Dla obligacji
-    investment.productName ||      // Backup angielski
-    investment.name ||             // Ogólny backup
+  // Użyj dokładnych nazw pól z Firestore (angielskie nazwy)
+  return investment.productName ||   // Główne pole w Firestore
+    investment.name ||               // Ogólny backup
+    investment.Produkt_nazwa ||      // Legacy polskie pole (może być w starych danych)
+    investment.nazwa_obligacji ||    // Legacy dla obligacji
     '';
 }
 
@@ -386,12 +415,12 @@ function getInvestmentProductName(investment) {
  * Wyciąga typ produktu z inwestycji (mapowanie na rzeczywiste pola Firestore)
  */
 function getInvestmentProductType(investment) {
-  // Użyj dokładnych nazw pól z Firestore
-  return investment.Typ_produktu ||    // Główne pole ("Obligacje")
-    investment.productType ||     // Backup pole ("Obligacje")  
-    investment.investment_type || // Angielska wersja ("bonds")
-    investment.typ_produktu ||    // Lowercase backup
-    investment.type ||            // Ogólny backup
+  // Użyj dokładnych nazw pól z Firestore (angielskie nazwy)
+  return investment.productType ||     // Główne pole w Firestore ("bond", "share", "loan", "apartment")
+    investment.type ||                 // Ogólny backup  
+    investment.investment_type ||      // Angielska wersja backup
+    investment.Typ_produktu ||         // Legacy polskie pole z dużą literą
+    investment.typ_produktu ||         // Legacy polskie pole z małą literą
     '';
 }
 
@@ -401,11 +430,12 @@ function getInvestmentProductType(investment) {
 function extractClientIdentifiers(investment) {
   const identifiers = [];
 
-  // Główne pola ID klienta zgodne z Firestore
-  if (investment.ID_Klient) identifiers.push(investment.ID_Klient.toString());
+  // Główne pola ID klienta zgodne z Firestore (angielskie nazwy)
   if (investment.clientId) identifiers.push(investment.clientId.toString());
-  if (investment.id_klient) identifiers.push(investment.id_klient.toString());
-  if (investment.klient_id) identifiers.push(investment.klient_id.toString());
+  if (investment.client_id) identifiers.push(investment.client_id.toString());
+  if (investment.ID_Klient) identifiers.push(investment.ID_Klient.toString()); // Legacy
+  if (investment.id_klient) identifiers.push(investment.id_klient.toString()); // Legacy
+  if (investment.klient_id) identifiers.push(investment.klient_id.toString()); // Legacy
 
   return identifiers.filter(id => id && id !== 'undefined' && id !== 'NULL');
 }
@@ -414,34 +444,73 @@ function extractClientIdentifiers(investment) {
  * Wyciąga nazwę klienta z inwestycji (mapowanie na rzeczywiste pola Firestore)
  */
 function getInvestmentClientName(investment) {
-  // Główne pole nazwiska klienta w Firestore
-  return investment.Klient ||      // Główne pole ("Piotr Gij")
-    investment.klient ||      // Lowercase backup
-    investment.clientName ||  // Angielski backup
-    investment.client_name || // Snake case backup
+  // Główne pole nazwiska klienta w Firestore (angielskie nazwy)
+  return investment.clientName ||      // Główne pole w Firestore ("Piotr Gij")
+    investment.client_name ||          // Backup z podkreślnikiem
+    investment.fullName ||             // Backup z fullName
+    investment.name ||                 // Ogólny backup
+    investment.Klient ||               // Legacy polskie pole ("Piotr Gij")
+    investment.klient ||               // Legacy polskie pole lowercase
     '';
 }
 
 /**
- * Zwraca warianty nazw typu produktu dla wyszukiwania
+ * Zwraca warianty nazw typu produktu dla wyszukiwania (angielskie i legacy polskie)
  */
 function getProductTypeVariants(productType) {
   const variants = {
-    'bonds': ['Obligacje', 'obligacje', 'Bond', 'Bonds'],
-    'shares': ['Udziały', 'udziały', 'Share', 'Shares', 'Akcje', 'akcje'],
-    'loans': ['Pożyczki', 'pożyczki', 'Loan', 'Loans', 'Pozyczki'],
-    'apartments': ['Apartamenty', 'apartamenty', 'Apartment', 'Mieszkania'],
-    'other': ['Inne', 'inne', 'Other', 'Pozostałe']
+    'bonds': ['bond', 'bonds', 'Bond', 'Bonds', 'Obligacje', 'obligacje'], // Głównie angielskie + legacy polskie
+    'shares': ['share', 'shares', 'Share', 'Shares', 'Udziały', 'udziały', 'Akcje', 'akcje'], // Głównie angielskie + legacy polskie
+    'loans': ['loan', 'loans', 'Loan', 'Loans', 'Pożyczki', 'pożyczki', 'Pozyczki'], // Głównie angielskie + legacy polskie
+    'apartments': ['apartment', 'apartments', 'Apartment', 'Apartamenty', 'apartamenty', 'Mieszkania'], // Głównie angielskie + legacy polskie
+    'other': ['other', 'Other', 'Inne', 'inne', 'Pozostałe']
   };
 
   return variants[productType] || [productType];
 }
 
 /**
- * Komprehensywne wyszukiwanie inwestycji
+ * Komprehensywne wyszukiwanie inwestycji z preferencją dla ID
  */
-function findInvestmentsByComprehensiveSearch(allInvestments, productName, productType) {
-  const matching = [];
+function findInvestmentsByComprehensiveSearch(allInvestments, productName, productType, productId) {
+  let matching = [];
+
+  // PRIORYTET 1: Wyszukaj po ID produktu (jeśli podany)
+  if (productId) {
+    console.log(`🎯 [Comprehensive] Próba 1: Wyszukiwanie po productId=${productId}`);
+    matching = allInvestments.filter(investment => {
+      const investmentProductId = getInvestmentProductId(investment);
+      return investmentProductId === productId;
+    });
+
+    if (matching.length > 0) {
+      console.log(`✅ [Comprehensive] Znaleziono ${matching.length} inwestycji po ID`);
+      return matching;
+    }
+  }
+
+  // PRIORYTET 2: Wyszukaj po dokładnej nazwie produktu
+  if (productName) {
+    console.log(`🎯 [Comprehensive] Próba 2: Wyszukiwanie po dokładnej nazwie="${productName}"`);
+
+    // Debug: pokaż kilka przykładowych nazw produktów w inwestycjach
+    const sampleNames = allInvestments.slice(0, 10).map(inv => getInvestmentProductName(inv)).filter(name => name);
+    console.log(`🔍 [Comprehensive] Przykładowe nazwy w inwestycjach: ${sampleNames.slice(0, 5).join(', ')}`);
+
+    matching = allInvestments.filter(investment => {
+      const investmentProductName = getInvestmentProductName(investment);
+      return investmentProductName === productName;
+    });
+
+    if (matching.length > 0) {
+      console.log(`✅ [Comprehensive] Znaleziono ${matching.length} inwestycji po dokładnej nazwie`);
+      return matching;
+    } else {
+      console.log(`⚠️ [Comprehensive] Brak inwestycji o dokładnej nazwie "${productName}"`);
+    }
+  }
+
+  // PRIORYTET 3: Wyszukiwanie częściowe (stara logika)
   const searchTerms = [];
 
   // Przygotuj terminy wyszukiwania
@@ -458,7 +527,7 @@ function findInvestmentsByComprehensiveSearch(allInvestments, productName, produ
     searchTerms.push(...typeVariants.map(v => v.toLowerCase()));
   }
 
-  console.log(`🔍 [Product Investors] Terminy wyszukiwania: ${searchTerms.join(', ')}`);
+  console.log(`🔍 [Comprehensive] Próba 3: Wyszukiwanie częściowe po terminach: ${searchTerms.join(', ')}`);
 
   allInvestments.forEach(investment => {
     const productNameInv = getInvestmentProductName(investment).toLowerCase();
@@ -476,6 +545,7 @@ function findInvestmentsByComprehensiveSearch(allInvestments, productName, produ
     }
   });
 
+  console.log(`🔍 [Comprehensive] Znaleziono ${matching.length} inwestycji po wyszukiwaniu częściowym`);
   return matching;
 }
 
@@ -489,7 +559,7 @@ function createProductInvestorSummary(client, investments) {
 
   const processedInvestments = investments.map(investment => {
     // Mapowanie kwoty inwestycji - sprawdź pola w kolejności priorytetów - NOWE POLA MAJĄ WYŻSZY PRIORYTET
-    const amount = parseFloat(
+    const amount = safeToDouble(
       investment.Kwota_inwestycji ||        // Nowe pole (string)
       investment.kwota_inwestycji ||        // Stare pole (number)
       investment.investmentAmount ||        // Backup pole (number)
@@ -500,38 +570,36 @@ function createProductInvestorSummary(client, investments) {
     let remainingCapital = 0;
 
     if (investment['Kapital Pozostaly']) {
-      // String z przecinkami: "200,000.00"
-      const cleaned = investment['Kapital Pozostaly'].toString().replace(/,/g, '');
-      remainingCapital = parseFloat(cleaned) || 0;
+      // String z przecinkami: "200,000.00" - używamy bezpiecznej funkcji
+      remainingCapital = safeToDouble(investment['Kapital Pozostaly']);
     } else if (investment.kapital_pozostaly) {
       // Number pole
-      remainingCapital = parseFloat(investment.kapital_pozostaly) || 0;
+      remainingCapital = safeToDouble(investment.kapital_pozostaly);
     } else if (investment.remainingCapital) {
       // Backup number pole  
-      remainingCapital = parseFloat(investment.remainingCapital) || 0;
+      remainingCapital = safeToDouble(investment.remainingCapital);
     } else if (investment.kapital_do_restrukturyzacji) {
       // Alternative number pole
-      remainingCapital = parseFloat(investment.kapital_do_restrukturyzacji) || 0;
+      remainingCapital = safeToDouble(investment.kapital_do_restrukturyzacji);
     }
 
     // Mapowanie zrealizowanego kapitału - NOWE POLA MAJĄ WYŻSZY PRIORYTET
     let realizedCapital = 0;
 
     if (investment['Kapital zrealizowany']) {
-      // String pole: "0.00"
-      const cleaned = investment['Kapital zrealizowany'].toString().replace(/,/g, '');
-      realizedCapital = parseFloat(cleaned) || 0;
+      // String pole: "0.00" - używamy bezpiecznej funkcji
+      realizedCapital = safeToDouble(investment['Kapital zrealizowany']);
     } else if (investment.kapital_zrealizowany) {
       // Number pole
-      realizedCapital = parseFloat(investment.kapital_zrealizowany) || 0;
+      realizedCapital = safeToDouble(investment.kapital_zrealizowany);
     } else if (investment.realizedCapital) {
       // Backup number pole
-      realizedCapital = parseFloat(investment.realizedCapital) || 0;
+      realizedCapital = safeToDouble(investment.realizedCapital);
     }
 
     // Mapowanie dodatkowych pól dla analiz
-    const remainingInterest = parseFloat(investment.odsetki_pozostale || investment.remainingInterest || 0);
-    const realizedInterest = parseFloat(investment.odsetki_zrealizowane || investment.realizedInterest || 0);
+    const remainingInterest = safeToDouble(investment.odsetki_pozostale || investment.remainingInterest || 0);
+    const realizedInterest = safeToDouble(investment.odsetki_zrealizowane || investment.realizedInterest || 0);
     const status = investment.Status_produktu || investment.status || 'Nieznany';
 
     totalInvestmentAmount += amount;
@@ -580,14 +648,14 @@ function createProductInvestorSummary(client, investments) {
   return {
     client: {
       id: client.id,
-      name: client.imie_nazwisko || client.name || 'Nieznany klient',
+      name: client.fullName || client.imie_nazwisko || client.name || 'Nieznany klient',
       email: client.email || '',
       phone: client.telefon || client.phone || '',
       companyName: client.nazwa_firmy || client.companyName || null,
       isActive: client.isActive !== false,
       votingStatus: mapVotingStatus(client.votingStatus),
       // Dodatkowe pola klienta
-      excelId: client.excelId || client.original_id,
+      excelId: client.excelId || client.original_id || client.id,
       clientType: client.clientType || 'individual',
     },
     investments: processedInvestments,
@@ -631,28 +699,4 @@ function convertFirestoreDate(dateValue) {
   }
 
   return null;
-}
-
-// 💾 CACHE FUNCTIONS (reuse from main index.js)
-const cache = new Map();
-const cacheTimestamps = new Map();
-
-async function getCachedResult(key) {
-  const timestamp = cacheTimestamps.get(key);
-  if (!timestamp || Date.now() - timestamp > 300000) { // 5 minut
-    cache.delete(key);
-    cacheTimestamps.delete(key);
-    return null;
-  }
-  return cache.get(key);
-}
-
-async function setCachedResult(key, data, ttlSeconds) {
-  cache.set(key, data);
-  cacheTimestamps.set(key, Date.now());
-
-  setTimeout(() => {
-    cache.delete(key);
-    cacheTimestamps.delete(key);
-  }, ttlSeconds * 1000);
 }

@@ -1,10 +1,11 @@
 // DASHBOARD SPECIALIZED METRICS
 // Funkcje specjalistyczne dla poszczególnych zakładek dashboard
 
-const {onCall} = require("firebase-functions/v2/https");
-const {setGlobalOptions} = require("firebase-functions/v2");
-const {HttpsError} = require("firebase-functions/v2/https");
+const { onCall } = require("firebase-functions/v2/https");
+const { setGlobalOptions } = require("firebase-functions/v2");
+const { HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const { safeToDouble, safeToString, parseDate } = require("./utils/data-mapping");
 
 // Set global options for all functions
 setGlobalOptions({
@@ -25,7 +26,7 @@ exports.getDashboardPerformanceMetrics = onCall({
 
   try {
     const db = admin.firestore(); // Initialize db inside function
-    const {forceRefresh = false, timePeriod = "all"} = request.data || {};
+    const { forceRefresh = false, timePeriod = "all" } = request.data || {};
     const cacheKey = `dashboard_performance_${timePeriod}`;
 
     if (!forceRefresh) {
@@ -61,9 +62,9 @@ exports.getDashboardPerformanceMetrics = onCall({
   } catch (error) {
     console.error("❌ [Performance] Błąd:", error);
     throw new HttpsError(
-        "internal",
-        "Błąd podczas obliczania metryk wydajności",
-        error.message,
+      "internal",
+      "Błąd podczas obliczania metryk wydajności",
+      error.message,
     );
   }
 });
@@ -81,7 +82,7 @@ exports.getDashboardRiskMetrics = onCall({
 
   try {
     const db = admin.firestore(); // Initialize db inside function
-    const {forceRefresh = false, riskProfile = "moderate"} = request.data || {};
+    const { forceRefresh = false, riskProfile = "moderate" } = request.data || {};
     const cacheKey = `dashboard_risk_${riskProfile}`;
 
     if (!forceRefresh) {
@@ -114,9 +115,9 @@ exports.getDashboardRiskMetrics = onCall({
   } catch (error) {
     console.error("❌ [Risk] Błąd:", error);
     throw new HttpsError(
-        "internal",
-        "Błąd podczas analizy ryzyka",
-        error.message,
+      "internal",
+      "Błąd podczas analizy ryzyka",
+      error.message,
     );
   }
 });
@@ -134,7 +135,7 @@ exports.getDashboardPredictions = onCall({
 
   try {
     const db = admin.firestore(); // Initialize db inside function
-    const {forceRefresh = false, horizon = 12} = request.data || {}; // horizon in months
+    const { forceRefresh = false, horizon = 12 } = request.data || {}; // horizon in months
     const cacheKey = `dashboard_predictions_${horizon}`;
 
     if (!forceRefresh) {
@@ -166,9 +167,9 @@ exports.getDashboardPredictions = onCall({
   } catch (error) {
     console.error("❌ [Predictions] Błąd:", error);
     throw new HttpsError(
-        "internal",
-        "Błąd podczas analizy predykcyjnej",
-        error.message,
+      "internal",
+      "Błąd podczas analizy predykcyjnej",
+      error.message,
     );
   }
 });
@@ -186,7 +187,7 @@ exports.getDashboardBenchmarks = onCall({
 
   try {
     const db = admin.firestore(); // Initialize db inside function
-    const {forceRefresh = false, benchmarkType = "market"} = request.data || {};
+    const { forceRefresh = false, benchmarkType = "market" } = request.data || {};
     const cacheKey = `dashboard_benchmarks_${benchmarkType}`;
 
     if (!forceRefresh) {
@@ -218,9 +219,9 @@ exports.getDashboardBenchmarks = onCall({
   } catch (error) {
     console.error("❌ [Benchmark] Błąd:", error);
     throw new HttpsError(
-        "internal",
-        "Błąd podczas analizy benchmarków",
-        error.message,
+      "internal",
+      "Błąd podczas analizy benchmarków",
+      error.message,
     );
   }
 });
@@ -336,8 +337,8 @@ function calculatePortfolioReturns(investments) {
   // Annualized return based on average holding period
   const now = new Date();
   const avgHoldingPeriod = investments
-      .map((inv) => (now - new Date(inv.signedDate)) / (365.25 * 24 * 60 * 60 * 1000))
-      .reduce((a, b) => a + b) / investments.length;
+    .map((inv) => (now - new Date(inv.signedDate)) / (365.25 * 24 * 60 * 60 * 1000))
+    .reduce((a, b) => a + b) / investments.length;
 
   const annualizedReturn = avgHoldingPeriod > 0 ?
     (Math.pow(1 + totalReturn / 100, 1 / avgHoldingPeriod) - 1) * 100 : totalReturn;
@@ -412,7 +413,7 @@ function calculateRiskReturnAnalysis(investments) {
   const productRiskReturn = {};
   investments.forEach((inv) => {
     if (!productRiskReturn[inv.productType]) {
-      productRiskReturn[inv.productType] = {risks: [], returns: []};
+      productRiskReturn[inv.productType] = { risks: [], returns: [] };
     }
     productRiskReturn[inv.productType].risks.push(Math.abs(inv.profitLossPercentage - 5.0));
     productRiskReturn[inv.productType].returns.push(inv.profitLossPercentage);
@@ -523,26 +524,26 @@ function calculateTimeSeriesPerformance(investments) {
   });
 
   const monthlyData = Object.keys(monthlyGroups)
-      .sort()
-      .map((month) => {
-        const monthInvestments = monthlyGroups[month];
-        const totalInvested = monthInvestments.reduce((sum, inv) => sum + inv.investmentAmount, 0);
-        const totalCurrent = monthInvestments.reduce((sum, inv) => sum + inv.totalValue, 0);
-        const averageReturn = monthInvestments.reduce((sum, inv) => sum + inv.profitLossPercentage, 0) / monthInvestments.length;
+    .sort()
+    .map((month) => {
+      const monthInvestments = monthlyGroups[month];
+      const totalInvested = monthInvestments.reduce((sum, inv) => sum + inv.investmentAmount, 0);
+      const totalCurrent = monthInvestments.reduce((sum, inv) => sum + inv.totalValue, 0);
+      const averageReturn = monthInvestments.reduce((sum, inv) => sum + inv.profitLossPercentage, 0) / monthInvestments.length;
 
-        return {
-          month,
-          totalInvested,
-          totalCurrent,
-          averageReturn,
-          count: monthInvestments.length,
-          cumulativeReturn: totalInvested > 0 ? ((totalCurrent - totalInvested) / totalInvested) * 100 : 0,
-        };
-      });
+      return {
+        month,
+        totalInvested,
+        totalCurrent,
+        averageReturn,
+        count: monthInvestments.length,
+        cumulativeReturn: totalInvested > 0 ? ((totalCurrent - totalInvested) / totalInvested) * 100 : 0,
+      };
+    });
 
   // Calculate rolling returns
   const rollingReturns = monthlyData.map((data, index) => {
-    if (index < 11) return {...data, rolling12Month: null};
+    if (index < 11) return { ...data, rolling12Month: null };
 
     const last12Months = monthlyData.slice(index - 11, index + 1);
     const totalInvested12M = last12Months.reduce((sum, m) => sum + m.totalInvested, 0);
@@ -576,7 +577,7 @@ function calculateOutliersAnalysis(investments) {
   const returns = investments.map((inv) => inv.profitLossPercentage);
 
   if (returns.length === 0) {
-    return {outliers: [], statisticalSummary: {}};
+    return { outliers: [], statisticalSummary: {} };
   }
 
   const sorted = [...returns].sort((a, b) => a - b);
@@ -622,12 +623,12 @@ function calculateCorrelationMatrix(investments) {
 
     productTypes.forEach((type2) => {
       const returns1 = investments
-          .filter((inv) => inv.productType === type1)
-          .map((inv) => inv.profitLossPercentage);
+        .filter((inv) => inv.productType === type1)
+        .map((inv) => inv.profitLossPercentage);
 
       const returns2 = investments
-          .filter((inv) => inv.productType === type2)
-          .map((inv) => inv.profitLossPercentage);
+        .filter((inv) => inv.productType === type2)
+        .map((inv) => inv.profitLossPercentage);
 
       if (returns1.length > 0 && returns2.length > 0) {
         correlations[type1][type2] = calculateCorrelation(returns1, returns2);
@@ -706,15 +707,15 @@ function calculateDetailedConcentrationRisk(investments) {
 
   // Top 10 largest investments
   concentrations.byValue = investments
-      .sort((a, b) => b.totalValue - a.totalValue)
-      .slice(0, 10)
-      .map((inv) => ({
-        id: inv.id,
-        clientName: inv.clientName,
-        productType: inv.productType,
-        value: inv.totalValue,
-        percentage: totalValue > 0 ? (inv.totalValue / totalValue) * 100 : 0,
-      }));
+    .sort((a, b) => b.totalValue - a.totalValue)
+    .slice(0, 10)
+    .map((inv) => ({
+      id: inv.id,
+      clientName: inv.clientName,
+      productType: inv.productType,
+      value: inv.totalValue,
+      percentage: totalValue > 0 ? (inv.totalValue / totalValue) * 100 : 0,
+    }));
 
   return {
     ...concentrations,
@@ -741,7 +742,7 @@ function calculateSortinoRatio(returns) {
   if (downside.length === 0) return Infinity;
 
   const downsideDeviation = Math.sqrt(
-      downside.map((r) => Math.pow(r - targetReturn, 2)).reduce((a, b) => a + b) / downside.length,
+    downside.map((r) => Math.pow(r - targetReturn, 2)).reduce((a, b) => a + b) / downside.length,
   );
 
   return downsideDeviation > 0 ? (avgReturn - 2.0) / downsideDeviation : 0; // Risk-free rate = 2%
@@ -763,8 +764,8 @@ function calculateSkewness(returns) {
   if (stdDev === 0) return 0;
 
   const skewness = returns
-      .map((r) => Math.pow((r - mean) / stdDev, 3))
-      .reduce((a, b) => a + b) / returns.length;
+    .map((r) => Math.pow((r - mean) / stdDev, 3))
+    .reduce((a, b) => a + b) / returns.length;
 
   return skewness;
 }
@@ -779,39 +780,39 @@ function calculateKurtosis(returns) {
   if (stdDev === 0) return 0;
 
   const kurtosis = returns
-      .map((r) => Math.pow((r - mean) / stdDev, 4))
-      .reduce((a, b) => a + b) / returns.length;
+    .map((r) => Math.pow((r - mean) / stdDev, 4))
+    .reduce((a, b) => a + b) / returns.length;
 
   return kurtosis - 3; // Excess kurtosis
 }
 
 // Placeholder implementations for additional functions
 function calculateLiquidityRiskBreakdown(investments) {
-  return {liquidityScore: 0, breakdown: {}};
+  return { liquidityScore: 0, breakdown: {} };
 }
 
 function calculateCreditRiskAnalysis(investments) {
-  return {creditScore: 0, riskDistribution: {}};
+  return { creditScore: 0, riskDistribution: {} };
 }
 
 function calculateMarketRiskExposure(investments) {
-  return {marketBeta: 1.0, sectorExposure: {}};
+  return { marketBeta: 1.0, sectorExposure: {} };
 }
 
 function calculateOperationalRisk(investments) {
-  return {operationalScore: 0, riskFactors: []};
+  return { operationalScore: 0, riskFactors: [] };
 }
 
 function performStressTesting(investments) {
-  return {scenarios: [], stressResults: {}};
+  return { scenarios: [], stressResults: {} };
 }
 
 function calculateRiskBudgetAnalysis(investments, riskProfile) {
-  return {budgetAllocation: {}, utilization: 0};
+  return { budgetAllocation: {}, utilization: 0 };
 }
 
 function generateRiskMatrix(investments) {
-  return {matrix: [], riskCategories: {}};
+  return { matrix: [], riskCategories: {} };
 }
 
 function calculateVaRAnalysis(investments) {
@@ -825,89 +826,89 @@ function calculateVaRAnalysis(investments) {
 }
 
 function performScenarioAnalysis(investments) {
-  return {scenarios: [], results: {}};
+  return { scenarios: [], results: {} };
 }
 
 // 🔮 PREDICTION FUNCTIONS - simplified implementations
 function calculateReturnPredictions(investments, horizon) {
-  return {predictedReturns: [], confidence: 0.7};
+  return { predictedReturns: [], confidence: 0.7 };
 }
 
 function calculateOptimalAllocation(investments) {
-  return {allocation: {}, expectedReturn: 0, expectedRisk: 0};
+  return { allocation: {}, expectedReturn: 0, expectedRisk: 0 };
 }
 
 function calculateRiskPredictions(investments, horizon) {
-  return {riskForecast: [], scenarios: []};
+  return { riskForecast: [], scenarios: [] };
 }
 
 function calculateMaturityForecast(investments) {
-  return {maturitySchedule: [], projectedCashflows: []};
+  return { maturitySchedule: [], projectedCashflows: [] };
 }
 
 function calculateTrendAnalysis(investments) {
-  return {trend: "neutral", momentum: 0, signals: []};
+  return { trend: "neutral", momentum: 0, signals: [] };
 }
 
 function calculateSeasonalityAnalysis(investments) {
-  return {seasonalPatterns: {}, cyclicality: 0};
+  return { seasonalPatterns: {}, cyclicality: 0 };
 }
 
 function performMonteCarloSimulation(investments, horizon) {
-  return {simulations: [], statistics: {}};
+  return { simulations: [], statistics: {} };
 }
 
 function identifyInvestmentOpportunities(investments) {
-  return {opportunities: [], recommendations: []};
+  return { opportunities: [], recommendations: [] };
 }
 
 function generateInvestmentRecommendations(investments) {
-  return {recommendations: [], actionItems: []};
+  return { recommendations: [], actionItems: [] };
 }
 
 function calculateConfidenceIntervals(investments) {
-  return {intervals: {}, methodology: "bootstrap"};
+  return { intervals: {}, methodology: "bootstrap" };
 }
 
 // 📊 BENCHMARK FUNCTIONS - simplified implementations
 function calculateMarketBenchmarks(investments, benchmarkType) {
-  return {benchmarks: {}, comparison: {}};
+  return { benchmarks: {}, comparison: {} };
 }
 
 function calculateIndustryComparison(investments) {
-  return {industryMetrics: {}, ranking: []};
+  return { industryMetrics: {}, ranking: [] };
 }
 
 function calculatePeerAnalysis(investments) {
-  return {peerMetrics: {}, positioning: {}};
+  return { peerMetrics: {}, positioning: {} };
 }
 
 function calculateIndexComparison(investments) {
-  return {indexMetrics: {}, correlation: {}};
+  return { indexMetrics: {}, correlation: {} };
 }
 
 function calculateRelativePerformance(investments) {
-  return {relativeReturns: [], outperformance: 0};
+  return { relativeReturns: [], outperformance: 0 };
 }
 
 function calculateAttributionAnalysis(investments) {
-  return {attribution: {}, breakdown: {}};
+  return { attribution: {}, breakdown: {} };
 }
 
 function calculateTrackingError(investments) {
-  return {trackingError: 0, consistency: 0};
+  return { trackingError: 0, consistency: 0 };
 }
 
 function calculateInformationRatio(investments) {
-  return {informationRatio: 0, activeReturn: 0};
+  return { informationRatio: 0, activeReturn: 0 };
 }
 
 function calculateAlpha(investments) {
-  return {alpha: 0, significance: 0};
+  return { alpha: 0, significance: 0 };
 }
 
 function calculateBeta(investments) {
-  return {beta: 1.0, rsquared: 0};
+  return { beta: 1.0, rsquared: 0 };
 }
 
 // Helper functions from advanced-analytics.js
@@ -954,23 +955,23 @@ function calculateMaxDrawdown(investments) {
 // Conversion functions - simplified references
 function convertExcelDataToInvestment(id, data) {
   // Use implementation from advanced-analytics.js
-  return {id, ...data};
+  return { id, ...data };
 }
 
 function convertBondToInvestment(id, data) {
-  return {id, ...data};
+  return { id, ...data };
 }
 
 function convertShareToInvestment(id, data) {
-  return {id, ...data};
+  return { id, ...data };
 }
 
 function convertLoanToInvestment(id, data) {
-  return {id, ...data};
+  return { id, ...data };
 }
 
 function convertApartmentToInvestment(id, data) {
-  return {id, ...data};
+  return { id, ...data };
 }
 
 // Cache functions

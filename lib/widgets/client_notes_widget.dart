@@ -40,26 +40,35 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
   @override
   void dispose() {
     _searchController.dispose();
+    // Żeby upewnić się, że żadne pending operacje nie wywołają setState() po dispose
+    print(
+      '🔧 [ClientNotesWidget] Widget disposed for client: ${widget.clientId}',
+    );
     super.dispose();
   }
 
   Future<void> _loadNotes() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
       final notes = await _notesService.getClientNotes(widget.clientId);
+      if (!mounted) return;
       setState(() {
         _notes = notes;
         _filteredNotes = notes;
       });
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   void _filterNotes() {
     final query = _searchController.text.toLowerCase();
 
+    if (!mounted) return;
     setState(() {
       _filteredNotes = _notes.where((note) {
         // Filtruj po tekście
@@ -101,7 +110,9 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
         // Aktualizuj istniejącą notatkę
         await _notesService.updateNote(result);
       }
-      _loadNotes();
+      if (mounted) {
+        _loadNotes();
+      }
     }
   }
 
@@ -127,7 +138,9 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
 
     if (confirmed == true) {
       await _notesService.deleteNote(note.id, widget.clientId);
-      _loadNotes();
+      if (mounted) {
+        _loadNotes();
+      }
     }
   }
 
@@ -172,7 +185,11 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
-                    onChanged: (_) => _filterNotes(),
+                    onChanged: (_) {
+                      if (mounted) {
+                        _filterNotes();
+                      }
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -194,8 +211,10 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
                     ),
                   ],
                   onChanged: (value) {
-                    setState(() => _selectedCategory = value);
-                    _filterNotes();
+                    if (mounted) {
+                      setState(() => _selectedCategory = value);
+                      _filterNotes();
+                    }
                   },
                 ),
                 const SizedBox(width: 8),
@@ -217,8 +236,10 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
                     ),
                   ],
                   onChanged: (value) {
-                    setState(() => _selectedPriority = value);
-                    _filterNotes();
+                    if (mounted) {
+                      setState(() => _selectedPriority = value);
+                      _filterNotes();
+                    }
                   },
                 ),
               ],
@@ -567,7 +588,7 @@ class _NoteEditDialogState extends State<NoteEditDialog> {
                           )
                           .toList(),
                       onChanged: (value) {
-                        if (value != null) {
+                        if (value != null && mounted) {
                           setState(() => _selectedCategory = value);
                         }
                       },
@@ -590,7 +611,7 @@ class _NoteEditDialogState extends State<NoteEditDialog> {
                           )
                           .toList(),
                       onChanged: (value) {
-                        if (value != null) {
+                        if (value != null && mounted) {
                           setState(() => _selectedPriority = value);
                         }
                       },

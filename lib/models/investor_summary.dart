@@ -1,6 +1,5 @@
 import 'client.dart';
 import 'investment.dart';
-import 'product.dart';
 
 class InvestorSummary {
   final Client client;
@@ -32,6 +31,20 @@ class InvestorSummary {
     Client client,
     List<Investment> investments,
   ) {
+    // Helper function to parse capital values with commas
+    double parseCapitalValue(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) {
+        // Handle string values like "200,000.00" from Firebase
+        final cleaned = value.toString().replaceAll(',', '');
+        final parsed = double.tryParse(cleaned);
+        return parsed ?? 0.0;
+      }
+      return 0.0;
+    }
+
     double totalRemainingCapital = 0;
     double totalSharesValue =
         0; // Zachowujemy dla kompatybilności, ale zawsze = 0
@@ -53,20 +66,12 @@ class InvestorSummary {
           null) {
         final value =
             investment.additionalInfo['kapital_zabezpieczony_nieruchomoscia'];
-        if (value is num) {
-          capitalSecuredByRealEstate += value.toDouble();
-        } else if (value is String) {
-          capitalSecuredByRealEstate += double.tryParse(value) ?? 0;
-        }
+        capitalSecuredByRealEstate += parseCapitalValue(value);
       }
 
       if (investment.additionalInfo['kapital_do_restrukturyzacji'] != null) {
         final value = investment.additionalInfo['kapital_do_restrukturyzacji'];
-        if (value is num) {
-          capitalForRestructuring += value.toDouble();
-        } else if (value is String) {
-          capitalForRestructuring += double.tryParse(value) ?? 0;
-        }
+        capitalForRestructuring += parseCapitalValue(value);
       }
     }
 
@@ -133,5 +138,61 @@ class InvestorSummary {
       grouped.putIfAbsent(company, () => []).add(investment);
     }
     return grouped;
+  }
+
+  /// Tworzy obiekt InvestorSummary z mapy danych
+  factory InvestorSummary.fromMap(Map<String, dynamic> map) {
+    // Helper function to parse capital values with commas
+    double parseCapitalValue(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) {
+        // Handle empty strings and NULL values
+        if (value.isEmpty ||
+            value.trim().isEmpty ||
+            value.toUpperCase() == 'NULL') {
+          return 0.0;
+        }
+
+        // Debug logging for problematic values
+        if (value.contains(',')) {
+          print(
+            '🔍 [InvestorSummary] Parsowanie wartości z przecinkiem: "$value"',
+          );
+        }
+        // Handle string values like "200,000.00" from Firebase
+        final cleaned = value.toString().replaceAll(',', '');
+        final parsed = double.tryParse(cleaned);
+        if (parsed == null) {
+          print(
+            '❌ [InvestorSummary] Nie można sparsować: "$value" -> "$cleaned"',
+          );
+        }
+        return parsed ?? 0.0;
+      }
+      return 0.0;
+    }
+
+    return InvestorSummary(
+      client: Client.fromServerMap(
+        map['client'] as Map<String, dynamic>? ?? {},
+      ),
+      investments: (map['investments'] as List<dynamic>? ?? [])
+          .map((item) => Investment.fromServerMap(item as Map<String, dynamic>))
+          .toList(),
+      totalRemainingCapital: parseCapitalValue(map['totalRemainingCapital']),
+      totalSharesValue: parseCapitalValue(map['totalSharesValue']),
+      totalValue: parseCapitalValue(map['totalValue']),
+      totalInvestmentAmount: parseCapitalValue(map['totalInvestmentAmount']),
+      totalRealizedCapital: parseCapitalValue(map['totalRealizedCapital']),
+      capitalSecuredByRealEstate: parseCapitalValue(
+        map['capitalSecuredByRealEstate'],
+      ),
+      capitalForRestructuring: parseCapitalValue(
+        map['capitalForRestructuring'],
+      ),
+      investmentCount: map['investmentCount'] as int? ?? 0,
+    );
   }
 }

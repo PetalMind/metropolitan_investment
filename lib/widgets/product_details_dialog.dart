@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/unified_product.dart';
 import '../models/investor_summary.dart';
-import '../services/product_investors_service.dart';
+import '../services/firebase_functions_product_investors_service.dart';
 import 'premium_loading_widget.dart';
 import 'premium_error_widget.dart';
 import 'dialogs/product_edit_dialog.dart';
@@ -23,7 +23,8 @@ class _EnhancedProductDetailsDialogState
     extends State<EnhancedProductDetailsDialog>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  final ProductInvestorsService _investorsService = ProductInvestorsService();
+  final FirebaseFunctionsProductInvestorsService _investorsService =
+      FirebaseFunctionsProductInvestorsService();
 
   List<InvestorSummary> _investors = [];
   bool _isLoadingInvestors = true;
@@ -57,10 +58,15 @@ class _EnhancedProductDetailsDialogState
       print('  - Nazwa: "${widget.product.name}"');
       print('  - Typ: ${widget.product.productType.displayName}');
 
-      // Używamy ulepszonej metody getInvestorsForProduct z zaawansowanymi strategiami
-      final investors = await _investorsService.getInvestorsForProduct(
-        widget.product,
+      // Używamy Firebase Functions z wyszukiwaniem po ID produktu z fallback'iem
+      final result = await _investorsService.getProductInvestors(
+        productId: widget.product.id,
+        productName: widget.product.name,
+        productType: widget.product.productType.name.toLowerCase(),
+        searchStrategy:
+            'comprehensive', // Zmieniono z 'id' na 'comprehensive' dla lepszego fallback'u
       );
+      final investors = result.investors;
 
       if (mounted) {
         setState(() {
@@ -803,6 +809,7 @@ class _EnhancedProductDetailsDialogState
 
   Widget _buildOverviewTab() {
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(), // Wymuś przewijanie
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -953,82 +960,91 @@ class _EnhancedProductDetailsDialogState
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _investors.length,
-      itemBuilder: (context, index) {
-        final investor = _investors[index];
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: AppTheme.backgroundSecondary.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1)),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.all(16),
-            leading: CircleAvatar(
-              backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-              child: Icon(Icons.person, color: AppTheme.primaryColor),
+    return SingleChildScrollView(
+      physics:
+          const AlwaysScrollableScrollPhysics(), // Wymuś przewijanie jak inne zakładki
+      padding: const EdgeInsets.all(
+        24,
+      ), // Używaj tego samego paddingu co inne zakładki
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: _investors.map((investor) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundSecondary.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1)),
             ),
-            title: Text(
-              investor.client.name,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(16),
+              leading: CircleAvatar(
+                backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                child: Icon(Icons.person, color: AppTheme.primaryColor),
               ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (investor.client.email.isNotEmpty)
+              title: Text(
+                investor.client.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (investor.client.email.isNotEmpty)
+                    Text(
+                      investor.client.email,
+                      style: TextStyle(
+                        color: AppTheme.textSecondary.withOpacity(0.8),
+                      ),
+                    ),
+                  if (investor.client.phone.isNotEmpty)
+                    Text(
+                      investor.client.phone,
+                      style: TextStyle(
+                        color: AppTheme.textSecondary.withOpacity(0.8),
+                      ),
+                    ),
+                  const SizedBox(height: 4),
                   Text(
-                    investor.client.email,
+                    'Inwestycje: ${investor.investmentCount}',
                     style: TextStyle(
-                      color: AppTheme.textSecondary.withOpacity(0.8),
+                      fontSize: 12,
+                      color: AppTheme.secondaryGold,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                if (investor.client.phone.isNotEmpty)
-                  Text(
-                    investor.client.phone,
-                    style: TextStyle(
-                      color: AppTheme.textSecondary.withOpacity(0.8),
-                    ),
-                  ),
-                const SizedBox(height: 4),
-                Text(
-                  'Inwestycje: ${investor.investmentCount}',
+                ],
+              ),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.secondaryGold.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _formatCurrency(investor.viableRemainingCapital),
                   style: TextStyle(
                     fontSize: 12,
+                    fontWeight: FontWeight.bold,
                     color: AppTheme.secondaryGold,
-                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ],
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.secondaryGold.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                _formatCurrency(investor.viableRemainingCapital),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.secondaryGold,
-                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        }).toList(),
+      ),
     );
   }
 
   Widget _buildAnalyticsTab() {
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(), // Wymuś przewijanie
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2104,7 +2120,7 @@ class _EnhancedProductDetailsDialogState
       'data_zapadalnosci': 'Data zapadalności',
       'liczba_udzialow': 'Liczba udziałów',
       'cena_za_udzial': 'Cena za udział',
-      'nazwa_firmy': 'Nazwa firmy',
+      'companyName': 'Nazwa firmy',
       'waluta': 'Waluta',
       'projekt_nazwa': 'Nazwa projektu',
       'numer_apartamentu': 'Numer apartamentu',

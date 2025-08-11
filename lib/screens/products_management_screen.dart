@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../models/unified_product.dart';
 import '../models/bond.dart';
 import '../models/loan.dart';
-import '../services/unified_product_service.dart';
+import '../models/investment.dart';
+import '../services/firebase_functions_products_service.dart';
+import '../services/firebase_functions_product_investors_service.dart';
+import '../adapters/product_statistics_adapter.dart';
 import '../widgets/premium_loading_widget.dart';
 import '../widgets/premium_error_widget.dart';
 import '../widgets/product_card_widget.dart';
@@ -13,10 +17,28 @@ import '../widgets/product_stats_widget.dart';
 import '../widgets/product_filter_widget.dart';
 import '../widgets/dialogs/product_details_dialog.dart';
 
-/// Ekran zarządzania produktami z wszystkich kolekcji Firebase
-/// Wykorzystuje UnifiedProductService do pobierania danych z bonds, shares, loans, apartments
+/// Ekran zarządzania produktami pobieranymi z kolekcji 'investments'
+/// Wykorzystuje FirebaseFunctionsProductsService do server-side przetwarzania danych
 class ProductsManagementScreen extends StatefulWidget {
-  const ProductsManagementScreen({super.key});
+  // Parametry do wyróżnienia konkretnego produktu lub inwestycji
+  final String? highlightedProductId;
+  final String? highlightedInvestmentId;
+
+  // Parametry do początkowego wyszukiwania (fallback)
+  final String? initialSearchProductName;
+  final String? initialSearchProductType;
+  final String? initialSearchClientId;
+  final String? initialSearchClientName;
+
+  const ProductsManagementScreen({
+    super.key,
+    this.highlightedProductId,
+    this.highlightedInvestmentId,
+    this.initialSearchProductName,
+    this.initialSearchProductType,
+    this.initialSearchClientId,
+    this.initialSearchClientName,
+  });
 
   @override
   State<ProductsManagementScreen> createState() =>
@@ -25,7 +47,8 @@ class ProductsManagementScreen extends StatefulWidget {
 
 class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     with TickerProviderStateMixin {
-  late final UnifiedProductService _productService;
+  late final FirebaseFunctionsProductsService _productService;
+  late final FirebaseFunctionsProductInvestorsService _productInvestorsService;
   late final AnimationController _fadeController;
   late final AnimationController _slideController;
   late final Animation<double> _fadeAnimation;
@@ -35,6 +58,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   List<UnifiedProduct> _allProducts = [];
   List<UnifiedProduct> _filteredProducts = [];
   ProductStatistics? _statistics;
+  UnifiedProductsMetadata? _metadata;
   bool _isLoading = true;
   bool _isRefreshing = false;
   String? _error;
@@ -70,20 +94,60 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     });
   }
 
+  /// Debugowanie - wypisz informacje o produktach po załadowaniu
+  void _debugProductsLoaded() {
+    if (kDebugMode) {
+      print('📊 [ProductsManagementScreen] DEBUG - Załadowano produkty:');
+      for (final product in _allProducts.take(5)) {
+        print('📊 [ProductsManagementScreen] - ${product.id}: ${product.name}');
+        print(
+          '📊 [ProductsManagementScreen]   originalProduct: ${product.originalProduct?.runtimeType}',
+        );
+        if (product.originalProduct is Investment) {
+          final inv = product.originalProduct as Investment;
+          print('📊 [ProductsManagementScreen]   investmentId: ${inv.id}');
+        }
+      }
+    }
+  }
+
   void _handleRouteParameters() {
     final state = GoRouterState.of(context);
-    final productName = state.uri.queryParameters['productName'];
-    final productType = state.uri.queryParameters['productType'];
-    final clientId = state.uri.queryParameters['clientId'];
-    final clientName = state.uri.queryParameters['clientName'];
+    final productName =
+        widget.initialSearchProductName ??
+        state.uri.queryParameters['productName'];
+    final productType =
+        widget.initialSearchProductType ??
+        state.uri.queryParameters['productType'];
+    final clientId =
+        widget.initialSearchClientId ?? state.uri.queryParameters['clientId'];
+    final clientName =
+        widget.initialSearchClientName ??
+        state.uri.queryParameters['clientName'];
 
-    print('🔍 [ProductsManagementScreen] Parametry z URL:');
+    print('🔍 [ProductsManagementScreen] Parametry z URL/Widget:');
+    print(
+      '🔍 [ProductsManagementScreen] highlightedProductId: ${widget.highlightedProductId}',
+    );
+    print(
+      '🔍 [ProductsManagementScreen] highlightedInvestmentId: ${widget.highlightedInvestmentId}',
+    );
     print('🔍 [ProductsManagementScreen] productName: $productName');
     print('🔍 [ProductsManagementScreen] productType: $productType');
     print('🔍 [ProductsManagementScreen] clientId: $clientId');
     print('🔍 [ProductsManagementScreen] clientName: $clientName');
 
-    // Obsługa wyszukiwania po nazwie produktu
+    // Jeśli mamy konkretne ID produktu lub inwestycji, wyróżnij go
+    if (widget.highlightedProductId != null ||
+        widget.highlightedInvestmentId != null) {
+      print(
+        '🎯 [ProductsManagementScreen] Wyróżniam konkretny produkt/inwestycję',
+      );
+      _highlightSpecificProduct();
+      return;
+    }
+
+    // Obsługa wyszukiwania po nazwie produktu (fallback)
     if (productName != null && productName.isNotEmpty) {
       print(
         '🔍 [ProductsManagementScreen] Ustawianie wyszukiwania: $productName',
@@ -92,7 +156,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       _applyFiltersAndSearch();
     }
 
-    // Obsługa wyszukiwania po nazwie klienta
+    // Obsługa wyszukiwania po nazwie klienta (fallback)
     if (clientName != null && clientName.isNotEmpty) {
       print(
         '🔍 [ProductsManagementScreen] Wyszukiwanie po kliencie: $clientName',
@@ -114,8 +178,171 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     }
   }
 
+  /// Wyróżnia konkretny produkt na podstawie ID produktu lub inwestycji
+  void _highlightSpecificProduct() async {
+    if (_allProducts.isEmpty) {
+      print(
+        '🎯 [ProductsManagementScreen] Produkty jeszcze nie załadowane, czekam...',
+      );
+      // Jeśli produkty nie są jeszcze załadowane, ustaw flagę do późniejszego użycia
+      return;
+    }
+
+    UnifiedProduct? targetProduct;
+
+    // Szukaj po ID produktu
+    if (widget.highlightedProductId != null) {
+      targetProduct = _allProducts.firstWhere(
+        (product) => product.id == widget.highlightedProductId,
+        orElse: () => _allProducts.first,
+      );
+
+      if (targetProduct.id != widget.highlightedProductId) {
+        print(
+          '❌ [ProductsManagementScreen] Nie znaleziono produktu o ID: ${widget.highlightedProductId}',
+        );
+        targetProduct = null;
+      } else {
+        print(
+          '✅ [ProductsManagementScreen] Znaleziono produkt: ${targetProduct.name}',
+        );
+      }
+    }
+
+    // Szukaj po ID inwestycji (w oryginalnym obiekcie lub additionalInfo)
+    if (targetProduct == null && widget.highlightedInvestmentId != null) {
+      print(
+        '🔍 [ProductsManagementScreen] Szukam produktu dla inwestycji: ${widget.highlightedInvestmentId}',
+      );
+
+      for (final product in _allProducts) {
+        bool found = false;
+
+        // Sprawdź czy oryginalny produkt to Investment
+        if (product.originalProduct is Investment) {
+          final investment = product.originalProduct as Investment;
+          if (investment.id == widget.highlightedInvestmentId) {
+            targetProduct = product;
+            found = true;
+            print(
+              '✅ [ProductsManagementScreen] Znaleziono produkt dla inwestycji (Investment): ${product.name}',
+            );
+          }
+        }
+        // Sprawdź czy oryginalny produkt to Map z Firebase Functions
+        else if (product.originalProduct is Map<String, dynamic>) {
+          final originalData = product.originalProduct as Map<String, dynamic>;
+          if (originalData['id'] == widget.highlightedInvestmentId ||
+              originalData['investment_id'] == widget.highlightedInvestmentId) {
+            targetProduct = product;
+            found = true;
+            print(
+              '✅ [ProductsManagementScreen] Znaleziono produkt dla inwestycji (Map): ${product.name}',
+            );
+          }
+        }
+
+        // Sprawdź w additionalInfo jako backup
+        if (!found &&
+            (product.additionalInfo['investmentId'] ==
+                    widget.highlightedInvestmentId ||
+                product.additionalInfo['id'] ==
+                    widget.highlightedInvestmentId)) {
+          targetProduct = product;
+          found = true;
+          print(
+            '✅ [ProductsManagementScreen] Znaleziono produkt w additionalInfo: ${product.name}',
+          );
+        }
+
+        // Sprawdź ID produktu jako backup (może to być to samo ID)
+        if (!found && product.id == widget.highlightedInvestmentId) {
+          targetProduct = product;
+          found = true;
+          print(
+            '✅ [ProductsManagementScreen] Znaleziono produkt po ID produktu: ${product.name}',
+          );
+        }
+
+        if (found) break;
+      }
+
+      if (targetProduct == null) {
+        print(
+          '❌ [ProductsManagementScreen] Nie znaleziono produktu dla inwestycji: ${widget.highlightedInvestmentId}',
+        );
+
+        // Dodaj debug informacje o dostępnych produktach
+        print('🔍 [ProductsManagementScreen] Dostępne produkty (pierwsze 5):');
+        for (int i = 0; i < _allProducts.length && i < 5; i++) {
+          final p = _allProducts[i];
+          if (p.originalProduct is Investment) {
+            final inv = p.originalProduct as Investment;
+            print('  - [${i}] Investment ID: ${inv.id}, Name: ${p.name}');
+          } else if (p.originalProduct is Map<String, dynamic>) {
+            final data = p.originalProduct as Map<String, dynamic>;
+            print(
+              '  - [${i}] Server Data ID: ${data['id']}, ClientID: ${data['clientId']}, Name: ${p.name}',
+            );
+          } else {
+            print('  - [${i}] UnifiedProduct ID: ${p.id}, Name: ${p.name}');
+          }
+        }
+      }
+    }
+
+    if (targetProduct != null) {
+      // Wyczyść filtry i wyszukiwanie aby pokazać tylko ten produkt
+      setState(() {
+        _searchController.text = '';
+        _filteredProducts = [targetProduct!];
+      });
+
+      // Automatycznie otwórz szczegóły tego produktu po krótkim opóżnieniu
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _showProductDetails(targetProduct!);
+        }
+      });
+    } else if (widget.initialSearchProductName != null &&
+        widget.initialSearchProductName!.isNotEmpty) {
+      // Fallback: wyszukaj po nazwie produktu
+      print(
+        '🔍 [ProductsManagementScreen] Fallback: szukam po nazwie: ${widget.initialSearchProductName}',
+      );
+
+      final productsByName = _allProducts
+          .where(
+            (product) => product.name.toLowerCase().contains(
+              widget.initialSearchProductName!.toLowerCase(),
+            ),
+          )
+          .toList();
+
+      if (productsByName.isNotEmpty) {
+        print(
+          '✅ [ProductsManagementScreen] Znaleziono ${productsByName.length} produktów po nazwie',
+        );
+        setState(() {
+          _searchController.text = widget.initialSearchProductName!;
+          _filteredProducts = productsByName;
+        });
+
+        // Jeśli znaleziono tylko jeden produkt, otwórz jego szczegóły
+        if (productsByName.length == 1) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              _showProductDetails(productsByName.first);
+            }
+          });
+        }
+      }
+    }
+  }
+
   void _initializeService() {
-    _productService = UnifiedProductService();
+    _productService = FirebaseFunctionsProductsService();
+    _productInvestorsService = FirebaseFunctionsProductInvestorsService();
   }
 
   void _initializeAnimations() {
@@ -152,25 +379,71 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         _error = null;
       });
 
+      print('🔄 [ProductsManagementScreen] Rozpoczynam ładowanie danych...');
+
+      // TEST: Sprawdź połączenie z Firebase Functions
+      // Z fallback system, testy nie będą blokować aplikacji
+      if (kDebugMode) {
+        print(
+          '🔄 [ProductsManagementScreen] Testowanie Firebase Functions (z fallback)...',
+        );
+        try {
+          await _productService.testDirectFirestoreAccess();
+          await _productService.testConnection();
+        } catch (e) {
+          print(
+            '❌ [ProductsManagementScreen] Test połączenia nieudany (będzie używany fallback): $e',
+          );
+        }
+      }
+
+      // Pobierz produkty i statystyki równolegle
       final results = await Future.wait([
-        _productService.getAllProducts(),
+        _productService.getUnifiedProducts(
+          pageSize: 1000, // Pobierz więcej na początku
+          sortBy: _sortField.name,
+          sortAscending: _sortDirection == SortDirection.ascending,
+        ),
         _productService.getProductStatistics(),
       ]);
 
-      final products = results[0] as List<UnifiedProduct>;
+      final productsResult = results[0] as UnifiedProductsResult;
       final statistics = results[1] as ProductStatistics;
 
       if (mounted) {
         setState(() {
-          _allProducts = products;
+          _allProducts = productsResult.products;
+          _filteredProducts = List.from(
+            _allProducts,
+          ); // Kopia dla filtrowania lokalnego
           _statistics = statistics;
+          _metadata = productsResult.metadata;
           _isLoading = false;
         });
 
         _applyFiltersAndSearch();
         _startAnimations();
+
+        // Debugowanie - wypisz informacje o produktach
+        _debugProductsLoaded();
+
+        // Sprawdź czy trzeba wyróżnić konkretny produkt
+        if (widget.highlightedProductId != null ||
+            widget.highlightedInvestmentId != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _highlightSpecificProduct();
+            }
+          });
+        }
+
+        print(
+          '📊 [ProductsManagementScreen] Załadowano ${_allProducts.length} produktów, '
+          'cache używany: ${_metadata?.cacheUsed ?? false}',
+        );
       }
     } catch (e) {
+      print('❌ [ProductsManagementScreen] Błąd podczas ładowania: $e');
       if (mounted) {
         setState(() {
           _error = 'Błąd podczas ładowania produktów: $e';
@@ -200,8 +473,11 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     HapticFeedback.mediumImpact();
 
     try {
+      // Odśwież cache na serwerze
       await _productService.refreshCache();
       await _loadInitialData();
+
+      print('🔄 [ProductsManagementScreen] Dane odświeżone');
     } finally {
       if (mounted) {
         setState(() {
@@ -503,7 +779,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: ProductStatsWidget(
-              statistics: _statistics!,
+              statistics: ProductStatisticsAdapter.adaptToUnified(_statistics!),
               animationController: _fadeController,
             ),
           ),
@@ -757,7 +1033,294 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) => EnhancedProductDetailsDialog(product: product),
+      builder: (context) => EnhancedProductDetailsDialog(
+        product: product,
+        onShowInvestors: () => _showProductInvestors(product),
+      ),
+    );
+  }
+
+  /// Pokazuje inwestorów dla danego produktu
+  void _showProductInvestors(UnifiedProduct product) async {
+    try {
+      // Zamknij dialog szczegółów produktu
+      Navigator.of(context).pop();
+
+      // Pokaż loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) =>
+            const PremiumLoadingWidget(message: 'Wyszukiwanie inwestorów...'),
+      );
+
+      final result = await _productInvestorsService.getProductInvestors(
+        productName: product.name,
+        productType: product.productType.name,
+        searchStrategy: 'comprehensive',
+      );
+
+      // Zamknij loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (result.investors.isEmpty) {
+        if (mounted) {
+          _showEmptyInvestorsDialog(product, result);
+        }
+      } else {
+        if (mounted) {
+          _showInvestorsResultDialog(product, result);
+        }
+      }
+    } catch (e) {
+      // Zamknij loading dialog jeśli jest otwarty
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd wyszukiwania inwestorów: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showEmptyInvestorsDialog(
+    UnifiedProduct product,
+    ProductInvestorsResult result,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.backgroundSecondary,
+        title: Text(
+          'Brak inwestorów',
+          style: TextStyle(color: AppTheme.textPrimary),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Nie znaleziono inwestorów dla produktu:',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• Nazwa: ${product.name}',
+              style: TextStyle(color: AppTheme.textPrimary),
+            ),
+            Text(
+              '• Typ: ${product.productType.displayName}',
+              style: TextStyle(color: AppTheme.textPrimary),
+            ),
+            if (result.debugInfo != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Informacje debugowania:',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '• Przeszukano inwestycji: ${result.debugInfo!.totalInvestmentsScanned}',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+              Text(
+                '• Dopasowane inwestycje: ${result.debugInfo!.matchingInvestments}',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Zamknij',
+              style: TextStyle(color: AppTheme.secondaryGold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInvestorsResultDialog(
+    UnifiedProduct product,
+    ProductInvestorsResult result,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: AppTheme.backgroundSecondary,
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Inwestorzy produktu',
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        Text(
+                          product.name,
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(color: AppTheme.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, color: AppTheme.textPrimary),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Statystyki
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: AppTheme.premiumCardDecoration,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStatItem(
+                      'Inwestorów',
+                      result.totalCount.toString(),
+                      Icons.people,
+                    ),
+                    _buildStatItem(
+                      'Kapitał',
+                      '${(result.statistics.totalCapital / 1000000).toStringAsFixed(1)}M PLN',
+                      Icons.account_balance_wallet,
+                    ),
+                    _buildStatItem(
+                      'Średni kapitał',
+                      '${(result.statistics.averageCapital / 1000).toStringAsFixed(0)}k PLN',
+                      Icons.trending_up,
+                    ),
+                    _buildStatItem(
+                      'Czas wyszukiwania',
+                      '${result.executionTime}ms',
+                      Icons.timer,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Lista inwestorów
+              Expanded(
+                child: Container(
+                  decoration: AppTheme.premiumCardDecoration,
+                  child: ListView.builder(
+                    itemCount: result.investors.length,
+                    itemBuilder: (context, index) {
+                      final investor = result.investors[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppTheme.secondaryGold,
+                          child: Text(
+                            investor.client.name.isNotEmpty
+                                ? investor.client.name[0].toUpperCase()
+                                : 'I',
+                            style: TextStyle(color: AppTheme.textOnSecondary),
+                          ),
+                        ),
+                        title: Text(
+                          investor.client.name,
+                          style: TextStyle(color: AppTheme.textPrimary),
+                        ),
+                        subtitle: Text(
+                          '${investor.investmentCount} inwestycji',
+                          style: TextStyle(color: AppTheme.textSecondary),
+                        ),
+                        trailing: Text(
+                          '${(investor.totalRemainingCapital / 1000).toStringAsFixed(0)}k PLN',
+                          style: TextStyle(
+                            color: AppTheme.secondaryGold,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onTap: () {
+                          // TODO: Przejdź do szczegółów klienta
+                          print('Kliknięto klienta: ${investor.client.name}');
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+              if (result.fromCache)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.cached,
+                        size: 16,
+                        color: AppTheme.textTertiary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Dane z cache (5 min)',
+                        style: TextStyle(
+                          color: AppTheme.textTertiary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: AppTheme.secondaryGold, size: 24),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+        ),
+      ],
     );
   }
 

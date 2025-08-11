@@ -6,7 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../models/client.dart';
 import '../models/investor_summary.dart';
-import '../services/firebase_functions_analytics_service.dart';
+import '../services/firebase_functions_analytics_service_updated.dart'
+    as ff_service;
 import '../services/investor_analytics_service.dart' as ia_service;
 import '../widgets/investor_details_modal.dart';
 import '../utils/currency_formatter.dart';
@@ -53,8 +54,8 @@ class _PremiumInvestorAnalyticsScreenState
     extends State<PremiumInvestorAnalyticsScreen>
     with TickerProviderStateMixin {
   // 🎮 CORE SERVICES
-  final FirebaseFunctionsAnalyticsService _analyticsService =
-      FirebaseFunctionsAnalyticsService();
+  final ff_service.FirebaseFunctionsAnalyticsServiceUpdated _analyticsService =
+      ff_service.FirebaseFunctionsAnalyticsServiceUpdated();
   final ia_service.InvestorAnalyticsService _updateService =
       ia_service.InvestorAnalyticsService(); // Dla aktualizacji danych
   final VotingAnalysisManager _votingManager = VotingAnalysisManager();
@@ -78,7 +79,7 @@ class _PremiumInvestorAnalyticsScreenState
   // 📊 DATA STATE
   List<InvestorSummary> _allInvestors = [];
   List<InvestorSummary> _displayedInvestors = [];
-  InvestorAnalyticsResult? _currentResult;
+  ff_service.InvestorAnalyticsResult? _currentResult;
 
   // 📈 MAJORITY CONTROL ANALYSIS
   double _majorityThreshold = 51.0;
@@ -284,28 +285,44 @@ class _PremiumInvestorAnalyticsScreenState
       _currentPage = 1;
     });
 
+    print('🚀 [DEBUG] _loadInitialData rozpoczęta...');
+
     try {
-      final result = await _analyticsService.getOptimizedInvestorAnalytics(
-        page: _currentPage,
-        pageSize: _pageSize,
-        sortBy: _sortBy,
-        sortAscending: _sortAscending,
-        includeInactive: _includeInactive,
-        votingStatusFilter: _selectedVotingStatus,
-        clientTypeFilter: _selectedClientType,
-        showOnlyWithUnviableInvestments: _showOnlyWithUnviableInvestments,
-        searchQuery: _searchQuery.isNotEmpty ? _searchQuery : null,
+      // NAJPIERW SPRÓBUJ FALLBACK SERVICE - żeby sprawdzić czy w ogóle mamy dane
+      print('🔄 [DEBUG] Próbuję fallback serwisu NAJPIERW...');
+      final fallbackService = ia_service.InvestorAnalyticsService();
+      final fallbackResult = await fallbackService
+          .getInvestorsSortedByRemainingCapital(
+            page: _currentPage,
+            pageSize: _pageSize,
+            sortBy: _sortBy,
+            sortAscending: _sortAscending,
+            includeInactive: _includeInactive,
+            votingStatusFilter: _selectedVotingStatus,
+            clientTypeFilter: _selectedClientType,
+            showOnlyWithUnviableInvestments: _showOnlyWithUnviableInvestments,
+          );
+
+      print('✅ [DEBUG] Fallback service odpowiedział');
+      print(
+        '📊 [DEBUG] Fallback result: ${fallbackResult.totalCount} investors, ${fallbackResult.totalViableCapital.toStringAsFixed(2)} total capital',
       );
 
       if (mounted) {
-        _processAnalyticsResult(result);
+        // Konwertuj standardowy wynik do enhanced format
+        final enhancedResult = _convertToEnhancedResult(fallbackResult);
+        print(
+          '📊 [DEBUG] Enhanced result: ${enhancedResult.totalCount} investors, ${enhancedResult.totalViableCapital.toStringAsFixed(2)} total capital',
+        );
+        _processAnalyticsResult(enhancedResult);
         _calculateMajorityAnalysis();
         _calculateVotingAnalysis();
       }
-    } catch (e) {
+    } catch (fallbackError) {
+      print('❌ [DEBUG] Fallback też nie działa: $fallbackError');
       if (mounted) {
         setState(() {
-          _error = _handleAnalyticsError(e);
+          _error = _handleAnalyticsError(fallbackError);
           _isLoading = false;
         });
       }
@@ -478,8 +495,28 @@ class _PremiumInvestorAnalyticsScreenState
     });
   }
 
-  void _processAnalyticsResult(InvestorAnalyticsResult result) {
+  void _processAnalyticsResult(ff_service.InvestorAnalyticsResult result) {
     if (!mounted) return;
+
+    // 🔍 DEBUG: Dodaj informacje debugujące
+    print('🔍 [DEBUG] _processAnalyticsResult:');
+    print('   - Investors count: ${result.investors.length}');
+    print('   - All investors count: ${result.allInvestors.length}');
+    print('   - Total count: ${result.totalCount}');
+    print('   - Total viable capital: ${result.totalViableCapital}');
+    print('   - Source: ${result.source}');
+    print('   - Message: ${result.message}');
+
+    if (result.investors.isNotEmpty) {
+      final firstInvestor = result.investors.first;
+      print('   - First investor: ${firstInvestor.client.name}');
+      print(
+        '   - First investor capital: ${firstInvestor.viableRemainingCapital}',
+      );
+      print(
+        '   - First investor investments: ${firstInvestor.investmentCount}',
+      );
+    }
 
     setState(() {
       _currentResult = result;
@@ -492,6 +529,14 @@ class _PremiumInvestorAnalyticsScreenState
 
     // Update voting analysis
     _votingManager.calculateVotingCapitalDistribution(_allInvestors);
+
+    // 🔍 DEBUG: Sprawdź voting manager po aktualizacji
+    print('🔍 [DEBUG] Voting Manager po aktualizacji:');
+    print('   - Total viable capital: ${_votingManager.totalViableCapital}');
+    print('   - Yes voting %: ${_votingManager.yesVotingPercentage}');
+    print(
+      '   - Undecided voting %: ${_votingManager.undecidedVotingPercentage}',
+    );
 
     // Store result for use in UI
     if (_currentResult != null) {
@@ -567,6 +612,43 @@ class _PremiumInvestorAnalyticsScreenState
           .where((i) => i.client.votingStatus == VotingStatus.undecided)
           .length,
     };
+  }
+
+  /// Konwertuje standardowy InvestorAnalyticsResult do Enhanced format
+  ff_service.InvestorAnalyticsResult _convertToEnhancedResult(
+    ia_service.InvestorAnalyticsResult standardResult,
+  ) {
+    print('🔄 [DEBUG] Converting to enhanced result...');
+    print('   - Standard result investors: ${standardResult.investors.length}');
+    print(
+      '   - Standard result total capital: ${standardResult.totalViableCapital}',
+    );
+
+    return ff_service.InvestorAnalyticsResult(
+      investors: standardResult.investors,
+      allInvestors: standardResult.investors, // Use the same list for both
+      totalCount: standardResult.totalCount,
+      currentPage: standardResult.currentPage,
+      pageSize: standardResult.pageSize,
+      hasNextPage: standardResult.hasNextPage,
+      hasPreviousPage: standardResult.hasPreviousPage,
+      totalViableCapital: standardResult.totalViableCapital,
+      votingDistribution: {
+        VotingStatus.yes: ff_service.VotingCapitalInfo(count: 0, capital: 0.0),
+        VotingStatus.no: ff_service.VotingCapitalInfo(count: 0, capital: 0.0),
+        VotingStatus.abstain: ff_service.VotingCapitalInfo(
+          count: 0,
+          capital: 0.0,
+        ),
+        VotingStatus.undecided: ff_service.VotingCapitalInfo(
+          count: 0,
+          capital: 0.0,
+        ),
+      },
+      executionTimeMs: 0, // Fallback nie ma timing
+      source: 'fallback-service',
+      message: 'Używany standardowy serwis jako fallback',
+    );
   }
 
   // 🎛️ FILTER METHODS

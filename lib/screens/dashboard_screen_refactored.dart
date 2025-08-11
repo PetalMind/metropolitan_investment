@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import '../services/firebase_functions_dashboard_service.dart';
+import '../services/firebase_functions_advanced_analytics_service.dart';
 import '../widgets/dashboard/overview_tab.dart';
 import '../widgets/dashboard/performance_tab.dart';
 import '../widgets/dashboard/risk_tab.dart';
 import '../widgets/dashboard/predictions_tab.dart';
 import '../widgets/dashboard/benchmark_tab.dart';
 
-/// 📊 REFACTORED DASHBOARD SCREEN
+/// 📊 ADVANCED DASHBOARD SCREEN
 ///
-/// Zrefaktorowany dashboard z:
-/// - Podziałem na osobne widgety dla każdej zakładki
-/// - Integracją z Firebase Functions dla zaawansowanej analityki
-/// - Optymalizacją wydajności przez server-side processing
-/// - Wsparcie dla split_investment_data structure (bonds, shares, loans, apartments)
+/// Advanced analytics dashboard with:
+/// - Modular widgets for each analytical tab
+/// - Firebase Functions integration for server-side processing
+/// - Performance optimization through specialized Firebase Functions
+/// - Support for unified investment data structure (bonds, shares, loans, apartments)
+/// - English naming convention aligned with new Firebase Functions architecture
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -25,43 +26,43 @@ class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // Dane z Firebase Functions
+  // Data from Firebase Functions
   Map<String, dynamic>? _allDashboardMetrics;
   bool _isLoading = true;
   bool _hasError = false;
   String? _errorMessage;
 
-  // Status połączenia
+  // Connection status
   bool _functionsHealthy = true;
 
   final List<DashboardTab> _tabs = [
     DashboardTab(
       id: 'overview',
-      label: 'Przegląd',
+      label: 'Overview',
       icon: Icons.dashboard,
       color: AppTheme.primaryColor,
     ),
     DashboardTab(
       id: 'performance',
-      label: 'Wydajność',
+      label: 'Performance',
       icon: Icons.trending_up,
       color: AppTheme.gainPrimary,
     ),
     DashboardTab(
       id: 'risk',
-      label: 'Ryzyko',
+      label: 'Risk Analysis',
       icon: Icons.warning_outlined,
       color: AppTheme.loansColor,
     ),
     DashboardTab(
       id: 'predictions',
-      label: 'Prognozy',
+      label: 'Predictions',
       icon: Icons.psychology,
       color: AppTheme.bondsColor,
     ),
     DashboardTab(
       id: 'benchmark',
-      label: 'Benchmarki',
+      label: 'Benchmarks',
       icon: Icons.compare_arrows,
       color: AppTheme.sharesColor,
     ),
@@ -80,8 +81,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.dispose();
   }
 
-  /// 🚀 INICJALIZACJA DASHBOARD
-  /// Sprawdza health Firebase Functions i ładuje dane
+  /// 🚀 DASHBOARD INITIALIZATION
+  /// Checks Firebase Functions health and loads data
   Future<void> _initializeDashboard() async {
     setState(() {
       _isLoading = true;
@@ -90,23 +91,23 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
 
     try {
-      // 1. Sprawdź status Firebase Functions
+      // 1. Check Firebase Functions status
       _functionsHealthy =
-          await FirebaseFunctionsDashboardService.checkFunctionsHealth();
+          await FirebaseFunctionsAdvancedAnalyticsService.checkFunctionsHealth();
 
       if (!_functionsHealthy) {
         setState(() {
           _hasError = true;
           _errorMessage =
-              'Firebase Functions niedostępne. Spróbuj ponownie później.';
+              'Firebase Functions unavailable. Please try again later.';
           _isLoading = false;
         });
         return;
       }
 
-      // 2. Załaduj wszystkie dane dashboard równolegle
+      // 2. Load all dashboard data in parallel
       final allMetrics =
-          await FirebaseFunctionsDashboardService.getAllDashboardMetrics(
+          await FirebaseFunctionsAdvancedAnalyticsService.getAllDashboardMetrics(
             forceRefresh: false,
             timePeriod: 'all',
             riskProfile: 'moderate',
@@ -117,7 +118,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (allMetrics['error'] == true) {
         setState(() {
           _hasError = true;
-          _errorMessage = allMetrics['message'] ?? 'Nieznany błąd';
+          _errorMessage = allMetrics['message'] ?? 'Unknown error';
           _isLoading = false;
         });
         return;
@@ -137,10 +138,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-  /// 🔄 ODŚWIEŻANIE DANYCH
+  /// 🔄 DATA REFRESH
   Future<void> _refreshDashboard() async {
-    // Wymuś odświeżenie cache
-    await FirebaseFunctionsDashboardService.refreshAllCache();
+    // Force cache refresh
+    await FirebaseFunctionsAdvancedAnalyticsService.refreshAllCache();
     await _initializeDashboard();
   }
 
@@ -159,7 +160,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  /// 📋 HEADER Z STATUSEM
+  /// 📋 HEADER WITH STATUS
   Widget _buildDashboardHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
@@ -183,7 +184,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Dashboard Analityczny',
+                    'Advanced Analytics Dashboard',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: AppTheme.textPrimary,
                       fontWeight: FontWeight.bold,
@@ -191,7 +192,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Zaawansowana analiza portfela inwestycyjnego',
+                    'Comprehensive investment portfolio analysis',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppTheme.textSecondary,
                     ),
@@ -226,7 +227,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           const SizedBox(width: 8),
           Text(
-            'Ładowanie...',
+            'Loading...',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
@@ -242,7 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           Icon(Icons.error_outline, size: 16, color: AppTheme.lossPrimary),
           const SizedBox(width: 8),
           Text(
-            'Błąd',
+            'Error',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppTheme.lossPrimary),
@@ -277,7 +278,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  /// 📊 SZYBKIE STATYSTYKI
+  /// 📊 QUICK STATISTICS
   Widget _buildQuickStats() {
     final advancedMetrics =
         _allDashboardMetrics?['advanced'] as Map<String, dynamic>?;
@@ -302,7 +303,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildQuickStatItem(
-            'Wartość Portfela',
+            'Portfolio Value',
             formatCurrency(
               (portfolioMetrics['totalValue'] as num?)?.toDouble() ?? 0.0,
             ),
@@ -314,16 +315,16 @@ class _DashboardScreenState extends State<DashboardScreen>
             Icons.trending_up,
           ),
           _buildQuickStatItem(
-            'Inwestycji',
+            'Investments',
             '${portfolioMetrics['totalInvestmentsCount'] ?? 0}',
             Icons.pie_chart,
           ),
           _buildQuickStatItem(
-            'Czas obliczeń',
+            'Execution Time',
             '${executionTime}ms',
             Icons.speed,
           ),
-          _buildQuickStatItem('Punkty danych', '$dataPoints', Icons.data_usage),
+          _buildQuickStatItem('Data Points', '$dataPoints', Icons.data_usage),
         ],
       ),
     );
@@ -390,7 +391,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Ładowanie danych analitycznych...'),
+            Text('Loading analytical data...'),
           ],
         ),
       );
@@ -404,7 +405,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             Icon(Icons.error_outline, size: 64, color: AppTheme.lossPrimary),
             const SizedBox(height: 16),
             Text(
-              'Błąd ładowania dashboard',
+              'Dashboard Loading Error',
               style: Theme.of(
                 context,
               ).textTheme.headlineMedium?.copyWith(color: AppTheme.textPrimary),
@@ -423,7 +424,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ElevatedButton.icon(
               onPressed: _initializeDashboard,
               icon: const Icon(Icons.refresh),
-              label: const Text('Spróbuj ponownie'),
+              label: const Text('Try Again'),
             ),
           ],
         ),
@@ -457,7 +458,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       onPressed: _isLoading ? null : _refreshDashboard,
       backgroundColor: AppTheme.primaryColor,
       foregroundColor: AppTheme.textOnPrimary,
-      tooltip: 'Odśwież dane',
+      tooltip: 'Refresh Data',
       child: _isLoading
           ? SizedBox(
               width: 20,
@@ -472,7 +473,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 }
 
-/// 📑 MODEL ZAKŁADKI DASHBOARD
+/// 📑 DASHBOARD TAB MODEL
 class DashboardTab {
   final String id;
   final String label;

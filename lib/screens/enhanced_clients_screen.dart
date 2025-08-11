@@ -5,7 +5,6 @@ import '../models_and_services.dart';
 import '../widgets/data_table_widget.dart';
 import '../widgets/custom_loading_widget.dart';
 import '../widgets/client_form.dart';
-import '../services/firebase_functions_client_service.dart';
 
 class EnhancedClientsScreen extends StatefulWidget {
   const EnhancedClientsScreen({super.key});
@@ -15,14 +14,11 @@ class EnhancedClientsScreen extends StatefulWidget {
 }
 
 class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
-  // Używamy nowego serwisu Firebase Functions
-  final FirebaseFunctionsClientService _clientService =
-      FirebaseFunctionsClientService();
-  final ClientService _legacyClientService =
-      ClientService(); // Do operacji CRUD
+  // Używamy nowego zintegrowanego serwisu
+  final IntegratedClientService _clientService = IntegratedClientService();
   final TextEditingController _searchController = TextEditingController();
 
-  ClientsResult? _currentResult;
+  List<Client> _allClients = []; // Przechowuje wszystkich klientów
   List<Client> _activeClients = [];
   ClientStats? _clientStats;
 
@@ -31,10 +27,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
   bool _showActiveOnly = false;
   String _errorMessage = '';
 
-  // Parametry paginacji
-  int _currentPage = 1;
-  final int _pageSize = 250; // Zwiększony rozmiar strony dla lepszej wydajności
-  String _sortBy = 'imie_nazwisko';
+  // Parametry filtrowania i sortowania
+  String _sortBy = 'fullName';
+  String _currentSearchQuery = '';
 
   @override
   void initState() {
@@ -49,7 +44,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
     super.dispose();
   }
 
-  /// Załaduj dane początkowe wykorzystując Firebase Functions
+  /// Załaduj dane początkowe wykorzystując IntegratedClientService
   Future<void> _loadInitialData() async {
     setState(() {
       _isLoading = true;
@@ -57,26 +52,47 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
     });
 
     try {
-      // Równoległe ładowanie danych
+      // Równoległe ładowanie danych z progress tracking
       final futures = await Future.wait([
+        // Pobierz wszystkich klientów
         _clientService.getAllClients(
           page: 1,
-          pageSize: _pageSize,
+          pageSize: 10000, // Pobierz wszystkich
           sortBy: _sortBy,
           forceRefresh: false,
+          onProgress: (progress, stage) {
+            // Progress tracking bez modyfikacji stanu
+          },
         ),
+        // Pobierz aktywnych klientów
         _clientService.getActiveClients(),
+        // Pobierz statystyki
         _clientService.getClientStats(),
       ]);
 
       if (mounted) {
         setState(() {
-          _currentResult = futures[0] as ClientsResult;
+          _allClients = futures[0] as List<Client>;
           _activeClients = futures[1] as List<Client>;
           _clientStats = futures[2] as ClientStats;
-          _currentPage = 1;
           _isLoading = false;
         });
+
+        // Debug - sprawdź co otrzymaliśmy
+        print('🔍 [EnhancedClientsScreen] Załadowano:');
+        print('   - Wszyscy klienci: ${_allClients.length}');
+        print('   - Aktywni klienci: ${_activeClients.length}');
+        print('   - Stats - totalClients: ${_clientStats?.totalClients}');
+        print(
+          '   - Stats - totalInvestments: ${_clientStats?.totalInvestments}',
+        );
+        print(
+          '   - Stats - totalRemainingCapital: ${_clientStats?.totalRemainingCapital}',
+        );
+        print('   - Stats - source: ${_clientStats?.source}');
+
+        // Zastosuj filtrowanie jeśli potrzeba
+        _applyCurrentFilters();
       }
     } catch (e) {
       if (mounted) {
@@ -88,6 +104,12 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
     }
   }
 
+  /// Zastosuj obecne filtry do listy klientów
+  void _applyCurrentFilters() {
+    // Filtrowanie zostanie zastosowane przez getter _displayedClients
+    setState(() {});
+  }
+
   /// Obsługa zmiany wyszukiwania z debouncing
   Timer? _searchTimer;
   void _onSearchChanged() {
@@ -97,32 +119,39 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
     });
   }
 
-  /// Wykonaj wyszukiwanie
+  /// Wykonaj wyszukiwanie i filtrowanie
   Future<void> _performSearch() async {
     if (!mounted) return;
 
     final query = _searchController.text.trim();
 
     setState(() {
+      _currentSearchQuery = query;
       _isLoading = true;
-      _currentPage = 1;
     });
 
     try {
-      final result = await _clientService.getAllClients(
-        page: 1,
-        pageSize: _pageSize,
-        searchQuery: query.isEmpty ? null : query,
-        sortBy: _sortBy,
-        forceRefresh: false,
-      );
+      if (query.isNotEmpty) {
+        // Użyj Firebase Functions/Integrated Service do wyszukiwania
+        final results = await _clientService.getAllClients(
+          page: 1,
+          pageSize: 5000,
+          searchQuery: query,
+          sortBy: _sortBy,
+          forceRefresh: false,
+        );
 
-      if (mounted) {
         setState(() {
-          _currentResult = result;
+          _allClients = results;
           _isLoading = false;
         });
+      } else {
+        // Jeśli brak zapytania, przeładuj wszystkich klientów
+        await _loadInitialData();
       }
+
+      // Zastosuj filtry po wczytaniu
+      _applyCurrentFilters();
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -133,75 +162,26 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
     }
   }
 
-  /// Załaduj kolejną stronę danych
-  Future<void> _loadNextPage() async {
-    if (_isLoadingMore || !(_currentResult?.hasNextPage ?? false)) return;
-
-    setState(() => _isLoadingMore = true);
-
-    try {
-      final nextResult = await _clientService.getAllClients(
-        page: _currentPage + 1,
-        pageSize: _pageSize,
-        searchQuery: _searchController.text.trim().isEmpty
-            ? null
-            : _searchController.text.trim(),
-        sortBy: _sortBy,
-        forceRefresh: false,
-      );
-
-      if (mounted) {
-        setState(() {
-          // Dodaj nowych klientów do istniejącej listy
-          final updatedClients = [
-            ..._currentResult!.clients,
-            ...nextResult.clients,
-          ];
-
-          _currentResult = ClientsResult(
-            clients: updatedClients,
-            totalCount: nextResult.totalCount,
-            currentPage: nextResult.currentPage,
-            pageSize: _pageSize,
-            hasNextPage: nextResult.hasNextPage,
-            hasPreviousPage: nextResult.hasPreviousPage,
-            source: nextResult.source,
-          );
-
-          _currentPage = nextResult.currentPage;
-          _isLoadingMore = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingMore = false;
-          _errorMessage = 'Błąd podczas ładowania kolejnej strony: $e';
-        });
-      }
+  /// Pobierz przefiltrowaną listę klientów
+  List<Client> get _displayedClients {
+    if (_showActiveOnly) {
+      return _activeClients;
     }
+
+    if (_currentSearchQuery.isNotEmpty) {
+      // Jeśli jest wyszukiwanie, zwróć wyniki z _allClients (już przefiltrowane przez serwis)
+      return _allClients;
+    }
+
+    // Zwróć wszystkich klientów
+    return _allClients;
   }
 
   /// Przełącz widok aktywnych klientów
   void _toggleActiveClients() {
     setState(() {
       _showActiveOnly = !_showActiveOnly;
-
-      if (_showActiveOnly) {
-        // Pokaż tylko aktywnych klientów
-        _currentResult = ClientsResult(
-          clients: _activeClients,
-          totalCount: _activeClients.length,
-          currentPage: 1,
-          pageSize: _activeClients.length,
-          hasNextPage: false,
-          hasPreviousPage: false,
-          source: 'active-clients-filter',
-        );
-      } else {
-        // Wróć do normalnego widoku - przeładuj dane
-        _performSearch();
-      }
+      _applyCurrentFilters();
     });
   }
 
@@ -266,19 +246,18 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
                     try {
                       if (client == null) {
                         // Nowy klient
-                        await _legacyClientService.createClient(savedClient);
+                        await _clientService.createClient(savedClient);
                         _showSuccessSnackBar('Klient został dodany');
                       } else {
                         // Aktualizacja klienta
-                        await _legacyClientService.updateClient(
+                        await _clientService.updateClient(
                           client.id,
                           savedClient,
                         );
                         _showSuccessSnackBar('Klient został zaktualizowany');
                       }
 
-                      // Wyczyść cache i odśwież dane
-                      await _clientService.clearAllCaches();
+                      // Odśwież dane po zapisaniu
                       await _refreshData();
                     } catch (e) {
                       _showErrorSnackBar('Błąd podczas zapisywania: $e');
@@ -593,7 +572,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
       return _buildErrorState();
     }
 
-    if (_currentResult == null || _currentResult!.isEmpty) {
+    if (_displayedClients.isEmpty) {
       return _buildEmptyState();
     }
 
@@ -604,16 +583,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
           const Padding(
             padding: EdgeInsets.all(16),
             child: CircularProgressIndicator(),
-          )
-        else if (_currentResult!.hasNextPage)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: ElevatedButton(
-              onPressed: _loadNextPage,
-              child: Text(
-                'Załaduj więcej (${_currentResult!.totalCount - _currentResult!.clients.length} pozostało)',
-              ),
-            ),
           ),
       ],
     );
@@ -621,11 +590,12 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
 
   Widget _buildClientsList() {
     return DataTableWidget<Client>(
-      items: _currentResult!.clients,
+      items: _displayedClients,
       columns: [
         DataTableColumn<Client>(
           label: 'Imię i nazwisko',
-          value: (client) => client.name,
+          value: (client) =>
+              client.name, // W modelu Client: name zawiera fullName z Firebase
           sortable: true,
           width: 200,
         ),
@@ -781,11 +751,11 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
 
   Future<void> _clearCache() async {
     try {
-      await _clientService.clearAllCaches();
-      _showSuccessSnackBar('Cache został wyczyszczony');
+      // Odśwież dane bez czyszczenia cache
       await _refreshData();
+      _showSuccessSnackBar('Dane zostały odświeżone');
     } catch (e) {
-      _showErrorSnackBar('Błąd podczas czyszczenia cache: $e');
+      _showErrorSnackBar('Błąd podczas odświeżania: $e');
     }
   }
 
@@ -815,9 +785,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
               Navigator.of(context).pop();
 
               try {
-                await _legacyClientService.deleteClient(client.id);
+                // Usuń klienta używając ClientService bezpośrednio
+                await ClientService().deleteClient(client.id);
                 _showSuccessSnackBar('Klient został usunięty');
-                await _clientService.clearAllCaches();
                 await _refreshData();
               } catch (e) {
                 _showErrorSnackBar('Błąd podczas usuwania: $e');

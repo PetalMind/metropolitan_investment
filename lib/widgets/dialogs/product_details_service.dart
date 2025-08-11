@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../models/unified_product.dart';
 import '../../models/investor_summary.dart';
-import '../../services/product_investors_service.dart';
+import '../../services/firebase_functions_product_investors_service.dart';
 
 /// Service do obsługi logiki dialogu szczegółów produktu
 class ProductDetailsService {
-  final ProductInvestorsService _investorsService = ProductInvestorsService();
+  final FirebaseFunctionsProductInvestorsService _investorsService =
+      FirebaseFunctionsProductInvestorsService();
 
   /// Pobiera inwestorów dla danego produktu używając zoptymalizowanej Firebase Function
   Future<List<InvestorSummary>> getInvestorsForProduct(
@@ -17,7 +18,13 @@ class ProductDetailsService {
       print('  - Typ: ${product.productType.displayName}');
 
       // Używamy zoptymalizowanej Firebase Function
-      final investors = await _investorsService.getInvestorsForProduct(product);
+      final result = await _investorsService.getProductInvestors(
+        productId: product.id,
+        productName: product.name,
+        productType: product.productType.name.toLowerCase(),
+        searchStrategy: 'comprehensive',
+      );
+      final investors = result.investors;
 
       print(
         '✅ [ProductDetailsService] Załadowano ${investors.length} inwestorów (zoptymalizowane)',
@@ -59,7 +66,7 @@ class ProductDetailsService {
       'data_zapadalnosci': 'Data zapadalności',
       'liczba_udzialow': 'Liczba udziałów',
       'cena_za_udzial': 'Cena za udział',
-      'nazwa_firmy': 'Nazwa firmy',
+      'companyName': 'Nazwa firmy',
       'waluta': 'Waluta',
       'projekt_nazwa': 'Nazwa projektu',
       'numer_apartamentu': 'Numer apartamentu',

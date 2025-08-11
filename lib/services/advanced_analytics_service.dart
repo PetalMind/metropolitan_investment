@@ -2,12 +2,9 @@ import 'dart:math' as math;
 import '../models/investment.dart';
 import '../models/product.dart';
 import 'base_service.dart';
-import 'data_cache_service.dart';
 
 /// Zaawansowany serwis analityczny z głębokimi statystykami
 class AdvancedAnalyticsService extends BaseService {
-  final DataCacheService _dataCacheService = DataCacheService();
-
   /// Pobiera zaawansowane metryki dashboard z cache'owaniem
   Future<AdvancedDashboardMetrics> getAdvancedDashboardMetrics() async {
     return getCachedData(
@@ -52,70 +49,27 @@ class AdvancedAnalyticsService extends BaseService {
     }
   }
 
-  /// Pobiera wszystkie inwestycje ze wszystkich kolekcji (investments, bonds, shares, loans)
+  /// Pobiera wszystkie inwestycje z kolekcji investments (zunifikowane)
   Future<List<Investment>> _getAllInvestments() async {
     try {
       print(
-        '🔍 [AdvancedAnalytics] Pobieranie inwestycji ze wszystkich kolekcji...',
+        '🔍 [AdvancedAnalytics] Pobieranie inwestycji z kolekcji investments...',
       );
 
-      // Pobranie danych z głównej kolekcji investments (dane z Excel)
+      // Pobranie danych z zunifikowanej kolekcji investments
       final investmentsSnapshot = await firestore
           .collection('investments')
           .get();
 
-      // Konwersja dokumentów z kolekcji investments
+      // Konwersja dokumentów z kolekcji investments używając angielskich pól
       final investments = investmentsSnapshot.docs.map((doc) {
-        return _convertExcelDataToInvestment(doc.id, doc.data());
+        return _convertUnifiedInvestmentData(doc.id, doc.data());
       }).toList();
 
       print(
-        '🔍 [AdvancedAnalytics] Pobrano ${investments.length} inwestycji z kolekcji investments',
+        '🔍 [AdvancedAnalytics] Pobrano ${investments.length} inwestycji z zunifikowanej kolekcji',
       );
 
-      // Opcjonalnie: dodaj dane z innych kolekcji (bonds, shares, loans)
-      try {
-        final bondsSnapshot = await firestore.collection('bonds').get();
-        final bondsInvestments = bondsSnapshot.docs.map((doc) {
-          return _convertBondToInvestment(doc.id, doc.data());
-        }).toList();
-        investments.addAll(bondsInvestments);
-        print(
-          '🔍 [AdvancedAnalytics] Dodano ${bondsInvestments.length} obligacji',
-        );
-      } catch (e) {
-        print('⚠️ [AdvancedAnalytics] Brak kolekcji bonds lub błąd: $e');
-      }
-
-      try {
-        final sharesSnapshot = await firestore.collection('shares').get();
-        final sharesInvestments = sharesSnapshot.docs.map((doc) {
-          return _convertShareToInvestment(doc.id, doc.data());
-        }).toList();
-        investments.addAll(sharesInvestments);
-        print(
-          '🔍 [AdvancedAnalytics] Dodano ${sharesInvestments.length} udziałów',
-        );
-      } catch (e) {
-        print('⚠️ [AdvancedAnalytics] Brak kolekcji shares lub błąd: $e');
-      }
-
-      try {
-        final loansSnapshot = await firestore.collection('loans').get();
-        final loansInvestments = loansSnapshot.docs.map((doc) {
-          return _convertLoanToInvestment(doc.id, doc.data());
-        }).toList();
-        investments.addAll(loansInvestments);
-        print(
-          '🔍 [AdvancedAnalytics] Dodano ${loansInvestments.length} pożyczek',
-        );
-      } catch (e) {
-        print('⚠️ [AdvancedAnalytics] Brak kolekcji loans lub błąd: $e');
-      }
-
-      print(
-        '🔍 [AdvancedAnalytics] Łącznie pobrano ${investments.length} inwestycji ze wszystkich kolekcji',
-      );
       return investments;
     } catch (e) {
       logError('_getAllInvestments', e);
@@ -962,279 +916,115 @@ class AdvancedAnalyticsService extends BaseService {
     }
   }
 
-  /// Konwersja danych Excel do Investment - zgodna z firestore.indexes.json
-  Investment _convertExcelDataToInvestment(
+  /// Konwersja zunifikowanych danych inwestycyjnych z kolekcji 'investments'
+  /// używającej angielskich nazw pól
+  Investment _convertUnifiedInvestmentData(
     String id,
     Map<String, dynamic> data,
   ) {
-    // Helper function to safely convert to double
+    // Helper functions
     double safeToDouble(dynamic value, [double defaultValue = 0.0]) {
       if (value == null) return defaultValue;
       if (value is double) return value;
       if (value is int) return value.toDouble();
       if (value is String) {
-        final parsed = double.tryParse(value);
+        // Handle Polish number format with commas as thousands separator
+        final cleaned = value.replaceAll(',', '');
+        final parsed = double.tryParse(cleaned);
         return parsed ?? defaultValue;
       }
       return defaultValue;
     }
 
-    // Helper function to parse date strings
-    DateTime? parseDate(String? dateStr) {
-      if (dateStr == null || dateStr.isEmpty) return null;
+    DateTime? parseDate(dynamic dateValue) {
+      if (dateValue == null) return null;
+      if (dateValue is String && dateValue.isEmpty) return null;
+
       try {
-        return DateTime.parse(dateStr);
+        if (dateValue is String) {
+          return DateTime.parse(dateValue);
+        }
+        return null;
       } catch (e) {
         return null;
       }
     }
 
-    // Helper function to map status from Polish to enum
-    InvestmentStatus mapStatus(String? status) {
-      switch (status) {
-        case 'Aktywny':
-          return InvestmentStatus.active;
-        case 'Nieaktywny':
-          return InvestmentStatus.inactive;
-        case 'Wykup wczesniejszy':
-          return InvestmentStatus.earlyRedemption;
-        case 'Zakończony':
-          return InvestmentStatus.completed;
-        default:
-          return InvestmentStatus.active;
-      }
+    InvestmentStatus _mapInvestmentStatus(dynamic status) {
+      if (status == null) return InvestmentStatus.active;
+      final statusStr = status.toString().toLowerCase();
+
+      if (statusStr.contains('active')) return InvestmentStatus.active;
+      if (statusStr.contains('inactive')) return InvestmentStatus.inactive;
+      if (statusStr.contains('completed')) return InvestmentStatus.completed;
+      if (statusStr.contains('early')) return InvestmentStatus.earlyRedemption;
+
+      return InvestmentStatus.active;
     }
 
-    // Helper function to map market type from Polish to enum
-    MarketType mapMarketType(String? marketType) {
-      switch (marketType) {
-        case 'Rynek pierwotny':
-          return MarketType.primary;
-        case 'Rynek wtórny':
-          return MarketType.secondary;
-        case 'Odkup od Klienta':
-          return MarketType.clientRedemption;
-        default:
-          return MarketType.primary;
-      }
+    MarketType _mapMarketType(dynamic marketType) {
+      if (marketType == null) return MarketType.primary;
+      final typeStr = marketType.toString().toLowerCase();
+
+      if (typeStr.contains('secondary')) return MarketType.secondary;
+      if (typeStr.contains('redemption')) return MarketType.clientRedemption;
+
+      return MarketType.primary;
     }
 
-    // Helper function to map product type from Polish to enum
-    ProductType mapProductType(String? productType) {
-      if (productType == null || productType.isEmpty) {
-        return ProductType.bonds;
-      }
+    ProductType _mapProductType(dynamic productType) {
+      if (productType == null) return ProductType.bonds;
+      final typeStr = productType.toString().toLowerCase();
 
-      final type = productType.toLowerCase();
-
-      // Sprawdź zawartość stringa dla rozpoznania typu
-      if (type.contains('pożyczka') || type.contains('pozyczka')) {
-        return ProductType.loans;
-      } else if (type.contains('udział') || type.contains('udziały')) {
-        return ProductType.shares;
-      } else if (type.contains('apartament')) {
+      if (typeStr == 'loans' || typeStr == 'loan') return ProductType.loans;
+      if (typeStr == 'shares' || typeStr == 'share') return ProductType.shares;
+      if (typeStr == 'apartments' || typeStr == 'apartment')
         return ProductType.apartments;
-      } else if (type.contains('obligacje') || type.contains('obligacja')) {
-        return ProductType.bonds;
-      }
+      if (typeStr == 'bonds' || typeStr == 'bond') return ProductType.bonds;
 
-      // Fallback dla dokładnych dopasowań
-      switch (productType) {
-        case 'Obligacje':
-          return ProductType.bonds;
-        case 'Udziały':
-          return ProductType.shares;
-        case 'Pożyczki':
-          return ProductType.loans;
-        case 'Apartamenty':
-          return ProductType.apartments;
-        default:
-          return ProductType.bonds;
-      }
+      return ProductType.bonds;
     }
 
     return Investment(
       id: id,
-      clientId: data['id_klient']?.toString() ?? '',
-      clientName: data['klient'] ?? '',
-      employeeId: '', // Not directly available in Firebase structure
-      employeeFirstName: data['pracownik_imie'] ?? '',
-      employeeLastName: data['pracownik_nazwisko'] ?? '',
-      branchCode: data['kod_oddzialu'] ?? '',
-      status: mapStatus(data['status_produktu']),
-      isAllocated: (data['przydzial'] ?? 0) == 1,
-      marketType: mapMarketType(data['produkt_status_wejscie']),
-      signedDate: parseDate(data['data_podpisania']) ?? DateTime.now(),
-      entryDate: parseDate(data['data_wejscia_do_inwestycji']),
-      exitDate: parseDate(data['data_wyjscia_z_inwestycji']),
-      proposalId: data['id_propozycja_nabycia']?.toString() ?? '',
-      productType: mapProductType(data['typ_produktu']),
-      productName: data['produkt_nazwa'] ?? '',
-      creditorCompany: data['wierzyciel_spolka'] ?? '',
-      companyId: data['id_spolka'] ?? '',
-      issueDate: parseDate(data['data_emisji']),
-      redemptionDate: parseDate(data['data_wymagalnosci']),
-      sharesCount: data['ilosc_udzialow'],
-      investmentAmount: safeToDouble(data['wartosc_kontraktu']),
-      paidAmount: safeToDouble(data['kwota_wplat']),
-      realizedCapital: safeToDouble(data['kapital_zrealizowany']),
-      realizedInterest: safeToDouble(data['odsetki_zrealizowane']),
-      transferToOtherProduct: safeToDouble(data['przekaz_na_inny_produkt']),
-      remainingCapital: safeToDouble(data['kapital_pozostaly']),
-      remainingInterest: safeToDouble(data['odsetki_pozostale']),
-      plannedTax: safeToDouble(data['planowany_podatek']),
-      realizedTax: safeToDouble(data['zrealizowany_podatek']),
-      currency: 'PLN', // Default currency
-      exchangeRate: null, // Not available in Firebase structure
-      createdAt: parseDate(data['created_at']) ?? DateTime.now(),
-      updatedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
-      additionalInfo: {
-        'source_file': data['source_file'],
-        'id_sprzedaz': data['id_sprzedaz'],
-        'kod_oddzialu': data['kod_oddzialu'],
-      },
-    );
-  }
-
-  /// Konwertuje dokument z kolekcji bonds na Investment
-  Investment _convertBondToInvestment(String id, Map<String, dynamic> data) {
-    return Investment(
-      id: id,
-      clientId: '', // Bonds nie mają bezpośredniego ID klienta
-      clientName: '',
-      employeeId: '',
-      employeeFirstName: '',
-      employeeLastName: '',
-      branchCode: '',
-      status: InvestmentStatus.active,
-      isAllocated: false,
-      marketType: MarketType.primary,
-      signedDate:
-          DateTime.tryParse(data['created_at']?.toString() ?? '') ??
-          DateTime.now(),
-      entryDate: null,
-      exitDate: null,
-      proposalId: '',
-      productType: ProductType.bonds,
-      productName: data['typ_produktu']?.toString() ?? '',
-      creditorCompany: '',
-      companyId: '',
-      issueDate: null,
-      redemptionDate: null,
-      sharesCount: null,
-      investmentAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
-      paidAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
-      realizedCapital: data['kapital_zrealizowany']?.toDouble() ?? 0.0,
-      realizedInterest: data['odsetki_zrealizowane']?.toDouble() ?? 0.0,
-      transferToOtherProduct:
-          data['przekaz_na_inny_produkt']?.toDouble() ?? 0.0,
-      remainingCapital: data['kapital_pozostaly']?.toDouble() ?? 0.0,
-      remainingInterest: data['odsetki_pozostale']?.toDouble() ?? 0.0,
-      plannedTax: 0.0,
-      realizedTax: data['podatek_zrealizowany']?.toDouble() ?? 0.0,
-      currency: 'PLN',
-      exchangeRate: null,
-      createdAt:
-          DateTime.tryParse(data['created_at']?.toString() ?? '') ??
-          DateTime.now(),
-      updatedAt: DateTime.now(),
-      additionalInfo: {
-        'source': 'bonds_collection',
-        'podatek_pozostaly': data['podatek_pozostaly']?.toString() ?? '',
-      },
-    );
-  }
-
-  /// Konwertuje dokument z kolekcji loans na Investment
-  Investment _convertLoanToInvestment(String id, Map<String, dynamic> data) {
-    return Investment(
-      id: id,
-      clientId: '',
-      clientName: '',
-      employeeId: '',
-      employeeFirstName: '',
-      employeeLastName: '',
-      branchCode: '',
-      status: InvestmentStatus.active,
-      isAllocated: false,
-      marketType: MarketType.primary,
-      signedDate:
-          DateTime.tryParse(data['created_at']?.toString() ?? '') ??
-          DateTime.now(),
-      entryDate: null,
-      exitDate: null,
-      proposalId: '',
-      productType: ProductType.loans, // Pożyczki jako osobny typ produktu
-      productName: data['typ_produktu']?.toString() ?? '',
-      creditorCompany: '',
-      companyId: '',
-      issueDate: null,
-      redemptionDate: null,
-      sharesCount: null,
-      investmentAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
-      paidAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
-      realizedCapital: 0.0,
-      realizedInterest: 0.0,
-      transferToOtherProduct: 0.0,
-      remainingCapital: data['kwota_inwestycji']?.toDouble() ?? 0.0,
-      remainingInterest: 0.0,
-      plannedTax: 0.0,
-      realizedTax: 0.0,
-      currency: 'PLN',
-      exchangeRate: null,
-      createdAt:
-          DateTime.tryParse(data['created_at']?.toString() ?? '') ??
-          DateTime.now(),
-      updatedAt: DateTime.now(),
-      additionalInfo: {'source': 'loans_collection'},
-    );
-  }
-
-  /// Konwertuje dokument z kolekcji shares na Investment
-  Investment _convertShareToInvestment(String id, Map<String, dynamic> data) {
-    return Investment(
-      id: id,
-      clientId: '',
-      clientName: '',
-      employeeId: '',
-      employeeFirstName: '',
-      employeeLastName: '',
-      branchCode: '',
-      status: InvestmentStatus.active,
-      isAllocated: false,
-      marketType: MarketType.primary,
-      signedDate:
-          DateTime.tryParse(data['created_at']?.toString() ?? '') ??
-          DateTime.now(),
-      entryDate: null,
-      exitDate: null,
-      proposalId: '',
-      productType: ProductType.shares,
-      productName: data['typ_produktu']?.toString() ?? '',
-      creditorCompany: '',
-      companyId: '',
-      issueDate: null,
-      redemptionDate: null,
-      sharesCount: (data['ilosc_udzialow']?.toDouble() ?? 0.0).toInt(),
-      investmentAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
-      paidAmount: data['kwota_inwestycji']?.toDouble() ?? 0.0,
-      realizedCapital: 0.0,
-      realizedInterest: 0.0,
-      transferToOtherProduct: 0.0,
-      remainingCapital: data['kwota_inwestycji']?.toDouble() ?? 0.0,
-      remainingInterest: 0.0,
-      plannedTax: 0.0,
-      realizedTax: 0.0,
-      currency: 'PLN',
-      exchangeRate: null,
-      createdAt:
-          DateTime.tryParse(data['created_at']?.toString() ?? '') ??
-          DateTime.now(),
-      updatedAt: DateTime.now(),
-      additionalInfo: {
-        'source': 'shares_collection',
-        'ilosc_udzialow': data['ilosc_udzialow']?.toString() ?? '0',
-      },
+      clientId: data['clientId']?.toString() ?? '',
+      clientName: data['clientName']?.toString() ?? '',
+      employeeId: data['employeeId']?.toString() ?? '',
+      employeeFirstName: data['employeeFirstName']?.toString() ?? '',
+      employeeLastName: data['employeeLastName']?.toString() ?? '',
+      branchCode: data['branchCode']?.toString() ?? '',
+      status: _mapInvestmentStatus(data['status']),
+      isAllocated: data['isAllocated'] == true,
+      marketType: _mapMarketType(data['marketType']),
+      signedDate: parseDate(data['signedDate']) ?? DateTime.now(),
+      entryDate: parseDate(data['entryDate']),
+      exitDate: parseDate(data['exitDate']),
+      proposalId: data['proposalId']?.toString() ?? '',
+      productType: _mapProductType(data['productType']),
+      productName: data['productName']?.toString() ?? '',
+      creditorCompany: data['creditorCompany']?.toString() ?? '',
+      companyId: data['companyId']?.toString() ?? '',
+      issueDate: parseDate(data['issueDate']),
+      redemptionDate: parseDate(data['redemptionDate']),
+      sharesCount: data['sharesCount'] != null
+          ? int.tryParse(data['sharesCount'].toString())
+          : null,
+      investmentAmount: safeToDouble(data['investmentAmount']),
+      paidAmount: safeToDouble(data['paidAmount']),
+      realizedCapital: safeToDouble(data['realizedCapital']),
+      realizedInterest: safeToDouble(data['realizedInterest']),
+      transferToOtherProduct: safeToDouble(data['transferToOtherProduct']),
+      remainingCapital: safeToDouble(data['remainingCapital']),
+      remainingInterest: safeToDouble(data['remainingInterest']),
+      plannedTax: safeToDouble(data['plannedTax']),
+      realizedTax: safeToDouble(data['realizedTax']),
+      currency: data['currency']?.toString() ?? 'PLN',
+      exchangeRate: data['exchangeRate'] != null
+          ? safeToDouble(data['exchangeRate'])
+          : null,
+      createdAt: parseDate(data['createdAt']) ?? DateTime.now(),
+      updatedAt: parseDate(data['updatedAt']) ?? DateTime.now(),
+      additionalInfo: data['additionalInfo'] as Map<String, dynamic>? ?? {},
     );
   }
 

@@ -360,47 +360,93 @@ class InvestorAnalyticsService extends BaseService {
       final clients = await _clientService.getAllClients();
       print('📊 [Analytics] Znaleziono ${clients.length} klientów');
 
+      // DEBUG: Sprawdź pierwsze kilku klientów
+      if (clients.isNotEmpty) {
+        final firstClient = clients.first;
+        print(
+          '🔍 [DEBUG] Pierwszy klient: ${firstClient.name} (ID: ${firstClient.id}, ExcelID: ${firstClient.excelId})',
+        );
+      }
+
       final allInvestments = await _getAllInvestments();
       print('📊 [Analytics] Znaleziono ${allInvestments.length} inwestycji');
 
-      // Grupa inwestycji według Excel ID (z investment.clientId)
-      final Map<String, List<Investment>> investmentsByExcelId = {};
-      for (final investment in allInvestments) {
-        final excelId = investment.clientId; // To jest Excel ID
-        investmentsByExcelId.putIfAbsent(excelId, () => []).add(investment);
+      // DEBUG: Sprawdź pierwsze kilka inwestycji
+      if (allInvestments.isNotEmpty) {
+        final firstInvestment = allInvestments.first;
+        print(
+          '🔍 [DEBUG] Pierwsza inwestycja: ${firstInvestment.clientName} (ClientID: ${firstInvestment.clientId}, remainingCapital: ${firstInvestment.remainingCapital})',
+        );
       }
 
-      print('📊 [Analytics] Grupowanie inwestycji według Excel ID...');
+      // Grupa inwestycji według clientId (nie ExcelID!)
+      final Map<String, List<Investment>> investmentsByClientId = {};
+      for (final investment in allInvestments) {
+        final clientId = investment.clientId; // To powinno odpowiadać client.id
+        investmentsByClientId.putIfAbsent(clientId, () => []).add(investment);
+      }
+
+      print('📊 [Analytics] Grupowanie inwestycji według Client ID...');
+      print(
+        '🔍 [DEBUG] Unique Client IDs w inwestycjach: ${investmentsByClientId.keys.length}',
+      );
+      print(
+        '🔍 [DEBUG] Pierwsze 5 Client IDs w inwestycjach: ${investmentsByClientId.keys.take(5).toList()}',
+      );
 
       final List<InvestorSummary> investors = [];
 
       for (final client in clients) {
         if (!includeInactive && !client.isActive) continue;
 
-        // Znajdź inwestycje używając excelId klienta (zamiast Firebase UID)
+        // UŻYJ excelId (które teraz zawiera data['id'] z Firebase) do łączenia z investment.clientId
         List<Investment> clientInvestments = [];
 
+        // 1. Sprawdź po excelId (to jest data['id'] number z Firebase jako string)
         if (client.excelId != null && client.excelId!.isNotEmpty) {
-          // Użyj excelId jeśli istnieje
-          clientInvestments = investmentsByExcelId[client.excelId!] ?? [];
-        } else {
-          // Fallback: spróbuj znaleźć po nazwie (tylko dla legacy data)
+          clientInvestments = investmentsByClientId[client.excelId!] ?? [];
+          print(
+            '🔍 [DEBUG] Szukam inwestycji dla klienta ${client.name} po excelId: ${client.excelId}',
+          );
+        }
+
+        // 2. Jeśli nie znaleziono po excelId, spróbuj po Firebase doc ID
+        if (clientInvestments.isEmpty) {
+          clientInvestments = investmentsByClientId[client.id] ?? [];
+          print(
+            '🔍 [DEBUG] Szukam inwestycji dla klienta ${client.name} po Firebase ID: ${client.id}',
+          );
+        }
+
+        // 3. Jeśli nadal nie ma, spróbuj po nazwie klienta
+        if (clientInvestments.isEmpty) {
           for (final investment in allInvestments) {
-            if (investment.clientName == client.name) {
+            if (investment.clientName.toLowerCase().trim() ==
+                client.name.toLowerCase().trim()) {
               clientInvestments.add(investment);
             }
+          }
+          if (clientInvestments.isNotEmpty) {
+            print(
+              '🔍 [DEBUG] Znaleziono inwestycje dla ${client.name} po nazwie',
+            );
           }
         }
 
         if (clientInvestments.isEmpty) {
           print(
-            '⚠️ [Analytics] Klient ${client.name} (ID: ${client.id}, ExcelID: ${client.excelId}) nie ma inwestycji',
+            '⚠️ [Analytics] Klient ${client.name} (Firebase ID: ${client.id}, ExcelID: ${client.excelId}) nie ma inwestycji',
           );
           continue;
         }
 
+        // DEBUG: Sprawdź kapitał klienta
+        final totalCapital = clientInvestments.fold<double>(
+          0.0,
+          (sum, inv) => sum + inv.remainingCapital,
+        );
         print(
-          '✅ [Analytics] Klient ${client.name}: ${clientInvestments.length} inwestycji',
+          '✅ [Analytics] Klient ${client.name}: ${clientInvestments.length} inwestycji, łączny kapitał: ${totalCapital.toStringAsFixed(2)}',
         );
 
         // Utwórz podsumowanie inwestora używając factory method
@@ -408,11 +454,24 @@ class InvestorAnalyticsService extends BaseService {
           client,
           clientInvestments,
         );
+
+        // DEBUG: Sprawdź viableRemainingCapital
+        print(
+          '🔍 [DEBUG] ${client.name} viableRemainingCapital: ${investorSummary.viableRemainingCapital}',
+        );
+
         investors.add(investorSummary);
       }
 
+      final totalCapitalAllInvestors = investors.fold<double>(
+        0.0,
+        (sum, inv) => sum + inv.viableRemainingCapital,
+      );
       print(
         '📊 [Analytics] Utworzono ${investors.length} podsumowań inwestorów',
+      );
+      print(
+        '💰 [Analytics] Łączny kapitał wszystkich inwestorów: ${totalCapitalAllInvestors.toStringAsFixed(2)} PLN',
       );
 
       return investors;
@@ -442,54 +501,192 @@ class InvestorAnalyticsService extends BaseService {
     Map<String, dynamic> data,
     String docId,
   ) {
+    // Helper function to parse capital values with commas
+    double parseCapitalValue(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) {
+        // Handle empty strings and NULL values
+        if (value.isEmpty ||
+            value.trim().isEmpty ||
+            value.toUpperCase() == 'NULL') {
+          return 0.0;
+        }
+
+        // Debug logging for problematic values
+        if (value.contains(',')) {
+          print('🔍 [Analytics] Parsowanie wartości z przecinkiem: "$value"');
+        }
+        // Handle string values like "200,000.00" from Firebase
+        final cleaned = value.toString().replaceAll(',', '');
+        final parsed = double.tryParse(cleaned);
+        if (parsed == null) {
+          print('❌ [Analytics] Nie można sparsować: "$value" -> "$cleaned"');
+        }
+        return parsed ?? 0.0;
+      }
+      return 0.0;
+    }
+
     return Investment(
       id: docId,
-      clientId:
-          data['id_klient']?.toString() ??
-          data['clientId'] ??
-          data['client_id'] ??
-          '',
-      clientName:
-          data['klient'] ?? data['clientName'] ?? data['client_name'] ?? '',
-      employeeId: data['employeeId'] ?? '',
-      employeeFirstName: data['employeeFirstName'] ?? '',
-      employeeLastName: data['employeeLastName'] ?? '',
-      branchCode: data['branchCode'] ?? '',
-      status: InvestmentStatus.values.firstWhere(
-        (status) => status.name == data['status'],
-        orElse: () => InvestmentStatus.active,
-      ),
+      // ⭐ KLIENT - używamy angielskich pól z Firebase
+      clientId: data['clientId']?.toString() ?? '',
+      clientName: data['clientName']?.toString() ?? '',
+      employeeId: data['employeeId']?.toString() ?? '',
+      employeeFirstName: data['employeeFirstName']?.toString() ?? '',
+      employeeLastName: data['employeeLastName']?.toString() ?? '',
+      branchCode:
+          data['branch']?.toString() ?? data['branchCode']?.toString() ?? '',
+
+      // ⭐ STATUS - mapowanie ze statusów Firebase
+      status: _mapInvestmentStatus(data['status']?.toString()),
       isAllocated: data['isAllocated'] ?? true,
-      marketType: MarketType.values.firstWhere(
-        (type) => type.name == data['marketType'],
-        orElse: () => MarketType.primary,
-      ),
-      signedDate: _parseDate(data['signedDate']) ?? DateTime.now(),
-      entryDate: _parseDate(data['entryDate']),
+      marketType: _mapMarketType(data['productStatusEntry']?.toString()),
+
+      // ⭐ DATY - parsowanie z różnych formatów
+      signedDate:
+          _parseDate(data['signingDate']) ??
+          _parseDate(data['signedDate']) ??
+          DateTime.now(),
+      entryDate:
+          _parseDate(data['investmentEntryDate']) ??
+          _parseDate(data['entryDate']),
       exitDate: _parseDate(data['exitDate']),
-      proposalId: data['proposalId'] ?? '',
-      productType: ProductType.values.firstWhere(
-        (type) => type.name == data['productType'],
-        orElse: () => ProductType.bonds,
-      ),
-      productName: data['productName'] ?? '',
-      creditorCompany: data['creditorCompany'] ?? '',
-      companyId: data['companyId'] ?? '',
+
+      // ⭐ PRODUKT
+      proposalId:
+          data['proposalId']?.toString() ?? data['saleId']?.toString() ?? '',
+      productType: _mapProductType(data['productType']?.toString()),
+      productName: data['productName']?.toString() ?? '',
+      creditorCompany: data['creditorCompany']?.toString() ?? '',
+      companyId: data['companyId']?.toString() ?? '',
       issueDate: _parseDate(data['issueDate']),
-      redemptionDate: _parseDate(data['redemptionDate']),
-      sharesCount: data['sharesCount'],
-      investmentAmount: (data['investmentAmount'] as num?)?.toDouble() ?? 0.0,
-      paidAmount: (data['paidAmount'] as num?)?.toDouble() ?? 0.0,
-      realizedCapital: (data['realizedCapital'] as num?)?.toDouble() ?? 0.0,
-      realizedInterest: (data['realizedInterest'] as num?)?.toDouble() ?? 0.0,
-      transferToOtherProduct:
-          (data['transferToOtherProduct'] as num?)?.toDouble() ?? 0.0,
-      remainingCapital: (data['remainingCapital'] as num?)?.toDouble() ?? 0.0,
-      remainingInterest: (data['remainingInterest'] as num?)?.toDouble() ?? 0.0,
-      currency: data['currency'] ?? 'PLN',
+      redemptionDate:
+          _parseDate(data['redemptionDate']) ??
+          _parseDate(data['repaymentDate']),
+
+      // ⭐ UDZIAŁY
+      sharesCount: data['shareCount'] != null && data['shareCount'] != 'NULL'
+          ? int.tryParse(data['shareCount'].toString())
+          : null,
+
+      // ⭐ KWOTY FINANSOWE - tylko angielskie pola bez polskich!
+      investmentAmount: parseCapitalValue(data['investmentAmount']),
+      paidAmount: parseCapitalValue(data['paidAmount']),
+      realizedCapital: parseCapitalValue(data['realizedCapital']),
+      realizedInterest: parseCapitalValue(data['realizedInterest']),
+      transferToOtherProduct: parseCapitalValue(data['transferToOtherProduct']),
+      remainingCapital: parseCapitalValue(data['remainingCapital']),
+      remainingInterest: parseCapitalValue(data['remainingInterest']),
+
+      // ⭐ INNE
+      currency: data['currency']?.toString() ?? 'PLN',
+
+      // ⭐ DODATKOWE POLA dla kompatybilności
+      additionalInfo: {
+        ...data.map((key, value) => MapEntry(key, value)),
+        // Dodaj pola specyficzne dla różnych typów produktów
+        if (data['capitalForRestructuring'] != null)
+          'kapital_do_restrukturyzacji': data['capitalForRestructuring'],
+        if (data['realEstateSecuredCapital'] != null)
+          'kapital_zabezpieczony_nieruchomoscia':
+              data['realEstateSecuredCapital'],
+        if (data['accruedInterest'] != null)
+          'narosle_odsetki': data['accruedInterest'],
+        if (data['interestRate'] != null)
+          'oprocentowanie': data['interestRate'],
+        if (data['borrower'] != null) 'pozyczkobiorca': data['borrower'],
+        if (data['collateral'] != null) 'zabezpieczenie': data['collateral'],
+        if (data['loanNumber'] != null) 'numer_pozyczki': data['loanNumber'],
+      },
+
       createdAt: _parseDate(data['createdAt']) ?? DateTime.now(),
       updatedAt: _parseDate(data['updatedAt']) ?? DateTime.now(),
     );
+  }
+
+  /// Mapuje status z Firebase na InvestmentStatus
+  InvestmentStatus _mapInvestmentStatus(String? status) {
+    if (status == null) return InvestmentStatus.active;
+
+    switch (status.toLowerCase()) {
+      case 'aktywny':
+      case 'active':
+        return InvestmentStatus.active;
+      case 'nieaktywny':
+      case 'inactive':
+        return InvestmentStatus.inactive;
+      case 'zakończony':
+      case 'completed':
+      case 'zakonczone':
+      case 'spłacone':
+      case 'splacone':
+        return InvestmentStatus.completed;
+      case 'opóźnienia':
+      case 'opoznienia':
+      case 'delayed':
+        return InvestmentStatus.active; // Traktujemy jako aktywne
+      default:
+        return InvestmentStatus.active;
+    }
+  }
+
+  /// Mapuje typ rynku z Firebase na MarketType
+  MarketType _mapMarketType(String? marketType) {
+    if (marketType == null) return MarketType.primary;
+
+    switch (marketType.toLowerCase()) {
+      case 'rynek wtórny':
+      case 'rynek wtorny':
+      case 'secondary':
+      case 'wtórny':
+      case 'wtorny':
+        return MarketType.secondary;
+      case 'odkup od klienta':
+      case 'client redemption':
+      case 'odkup':
+        return MarketType.clientRedemption;
+      case 'rynek pierwotny':
+      case 'primary':
+      case 'pierwotny':
+      default:
+        return MarketType.primary;
+    }
+  }
+
+  /// Mapuje typ produktu z Firebase na ProductType
+  ProductType _mapProductType(String? productType) {
+    if (productType == null) return ProductType.bonds;
+
+    switch (productType.toLowerCase()) {
+      case 'loan':
+      case 'loans':
+      case 'pożyczka':
+      case 'pozyczka':
+      case 'pożyczki':
+      case 'pozyczki':
+        return ProductType.loans;
+      case 'share':
+      case 'shares':
+      case 'udział':
+      case 'udzial':
+      case 'udziały':
+      case 'udzialy':
+        return ProductType.shares;
+      case 'apartment':
+      case 'apartments':
+      case 'apartament':
+      case 'apartamenty':
+        return ProductType.apartments;
+      case 'bond':
+      case 'bonds':
+      case 'obligacja':
+      case 'obligacje':
+      default:
+        return ProductType.bonds;
+    }
   }
 
   static DateTime? _parseDate(dynamic value) {

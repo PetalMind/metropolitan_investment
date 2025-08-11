@@ -7,10 +7,8 @@ import '../screens/calendar_screen_enhanced.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
 import '../screens/dashboard_screen_refactored.dart';
-import '../screens/investments_screen.dart';
 import '../screens/enhanced_clients_screen.dart';
 import '../screens/products_management_screen.dart';
-import '../screens/companies_screen.dart';
 import '../screens/employees_screen.dart';
 import '../screens/analytics_screen_refactored.dart';
 import '../widgets/auth_wrapper.dart';
@@ -151,13 +149,6 @@ class MainNavigationItems {
       selectedIcon: Icons.dashboard,
     ),
     NavigationItem(
-      route: AppRoutes.investments,
-      label: 'Zarządzanie inwestycjami',
-      icon: Icons.trending_up_outlined,
-      selectedIcon: Icons.trending_up,
-      subRoutes: [AppRoutes.investments, '/investments/'],
-    ),
-    NavigationItem(
       route: AppRoutes.clients,
       label: 'Klienci',
       icon: Icons.people_outline,
@@ -170,13 +161,6 @@ class MainNavigationItems {
       icon: Icons.inventory_2_outlined,
       selectedIcon: Icons.inventory_2,
       subRoutes: [AppRoutes.products, '/products/'],
-    ),
-    NavigationItem(
-      route: AppRoutes.companies,
-      label: 'Spółki',
-      icon: Icons.business_outlined,
-      selectedIcon: Icons.business,
-      subRoutes: [AppRoutes.companies, '/companies/'],
     ),
     NavigationItem(
       route: AppRoutes.employees,
@@ -197,6 +181,7 @@ class MainNavigationItems {
       icon: Icons.group_outlined,
       selectedIcon: Icons.group,
     ),
+
     NavigationItem(
       route: AppRoutes.calendar,
       label: 'Kalendarz',
@@ -305,48 +290,6 @@ class AppRouter {
             ),
           ),
 
-          // === INWESTYCJE ===
-          GoRoute(
-            path: AppRoutes.investments,
-            pageBuilder: (context, state) => _buildPageWithTransition(
-              context,
-              state,
-              const InvestmentsScreen(),
-            ),
-            routes: [
-              GoRoute(
-                path: 'add',
-                pageBuilder: (context, state) => _buildPageWithTransition(
-                  context,
-                  state,
-                  const AddInvestmentScreen(),
-                ),
-              ),
-              GoRoute(
-                path: ':id',
-                pageBuilder: (context, state) => _buildPageWithTransition(
-                  context,
-                  state,
-                  InvestmentDetailsScreen(
-                    investmentId: state.pathParameters['id']!,
-                  ),
-                ),
-                routes: [
-                  GoRoute(
-                    path: 'edit',
-                    pageBuilder: (context, state) => _buildPageWithTransition(
-                      context,
-                      state,
-                      EditInvestmentScreen(
-                        investmentId: state.pathParameters['id']!,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
           // === KLIENCI ===
           GoRoute(
             path: AppRoutes.clients,
@@ -388,11 +331,27 @@ class AppRouter {
           // === PRODUKTY ===
           GoRoute(
             path: AppRoutes.products,
-            pageBuilder: (context, state) => _buildPageWithTransition(
-              context,
-              state,
-              const ProductsManagementScreen(),
-            ),
+            pageBuilder: (context, state) {
+              final productId = state.uri.queryParameters['productId'];
+              final investmentId = state.uri.queryParameters['investmentId'];
+              final productName = state.uri.queryParameters['productName'];
+              final productType = state.uri.queryParameters['productType'];
+              final clientId = state.uri.queryParameters['clientId'];
+              final clientName = state.uri.queryParameters['clientName'];
+
+              return _buildPageWithTransition(
+                context,
+                state,
+                ProductsManagementScreen(
+                  highlightedProductId: productId,
+                  highlightedInvestmentId: investmentId,
+                  initialSearchProductName: productName,
+                  initialSearchProductType: productType,
+                  initialSearchClientId: clientId,
+                  initialSearchClientName: clientName,
+                ),
+              );
+            },
             routes: [
               GoRoute(
                 path: ':id',
@@ -400,26 +359,6 @@ class AppRouter {
                   context,
                   state,
                   ProductDetailsScreen(productId: state.pathParameters['id']!),
-                ),
-              ),
-            ],
-          ),
-
-          // === SPÓŁKI ===
-          GoRoute(
-            path: AppRoutes.companies,
-            pageBuilder: (context, state) => _buildPageWithTransition(
-              context,
-              state,
-              const CompaniesScreen(),
-            ),
-            routes: [
-              GoRoute(
-                path: ':id',
-                pageBuilder: (context, state) => _buildPageWithTransition(
-                  context,
-                  state,
-                  CompanyDetailsScreen(companyId: state.pathParameters['id']!),
                 ),
               ),
             ],

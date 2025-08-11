@@ -25,16 +25,26 @@ All services extend `BaseService` with built-in caching (5-minute TTL):
 - Cache with `getCachedData<T>(cacheKey, query)` method
 
 ### Data Architecture Pattern
-Critical distinction for analytics calculations:
+Simplified architecture using single source of truth:
+
+**Primary Data Source:**
+- All product data stored in `investments` collection only
+- Server-side processing in Firebase Functions (europe-west1)
+- Client-side access through `FirebaseFunctionsProductsService`
+
+**Critical field mappings:**
 ```dart
-// Investment model: Database field -> Code property
+// Investment model: Database field -> Code property  
 'kapital_pozostaly' (Firestore) -> remainingCapital (Dart)
 'kwota_inwestycji' (Firestore) -> investmentAmount (Dart)
+'productType' (Firestore) -> apartments|bonds|shares|loans (UnifiedProductType)
 
 // InvestorSummary: Only executable investments count
 investor.viableRemainingCapital  // Excludes unviable investments
 investor.totalRemainingCapital   // All investments (legacy)
 ```
+
+**Legacy Collections:** `bonds`, `shares`, `loans`, `apartments`, `products` are deprecated and empty.
 
 ## Development Workflows
 

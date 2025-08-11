@@ -37,6 +37,8 @@ class Investment {
   final String proposalId;
   final ProductType productType;
   final String productName;
+  final String?
+  productId; // Dodane nowe pole - ID produktu dla precyzyjnego mapowania
   final String creditorCompany;
   final String companyId;
   final DateTime? issueDate;
@@ -74,6 +76,7 @@ class Investment {
     required this.proposalId,
     required this.productType,
     required this.productName,
+    this.productId, // Dodane nowe opcjonalne pole
     required this.creditorCompany,
     required this.companyId,
     this.issueDate,
@@ -111,17 +114,33 @@ class Investment {
   factory Investment.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
 
-    // Helper function to parse date strings
-    DateTime? parseDate(String? dateStr) {
-      if (dateStr == null || dateStr.isEmpty) return null;
-      try {
-        return DateTime.parse(dateStr);
-      } catch (e) {
-        return null;
-      }
-    }
+    // Helper function to parse date strings and Timestamps
+    DateTime? parseDate(dynamic dateValue) {
+      if (dateValue == null) return null;
 
-    // Helper function to map status from Polish to enum
+      // Handle Firestore Timestamp
+      if (dateValue is Timestamp) {
+        return dateValue.toDate();
+      }
+
+      // Handle string dates
+      if (dateValue is String) {
+        if (dateValue.isEmpty) return null;
+        try {
+          return DateTime.parse(dateValue);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      // Handle DateTime
+      if (dateValue is DateTime) {
+        return dateValue;
+      }
+
+      return null;
+    } // Helper function to map status from Polish to enum
+
     InvestmentStatus mapStatus(String? status) {
       switch (status) {
         case 'Aktywny':
@@ -149,18 +168,6 @@ class Investment {
         default:
           return MarketType.primary;
       }
-    }
-
-    // Helper function to safely convert to double
-    double safeToDouble(dynamic value, [double defaultValue = 0.0]) {
-      if (value == null) return defaultValue;
-      if (value is double) return value;
-      if (value is int) return value.toDouble();
-      if (value is String) {
-        final parsed = double.tryParse(value);
-        return parsed ?? defaultValue;
-      }
-      return defaultValue;
     }
 
     // ⭐ Helper function to parse capital values with commas
@@ -264,6 +271,11 @@ class Investment {
           data['Produkt_nazwa'] ??
           data['produkt_nazwa'] ??
           '',
+      productId:
+          data['productId'] ??
+          data['product_id'] ??
+          data['id_produktu'] ??
+          data['ID_Produktu'],
       creditorCompany:
           data['creditorCompany'] ?? data['wierzyciel_spolka'] ?? '',
       companyId:
@@ -281,26 +293,26 @@ class Investment {
           : data['Ilosc_Udzialow'] != null && data['Ilosc_Udzialow'] != 'NULL'
           ? int.tryParse(data['Ilosc_Udzialow'].toString())
           : data['ilosc_udzialow'],
-      // ⭐ KWOTA INWESTYCJI - znormalizowane nazwy mają priorytet
-      investmentAmount: safeToDouble(data['investmentAmount']) != 0
-          ? safeToDouble(data['investmentAmount'])
-          : safeToDouble(data['Kwota_inwestycji']) != 0
-          ? safeToDouble(data['Kwota_inwestycji'])
-          : safeToDouble(data['kwota_inwestycji']),
-      paidAmount: safeToDouble(data['paidAmount']) != 0
-          ? safeToDouble(data['paidAmount'])
-          : safeToDouble(data['Kwota_wplat']) != 0
-          ? safeToDouble(data['Kwota_wplat'])
-          : safeToDouble(data['kwota_wplat']),
+      // ⭐ KWOTA INWESTYCJI - znormalizowane nazwy mają priorytet, obsługa stringów z przecinkami
+      investmentAmount: parseCapitalValue(data['investmentAmount']) != 0
+          ? parseCapitalValue(data['investmentAmount'])
+          : parseCapitalValue(data['Kwota_inwestycji']) != 0
+          ? parseCapitalValue(data['Kwota_inwestycji'])
+          : parseCapitalValue(data['kwota_inwestycji']),
+      paidAmount: parseCapitalValue(data['paidAmount']) != 0
+          ? parseCapitalValue(data['paidAmount'])
+          : parseCapitalValue(data['Kwota_wplat']) != 0
+          ? parseCapitalValue(data['Kwota_wplat'])
+          : parseCapitalValue(data['kwota_wplat']),
       // ⭐ KAPITAŁ ZREALIZOWANY - obsługa stringów z przecinkami
       realizedCapital: parseCapitalValue(
         data['realizedCapital'] ??
             data['Kapital zrealizowany'] ??
             data['kapital_zrealizowany'],
       ),
-      realizedInterest: safeToDouble(data['realizedInterest']) != 0
-          ? safeToDouble(data['realizedInterest'])
-          : safeToDouble(data['odsetki_zrealizowane']),
+      realizedInterest: parseCapitalValue(data['realizedInterest']) != 0
+          ? parseCapitalValue(data['realizedInterest'])
+          : parseCapitalValue(data['odsetki_zrealizowane']),
       transferToOtherProduct: parseCapitalValue(
         data['transferToOtherProduct'] ??
             data['Przekaz na inny produkt'] ??
@@ -312,11 +324,13 @@ class Investment {
             data['Kapital Pozostaly'] ??
             data['kapital_pozostaly'],
       ),
-      remainingInterest: safeToDouble(data['remainingInterest']) != 0
-          ? safeToDouble(data['remainingInterest'])
-          : safeToDouble(data['odsetki_pozostale']),
-      plannedTax: safeToDouble(data['plannedTax'] ?? data['podatek_pozostaly']),
-      realizedTax: safeToDouble(
+      remainingInterest: parseCapitalValue(data['remainingInterest']) != 0
+          ? parseCapitalValue(data['remainingInterest'])
+          : parseCapitalValue(data['odsetki_pozostale']),
+      plannedTax: parseCapitalValue(
+        data['plannedTax'] ?? data['podatek_pozostaly'],
+      ),
+      realizedTax: parseCapitalValue(
         data['realizedTax'] ?? data['podatek_zrealizowany'],
       ),
       currency: 'PLN', // Default currency
@@ -367,6 +381,7 @@ class Investment {
       'saleId': proposalId,
       'productType': productType.displayName,
       'productName': productName,
+      'productId': productId, // Dodane nowe pole
       'companyId': companyId,
       'shareCount': sharesCount?.toString() ?? 'NULL',
       'investmentAmount': investmentAmount.toString(),
@@ -560,6 +575,139 @@ class Investment {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       additionalInfo: additionalInfo ?? this.additionalInfo,
+    );
+  }
+
+  /// Konstruktor do konwersji z danych serwera (Firebase Functions)
+  factory Investment.fromServerMap(Map<String, dynamic> map) {
+    DateTime? parseDate(dynamic date) {
+      if (date == null) return null;
+      if (date is String && date.isNotEmpty) {
+        try {
+          return DateTime.parse(date);
+        } catch (e) {
+          return null;
+        }
+      }
+      if (date is DateTime) return date;
+      return null;
+    }
+
+    double safeToDouble(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) {
+        // Handle empty strings and NULL values
+        if (value.isEmpty ||
+            value.trim().isEmpty ||
+            value.toUpperCase() == 'NULL') {
+          return 0.0;
+        }
+
+        // Debug logging for problematic values
+        if (value.contains(',')) {
+          print(
+            '🔍 [Investment.fromServerMap] Parsowanie wartości z przecinkiem: "$value"',
+          );
+        }
+        // Handle Polish number format with comma as thousands separator
+        final cleaned = value.toString().replaceAll(',', '');
+        final parsed = double.tryParse(cleaned);
+        if (parsed == null) {
+          print(
+            '❌ [Investment.fromServerMap] Nie można sparsować: "$value" -> "$cleaned"',
+          );
+        }
+        return parsed ?? 0.0;
+      }
+      return 0.0;
+    }
+
+    ProductType mapProductType(String? type) {
+      switch (type?.toLowerCase()) {
+        case 'bonds':
+        case 'obligacje':
+          return ProductType.bonds;
+        case 'shares':
+        case 'udziały':
+          return ProductType.shares;
+        case 'loans':
+        case 'pożyczki':
+          return ProductType.loans;
+        case 'apartments':
+        case 'apartamenty':
+          return ProductType.apartments;
+        default:
+          return ProductType.bonds;
+      }
+    }
+
+    InvestmentStatus mapStatus(String? status) {
+      switch (status?.toLowerCase()) {
+        case 'active':
+        case 'aktywny':
+          return InvestmentStatus.active;
+        case 'inactive':
+        case 'nieaktywny':
+          return InvestmentStatus.inactive;
+        case 'completed':
+        case 'zakończony':
+          return InvestmentStatus.completed;
+        default:
+          return InvestmentStatus.active;
+      }
+    }
+
+    MarketType mapMarketType(String? type) {
+      switch (type?.toLowerCase()) {
+        case 'secondary':
+        case 'rynek wtórny':
+        case 'wtorny':
+          return MarketType.secondary;
+        case 'client':
+        case 'odkup':
+        case 'odkup od klienta':
+          return MarketType.clientRedemption;
+        case 'primary':
+        case 'rynek pierwotny':
+        case 'pierwotny':
+        default:
+          return MarketType.primary;
+      }
+    }
+
+    return Investment(
+      id: map['id']?.toString() ?? '',
+      clientId: map['clientId']?.toString() ?? '',
+      clientName: map['clientName']?.toString() ?? '',
+      employeeId: map['employeeId']?.toString() ?? '',
+      employeeFirstName: map['employeeFirstName']?.toString() ?? '',
+      employeeLastName: map['employeeLastName']?.toString() ?? '',
+      branchCode: map['branchCode']?.toString() ?? '',
+      status: mapStatus(map['status']?.toString()),
+      marketType: mapMarketType(map['marketType']?.toString()),
+      signedDate: parseDate(map['signedDate']) ?? DateTime.now(),
+      proposalId: map['proposalId']?.toString() ?? '',
+      productType: mapProductType(map['productType']?.toString()),
+      productName: map['productName']?.toString() ?? '',
+      productId: map['productId']?.toString(), // Dodane nowe pole
+      companyId: map['companyId']?.toString() ?? '',
+      creditorCompany: map['creditorCompany']?.toString() ?? '',
+      investmentAmount: safeToDouble(map['investmentAmount']),
+      paidAmount: safeToDouble(map['paidAmount']),
+      realizedCapital: safeToDouble(map['realizedCapital']),
+      realizedInterest: safeToDouble(map['realizedInterest']),
+      transferToOtherProduct: safeToDouble(map['transferToOtherProduct']),
+      remainingCapital: safeToDouble(map['remainingCapital']),
+      remainingInterest: safeToDouble(map['remainingInterest']),
+      plannedTax: safeToDouble(map['plannedTax']),
+      realizedTax: safeToDouble(map['realizedTax']),
+      currency: map['currency']?.toString() ?? 'PLN',
+      exchangeRate: safeToDouble(map['exchangeRate']),
+      createdAt: parseDate(map['createdAt']) ?? DateTime.now(),
+      updatedAt: parseDate(map['updatedAt']) ?? DateTime.now(),
+      additionalInfo: map['additionalInfo'] as Map<String, dynamic>? ?? {},
     );
   }
 }

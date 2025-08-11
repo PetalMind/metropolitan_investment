@@ -1,7 +1,27 @@
 /**
  * FIREBASE FUNCTIONS - ZNORMALIZOWANE MAPOWANIA PÓL
- * Zgodność z JSON_NORMALIZATION_README.md i DART_MODELS_UPDATE_GUIDE.md
+ * Zgodność z JSON_NORMALIZATION_README.md iconst { safeToDouble, safeToInt } = require("./utils/data-mapping");
+
+/**
+ * Bezpieczne mapowanie liczbowe - używa funkcji z utils
+ * @param {*} value - wartość do konwersji
+ * @param {number} defaultValue - wartość domyślna
+ * @return {number} - sparsowana wartość liczbowa
  */
+function safeNumberMapping(value, defaultValue = 0) {
+  return safeToDouble(value) || defaultValue;
+}
+
+/**
+ * Bezpieczne mapowanie integer - używa funkcji z utils
+ * @param {*} value - wartość do konwersji
+ * @param {number} defaultValue - wartość domyślna
+ * @return {number} - sparsowana wartość integer
+ */
+function safeIntMapping(value, defaultValue = 0) {
+  return safeToInt(value) || defaultValue;
+} TE_GUIDE.md
+  */
 
 // 🗂️ CENTRALNE MAPOWANIA PÓL - Priorytet: znormalizowane → stare nazwy
 
@@ -28,21 +48,21 @@ const FIELD_MAPPINGS = {
   clientId: ['clientId', 'ID_Klient'], // Mixed
   client: ['clientName', 'Klient'], // Mixed
   collectionType: ['collectionType'], // Set programmatically
-  
+
   // Bonds specific fields
   bondName: ['nazwa_obligacji'],
   issuer: ['emitent'],
   interestRate: ['oprocentowanie'],
   issueDate: ['emisja_data'],
   maturityDate: ['wykup_data'],
-  
+
   // Shares specific fields  
   shareCount: ['shareCount'],
   pricePerShare: ['cena_za_udzial'],
   companyName: ['nazwa_spolki'],
   sharePercentage: ['procent_udzialow'],
   acquisitionDate: ['data_nabycia'],
-  
+
   // Loans specific fields
   loanNumber: ['loanNumber'],
   borrower: ['pozyczkobiorca'],
@@ -50,7 +70,7 @@ const FIELD_MAPPINGS = {
   repaymentDate: ['data_splaty'],
   accrualInterest: ['odsetki_naliczone'],
   security: ['zabezpieczenie'],
-  
+
   // Apartments specific fields
   apartmentNumber: ['apartmentNumber'],
   building: ['building'],
@@ -90,7 +110,7 @@ const FIELD_MAPPINGS = {
 function getFieldValue(data, normalizedField, defaultValue = null) {
   const fieldVariants = FIELD_MAPPINGS[normalizedField];
   if (!fieldVariants) return data[normalizedField] ?? defaultValue;
-  
+
   for (const fieldName of fieldVariants) {
     if (data[fieldName] != null) {
       return data[fieldName];
@@ -198,10 +218,10 @@ function createNormalizedClient(id, data) {
     email: safeToString(data.email, ''),
     phone: safeToString(data.phone || data.telefon, ''),
     excelId: safeToString(data.id || data.excelId), // 'id' field in clients.json maps to excelId
-    
+
     // Metadane
     createdAt: parseDate(data.createdAt || data.created_at),
-    
+
     // Flagi - defaults for missing fields
     isActive: safeToBoolean(data.isActive, true),
     votingStatus: safeToString(data.votingStatus, 'undecided'),
@@ -219,38 +239,38 @@ function createNormalizedClient(id, data) {
  */
 function createNormalizedInvestment(id, data, collectionType = null) {
   const normalizedCollectionType = collectionType || data.collectionType || 'investments';
-  
+
   const investment = {
     id,
     collectionType: normalizedCollectionType,
-    
+
     // === PODSTAWOWE INFORMACJE FINANSOWE === - exact field names from JSON
     investmentAmount: safeToDouble(data.kwota_inwestycji || data.investmentAmount),
     remainingCapital: safeToDouble(data.kapital_pozostaly || data.remainingCapital),
     realizedCapital: safeToDouble(data.kapital_zrealizowany || data.realizedCapital),
     capitalForRestructuring: safeToDouble(data.capitalForRestructuring || data.kapital_do_restrukturyzacji),
     capitalSecuredByRealEstate: safeToDouble(data.realEstateSecuredCapital || data.kapital_zabezpieczony_nieruchomoscia),
-    
+
     // === KLIENT I SPRZEDAŻ === - exact field names from JSON  
     clientId: safeToString(data.clientId || data.ID_Klient),
     client: safeToString(data.clientName || data.Klient),
     saleId: safeToString(data.saleId || data.ID_Sprzedaz),
-    
+
     // === PRODUKT === - exact field names from JSON
     productType: safeToString(data.productType || data.typ_produktu, normalizedCollectionType),
     productStatus: safeToString(data.productStatus || data.Status_produktu),
     productStatusEntry: safeToString(data.productStatusEntry || data.Produkt_status_wejscie),
-    
+
     // === PERSONEL === - exact field names from JSON
     misaGuardian: safeToString(data.misaGuardian || data['Opiekun z MISA']),
     branch: safeToString(data.branch || data.Oddzial),
     companyId: safeToString(data.companyId),
     creditorCompany: safeToString(data.creditorCompany),
-    
+
     // === DATY === - exact field names from JSON
     contractDate: parseDate(data.signingDate || data['Data_podpisania'] || data.contractDate),
     investmentEntryDate: parseDate(data.investmentEntryDate),
-    
+
     // === METADANE === - exact field names from JSON  
     createdAt: parseDate(data.createdAt || data.created_at),
     uploadedAt: parseDate(data.uploadedAt || data.uploaded_at),
@@ -317,7 +337,7 @@ module.exports = {
   FIELD_MAPPINGS,
   getFieldValue,
   safeToDouble,
-  safeToInt, 
+  safeToInt,
   safeToString,
   safeToBoolean,
   parseDate,

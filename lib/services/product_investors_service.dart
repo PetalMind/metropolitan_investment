@@ -19,42 +19,20 @@ class ProductInvestorsService extends BaseService {
         '📊 [ProductInvestors] Pobieranie inwestorów dla produktu: $productName',
       );
 
-      // Pobierz wszystkie inwestycje dla danego produktu - sprawdzaj nowe i stare pola nazw
-      QuerySnapshot<Map<String, dynamic>> snapshot;
+      // Pobierz wszystkie inwestycje dla danego produktu używając prawidłowych pól z Firestore
+      final snapshot = await firestore
+          .collection(_investmentsCollection)
+          .where(
+            'productName',
+            isEqualTo: productName,
+          ) // Angielskie pole w Firestore
+          .get();
 
-      try {
-        snapshot = await firestore
-            .collection(_investmentsCollection)
-            .where('Produkt_nazwa', isEqualTo: productName) // Nowe pole
-            .get();
-      } catch (e) {
-        // Jeśli błąd z indeksem dla Produkt_nazwa, spróbuj starego pola
-        print(
-          '⚠️ [ProductInvestors] Błąd z Produkt_nazwa, próbuję produkt_nazwa: $e',
-        );
-        snapshot = await firestore
-            .collection(_investmentsCollection)
-            .where('produkt_nazwa', isEqualTo: productName) // Stare pole
-            .get();
-      }
-
-      // Jeśli nie znaleziono przez nowe pole, spróbuj starego
       if (snapshot.docs.isEmpty) {
         print(
-          '⚠️ [ProductInvestors] Brak wyników dla Produkt_nazwa, próbuję produkt_nazwa...',
+          '⚠️ [ProductInvestors] Brak inwestycji dla produktu: $productName',
         );
-        final fallbackSnapshot = await firestore
-            .collection(_investmentsCollection)
-            .where('produkt_nazwa', isEqualTo: productName) // Stare pole
-            .get();
-
-        if (fallbackSnapshot.docs.isEmpty) {
-          print(
-            '⚠️ [ProductInvestors] Brak inwestycji dla produktu: $productName',
-          );
-          return [];
-        }
-        snapshot = fallbackSnapshot;
+        return [];
       }
 
       return await _processInvestmentSnapshot(snapshot, productName);
@@ -79,21 +57,30 @@ class ProductInvestorsService extends BaseService {
       final Map<String, List<Investment>> investmentsByClientId = {};
 
       for (final doc in snapshot.docs) {
-        final investment = Investment.fromFirestore(doc);
+        try {
+          final investment = Investment.fromFirestore(doc);
 
-        // Sprawdź czy inwestycja ma ID klienta (nowe i stare pola)
-        String clientId = investment.clientId;
-        if (clientId.isEmpty) {
-          // Spróbuj starszego pola
-          final legacyClientId = doc.data()['klient_id'] as String?;
-          clientId = legacyClientId ?? '';
-        }
+          // Sprawdź czy inwestycja ma ID klienta (nowe i stare pola)
+          String clientId = investment.clientId;
+          if (clientId.isEmpty) {
+            // Spróbuj starszego pola
+            final legacyClientId = doc.data()['klient_id'] as String?;
+            clientId = legacyClientId ?? '';
+          }
 
-        if (clientId.isNotEmpty) {
-          investmentsByClientId.putIfAbsent(clientId, () => []);
-          investmentsByClientId[clientId]!.add(investment);
-        } else {
-          print('⚠️ [ProductInvestors] Inwestycja bez ID klienta: ${doc.id}');
+          if (clientId.isNotEmpty) {
+            investmentsByClientId.putIfAbsent(clientId, () => []);
+            investmentsByClientId[clientId]!.add(investment);
+          } else {
+            print('⚠️ [ProductInvestors] Inwestycja bez ID klienta: ${doc.id}');
+          }
+        } catch (e) {
+          print(
+            '[ProductInvestorsService] Błąd w _processInvestmentSnapshot: $e',
+          );
+          print('[ProductInvestorsService] Dane dokumentu: ${doc.data()}');
+          // Pomijamy problematyczne dokumenty i kontynuujemy
+          continue;
         }
       }
 
@@ -173,47 +160,38 @@ class ProductInvestorsService extends BaseService {
         '📊 [ProductInvestors] Pobieranie inwestorów dla typu: ${productType.displayName}',
       );
 
-      // Mapowanie typu na string używany w bazie danych
+      // Mapowanie typu na string używany w bazie danych Firestore (angielskie nazwy)
       String typeStr;
       switch (productType) {
         case UnifiedProductType.bonds:
-          typeStr = 'Obligacje';
+          typeStr = 'bond'; // Angielska nazwa w productType
           break;
         case UnifiedProductType.shares:
-          typeStr = 'Udziały';
+          typeStr = 'share'; // Angielska nazwa w productType
           break;
         case UnifiedProductType.loans:
-          typeStr = 'Pożyczki';
+          typeStr = 'loan'; // Angielska nazwa w productType
           break;
         case UnifiedProductType.apartments:
-          typeStr = 'Apartamenty';
+          typeStr = 'apartment'; // Angielska nazwa w productType
           break;
         case UnifiedProductType.other:
-          typeStr = 'Inne';
+          typeStr = 'other'; // Angielska nazwa w productType
           break;
       }
 
-      // Pobierz wszystkie inwestycje dla danego typu produktu - sprawdzaj nowe i stare pola
+      // Pobierz wszystkie inwestycje dla danego typu produktu używając angielskich nazw pól
       final snapshot = await firestore
           .collection(_investmentsCollection)
-          .where('Typ_produktu', isEqualTo: typeStr) // Nowe pole
+          .where(
+            'productType',
+            isEqualTo: typeStr,
+          ) // Angielskie pole w Firestore
           .get();
 
-      // Jeśli nie znaleziono przez nowe pole, spróbuj starego
       if (snapshot.docs.isEmpty) {
-        print(
-          '⚠️ [ProductInvestors] Brak wyników dla Typ_produktu, próbuję typ_produktu...',
-        );
-        final fallbackSnapshot = await firestore
-            .collection(_investmentsCollection)
-            .where('typ_produktu', isEqualTo: typeStr) // Stare pole
-            .get();
-
-        if (fallbackSnapshot.docs.isEmpty) {
-          print('⚠️ [ProductInvestors] Brak inwestycji dla typu: $typeStr');
-          return [];
-        }
-        return _processInvestmentSnapshot(fallbackSnapshot, 'Type: $typeStr');
+        print('⚠️ [ProductInvestors] Brak inwestycji dla typu: $typeStr');
+        return [];
       }
 
       return _processInvestmentSnapshot(snapshot, 'Type: $typeStr');
@@ -289,14 +267,17 @@ class ProductInvestorsService extends BaseService {
         '🏢 [ProductInvestors] Szukam apartamentów podobnych do: "$mainName"',
       );
 
-      // Pobierz wszystkie inwestycje typu Apartamenty
+      // Pobierz wszystkie inwestycje typu apartment używając angielskich nazw pól
       final snapshot = await firestore
           .collection(_investmentsCollection)
-          .where('typ_produktu', isEqualTo: 'Apartamenty')
+          .where(
+            'productType',
+            isEqualTo: 'apartment',
+          ) // Angielskie pole i wartość
           .get();
 
       print(
-        '📊 [ProductInvestors] Znaleziono ${snapshot.docs.length} inwestycji typu Apartamenty',
+        '📊 [ProductInvestors] Znaleziono ${snapshot.docs.length} inwestycji typu apartment',
       );
 
       if (snapshot.docs.isEmpty) return [];
@@ -306,7 +287,8 @@ class ProductInvestorsService extends BaseService {
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
-        final dbProductName = data['produkt_nazwa'] as String? ?? '';
+        final dbProductName =
+            data['productName'] as String? ?? ''; // Angielskie pole
 
         if (dbProductName.isNotEmpty) {
           // Sprawdź czy zawiera główną część nazwy
@@ -348,32 +330,32 @@ class ProductInvestorsService extends BaseService {
     UnifiedProductType productType,
   ) async {
     try {
-      // Mapowanie typu na nazwę w bazie
+      // Mapowanie typu na nazwę w bazie Firestore (angielskie nazwy)
       String typeInDb;
       switch (productType) {
         case UnifiedProductType.bonds:
-          typeInDb = 'Obligacje';
+          typeInDb = 'bond';
           break;
         case UnifiedProductType.shares:
-          typeInDb = 'Udziały';
+          typeInDb = 'share';
           break;
         case UnifiedProductType.loans:
-          typeInDb = 'Pożyczki';
+          typeInDb = 'loan';
           break;
         case UnifiedProductType.apartments:
-          typeInDb = 'Apartamenty';
+          typeInDb = 'apartment';
           break;
         case UnifiedProductType.other:
-          typeInDb = 'Inne';
+          typeInDb = 'other';
           break;
       }
 
       print('🔍 [ProductInvestors] Szukam podobnych nazw w typie: $typeInDb');
 
-      // Pobierz wszystkie inwestycje danego typu
+      // Pobierz wszystkie inwestycje danego typu używając angielskich nazw pól
       final snapshot = await firestore
           .collection(_investmentsCollection)
-          .where('typ_produktu', isEqualTo: typeInDb)
+          .where('productType', isEqualTo: typeInDb) // Angielskie pole
           .get();
 
       if (snapshot.docs.isEmpty) return [];
@@ -384,7 +366,8 @@ class ProductInvestorsService extends BaseService {
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
-        final dbProductName = data['produkt_nazwa'] as String? ?? '';
+        final dbProductName =
+            data['productName'] as String? ?? ''; // Angielskie pole
 
         if (dbProductName.isNotEmpty) {
           final score = _calculateSimilarity(searchName, dbProductName);

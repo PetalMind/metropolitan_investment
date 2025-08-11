@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../theme/app_theme_professional.dart';
-import '../../services/firebase_functions_dashboard_service.dart';
+import '../../services/firebase_functions_advanced_analytics_service.dart';
 
-/// 🔮 PREDICTIONS TAB - Zakładka z prognozami i predykcjami
+/// 🔮 PREDICTIONS TAB - Forecasting and predictions tab
 ///
-/// Wyświetla:
-/// - Prognozy zwrotów z inwestycji
-/// - Optymalizację portfela
+/// Displays:
+/// - Investment return forecasts
+/// - Portfolio optimization
 /// - Monte Carlo simulations
-/// - Rekomendacje inwestycyjne
+/// - Investment recommendations
 class PredictionsTab extends StatefulWidget {
   const PredictionsTab({super.key});
 
@@ -34,10 +34,11 @@ class _PredictionsTabState extends State<PredictionsTab> {
     setState(() => _isLoading = true);
 
     try {
-      final data = await FirebaseFunctionsDashboardService.getPredictions(
-        horizon: int.parse(_selectedHorizon),
-        forceRefresh: false,
-      );
+      final data =
+          await FirebaseFunctionsAdvancedAnalyticsService.getDashboardPredictions(
+            horizon: int.parse(_selectedHorizon),
+            forceRefresh: false,
+          );
 
       setState(() {
         _predictionsData = data;
@@ -46,9 +47,9 @@ class _PredictionsTabState extends State<PredictionsTab> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Błąd ładowania predykcji: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading predictions: $e')),
+        );
       }
     }
   }

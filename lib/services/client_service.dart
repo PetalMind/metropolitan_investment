@@ -48,32 +48,11 @@ class ClientService extends BaseService {
   Stream<List<Client>> getAllClientsStream() {
     return firestore
         .collection(_collection)
-        .orderBy('imie_nazwisko')
+        .orderBy('fullName')
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            final data = doc.data();
-            // Konwertuj dane z Excel do modelu Client
-            return Client(
-              id: doc.id,
-              name:
-                  data['imie_nazwisko'] ??
-                  '', // Używamy imie_nazwisko z Firebase
-              email: data['email'] ?? '',
-              phone: data['telefon'] ?? '',
-              address: '', // Brak adresu w danych Excel
-              pesel: data['pesel'] ?? '',
-              createdAt: data['created_at'] != null
-                  ? DateTime.parse(data['created_at'])
-                  : DateTime.now(),
-              updatedAt: DateTime.now(),
-              isActive: true,
-              additionalInfo: {
-                'nazwa_firmy': data['nazwa_firmy'] ?? '',
-                'source_file': data['source_file'] ?? 'Excel import',
-              },
-            );
-          }).toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => Client.fromFirestore(doc)).toList(),
         );
   }
 
@@ -81,33 +60,12 @@ class ClientService extends BaseService {
   Stream<List<Client>> getClients({int? limit}) {
     return firestore
         .collection(_collection)
-        .orderBy('imie_nazwisko')
+        .orderBy('fullName')
         .limit(limit ?? 50) // Domyślnie ograniczamy do 50
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            final data = doc.data();
-            // Konwertuj dane z Excel do modelu Client
-            return Client(
-              id: doc.id,
-              name:
-                  data['imie_nazwisko'] ??
-                  '', // Używamy imie_nazwisko z Firebase
-              email: data['email'] ?? '',
-              phone: data['telefon'] ?? '',
-              address: '', // Brak adresu w danych Excel
-              pesel: data['pesel'] ?? '',
-              createdAt: data['created_at'] != null
-                  ? DateTime.parse(data['created_at'])
-                  : DateTime.now(),
-              updatedAt: DateTime.now(),
-              isActive: true,
-              additionalInfo: {
-                'nazwa_firmy': data['nazwa_firmy'] ?? '',
-                'source_file': data['source_file'] ?? 'Excel import',
-              },
-            );
-          }).toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => Client.fromFirestore(doc)).toList(),
         );
   }
 
@@ -116,12 +74,9 @@ class ClientService extends BaseService {
     PaginationParams params = const PaginationParams(),
   }) async {
     try {
-      Query query = firestore
+      Query<Map<String, dynamic>> query = firestore
           .collection(_collection)
-          .orderBy(
-            params.orderBy ?? 'imie_nazwisko',
-            descending: params.descending,
-          )
+          .orderBy(params.orderBy ?? 'fullName', descending: params.descending)
           .limit(params.limit);
 
       if (params.startAfter != null) {
@@ -129,26 +84,9 @@ class ClientService extends BaseService {
       }
 
       final snapshot = await query.get();
-      final clients = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return Client(
-          id: doc.id,
-          name: data['imie_nazwisko'] ?? '', // Używamy imie_nazwisko z Firebase
-          email: data['email'] ?? '',
-          phone: data['telefon'] ?? '',
-          address: '',
-          pesel: data['pesel'] ?? '',
-          createdAt: data['created_at'] != null
-              ? DateTime.parse(data['created_at'])
-              : DateTime.now(),
-          updatedAt: DateTime.now(),
-          isActive: true,
-          additionalInfo: {
-            'nazwa_firmy': data['nazwa_firmy'] ?? '',
-            'source_file': data['source_file'] ?? 'Excel import',
-          },
-        );
-      }).toList();
+      final clients = snapshot.docs
+          .map((doc) => Client.fromFirestore(doc))
+          .toList();
 
       return PaginationResult<Client>(
         items: clients,
@@ -165,37 +103,17 @@ class ClientService extends BaseService {
   Stream<List<Client>> searchClients(String query, {int limit = 30}) {
     if (query.isEmpty) return getClients(limit: limit);
 
-    // Wykorzystuje indeks: email + imie_nazwisko
+    // Wykorzystuje indeks: email + fullName
     return firestore
         .collection(_collection)
-        .where('imie_nazwisko', isGreaterThanOrEqualTo: query)
-        .where('imie_nazwisko', isLessThanOrEqualTo: query + '\uf8ff')
-        .orderBy('imie_nazwisko')
+        .where('fullName', isGreaterThanOrEqualTo: query)
+        .where('fullName', isLessThanOrEqualTo: query + '\uf8ff')
+        .orderBy('fullName')
         .limit(limit)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            final data = doc.data();
-            return Client(
-              id: doc.id,
-              name:
-                  data['imie_nazwisko'] ??
-                  '', // Używamy imie_nazwisko z Firebase
-              email: data['email'] ?? '',
-              phone: data['telefon'] ?? '',
-              address: '',
-              pesel: data['pesel'] ?? '',
-              createdAt: data['created_at'] != null
-                  ? DateTime.parse(data['created_at'])
-                  : DateTime.now(),
-              updatedAt: DateTime.now(),
-              isActive: true,
-              additionalInfo: {
-                'nazwa_firmy': data['nazwa_firmy'] ?? '',
-                'source_file': data['source_file'] ?? 'Excel import',
-              },
-            );
-          }).toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => Client.fromFirestore(doc)).toList(),
         );
   }
 
@@ -251,39 +169,19 @@ class ClientService extends BaseService {
 
   // NOWE METODY dla danych z Excel
 
-  // Pobierz klientów z emailem z optymalizacją - wykorzystuje indeks email + imie_nazwisko
+  // Pobierz klientów z emailem z optymalizacją - wykorzystuje indeks email + fullName
   Stream<List<Client>> getClientsWithEmail({int limit = 50}) {
     return firestore
         .collection(_collection)
         .where('email', isNotEqualTo: '')
         .where('email', isNotEqualTo: 'brak')
         .orderBy('email')
-        .orderBy('imie_nazwisko') // Dodane dla wykorzystania indeksu
+        .orderBy('fullName') // Dodane dla wykorzystania indeksu
         .limit(limit)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            final data = doc.data();
-            return Client(
-              id: doc.id,
-              name:
-                  data['imie_nazwisko'] ??
-                  '', // Używamy imie_nazwisko z Firebase
-              email: data['email'] ?? '',
-              phone: data['telefon'] ?? '',
-              address: '',
-              pesel: data['pesel'] ?? '',
-              createdAt: data['created_at'] != null
-                  ? DateTime.parse(data['created_at'])
-                  : DateTime.now(),
-              updatedAt: DateTime.now(),
-              isActive: true,
-              additionalInfo: {
-                'nazwa_firmy': data['nazwa_firmy'] ?? '',
-                'source_file': data['source_file'] ?? 'Excel import',
-              },
-            );
-          }).toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => Client.fromFirestore(doc)).toList(),
         );
   }
 
@@ -306,12 +204,13 @@ class ClientService extends BaseService {
             clientsWithEmail++;
           }
 
-          final phone = data['telefon']?.toString() ?? '';
+          final phone = (data['phone'] ?? data['telefon'])?.toString() ?? '';
           if (phone.isNotEmpty) {
             clientsWithPhone++;
           }
 
-          final company = data['nazwa_firmy']?.toString() ?? '';
+          final company =
+              (data['companyName'] ?? data['nazwa_firmy'])?.toString() ?? '';
           if (company.isNotEmpty) {
             clientsWithCompany++;
           }
@@ -351,40 +250,7 @@ class ClientService extends BaseService {
   Future<List<Client>> getAllClients() async {
     try {
       final snapshot = await firestore.collection(_collection).get();
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return Client(
-          id: doc.id,
-          name: data['imie_nazwisko'] ?? '', // Używamy imie_nazwisko z Firebase
-          email: data['email'] ?? '',
-          phone: data['telefon'] ?? '',
-          address: '',
-          pesel: data['pesel'] ?? '',
-          companyName: data['nazwa_firmy'],
-          type: ClientType.values.firstWhere(
-            (e) => e.name == data['type'],
-            orElse: () => ClientType.individual,
-          ),
-          notes: data['notes'] ?? '',
-          votingStatus: VotingStatus.values.firstWhere(
-            (e) => e.name == data['votingStatus'],
-            orElse: () => VotingStatus.undecided,
-          ),
-          colorCode: data['colorCode'] ?? '#FFFFFF',
-          unviableInvestments: List<String>.from(
-            data['unviableInvestments'] ?? [],
-          ),
-          createdAt: data['created_at'] != null
-              ? DateTime.parse(data['created_at'])
-              : DateTime.now(),
-          updatedAt: DateTime.now(),
-          isActive: data['isActive'] ?? true,
-          additionalInfo: {
-            'nazwa_firmy': data['nazwa_firmy'] ?? '',
-            'source_file': data['source_file'] ?? 'Excel import',
-          },
-        );
-      }).toList();
+      return snapshot.docs.map((doc) => Client.fromFirestore(doc)).toList();
     } catch (e) {
       logError('getAllClients', e);
       throw Exception('Failed to get all clients: $e');
@@ -408,40 +274,9 @@ class ClientService extends BaseService {
       onProgress?.call(0.6, 'Przetwarzanie informacji...');
       await Future.delayed(const Duration(milliseconds: 200));
 
-      final clients = snapshot.docs.map((doc) {
-        final data = doc.data();
-        return Client(
-          id: doc.id,
-          name: data['imie_nazwisko'] ?? '', // Używamy imie_nazwisko z Firebase
-          email: data['email'] ?? '',
-          phone: data['telefon'] ?? '',
-          address: '',
-          pesel: data['pesel'] ?? '',
-          companyName: data['nazwa_firmy'],
-          type: ClientType.values.firstWhere(
-            (e) => e.name == data['type'],
-            orElse: () => ClientType.individual,
-          ),
-          notes: data['notes'] ?? '',
-          votingStatus: VotingStatus.values.firstWhere(
-            (e) => e.name == data['votingStatus'],
-            orElse: () => VotingStatus.undecided,
-          ),
-          colorCode: data['colorCode'] ?? '#FFFFFF',
-          unviableInvestments: List<String>.from(
-            data['unviableInvestments'] ?? [],
-          ),
-          createdAt: data['created_at'] != null
-              ? DateTime.parse(data['created_at'])
-              : DateTime.now(),
-          updatedAt: DateTime.now(),
-          isActive: data['isActive'] ?? true,
-          additionalInfo: {
-            'nazwa_firmy': data['nazwa_firmy'] ?? '',
-            'source_file': data['source_file'] ?? 'Excel import',
-          },
-        );
-      }).toList();
+      final clients = snapshot.docs
+          .map((doc) => Client.fromFirestore(doc))
+          .toList();
 
       onProgress?.call(0.8, 'Optymalizacja wyświetlania...');
       await Future.delayed(const Duration(milliseconds: 200));
@@ -531,35 +366,17 @@ class ClientService extends BaseService {
 
   // ===== NOWE METODY WYKORZYSTUJĄCE INDEKSY =====
 
-  // Pobierz aktywnych klientów - wykorzystuje indeks isActive + imie_nazwisko
+  // Pobierz aktywnych klientów - wykorzystuje indeks isActive + fullName
   Stream<List<Client>> getActiveClients({int limit = 100}) {
     // Ponieważ dane z Excel nie mają pola isActive, pobieramy wszystkich klientów
     return firestore
         .collection(_collection)
-        .orderBy('imie_nazwisko')
+        .orderBy('fullName')
         .limit(limit)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            final data = doc.data();
-            return Client(
-              id: doc.id,
-              name: data['imie_nazwisko'] ?? '',
-              email: data['email'] ?? '',
-              phone: data['telefon'] ?? '',
-              address: '',
-              pesel: data['pesel'] ?? '',
-              createdAt: data['created_at'] != null
-                  ? DateTime.parse(data['created_at'])
-                  : DateTime.now(),
-              updatedAt: DateTime.now(),
-              isActive: true, // Wszystkich traktujemy jako aktywnych
-              additionalInfo: {
-                'nazwa_firmy': data['nazwa_firmy'] ?? '',
-                'source_file': data['source_file'] ?? 'Excel import',
-              },
-            );
-          }).toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => Client.fromFirestore(doc)).toList(),
         );
   }
 
@@ -568,31 +385,12 @@ class ClientService extends BaseService {
     // Pobieramy wszystkich klientów (dane nie mają pola type)
     return firestore
         .collection(_collection)
-        .orderBy('imie_nazwisko')
+        .orderBy('fullName')
         .limit(limit)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            final data = doc.data();
-            return Client(
-              id: doc.id,
-              name: data['imie_nazwisko'] ?? '',
-              email: data['email'] ?? '',
-              phone: data['telefon'] ?? '',
-              address: '',
-              pesel: data['pesel'] ?? '',
-              type: ClientType.individual, // Domyślnie individual
-              createdAt: data['created_at'] != null
-                  ? DateTime.parse(data['created_at'])
-                  : DateTime.now(),
-              updatedAt: DateTime.now(),
-              isActive: true,
-              additionalInfo: {
-                'nazwa_firmy': data['nazwa_firmy'] ?? '',
-                'source_file': data['source_file'] ?? 'Excel import',
-              },
-            );
-          }).toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => Client.fromFirestore(doc)).toList(),
         );
   }
 
@@ -608,31 +406,8 @@ class ClientService extends BaseService {
         .limit(limit)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            final data = doc.data();
-            return Client(
-              id: doc.id,
-              name: data['imie_nazwisko'] ?? '',
-              email: data['email'] ?? '',
-              phone: data['telefon'] ?? '',
-              address: '',
-              pesel: data['pesel'] ?? '',
-              type: ClientType.individual, // Domyślnie individual
-              notes: data['notes'] ?? '',
-              votingStatus: VotingStatus.undecided, // Domyślnie undecided
-              colorCode: data['colorCode'] ?? '#FFFFFF',
-              unviableInvestments: [],
-              createdAt: data['created_at'] != null
-                  ? DateTime.parse(data['created_at'])
-                  : DateTime.now(),
-              updatedAt: DateTime.now(),
-              isActive: true, // Wszyscy są aktywni
-              additionalInfo: {
-                'nazwa_firmy': data['nazwa_firmy'] ?? '',
-                'source_file': data['source_file'] ?? 'Excel import',
-              },
-            );
-          }).toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => Client.fromFirestore(doc)).toList(),
         );
   }
 

@@ -89,13 +89,13 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
 
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: Column(
-        children: [
+      child: CustomScrollView(
+        slivers: [
           // Header z podsumowaniem i kontrolkami sortowania
-          _buildHeader(),
+          SliverToBoxAdapter(child: _buildHeader()),
 
-          // Lista inwestorów
-          Expanded(child: _buildInvestorsList()),
+          // Lista inwestorów jako sliver
+          _buildInvestorsSliver(),
         ],
       ),
     );
@@ -340,13 +340,11 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
     );
   }
 
-  Widget _buildInvestorsList() {
+  Widget _buildInvestorsSliver() {
     final sortedInvestors = _getSortedInvestors();
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: sortedInvestors.length,
-      itemBuilder: (context, index) {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate((context, index) {
         return TweenAnimationBuilder(
           duration: Duration(milliseconds: 300 + (index * 50)),
           tween: Tween<double>(begin: 0, end: 1),
@@ -356,14 +354,18 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
               child: Opacity(
                 opacity: value,
                 child: Container(
-                  margin: const EdgeInsets.only(bottom: 12),
+                  margin: const EdgeInsets.only(
+                    bottom: 12,
+                    left: 16,
+                    right: 16,
+                  ),
                   child: _buildInvestorCard(sortedInvestors[index], index),
                 ),
               ),
             );
           },
         );
-      },
+      }, childCount: sortedInvestors.length),
     );
   }
 

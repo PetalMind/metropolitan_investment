@@ -272,6 +272,100 @@ class UnifiedProduct implements IUnifiedProduct {
     );
   }
 
+  /// Factory method dla danych z serwera Firebase Functions
+  factory UnifiedProduct.fromServerData(Map<String, dynamic> data) {
+    return UnifiedProduct(
+      id: data['id'] ?? '',
+      name: data['name'] ?? '',
+      productType: _parseProductType(data['productType'] ?? ''),
+      investmentAmount: _safeToDouble(data['investmentAmount']) ?? 0.0,
+      createdAt: _parseDateTime(data['createdAt']) ?? DateTime.now(),
+      uploadedAt: _parseDateTime(data['uploadedAt']) ?? DateTime.now(),
+      sourceFile: data['sourceFile'] ?? 'server_data',
+      status: _parseProductStatus(data['status']),
+      additionalInfo: Map<String, dynamic>.from(data['additionalInfo'] ?? {}),
+      realizedCapital: _safeToDouble(data['realizedCapital']),
+      remainingCapital: _safeToDouble(data['remainingCapital']),
+      realizedInterest: _safeToDouble(data['realizedInterest']),
+      remainingInterest: _safeToDouble(data['remainingInterest']),
+      realizedTax: _safeToDouble(data['realizedTax']),
+      remainingTax: _safeToDouble(data['remainingTax']),
+      transferToOtherProduct: _safeToDouble(data['transferToOtherProduct']),
+      sharesCount: _safeToInt(data['sharesCount']),
+      pricePerShare: _safeToDouble(data['pricePerShare']),
+      interestRate: _safeToDouble(data['interestRate']),
+      maturityDate: _parseDateTime(data['maturityDate']),
+      companyName: data['companyName'],
+      companyId: data['companyId'],
+      currency: data['currency'] ?? 'PLN',
+      originalProduct: data, // Całe dane serwera jako original
+    );
+  }
+
+  /// Pomocnicza metoda do parsowania typu produktu
+  static UnifiedProductType _parseProductType(String type) {
+    switch (type.toLowerCase()) {
+      case 'bonds':
+        return UnifiedProductType.bonds;
+      case 'shares':
+        return UnifiedProductType.shares;
+      case 'loans':
+        return UnifiedProductType.loans;
+      case 'apartments':
+        return UnifiedProductType.apartments;
+      default:
+        return UnifiedProductType.other;
+    }
+  }
+
+  /// Pomocnicza metoda do parsowania statusu produktu
+  static ProductStatus _parseProductStatus(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return ProductStatus.active;
+      case 'inactive':
+        return ProductStatus.inactive;
+      case 'pending':
+        return ProductStatus.pending;
+      case 'suspended':
+        return ProductStatus.suspended;
+      default:
+        return ProductStatus.active;
+    }
+  }
+
+  /// Pomocnicza metoda do bezpiecznego parsowania double
+  static double? _safeToDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value);
+    }
+    return null;
+  }
+
+  /// Pomocnicza metoda do bezpiecznego parsowania int
+  static int? _safeToInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) {
+      return int.tryParse(value);
+    }
+    return null;
+  }
+
+  /// Pomocnicza metoda do parsowania daty
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+    return null;
+  }
+
   /// Factory method dla Product
   factory UnifiedProduct.fromProduct(Product product) {
     UnifiedProductType type;
