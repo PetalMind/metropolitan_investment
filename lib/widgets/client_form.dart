@@ -21,6 +21,7 @@ class ClientForm extends StatefulWidget {
 
 class _ClientFormState extends State<ClientForm> {
   final _formKey = GlobalKey<FormState>();
+  final UnifiedVotingService _votingService = UnifiedVotingService();
   late String _name;
   late String _email;
   late String _phone;
@@ -32,6 +33,7 @@ class _ClientFormState extends State<ClientForm> {
   VotingStatus _votingStatus = VotingStatus.undecided;
   String _colorCode = '#FFFFFF';
   bool _isActive = true;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -48,6 +50,69 @@ class _ClientFormState extends State<ClientForm> {
     _votingStatus = c?.votingStatus ?? VotingStatus.undecided;
     _colorCode = c?.colorCode ?? '#FFFFFF';
     _isActive = c?.isActive ?? true;
+  }
+
+  /// Obsługuje zapisywanie zmian z historią głosowania
+  Future<void> _handleSave() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      _formKey.currentState?.save();
+      
+      final newClient = Client(
+        id: widget.client?.id ?? '',
+        name: _name,
+        email: _email,
+        phone: _phone,
+        address: _address,
+        pesel: _pesel,
+        companyName: _companyName,
+        type: _type,
+        notes: _notes,
+        votingStatus: _votingStatus,
+        colorCode: _colorCode,
+        unviableInvestments: widget.client?.unviableInvestments ?? [],
+        createdAt: widget.client?.createdAt ?? DateTime.now(),
+        updatedAt: DateTime.now(),
+        isActive: _isActive,
+      );
+
+      // Jeśli to edycja istniejącego klienta i status głosowania się zmienił
+      if (widget.client != null && 
+          widget.client!.votingStatus != _votingStatus) {
+        
+        print('🗳️ [ClientForm] Status głosowania zmieniony: ${widget.client!.votingStatus.name} -> ${_votingStatus.name}');
+        
+        // Zapisz zmianę statusu przez UnifiedVotingService
+        await _votingService.updateVotingStatus(
+          widget.client!.id,
+          _votingStatus,
+          reason: 'Updated via client form',
+        );
+        
+        print('✅ [ClientForm] Historia głosowania zapisana');
+      }
+      
+      widget.onSave(newClient);
+      
+    } catch (e) {
+      print('❌ [ClientForm] Błąd podczas zapisywania: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd podczas zapisywania: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -259,38 +324,19 @@ class _ClientFormState extends State<ClientForm> {
               children: [
                 if (widget.onCancel != null)
                   TextButton(
-                    onPressed: widget.onCancel,
+                    onPressed: _isLoading ? null : widget.onCancel,
                     child: const Text('Anuluj'),
                   ),
                 const SizedBox(width: 12),
                 ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState?.validate() ?? false) {
-                      _formKey.currentState?.save();
-
-                      widget.onSave(
-                        Client(
-                          id: widget.client?.id ?? '',
-                          name: _name,
-                          email: _email,
-                          phone: _phone,
-                          address: _address,
-                          pesel: _pesel,
-                          companyName: _companyName,
-                          type: _type,
-                          notes: _notes,
-                          votingStatus: _votingStatus,
-                          colorCode: _colorCode,
-                          unviableInvestments:
-                              widget.client?.unviableInvestments ?? [],
-                          createdAt: widget.client?.createdAt ?? DateTime.now(),
-                          updatedAt: DateTime.now(),
-                          isActive: _isActive,
-                        ),
-                      );
-                    }
-                  },
-                  child: Text(widget.client == null ? 'Dodaj' : 'Zapisz'),
+                  onPressed: _isLoading ? null : _handleSave,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(widget.client == null ? 'Dodaj' : 'Zapisz'),
                 ),
               ],
             ),

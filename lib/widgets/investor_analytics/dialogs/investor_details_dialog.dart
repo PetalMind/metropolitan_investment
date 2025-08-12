@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../models_and_services.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/currency_formatter.dart';
+import '../../optimized_voting_status_widget.dart';
 
 /// Dialog szczegółów inwestora z możliwością edycji
 class InvestorDetailsDialog extends StatefulWidget {
@@ -26,6 +27,9 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
   String _selectedColor = '#FFFFFF';
   List<String> _selectedUnviableInvestments = [];
   bool _isLoading = false;
+  
+  // Services
+  final UnifiedVotingService _votingService = UnifiedVotingService();
 
   @override
   void initState() {
@@ -50,6 +54,10 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
     setState(() => _isLoading = true);
 
     try {
+      // Sprawdź czy status głosowania się zmienił
+      final oldVotingStatus = widget.investor.client.votingStatus;
+      final votingStatusChanged = oldVotingStatus != _selectedVotingStatus;
+
       await widget.analyticsService.updateInvestorNotes(
         widget.investor.client.id,
         _notesController.text,
@@ -69,6 +77,19 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
         widget.investor.client.id,
         _selectedUnviableInvestments,
       );
+
+      // Jeśli status głosowania się zmienił, zapisz historię przez UnifiedVotingService
+      if (votingStatusChanged) {
+        print('🗳️ [InvestorDetailsDialog] Status głosowania zmieniony: ${oldVotingStatus.name} -> ${_selectedVotingStatus.name}');
+        
+        await _votingService.updateVotingStatus(
+          widget.investor.client.id,
+          _selectedVotingStatus,
+          reason: 'Updated via investor analytics dialog',
+        );
+        
+        print('✅ [InvestorDetailsDialog] Historia głosowania zapisana');
+      }
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -402,52 +423,13 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
         const SizedBox(height: 16),
 
         // Status głosowania
-        DropdownButtonFormField<VotingStatus>(
-          value: _selectedVotingStatus,
-          style: const TextStyle(color: AppTheme.textPrimary),
-          dropdownColor: AppTheme.surfaceCard,
-          decoration: InputDecoration(
-            labelText: 'Status głosowania',
-            labelStyle: const TextStyle(color: AppTheme.textSecondary),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppTheme.borderSecondary),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppTheme.borderSecondary),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppTheme.secondaryGold, width: 2),
-            ),
-          ),
-          items: VotingStatus.values
-              .map(
-                (status) => DropdownMenuItem(
-                  value: status,
-                  child: Row(
-                    children: [
-                      Icon(
-                        _getVotingStatusIcon(status),
-                        color: _getVotingStatusColor(status),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        status.displayName,
-                        style: const TextStyle(color: AppTheme.textPrimary),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: (value) {
-            if (value != null) {
-              setState(() => _selectedVotingStatus = value);
-            }
+        OptimizedVotingStatusSelector(
+          currentStatus: _selectedVotingStatus,
+          onStatusChanged: (VotingStatus newStatus) {
+            setState(() => _selectedVotingStatus = newStatus);
           },
+          isCompact: false,
+          showLabels: true,
         ),
 
         const SizedBox(height: 16),
@@ -588,29 +570,4 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
     );
   }
 
-  IconData _getVotingStatusIcon(VotingStatus status) {
-    switch (status) {
-      case VotingStatus.yes:
-        return Icons.check_circle;
-      case VotingStatus.no:
-        return Icons.cancel;
-      case VotingStatus.abstain:
-        return Icons.remove_circle;
-      case VotingStatus.undecided:
-        return Icons.help;
-    }
-  }
-
-  Color _getVotingStatusColor(VotingStatus status) {
-    switch (status) {
-      case VotingStatus.yes:
-        return AppTheme.successColor;
-      case VotingStatus.no:
-        return AppTheme.errorColor;
-      case VotingStatus.abstain:
-        return AppTheme.warningColor;
-      case VotingStatus.undecided:
-        return AppTheme.textSecondary;
-    }
-  }
 }

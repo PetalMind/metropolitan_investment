@@ -55,6 +55,7 @@ export 'services/standard_product_investors_service.dart';
 // New voting and analytics services
 export 'services/enhanced_voting_status_service.dart';
 export 'services/voting_status_change_service.dart';
+export 'services/unified_voting_service.dart';
 export 'services/unified_statistics_utils.dart';
 export 'services/debug_firestore_service.dart';
 
@@ -77,6 +78,9 @@ export 'widgets/client_stats_widget.dart';
 export 'widgets/enhanced_client_stats_widget.dart';
 export 'widgets/client_stats_demo.dart';
 export 'widgets/client_stats_debug_widget.dart';
+
+// Screen exports
+export 'screens/voting_system_demo.dart';
 
 // Theme exports
 export 'theme/app_theme.dart';

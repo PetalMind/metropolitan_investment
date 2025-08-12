@@ -7,10 +7,12 @@ import '../models/investment.dart';
 import '../models/unified_product.dart';
 import '../models/product.dart';
 import '../services/investor_analytics_service.dart';
+import '../services/unified_voting_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/client_notes_widget.dart';
 import '../widgets/client_form.dart';
+import '../widgets/optimized_voting_status_widget.dart';
 import '../widgets/investor_analytics/tabs/voting_changes_tab.dart';
 
 class InvestorDetailsModal extends StatefulWidget {
@@ -48,6 +50,9 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   late ClientType _selectedClientType;
   late bool _isActive;
   late String _selectedColorCode;
+
+  // Services
+  final UnifiedVotingService _votingService = UnifiedVotingService();
 
   bool _hasChanges = false;
   bool _isSaving = false; // 🔄 Stan ładowania podczas zapisywania
@@ -516,51 +521,18 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
             ],
           ),
           const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppTheme.backgroundPrimary,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.borderSecondary),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<VotingStatus>(
-                value: _selectedVotingStatus,
-                dropdownColor: AppTheme.backgroundPrimary,
-                isExpanded: true,
-                items: VotingStatus.values.map((status) {
-                  return DropdownMenuItem(
-                    value: status,
-                    child: Row(
-                      children: [
-                        Icon(
-                          _getVotingStatusIcon(status),
-                          color: _getVotingStatusColor(status),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _getVotingStatusText(status),
-                          style: TextStyle(
-                            color: _getVotingStatusColor(status),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (VotingStatus? value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedVotingStatus = value;
-                    });
-                    _onDataChanged();
-                  }
-                },
-              ),
-            ),
+          
+          // Użyj OptimizedVotingStatusSelector zamiast DropdownButton
+          OptimizedVotingStatusSelector(
+            currentStatus: _selectedVotingStatus,
+            onStatusChanged: (VotingStatus newStatus) {
+              setState(() {
+                _selectedVotingStatus = newStatus;
+              });
+              _onDataChanged();
+            },
+            isCompact: false,
+            showLabels: true,
           ),
         ],
       ),
@@ -1330,7 +1302,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
               _buildInfoDetail('Typ klienta', _getClientTypeText(client.type)),
               _buildInfoDetail(
                 'Status głosowania',
-                _getVotingStatusText(client.votingStatus),
+                widget.investor.client.votingStatus.displayName,
               ),
               _buildInfoDetail(
                 'Status konta',
@@ -1681,6 +1653,19 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         isActive: _isActive,
       );
 
+      // Jeśli status głosowania się zmienił, zapisz także historię
+      if (widget.investor.client.votingStatus != _selectedVotingStatus) {
+        print('🗳️ [InvestorModal] Status głosowania zmieniony: ${widget.investor.client.votingStatus.name} -> ${_selectedVotingStatus.name}');
+        
+        await _votingService.updateVotingStatus(
+          widget.investor.client.id,
+          _selectedVotingStatus,
+          reason: 'Updated via investor details modal',
+        );
+        
+        print('✅ [InvestorModal] Historia głosowania zapisana');
+      }
+
       // Dodatkowo wyczyść cache dla pewności
       widget.analyticsService!.clearAnalyticsCache();
       print('🗑️ [Modal] Cache analityk wyczyszczony po zapisaniu zmian');
@@ -1812,45 +1797,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   bool _isLightColor(Color color) {
     final luminance = color.computeLuminance();
     return luminance > 0.5;
-  }
-
-  String _getVotingStatusText(VotingStatus status) {
-    switch (status) {
-      case VotingStatus.yes:
-        return 'Za';
-      case VotingStatus.no:
-        return 'Przeciw';
-      case VotingStatus.abstain:
-        return 'Wstrzymuję się';
-      case VotingStatus.undecided:
-        return 'Niezdecydowany';
-    }
-  }
-
-  IconData _getVotingStatusIcon(VotingStatus status) {
-    switch (status) {
-      case VotingStatus.yes:
-        return Icons.check_circle;
-      case VotingStatus.no:
-        return Icons.cancel;
-      case VotingStatus.abstain:
-        return Icons.remove_circle;
-      case VotingStatus.undecided:
-        return Icons.help;
-    }
-  }
-
-  Color _getVotingStatusColor(VotingStatus status) {
-    switch (status) {
-      case VotingStatus.yes:
-        return AppTheme.successColor;
-      case VotingStatus.no:
-        return AppTheme.errorColor;
-      case VotingStatus.undecided:
-        return AppTheme.warningColor;
-      case VotingStatus.abstain:
-        return AppTheme.textSecondary;
-    }
   }
 
   String _getClientTypeText(ClientType type) {

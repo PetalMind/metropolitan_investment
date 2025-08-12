@@ -879,25 +879,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "investorId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "changedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "voting_status_changes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
           "fieldPath": "clientId",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "changedAt",
+          "fieldPath": "timestamp",
           "order": "DESCENDING"
         }
       ]
@@ -907,11 +893,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "changeType",
+          "fieldPath": "oldStatus",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "changedAt",
+          "fieldPath": "timestamp",
           "order": "DESCENDING"
         }
       ]
@@ -921,11 +907,25 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "editedByEmail",
+          "fieldPath": "newStatus",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "changedAt",
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "voting_status_changes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "reason",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
           "order": "DESCENDING"
         }
       ]
