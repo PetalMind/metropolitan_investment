@@ -449,11 +449,14 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
 
       // 🔧 FIX: Używaj bezpośrednio danych z Firebase Functions zamiast ponownego obliczania
       // Firebase Functions już obliczył te wartości - użyj ich bezpośrednio!
-      
-      final capitalForRestructuring = (data['capitalForRestructuring'] ?? 0.0).toDouble();
-      final capitalSecuredByRealEstate = (data['capitalSecuredByRealEstate'] ?? 0.0).toDouble();
-      final totalViableCapital = (data['viableRemainingCapital'] ?? 0.0).toDouble();
-      
+
+      final capitalForRestructuring = (data['capitalForRestructuring'] ?? 0.0)
+          .toDouble();
+      final capitalSecuredByRealEstate =
+          (data['capitalSecuredByRealEstate'] ?? 0.0).toDouble();
+      final totalViableCapital = (data['viableRemainingCapital'] ?? 0.0)
+          .toDouble();
+
       // 🔍 DEBUG: Log wartości dla pierwszych inwestorów
       if (client.name.isNotEmpty) {
         print('🔍 [DEBUG] ${client.name}:');
@@ -461,14 +464,17 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
         print('  - capitalSecuredByRealEstate: $capitalSecuredByRealEstate');
         print('  - viableRemainingCapital: $totalViableCapital');
       }
-      
+
       return InvestorSummary(
         client: client,
         investments: investments,
         totalRemainingCapital: totalViableCapital,
         totalSharesValue: 0.0, // Zawsze 0 w nowym systemie
-        totalValue: (data['unifiedTotalValue'] ?? data['viableRemainingCapital'] ?? 0.0).toDouble(),
-        totalInvestmentAmount: (data['totalInvestmentAmount'] ?? 0.0).toDouble(),
+        totalValue:
+            (data['unifiedTotalValue'] ?? data['viableRemainingCapital'] ?? 0.0)
+                .toDouble(),
+        totalInvestmentAmount: (data['totalInvestmentAmount'] ?? 0.0)
+            .toDouble(),
         totalRealizedCapital: (data['totalRealizedCapital'] ?? 0.0).toDouble(),
         capitalSecuredByRealEstate: capitalSecuredByRealEstate,
         capitalForRestructuring: capitalForRestructuring,

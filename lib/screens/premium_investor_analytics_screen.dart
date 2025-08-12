@@ -2196,8 +2196,7 @@ class _PremiumInvestorAnalyticsScreenState
                     ),
                     PopupMenuItem<String>(
                       value: 'export',
-                      child: Row(
-                        children: [
+                      child: Row(children: [
                     
                         ],
                       ),
