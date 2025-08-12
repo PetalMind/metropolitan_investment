@@ -447,7 +447,33 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
         );
       }).toList();
 
-      return InvestorSummary.fromInvestments(client, investments);
+      // 🔧 FIX: Używaj bezpośrednio danych z Firebase Functions zamiast ponownego obliczania
+      // Firebase Functions już obliczył te wartości - użyj ich bezpośrednio!
+      
+      final capitalForRestructuring = (data['capitalForRestructuring'] ?? 0.0).toDouble();
+      final capitalSecuredByRealEstate = (data['capitalSecuredByRealEstate'] ?? 0.0).toDouble();
+      final totalViableCapital = (data['viableRemainingCapital'] ?? 0.0).toDouble();
+      
+      // 🔍 DEBUG: Log wartości dla pierwszych inwestorów
+      if (client.name.isNotEmpty) {
+        print('🔍 [DEBUG] ${client.name}:');
+        print('  - capitalForRestructuring: $capitalForRestructuring');
+        print('  - capitalSecuredByRealEstate: $capitalSecuredByRealEstate');
+        print('  - viableRemainingCapital: $totalViableCapital');
+      }
+      
+      return InvestorSummary(
+        client: client,
+        investments: investments,
+        totalRemainingCapital: totalViableCapital,
+        totalSharesValue: 0.0, // Zawsze 0 w nowym systemie
+        totalValue: (data['unifiedTotalValue'] ?? data['viableRemainingCapital'] ?? 0.0).toDouble(),
+        totalInvestmentAmount: (data['totalInvestmentAmount'] ?? 0.0).toDouble(),
+        totalRealizedCapital: (data['totalRealizedCapital'] ?? 0.0).toDouble(),
+        capitalSecuredByRealEstate: capitalSecuredByRealEstate,
+        capitalForRestructuring: capitalForRestructuring,
+        investmentCount: data['investmentCount'] ?? investments.length,
+      );
     } catch (e) {
       print('❌ [Parse Error] Błąd parsowania InvestorSummary: $e');
       print('❌ [Parse Error] Data: $data');

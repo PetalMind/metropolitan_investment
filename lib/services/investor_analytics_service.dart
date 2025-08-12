@@ -260,6 +260,7 @@ class InvestorAnalyticsService extends BaseService {
             );
             break;
           case 'viableCapital':
+          case 'viableRemainingCapital':
             comparison = a.viableRemainingCapital.compareTo(
               b.viableRemainingCapital,
             );
@@ -270,6 +271,21 @@ class InvestorAnalyticsService extends BaseService {
           case 'votingStatus':
             comparison = a.client.votingStatus.index.compareTo(
               b.client.votingStatus.index,
+            );
+            break;
+          case 'totalInvestmentAmount':
+            comparison = a.totalInvestmentAmount.compareTo(
+              b.totalInvestmentAmount,
+            );
+            break;
+          case 'capitalSecuredByRealEstate':
+            comparison = a.capitalSecuredByRealEstate.compareTo(
+              b.capitalSecuredByRealEstate,
+            );
+            break;
+          case 'capitalForRestructuring':
+            comparison = a.capitalForRestructuring.compareTo(
+              b.capitalForRestructuring,
             );
             break;
           default:

@@ -85,7 +85,7 @@ class _PremiumInvestorAnalyticsScreenState
   int _totalCount = 0;
 
   // 🎛️ ADVANCED FILTERS
-  String _sortBy = 'viableCapital';
+  String _sortBy = 'viableRemainingCapital';
   bool _sortAscending = false;
   VotingStatus? _selectedVotingStatus;
   ClientType? _selectedClientType;
@@ -663,6 +663,7 @@ class _PremiumInvestorAnalyticsScreenState
           comparison = a.client.name.compareTo(b.client.name);
           break;
         case 'viableCapital':
+        case 'viableRemainingCapital':
           comparison = a.viableRemainingCapital.compareTo(
             b.viableRemainingCapital,
           );
@@ -1226,7 +1227,7 @@ class _PremiumInvestorAnalyticsScreenState
                 runSpacing: 8,
                 children: [
                   _buildSortChip('name', 'Nazwa'),
-                  _buildSortChip('viableCapital', 'Kapitał pozostały'),
+                  _buildSortChip('viableRemainingCapital', 'Kapitał pozostały'),
                   _buildSortChip('investmentCount', 'Liczba inwestycji'),
                   _buildSortChip('votingStatus', 'Status głosowania'),
                   _buildSortChip('totalInvestmentAmount', 'Kwota inwestycji'),
