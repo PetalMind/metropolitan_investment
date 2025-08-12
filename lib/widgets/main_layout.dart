@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../config/app_routes.dart';
+import '../services/notification_service.dart';
+import 'notification_badge.dart';
 
-/// Główny layout aplikacji z nawigacją boczną
+/// Główny layout aplikacji z nawigacją boczną i badge'ami powiadomień
 class MainLayout extends StatefulWidget {
   final Widget child;
 
@@ -19,85 +21,449 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   bool _isRailExtended = false;
   bool _showQuickActions = false;
+  late NotificationService _notificationService;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationService = NotificationService();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 768;
+    final isTablet = screenWidth >= 768 && screenWidth < 1024;
+    final isDesktop = screenWidth >= 1024;
+
+    return ChangeNotifierProvider.value(
+      value: _notificationService,
+      child: Consumer<NotificationService>(
+        builder: (context, notificationService, child) {
+          return Scaffold(
+            backgroundColor: AppTheme.backgroundPrimary,
+            // Hamburger menu tylko na mobile
+            appBar: isMobile ? _buildMobileAppBar(notificationService) : null,
+            // Drawer tylko na mobile
+            drawer: isMobile ? _buildMobileDrawer(notificationService) : null,
+            body: isMobile
+                ? widget
+                      .child // Na mobile tylko content bez rail
+                : _buildDesktopLayout(notificationService, isTablet),
+
+            // Floating Action Button
+            floatingActionButton: (isTablet || isDesktop)
+                ? _buildQuickActionsFAB()
+                : null,
+            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          );
+        },
+      ),
+    );
+  }
+
+  /// Buduje layout dla desktop i tablet (z NavigationRail)
+  Widget _buildDesktopLayout(
+    NotificationService notificationService,
+    bool isTablet,
+  ) {
     final currentLocation = GoRouterState.of(context).matchedLocation;
     final selectedIndex = MainNavigationItems.getActiveIndex(currentLocation);
-    final isTablet = MediaQuery.of(context).size.width > 768;
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundPrimary,
-      body: Row(
+    return Row(
+      children: [
+        // Boczna nawigacja z badge'ami
+        NavigationRail(
+          selectedIndex: selectedIndex,
+          onDestinationSelected: (index) {
+            final route = MainNavigationItems.items[index].route;
+            context.go(route);
+
+            // Wyczyść powiadomienia kalendarza po kliknięciu
+            if (route == '/calendar') {
+              notificationService.clearCalendarNotifications();
+            }
+          },
+          extended: _isRailExtended,
+          minExtendedWidth: 220,
+          leading: _buildRailHeader(),
+          trailing: _buildRailTrailing(),
+          destinations: MainNavigationItems.items.map((item) {
+            // Badge tylko dla kalendarza
+            final notificationCount = item.route == '/calendar'
+                ? notificationService.getNotificationsForRoute(item.route)
+                : 0;
+
+            return NavigationRailDestination(
+              icon: item.route == '/calendar'
+                  ? NotificationBadge(
+                      count: notificationCount,
+                      child: Icon(item.icon),
+                    )
+                  : Icon(item.icon),
+              selectedIcon: item.route == '/calendar'
+                  ? NotificationBadge(
+                      count: notificationCount,
+                      child: Icon(item.selectedIcon ?? item.icon),
+                    )
+                  : Icon(item.selectedIcon ?? item.icon),
+              label: Text(item.label),
+            );
+          }).toList(),
+          backgroundColor: AppTheme.backgroundSecondary,
+          selectedIconTheme: IconThemeData(
+            color: AppTheme.secondaryGold,
+            size: 28,
+          ),
+          unselectedIconTheme: IconThemeData(
+            color: AppTheme.textTertiary,
+            size: 24,
+          ),
+          selectedLabelTextStyle: TextStyle(
+            color: AppTheme.secondaryGold,
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+          ),
+          unselectedLabelTextStyle: TextStyle(
+            color: AppTheme.textTertiary,
+            fontSize: 12,
+          ),
+          useIndicator: true,
+          indicatorColor: AppTheme.secondaryGold.withOpacity(0.1),
+          indicatorShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+
+        // Separator
+        VerticalDivider(
+          thickness: 1,
+          width: 1,
+          color: AppTheme.borderSecondary.withOpacity(0.3),
+        ),
+
+        // Główna zawartość
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeInOut,
+            switchOutCurve: Curves.easeInOut,
+            child: Container(
+              key: ValueKey(GoRouterState.of(context).matchedLocation),
+              child: widget.child,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Buduje AppBar dla mobile z hamburger menu
+  PreferredSizeWidget _buildMobileAppBar(
+    NotificationService notificationService,
+  ) {
+    return AppBar(
+      backgroundColor: AppTheme.backgroundSecondary,
+      elevation: 0,
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu),
+          color: AppTheme.textPrimary,
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+      ),
+      title: Row(
         children: [
-          // Boczna nawigacja
-          NavigationRail(
-            selectedIndex: selectedIndex,
-            onDestinationSelected: (index) {
-              final route = MainNavigationItems.items[index].route;
-              context.go(route);
-            },
-            extended: _isRailExtended,
-            minExtendedWidth: 220,
-            leading: _buildRailHeader(),
-            trailing: _buildRailTrailing(),
-            destinations: MainNavigationItems.items.map((item) {
-              return NavigationRailDestination(
-                icon: Icon(item.icon),
-                selectedIcon: Icon(item.selectedIcon ?? item.icon),
-                label: Text(item.label),
-              );
-            }).toList(),
-            backgroundColor: AppTheme.backgroundSecondary,
-            selectedIconTheme: IconThemeData(
-              color: AppTheme.secondaryGold,
-              size: 28,
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              gradient: AppTheme.primaryGradient,
             ),
-            unselectedIconTheme: IconThemeData(
-              color: AppTheme.textTertiary,
-              size: 24,
-            ),
-            selectedLabelTextStyle: TextStyle(
-              color: AppTheme.secondaryGold,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-            ),
-            unselectedLabelTextStyle: TextStyle(
-              color: AppTheme.textTertiary,
-              fontSize: 12,
-            ),
-            useIndicator: true,
-            indicatorColor: AppTheme.secondaryGold.withOpacity(0.1),
-            indicatorShape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            padding: const EdgeInsets.all(2),
+            child: Image.asset('assets/logos/logo.png', fit: BoxFit.contain),
           ),
-
-          // Separator
-          VerticalDivider(
-            thickness: 1,
-            width: 1,
-            color: AppTheme.borderSecondary.withOpacity(0.3),
-          ),
-
-          // Główna zawartość
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              switchInCurve: Curves.easeInOut,
-              switchOutCurve: Curves.easeInOut,
-              child: Container(
-                key: ValueKey(currentLocation),
-                child: widget.child,
-              ),
+          const SizedBox(width: 12),
+          Text(
+            'Metropolitan',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
             ),
           ),
         ],
       ),
+      actions: [
+        // Badge powiadomień w AppBar
+        Consumer<NotificationService>(
+          builder: (context, service, child) {
+            final calendarCount = service.calendarNotifications;
+            return calendarCount > 0
+                ? NotificationBadge(
+                    count: calendarCount,
+                    child: IconButton(
+                      icon: const Icon(Icons.notifications_outlined),
+                      color: AppTheme.textPrimary,
+                      onPressed: () => context.go(AppRoutes.notifications),
+                    ),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    color: AppTheme.textTertiary,
+                    onPressed: () => context.go(AppRoutes.notifications),
+                  );
+          },
+        ),
+      ],
+    );
+  }
 
-      // Floating Action Button dla szybkich akcji
-      floatingActionButton: isTablet ? _buildQuickActionsFAB() : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+  /// Buduje Drawer dla mobile z nawigacją
+  Widget _buildMobileDrawer(NotificationService notificationService) {
+    final currentLocation = GoRouterState.of(context).matchedLocation;
+
+    return Drawer(
+      backgroundColor: AppTheme.backgroundSecondary,
+      child: Column(
+        children: [
+          // Header drawera
+          Container(
+            height: 200,
+            width: double.infinity,
+            decoration: BoxDecoration(gradient: AppTheme.primaryGradient),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Logo
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: AppTheme.textOnPrimary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.all(8),
+                      child: Image.asset(
+                        'assets/logos/logo.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    const Spacer(),
+                    // Nazwa aplikacji
+                    Text(
+                      'METROPOLITAN',
+                      style: TextStyle(
+                        color: AppTheme.textOnPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    Text(
+                      'INVESTMENT',
+                      style: TextStyle(
+                        color: AppTheme.textOnPrimary.withOpacity(0.8),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Elementy nawigacji
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: MainNavigationItems.items.map((item) {
+                final isSelected = currentLocation.startsWith(item.route);
+                final notificationCount = item.route == '/calendar'
+                    ? notificationService.getNotificationsForRoute(item.route)
+                    : 0;
+
+                return ListTile(
+                  leading: item.route == '/calendar' && notificationCount > 0
+                      ? NotificationBadge(
+                          count: notificationCount,
+                          child: Icon(
+                            isSelected
+                                ? (item.selectedIcon ?? item.icon)
+                                : item.icon,
+                            color: isSelected
+                                ? AppTheme.secondaryGold
+                                : AppTheme.textTertiary,
+                          ),
+                        )
+                      : Icon(
+                          isSelected
+                              ? (item.selectedIcon ?? item.icon)
+                              : item.icon,
+                          color: isSelected
+                              ? AppTheme.secondaryGold
+                              : AppTheme.textTertiary,
+                        ),
+                  title: Text(
+                    item.label,
+                    style: TextStyle(
+                      color: isSelected
+                          ? AppTheme.secondaryGold
+                          : AppTheme.textPrimary,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  selected: isSelected,
+                  selectedTileColor: AppTheme.secondaryGold.withOpacity(0.1),
+                  onTap: () {
+                    Navigator.of(context).pop(); // Zamknij drawer
+                    context.go(item.route);
+
+                    // Wyczyść powiadomienia kalendarza po kliknięciu
+                    if (item.route == '/calendar') {
+                      notificationService.clearCalendarNotifications();
+                    }
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+
+          // Dolna sekcja z menu użytkownika
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: AppTheme.borderSecondary.withOpacity(0.3),
+                ),
+              ),
+            ),
+            child: _buildMobileUserSection(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Buduje sekcję użytkownika w mobile drawer
+  Widget _buildMobileUserSection() {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        return Column(
+          children: [
+            // Informacje o użytkowniku
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: AppTheme.primaryColor,
+                  child: Text(
+                    _getUserInitial(authProvider),
+                    style: const TextStyle(
+                      color: AppTheme.textOnPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        authProvider.userProfile?.fullName ??
+                            authProvider.user?.displayName ??
+                            'Użytkownik',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: AppTheme.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        authProvider.user?.email ?? '',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textTertiary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Przyciski akcji
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      context.go(AppRoutes.profile);
+                    },
+                    icon: Icon(Icons.person_outline, size: 16),
+                    label: Text('Profil', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.textPrimary,
+                      side: BorderSide(color: AppTheme.borderSecondary),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _showLogoutDialog(authProvider);
+                    },
+                    icon: Icon(
+                      Icons.logout,
+                      size: 16,
+                      color: AppTheme.errorColor,
+                    ),
+                    label: Text(
+                      'Wyloguj',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.errorColor,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.errorColor,
+                      side: BorderSide(color: AppTheme.errorColor),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 

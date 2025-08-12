@@ -1,50 +1,47 @@
 # Metropolitan Investment - AI Assistant Guidelines
 
 ## Project Overview
-This is a Flutter-based investment management platform with Firebase backend and advanced analytics. The system manages clients, investments (shares, bonds, loans), employees, and complex investor analytics with server-side processing.
+Flutter-based investment management platform with Firebase backend, specialized in sophisticated analytics and server-side processing. Manages clients, investments (unified across product types), employees, and complex investor analytics through Firebase Functions architecture.
 
 ## Architecture & Key Components
 
 ### Frontend (Flutter)
-- **State Management**: Dual system using `provider` + `flutter_riverpod` (see `main.dart` lines 11-21)
+- **State Management**: Dual system using `provider` (auth) + `flutter_riverpod` (data state)
 - **Routing**: Go Router with shell layout architecture in `lib/config/app_routes.dart`
-- **Theme**: Dark-first design system in `lib/theme/app_theme.dart`
-- **Models**: Central export from `lib/models_and_services.dart` - always import from here
+- **Theme**: Professional dark theme (`AppThemePro.professionalTheme`) with gold accents
+- **Models**: Central export from `lib/models_and_services.dart` - **ALWAYS import from here**
 
-### Backend (Firebase)
-- **Firestore**: Main database with optimized indexes (see `firestore.indexes.json`)
-- **Functions**: Heavy analytics processing in `functions/index.js` (Europe-West1 region)
-- **Analytics**: Server-side investor analytics with 5-minute caching
-- **Authentication**: Firebase Auth with custom `AuthProvider`
+### Backend (Firebase)  
+- **Region**: `europe-west1` for all Firebase Functions (closer to Poland)
+- **Firestore**: Unified data architecture with optimized compound indexes
+- **Functions**: Modular system with specialized analytics modules (2GB memory allocation)
+- **Authentication**: Firebase Auth with custom `AuthProvider` and redirect logic
 
 ### Critical Service Pattern
-All services extend `BaseService` with built-in caching (5-minute TTL):
+All services extend `BaseService` with 5-minute TTL caching:
 - Use `FirebaseFirestore.instance` directly
-- Implement error handling with try-catch
-- Return `Future<List<T>>` or `Future<T?>`
-- Cache with `getCachedData<T>(cacheKey, query)` method
+- Cache with `getCachedData<T>(cacheKey, query)` method  
+- Error handling: `logError()` in debug mode, return `null` for not found
 
-### Data Architecture Pattern
-Simplified architecture using single source of truth:
+### Unified Data Architecture (Critical)
+**Single Source of Truth:** All product data stored in `investments` collection only
 
-**Primary Data Source:**
-- All product data stored in `investments` collection only
-- Server-side processing in Firebase Functions (europe-west1)
-- Client-side access through `FirebaseFunctionsProductsService`
-
-**Critical field mappings:**
+**Core field mappings (CRITICAL naming conventions):**
 ```dart
-// Investment model: Database field -> Code property  
-'kapital_pozostaly' (Firestore) -> remainingCapital (Dart)
-'kwota_inwestycji' (Firestore) -> investmentAmount (Dart)
-'productType' (Firestore) -> apartments|bonds|shares|loans (UnifiedProductType)
-
-// InvestorSummary: Only executable investments count
-investor.viableRemainingCapital  // Excludes unviable investments
-investor.totalRemainingCapital   // All investments (legacy)
+// Database field -> Code property
+'kapital_pozostaly' -> remainingCapital    // Main capital metric
+'kwota_inwestycji' -> investmentAmount     // Original investment  
+'productType' -> UnifiedProductType        // apartments|bonds|shares|loans
+'klient' -> clientId                       // Client reference field
+'data_podpisania' -> signedDate           // Contract date
 ```
 
 **Legacy Collections:** `bonds`, `shares`, `loans`, `apartments`, `products` are deprecated and empty.
+
+**Analytics Architecture:** Server-side processing through Firebase Functions
+- Client-side services: `firebase_functions_*_service.dart`
+- Server-side modules: `functions/services/`, `functions/analytics/`  
+- Specialized functions: `dashboard-specialized.js`, `advanced-analytics.js`
 
 ## Development Workflows
 
@@ -55,29 +52,31 @@ flutter run                    # Debug mode
 flutter build web --release    # Production web build
 ```
 
-### Firebase Functions
+### Firebase Functions (Critical)
 ```bash
 cd functions
 npm install
 firebase deploy --only functions  # Deploy to Europe-West1
+node test_analytics.js           # Test analytics modules locally
 ```
 
-### Data Migration Tools
-Use scripts in `tools/` directory for Excel imports and data analysis:
+### Data Migration & Tools
+Excel import and analysis tools in `tools/` directory:
 ```bash
 dart run tools/complete_client_extractor.dart    # Extract clients from Excel
-dart run tools/complete_investment_extractor.dart # Extract investments
-node upload_clients_to_firebase.js               # Upload to Firestore
-node split_json_by_investment_type_complete.js   # Split by product type
+dart run tools/complete_investment_extractor.dart # Extract investments  
+dart run tools/diagnose_statistics.dart         # Statistics diagnostics
+node upload_clients_to_firebase.js              # Upload to Firestore
 ```
 
-### Database Management
-Critical indexes in `firestore.indexes.json` - required for performance:
+### Database Management  
+Critical indexes in `firestore.indexes.json`:
 ```bash
-./deploy_indexes.sh                    # Deploy Firestore indexes
-./check_firestore_indexes.sh          # Verify index status
-firebase deploy --only functions      # Deploy to Europe-West1
+firebase deploy --only firestore:indexes    # Deploy required compound indexes
+firebase deploy --only functions           # Deploy to europe-west1
 ```
+
+## Project-Specific Conventions
 
 ## Project-Specific Conventions
 
