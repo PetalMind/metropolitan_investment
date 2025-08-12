@@ -181,7 +181,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
 
   Widget _buildStatistics() {
     // 📊 STATYSTYKI INWESTORÓW - bardziej odpowiednie dla tej zakładki
-    
+
     // Suma wszystkich inwestycji (nie wartość, ale liczba)
     final totalInvestmentCount = widget.investors.fold(
       0,
@@ -189,12 +189,12 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
     );
 
     // Liczba aktywnych inwestorów (mających inwestycje w tym produkcie)
-    final activeInvestorsCount = widget.investors.where(
-      (investor) => _getProductInvestmentCount(investor) > 0,
-    ).length;
+    final activeInvestorsCount = widget.investors
+        .where((investor) => _getProductInvestmentCount(investor) > 0)
+        .length;
 
     // Średnia liczba inwestycji na inwestora
-    final averageInvestmentsPerInvestor = activeInvestorsCount > 0 
+    final averageInvestmentsPerInvestor = activeInvestorsCount > 0
         ? (totalInvestmentCount / activeInvestorsCount).toStringAsFixed(1)
         : '0.0';
 
