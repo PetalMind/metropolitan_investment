@@ -178,7 +178,7 @@ class IntegratedClientService extends BaseService {
   /// Pobiera statystyki klientów - próbuje Firebase Functions, fallback to ClientService
   Future<ClientStats> getClientStats({bool forceRefresh = false}) async {
     print('🔍 [IntegratedClientService] Pobieranie statystyk klientów...');
-    
+
     try {
       // Najpierw spróbuj Firebase Functions
       print('   - Próba Firebase Functions...');
@@ -214,7 +214,9 @@ class IntegratedClientService extends BaseService {
 
       // Sprawdź czy dane wyglądają sensownie
       if (stats.totalRemainingCapital == 0 && stats.totalClients > 0) {
-        print('⚠️ [WARNING] Firebase Functions zwróciły 0 kapitału dla ${stats.totalClients} klientów');
+        print(
+          '⚠️ [WARNING] Firebase Functions zwróciły 0 kapitału dla ${stats.totalClients} klientów',
+        );
         print('   - Wymuszam fallback...');
         throw Exception('Nieprawidłowe dane z Firebase Functions');
       }
@@ -235,7 +237,9 @@ class IntegratedClientService extends BaseService {
         final unifiedStats = await _getUnifiedClientStats();
         final clientsStats = await _fallbackService.getClientStats();
 
-        final totalClients = (clientsStats['total_clients'] as int?) ?? unifiedStats.totalClients;
+        final totalClients =
+            (clientsStats['total_clients'] as int?) ??
+            unifiedStats.totalClients;
         final totalInvestments = unifiedStats.totalInvestments;
         final totalRemainingCapital = unifiedStats.totalRemainingCapital;
 
@@ -261,7 +265,9 @@ class IntegratedClientService extends BaseService {
         );
         return stats;
       } catch (fallbackError) {
-        print('❌ [IntegratedClientService] Zaawansowany fallback błąd: $fallbackError');
+        print(
+          '❌ [IntegratedClientService] Zaawansowany fallback błąd: $fallbackError',
+        );
         logError(
           'getClientStats',
           'Zaawansowany fallback też nie działa: $fallbackError',
@@ -291,7 +297,9 @@ class IntegratedClientService extends BaseService {
           );
           return stats;
         } catch (basicError) {
-          print('❌ [IntegratedClientService] Wszystkie fallbacki zawiodły: $basicError');
+          print(
+            '❌ [IntegratedClientService] Wszystkie fallbacki zawiodły: $basicError',
+          );
           logError(
             'getClientStats',
             'Wszystkie fallbacki zawiodły: $basicError',
@@ -432,8 +440,8 @@ class IntegratedClientService extends BaseService {
       totalClients: totalClients,
       totalInvestments: investmentsData.length,
       totalRemainingCapital: unifiedStats.viableCapital, // Użyj viable capital
-      averageCapitalPerClient: totalClients > 0 
-          ? unifiedStats.viableCapital / totalClients 
+      averageCapitalPerClient: totalClients > 0
+          ? unifiedStats.viableCapital / totalClients
           : 0.0,
       lastUpdated: DateTime.now().toIso8601String(),
       source: 'unified-statistics',

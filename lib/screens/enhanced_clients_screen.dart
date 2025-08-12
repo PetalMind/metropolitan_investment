@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../theme/app_theme.dart';
 import '../models_and_services.dart';
-import '../widgets/data_table_widget.dart';
-import '../widgets/custom_loading_widget.dart';
-import '../widgets/client_form.dart';
 
 class EnhancedClientsScreen extends StatefulWidget {
   const EnhancedClientsScreen({super.key});
@@ -77,26 +73,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
           _clientStats = futures[2] as ClientStats;
           _isLoading = false;
         });
-
-        // Debug - sprawdź co otrzymaliśmy
-        print('🔍 [EnhancedClientsScreen] Załadowano:');
-        print('   - Wszyscy klienci: ${_allClients.length}');
-        print('   - Aktywni klienci: ${_activeClients.length}');
-        print('   - Stats - totalClients: ${_clientStats?.totalClients}');
-        print(
-          '   - Stats - totalInvestments: ${_clientStats?.totalInvestments}',
-        );
-        print(
-          '   - Stats - totalRemainingCapital: ${_clientStats?.totalRemainingCapital}',
-        );
-        print('   - Stats - source: ${_clientStats?.source}');
-        
-        // ⚠️ DODATKOWE DEBUGOWANIE
-        if (_clientStats?.totalRemainingCapital == 0) {
-          print('⚠️ [WARNING] Total remaining capital is 0! Checking fallback...');
-          print('   - LastUpdated: ${_clientStats?.lastUpdated}');
-          print('   - AverageCapitalPerClient: ${_clientStats?.averageCapitalPerClient}');
-        }
 
         // Zastosuj filtrowanie jeśli potrzeba
         _applyCurrentFilters();
@@ -200,83 +176,27 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
 
   /// Pokaż formularz klienta
   void _showClientForm([Client? client]) {
-    showDialog(
+    ClientDialog.show(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: AppTheme.backgroundModal,
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.8,
-          constraints: const BoxConstraints(maxWidth: 800, maxHeight: 600),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Nagłówek
-              Row(
-                children: [
-                  Icon(
-                    client == null ? Icons.person_add : Icons.edit,
-                    color: AppTheme.secondaryGold,
-                    size: 28,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    client == null ? 'Nowy Klient' : 'Edytuj Klienta',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(
-                      Icons.close,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const Divider(),
-              const SizedBox(height: 16),
+      client: client,
+      onSave: (savedClient) async {
+        try {
+          if (client == null) {
+            // Nowy klient
+            await _clientService.createClient(savedClient);
+            _showSuccessSnackBar('Klient został dodany');
+          } else {
+            // Aktualizacja klienta
+            await _clientService.updateClient(client.id, savedClient);
+            _showSuccessSnackBar('Klient został zaktualizowany');
+          }
 
-              // Formularz klienta
-              Expanded(
-                child: ClientForm(
-                  client: client,
-                  onSave: (savedClient) async {
-                    Navigator.of(context).pop();
-
-                    try {
-                      if (client == null) {
-                        // Nowy klient
-                        await _clientService.createClient(savedClient);
-                        _showSuccessSnackBar('Klient został dodany');
-                      } else {
-                        // Aktualizacja klienta
-                        await _clientService.updateClient(
-                          client.id,
-                          savedClient,
-                        );
-                        _showSuccessSnackBar('Klient został zaktualizowany');
-                      }
-
-                      // Odśwież dane po zapisaniu
-                      await _refreshData();
-                    } catch (e) {
-                      _showErrorSnackBar('Błąd podczas zapisywania: $e');
-                    }
-                  },
-                  onCancel: () => Navigator.of(context).pop(),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+          // Odśwież dane po zapisaniu
+          await _refreshData();
+        } catch (e) {
+          _showErrorSnackBar('Błąd podczas zapisywania: $e');
+        }
+      },
     );
   }
 

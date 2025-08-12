@@ -12,7 +12,7 @@ import 'lib/firebase_options.dart';
 Future<void> main() async {
   print('🧪 Test naprawy statystyk klientów');
   print('=' * 50);
-  
+
   try {
     // Initialize Firebase
     print('Inicjalizacja Firebase...');
@@ -21,24 +21,28 @@ Future<void> main() async {
     );
     print('✅ Firebase zainicjalizowany');
     print('');
-    
+
     print('1. Testowanie IntegratedClientService...');
     final clientService = IntegratedClientService();
-    
+
     print('   - Pobieranie statystyk klientów...');
     final stats = await clientService.getClientStats();
-    
+
     print('✅ Statystyki klientów:');
     print('   * Liczba klientów: ${stats.totalClients}');
     print('   * Liczba inwestycji: ${stats.totalInvestments}');
-    print('   * Kapitał pozostały: ${stats.totalRemainingCapital.toStringAsFixed(2)} PLN');
-    print('   * Średni kapitał na klienta: ${stats.averageCapitalPerClient.toStringAsFixed(2)} PLN');
+    print(
+      '   * Kapitał pozostały: ${stats.totalRemainingCapital.toStringAsFixed(2)} PLN',
+    );
+    print(
+      '   * Średni kapitał na klienta: ${stats.averageCapitalPerClient.toStringAsFixed(2)} PLN',
+    );
     print('   * Źródło danych: ${stats.source}');
     print('   * Ostatnia aktualizacja: ${stats.lastUpdated}');
-    
+
     print('');
     print('2. Testowanie UnifiedStatisticsUtils...');
-    
+
     // Przykład testowy - można rozszerzyć
     final testInvestments = [
       {
@@ -52,16 +56,15 @@ Future<void> main() async {
         'productStatus': 'Nieaktywny',
       },
     ];
-    
+
     final unifiedStats = UnifiedSystemStats.fromInvestments(testInvestments);
     print('✅ Zunifikowane statystyki (test):');
     print('   * Total Value: ${unifiedStats.totalValue}');
     print('   * Viable Capital: ${unifiedStats.viableCapital}');
     print('   * Majority Threshold: ${unifiedStats.majorityThreshold}');
-    
+
     print('');
     print('✅ Test zakończony pomyślnie!');
-    
   } catch (e, stackTrace) {
     print('❌ Błąd podczas testowania: $e');
     print('Stack trace: $stackTrace');

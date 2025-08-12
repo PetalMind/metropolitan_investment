@@ -14,7 +14,7 @@ async function testClientStats() {
   try {
     // Test pobrania statystyk systemu
     console.log('\n1️⃣ Test getSystemStats...');
-    
+
     const mockRequest = {
       data: {
         forceRefresh: true
@@ -22,7 +22,7 @@ async function testClientStats() {
     };
 
     const result = await getSystemStats(mockRequest);
-    
+
     console.log('✅ System Stats Result:');
     console.log('  - Total Clients:', result.totalClients);
     console.log('  - Active Clients:', result.activeClients);
@@ -31,26 +31,26 @@ async function testClientStats() {
     console.log('  - Average Capital Per Client:', result.averageCapitalPerClient);
     console.log('  - Source:', result.source);
     console.log('  - Processing Time:', result.processingTime + 'ms');
-    
+
     // Sprawdź czy dane są prawidłowe
     if (result.totalClients === 0) {
       console.log('⚠️ WARNING: Total clients is 0 - check clients collection');
     }
-    
+
     if (result.totalRemainingCapital === 0) {
       console.log('⚠️ WARNING: Total remaining capital is 0 - check investments collection');
     }
-    
+
     // Test bezpośredniego dostępu do bazy danych
     console.log('\n2️⃣ Test Direct Database Access...');
     const db = admin.firestore();
-    
+
     const clientsSnapshot = await db.collection('clients').get();
     console.log('  - Clients in database:', clientsSnapshot.size);
-    
+
     const investmentsSnapshot = await db.collection('investments').get();
     console.log('  - Investments in database:', investmentsSnapshot.size);
-    
+
     // Próbka danych z pierwszych dokumentów
     if (clientsSnapshot.size > 0) {
       const firstClient = clientsSnapshot.docs[0].data();
@@ -61,7 +61,7 @@ async function testClientStats() {
         isActive: firstClient.isActive
       });
     }
-    
+
     if (investmentsSnapshot.size > 0) {
       const firstInvestment = investmentsSnapshot.docs[0].data();
       console.log('  - First investment sample:', {

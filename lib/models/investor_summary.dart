@@ -64,39 +64,41 @@ class InvestorSummary {
       // 🏗️ POBIERZ DODATKOWE POLA - sprawdź główny poziom PIERWSZE, potem additionalInfo
       // Mapowanie dla kapitału zabezpieczonego nieruchomością - z automatycznym fallback
       double investmentCapitalSecured = 0.0;
-      
+
       // Najpierw sprawdź bezpośrednie pola na głównym poziomie
       if (investment.additionalInfo.containsKey('capitalSecuredByRealEstate')) {
         investmentCapitalSecured = parseCapitalValue(
-          investment.additionalInfo['capitalSecuredByRealEstate']
+          investment.additionalInfo['capitalSecuredByRealEstate'],
         );
-      } else if (investment.additionalInfo['realEstateSecuredCapital'] != null) {
+      } else if (investment.additionalInfo['realEstateSecuredCapital'] !=
+          null) {
         investmentCapitalSecured = parseCapitalValue(
-          investment.additionalInfo['realEstateSecuredCapital']
+          investment.additionalInfo['realEstateSecuredCapital'],
         );
       } else if (investment
               .additionalInfo['Kapitał zabezpieczony nieruchomością'] !=
           null) {
         investmentCapitalSecured = parseCapitalValue(
-          investment.additionalInfo['Kapitał zabezpieczony nieruchomością']
+          investment.additionalInfo['Kapitał zabezpieczony nieruchomością'],
         );
       } else if (investment
               .additionalInfo['kapital_zabezpieczony_nieruchomoscia'] !=
           null) {
         investmentCapitalSecured = parseCapitalValue(
-          investment.additionalInfo['kapital_zabezpieczony_nieruchomoscia']
+          investment.additionalInfo['kapital_zabezpieczony_nieruchomoscia'],
         );
       } else {
         // Automatyczne obliczenie jako fallback
         final capitalForRestructuringValue = parseCapitalValue(
           investment.additionalInfo['capitalForRestructuring'] ??
-          investment.additionalInfo['Kapitał do restrukturyzacji'] ??
-          investment.additionalInfo['kapital_do_restrukturyzacji']
+              investment.additionalInfo['Kapitał do restrukturyzacji'] ??
+              investment.additionalInfo['kapital_do_restrukturyzacji'],
         );
-        final result = investment.remainingCapital - capitalForRestructuringValue;
+        final result =
+            investment.remainingCapital - capitalForRestructuringValue;
         investmentCapitalSecured = result > 0 ? result : 0.0;
       }
-      
+
       capitalSecuredByRealEstate += investmentCapitalSecured;
 
       // Mapowanie dla kapitału do restrukturyzacji

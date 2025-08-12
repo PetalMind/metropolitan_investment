@@ -69,6 +69,13 @@ export 'widgets/metropolitan_components.dart';
 export 'widgets/investor_details_modal.dart';
 export 'widgets/capital_calculation_management_screen.dart';
 export 'widgets/capital_calculation_widgets.dart';
+export 'widgets/client_dialog.dart';
+export 'widgets/custom_loading_widget.dart';
+export 'widgets/data_table_widget.dart';
+export 'widgets/client_form.dart';
+
+// Theme exports
+export 'theme/app_theme.dart';
 
 // Utils exports
 export 'utils/currency_formatter.dart';

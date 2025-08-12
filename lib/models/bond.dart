@@ -80,7 +80,7 @@ class Bond {
   double get totalValue => remainingCapital; // tylko kapital_pozostaly
   double get profitLoss => 0.0; // nie uwzględniamy profit/loss
   double get profitLossPercentage => 0.0; // nie uwzględniamy performance
-  
+
   /// Getter dla kapitału zabezpieczonego nieruchomością z automatycznym obliczaniem
   /// Jeśli pole nie jest obliczone, oblicza: remainingCapital - capitalForRestructuring
   double get effectiveCapitalSecuredByRealEstate {
@@ -88,7 +88,7 @@ class Bond {
     if (capitalSecuredByRealEstate != null) {
       return capitalSecuredByRealEstate!;
     }
-    
+
     // Automatyczne obliczenie jako fallback
     final restructuringCapital = capitalForRestructuring ?? 0.0;
     final result = remainingCapital - restructuringCapital;
