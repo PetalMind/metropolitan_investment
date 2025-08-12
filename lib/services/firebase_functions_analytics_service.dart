@@ -191,7 +191,7 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
   /// **POBIERANIE WSZYSTKICH KLIENTÓW** przez Firebase Functions
   Future<ClientsResult> getAllClients({
     int page = 1,
-    int pageSize = 500,
+    int pageSize = 5000,
     String? searchQuery,
     String sortBy = 'imie_nazwisko',
     bool forceRefresh = false,
@@ -235,7 +235,7 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
   /// **POBIERANIE WSZYSTKICH INWESTYCJI** przez Firebase Functions
   Future<InvestmentsResult> getAllInvestments({
     int page = 1,
-    int pageSize = 500,
+    int pageSize = 5000,
     String? clientFilter,
     String? productTypeFilter,
     String sortBy = 'data_kontraktu',

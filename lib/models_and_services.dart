@@ -20,7 +20,7 @@ export 'models/analytics/overview_analytics_models.dart';
 // Services exports
 export 'services/base_service.dart';
 export 'services/client_service.dart';
-export 'services/firebase_functions_client_service.dart';
+export 'services/firebase_functions_client_service.dart' show ClientStats;
 export 'services/integrated_client_service.dart';
 export 'services/client_notes_service.dart';
 export 'services/client_id_mapping_service.dart';
@@ -73,6 +73,10 @@ export 'widgets/client_dialog.dart';
 export 'widgets/custom_loading_widget.dart';
 export 'widgets/data_table_widget.dart';
 export 'widgets/client_form.dart';
+export 'widgets/client_stats_widget.dart';
+export 'widgets/enhanced_client_stats_widget.dart';
+export 'widgets/client_stats_demo.dart';
+export 'widgets/client_stats_debug_widget.dart';
 
 // Theme exports
 export 'theme/app_theme.dart';

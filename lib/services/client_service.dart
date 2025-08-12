@@ -61,7 +61,7 @@ class ClientService extends BaseService {
     return firestore
         .collection(_collection)
         .orderBy('fullName')
-        .limit(limit ?? 50) // Domyślnie ograniczamy do 50
+        .limit(limit ?? 1000) // Zwiększony domyślny limit z 50 na 1000
         .snapshots()
         .map(
           (snapshot) =>
@@ -100,7 +100,8 @@ class ClientService extends BaseService {
   }
 
   // Search clients - ZOPTYMALIZOWANE z wykorzystaniem indeksów
-  Stream<List<Client>> searchClients(String query, {int limit = 30}) {
+  Stream<List<Client>> searchClients(String query, {int limit = 1000}) {
+    // Zwiększony limit
     if (query.isEmpty) return getClients(limit: limit);
 
     // Wykorzystuje indeks: email + fullName
@@ -170,7 +171,8 @@ class ClientService extends BaseService {
   // NOWE METODY dla danych z Excel
 
   // Pobierz klientów z emailem z optymalizacją - wykorzystuje indeks email + fullName
-  Stream<List<Client>> getClientsWithEmail({int limit = 50}) {
+  Stream<List<Client>> getClientsWithEmail({int limit = 1000}) {
+    // Zwiększony limit
     return firestore
         .collection(_collection)
         .where('email', isNotEqualTo: '')
@@ -249,9 +251,22 @@ class ClientService extends BaseService {
   // Get all clients (helper method for analytics)
   Future<List<Client>> getAllClients() async {
     try {
+      print(
+        '🔍 [ClientService.getAllClients] Pobieranie WSZYSTKICH klientów z Firestore...',
+      );
       final snapshot = await firestore.collection(_collection).get();
-      return snapshot.docs.map((doc) => Client.fromFirestore(doc)).toList();
+      print(
+        '🔍 [ClientService.getAllClients] Firestore zwrócił ${snapshot.docs.length} dokumentów',
+      );
+      final clients = snapshot.docs
+          .map((doc) => Client.fromFirestore(doc))
+          .toList();
+      print(
+        '🔍 [ClientService.getAllClients] Przekonwertowano do ${clients.length} obiektów Client',
+      );
+      return clients;
     } catch (e) {
+      print('❌ [ClientService.getAllClients] Błąd: $e');
       logError('getAllClients', e);
       throw Exception('Failed to get all clients: $e');
     }
@@ -271,12 +286,20 @@ class ClientService extends BaseService {
       onProgress?.call(0.4, 'Pobieranie danych klientów...');
       final snapshot = await firestore.collection(_collection).get();
 
+      print(
+        '🔍 [ClientService.loadAllClientsWithProgress] Pobrałem ${snapshot.docs.length} dokumentów z Firestore',
+      );
+
       onProgress?.call(0.6, 'Przetwarzanie informacji...');
       await Future.delayed(const Duration(milliseconds: 200));
 
       final clients = snapshot.docs
           .map((doc) => Client.fromFirestore(doc))
           .toList();
+
+      print(
+        '🔍 [ClientService.loadAllClientsWithProgress] Przetworzyłem ${clients.length} klientów',
+      );
 
       onProgress?.call(0.8, 'Optymalizacja wyświetlania...');
       await Future.delayed(const Duration(milliseconds: 200));
@@ -367,7 +390,8 @@ class ClientService extends BaseService {
   // ===== NOWE METODY WYKORZYSTUJĄCE INDEKSY =====
 
   // Pobierz aktywnych klientów - wykorzystuje indeks isActive + fullName
-  Stream<List<Client>> getActiveClients({int limit = 100}) {
+  Stream<List<Client>> getActiveClients({int limit = 10000}) {
+    // Zwiększony limit
     // Ponieważ dane z Excel nie mają pola isActive, pobieramy wszystkich klientów
     return firestore
         .collection(_collection)
@@ -381,7 +405,8 @@ class ClientService extends BaseService {
   }
 
   // Pobierz klientów według typu - dane z Excel nie mają pola type
-  Stream<List<Client>> getClientsByType(ClientType type, {int limit = 50}) {
+  Stream<List<Client>> getClientsByType(ClientType type, {int limit = 1000}) {
+    // Zwiększony limit
     // Pobieramy wszystkich klientów (dane nie mają pola type)
     return firestore
         .collection(_collection)
@@ -397,7 +422,7 @@ class ClientService extends BaseService {
   // Pobierz klientów według statusu głosowania - wykorzystuje indeks votingStatus + updatedAt
   Stream<List<Client>> getClientsByVotingStatus(
     VotingStatus votingStatus, {
-    int limit = 50,
+    int limit = 1000, // Zwiększony limit
   }) {
     // Pobieramy wszystkich klientów (dane nie mają pola votingStatus)
     return firestore

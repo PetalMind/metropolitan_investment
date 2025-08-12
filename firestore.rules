@@ -9,11 +9,13 @@ service cloud.firestore {
     // Clients collection
     match /clients/{clientId} {
       allow read, write: if request.auth != null;
+      // Simplified create rule - just require auth and basic structure
       allow create: if request.auth != null && 
         resource == null &&
-        request.resource.data.keys().hasAll(['name', 'email', 'phone', 'createdAt', 'updatedAt']);
-      allow update: if request.auth != null && 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'email', 'phone', 'address', 'updatedAt', 'isActive', 'additionalInfo']);
+        request.resource.data.keys().hasAny(['name', 'fullName']) &&
+        request.resource.data.keys().hasAll(['createdAt', 'updatedAt']);
+      // More flexible update rule
+      allow update: if request.auth != null;
     }
     
     // Investments collection

@@ -395,7 +395,7 @@ class FirebaseFunctionsDataService extends BaseService {
   /// 👥 POBIERANIE KLIENTÓW Z SERWERA
   static Future<ClientsResult> getAllClients({
     int page = 1,
-    int pageSize = 500,
+    int pageSize = 5000,
     String? searchQuery,
     String sortBy = 'imie_nazwisko',
     bool forceRefresh = false,
@@ -439,7 +439,7 @@ class FirebaseFunctionsDataService extends BaseService {
   /// 💼 POBIERANIE INWESTYCJI Z SERWERA
   static Future<InvestmentsResult> getAllInvestments({
     int page = 1,
-    int pageSize = 500,
+    int pageSize = 5000,
     String? clientFilter,
     String? productTypeFilter,
     String sortBy = 'data_kontraktu',

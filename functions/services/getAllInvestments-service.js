@@ -74,7 +74,7 @@ const getAllInvestments = onCall({
 
     const {
       page = 1,
-      pageSize = 500,
+      pageSize = 5000,
       clientFilter,
       productTypeFilter,
       sortBy = 'contractDate',

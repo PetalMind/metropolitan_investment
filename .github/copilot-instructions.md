@@ -8,40 +8,39 @@ Flutter-based investment management platform with Firebase backend, specialized 
 ### Frontend (Flutter)
 - **State Management**: Dual system using `provider` (auth) + `flutter_riverpod` (data state)
 - **Routing**: Go Router with shell layout architecture in `lib/config/app_routes.dart`
-- **Theme**: Professional dark theme (`AppThemePro.professionalTheme`) with gold accents
+- **Theme**: Professional dark theme with gold accents - use `AppTheme` class constants
 - **Models**: Central export from `lib/models_and_services.dart` - **ALWAYS import from here**
 
 ### Backend (Firebase)  
 - **Region**: `europe-west1` for all Firebase Functions (closer to Poland)
 - **Firestore**: Unified data architecture with optimized compound indexes
-- **Functions**: Modular system with specialized analytics modules (2GB memory allocation)
+- **Functions**: Modular system with specialized analytics modules (Node.js 20)
 - **Authentication**: Firebase Auth with custom `AuthProvider` and redirect logic
 
 ### Critical Service Pattern
 All services extend `BaseService` with 5-minute TTL caching:
-- Use `FirebaseFirestore.instance` directly
-- Cache with `getCachedData<T>(cacheKey, query)` method  
-- Error handling: `logError()` in debug mode, return `null` for not found
+```dart
+// Standard pattern for all services
+Future<T> getCachedData<T>(String cacheKey, Future<T> Function() query)
+// Use FirebaseFirestore.instance directly
+// Error handling: logError() in debug mode, return null for not found
+```
 
 ### Unified Data Architecture (Critical)
 **Single Source of Truth:** All product data stored in `investments` collection only
 
-**Core field mappings (CRITICAL naming conventions):**
+**Field mapping pattern (CRITICAL naming conventions):**
 ```dart
-// Database field -> Code property
-'kapital_pozostaly' -> remainingCapital    // Main capital metric
-'kwota_inwestycji' -> investmentAmount     // Original investment  
-'productType' -> UnifiedProductType        // apartments|bonds|shares|loans
-'klient' -> clientId                       // Client reference field
-'data_podpisania' -> signedDate           // Contract date
+// Code uses ENGLISH property names, Firebase stores POLISH field names (legacy + normalized)
+// Investment model handles both automatically in fromFirestore()
+remainingCapital    // Code property <- maps from 'remainingCapital' | 'kapital_pozostaly' | 'Kapital Pozostaly'
+investmentAmount    // Code property <- maps from 'investmentAmount' | 'kwota_inwestycji' | 'Kwota_inwestycji'
+clientId            // Code property <- maps from 'clientId' | 'klient' | 'ID_Klient'
+signedDate          // Code property <- maps from 'signingDate' | 'data_podpisania' | 'Data_podpisania'
+productType         // Code property <- maps from 'productType' | 'typ_produktu' | 'Typ_produktu'
 ```
 
 **Legacy Collections:** `bonds`, `shares`, `loans`, `apartments`, `products` are deprecated and empty.
-
-**Analytics Architecture:** Server-side processing through Firebase Functions
-- Client-side services: `firebase_functions_*_service.dart`
-- Server-side modules: `functions/services/`, `functions/analytics/`  
-- Specialized functions: `dashboard-specialized.js`, `advanced-analytics.js`
 
 ## Development Workflows
 
@@ -57,108 +56,118 @@ flutter build web --release    # Production web build
 cd functions
 npm install
 firebase deploy --only functions  # Deploy to Europe-West1
-node test_analytics.js           # Test analytics modules locally
+npm test                          # Run test_analytics.js
 ```
 
 ### Data Migration & Tools
-Excel import and analysis tools in `tools/` directory:
+Excel import and analysis tools in root directory:
 ```bash
 dart run tools/complete_client_extractor.dart    # Extract clients from Excel
 dart run tools/complete_investment_extractor.dart # Extract investments  
-dart run tools/diagnose_statistics.dart         # Statistics diagnostics
 node upload_clients_to_firebase.js              # Upload to Firestore
 ```
 
 ### Database Management  
-Critical indexes in `firestore.indexes.json`:
 ```bash
-firebase deploy --only firestore:indexes    # Deploy required compound indexes
+firebase deploy --only firestore:indexes    # Deploy compound indexes
 firebase deploy --only functions           # Deploy to europe-west1
 ```
 
 ## Project-Specific Conventions
 
-## Project-Specific Conventions
-
-### Model Structure
-- **Client**: `imie_nazwisko`, `email`, `telefon`, `nazwa_firmy`, `votingStatus`
-- **Investment**: Uses `kapital_pozostaly` field (stored) mapped to `remainingCapital` (code) - CRITICAL naming convention
-- **InvestorSummary**: Aggregates client + investments with `viableRemainingCapital` (only executable investments)
-
-### Service Naming
-- Optimized services: `optimized_*_service.dart` for performance-critical operations
-- Firebase Functions services: `firebase_functions_*_service.dart` for server-side calls
-- Base services: Standard CRUD operations extending `BaseService`
+### Service Architecture
+- **Base Pattern**: All services extend `BaseService` with caching
+- **Naming**: `firebase_functions_*_service.dart` for server-side calls, `optimized_*_service.dart` for performance
+- **Analytics Services**: Client-side filtering + server-side aggregation pattern
 
 ### Navigation Pattern
-- Routes defined in `AppRoutes` class with typed path generators
-- Shell layout wraps authenticated routes in `MainLayout`
-- Extension methods on `BuildContext` for type-safe navigation
+```dart
+// Routes in AppRoutes class with typed generators
+AppRoutes.clientDetailsPath(id)
+// Shell layout wraps authenticated routes  
+// Extension methods on BuildContext for type-safe navigation
+context.goToClientDetails(id)
+```
+
+### Model Structure
+- **Client**: Polish fields (`imie_nazwisko`, `nazwa_firmy`) with `votingStatus`
+- **Investment**: Uses `kapital_pozostaly` → `remainingCapital` mapping
+- **InvestorSummary**: Aggregates client + investments with `viableRemainingCapital`
 
 ### Analytics Architecture
-Critical pattern: Client-side filtering + server-side aggregation
-1. `PremiumInvestorAnalyticsScreen` calls `firebase_functions_analytics_service.dart`
-2. Server processes in `functions/index.js` with memory optimization
-3. Results cached for 5 minutes server-side, 2 minutes client-side
-
-### Error Handling
-- Services: Return `null` on not found, throw for system errors
-- UI: Use `FutureBuilder` with error states
-- Firebase Functions: Use `HttpsError` with proper error codes
+**Critical pattern**: Client-side filtering + server-side aggregation
+1. `PremiumInvestorAnalyticsScreen` → `firebase_functions_analytics_service.dart`
+2. Server processes in `functions/index.js` with modular services
+3. Results cached: 5min server-side, 2min client-side
 
 ## Integration Points
 
 ### Firebase Functions Communication
 ```dart
-// Call server-side analytics
+// Always use europe-west1 region
 final result = await FirebaseFunctions.instanceFor(region: 'europe-west1')
     .httpsCallable('getOptimizedInvestorAnalytics')
     .call(data);
 ```
 
 ### State Management Bridge
-Provider wraps Riverpod for auth state, Riverpod for data state:
 ```dart
-// Auth (Provider)
+// Auth (Provider pattern)
 context.read<AuthProvider>().signOut()
-
-// Data (Riverpod)  
+// Data state (Riverpod)  
 ref.watch(clientsProvider)
 ```
 
-### Cross-Platform Considerations
-- Web: Uses `responsive_framework` for breakpoints
-- Mobile: Standard Flutter Material Design
-- Assets: Structured in `assets/` with proper pubspec.yaml declarations
+### Cross-Platform Support
+- Web: `responsive_framework` for breakpoints
+- Mobile: Standard Material Design
+- Charts: `fl_chart` + `syncfusion_flutter_charts`
 
 ## Performance Patterns
 
-### Data Loading
+### Data Loading Strategy
 - Use Firebase Functions for analytics (>1000 records)
-- Implement pagination with `pageSize: 250` for large datasets
-- Cache results in services using simple Map-based cache
+- Pagination with `pageSize: 250` for large datasets  
+- Map-based caching in services with TTL
 
 ### UI Optimization
-- Lazy loading with `ListView.builder` for large lists
-- Use `shimmer` package for loading states
-- `fl_chart` and `syncfusion_flutter_charts` for visualizations
+- Lazy loading with `ListView.builder`
+- `shimmer` package for loading states
+- Cached network images for assets
 
 ## Testing & Debugging
 
 ### Test Structure
-- Unit tests in `test/` directory
-- Use `flutter_test` framework
-- Test Firebase services with mocked Firestore
+- Unit tests in `test/` directory using `flutter_test`
+- Firebase Functions tests: `functions/test_*.js`
+- Mock services available when Firebase unavailable
 
 ### Common Issues
-- **Firestore indexes**: Check `firestore.indexes.json` for required composite indexes
-- **CORS**: Documented in `CORS_DEVELOPMENT_GUIDE.md`
-- **Memory**: Firebase Functions use 2GB memory for analytics operations
+- **Firestore indexes**: Check `firestore.indexes.json` for compound indexes
+- **Memory**: Functions configured for 2GB memory allocation
+- **Client ID mapping**: Complex system due to data migration - use `ClientIdMappingService`
+
+## Key Dependencies
+```yaml
+# State Management
+provider: ^6.1.2
+flutter_riverpod: ^2.5.1
+# Navigation  
+go_router: ^16.1.0
+# Firebase
+firebase_core: ^4.0.0
+cloud_firestore: ^6.0.0
+cloud_functions: ^6.0.0
+# Charts & Analytics
+fl_chart: ^1.0.0
+syncfusion_flutter_charts: ^30.2.4
+# UI Enhancement
+responsive_framework: ^1.5.1
+shimmer: ^3.0.0
+```
 
 ## Documentation Files
-Key documentation files in root directory:
-- `PREMIUM_ANALYTICS_FILTERING_GUIDE.md` - Filter system architecture
-- `INVESTOR_ANALYTICS_README.md` - Analytics feature documentation
+Key documentation in root directory:
+- `CLAUDE.md` - Alternative AI assistant guidelines with comprehensive commands
 - `FIRESTORE_INDEXES_OPTIMIZED.md` - Database performance patterns
-- `MAJORITY_COALITION_ANALYSIS.md` - Voting status analytics
-- `CLAUDE.md` - Alternative AI assistant guidelines
+- Various `*_GUIDE.md` and `*_README.md` files for specific features

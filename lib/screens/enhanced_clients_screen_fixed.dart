@@ -83,15 +83,14 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
         final clientStats = futures[2] as ClientStats;
 
         print('📊 [EnhancedClientsScreen] Wyniki ładowania:');
-        print('   - Wszyscy klienci (getAllClients): ${allClients.length}');
-        print(
-          '   - Aktywni klienci (getActiveClients): ${activeClients.length}',
-        );
+        print('   - Wszyscy klienci: ${allClients.length}');
+        print('   - Aktywni klienci: ${activeClients.length}');
         print('   - Statystyki - łącznie: ${clientStats.totalClients}');
         print('   - Statystyki - inwestycje: ${clientStats.totalInvestments}');
         print(
           '   - Statystyki - kapitał: ${clientStats.totalRemainingCapital}',
         );
+
         setState(() {
           _allClients = allClients;
           _activeClients = activeClients;

@@ -150,9 +150,11 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
           ? _investments.first
           : null;
 
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
 
       // Start animations
       _fadeController.forward();
@@ -161,10 +163,12 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       await Future.delayed(const Duration(milliseconds: 100));
       _scaleController.forward();
     } catch (e) {
-      setState(() {
-        _error = 'Błąd podczas ładowania danych: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Błąd podczas ładowania danych: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 

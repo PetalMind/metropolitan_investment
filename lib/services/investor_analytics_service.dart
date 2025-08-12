@@ -361,8 +361,24 @@ class InvestorAnalyticsService extends BaseService {
     print('📊 [Analytics] Pobieranie wszystkich inwestorów do analizy...');
 
     try {
+      print('🔍 [DEBUG] Wywołuję _clientService.getAllClients()...');
       final clients = await _clientService.getAllClients();
       print('📊 [Analytics] Znaleziono ${clients.length} klientów');
+
+      // DODATKOWE SPRAWDZENIE - czy to rzeczywiście wszystkie dokumenty?
+      print('🔍 [DEBUG] Sprawdzenie bezpośrednio z Firestore...');
+      final directCheck = await FirebaseFirestore.instance
+          .collection('clients')
+          .get();
+      print(
+        '🔍 [DEBUG] Bezpośrednie zapytanie Firestore: ${directCheck.docs.length} dokumentów',
+      );
+
+      if (directCheck.docs.length != clients.length) {
+        print(
+          '⚠️ [WARNING] NIEZGODNOŚĆ! ClientService zwrócił ${clients.length}, ale Firestore ma ${directCheck.docs.length}',
+        );
+      }
 
       // DEBUG: Sprawdź pierwsze kilku klientów
       if (clients.isNotEmpty) {

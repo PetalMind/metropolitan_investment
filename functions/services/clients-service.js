@@ -26,7 +26,7 @@ exports.getAllClients = onCall({
   const startTime = Date.now();
   const {
     page = 1,
-    pageSize = 500,
+    pageSize = 10000, // ZWIĘKSZONY LIMIT z 500 do 10000
     searchQuery,
     sortBy = 'imie_nazwisko',
     forceRefresh = false

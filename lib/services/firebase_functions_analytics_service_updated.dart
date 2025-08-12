@@ -127,7 +127,7 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
   /// Wykorzystuje funkcję getAllClients z clients-service.js
   Future<ClientsResult> getAllClients({
     int page = 1,
-    int pageSize = 500,
+    int pageSize = 5000,
     String? searchQuery,
     String sortBy = 'imie_nazwisko',
     bool forceRefresh = false,

@@ -12,7 +12,7 @@ class FirebaseFunctionsClientService extends BaseService {
   /// Obsługuje paginację, wyszukiwanie i sortowanie po stronie serwera
   Future<ClientsResult> getAllClients({
     int page = 1,
-    int pageSize = 500,
+    int pageSize = 5000,
     String? searchQuery,
     String sortBy =
         'fullName', // Zmieniono z 'imie_nazwisko' na rzeczywiste pole w Firestore
