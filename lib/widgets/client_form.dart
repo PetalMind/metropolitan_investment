@@ -21,7 +21,8 @@ class ClientForm extends StatefulWidget {
 
 class _ClientFormState extends State<ClientForm> {
   final _formKey = GlobalKey<FormState>();
-  final UnifiedVotingService _votingService = UnifiedVotingService();
+  final UnifiedVotingStatusService _votingService =
+      UnifiedVotingStatusService();
   late String _name;
   late String _email;
   late String _phone;
@@ -86,11 +87,14 @@ class _ClientFormState extends State<ClientForm> {
           '🗳️ [ClientForm] Status głosowania zmieniony: ${widget.client!.votingStatus.name} -> ${_votingStatus.name}',
         );
 
-        // Zapisz zmianę statusu przez UnifiedVotingService
+        // Zapisz zmianę statusu przez UnifiedVotingStatusService
         await _votingService.updateVotingStatus(
           widget.client!.id,
           _votingStatus,
           reason: 'Updated via client form',
+          editedBy: 'Client Form',
+          editedByEmail: 'system@client-form.local',
+          updatedVia: 'client_form',
         );
 
         print('✅ [ClientForm] Historia głosowania zapisana');

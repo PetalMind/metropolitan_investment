@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import '../models/client.dart';
-import '../models/investor_summary.dart';
-import '../models/investment.dart';
-import '../models/unified_product.dart';
-import '../models/product.dart';
-import '../services/investor_analytics_service.dart';
-import '../services/unified_voting_service.dart';
+import 'package:provider/provider.dart';
+import '../models_and_services.dart';
+import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/client_notes_widget.dart';
@@ -52,7 +48,8 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   late String _selectedColorCode;
 
   // Services
-  final UnifiedVotingService _votingService = UnifiedVotingService();
+  final UnifiedVotingStatusService _votingService =
+      UnifiedVotingStatusService();
 
   bool _hasChanges = false;
   bool _isSaving = false; // 🔄 Stan ładowania podczas zapisywania
@@ -1643,15 +1640,19 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         '🔍 [Modal] Format ID: ${widget.investor.client.id} (długość: ${widget.investor.client.id.length})',
       );
 
-      // Zapisz zmiany przez serwis analityki
-      await widget.analyticsService!.updateInvestorDetails(
-        widget.investor.client.id,
-        votingStatus: _selectedVotingStatus,
-        notes: _notesController.text.trim(),
-        colorCode: _selectedColorCode,
-        type: _selectedClientType,
-        isActive: _isActive,
-      );
+      // Pobierz informacje o obecnie zalogowanym użytkowniku (potrzebne dla obu przypadków)
+      final authProvider = context.read<AuthProvider>();
+      final currentUser = authProvider.user;
+      final userEmail = currentUser?.email ?? 'unknown@system.local';
+      final userName =
+          currentUser?.displayName ??
+          authProvider.userProfile?.fullName ??
+          userEmail.split('@').first;
+
+      print('🔍 [InvestorModal] DEBUG - Dane użytkownika:');
+      print('  - Email: $userEmail');
+      print('  - Nazwa: $userName');
+      print('  - UID: ${currentUser?.uid}');
 
       // Jeśli status głosowania się zmienił, zapisz także historię
       if (widget.investor.client.votingStatus != _selectedVotingStatus) {
@@ -1659,13 +1660,75 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
           '🗳️ [InvestorModal] Status głosowania zmieniony: ${widget.investor.client.votingStatus.name} -> ${_selectedVotingStatus.name}',
         );
 
-        await _votingService.updateVotingStatus(
+        // Pobierz informacje o obecnie zalogowanym użytkowniku
+        final authProvider = context.read<AuthProvider>();
+        final currentUser = authProvider.user;
+        final userEmail = currentUser?.email ?? 'unknown@system.local';
+        final userName =
+            currentUser?.displayName ??
+            authProvider.userProfile?.fullName ??
+            userEmail.split('@').first;
+
+        print('🔍 [InvestorModal] DEBUG - Dane użytkownika:');
+        print('  - Email: $userEmail');
+        print('  - Nazwa: $userName');
+        print('  - UID: ${currentUser?.uid}');
+
+        // Użyj nowego jednolitego serwisu
+        final result = await _votingService.updateVotingStatus(
           widget.investor.client.id,
           _selectedVotingStatus,
-          reason: 'Updated via investor details modal',
+          reason: 'Aktualizacja danych inwestora przez interfejs użytkownika',
+          editedBy: userName,
+          editedByEmail: userEmail,
+          editedByName: userName,
+          userId: currentUser?.uid,
+          updatedVia: 'investor_details_modal',
+          additionalChanges: {
+            'notes': _notesController.text.trim(),
+            'colorCode': _selectedColorCode,
+            'type': _selectedClientType.name,
+            'isActive': _isActive,
+          },
         );
 
-        print('✅ [InvestorModal] Historia głosowania zapisana');
+        if (!result.isSuccess) {
+          throw Exception(
+            'Błąd zapisywania statusu głosowania: ${result.error}',
+          );
+        }
+
+        print(
+          '✅ [InvestorModal] Historia głosowania zapisana przez UnifiedVotingStatusService',
+        );
+      } else {
+        // Jeśli status się nie zmienił, zaktualizuj tylko inne pola
+        // Pobierz dane użytkownika także dla tej ścieżki
+        final authProvider = context.read<AuthProvider>();
+        final currentUser = authProvider.user;
+        final userEmail = currentUser?.email ?? 'unknown@system.local';
+        final userName =
+            currentUser?.displayName ??
+            authProvider.userProfile?.fullName ??
+            userEmail.split('@').first;
+
+        await widget.analyticsService!.updateInvestorDetails(
+          widget.investor.client.id,
+          votingStatus: _selectedVotingStatus,
+          notes: _notesController.text.trim(),
+          colorCode: _selectedColorCode,
+          type: _selectedClientType,
+          isActive: _isActive,
+          editedBy: userName,
+          editedByEmail: userEmail,
+          editedByName: userName,
+          userId: currentUser?.uid,
+          updatedVia: 'investor_details_modal',
+        );
+
+        print(
+          '✅ [InvestorModal] Dane zaktualizowane przez InvestorAnalyticsService z danymi użytkownika: $userEmail',
+        );
       }
 
       // Dodatkowo wyczyść cache dla pewności

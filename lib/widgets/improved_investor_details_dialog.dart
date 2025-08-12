@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models_and_services.dart';
+import '../providers/auth_provider.dart';
 
 /// Ulepszony dialog szczegółów inwestora z obsługą mapowania ID
 /// Rozwiązuje problem z Excel ID vs Firestore ID
@@ -284,12 +286,26 @@ class _ImprovedInvestorDetailsDialogState
       // Preload mapowanie ID aby uniknąć problemów
       await _idMappingService.preloadMapping();
 
+      // Pobierz dane aktualnego użytkownika
+      final authProvider = context.read<AuthProvider>();
+      final currentUser = authProvider.user;
+      final userEmail = currentUser?.email ?? 'unknown@system.local';
+      final userName =
+          currentUser?.displayName ??
+          authProvider.userProfile?.fullName ??
+          userEmail.split('@').first;
+
       // Użyj serwisu analytics z obsługą mapowania ID
       await _analyticsService.updateInvestorDetails(
         widget.investor.client.id,
         votingStatus: _selectedVotingStatus,
         notes: _notes.trim(),
         updateReason: 'Aktualizacja z poprawionego modala inwestora',
+        editedBy: userName,
+        editedByEmail: userEmail,
+        editedByName: userName,
+        userId: currentUser?.uid,
+        updatedVia: 'improved_investor_details_dialog',
       );
 
       // Utwórz zaktualizowany obiekt klienta

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../models/investor_summary.dart';
-import '../../../services/voting_status_change_service.dart';
+import '../../../models_and_services.dart';
 import '../../../theme/app_theme.dart';
 
 /// Simplified voting changes tab that works with the current service architecture
@@ -14,7 +13,8 @@ class VotingChangesTab extends StatefulWidget {
 }
 
 class _VotingChangesTabState extends State<VotingChangesTab> {
-  final VotingStatusChangeService _changeService = VotingStatusChangeService();
+  final UnifiedVotingStatusService _changeService =
+      UnifiedVotingStatusService();
 
   List<VotingStatusChangeRecord> _changes = [];
   bool _isLoading = true;
@@ -37,13 +37,13 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
       List<VotingStatusChangeRecord> changes = [];
 
       // 1. Try by client ID
-      changes = await _changeService.getClientVotingStatusHistory(
+      changes = await _changeService.getVotingStatusHistory(
         widget.investor.client.id,
       );
 
       // 2. If empty and excelId exists, try that
       if (changes.isEmpty && widget.investor.client.excelId != null) {
-        changes = await _changeService.getClientVotingStatusHistory(
+        changes = await _changeService.getVotingStatusHistory(
           widget.investor.client.excelId!,
         );
       }

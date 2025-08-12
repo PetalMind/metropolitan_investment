@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../models/investor_summary.dart';
-import '../../../services/voting_status_change_service.dart';
+import '../../../models_and_services.dart';
 import '../../../theme/app_theme.dart';
 
 /// Voting changes tab that displays voting status history for an investor
@@ -14,9 +13,10 @@ class VotingChangesTab extends StatefulWidget {
 }
 
 class _VotingChangesTabState extends State<VotingChangesTab> {
-  final VotingStatusChangeService _changeService = VotingStatusChangeService();
+  final UnifiedVotingStatusService _changeService =
+      UnifiedVotingStatusService();
 
-  List<VotingStatusChangeRecord> _changes = [];
+  List<VotingStatusChange> _changes = [];
   bool _isLoading = true;
   String? _error;
 
@@ -33,16 +33,24 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
         _error = null;
       });
 
-      List<VotingStatusChangeRecord> changes = [];
+      List<VotingStatusChange> changes = [];
 
       // Try by client ID first
-      changes = await _changeService.getClientVotingStatusHistory(
+      print('🔍 [VotingChangesTab] Pobieranie zmian dla klienta:');
+      print('  - Nazwa: ${widget.investor.client.name}');
+      print('  - Client ID: "${widget.investor.client.id}"');
+      print('  - Excel ID: "${widget.investor.client.excelId}"');
+
+      changes = await _changeService.getVotingStatusHistory(
         widget.investor.client.id,
       );
 
       // If empty and excelId exists, try that
       if (changes.isEmpty && widget.investor.client.excelId != null) {
-        changes = await _changeService.getClientVotingStatusHistory(
+        print(
+          '🔍 [VotingChangesTab] Brak zmian dla ID ${widget.investor.client.id}, próbuję excelId: ${widget.investor.client.excelId}',
+        );
+        changes = await _changeService.getVotingStatusHistory(
           widget.investor.client.excelId!,
         );
       }
@@ -70,18 +78,13 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 16),
-          Expanded(
-            child: _buildContent(),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(),
+        const SizedBox(height: 16),
+        Expanded(child: _buildContent()),
+      ],
     );
   }
 
@@ -90,10 +93,7 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppTheme.backgroundSecondary,
-            AppTheme.backgroundTertiary,
-          ],
+          colors: [AppTheme.backgroundSecondary, AppTheme.backgroundTertiary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -108,11 +108,7 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
               color: AppTheme.secondaryGold.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              Icons.history,
-              color: AppTheme.secondaryGold,
-              size: 24,
-            ),
+            child: Icon(Icons.history, color: AppTheme.secondaryGold, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -227,9 +223,9 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
               const SizedBox(height: 12),
               Text(
                 _error!,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -297,9 +293,9 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
               const SizedBox(height: 12),
               Text(
                 'Ten inwestor nie ma jeszcze żadnych zapisanych zmian statusu głosowania.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -317,7 +313,7 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
     );
   }
 
-  Widget _buildChangeCard(VotingStatusChangeRecord change) {
+  Widget _buildChangeCard(VotingStatusChange change) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -331,7 +327,9 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _getStatusColor(change.newStatus).withOpacity(0.3),
+          color: _getStatusColor(
+            change.newStatus?.name ?? 'undecided',
+          ).withOpacity(0.3),
           width: 1,
         ),
         boxShadow: [
@@ -342,7 +340,9 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
             spreadRadius: 0,
           ),
           BoxShadow(
-            color: _getStatusColor(change.newStatus).withOpacity(0.05),
+            color: _getStatusColor(
+              change.newStatus?.name ?? 'undecided',
+            ).withOpacity(0.05),
             blurRadius: 16,
             offset: const Offset(0, 8),
             spreadRadius: 0,
@@ -362,19 +362,27 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        _getStatusColor(change.newStatus).withOpacity(0.2),
-                        _getStatusColor(change.newStatus).withOpacity(0.1),
+                        _getStatusColor(
+                          change.newStatus?.name ?? 'undecided',
+                        ).withOpacity(0.2),
+                        _getStatusColor(
+                          change.newStatus?.name ?? 'undecided',
+                        ).withOpacity(0.1),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _getStatusColor(change.newStatus).withOpacity(0.3),
+                      color: _getStatusColor(
+                        change.newStatus?.name ?? 'undecided',
+                      ).withOpacity(0.3),
                     ),
                   ),
                   child: Icon(
                     Icons.how_to_vote,
                     size: 24,
-                    color: _getStatusColor(change.newStatus),
+                    color: _getStatusColor(
+                      change.newStatus?.name ?? 'undecided',
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -384,10 +392,11 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
                     children: [
                       Text(
                         'Zmiana statusu głosowania',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary,
+                            ),
                       ),
                       const SizedBox(height: 4),
                       Container(
@@ -401,10 +410,11 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
                         ),
                         child: Text(
                           _formatDate(change.timestamp),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.textTertiary,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: AppTheme.textTertiary,
+                                fontWeight: FontWeight.w500,
+                              ),
                         ),
                       ),
                     ],
@@ -413,7 +423,7 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
               ],
             ),
             const SizedBox(height: 20),
-            
+
             // Status change container
             Container(
               padding: const EdgeInsets.all(16),
@@ -431,8 +441,8 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
                   Row(
                     children: [
                       _buildStatusBadge(
-                        change.oldStatus.displayName,
-                        _getStatusColor(change.oldStatus),
+                        change.oldStatus?.displayName ?? 'Nieznany',
+                        _getStatusColor(change.oldStatus?.name ?? 'undecided'),
                         isOld: true,
                       ),
                       Padding(
@@ -451,14 +461,14 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
                         ),
                       ),
                       _buildStatusBadge(
-                        change.newStatus.displayName,
-                        _getStatusColor(change.newStatus),
+                        change.newStatus?.displayName ?? 'Nieznany',
+                        _getStatusColor(change.newStatus?.name ?? 'undecided'),
                       ),
                     ],
                   ),
-                  
+
                   // Reason section
-                  if (change.reason.isNotEmpty) ...[
+                  if (change.reason != null && change.reason!.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -481,79 +491,45 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
                           Expanded(
                             child: Text(
                               'Powód: ${change.reason}',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppTheme.textSecondary,
-                              ),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: AppTheme.textSecondary),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ],
-                  
-                  // Metadata section
-                  if (change.metadata.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.infoBackground.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: AppTheme.infoPrimary.withOpacity(0.2),
+
+                  // Changed by section
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.backgroundModal.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.secondaryGold.withOpacity(0.2),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.person,
+                          size: 16,
+                          color: AppTheme.secondaryGold,
                         ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                size: 16,
-                                color: AppTheme.infoPrimary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Dodatkowe informacje:',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                            ],
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Zmiana wykonana przez: ${_getChangedBy(change)}',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AppTheme.textSecondary),
                           ),
-                          const SizedBox(height: 8),
-                          ...change.metadata.entries.map(
-                            (entry) => Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${entry.key}:',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppTheme.textTertiary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      entry.value.toString(),
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppTheme.textSecondary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -567,24 +543,19 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        gradient: isOld 
-          ? LinearGradient(
-              colors: [
-                AppTheme.neutralBackground,
-                AppTheme.backgroundModal.withOpacity(0.8),
-              ],
-            )
-          : LinearGradient(
-              colors: [
-                color.withOpacity(0.15),
-                color.withOpacity(0.05),
-              ],
-            ),
+        gradient: isOld
+            ? LinearGradient(
+                colors: [
+                  AppTheme.neutralBackground,
+                  AppTheme.backgroundModal.withOpacity(0.8),
+                ],
+              )
+            : LinearGradient(
+                colors: [color.withOpacity(0.15), color.withOpacity(0.05)],
+              ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isOld 
-            ? AppTheme.borderSecondary
-            : color.withOpacity(0.4),
+          color: isOld ? AppTheme.borderSecondary : color.withOpacity(0.4),
           width: 1.5,
         ),
         boxShadow: [
@@ -640,5 +611,50 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year} '
         '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _getChangedBy(VotingStatusChange change) {
+    // Sprawdź czy jest dostępne pole editedByName (preferowane - pełna nazwa)
+    if (change.editedByName != null && change.editedByName!.isNotEmpty) {
+      return change.editedByName!;
+    }
+
+    // Sprawdź czy jest dostępne pole editedBy (główne pole z Firebase)
+    if (change.editedBy.isNotEmpty) {
+      return change.editedBy;
+    }
+
+    // Sprawdź czy jest dostępne pole editedByEmail
+    if (change.editedByEmail.isNotEmpty) {
+      return change.editedByEmail;
+    }
+
+    // Fallback - sprawdź w metadata (dla starszych zapisów)
+    if (change.metadata.containsKey('editedByName')) {
+      return change.metadata['editedByName'].toString();
+    }
+
+    if (change.metadata.containsKey('editedBy')) {
+      return change.metadata['editedBy'].toString();
+    }
+
+    if (change.metadata.containsKey('editedByEmail')) {
+      return change.metadata['editedByEmail'].toString();
+    }
+
+    if (change.metadata.containsKey('changedBy')) {
+      return change.metadata['changedBy'].toString();
+    }
+
+    if (change.metadata.containsKey('userId')) {
+      return 'ID: ${change.metadata['userId']}';
+    }
+
+    if (change.metadata.containsKey('userName')) {
+      return change.metadata['userName'].toString();
+    }
+
+    // Fallback - system
+    return 'System';
   }
 }

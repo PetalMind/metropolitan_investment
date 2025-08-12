@@ -1,19 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/client.dart';
-import '../models/investment.dart';
-import '../models/investor_summary.dart';
-import '../models/product.dart';
-import 'base_service.dart';
-import 'client_service.dart';
-import 'client_id_mapping_service.dart';
-import 'enhanced_voting_status_service.dart';
+import '../models_and_services.dart';
 import 'firebase_functions_analytics_service.dart';
 
 class InvestorAnalyticsService extends BaseService {
   final ClientService _clientService = ClientService();
   final ClientIdMappingService _idMappingService = ClientIdMappingService();
-  final EnhancedVotingStatusService _enhancedVotingService =
-      EnhancedVotingStatusService();
+  final UnifiedVotingStatusService _votingService =
+      UnifiedVotingStatusService();
   final FirebaseFunctionsAnalyticsService _functionsService =
       FirebaseFunctionsAnalyticsService();
 
@@ -793,6 +786,11 @@ class InvestorAnalyticsService extends BaseService {
     ClientType? type,
     bool? isActive,
     String? updateReason,
+    String? editedBy,
+    String? editedByEmail,
+    String? editedByName,
+    String? userId,
+    String? updatedVia,
   }) async {
     try {
       print('🔄 [InvestorAnalyticsService] Aktualizacja klienta: $clientId');
@@ -839,22 +837,23 @@ class InvestorAnalyticsService extends BaseService {
       // Handle voting status update with history using EnhancedVotingStatusService
       if (votingStatus != null) {
         print(
-          '🗳️ [InvestorAnalyticsService] Aktualizacja statusu głosowania przez EnhancedVotingStatusService: ${votingStatus.displayName}',
+          '🗳️ [InvestorAnalyticsService] Aktualizacja statusu głosowania przez UnifiedVotingStatusService: ${votingStatus.displayName}',
         );
 
-        // Use EnhancedVotingStatusService for voting status with history
-        final result = await _enhancedVotingService
-            .updateVotingStatusWithHistory(
-              actualFirestoreId,
-              votingStatus,
-              reason:
-                  updateReason ??
-                  'Aktualizacja danych inwestora przez interfejs użytkownika',
-              additionalChanges: {
-                'updated_via': 'investor_details_modal',
-                'original_client_id': clientId,
-              },
-            );
+        // Use UnifiedVotingStatusService for voting status with history
+        final result = await _votingService.updateVotingStatus(
+          actualFirestoreId,
+          votingStatus,
+          reason:
+              updateReason ??
+              'Aktualizacja danych inwestora przez interfejs użytkownika',
+          editedBy: editedBy,
+          editedByEmail: editedByEmail,
+          editedByName: editedByName,
+          userId: userId,
+          updatedVia: updatedVia ?? 'investor_analytics_service',
+          additionalChanges: {'original_client_id': clientId},
+        );
 
         print(
           '✅ [InvestorAnalyticsService] Status głosowania zaktualizowany: ${result.isSuccess}',

@@ -52,12 +52,25 @@ export 'services/advanced_analytics_service.dart' hide AdvancedDashboardMetrics;
 export 'services/investor_analytics_service.dart' hide InvestorAnalyticsResult;
 export 'services/standard_product_investors_service.dart';
 
-// New voting and analytics services
-export 'services/enhanced_voting_status_service.dart';
-export 'services/voting_status_change_service.dart';
-export 'services/unified_voting_service.dart';
+// New voting and analytics services - UNIFIED VERSION
+export 'services/unified_voting_status_service.dart';
 export 'services/unified_statistics_utils.dart';
 export 'services/debug_firestore_service.dart';
+
+// Voting status change model
+// VotingStatusChange is exported via models/voting_status_change.dart above
+
+// ⚠️ DEPRECATED SERVICES DISABLED DUE TO IMPORT CONFLICTS ⚠️
+// These services have been replaced by UnifiedVotingStatusService
+// All functionality is now available through the unified service
+//
+// If you need these services, use UnifiedVotingStatusService instead:
+// - EnhancedVotingStatusService → UnifiedVotingStatusService
+// - UnifiedVotingService → UnifiedVotingStatusService
+// - VotingStatusChangeService → UnifiedVotingStatusService (except VotingStatusChangeRecord model)
+//
+// export 'services/enhanced_voting_status_service.dart' hide VotingStatusUpdateResult, VotingStatusStatistics;
+// export 'services/unified_voting_service.dart';
 
 // Legacy services (deprecated)
 export 'services/bond_service.dart';
@@ -86,8 +99,8 @@ export 'widgets/investor_analytics/investor_list_widget.dart';
 export 'widgets/investor_analytics/investor_cards_widget.dart';
 export 'widgets/investor_analytics/investor_export_helper.dart';
 
-// Screen exports
-export 'screens/voting_system_demo.dart';
+// Screen exports - DEPRECATED SCREENS REMOVED
+// export 'screens/voting_system_demo.dart'; // Removed - demo no longer needed
 
 // Theme exports
 export 'theme/app_theme.dart';

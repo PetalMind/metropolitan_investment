@@ -29,7 +29,8 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
   bool _isLoading = false;
 
   // Services
-  final UnifiedVotingService _votingService = UnifiedVotingService();
+  final UnifiedVotingStatusService _votingService =
+      UnifiedVotingStatusService();
 
   @override
   void initState() {
@@ -88,6 +89,9 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
           widget.investor.client.id,
           _selectedVotingStatus,
           reason: 'Updated via investor analytics dialog',
+          editedBy: 'Analytics Dialog',
+          editedByEmail: 'system@analytics-dialog.local',
+          updatedVia: 'investor_details_dialog',
         );
 
         print('✅ [InvestorDetailsDialog] Historia głosowania zapisana');
