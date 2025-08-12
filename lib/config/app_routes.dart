@@ -6,7 +6,6 @@ import '../screens/premium_investor_analytics_screen.dart';
 import '../screens/calendar_screen_enhanced.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
-import '../screens/dashboard_screen_refactored.dart';
 import '../screens/enhanced_clients_screen.dart';
 import '../screens/products_management_screen.dart';
 import '../screens/employees_screen.dart';

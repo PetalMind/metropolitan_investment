@@ -4,13 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
-import '../models_and_services.dart';
-import '../services/firebase_functions_analytics_service_updated.dart'
-    as ff_service;
-import '../services/investor_analytics_service.dart' as ia_service;
-import '../widgets/investor_details_modal.dart';
-import '../utils/currency_formatter.dart';
-import '../utils/voting_analysis_manager.dart';
+import '../models_and_services.dart'; // Centralny export wszystkich modeli i serwisów
+import '../services/investor_analytics_service.dart'
+    as ia_service; // Tylko dla InvestorAnalyticsResult conflict resolution
 
 /// 📊 VIEW MODES FOR DATA PRESENTATION
 enum ViewMode {
@@ -53,8 +49,8 @@ class _PremiumInvestorAnalyticsScreenState
     extends State<PremiumInvestorAnalyticsScreen>
     with TickerProviderStateMixin {
   // 🎮 CORE SERVICES
-  final ff_service.FirebaseFunctionsAnalyticsServiceUpdated _analyticsService =
-      ff_service.FirebaseFunctionsAnalyticsServiceUpdated();
+  final FirebaseFunctionsAnalyticsServiceUpdated _analyticsService =
+      FirebaseFunctionsAnalyticsServiceUpdated();
   final ia_service.InvestorAnalyticsService _updateService =
       ia_service.InvestorAnalyticsService(); // Dla aktualizacji danych
   final VotingAnalysisManager _votingManager = VotingAnalysisManager();
@@ -78,7 +74,7 @@ class _PremiumInvestorAnalyticsScreenState
   // 📊 DATA STATE
   List<InvestorSummary> _allInvestors = [];
   List<InvestorSummary> _displayedInvestors = [];
-  ff_service.InvestorAnalyticsResult? _currentResult;
+  InvestorAnalyticsResult? _currentResult;
 
   // 📈 MAJORITY CONTROL ANALYSIS
   double _majorityThreshold = 51.0;
@@ -96,7 +92,7 @@ class _PremiumInvestorAnalyticsScreenState
 
   // 📄 PAGINATION
   int _currentPage = 1;
-  final int _pageSize = 250;
+  final int _pageSize = 10000; // Zwiększony limit do 10k inwestorów
   bool _hasNextPage = false;
   int _totalCount = 0;
 
@@ -118,7 +114,7 @@ class _PremiumInvestorAnalyticsScreenState
       true; // Domyślnie pokazuj deduplikowane produkty
 
   // 📊 VIEW MODES
-  ViewMode _investorsViewMode = ViewMode.cards;
+  ViewMode _investorsViewMode = ViewMode.list; // Domyślnie lista zamiast kart
   ViewMode _majorityViewMode = ViewMode.list;
 
   // 📱 RESPONSIVE BREAKPOINTS
@@ -331,37 +327,8 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Future<void> _loadMoreData() async {
-    if (_isLoadingMore || !_hasNextPage || !mounted) return;
-
-    setState(() => _isLoadingMore = true);
-
-    try {
-      final result = await _analyticsService.getOptimizedInvestorAnalytics(
-        page: _currentPage + 1,
-        pageSize: _pageSize,
-        sortBy: _sortBy,
-        sortAscending: _sortAscending,
-        includeInactive: _includeInactive,
-        votingStatusFilter: _selectedVotingStatus,
-        clientTypeFilter: _selectedClientType,
-        showOnlyWithUnviableInvestments: _showOnlyWithUnviableInvestments,
-        searchQuery: _searchQuery.isNotEmpty ? _searchQuery : null,
-      );
-
-      if (mounted) {
-        setState(() {
-          _displayedInvestors.addAll(result.investors);
-          _currentPage++;
-          _hasNextPage = result.hasNextPage;
-          _isLoadingMore = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingMore = false);
-        _showErrorSnackBar('Błąd ładowania kolejnych danych');
-      }
-    }
+    // Nie ładuj więcej danych - teraz ładujemy wszystkie od razu
+    return;
   }
 
   Future<void> _refreshData() async {
@@ -489,14 +456,20 @@ class _PremiumInvestorAnalyticsScreenState
     // Apply sorting
     _sortInvestors(filtered);
 
+    print('🔍 [DEBUG] Po filtrowaniu i sortowaniu:');
+    print('   - Filtered count: ${filtered.length}');
+    print('   - Search query: "$_searchQuery"');
+    print('   - Voting status filter: $_selectedVotingStatus');
+    print('   - Client type filter: $_selectedClientType');
+
     setState(() {
-      _displayedInvestors = filtered.take(_pageSize).toList();
+      _displayedInvestors = filtered; // Pokaż wszystkie przefiltrowane wyniki
       _totalCount = filtered.length;
-      _hasNextPage = filtered.length > _pageSize;
+      _hasNextPage = false; // Nie ma paginacji dla filtrowanych wyników
     });
   }
 
-  void _processAnalyticsResult(ff_service.InvestorAnalyticsResult result) {
+  void _processAnalyticsResult(InvestorAnalyticsResult result) {
     if (!mounted) return;
 
     // 🔍 DEBUG: Dodaj informacje debugujące
@@ -522,11 +495,19 @@ class _PremiumInvestorAnalyticsScreenState
     setState(() {
       _currentResult = result;
       _allInvestors = result.allInvestors;
-      _displayedInvestors = result.investors;
-      _totalCount = result.totalCount;
-      _hasNextPage = result.hasNextPage;
+      _displayedInvestors =
+          result.allInvestors; // Użyj wszystkich danych zamiast stronnicowanych
+      _totalCount = result
+          .allInvestors
+          .length; // Użyj rzeczywistej liczby wszystkich inwestorów
+      _hasNextPage = false; // Nie ma paginacji, gdy pokazujemy wszystkie dane
       _isLoading = false;
     });
+
+    print('🔍 [DEBUG] Po ustawieniu danych:');
+    print('   - _allInvestors count: ${_allInvestors.length}');
+    print('   - _displayedInvestors count: ${_displayedInvestors.length}');
+    print('   - _totalCount: $_totalCount');
 
     // Update voting analysis
     _votingManager.calculateVotingCapitalDistribution(_allInvestors);
@@ -538,6 +519,9 @@ class _PremiumInvestorAnalyticsScreenState
     print(
       '   - Undecided voting %: ${_votingManager.undecidedVotingPercentage}',
     );
+
+    // Apply initial sorting and filtering to all data
+    _applyFiltersAndSort();
 
     // Store result for use in UI
     if (_currentResult != null) {
@@ -616,18 +600,27 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   /// Konwertuje standardowy InvestorAnalyticsResult do Enhanced format
-  ff_service.InvestorAnalyticsResult _convertToEnhancedResult(
+  InvestorAnalyticsResult _convertToEnhancedResult(
     ia_service.InvestorAnalyticsResult standardResult,
   ) {
     print('🔄 [DEBUG] Converting to enhanced result...');
     print('   - Standard result investors: ${standardResult.investors.length}');
+    print('   - Standard result totalCount: ${standardResult.totalCount}');
     print(
       '   - Standard result total capital: ${standardResult.totalViableCapital}',
     );
 
-    return ff_service.InvestorAnalyticsResult(
+    // Sprawdź czy investors i totalCount są spójne
+    if (standardResult.investors.length != standardResult.totalCount) {
+      print(
+        '⚠️  [WARNING] Niezgodność: investors.length (${standardResult.investors.length}) != totalCount (${standardResult.totalCount})',
+      );
+    }
+
+    return InvestorAnalyticsResult(
       investors: standardResult.investors,
-      allInvestors: standardResult.investors, // Use the same list for both
+      allInvestors: standardResult
+          .investors, // Use the same list - teraz powinno mieć wszystkich
       totalCount: standardResult.totalCount,
       currentPage: standardResult.currentPage,
       pageSize: standardResult.pageSize,
@@ -635,16 +628,10 @@ class _PremiumInvestorAnalyticsScreenState
       hasPreviousPage: standardResult.hasPreviousPage,
       totalViableCapital: standardResult.totalViableCapital,
       votingDistribution: {
-        VotingStatus.yes: ff_service.VotingCapitalInfo(count: 0, capital: 0.0),
-        VotingStatus.no: ff_service.VotingCapitalInfo(count: 0, capital: 0.0),
-        VotingStatus.abstain: ff_service.VotingCapitalInfo(
-          count: 0,
-          capital: 0.0,
-        ),
-        VotingStatus.undecided: ff_service.VotingCapitalInfo(
-          count: 0,
-          capital: 0.0,
-        ),
+        VotingStatus.yes: VotingCapitalInfo(count: 0, capital: 0.0),
+        VotingStatus.no: VotingCapitalInfo(count: 0, capital: 0.0),
+        VotingStatus.abstain: VotingCapitalInfo(count: 0, capital: 0.0),
+        VotingStatus.undecided: VotingCapitalInfo(count: 0, capital: 0.0),
       },
       executionTimeMs: 0, // Fallback nie ma timing
       source: 'fallback-service',
@@ -1412,7 +1399,7 @@ class _PremiumInvestorAnalyticsScreenState
       case 3: // Większość tab
         return _majorityViewMode;
       default:
-        return ViewMode.cards;
+        return ViewMode.list; // Domyślnie lista zamiast kart
     }
   }
 

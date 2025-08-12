@@ -65,3 +65,10 @@ export 'services/apartment_service.dart';
 
 // Widget exports - Logo and branding components
 export 'widgets/metropolitan_components.dart';
+export 'widgets/investor_details_modal.dart';
+
+// Utils exports
+export 'utils/currency_formatter.dart';
+export 'utils/voting_analysis_manager.dart';
+export 'utils/investor_sort_filter_manager.dart';
+export 'utils/pagination_manager.dart';

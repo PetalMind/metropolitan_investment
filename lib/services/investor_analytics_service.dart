@@ -303,10 +303,14 @@ class InvestorAnalyticsService extends BaseService {
       final totalPages = (totalCount / pageSize).ceil();
       final startIndex = (page - 1) * pageSize;
       final endIndex = (startIndex + pageSize).clamp(0, totalCount);
-      // Ogranicz do 250
+      // Użyj wszystkich przefiltrowanych inwestorów dla analityki
       final paginatedInvestors = filteredInvestors.sublist(
         startIndex,
-        endIndex.clamp(startIndex, startIndex + 250),
+        endIndex, // Usuń ograniczenie do 250
+      );
+
+      print(
+        '📄 [Analytics] Paginacja ZAKTUALIZOWANA: strona $page, rozmiar $pageSize, startIndex $startIndex, endIndex $endIndex, zwracam ${paginatedInvestors.length}/${filteredInvestors.length} inwestorów',
       );
 
       return InvestorAnalyticsResult(
