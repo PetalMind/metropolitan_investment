@@ -94,4 +94,10 @@ logs/
 # Temporary analysis files
 tools/detailed_excel_analysis.json
 tools/excel_analysis_report.json
+
+# Service Account credentials - NEVER COMMIT THESE
+ServiceAccount.json
 service-account.json
+**/ServiceAccount.json
+**/service-account.json
+firebase-adminsdk-*.json
