@@ -50,6 +50,22 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     }
   }
 
+  // ⭐ POMOCNICZE METODY DO OBLICZANIA SUM Z INWESTORÓW
+  double get _totalInvestmentAmount => _investors.fold<double>(
+    0.0,
+    (sum, investor) => sum + investor.totalInvestmentAmount,
+  );
+
+  double get _totalValue => _investors.fold<double>(
+    0.0,
+    (sum, investor) => sum + investor.totalValue,
+  );
+
+  double get _totalViableCapital => _investors.fold<double>(
+    0.0,
+    (sum, investor) => sum + investor.viableRemainingCapital,
+  );
+
   Future<void> _loadInvestors() async {
     if (_isLoadingInvestors) return;
 
@@ -421,11 +437,11 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   Widget _buildAmountsMobileLayout(BuildContext context) {
     return Column(
       children: [
-        if (widget.product.investmentAmount > 0)
+        if (_totalInvestmentAmount > 0)
           _buildAmountCard(
             context,
             'Kwota inwestycji',
-            CurrencyFormatter.formatCurrency(widget.product.investmentAmount),
+            CurrencyFormatter.formatCurrency(_totalInvestmentAmount),
             Icons.account_balance_wallet_outlined,
             AppTheme.primaryAccent,
           ),
@@ -435,7 +451,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         _buildAmountCard(
           context,
           'Wartość całkowita',
-          CurrencyFormatter.formatCurrency(widget.product.totalValue),
+          CurrencyFormatter.formatCurrency(_totalValue),
           Icons.trending_up,
           AppTheme.secondaryGold,
           isHighlight: true,
@@ -447,12 +463,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   Widget _buildAmountsDesktopLayout(BuildContext context) {
     return Row(
       children: [
-        if (widget.product.investmentAmount > 0) ...[
+        if (_totalInvestmentAmount > 0) ...[
           Expanded(
             child: _buildAmountCard(
               context,
               'Kwota inwestycji',
-              CurrencyFormatter.formatCurrency(widget.product.investmentAmount),
+              CurrencyFormatter.formatCurrency(_totalInvestmentAmount),
               Icons.account_balance_wallet_outlined,
               AppTheme.primaryAccent,
             ),
@@ -464,7 +480,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           child: _buildAmountCard(
             context,
             'Wartość całkowita',
-            CurrencyFormatter.formatCurrency(widget.product.totalValue),
+            CurrencyFormatter.formatCurrency(_totalValue),
             Icons.trending_up,
             AppTheme.secondaryGold,
             isHighlight: true,
@@ -841,9 +857,10 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
 
   Widget _buildMainStatsCards(BuildContext context, bool isMobile) {
     final totalInvestors = _investors.length;
-    final totalInvestment = widget.product.totalValue;
+    // ⭐ POPRAWKA: Używaj getterów do sumowania wartości z inwestorów
+    final totalValue = _totalValue;
     final averageInvestment = totalInvestors > 0
-        ? totalInvestment / totalInvestors
+        ? totalValue / totalInvestors
         : 0.0;
 
     return GridView.count(
@@ -862,7 +879,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         ),
         _buildStatCard(
           'Wartość całkowita',
-          CurrencyFormatter.formatCurrencyShort(totalInvestment),
+          CurrencyFormatter.formatCurrencyShort(totalValue),
           Icons.account_balance_wallet,
           AppTheme.successPrimary,
         ),
@@ -956,7 +973,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               Expanded(
                 child: _buildAmountInfo(
                   'Kwota inwestycji',
-                  widget.product.investmentAmount,
+                  _totalInvestmentAmount,
                   Icons.trending_down,
                   AppTheme.errorPrimary,
                 ),
@@ -970,7 +987,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               Expanded(
                 child: _buildAmountInfo(
                   'Wartość całkowita',
-                  widget.product.totalValue,
+                  _totalValue,
                   Icons.trending_up,
                   AppTheme.successPrimary,
                 ),
@@ -1256,10 +1273,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   }
 
   Widget _buildPerformanceMetrics(BuildContext context, bool isMobile) {
-    final profitLoss =
-        widget.product.totalValue - widget.product.investmentAmount;
-    final profitLossPercentage = widget.product.investmentAmount > 0
-        ? (profitLoss / widget.product.investmentAmount) * 100
+    // ⭐ POPRAWKA: Oblicz profit/loss z danych inwestorów zamiast z produktu
+    final totalInvestmentAmount = _totalInvestmentAmount;
+    final totalValue = _totalValue;
+    final profitLoss = totalValue - totalInvestmentAmount;
+    final profitLossPercentage = totalInvestmentAmount > 0
+        ? (profitLoss / totalInvestmentAmount) * 100
         : 0.0;
 
     return Column(
@@ -1309,7 +1328,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               'Średnia na inwestora',
               CurrencyFormatter.formatCurrencyShort(
                 _investors.isNotEmpty
-                    ? widget.product.totalValue / _investors.length
+                    ? _totalValue / _investors.length
                     : 0,
               ),
               AppTheme.primaryAccent,
