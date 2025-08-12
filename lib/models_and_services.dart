@@ -33,10 +33,16 @@ export 'services/unified_product_service.dart';
 export 'services/enhanced_unified_product_service.dart';
 export 'services/deduplicated_product_service.dart';
 export 'services/firebase_functions_data_service.dart' hide ClientsResult;
-export 'services/firebase_functions_products_service.dart' hide ProductStatistics;
+export 'services/firebase_functions_products_service.dart'
+    hide ProductStatistics;
 export 'services/firebase_functions_product_investors_service.dart';
 export 'services/firebase_functions_advanced_analytics_service.dart';
-export 'services/firebase_functions_analytics_service_updated.dart' hide ClientsResult, ProductInvestorsResult, PaginationInfo, ProductTypeStatistics;
+export 'services/firebase_functions_analytics_service_updated.dart'
+    hide
+        ClientsResult,
+        ProductInvestorsResult,
+        PaginationInfo,
+        ProductTypeStatistics;
 export 'services/dashboard_service.dart';
 export 'services/auth_service.dart';
 export 'services/email_service.dart';

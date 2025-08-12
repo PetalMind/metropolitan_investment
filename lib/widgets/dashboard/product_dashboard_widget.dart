@@ -42,7 +42,8 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
 
   // Services
   final AuthService _authService = AuthService();
-  final DeduplicatedProductService _deduplicatedProductService = DeduplicatedProductService();
+  final DeduplicatedProductService _deduplicatedProductService =
+      DeduplicatedProductService();
 
   // State
   bool _isLoading = true;
@@ -358,7 +359,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         child: Row(
           children: [
             Icon(
-              _showDeduplicatedView ? Icons.filter_vintage : Icons.all_inclusive,
+              _showDeduplicatedView
+                  ? Icons.filter_vintage
+                  : Icons.all_inclusive,
               color: AppThemePro.accentGold,
               size: 24,
             ),
@@ -368,7 +371,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _showDeduplicatedView ? 'Widok: Produkty unikalne' : 'Widok: Wszystkie inwestycje',
+                    _showDeduplicatedView
+                        ? 'Widok: Produkty unikalne'
+                        : 'Widok: Wszystkie inwestycje',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: AppThemePro.textPrimary,
                       fontWeight: FontWeight.w600,
@@ -376,9 +381,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _showDeduplicatedView 
-                      ? 'Wyświetlane są deduplikowane produkty (${_deduplicatedProducts.length} unikalnych)'
-                      : 'Wyświetlane są wszystkie inwestycje (${_investments.length} pozycji)',
+                    _showDeduplicatedView
+                        ? 'Wyświetlane są deduplikowane produkty (${_deduplicatedProducts.length} unikalnych)'
+                        : 'Wyświetlane są wszystkie inwestycje (${_investments.length} pozycji)',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppThemePro.textSecondary,
                     ),
@@ -536,9 +541,11 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
 
   Widget _buildProductSelector() {
     // Wybierz odpowiedną listę na podstawie trybu wyświetlania
-    final displayList = _showDeduplicatedView ? _deduplicatedProducts : _investments;
+    final displayList = _showDeduplicatedView
+        ? _deduplicatedProducts
+        : _investments;
     final totalCount = displayList.length;
-    
+
     return SlideTransition(
       position: _slideAnimation,
       child: Column(
@@ -559,9 +566,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _showDeduplicatedView 
-                      ? 'Widok: Produkty unikalne ($totalCount pozycji)'
-                      : 'Widok: Wszystkie inwestycje ($totalCount pozycji)',
+                    _showDeduplicatedView
+                        ? 'Widok: Produkty unikalne ($totalCount pozycji)'
+                        : 'Widok: Wszystkie inwestycje ($totalCount pozycji)',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppThemePro.textSecondary,
                     ),
@@ -574,9 +581,13 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                     onPressed: () {
                       setState(() {
                         if (_showDeduplicatedView) {
-                          _selectedProductIds = _deduplicatedProducts.map((prod) => prod.id).toSet();
+                          _selectedProductIds = _deduplicatedProducts
+                              .map((prod) => prod.id)
+                              .toSet();
                         } else {
-                          _selectedProductIds = _investments.map((inv) => inv.id).toSet();
+                          _selectedProductIds = _investments
+                              .map((inv) => inv.id)
+                              .toSet();
                         }
                       });
                     },
@@ -636,10 +647,12 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   ),
                 ),
                 ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: 400), // Zwiększ wysokość
-                  child: _showDeduplicatedView 
-                    ? _buildDeduplicatedProductsList()
-                    : _buildInvestmentsList(),
+                  constraints: BoxConstraints(
+                    maxHeight: 400,
+                  ), // Zwiększ wysokość
+                  child: _showDeduplicatedView
+                      ? _buildDeduplicatedProductsList()
+                      : _buildInvestmentsList(),
                 ),
               ],
             ),
@@ -656,14 +669,11 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       itemBuilder: (context, index) {
         final product = _deduplicatedProducts[index];
         final isSelected = _selectedProductIds.contains(product.id);
-        
+
         return Container(
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(
-                color: AppThemePro.borderPrimary,
-                width: 0.5,
-              ),
+              bottom: BorderSide(color: AppThemePro.borderPrimary, width: 0.5),
             ),
           ),
           child: CheckboxListTile(
@@ -679,9 +689,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
             },
             title: Text(
               product.name,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -705,7 +715,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: _getUnifiedProductTypeColor(product.productType).withOpacity(0.1),
+                color: _getUnifiedProductTypeColor(
+                  product.productType,
+                ).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -729,14 +741,11 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       itemBuilder: (context, index) {
         final investment = _investments[index];
         final isSelected = _selectedProductIds.contains(investment.id);
-        
+
         return Container(
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(
-                color: AppThemePro.borderPrimary,
-                width: 0.5,
-              ),
+              bottom: BorderSide(color: AppThemePro.borderPrimary, width: 0.5),
             ),
           ),
           child: CheckboxListTile(
@@ -751,12 +760,12 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
               });
             },
             title: Text(
-              investment.productName.isNotEmpty 
-                  ? investment.productName 
+              investment.productName.isNotEmpty
+                  ? investment.productName
                   : 'Produkt ${investment.id.substring(0, 8)}...',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -832,9 +841,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
               const SizedBox(height: 8),
               Text(
                 'Zaznacz produkty powyżej aby zobaczyć szczegóły',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppThemePro.textTertiary),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppThemePro.textTertiary,
+                ),
               ),
             ],
           ),
@@ -855,8 +864,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         totalInvestmentAmount += product.totalValue;
         totalRemainingCapital += product.totalRemainingCapital;
         totalCapitalSecured += 0; // DeduplicatedProduct nie ma tej właściwości
-        totalCapitalForRestructuring += 0; // DeduplicatedProduct nie ma tej właściwości
-        
+        totalCapitalForRestructuring +=
+            0; // DeduplicatedProduct nie ma tej właściwości
+
         if (product.status == ProductStatus.active) {
           activeItems++;
         }
@@ -868,7 +878,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         totalRemainingCapital += investment.remainingCapital;
         totalCapitalSecured += _getCapitalSecuredByRealEstate(investment);
         totalCapitalForRestructuring += _getCapitalForRestructuring(investment);
-        
+
         if (investment.status == InvestmentStatus.active) {
           activeItems++;
         }
@@ -989,11 +999,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         child: Center(
           child: Column(
             children: [
-              Icon(
-                Icons.info_outline,
-                color: AppThemePro.textMuted,
-                size: 48,
-              ),
+              Icon(Icons.info_outline, color: AppThemePro.textMuted, size: 48),
               const SizedBox(height: 16),
               Text(
                 'Szczegóły produktu',
@@ -1053,7 +1059,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Jeśli wybrano tylko jeden produkt, pokaż szczegóły jak wcześniej
           if (selectedInvestments.length == 1) ...[
             _buildSingleProductDetails(selectedInvestments.first),
@@ -1173,21 +1179,26 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
             final index = entry.key;
             final investment = entry.value;
             final isLast = index == selectedInvestments.length - 1;
-            
+
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                border: isLast ? null : Border(
-                  bottom: BorderSide(color: AppThemePro.borderPrimary, width: 0.5),
-                ),
+                border: isLast
+                    ? null
+                    : Border(
+                        bottom: BorderSide(
+                          color: AppThemePro.borderPrimary,
+                          width: 0.5,
+                        ),
+                      ),
               ),
               child: Row(
                 children: [
                   Expanded(
                     flex: 3,
                     child: Text(
-                      investment.productName.isNotEmpty 
-                          ? investment.productName 
+                      investment.productName.isNotEmpty
+                          ? investment.productName
                           : 'Produkt ${investment.id.substring(0, 8)}...',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppThemePro.textPrimary,
@@ -1211,9 +1222,14 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   Expanded(
                     flex: 1,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: _getProductTypeColor(investment.productType).withOpacity(0.1),
+                        color: _getProductTypeColor(
+                          investment.productType,
+                        ).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -1244,7 +1260,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: _getStatusColor(investment.status).withOpacity(0.1),
+                        color: _getStatusColor(
+                          investment.status,
+                        ).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(

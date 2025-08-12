@@ -114,7 +114,8 @@ class _PremiumInvestorAnalyticsScreenState
 
   // 🖼️ VIEW CONFIGURATION
   bool _isFilterVisible = false;
-  bool _showDeduplicatedProducts = true; // Domyślnie pokazuj deduplikowane produkty
+  bool _showDeduplicatedProducts =
+      true; // Domyślnie pokazuj deduplikowane produkty
 
   // 📊 VIEW MODES
   ViewMode _investorsViewMode = ViewMode.cards;

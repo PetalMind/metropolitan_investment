@@ -190,12 +190,6 @@ class MainNavigationItems {
       icon: Icons.calendar_today_outlined,
       selectedIcon: Icons.calendar_today,
     ),
-    NavigationItem(
-      route: AppRoutes.productDashboard,
-      label: 'Dashboard Produktów',
-      icon: Icons.dashboard_customize_outlined,
-      selectedIcon: Icons.dashboard_customize,
-    ),
   ];
 
   /// Zwraca indeks aktywnego elementu nawigacji
@@ -294,7 +288,7 @@ class AppRouter {
             pageBuilder: (context, state) => _buildPageWithTransition(
               context,
               state,
-              const DashboardScreen(),
+              const ProductDashboardScreen(),
             ),
           ),
 
@@ -426,15 +420,6 @@ class AppRouter {
             ),
           ),
 
-          // === DASHBOARD PRODUKTÓW ===
-          GoRoute(
-            path: AppRoutes.productDashboard,
-            pageBuilder: (context, state) => _buildPageWithTransition(
-              context,
-              state,
-              const ProductDashboardScreen(),
-            ),
-          ),
 
           // === DODATKOWE SEKCJE ===
           GoRoute(

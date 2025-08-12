@@ -70,7 +70,6 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       if (mounted) {
         setState(() {
           _investors = investors;
-          _investors = investors;
           _isLoadingInvestors = false;
         });
       }

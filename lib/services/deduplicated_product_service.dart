@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/unified_product.dart';
 import '../models/investment.dart';
+import '../services/unified_product_service.dart';
 import 'base_service.dart';
 
 /// Serwis deduplikacji produktów z kolekcji investments
@@ -84,6 +85,107 @@ class DeduplicatedProductService extends BaseService {
       logError('getProductDetails', e);
       return null;
     }
+  }
+
+  /// Pobiera statystyki deduplikowanych produktów
+  /// Zwraca ProductStatistics na bazie deduplikowanych danych
+  Future<ProductStatistics> getDeduplicatedProductStatistics() async {
+    const cacheKey = 'deduplicated_product_statistics';
+
+    return getCachedData(cacheKey, () async {
+      try {
+        final products = await getAllUniqueProducts();
+
+        if (products.isEmpty) {
+          return ProductStatistics(
+            totalProducts: 0,
+            activeProducts: 0,
+            inactiveProducts: 0,
+            totalInvestmentAmount: 0.0,
+            totalValue: 0.0,
+            averageInvestmentAmount: 0.0,
+            averageValue: 0.0,
+            typeDistribution: {},
+            statusDistribution: {},
+            mostValuableType: UnifiedProductType.bonds,
+          );
+        }
+
+        // Oblicz podstawowe statystyki
+        final totalProducts = products.length;
+        final activeProducts = products
+            .where((p) => p.status == ProductStatus.active)
+            .length;
+        final inactiveProducts = totalProducts - activeProducts;
+
+        final totalValue = products.fold(0.0, (sum, p) => sum + p.totalValue);
+        final totalInvestmentAmount = products.fold(
+          0.0,
+          (sum, p) => sum + p.totalValue,
+        ); // Dla deduplikowanych to samo
+        final averageValue = totalProducts > 0
+            ? totalValue / totalProducts
+            : 0.0;
+        final averageInvestmentAmount =
+            averageValue; // Dla deduplikowanych to samo
+
+        // Dystrybucja typów produktów
+        final Map<UnifiedProductType, int> typeDistribution = {};
+        for (final product in products) {
+          typeDistribution[product.productType] =
+              (typeDistribution[product.productType] ?? 0) + 1;
+        }
+
+        // Dystrybucja statusów
+        final Map<ProductStatus, int> statusDistribution = {};
+        for (final product in products) {
+          statusDistribution[product.status] =
+              (statusDistribution[product.status] ?? 0) + 1;
+        }
+
+        // Znajdź najbardziej wartościowy typ
+        UnifiedProductType mostValuableType = UnifiedProductType.bonds;
+        double maxTypeValue = 0.0;
+
+        for (final type in typeDistribution.keys) {
+          final typeValue = products
+              .where((p) => p.productType == type)
+              .fold(0.0, (sum, p) => sum + p.totalValue);
+
+          if (typeValue > maxTypeValue) {
+            maxTypeValue = typeValue;
+            mostValuableType = type;
+          }
+        }
+
+        return ProductStatistics(
+          totalProducts: totalProducts,
+          activeProducts: activeProducts,
+          inactiveProducts: inactiveProducts,
+          totalInvestmentAmount: totalInvestmentAmount,
+          totalValue: totalValue,
+          averageInvestmentAmount: averageInvestmentAmount,
+          averageValue: averageValue,
+          typeDistribution: typeDistribution,
+          statusDistribution: statusDistribution,
+          mostValuableType: mostValuableType,
+        );
+      } catch (e) {
+        logError('getDeduplicatedProductStatistics', e);
+        return ProductStatistics(
+          totalProducts: 0,
+          activeProducts: 0,
+          inactiveProducts: 0,
+          totalInvestmentAmount: 0.0,
+          totalValue: 0.0,
+          averageInvestmentAmount: 0.0,
+          averageValue: 0.0,
+          typeDistribution: {},
+          statusDistribution: {},
+          mostValuableType: UnifiedProductType.bonds,
+        );
+      }
+    });
   }
 
   /// Pobiera statystyki deduplikacji

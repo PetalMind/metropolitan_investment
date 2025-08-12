@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
-import '../../models/unified_product.dart';
-import '../../models/investor_summary.dart';
-import '../../models/client.dart';
+import '../../models_and_services.dart'; // Centralized import
 import '../premium_loading_widget.dart';
 import '../premium_error_widget.dart';
 import 'product_details_service.dart';
@@ -561,7 +559,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
-            '${investor.investmentCount} ${_getInvestmentText(investor.investmentCount)}',
+            '${_getProductInvestmentCount(investor)} ${_getInvestmentText(_getProductInvestmentCount(investor))}',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppTheme.infoPrimary,
               fontWeight: FontWeight.w600,
@@ -596,7 +594,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
             ],
           ),
           child: Text(
-            _service.formatCurrency(investor.viableRemainingCapital),
+            _service.formatCurrency(_getProductCapital(investor)),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -767,6 +765,121 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
     if (count == 1) return 'inwestycja';
     if (count >= 2 && count <= 4) return 'inwestycje';
     return 'inwestycji';
+  }
+
+  /// Zwraca liczbę inwestycji klienta w tym konkretnym produkcie
+  int _getProductInvestmentCount(InvestorSummary investor) {
+    print(
+      '🔍 [_getProductInvestmentCount] Sprawdzam dla inwestora: ${investor.client.name}',
+    );
+    print(
+      '🔍 [_getProductInvestmentCount] - Szukany produkt: "${widget.product.name}"',
+    );
+    print(
+      '🔍 [_getProductInvestmentCount] - Szukane ID: "${widget.product.id}"',
+    );
+    print(
+      '🔍 [_getProductInvestmentCount] - Inwestycje klienta (${investor.investments.length}):',
+    );
+
+    // Grupa inwestycje po ID żeby wyeliminować duplikaty
+    final uniqueInvestments = <String, Investment>{};
+
+    for (final investment in investor.investments) {
+      final key = investment.id.isNotEmpty
+          ? investment.id
+          : '${investment.productName}_${investment.investmentAmount}_${investment.clientId}';
+      uniqueInvestments[key] = investment;
+    }
+
+    final uniqueInvestmentsList = uniqueInvestments.values.toList();
+
+    print(
+      '🔍 [_getProductInvestmentCount] - Unikalne inwestycje (${uniqueInvestmentsList.length}):',
+    );
+
+    for (int i = 0; i < uniqueInvestmentsList.length; i++) {
+      final inv = uniqueInvestmentsList[i];
+      print(
+        '  $i: productName="${inv.productName}", productId="${inv.productId}", amount=${inv.investmentAmount}',
+      );
+    }
+
+    // Sprawdź po ID produktu (uwaga na "null" jako string!)
+    if (widget.product.id.isNotEmpty) {
+      final countById = uniqueInvestmentsList
+          .where(
+            (investment) =>
+                investment.productId != null &&
+                investment.productId!.isNotEmpty &&
+                investment.productId != "null" && // Wyklucz "null" jako string
+                investment.productId == widget.product.id,
+          )
+          .length;
+
+      print('🔍 [_getProductInvestmentCount] - Znaleziono po ID: $countById');
+
+      if (countById > 0) {
+        return countById;
+      }
+    }
+
+    // Fallback: sprawdź po nazwie produktu (na unikalnych inwestycjach)
+    final countByName = uniqueInvestmentsList
+        .where(
+          (investment) =>
+              investment.productName.trim().toLowerCase() ==
+              widget.product.name.trim().toLowerCase(),
+        )
+        .length;
+
+    print(
+      '🔍 [_getProductInvestmentCount] - Znaleziono po nazwie: $countByName',
+    );
+
+    return countByName;
+  }
+
+  /// Zwraca kapitał pozostały klienta w tym konkretnym produkcie
+  double _getProductCapital(InvestorSummary investor) {
+    // Grupa inwestycje po ID żeby wyeliminować duplikaty (podobnie jak w _getProductInvestmentCount)
+    final uniqueInvestments = <String, Investment>{};
+
+    for (final investment in investor.investments) {
+      final key = investment.id.isNotEmpty
+          ? investment.id
+          : '${investment.productName}_${investment.investmentAmount}_${investment.clientId}';
+      uniqueInvestments[key] = investment;
+    }
+
+    final uniqueInvestmentsList = uniqueInvestments.values.toList();
+
+    // Sprawdź po ID produktu (jeśli dostępne)
+    if (widget.product.id.isNotEmpty) {
+      final matchingInvestments = uniqueInvestmentsList.where(
+        (investment) =>
+            investment.productId != null &&
+            investment.productId!.isNotEmpty &&
+            investment.productId != "null" && // Wyklucz "null" jako string
+            investment.productId == widget.product.id,
+      );
+
+      if (matchingInvestments.isNotEmpty) {
+        return matchingInvestments.fold(
+          0.0,
+          (sum, investment) => sum + investment.remainingCapital,
+        );
+      }
+    }
+
+    // Fallback: sprawdź po nazwie produktu
+    return uniqueInvestmentsList
+        .where(
+          (investment) =>
+              investment.productName.trim().toLowerCase() ==
+              widget.product.name.trim().toLowerCase(),
+        )
+        .fold(0.0, (sum, investment) => sum + investment.remainingCapital);
   }
 
   Color _getVotingStatusColor(VotingStatus status) {

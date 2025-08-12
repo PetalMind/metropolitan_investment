@@ -405,7 +405,14 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           sortBy: _sortField.name,
           sortAscending: _sortDirection == SortDirection.ascending,
         ),
-        _productService.getProductStatistics(),
+        _showDeduplicatedView
+            ? _deduplicatedProductService
+                  .getDeduplicatedProductStatistics()
+                  .then(
+                    (stats) =>
+                        ProductStatisticsAdapter.adaptFromUnifiedToFB(stats),
+                  )
+            : _productService.getProductStatistics(),
         _deduplicatedProductService.getAllUniqueProducts(),
       ]);
 
@@ -455,6 +462,30 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           _isLoading = false;
         });
       }
+    }
+  }
+
+  /// Odświeża statystyki po przełączeniu trybu wyświetlania
+  Future<void> _refreshStatistics() async {
+    if (_statistics == null) return;
+
+    try {
+      final newStats = _showDeduplicatedView
+          ? await _deduplicatedProductService
+                .getDeduplicatedProductStatistics()
+                .then(
+                  (stats) =>
+                      ProductStatisticsAdapter.adaptFromUnifiedToFB(stats),
+                )
+          : await _productService.getProductStatistics();
+
+      if (mounted) {
+        setState(() {
+          _statistics = newStats;
+        });
+      }
+    } catch (e) {
+      print('❌ [ProductsManagementScreen] Błąd odświeżania statystyk: $e');
     }
   }
 
@@ -832,12 +863,15 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             _showDeduplicatedView ? Icons.filter_vintage : Icons.all_inclusive,
             color: AppTheme.secondaryGold,
           ),
-          onPressed: () {
+          onPressed: () async {
             setState(() {
               _showDeduplicatedView = !_showDeduplicatedView;
               _applyFiltersAndSearch();
             });
             HapticFeedback.lightImpact();
+
+            // Odśwież statystyki po przełączeniu trybu
+            await _refreshStatistics();
           },
           tooltip: _showDeduplicatedView
               ? 'Pokaż wszystkie inwestycje'
