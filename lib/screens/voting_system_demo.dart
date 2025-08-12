@@ -12,7 +12,7 @@ class VotingSystemDemo extends StatefulWidget {
 class _VotingSystemDemoState extends State<VotingSystemDemo> {
   final UnifiedVotingService _votingService = UnifiedVotingService();
   final ClientService _clientService = ClientService();
-  
+
   List<Client> _clients = [];
   List<VotingStatusChangeRecord> _recentChanges = [];
   VotingStatusStatistics? _statistics;
@@ -34,7 +34,9 @@ class _VotingSystemDemoState extends State<VotingSystemDemo> {
 
     try {
       final clients = await _clientService.getAllClients();
-      final recentChanges = await _votingService.getRecentVotingStatusChanges(limit: 10);
+      final recentChanges = await _votingService.getRecentVotingStatusChanges(
+        limit: 10,
+      );
       final statistics = await _votingService.getVotingStatusStatistics();
 
       setState(() {
@@ -51,7 +53,10 @@ class _VotingSystemDemoState extends State<VotingSystemDemo> {
     }
   }
 
-  Future<void> _updateVotingStatus(String clientId, VotingStatus newStatus) async {
+  Future<void> _updateVotingStatus(
+    String clientId,
+    VotingStatus newStatus,
+  ) async {
     setState(() {
       _isLoading = true;
       _error = null;
@@ -92,10 +97,7 @@ class _VotingSystemDemoState extends State<VotingSystemDemo> {
       appBar: AppBar(
         title: const Text('Voting System Demo'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
         ],
       ),
       body: _isLoading
@@ -148,10 +150,7 @@ class _VotingSystemDemoState extends State<VotingSystemDemo> {
           children: [
             const Icon(Icons.check_circle, color: Colors.green),
             const SizedBox(width: 8),
-            Text(
-              _successMessage!,
-              style: const TextStyle(color: Colors.green),
-            ),
+            Text(_successMessage!, style: const TextStyle(color: Colors.green)),
           ],
         ),
       ),
@@ -218,12 +217,16 @@ class _VotingSystemDemoState extends State<VotingSystemDemo> {
                           children: [
                             Text(
                               client.name,
-                              style: const TextStyle(fontWeight: FontWeight.w500),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                             Text(
                               'Current: ${client.votingStatus.displayName}',
                               style: TextStyle(
-                                color: _getVotingStatusColor(client.votingStatus),
+                                color: _getVotingStatusColor(
+                                  client.votingStatus,
+                                ),
                                 fontSize: 12,
                               ),
                             ),
@@ -285,18 +288,26 @@ class _VotingSystemDemoState extends State<VotingSystemDemo> {
                             ),
                             Text(
                               '${change.oldStatus.displayName} → ${change.newStatus.displayName}',
-                              style: const TextStyle(fontWeight: FontWeight.w500),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                             Text(
                               change.reason,
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
                           ],
                         ),
                       ),
                       Text(
                         _formatDate(change.timestamp),
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),

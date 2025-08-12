@@ -521,7 +521,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
             ],
           ),
           const SizedBox(height: 12),
-          
+
           // Użyj OptimizedVotingStatusSelector zamiast DropdownButton
           OptimizedVotingStatusSelector(
             currentStatus: _selectedVotingStatus,
@@ -1655,14 +1655,16 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
       // Jeśli status głosowania się zmienił, zapisz także historię
       if (widget.investor.client.votingStatus != _selectedVotingStatus) {
-        print('🗳️ [InvestorModal] Status głosowania zmieniony: ${widget.investor.client.votingStatus.name} -> ${_selectedVotingStatus.name}');
-        
+        print(
+          '🗳️ [InvestorModal] Status głosowania zmieniony: ${widget.investor.client.votingStatus.name} -> ${_selectedVotingStatus.name}',
+        );
+
         await _votingService.updateVotingStatus(
           widget.investor.client.id,
           _selectedVotingStatus,
           reason: 'Updated via investor details modal',
         );
-        
+
         print('✅ [InvestorModal] Historia głosowania zapisana');
       }
 

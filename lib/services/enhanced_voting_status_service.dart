@@ -29,7 +29,7 @@ class EnhancedVotingStatusService extends BaseService {
       }
 
       final oldStatus = client.votingStatus;
-      
+
       // Skip if status is the same
       if (oldStatus == newStatus) {
         return VotingStatusUpdateResult(
@@ -40,6 +40,7 @@ class EnhancedVotingStatusService extends BaseService {
       }
 
       // Update the voting status in client document
+      final now = Timestamp.now();
       await _clientService.updateClientFields(clientId, {
         'votingStatus': newStatus.name,
         'lastVotingStatusUpdate': FieldValue.serverTimestamp(),
@@ -47,7 +48,8 @@ class EnhancedVotingStatusService extends BaseService {
           {
             'previousStatus': oldStatus.name,
             'newStatus': newStatus.name,
-            'timestamp': FieldValue.serverTimestamp(),
+            'timestamp':
+                now, // Use Timestamp.now() instead of FieldValue.serverTimestamp()
             'reason': reason ?? 'Status update',
             'additionalData': additionalChanges ?? {},
           },
@@ -85,16 +87,22 @@ class EnhancedVotingStatusService extends BaseService {
   ) async {
     try {
       // First try to get from voting_status_changes collection (preferred)
-      final changeRecords = await _changeService.getClientVotingStatusHistory(clientId);
-      
+      final changeRecords = await _changeService.getClientVotingStatusHistory(
+        clientId,
+      );
+
       if (changeRecords.isNotEmpty) {
-        return changeRecords.map((record) => VotingStatusChangeEvent(
-          previousStatus: record.oldStatus,
-          newStatus: record.newStatus,
-          timestamp: record.timestamp,
-          reason: record.reason,
-          additionalData: record.metadata,
-        )).toList();
+        return changeRecords
+            .map(
+              (record) => VotingStatusChangeEvent(
+                previousStatus: record.oldStatus,
+                newStatus: record.newStatus,
+                timestamp: record.timestamp,
+                reason: record.reason,
+                additionalData: record.metadata,
+              ),
+            )
+            .toList();
       }
 
       // Fallback to client document history if no records in separate collection
@@ -157,8 +165,10 @@ class EnhancedVotingStatusService extends BaseService {
     String? batchReason,
   }) async {
     try {
-      print('🔄 [EnhancedVotingStatus] Batch update dla ${updates.length} klientów');
-      
+      print(
+        '🔄 [EnhancedVotingStatus] Batch update dla ${updates.length} klientów',
+      );
+
       final List<VotingStatusChangeResult> results = [];
       int successfulUpdates = 0;
       int failedUpdates = 0;
@@ -175,32 +185,40 @@ class EnhancedVotingStatusService extends BaseService {
 
           if (result.isSuccess) {
             successfulUpdates++;
-            results.add(VotingStatusChangeResult.success(
-              clientId: update.clientId,
-              clientName: update.clientName ?? update.clientId,
-              previousStatus: result.previousStatus!,
-              newStatus: result.newStatus!,
-              changeId: 'batch_${DateTime.now().millisecondsSinceEpoch}',
-            ));
+            results.add(
+              VotingStatusChangeResult.success(
+                clientId: update.clientId,
+                clientName: update.clientName ?? update.clientId,
+                previousStatus: result.previousStatus!,
+                newStatus: result.newStatus!,
+                changeId: 'batch_${DateTime.now().millisecondsSinceEpoch}',
+              ),
+            );
           } else {
             failedUpdates++;
             errors[update.clientId] = result.error ?? 'Unknown error';
-            results.add(VotingStatusChangeResult.error(
-              clientId: update.clientId,
-              error: result.error ?? 'Unknown error',
-            ));
+            results.add(
+              VotingStatusChangeResult.error(
+                clientId: update.clientId,
+                error: result.error ?? 'Unknown error',
+              ),
+            );
           }
         } catch (e) {
           failedUpdates++;
           errors[update.clientId] = e.toString();
-          results.add(VotingStatusChangeResult.error(
-            clientId: update.clientId,
-            error: e.toString(),
-          ));
+          results.add(
+            VotingStatusChangeResult.error(
+              clientId: update.clientId,
+              error: e.toString(),
+            ),
+          );
         }
       }
 
-      print('✅ [EnhancedVotingStatus] Batch update zakończony: $successfulUpdates sukces, $failedUpdates błędów');
+      print(
+        '✅ [EnhancedVotingStatus] Batch update zakończony: $successfulUpdates sukces, $failedUpdates błędów',
+      );
 
       return BatchVotingStatusResult(
         totalUpdates: updates.length,
@@ -229,7 +247,7 @@ class VotingStatusUpdateResult {
     this.previousStatus,
     this.newStatus,
   });
-  
+
   bool get hasChanged => isSuccess && previousStatus != newStatus;
 }
 
@@ -321,7 +339,8 @@ class BatchVotingStatusResult {
 
   bool get hasErrors => failedUpdates > 0;
   bool get isCompleteSuccess => failedUpdates == 0;
-  double get successRate => totalUpdates > 0 ? successfulUpdates / totalUpdates : 0.0;
+  double get successRate =>
+      totalUpdates > 0 ? successfulUpdates / totalUpdates : 0.0;
 }
 
 /// Individual result of voting status change

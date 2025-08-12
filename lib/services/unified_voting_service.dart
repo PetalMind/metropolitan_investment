@@ -3,11 +3,12 @@ import 'base_service.dart';
 import 'firebase_functions_analytics_service.dart' show VotingCapitalInfo;
 
 /// Unified service for all voting status operations
-/// 
+///
 /// This service combines the functionality of multiple voting services
 /// and provides a single point of entry for all voting-related operations.
 class UnifiedVotingService extends BaseService {
-  final EnhancedVotingStatusService _enhancedService = EnhancedVotingStatusService();
+  final EnhancedVotingStatusService _enhancedService =
+      EnhancedVotingStatusService();
   final VotingStatusChangeService _changeService = VotingStatusChangeService();
 
   /// Updates voting status with comprehensive history tracking
@@ -19,7 +20,7 @@ class UnifiedVotingService extends BaseService {
   }) async {
     try {
       print('🗳️ [UnifiedVoting] Aktualizacja statusu dla klienta: $clientId');
-      
+
       final result = await _enhancedService.updateVotingStatusWithHistory(
         clientId,
         newStatus,
@@ -134,11 +135,7 @@ class UnifiedVotingService extends BaseService {
         orElse: () => VotingStatus.undecided,
       );
 
-      return await updateVotingStatus(
-        clientId,
-        status,
-        reason: reason,
-      );
+      return await updateVotingStatus(clientId, status, reason: reason);
     } catch (e) {
       logError('updateVotingStatusByName', e);
       rethrow;

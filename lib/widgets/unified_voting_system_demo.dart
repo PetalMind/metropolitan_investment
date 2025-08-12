@@ -8,13 +8,14 @@ class UnifiedVotingSystemDemo extends StatefulWidget {
   const UnifiedVotingSystemDemo({super.key});
 
   @override
-  State<UnifiedVotingSystemDemo> createState() => _UnifiedVotingSystemDemoState();
+  State<UnifiedVotingSystemDemo> createState() =>
+      _UnifiedVotingSystemDemoState();
 }
 
 class _UnifiedVotingSystemDemoState extends State<UnifiedVotingSystemDemo> {
   final UnifiedVotingService _votingService = UnifiedVotingService();
   final ClientService _clientService = ClientService();
-  
+
   List<Client> _testClients = [];
   List<VotingStatusChangeRecord> _votingHistory = [];
   bool _isLoading = false;
@@ -33,7 +34,7 @@ class _UnifiedVotingSystemDemoState extends State<UnifiedVotingSystemDemo> {
       // Pobierz kilku klientów do testowania - użyj stream
       final clientsStream = _clientService.getClients();
       final clients = await clientsStream.first;
-      
+
       setState(() {
         _testClients = clients.take(5).toList();
         if (_testClients.isNotEmpty) {
@@ -59,7 +60,10 @@ class _UnifiedVotingSystemDemoState extends State<UnifiedVotingSystemDemo> {
     }
   }
 
-  Future<void> _updateVotingStatus(String clientId, VotingStatus newStatus) async {
+  Future<void> _updateVotingStatus(
+    String clientId,
+    VotingStatus newStatus,
+  ) async {
     setState(() => _isLoading = true);
 
     try {
@@ -76,7 +80,9 @@ class _UnifiedVotingSystemDemoState extends State<UnifiedVotingSystemDemo> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Status głosowania zaktualizowany na: ${newStatus.displayName}'),
+            content: Text(
+              '✅ Status głosowania zaktualizowany na: ${newStatus.displayName}',
+            ),
             backgroundColor: AppTheme.successColor,
           ),
         );
@@ -98,9 +104,7 @@ class _UnifiedVotingSystemDemoState extends State<UnifiedVotingSystemDemo> {
   Future<void> _testClientDialog() async {
     if (_selectedClientId == null) return;
 
-    final client = _testClients.firstWhere(
-      (c) => c.id == _selectedClientId,
-    );
+    final client = _testClients.firstWhere((c) => c.id == _selectedClientId);
 
     // Symuluj ClientDialog
     await showDialog(
@@ -134,9 +138,7 @@ class _UnifiedVotingSystemDemoState extends State<UnifiedVotingSystemDemo> {
   Future<void> _testInvestorDialog() async {
     if (_selectedClientId == null) return;
 
-    final client = _testClients.firstWhere(
-      (c) => c.id == _selectedClientId,
-    );
+    final client = _testClients.firstWhere((c) => c.id == _selectedClientId);
 
     // Symuluj InvestorDetailsDialog
     await showDialog(
@@ -228,12 +230,14 @@ class _UnifiedVotingSystemDemoState extends State<UnifiedVotingSystemDemo> {
                               border: OutlineInputBorder(),
                             ),
                             items: _testClients
-                                .map((client) => DropdownMenuItem(
-                                      value: client.id,
-                                      child: Text(
-                                        '${client.name} (${client.votingStatus.displayName})',
-                                      ),
-                                    ))
+                                .map(
+                                  (client) => DropdownMenuItem(
+                                    value: client.id,
+                                    child: Text(
+                                      '${client.name} (${client.votingStatus.displayName})',
+                                    ),
+                                  ),
+                                )
                                 .toList(),
                             onChanged: (value) {
                               setState(() => _selectedClientId = value);
@@ -313,12 +317,16 @@ class _UnifiedVotingSystemDemoState extends State<UnifiedVotingSystemDemo> {
                                 const SizedBox(width: 8),
                                 Text(
                                   'Historia głosowania (${_votingHistory.length})',
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 const Spacer(),
                                 IconButton(
                                   onPressed: _selectedClientId != null
-                                      ? () => _loadVotingHistory(_selectedClientId!)
+                                      ? () => _loadVotingHistory(
+                                          _selectedClientId!,
+                                        )
                                       : null,
                                   icon: const Icon(Icons.refresh),
                                   tooltip: 'Odśwież historię',
@@ -342,7 +350,9 @@ class _UnifiedVotingSystemDemoState extends State<UnifiedVotingSystemDemo> {
                                       itemBuilder: (context, index) {
                                         final event = _votingHistory[index];
                                         return Card(
-                                          margin: const EdgeInsets.only(bottom: 8),
+                                          margin: const EdgeInsets.only(
+                                            bottom: 8,
+                                          ),
                                           child: ListTile(
                                             leading: Icon(
                                               Icons.swap_horiz,

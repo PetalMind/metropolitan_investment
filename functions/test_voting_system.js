@@ -27,9 +27,9 @@ async function testVotingSystem() {
       .orderBy('timestamp', 'desc')
       .limit(5)
       .get();
-    
+
     console.log(`   Found ${changesSnapshot.size} voting change records`);
-    
+
     if (!changesSnapshot.empty) {
       const latestChange = changesSnapshot.docs[0].data();
       console.log(`   Latest change: ${latestChange.oldStatus} → ${latestChange.newStatus}`);
@@ -41,30 +41,30 @@ async function testVotingSystem() {
       .where('votingStatus', 'in', ['yes', 'no', 'abstain', 'undecided'])
       .limit(10)
       .get();
-    
+
     console.log(`   Found ${clientsSnapshot.size} clients with voting status`);
-    
+
     const statusCounts = {};
     clientsSnapshot.docs.forEach(doc => {
       const status = doc.data().votingStatus || 'undecided';
       statusCounts[status] = (statusCounts[status] || 0) + 1;
     });
-    
+
     console.log('   Status distribution:', statusCounts);
 
     // Test 3: Test query performance (with new indexes)
     console.log('\n⚡ Test 3: Query performance test');
     const startTime = Date.now();
-    
+
     const testQuery = await db.collection('voting_status_changes')
       .where('clientId', '==', 'test')
       .orderBy('timestamp', 'desc')
       .limit(1)
       .get();
-    
+
     const queryTime = Date.now() - startTime;
     console.log(`   Query completed in ${queryTime}ms (should be < 1000ms)`);
-    
+
     if (queryTime < 1000) {
       console.log('   ✅ Query performance: GOOD');
     } else {
@@ -92,20 +92,20 @@ async function testVotingSystem() {
     console.log('\n🎉 All tests passed! Voting system is working correctly.');
     console.log('\n📋 Summary:');
     console.log(`   • voting_status_changes: ${changesSnapshot.size} records`);
-    console.log(`   • clients with voting status: ${clientsSnapshot.size} clients`);  
+    console.log(`   • clients with voting status: ${clientsSnapshot.size} clients`);
     console.log(`   • query performance: ${queryTime}ms`);
     console.log('   • write/delete operations: ✅ working');
-    
+
     process.exit(0);
-    
+
   } catch (error) {
     console.error('\n❌ Test failed:', error.message);
     console.error('\n🔍 Possible causes:');
     console.error('   • Firestore indexes still building (wait 5-10 minutes)');
     console.error('   • Firestore rules blocking access');
-    console.error('   • Network connectivity issues'); 
+    console.error('   • Network connectivity issues');
     console.error('   • ServiceAccount.json missing or invalid');
-    
+
     process.exit(1);
   }
 }

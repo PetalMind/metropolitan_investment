@@ -27,7 +27,7 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
   String _selectedColor = '#FFFFFF';
   List<String> _selectedUnviableInvestments = [];
   bool _isLoading = false;
-  
+
   // Services
   final UnifiedVotingService _votingService = UnifiedVotingService();
 
@@ -80,14 +80,16 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
 
       // Jeśli status głosowania się zmienił, zapisz historię przez UnifiedVotingService
       if (votingStatusChanged) {
-        print('🗳️ [InvestorDetailsDialog] Status głosowania zmieniony: ${oldVotingStatus.name} -> ${_selectedVotingStatus.name}');
-        
+        print(
+          '🗳️ [InvestorDetailsDialog] Status głosowania zmieniony: ${oldVotingStatus.name} -> ${_selectedVotingStatus.name}',
+        );
+
         await _votingService.updateVotingStatus(
           widget.investor.client.id,
           _selectedVotingStatus,
           reason: 'Updated via investor analytics dialog',
         );
-        
+
         print('✅ [InvestorDetailsDialog] Historia głosowania zapisana');
       }
 
@@ -569,5 +571,4 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
       ],
     );
   }
-
 }

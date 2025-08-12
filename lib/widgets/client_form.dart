@@ -55,12 +55,12 @@ class _ClientFormState extends State<ClientForm> {
   /// Obsługuje zapisywanie zmian z historią głosowania
   Future<void> _handleSave() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
       _formKey.currentState?.save();
-      
+
       final newClient = Client(
         id: widget.client?.id ?? '',
         name: _name,
@@ -80,26 +80,26 @@ class _ClientFormState extends State<ClientForm> {
       );
 
       // Jeśli to edycja istniejącego klienta i status głosowania się zmienił
-      if (widget.client != null && 
+      if (widget.client != null &&
           widget.client!.votingStatus != _votingStatus) {
-        
-        print('🗳️ [ClientForm] Status głosowania zmieniony: ${widget.client!.votingStatus.name} -> ${_votingStatus.name}');
-        
+        print(
+          '🗳️ [ClientForm] Status głosowania zmieniony: ${widget.client!.votingStatus.name} -> ${_votingStatus.name}',
+        );
+
         // Zapisz zmianę statusu przez UnifiedVotingService
         await _votingService.updateVotingStatus(
           widget.client!.id,
           _votingStatus,
           reason: 'Updated via client form',
         );
-        
+
         print('✅ [ClientForm] Historia głosowania zapisana');
       }
-      
+
       widget.onSave(newClient);
-      
     } catch (e) {
       print('❌ [ClientForm] Błąd podczas zapisywania: $e');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
