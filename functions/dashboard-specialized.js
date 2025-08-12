@@ -6,6 +6,7 @@ const { setGlobalOptions } = require("firebase-functions/v2");
 const { HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const { safeToDouble, safeToString, parseDate } = require("./utils/data-mapping");
+const { calculateCapitalSecuredByRealEstate } = require("./utils/unified-statistics");
 
 // Set global options for all functions
 setGlobalOptions({

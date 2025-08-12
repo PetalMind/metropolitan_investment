@@ -15,6 +15,7 @@ const statisticsService = require("./services/statistics-service");
 const analyticsService = require("./services/analytics-service");
 const clientsService = require("./services/clients-service");
 const debugService = require("./services/debug-service");
+const capitalCalculationService = require("./services/capital-calculation-service");
 const productInvestorsService = require("./product-investors-optimization");
 
 // Import nowych analityk - tylko funkcje pomocnicze
@@ -157,6 +158,9 @@ module.exports = {
 
   // Funkcje debug
   ...debugService,
+
+  // Funkcje obliczania kapitału zabezpieczonego nieruchomością
+  ...capitalCalculationService,
 
   // Funkcje wyszukiwania inwestorów produktów - z prawidłowym CORS
   ...productInvestorsService,

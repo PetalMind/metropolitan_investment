@@ -1,6 +1,10 @@
 /**
  * FIREBASE FUNCTIONS - ZNORMALIZOWANE MAPOWANIA PÓL
- * Zgodność z JSON_NORMALIZATION_README.md iconst { safeToDouble, safeToInt } = require("./utils/data-mapping");
+ * Zgodność z JSON_NORMALIZATION_README.md z dynamicznym obliczaniem kapitału zabezpieczonego nieruchomością
+ */
+
+const { safeToDouble, safeToInt } = require("./utils/data-mapping");
+const { calculateCapitalSecuredByRealEstate } = require("./utils/unified-statistics");
 
 /**
  * Bezpieczne mapowanie liczbowe - używa funkcji z utils
@@ -249,7 +253,9 @@ function createNormalizedInvestment(id, data, collectionType = null) {
     remainingCapital: safeToDouble(data.kapital_pozostaly || data.remainingCapital),
     realizedCapital: safeToDouble(data.kapital_zrealizowany || data.realizedCapital),
     capitalForRestructuring: safeToDouble(data.capitalForRestructuring || data.kapital_do_restrukturyzacji),
-    capitalSecuredByRealEstate: safeToDouble(data.capitalSecuredByRealEstate || data.realEstateSecuredCapital || data.kapital_zabezpieczony_nieruchomoscia),
+
+    // NOWY: Kapitał zabezpieczony nieruchomością - obliczany dynamicznie
+    capitalSecuredByRealEstate: calculateCapitalSecuredByRealEstate(data),
 
     // === KLIENT I SPRZEDAŻ === - exact field names from JSON  
     clientId: safeToString(data.clientId || data.ID_Klient),

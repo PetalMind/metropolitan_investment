@@ -1,10 +1,11 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/client.dart';
 import 'base_service.dart';
 import 'client_service.dart';
-import 'investment_service.dart';
 import 'firebase_functions_client_service.dart'
     show ClientStats; // Import tylko dla ClientStats
+import 'unified_statistics_utils.dart';
 
 /// Zintegrowany serwis klientów
 /// Używa Firebase Functions jako głównej metody z fallbackiem do standardowego ClientService
@@ -176,8 +177,11 @@ class IntegratedClientService extends BaseService {
 
   /// Pobiera statystyki klientów - próbuje Firebase Functions, fallback to ClientService
   Future<ClientStats> getClientStats({bool forceRefresh = false}) async {
+    print('🔍 [IntegratedClientService] Pobieranie statystyk klientów...');
+    
     try {
       // Najpierw spróbuj Firebase Functions
+      print('   - Próba Firebase Functions...');
       final result = await _functions
           .httpsCallable('getSystemStats')
           .call({'forceRefresh': forceRefresh})
@@ -191,6 +195,12 @@ class IntegratedClientService extends BaseService {
         throw Exception('Brak danych z Firebase Functions');
       }
 
+      print('   - Firebase Functions response:');
+      print('     * totalClients: ${data['totalClients']}');
+      print('     * totalInvestments: ${data['totalInvestments']}');
+      print('     * totalRemainingCapital: ${data['totalRemainingCapital']}');
+      print('     * source: ${data['source']}');
+
       final stats = ClientStats(
         totalClients: data['totalClients'] ?? 0,
         totalInvestments: data['totalInvestments'] ?? 0,
@@ -202,9 +212,17 @@ class IntegratedClientService extends BaseService {
         source: data['source'] ?? 'firebase-functions',
       );
 
+      // Sprawdź czy dane wyglądają sensownie
+      if (stats.totalRemainingCapital == 0 && stats.totalClients > 0) {
+        print('⚠️ [WARNING] Firebase Functions zwróciły 0 kapitału dla ${stats.totalClients} klientów');
+        print('   - Wymuszam fallback...');
+        throw Exception('Nieprawidłowe dane z Firebase Functions');
+      }
+
       logError('getClientStats', 'Pobrano statystyki z Firebase Functions');
       return stats;
     } catch (e) {
+      print('❌ [IntegratedClientService] Firebase Functions błąd: $e');
       logError(
         'getClientStats',
         'Firebase Functions nie działają: $e, przechodzę na zaawansowany fallback',
@@ -212,19 +230,19 @@ class IntegratedClientService extends BaseService {
 
       // Zaawansowany fallback - pobierz rzeczywiste dane
       try {
-        // Pobierz statystyki klientów i inwestycji równolegle
-        final futures = await Future.wait([
-          _fallbackService.getClientStats(),
-          InvestmentService().getInvestmentStatistics(),
-        ]);
+        print('   - Próba zaawansowanego fallback...');
+        // Pobierz statystyki klientów i zunifikowane statystyki inwestycji
+        final unifiedStats = await _getUnifiedClientStats();
+        final clientsStats = await _fallbackService.getClientStats();
 
-        final clientsStats = futures[0];
-        final investmentStats = futures[1];
+        final totalClients = (clientsStats['total_clients'] as int?) ?? unifiedStats.totalClients;
+        final totalInvestments = unifiedStats.totalInvestments;
+        final totalRemainingCapital = unifiedStats.totalRemainingCapital;
 
-        final totalClients = clientsStats['total_clients'] ?? 0;
-        final totalInvestments = investmentStats['totalCount'] ?? 0;
-        final totalRemainingCapital = (investmentStats['totalValue'] ?? 0.0)
-            .toDouble();
+        print('   - Zaawansowany fallback response:');
+        print('     * totalClients: $totalClients');
+        print('     * totalInvestments: $totalInvestments');
+        print('     * totalRemainingCapital: $totalRemainingCapital');
 
         final stats = ClientStats(
           totalClients: totalClients,
@@ -243,6 +261,7 @@ class IntegratedClientService extends BaseService {
         );
         return stats;
       } catch (fallbackError) {
+        print('❌ [IntegratedClientService] Zaawansowany fallback błąd: $fallbackError');
         logError(
           'getClientStats',
           'Zaawansowany fallback też nie działa: $fallbackError',
@@ -250,8 +269,12 @@ class IntegratedClientService extends BaseService {
 
         // Podstawowy fallback
         try {
+          print('   - Próba podstawowego fallback...');
           final clientsStats = await _fallbackService.getClientStats();
           final totalClients = clientsStats['total_clients'] ?? 0;
+
+          print('   - Podstawowy fallback response:');
+          print('     * totalClients: $totalClients');
 
           final stats = ClientStats(
             totalClients: totalClients,
@@ -268,6 +291,7 @@ class IntegratedClientService extends BaseService {
           );
           return stats;
         } catch (basicError) {
+          print('❌ [IntegratedClientService] Wszystkie fallbacki zawiodły: $basicError');
           logError(
             'getClientStats',
             'Wszystkie fallbacki zawiodły: $basicError',
@@ -380,6 +404,39 @@ class IntegratedClientService extends BaseService {
       additionalInfo: Map<String, dynamic>.from(
         data['additionalInfo'] ?? {'source_file': data['source_file']},
       ),
+    );
+  }
+
+  /// Pobiera statystyki klientów używając zunifikowanych metod
+  Future<ClientStats> _getUnifiedClientStats() async {
+    // Pobierz wszystkie inwestycje z Firestore
+    final investmentsSnapshot = await FirebaseFirestore.instance
+        .collection('investments')
+        .get();
+
+    final investmentsData = investmentsSnapshot.docs
+        .map((doc) => {'id': doc.id, ...doc.data()})
+        .toList();
+
+    // Użyj UnifiedStatisticsUtils do obliczenia statystyk
+    final unifiedStats = UnifiedSystemStats.fromInvestments(investmentsData);
+
+    // Pobierz liczbę klientów
+    final clientsSnapshot = await FirebaseFirestore.instance
+        .collection('clients')
+        .get();
+
+    final totalClients = clientsSnapshot.docs.length;
+
+    return ClientStats(
+      totalClients: totalClients,
+      totalInvestments: investmentsData.length,
+      totalRemainingCapital: unifiedStats.viableCapital, // Użyj viable capital
+      averageCapitalPerClient: totalClients > 0 
+          ? unifiedStats.viableCapital / totalClients 
+          : 0.0,
+      lastUpdated: DateTime.now().toIso8601String(),
+      source: 'unified-statistics',
     );
   }
 }

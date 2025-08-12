@@ -14,6 +14,7 @@ import '../screens/product_dashboard_screen.dart';
 import '../widgets/auth_wrapper.dart';
 import '../widgets/main_layout.dart';
 import '../providers/auth_provider.dart';
+import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
 
 /// Klasa definiująca wszystkie trasy aplikacji
@@ -419,7 +420,6 @@ class AppRouter {
             ),
           ),
 
-
           // === DODATKOWE SEKCJE ===
           GoRoute(
             path: AppRoutes.profile,
@@ -714,13 +714,6 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       const _PlaceholderScreen(title: 'Profil Użytkownika');
-}
-
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const _PlaceholderScreen(title: 'Ustawienia');
 }
 
 class ReportsScreen extends StatelessWidget {

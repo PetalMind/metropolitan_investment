@@ -48,25 +48,21 @@ class ProductDashboardScreen extends StatelessWidget {
           backgroundColor: AppThemePro.backgroundPrimary,
           elevation: 0,
           surfaceTintColor: Colors.transparent,
-          actions: [
-            // Action button for settings or navigation
-            IconButton(
-              onPressed: () {
-                // Navigator to settings or other functionality
-              },
-              icon: Icon(
-                Icons.settings_outlined,
-                color: AppThemePro.textSecondary,
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
+          actions: [],
         ),
         body: const ProductDashboardWidget(),
         // Optional floating action button for quick actions
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () {
             // Quick action - could be to add new product or refresh data
+            // For now, we'll just show a snackbar
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Odświeżanie danych...'),
+                backgroundColor: AppThemePro.accentGold,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
           },
           backgroundColor: AppThemePro.accentGold,
           foregroundColor: AppThemePro.primaryDark,

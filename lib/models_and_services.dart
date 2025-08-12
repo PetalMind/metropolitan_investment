@@ -43,6 +43,7 @@ export 'services/firebase_functions_analytics_service_updated.dart'
         ProductInvestorsResult,
         PaginationInfo,
         ProductTypeStatistics;
+export 'services/firebase_functions_capital_calculation_service.dart';
 export 'services/dashboard_service.dart';
 export 'services/auth_service.dart';
 export 'services/email_service.dart';
@@ -66,6 +67,8 @@ export 'services/apartment_service.dart';
 // Widget exports - Logo and branding components
 export 'widgets/metropolitan_components.dart';
 export 'widgets/investor_details_modal.dart';
+export 'widgets/capital_calculation_management_screen.dart';
+export 'widgets/capital_calculation_widgets.dart';
 
 // Utils exports
 export 'utils/currency_formatter.dart';

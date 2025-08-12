@@ -90,6 +90,13 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
           '   - Stats - totalRemainingCapital: ${_clientStats?.totalRemainingCapital}',
         );
         print('   - Stats - source: ${_clientStats?.source}');
+        
+        // ⚠️ DODATKOWE DEBUGOWANIE
+        if (_clientStats?.totalRemainingCapital == 0) {
+          print('⚠️ [WARNING] Total remaining capital is 0! Checking fallback...');
+          print('   - LastUpdated: ${_clientStats?.lastUpdated}');
+          print('   - AverageCapitalPerClient: ${_clientStats?.averageCapitalPerClient}');
+        }
 
         // Zastosuj filtrowanie jeśli potrzeba
         _applyCurrentFilters();

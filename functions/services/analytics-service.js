@@ -11,6 +11,7 @@ const { admin, db } = require("../utils/firebase-config");
 const {
   calculateUnifiedTotalValue,
   calculateUnifiedViableCapital,
+  calculateCapitalSecuredByRealEstate, // NOWY
   calculateMajorityThreshold,
   calculateUnifiedSystemStats,
   getUnifiedField,
@@ -89,8 +90,9 @@ const getOptimizedInvestorAnalytics = onCall({
         const viableCapital = calculateUnifiedViableCapital(investment);
         const totalValue = calculateUnifiedTotalValue(investment);
 
-        const capitalSecuredByRealEstate = safeToDouble(investment.capitalSecuredByRealEstate);
-        const capitalForRestructuring = safeToDouble(investment.capitalForRestructuring);
+        // NOWY: Oblicz dynamicznie kapitał zabezpieczony nieruchomością
+        const capitalSecuredByRealEstate = calculateCapitalSecuredByRealEstate(investment);
+        const capitalForRestructuring = getUnifiedField(investment, 'capitalForRestructuring');
 
         totalViableCapital += viableCapital;
         totalCapitalSecuredByRealEstate += capitalSecuredByRealEstate;
@@ -99,7 +101,7 @@ const getOptimizedInvestorAnalytics = onCall({
 
         return {
           ...normalizedInvestment,
-          capitalSecuredByRealEstate,
+          capitalSecuredByRealEstate, // Dynamicznie obliczona wartość
           capitalForRestructuring,
         };
       });

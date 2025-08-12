@@ -10,6 +10,7 @@ const { HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const { safeToDouble } = require("./utils/data-mapping");
 const { getCachedResult, setCachedResult } = require("./utils/cache-utils");
+const { calculateCapitalSecuredByRealEstate } = require("./utils/unified-statistics");
 
 // 🎯 GŁÓWNA FUNKCJA: Pobieranie inwestorów dla produktu z zaawansowaną optymalizacją
 exports.getProductInvestorsOptimized = onCall({

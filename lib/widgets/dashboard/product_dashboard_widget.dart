@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../theme/app_theme_professional.dart';
 import '../../models_and_services.dart';
 import '../premium_loading_widget.dart';
@@ -51,12 +50,22 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   UserProfile? _userProfile;
   List<Investment> _investments = [];
   List<DeduplicatedProduct> _deduplicatedProducts = [];
+  List<Investment> _filteredInvestments = [];
+  List<DeduplicatedProduct> _filteredDeduplicatedProducts = [];
   Investment? _selectedInvestment;
   Set<String> _selectedProductIds = {};
   bool _showDeduplicatedView = true; // Domyślnie pokazuj deduplikowane produkty
 
+  // Filtering and sorting state
+  String _searchQuery = '';
+  String _sortBy = 'name'; // 'name', 'amount', 'date', 'type', 'status'
+  bool _sortAscending = true;
+  UnifiedProductType? _filterByType;
+  InvestmentStatus? _filterByStatus;
+  ProductStatus? _filterByProductStatus;
+
   // Date formatter
-  final DateFormat _dateFormat = DateFormat('dd.MM.yyyy');
+  final DateFormat _dateFormat = DateFormat('dd.MM.yyyy', 'pl_PL');
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'pl_PL',
     symbol: 'zł',
@@ -128,6 +137,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       _investments = investmentsResult.investments;
       _deduplicatedProducts = deduplicatedProducts;
 
+      // Apply filtering and sorting
+      _applyFilteringAndSorting();
+
       // Select first investment if none selected
       if (widget.selectedProductId != null) {
         _selectedInvestment = _investments
@@ -164,16 +176,182 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     super.dispose();
   }
 
+  // Filtering and sorting methods
+  void _applyFilteringAndSorting() {
+    // Apply filtering and sorting to investments
+    _filteredInvestments = _investments.where((investment) {
+      // Search filter
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery.toLowerCase();
+        if (!investment.productName.toLowerCase().contains(query) &&
+            !investment.clientName.toLowerCase().contains(query) &&
+            !investment.creditorCompany.toLowerCase().contains(query)) {
+          return false;
+        }
+      }
+
+      // Type filter
+      if (_filterByType != null && investment.productType != _filterByType) {
+        return false;
+      }
+
+      // Status filter
+      if (_filterByStatus != null && investment.status != _filterByStatus) {
+        return false;
+      }
+
+      return true;
+    }).toList();
+
+    // Apply filtering and sorting to deduplicated products
+    _filteredDeduplicatedProducts = _deduplicatedProducts.where((product) {
+      // Search filter
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery.toLowerCase();
+        if (!product.name.toLowerCase().contains(query) &&
+            !product.companyName.toLowerCase().contains(query)) {
+          return false;
+        }
+      }
+
+      // Type filter
+      if (_filterByType != null && product.productType != _filterByType) {
+        return false;
+      }
+
+      // Status filter (for deduplicated products)
+      if (_filterByProductStatus != null &&
+          product.status != _filterByProductStatus) {
+        return false;
+      }
+
+      return true;
+    }).toList();
+
+    // Sort investments
+    _filteredInvestments.sort((a, b) {
+      int comparison = 0;
+      switch (_sortBy) {
+        case 'name':
+          comparison = a.productName.compareTo(b.productName);
+          break;
+        case 'client':
+          comparison = a.clientName.compareTo(b.clientName);
+          break;
+        case 'amount':
+          comparison = a.remainingCapital.compareTo(b.remainingCapital);
+          break;
+        case 'date':
+          comparison = a.signedDate.compareTo(b.signedDate);
+          break;
+        case 'type':
+          comparison = a.productType.displayName.compareTo(
+            b.productType.displayName,
+          );
+          break;
+        case 'status':
+          comparison = a.status.displayName.compareTo(b.status.displayName);
+          break;
+      }
+      return _sortAscending ? comparison : -comparison;
+    });
+
+    // Sort deduplicated products
+    _filteredDeduplicatedProducts.sort((a, b) {
+      int comparison = 0;
+      switch (_sortBy) {
+        case 'name':
+          comparison = a.name.compareTo(b.name);
+          break;
+        case 'company':
+          comparison = a.companyName.compareTo(b.companyName);
+          break;
+        case 'amount':
+          comparison = a.totalRemainingCapital.compareTo(
+            b.totalRemainingCapital,
+          );
+          break;
+        case 'investments':
+          comparison = a.totalInvestments.compareTo(b.totalInvestments);
+          break;
+        case 'type':
+          comparison = a.productType.displayName.compareTo(
+            b.productType.displayName,
+          );
+          break;
+        case 'status':
+          comparison = a.status.displayName.compareTo(b.status.displayName);
+          break;
+      }
+      return _sortAscending ? comparison : -comparison;
+    });
+  }
+
+  void _updateSearch(String query) {
+    setState(() {
+      _searchQuery = query;
+      _applyFilteringAndSorting();
+    });
+  }
+
+  void _updateSort(String sortBy) {
+    setState(() {
+      if (_sortBy == sortBy) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortBy = sortBy;
+        _sortAscending = true;
+      }
+      _applyFilteringAndSorting();
+    });
+  }
+
+  void _updateTypeFilter(UnifiedProductType? type) {
+    setState(() {
+      _filterByType = type;
+      _applyFilteringAndSorting();
+    });
+  }
+
+  void _updateStatusFilter(dynamic status) {
+    setState(() {
+      if (status is InvestmentStatus) {
+        _filterByStatus = status;
+        _filterByProductStatus = null;
+      } else if (status is ProductStatus) {
+        _filterByProductStatus = status;
+        _filterByStatus = null;
+      } else {
+        _filterByStatus = null;
+        _filterByProductStatus = null;
+      }
+      _applyFilteringAndSorting();
+    });
+  }
+
+  // Helper method to get user's first letter
+  String _getUserInitial() {
+    if (_userProfile != null && _userProfile!.firstName.isNotEmpty) {
+      return _userProfile!.firstName[0].toUpperCase();
+    }
+    if (_userProfile != null && _userProfile!.email.isNotEmpty) {
+      return _userProfile!.email[0].toUpperCase();
+    }
+    return 'U'; // Default fallback
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const PremiumLoadingWidget(
-        message: 'Ładowanie danych produktów...',
+      return const Center(
+        child: PremiumLoadingWidget(message: 'Ładowanie danych produktów...'),
       );
     }
 
     if (_error != null) {
-      return PremiumErrorWidget(error: _error!, onRetry: _loadData);
+      return Center(
+        child: PremiumErrorWidget(error: _error!, onRetry: _loadData),
+      );
     }
 
     return Container(
@@ -239,7 +417,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
           decoration: AppThemePro.premiumCardDecoration,
           child: Row(
             children: [
-              // Logo with animation
+              // User Avatar with first letter instead of logo
               ScaleTransition(
                 scale: _scaleAnimation,
                 child: Container(
@@ -253,8 +431,25 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                         AppThemePro.accentGoldMuted,
                       ],
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppThemePro.accentGold.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: _buildCustomLogo(60),
+                  child: Center(
+                    child: Text(
+                      _getUserInitial(),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 24),
@@ -326,7 +521,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                     return Column(
                       children: [
                         Text(
-                          DateFormat('HH:mm:ss').format(now),
+                          DateFormat('HH:mm:ss', 'pl_PL').format(now),
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(
                                 color: AppThemePro.accentGold,
@@ -334,7 +529,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                               ),
                         ),
                         Text(
-                          DateFormat('dd MMM').format(now),
+                          DateFormat('dd MMM', 'pl_PL').format(now),
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: AppThemePro.textTertiary),
                         ),
@@ -542,9 +737,12 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   Widget _buildProductSelector() {
     // Wybierz odpowiedną listę na podstawie trybu wyświetlania
     final displayList = _showDeduplicatedView
-        ? _deduplicatedProducts
-        : _investments;
+        ? _filteredDeduplicatedProducts
+        : _filteredInvestments;
     final totalCount = displayList.length;
+    final totalUnfilteredCount = _showDeduplicatedView
+        ? _deduplicatedProducts.length
+        : _investments.length;
 
     return SlideTransition(
       position: _slideAnimation,
@@ -567,8 +765,8 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   const SizedBox(height: 4),
                   Text(
                     _showDeduplicatedView
-                        ? 'Widok: Produkty unikalne ($totalCount pozycji)'
-                        : 'Widok: Wszystkie inwestycje ($totalCount pozycji)',
+                        ? 'Widok: Produkty unikalne ($totalCount z $totalUnfilteredCount pozycji)'
+                        : 'Widok: Wszystkie inwestycje ($totalCount z $totalUnfilteredCount pozycji)',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppThemePro.textSecondary,
                     ),
@@ -581,11 +779,11 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                     onPressed: () {
                       setState(() {
                         if (_showDeduplicatedView) {
-                          _selectedProductIds = _deduplicatedProducts
+                          _selectedProductIds = _filteredDeduplicatedProducts
                               .map((prod) => prod.id)
                               .toSet();
                         } else {
-                          _selectedProductIds = _investments
+                          _selectedProductIds = _filteredInvestments
                               .map((inv) => inv.id)
                               .toSet();
                         }
@@ -615,6 +813,11 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
             ],
           ),
           const SizedBox(height: 16),
+
+          // Search and filters row
+          _buildSearchAndFilters(),
+          const SizedBox(height: 16),
+
           Container(
             decoration: AppThemePro.premiumCardDecoration,
             child: Column(
@@ -643,6 +846,30 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      if (totalCount != totalUnfilteredCount) ...[
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppThemePro.statusInfo.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppThemePro.statusInfo.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Text(
+                            'PRZEFILTROWANO',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: AppThemePro.statusInfo,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -662,12 +889,259 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     );
   }
 
+  Widget _buildSearchAndFilters() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.surfaceElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppThemePro.borderPrimary, width: 1),
+      ),
+      child: Column(
+        children: [
+          // Search bar
+          TextField(
+            onChanged: _updateSearch,
+            decoration: InputDecoration(
+              hintText: _showDeduplicatedView
+                  ? 'Szukaj produktów lub firm...'
+                  : 'Szukaj produktów, klientów lub firm...',
+              prefixIcon: Icon(Icons.search, color: AppThemePro.textSecondary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppThemePro.borderPrimary),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppThemePro.accentGold, width: 2),
+              ),
+              filled: true,
+              fillColor: AppThemePro.backgroundPrimary,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+            ),
+            style: TextStyle(color: AppThemePro.textPrimary),
+          ),
+          const SizedBox(height: 16),
+
+          // Filters and sorting row
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                // Sort dropdown
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.backgroundPrimary,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppThemePro.borderPrimary),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _sortBy,
+                      icon: Icon(
+                        Icons.arrow_drop_down,
+                        color: AppThemePro.textSecondary,
+                      ),
+                      style: TextStyle(
+                        color: AppThemePro.textPrimary,
+                        fontSize: 14,
+                      ),
+                      dropdownColor: AppThemePro.backgroundPrimary,
+                      items: _getSortOptions(),
+                      onChanged: (value) =>
+                          value != null ? _updateSort(value) : null,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Sort direction button
+                IconButton(
+                  onPressed: () => _updateSort(_sortBy),
+                  icon: Icon(
+                    _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                    color: AppThemePro.accentGold,
+                  ),
+                  tooltip: _sortAscending ? 'Rosnąco' : 'Malejąco',
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppThemePro.accentGold.withOpacity(0.1),
+                    foregroundColor: AppThemePro.accentGold,
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // Type filter
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.backgroundPrimary,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppThemePro.borderPrimary),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<UnifiedProductType?>(
+                      value: _filterByType,
+                      hint: Text(
+                        'Typ produktu',
+                        style: TextStyle(
+                          color: AppThemePro.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
+                      icon: Icon(
+                        Icons.filter_list,
+                        color: AppThemePro.textSecondary,
+                      ),
+                      style: TextStyle(
+                        color: AppThemePro.textPrimary,
+                        fontSize: 14,
+                      ),
+                      dropdownColor: AppThemePro.backgroundPrimary,
+                      items: [
+                        DropdownMenuItem(
+                          value: null,
+                          child: Text('Wszystkie typy'),
+                        ),
+                        ...UnifiedProductType.values.map(
+                          (type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(type.displayName),
+                          ),
+                        ),
+                      ],
+                      onChanged: _updateTypeFilter,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Status filter
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.backgroundPrimary,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppThemePro.borderPrimary),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<dynamic>(
+                      value: _filterByStatus ?? _filterByProductStatus,
+                      hint: Text(
+                        'Status',
+                        style: TextStyle(
+                          color: AppThemePro.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
+                      icon: Icon(
+                        Icons.filter_list,
+                        color: AppThemePro.textSecondary,
+                      ),
+                      style: TextStyle(
+                        color: AppThemePro.textPrimary,
+                        fontSize: 14,
+                      ),
+                      dropdownColor: AppThemePro.backgroundPrimary,
+                      items: [
+                        DropdownMenuItem(
+                          value: null,
+                          child: Text('Wszystkie statusy'),
+                        ),
+                        if (_showDeduplicatedView)
+                          ...ProductStatus.values.map(
+                            (status) => DropdownMenuItem(
+                              value: status,
+                              child: Text(status.displayName),
+                            ),
+                          )
+                        else
+                          ...InvestmentStatus.values.map(
+                            (status) => DropdownMenuItem(
+                              value: status,
+                              child: Text(status.displayName),
+                            ),
+                          ),
+                      ],
+                      onChanged: _updateStatusFilter,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // Clear filters button
+                if (_searchQuery.isNotEmpty ||
+                    _filterByType != null ||
+                    _filterByStatus != null ||
+                    _filterByProductStatus != null)
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _searchQuery = '';
+                        _filterByType = null;
+                        _filterByStatus = null;
+                        _filterByProductStatus = null;
+                        _applyFilteringAndSorting();
+                      });
+                    },
+                    icon: Icon(Icons.clear, size: 16),
+                    label: Text('Wyczyść filtry'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppThemePro.statusWarning,
+                      textStyle: TextStyle(fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<DropdownMenuItem<String>> _getSortOptions() {
+    if (_showDeduplicatedView) {
+      return [
+        DropdownMenuItem(value: 'name', child: Text('Nazwa')),
+        DropdownMenuItem(value: 'company', child: Text('Firma')),
+        DropdownMenuItem(value: 'amount', child: Text('Kapitał')),
+        DropdownMenuItem(
+          value: 'investments',
+          child: Text('Liczba inwestycji'),
+        ),
+        DropdownMenuItem(value: 'type', child: Text('Typ')),
+        DropdownMenuItem(value: 'status', child: Text('Status')),
+      ];
+    } else {
+      return [
+        DropdownMenuItem(value: 'name', child: Text('Nazwa')),
+        DropdownMenuItem(value: 'client', child: Text('Klient')),
+        DropdownMenuItem(value: 'amount', child: Text('Kapitał')),
+        DropdownMenuItem(value: 'date', child: Text('Data')),
+        DropdownMenuItem(value: 'type', child: Text('Typ')),
+        DropdownMenuItem(value: 'status', child: Text('Status')),
+      ];
+    }
+  }
+
   Widget _buildDeduplicatedProductsList() {
     return ListView.builder(
       shrinkWrap: true,
-      itemCount: _deduplicatedProducts.length,
+      itemCount: _filteredDeduplicatedProducts.length,
       itemBuilder: (context, index) {
-        final product = _deduplicatedProducts[index];
+        final product = _filteredDeduplicatedProducts[index];
         final isSelected = _selectedProductIds.contains(product.id);
 
         return Container(
@@ -737,9 +1211,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   Widget _buildInvestmentsList() {
     return ListView.builder(
       shrinkWrap: true,
-      itemCount: _investments.length,
+      itemCount: _filteredInvestments.length,
       itemBuilder: (context, index) {
-        final investment = _investments[index];
+        final investment = _filteredInvestments[index];
         final isSelected = _selectedProductIds.contains(investment.id);
 
         return Container(
@@ -1517,37 +1991,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // Helper method to build custom logo
-  Widget _buildCustomLogo(double size) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppThemePro.accentGold, AppThemePro.accentGoldMuted],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(size * 0.2),
-        boxShadow: [
-          BoxShadow(
-            color: AppThemePro.accentGold.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Center(
-        child: SvgPicture.asset(
-          'assets/logos/METROPOLITAN_logo_kontra_RGB.svg',
-          width: size * 0.7,
-          height: size * 0.7,
-          colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
-        ),
       ),
     );
   }

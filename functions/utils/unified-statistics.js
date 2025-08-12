@@ -15,16 +15,129 @@ const STATISTICS_CONFIG = {
     TOTAL_VALUE: 'remainingCapital + remainingInterest',
     VIABLE_CAPITAL: 'remainingCapital WHERE productStatus = Aktywny',
     MAJORITY_THRESHOLD: 'viableCapital * 0.51',
-    ACTIVE_STATUS: 'Aktywny'
+    ACTIVE_STATUS: 'Aktywny',
+    CAPITAL_SECURED_BY_REAL_ESTATE: 'remainingCapital - capitalForRestructuring' // NOWY
   },
 
   FIELD_MAPPING: {
-    remainingCapital: ['kapital_pozostaly', 'remainingCapital', 'Kapital Pozostaly'],
-    remainingInterest: ['odsetki_pozostale', 'remainingInterest', 'odsetki_pozostale_value'],
-    investmentAmount: ['kwota_inwestycji', 'investmentAmount', 'Kwota_inwestycji'],
-    productStatus: ['productStatus', 'status_produktu', 'Status_produktu'],
-    clientName: ['clientName', 'klient', 'Klient'],
-    clientId: ['clientId', 'ID_Klient', 'klient_id']
+    // Kapitał pozostały - główne pole do obliczeń
+    remainingCapital: [
+      'remainingCapital',           // Standard Firebase Functions
+      'kapital_pozostaly',          // Polski format
+      'Kapital Pozostaly',          // Excel import format
+      'Kapital zrealizowany'        // Alternatywna nazwa
+    ],
+
+    // Odsetki pozostałe
+    remainingInterest: [
+      'remainingInterest',          // Standard Firebase Functions
+      'odsetki_pozostale',          // Polski format
+      'remainingInterest'           // Firestore field
+    ],
+
+    // Kwota inwestycji
+    investmentAmount: [
+      'investmentAmount',           // Firestore field (CONFIRMED)
+      'kwota_inwestycji',           // Polski format
+      'Kwota_inwestycji',           // Excel format
+      'paymentAmount'               // Alternative field (CONFIRMED)
+    ],
+
+    // Status produktu
+    productStatus: [
+      'productStatus',              // Firestore field (CONFIRMED)
+      'status_produktu',            // Polski format
+      'Status_produktu'             // Excel format
+    ],
+
+    // Nazwa klienta
+    clientName: [
+      'clientName',                 // Firestore field (CONFIRMED)
+      'klient',                     // Polski format
+      'Klient'                      // Excel format
+    ],
+
+    // ID klienta
+    clientId: [
+      'clientId',                   // Firestore field (CONFIRMED)
+      'ID_Klient',                  // Excel format
+      'klient_id'                   // Alternative format
+    ],
+
+    // Kapitał do restrukturyzacji (CONFIRMED in Firestore)
+    capitalForRestructuring: [
+      'capitalForRestructuring',    // Firestore field (CONFIRMED)
+      'kapital_do_restrukturyzacji', // Polski format
+      'Kapitał do restrukturyzacji' // Excel format
+    ],
+
+    // Kapitał zabezpieczony nieruchomością (CONFIRMED in Firestore)
+    capitalSecuredByRealEstate: [
+      'capitalSecuredByRealEstate', // Firestore field (CONFIRMED)
+      'kapital_zabezpieczony_nieruchomoscia', // Polski format
+      'Kapitał zabezpieczony nieruchomością'  // Excel format
+    ],
+
+    // Dodatkowe pola z rzeczywistych danych Firestore
+    productName: [
+      'productName',                // Firestore field (CONFIRMED)
+      'nazwa_produktu',             // Polski format
+      'Produkt_nazwa'               // Excel format
+    ],
+
+    productType: [
+      'productType',                // Firestore field (CONFIRMED)
+      'typ_produktu',               // Polski format
+      'Typ_produktu'                // Excel format
+    ],
+
+    companyId: [
+      'companyId',                  // Firestore field (CONFIRMED)
+      'ID_Spolka',                  // Excel format
+      'spolka_id'                   // Alternative format
+    ],
+
+    signedDate: [
+      'signedDate',                 // Firestore field (CONFIRMED)
+      'data_podpisania',            // Polski format
+      'Data_podpisania'             // Excel format
+    ],
+
+    realizedCapital: [
+      'realizedCapital',            // Firestore field (CONFIRMED)
+      'kapital_zrealizowany',       // Polski format
+      'Kapital zrealizowany'        // Excel format
+    ],
+
+    realizedInterest: [
+      'realizedInterest',           // Firestore field (CONFIRMED)
+      'odsetki_zrealizowane',       // Polski format
+      'Odsetki zrealizowane'        // Excel format
+    ],
+
+    transferToOtherProduct: [
+      'transferToOtherProduct',     // Firestore field (CONFIRMED)
+      'przekaz_na_inny_produkt',    // Polski format
+      'Przekaz na inny produkt'     // Excel format
+    ],
+
+    advisor: [
+      'advisor',                    // Firestore field (CONFIRMED)
+      'opiekun',                    // Polski format
+      'Opiekun z MISA'              // Excel format
+    ],
+
+    branch: [
+      'branch',                     // Firestore field (CONFIRMED)
+      'oddzial',                    // Polski format
+      'Oddzial'                     // Excel format
+    ],
+
+    salesId: [
+      'salesId',                    // Firestore field (CONFIRMED)
+      'ID_Sprzedaz',                // Excel format
+      'sprzedaz_id'                 // Alternative format
+    ]
   }
 };
 
@@ -66,6 +179,25 @@ function calculateUnifiedViableCapital(investment) {
   }
 
   return remainingCapital;
+}
+
+/**
+ * NOWA: ZUNIFIKOWANA funkcja obliczania kapitału zabezpieczonego nieruchomością
+ * @param {Object} investment - dokument inwestycji  
+ * @returns {number} - capitalSecuredByRealEstate = remainingCapital - capitalForRestructuring
+ */
+function calculateCapitalSecuredByRealEstate(investment) {
+  const remainingCapital = getUnifiedField(investment, 'remainingCapital');
+  const capitalForRestructuring = getUnifiedField(investment, 'capitalForRestructuring');
+
+  const capitalSecuredByRealEstate = remainingCapital - capitalForRestructuring;
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[Unified] capitalSecuredByRealEstate: ${remainingCapital} - ${capitalForRestructuring} = ${capitalSecuredByRealEstate}`);
+  }
+
+  // Zwróć nie mniej niż 0
+  return Math.max(0, capitalSecuredByRealEstate);
 }
 
 /**
@@ -202,6 +334,7 @@ function normalizeInvestmentDocument(investment) {
     totalValue: calculateUnifiedTotalValue(investment),
     viableCapital: calculateUnifiedViableCapital(investment),
     isActive: isInvestmentActive(investment),
+    capitalSecuredByRealEstate: calculateCapitalSecuredByRealEstate(investment), // NOWY
 
     // Oryginalne dane w additionalInfo
     originalData: investment
@@ -212,6 +345,7 @@ module.exports = {
   STATISTICS_CONFIG,
   calculateUnifiedTotalValue,
   calculateUnifiedViableCapital,
+  calculateCapitalSecuredByRealEstate, // NOWY
   calculateMajorityThreshold,
   calculateUnifiedSystemStats,
   getUnifiedField,

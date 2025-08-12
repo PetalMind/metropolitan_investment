@@ -14,6 +14,10 @@ const {
   mapProductType,
   mapProductStatus
 } = require("../utils/data-mapping");
+const {
+  calculateCapitalSecuredByRealEstate,
+  getUnifiedField
+} = require("../utils/unified-statistics");
 
 /**
  * Konwertuje dokument Investment na format zgodny z aplikacją
@@ -21,6 +25,10 @@ const {
 function convertInvestmentData(doc) {
   const data = doc.data();
   const id = doc.id;
+
+  // NOWY: Oblicz dynamicznie kapitał zabezpieczony nieruchomością
+  const capitalSecuredByRealEstate = calculateCapitalSecuredByRealEstate(data);
+  const capitalForRestructuring = getUnifiedField(data, 'capitalForRestructuring');
 
   return {
     id: id,
@@ -35,6 +43,10 @@ function convertInvestmentData(doc) {
     createdAt: parseDate(data.createdAt) || new Date().toISOString(),
     status: mapProductStatus(data.status || data.productStatus || 'active'),
     isActive: true,
+
+    // NOWY: Dynamicznie obliczone pola kapitałowe
+    capitalSecuredByRealEstate: capitalSecuredByRealEstate, // Obliczone dynamicznie
+    capitalForRestructuring: capitalForRestructuring, // Z bazy danych
 
     // Dodatkowe pola specyficzne dla różnych typów produktów
     interestRate: safeToDouble(data.interestRate || data.stopa_procentowa),
