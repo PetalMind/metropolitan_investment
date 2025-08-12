@@ -266,7 +266,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
             indicatorColor: AppTheme.secondaryGold,
             tabs: const [
               Tab(text: 'Informacje', icon: Icon(Icons.person, size: 18)),
-              Tab(text: 'Statystyki', icon: Icon(Icons.analytics, size: 18)),
+              Tab(text: 'Kapitał', icon: Icon(Icons.analytics, size: 18)),
               Tab(text: 'Notatki', icon: Icon(Icons.note, size: 18)),
               Tab(
                 text: 'Inwestycje',

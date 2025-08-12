@@ -79,6 +79,13 @@ export 'widgets/enhanced_client_stats_widget.dart';
 export 'widgets/client_stats_demo.dart';
 export 'widgets/client_stats_debug_widget.dart';
 
+// Investor Analytics Widgets - Professional Financial Views
+export 'widgets/investor_analytics/investor_views_container.dart';
+export 'widgets/investor_analytics/investor_table_widget.dart';
+export 'widgets/investor_analytics/investor_list_widget.dart';
+export 'widgets/investor_analytics/investor_cards_widget.dart';
+export 'widgets/investor_analytics/investor_export_helper.dart';
+
 // Screen exports
 export 'screens/voting_system_demo.dart';
 

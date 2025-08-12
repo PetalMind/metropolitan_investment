@@ -660,18 +660,14 @@ class _BenchmarkTabState extends State<BenchmarkTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Statystyki',
+            'Kapitał',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: AppTheme.textPrimary,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 16),
-          _buildStatItem('Tracking Error', '2.8%'),
-          _buildStatItem('Information Ratio', '0.86'),
-          _buildStatItem('Up Capture', '92%'),
-          _buildStatItem('Down Capture', '78%'),
-          _buildStatItem('R-Squared', '0.73'),
+      
         ],
       ),
     );

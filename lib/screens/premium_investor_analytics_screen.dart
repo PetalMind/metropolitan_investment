@@ -8,17 +8,6 @@ import '../models_and_services.dart'; // Centralny export wszystkich modeli i se
 import '../services/investor_analytics_service.dart'
     as ia_service; // Tylko dla InvestorAnalyticsResult conflict resolution
 
-/// 📊 VIEW MODES FOR DATA PRESENTATION
-enum ViewMode {
-  cards('Karty', Icons.view_agenda_rounded),
-  list('Lista', Icons.view_list_rounded),
-  table('Tabela', Icons.table_view_rounded);
-
-  const ViewMode(this.displayName, this.icon);
-  final String displayName;
-  final IconData icon;
-}
-
 /// 🎯 PREMIUM INVESTOR ANALYTICS DASHBOARD
 ///
 /// 🚀 Najnowocześniejszy dashboard analityki inwestorów w Polsce
@@ -93,7 +82,6 @@ class _PremiumInvestorAnalyticsScreenState
   // 📄 PAGINATION
   int _currentPage = 1;
   final int _pageSize = 10000; // Zwiększony limit do 10k inwestorów
-  bool _hasNextPage = false;
   int _totalCount = 0;
 
   // 🎛️ ADVANCED FILTERS
@@ -465,7 +453,6 @@ class _PremiumInvestorAnalyticsScreenState
     setState(() {
       _displayedInvestors = filtered; // Pokaż wszystkie przefiltrowane wyniki
       _totalCount = filtered.length;
-      _hasNextPage = false; // Nie ma paginacji dla filtrowanych wyników
     });
   }
 
@@ -500,7 +487,6 @@ class _PremiumInvestorAnalyticsScreenState
       _totalCount = result
           .allInvestors
           .length; // Użyj rzeczywistej liczby wszystkich inwestorów
-      _hasNextPage = false; // Nie ma paginacji, gdy pokazujemy wszystkie dane
       _isLoading = false;
     });
 
@@ -1345,40 +1331,9 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildViewModeToggle() {
-    final currentMode = _getCurrentViewMode();
-
-    return PopupMenuButton<ViewMode>(
-      icon: Icon(currentMode.icon, color: AppTheme.textSecondary),
-      tooltip: 'Zmień widok',
-      itemBuilder: (context) => ViewMode.values.map((mode) {
-        return PopupMenuItem<ViewMode>(
-          value: mode,
-          child: Row(
-            children: [
-              Icon(
-                mode.icon,
-                color: mode == currentMode
-                    ? AppTheme.secondaryGold
-                    : AppTheme.textSecondary,
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                mode.displayName,
-                style: TextStyle(
-                  color: mode == currentMode
-                      ? AppTheme.secondaryGold
-                      : AppTheme.textPrimary,
-                  fontWeight: mode == currentMode
-                      ? FontWeight.w600
-                      : FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-      onSelected: (ViewMode mode) {
+    return ViewModeSelector(
+      currentMode: _investorsViewMode,
+      onModeChanged: (ViewMode mode) {
         setState(() {
           if (_tabController.index == 1) {
             // Inwestorzy tab
@@ -1389,18 +1344,8 @@ class _PremiumInvestorAnalyticsScreenState
           }
         });
       },
+      isTablet: _isTablet,
     );
-  }
-
-  ViewMode _getCurrentViewMode() {
-    switch (_tabController.index) {
-      case 1: // Inwestorzy tab
-        return _investorsViewMode;
-      case 3: // Większość tab
-        return _majorityViewMode;
-      default:
-        return ViewMode.list; // Domyślnie lista zamiast kart
-    }
   }
 
   Widget _buildFloatingActionButton() {
@@ -1932,378 +1877,20 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildInvestorsContent() {
-    switch (_investorsViewMode) {
-      case ViewMode.cards:
-        return _buildInvestorsGrid();
-      case ViewMode.list:
-        return _buildInvestorsList();
-      case ViewMode.table:
-        return _buildInvestorsTable();
-    }
-  }
-
-  Widget _buildInvestorsGrid() {
-    if (_displayedInvestors.isEmpty) {
-      return SliverFillRemaining(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.people_outline_rounded,
-                size: 64,
-                color: AppTheme.textTertiary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Brak inwestorów',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _searchQuery.isNotEmpty
-                    ? 'Nie znaleziono inwestorów dla: "$_searchQuery"'
-                    : 'Spróbuj zmienić filtry wyszukiwania',
-                style: TextStyle(color: AppTheme.textTertiary),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return SliverPadding(
-      padding: EdgeInsets.all(_isTablet ? 16 : 12),
-      sliver: SliverGrid(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: _isTablet ? 2 : 1,
-          childAspectRatio: _isTablet ? 1.8 : 2.5,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) => _buildInvestorCard(_displayedInvestors[index]),
-          childCount: _displayedInvestors.length,
-        ),
-      ),
+    // ✅ UŻYJ NOWYCH PROFESSIONAL WIDGETS Z WSZYSTKIMI 4 METRYKAMI
+    return InvestorViewsContainer(
+      investors: _displayedInvestors,
+      majorityHolders: _majorityHolders,
+      totalViableCapital: _votingManager.totalViableCapital,
+      currentViewMode: _investorsViewMode,
+      isTablet: _isTablet,
+      isLoading: false, // Already handled at screen level
+      error: null, // Already handled at screen level
+      onInvestorTap: _showInvestorDetails,
     );
   }
 
-  Widget _buildInvestorCard(InvestorSummary investor) {
-    final votingStatusColor = _getVotingStatusColor(
-      investor.client.votingStatus,
-    );
-    final capitalPercentage = _votingManager.totalViableCapital > 0
-        ? (investor.viableRemainingCapital /
-                  _votingManager.totalViableCapital) *
-              100
-        : 0.0;
-
-    return Card(
-      child: InkWell(
-        onTap: () => _showInvestorDetails(investor),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: votingStatusColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      investor.client.name,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (_majorityHolders.contains(investor))
-                    Icon(
-                      Icons.group_rounded,
-                      color: AppTheme.secondaryGold,
-                      size: 20,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Kapitał pozostały',
-                          style: TextStyle(
-                            color: AppTheme.textTertiary,
-                            fontSize: 12,
-                          ),
-                        ),
-                        Text(
-                          CurrencyFormatter.formatCurrencyShort(
-                            investor.viableRemainingCapital,
-                          ),
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Udział',
-                          style: TextStyle(
-                            color: AppTheme.textTertiary,
-                            fontSize: 12,
-                          ),
-                        ),
-                        Text(
-                          '${capitalPercentage.toStringAsFixed(2)}%',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: _majorityHolders.contains(investor)
-                                    ? AppTheme.secondaryGold
-                                    : AppTheme.textPrimary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${investor.investmentCount} inwestycji',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
-                  Text(
-                    investor.client.votingStatus.displayName,
-                    style: TextStyle(
-                      color: votingStatusColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInvestorsList() {
-    if (_displayedInvestors.isEmpty) {
-      return SliverFillRemaining(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.people_outline_rounded,
-                size: 64,
-                color: AppTheme.textTertiary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Brak inwestorów',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Spróbuj zmienić filtry wyszukiwania',
-                style: TextStyle(color: AppTheme.textTertiary),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return SliverPadding(
-      padding: EdgeInsets.all(_isTablet ? 16 : 12),
-      sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) =>
-              _buildInvestorListItem(_displayedInvestors[index], index),
-          childCount: _displayedInvestors.length,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInvestorListItem(InvestorSummary investor, int index) {
-    final votingStatusColor = _getVotingStatusColor(
-      investor.client.votingStatus,
-    );
-    final capitalPercentage = _votingManager.totalViableCapital > 0
-        ? (investor.viableRemainingCapital /
-                  _votingManager.totalViableCapital) *
-              100
-        : 0.0;
-    final isMajorityHolder = _majorityHolders.contains(investor);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: votingStatusColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: votingStatusColor.withOpacity(0.3)),
-          ),
-          child: Center(
-            child: Text(
-              '${index + 1}',
-              style: TextStyle(
-                color: votingStatusColor,
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                investor.client.name,
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (isMajorityHolder) ...[
-              const SizedBox(width: 8),
-              Icon(Icons.star_rounded, color: AppTheme.secondaryGold, size: 20),
-            ],
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              investor.client.votingStatus.displayName,
-              style: TextStyle(
-                color: votingStatusColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              '${investor.investmentCount} inwestycji • ${investor.client.type.displayName}',
-              style: TextStyle(color: AppTheme.textTertiary, fontSize: 11),
-            ),
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              CurrencyFormatter.formatCurrencyShort(
-                investor.viableRemainingCapital,
-              ),
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-              ),
-            ),
-            Text(
-              '${capitalPercentage.toStringAsFixed(1)}%',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-            ),
-          ],
-        ),
-        onTap: () => _showInvestorDetails(investor),
-      ),
-    );
-  }
-
-  Widget _buildInvestorsTable() {
-    if (_displayedInvestors.isEmpty) {
-      return SliverFillRemaining(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.people_outline_rounded,
-                size: 64,
-                color: AppTheme.textTertiary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Brak inwestorów',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Spróbuj zmienić filtry wyszukiwania',
-                style: TextStyle(color: AppTheme.textTertiary),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: EdgeInsets.all(_isTablet ? 16 : 12),
-        decoration: AppTheme.premiumCardDecoration,
-        child: Column(
-          children: [
-            _buildInvestorsTableHeader(),
-            ..._displayedInvestors.asMap().entries.map(
-              (entry) => _buildInvestorsTableRow(entry.value, entry.key),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // 🎨 SYSTEM STATS AND ANALYTICS
 
   Widget _buildInvestorsTableHeader() {
     return Container(
@@ -2314,7 +1901,7 @@ class _PremiumInvestorAnalyticsScreenState
       ),
       child: Row(
         children: [
-          SizedBox(width: 40, child: Text('#', style: _getTableHeaderStyle())),
+          SizedBox(width: 30, child: Text('#', style: _getTableHeaderStyle())),
           Expanded(
             flex: 3,
             child: Text('Inwestor', style: _getTableHeaderStyle()),
@@ -2325,21 +1912,37 @@ class _PremiumInvestorAnalyticsScreenState
           ),
           Expanded(
             flex: 2,
-            child: Text('Kapitał', style: _getTableHeaderStyle()),
+            child: Text('Kapitał pozostały', style: _getTableHeaderStyle()),
           ),
+          if (_isTablet) ...[
+            Expanded(
+              flex: 2,
+              child: Text('Kwota inwestycji', style: _getTableHeaderStyle()),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text('Do restrukturyzacji', style: _getTableHeaderStyle()),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text('Zabezp. nieruch.', style: _getTableHeaderStyle()),
+            ),
+          ] else ...[
+            // Mobile view - pokazuj tylko kwotę inwestycji w kompaktowej formie
+            Expanded(
+              flex: 1,
+              child: Text('Kwota\ninwest.', style: _getTableHeaderStyle()),
+            ),
+          ],
           Expanded(
             flex: 1,
             child: Text('Udział', style: _getTableHeaderStyle()),
           ),
           Expanded(
             flex: 1,
-            child: Text('Inwest.', style: _getTableHeaderStyle()),
+            child: Text('Liczba\ninwestycji', style: _getTableHeaderStyle()),
           ),
           if (_isTablet) ...[
-            Expanded(
-              flex: 2,
-              child: Text('Typ', style: _getTableHeaderStyle()),
-            ),
             SizedBox(
               width: 48,
               child: Text('Akcje', style: _getTableHeaderStyle()),
@@ -2361,121 +1964,259 @@ class _PremiumInvestorAnalyticsScreenState
         : 0.0;
     final isMajorityHolder = _majorityHolders.contains(investor);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppTheme.borderSecondary, width: 0.5),
+    return InkWell(
+      onTap: () => _showInvestorDetails(investor),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isMajorityHolder
+              ? AppTheme.secondaryGold.withOpacity(0.05)
+              : AppTheme.backgroundSecondary,
+          border: Border(
+            bottom: BorderSide(color: AppTheme.borderSecondary, width: 0.5),
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 40,
-            child: Text(
-              '${index + 1}',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 30,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: votingStatusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: votingStatusColor.withOpacity(0.3)),
+                ),
+                child: Text(
+                  '${index + 1}',
+                  style: TextStyle(
+                    color: votingStatusColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    investor.client.name,
+            Expanded(
+              flex: 3,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          investor.client.name,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          investor.client.type.displayName,
+                          style: TextStyle(
+                            color: AppTheme.textTertiary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isMajorityHolder) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.star_rounded,
+                      color: AppTheme.secondaryGold,
+                      size: 14,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: votingStatusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: votingStatusColor.withOpacity(0.3)),
+                ),
+                child: Text(
+                  investor.client.votingStatus.displayName,
+                  style: TextStyle(
+                    color: votingStatusColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    CurrencyFormatter.formatCurrencyShort(
+                      investor.viableRemainingCapital,
+                    ),
                     style: TextStyle(
                       color: AppTheme.textPrimary,
                       fontWeight: FontWeight.w600,
+                      fontSize: 12,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                if (isMajorityHolder) ...[
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.star_rounded,
-                    color: AppTheme.secondaryGold,
-                    size: 16,
+                  Text(
+                    '${capitalPercentage.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 10,
+                    ),
                   ),
                 ],
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: votingStatusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: votingStatusColor.withOpacity(0.3)),
               ),
-              child: Text(
-                investor.client.votingStatus.displayName,
-                style: TextStyle(
-                  color: votingStatusColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+            ),
+            if (_isTablet) ...[
+              Expanded(
+                flex: 2,
+                child: Text(
+                  CurrencyFormatter.formatCurrencyShort(
+                    investor.totalInvestmentAmount,
+                  ),
+                  style: TextStyle(
+                    color: AppTheme.infoPrimary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 11,
+                  ),
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              CurrencyFormatter.formatCurrencyShort(
-                investor.viableRemainingCapital,
+              Expanded(
+                flex: 2,
+                child: Text(
+                  CurrencyFormatter.formatCurrencyShort(
+                    investor.capitalForRestructuring,
+                  ),
+                  style: TextStyle(
+                    color: AppTheme.warningPrimary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 11,
+                  ),
+                ),
               ),
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w600,
+              Expanded(
+                flex: 2,
+                child: Text(
+                  CurrencyFormatter.formatCurrencyShort(
+                    investor.capitalSecuredByRealEstate,
+                  ),
+                  style: TextStyle(
+                    color: AppTheme.successPrimary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 11,
+                  ),
+                ),
               ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Text(
-              '${capitalPercentage.toStringAsFixed(1)}%',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
+            ] else ...[
+              // Mobile view - pokazuj tylko kwotę inwestycji
+              Expanded(
+                flex: 1,
+                child: Text(
+                  CurrencyFormatter.formatCurrencyShort(
+                    investor.totalInvestmentAmount,
+                  ),
+                  style: TextStyle(
+                    color: AppTheme.infoPrimary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 10,
+                  ),
+                ),
               ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Text(
-              '${investor.investmentCount}',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          if (_isTablet) ...[
+            ],
             Expanded(
-              flex: 2,
+              flex: 1,
               child: Text(
-                investor.client.type.displayName,
-                style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
+                '${capitalPercentage.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  color: isMajorityHolder
+                      ? AppTheme.secondaryGold
+                      : AppTheme.textSecondary,
+                  fontWeight: isMajorityHolder
+                      ? FontWeight.w600
+                      : FontWeight.w500,
+                  fontSize: 11,
+                ),
               ),
             ),
-            SizedBox(
-              width: 48,
-              child: IconButton(
-                icon: Icon(Icons.info_outline_rounded, size: 20),
-                onPressed: () => _showInvestorDetails(investor),
-                color: AppTheme.textSecondary,
+            Expanded(
+              flex: 1,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryAccent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${investor.investmentCount}',
+                  style: TextStyle(
+                    color: AppTheme.primaryAccent,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
+            if (_isTablet) ...[
+              SizedBox(
+                width: 48,
+                child: PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert_rounded, size: 16),
+                  color: AppTheme.backgroundModal,
+                  itemBuilder: (context) => [
+                    PopupMenuItem<String>(
+                      value: 'details',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: AppTheme.infoPrimary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text('Szczegóły'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'export',
+                      child: Row(
+                        children: [
+                    
+                        ],
+                      ),
+                    ),
+                  ],
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'details':
+                        _showInvestorDetails(investor);
+                        break;
+                      case 'export':
+                        _exportInvestorData(investor);
+                        break;
+                    }
+                  },
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -5004,4 +4745,53 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
       },
     );
   }
+
+  // Helper method for exporting investor data
+  void _exportInvestorData(InvestorSummary investor) {
+    // Prepare data for export/sharing
+    final data = StringBuffer();
+    data.writeln('=== ${investor.client.name} ===');
+    data.writeln('Email: ${investor.client.email}');
+    data.writeln(
+      'Status głosowania: ${investor.client.votingStatus.displayName}',
+    );
+    data.writeln('Typ klienta: ${investor.client.type.displayName}');
+    data.writeln('');
+    data.writeln('Szczegóły finansowe:');
+    data.writeln(
+      '• Kapitał pozostały: ${CurrencyFormatter.formatCurrency(investor.viableRemainingCapital)}',
+    );
+    data.writeln(
+      '• Kwota inwestycji: ${CurrencyFormatter.formatCurrency(investor.totalInvestmentAmount)}',
+    );
+    data.writeln(
+      '• Kapitał do restrukturyzacji: ${CurrencyFormatter.formatCurrency(investor.capitalForRestructuring)}',
+    );
+    data.writeln(
+      '• Kapitał zabezpieczony nieruchomościami: ${CurrencyFormatter.formatCurrency(investor.capitalSecuredByRealEstate)}',
+    );
+    data.writeln('• Liczba inwestycji: ${investor.investmentCount}');
+
+    // Copy to clipboard
+    Clipboard.setData(ClipboardData(text: data.toString()));
+
+    // Show confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('📋 Dane inwestora skopiowane do schowka'),
+        backgroundColor: AppTheme.successColor,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+}
+
+/// Helper class for financial details display
+class _FinancialDetail {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  _FinancialDetail(this.label, this.value, this.icon, this.color);
 }

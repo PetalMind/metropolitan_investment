@@ -241,13 +241,7 @@ class _PremiumAnalyticsDashboardState extends State<PremiumAnalyticsDashboard>
           onTap: _exportData,
           color: AppTheme.secondaryGold,
         ),
-        const SizedBox(width: 12),
-        _buildActionButton(
-          icon: Icons.share_rounded,
-          label: 'Udostępnij',
-          onTap: _shareReport,
-          color: AppTheme.successColor,
-        ),
+  
         const Spacer(),
         _buildActionButton(
           icon: Icons.fullscreen_rounded,
