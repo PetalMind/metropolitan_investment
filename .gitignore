@@ -94,3 +94,4 @@ logs/
 # Temporary analysis files
 tools/detailed_excel_analysis.json
 tools/excel_analysis_report.json
+service-account.json
