@@ -56,14 +56,14 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     (sum, investor) => sum + investor.totalInvestmentAmount,
   );
 
-  double get _totalValue => _investors.fold<double>(
+  double get _totalRemainingCapital => _investors.fold<double>(
     0.0,
-    (sum, investor) => sum + investor.totalValue,
+    (sum, investor) => sum + investor.totalRemainingCapital,
   );
 
-  double get _totalViableCapital => _investors.fold<double>(
+  double get _totalCapitalSecuredByRealEstate => _investors.fold<double>(
     0.0,
-    (sum, investor) => sum + investor.viableRemainingCapital,
+    (sum, investor) => sum + investor.capitalSecuredByRealEstate,
   );
 
   Future<void> _loadInvestors() async {
@@ -437,54 +437,74 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   Widget _buildAmountsMobileLayout(BuildContext context) {
     return Column(
       children: [
-        if (_totalInvestmentAmount > 0)
-          _buildAmountCard(
-            context,
-            'Kwota inwestycji',
-            CurrencyFormatter.formatCurrency(_totalInvestmentAmount),
-            Icons.account_balance_wallet_outlined,
-            AppTheme.primaryAccent,
-          ),
+        _buildAmountCard(
+          context,
+          'Suma inwestycji',
+          CurrencyFormatter.formatCurrency(_totalInvestmentAmount),
+          Icons.trending_down,
+          AppTheme.infoPrimary,
+        ),
 
         const SizedBox(height: 12),
 
         _buildAmountCard(
           context,
-          'Wartość całkowita',
-          CurrencyFormatter.formatCurrency(_totalValue),
-          Icons.trending_up,
-          AppTheme.secondaryGold,
+          'Kapitał pozostały',
+          CurrencyFormatter.formatCurrency(_totalRemainingCapital),
+          Icons.account_balance_wallet,
+          AppTheme.successPrimary,
           isHighlight: true,
+        ),
+
+        const SizedBox(height: 12),
+
+        _buildAmountCard(
+          context,
+          'Zabezpieczony nieruchomością',
+          CurrencyFormatter.formatCurrency(_totalCapitalSecuredByRealEstate),
+          Icons.home,
+          AppTheme.warningPrimary,
         ),
       ],
     );
   }
 
   Widget _buildAmountsDesktopLayout(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        if (_totalInvestmentAmount > 0) ...[
-          Expanded(
-            child: _buildAmountCard(
-              context,
-              'Kwota inwestycji',
-              CurrencyFormatter.formatCurrency(_totalInvestmentAmount),
-              Icons.account_balance_wallet_outlined,
-              AppTheme.primaryAccent,
+        Row(
+          children: [
+            Expanded(
+              child: _buildAmountCard(
+                context,
+                'Suma inwestycji',
+                CurrencyFormatter.formatCurrency(_totalInvestmentAmount),
+                Icons.trending_down,
+                AppTheme.infoPrimary,
+              ),
             ),
-          ),
-          const SizedBox(width: 16),
-        ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildAmountCard(
+                context,
+                'Kapitał pozostały',
+                CurrencyFormatter.formatCurrency(_totalRemainingCapital),
+                Icons.account_balance_wallet,
+                AppTheme.successPrimary,
+                isHighlight: true,
+              ),
+            ),
+          ],
+        ),
 
-        Expanded(
-          child: _buildAmountCard(
-            context,
-            'Wartość całkowita',
-            CurrencyFormatter.formatCurrency(_totalValue),
-            Icons.trending_up,
-            AppTheme.secondaryGold,
-            isHighlight: true,
-          ),
+        const SizedBox(height: 16),
+
+        _buildAmountCard(
+          context,
+          'Kapitał zabezpieczony nieruchomością',
+          CurrencyFormatter.formatCurrency(_totalCapitalSecuredByRealEstate),
+          Icons.home,
+          AppTheme.warningPrimary,
         ),
       ],
     );
@@ -857,11 +877,8 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
 
   Widget _buildMainStatsCards(BuildContext context, bool isMobile) {
     final totalInvestors = _investors.length;
-    // ⭐ POPRAWKA: Używaj getterów do sumowania wartości z inwestorów
-    final totalValue = _totalValue;
-    final averageInvestment = totalInvestors > 0
-        ? totalValue / totalInvestors
-        : 0.0;
+    // ⭐ POPRAWKA: Używaj nowych getterów do sumowania wartości z inwestorów
+    final totalRemainingCapital = _totalRemainingCapital;
 
     return GridView.count(
       crossAxisCount: isMobile ? 2 : 4,
@@ -878,22 +895,24 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           AppTheme.primaryAccent,
         ),
         _buildStatCard(
-          'Wartość całkowita',
-          CurrencyFormatter.formatCurrencyShort(totalValue),
+          'Suma inwestycji',
+          CurrencyFormatter.formatCurrencyShort(_totalInvestmentAmount),
+          Icons.trending_down,
+          AppTheme.infoPrimary,
+        ),
+        _buildStatCard(
+          'Kapitał pozostały',
+          CurrencyFormatter.formatCurrencyShort(totalRemainingCapital),
           Icons.account_balance_wallet,
           AppTheme.successPrimary,
         ),
         _buildStatCard(
-          'Średnia inwestycja',
-          CurrencyFormatter.formatCurrencyShort(averageInvestment),
-          Icons.trending_up,
+          'Zabezpiecz. nieru.',
+          CurrencyFormatter.formatCurrencyShort(
+            _totalCapitalSecuredByRealEstate,
+          ),
+          Icons.home,
           AppTheme.warningPrimary,
-        ),
-        _buildStatCard(
-          'Status',
-          _getProductStatusText(),
-          Icons.info,
-          _getProductStatusColor(),
         ),
       ],
     );
@@ -972,7 +991,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
             children: [
               Expanded(
                 child: _buildAmountInfo(
-                  'Kwota inwestycji',
+                  'Suma inwestycji',
                   _totalInvestmentAmount,
                   Icons.trending_down,
                   AppTheme.errorPrimary,
@@ -986,10 +1005,24 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               ),
               Expanded(
                 child: _buildAmountInfo(
-                  'Wartość całkowita',
-                  _totalValue,
-                  Icons.trending_up,
+                  'Kapitał pozostały',
+                  _totalRemainingCapital,
+                  Icons.account_balance_wallet,
                   AppTheme.successPrimary,
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 60,
+                color: AppTheme.borderPrimary,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              Expanded(
+                child: _buildAmountInfo(
+                  'Zabezpiecz. nieru.',
+                  _totalCapitalSecuredByRealEstate,
+                  Icons.home,
+                  AppTheme.warningPrimary,
                 ),
               ),
             ],
@@ -1273,10 +1306,10 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   }
 
   Widget _buildPerformanceMetrics(BuildContext context, bool isMobile) {
-    // ⭐ POPRAWKA: Oblicz profit/loss z danych inwestorów zamiast z produktu
+    // ⭐ POPRAWKA: Oblicz profit/loss z danych inwestorów
     final totalInvestmentAmount = _totalInvestmentAmount;
-    final totalValue = _totalValue;
-    final profitLoss = totalValue - totalInvestmentAmount;
+    final totalRemainingCapital = _totalRemainingCapital;
+    final profitLoss = totalRemainingCapital - totalInvestmentAmount;
     final profitLossPercentage = totalInvestmentAmount > 0
         ? (profitLoss / totalInvestmentAmount) * 100
         : 0.0;
@@ -1328,7 +1361,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               'Średnia na inwestora',
               CurrencyFormatter.formatCurrencyShort(
                 _investors.isNotEmpty
-                    ? _totalValue / _investors.length
+                    ? _totalRemainingCapital / _investors.length
                     : 0,
               ),
               AppTheme.primaryAccent,
@@ -1522,42 +1555,6 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         ),
       ],
     );
-  }
-
-  String _getProductStatusText() {
-    if (widget.product.maturityDate != null) {
-      final now = DateTime.now();
-      final daysToMaturity = widget.product.maturityDate!
-          .difference(now)
-          .inDays;
-
-      if (daysToMaturity < 0) {
-        return 'Przeterminowany';
-      } else if (daysToMaturity < 30) {
-        return 'Wkrótce zapadalność';
-      } else {
-        return 'Aktywny';
-      }
-    }
-    return 'Aktywny';
-  }
-
-  Color _getProductStatusColor() {
-    if (widget.product.maturityDate != null) {
-      final now = DateTime.now();
-      final daysToMaturity = widget.product.maturityDate!
-          .difference(now)
-          .inDays;
-
-      if (daysToMaturity < 0) {
-        return AppTheme.errorPrimary;
-      } else if (daysToMaturity < 30) {
-        return AppTheme.warningPrimary;
-      } else {
-        return AppTheme.successPrimary;
-      }
-    }
-    return AppTheme.successPrimary;
   }
 
   IconData _getProductIcon() {

@@ -125,6 +125,8 @@ class _EnhancedProductDetailsDialogState
             // Header z gradientem i przyciskiem zamknięcia
             ProductDetailsHeader(
               product: widget.product,
+              investors: _investors,
+              isLoadingInvestors: _isLoadingInvestors,
               onClose: () => Navigator.of(context).pop(),
               onShowInvestors: widget.onShowInvestors,
             ),

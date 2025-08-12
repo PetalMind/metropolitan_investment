@@ -731,6 +731,10 @@ class Investment {
             map['capitalForRestructuring'] ??
             (map['additionalInfo']
                 as Map<String, dynamic>?)?['capitalForRestructuring'],
+        // 🐛 DEBUG - pola otrzymane z serwera
+        '_debug_raw_remainingCapital': map['remainingCapital'],
+        '_debug_raw_investmentAmount': map['investmentAmount'],
+        '_debug_raw_productName': map['productName'],
       },
     );
   }

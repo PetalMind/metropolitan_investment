@@ -31,6 +31,12 @@ class InvestorSummary {
     Client client,
     List<Investment> investments,
   ) {
+    // 🐛 DEBUG - śledzenie obliczeń
+    print(
+      '🔍 [InvestorSummary.fromInvestments] Obliczanie dla klienta: ${client.name}',
+    );
+    print('  - Liczba inwestycji: ${investments.length}');
+
     // Helper function to parse capital values with commas
     double parseCapitalValue(dynamic value) {
       if (value == null) return 0.0;
@@ -54,6 +60,11 @@ class InvestorSummary {
     double capitalForRestructuring = 0;
 
     for (final investment in investments) {
+      // 🐛 DEBUG - szczegóły każdej inwestycji
+      print('    - Inwestycja ${investment.id}: ${investment.productName}');
+      print('      * remainingCapital: ${investment.remainingCapital}');
+      print('      * investmentAmount: ${investment.investmentAmount}');
+
       // ⭐ TYLKO KAPITAŁ POZOSTAŁY - dla wszystkich typów produktów
       totalRemainingCapital += investment.remainingCapital;
 
@@ -119,6 +130,14 @@ class InvestorSummary {
     // ⭐ WARTOŚĆ CAŁKOWITA = TYLKO kapitał pozostały
     final totalValue = totalRemainingCapital;
 
+    // 🐛 DEBUG - podsumowanie obliczeń
+    print('  ⭐ OBLICZONE SUMY:');
+    print('    - totalInvestmentAmount: $totalInvestmentAmount');
+    print('    - totalRemainingCapital: $totalRemainingCapital');
+    print('    - totalValue: $totalValue');
+    print('    - capitalSecuredByRealEstate: $capitalSecuredByRealEstate');
+    print('    - capitalForRestructuring: $capitalForRestructuring');
+
     return InvestorSummary(
       client: client,
       investments: investments,
@@ -183,57 +202,15 @@ class InvestorSummary {
 
   /// Tworzy obiekt InvestorSummary z mapy danych
   factory InvestorSummary.fromMap(Map<String, dynamic> map) {
-    // Helper function to parse capital values with commas
-    double parseCapitalValue(dynamic value) {
-      if (value == null) return 0.0;
-      if (value is double) return value;
-      if (value is int) return value.toDouble();
-      if (value is String) {
-        // Handle empty strings and NULL values
-        if (value.isEmpty ||
-            value.trim().isEmpty ||
-            value.toUpperCase() == 'NULL') {
-          return 0.0;
-        }
-
-        // Debug logging for problematic values
-        if (value.contains(',')) {
-          print(
-            '🔍 [InvestorSummary] Parsowanie wartości z przecinkiem: "$value"',
-          );
-        }
-        // Handle string values like "200,000.00" from Firebase
-        final cleaned = value.toString().replaceAll(',', '');
-        final parsed = double.tryParse(cleaned);
-        if (parsed == null) {
-          print(
-            '❌ [InvestorSummary] Nie można sparsować: "$value" -> "$cleaned"',
-          );
-        }
-        return parsed ?? 0.0;
-      }
-      return 0.0;
-    }
-
-    return InvestorSummary(
-      client: Client.fromServerMap(
-        map['client'] as Map<String, dynamic>? ?? {},
-      ),
-      investments: (map['investments'] as List<dynamic>? ?? [])
-          .map((item) => Investment.fromServerMap(item as Map<String, dynamic>))
-          .toList(),
-      totalRemainingCapital: parseCapitalValue(map['totalRemainingCapital']),
-      totalSharesValue: parseCapitalValue(map['totalSharesValue']),
-      totalValue: parseCapitalValue(map['totalValue']),
-      totalInvestmentAmount: parseCapitalValue(map['totalInvestmentAmount']),
-      totalRealizedCapital: parseCapitalValue(map['totalRealizedCapital']),
-      capitalSecuredByRealEstate: parseCapitalValue(
-        map['capitalSecuredByRealEstate'],
-      ),
-      capitalForRestructuring: parseCapitalValue(
-        map['capitalForRestructuring'],
-      ),
-      investmentCount: map['investmentCount'] as int? ?? 0,
+    final client = Client.fromServerMap(
+      map['client'] as Map<String, dynamic>? ?? {},
     );
+    final investments = (map['investments'] as List<dynamic>? ?? [])
+        .map((item) => Investment.fromServerMap(item as Map<String, dynamic>))
+        .toList();
+
+    // ⭐ ZAWSZE oblicz wartości na podstawie rzeczywistych inwestycji
+    // Ignoruj błędne dane z Firebase Functions serwera
+    return InvestorSummary.fromInvestments(client, investments);
   }
 }

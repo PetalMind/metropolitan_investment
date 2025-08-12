@@ -126,14 +126,10 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  color: AppTheme.dividerColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  Icons.people,
-                  color: AppTheme.primaryColor,
-                  size: 24,
-                ),
+                child: Icon(Icons.people, color: AppTheme.bondsColor, size: 24),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -143,7 +139,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
                     Text(
                       'Inwestorzy Produktu',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.secondaryGold,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -162,7 +158,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
                 icon: const Icon(Icons.refresh),
                 style: IconButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                  foregroundColor: AppTheme.primaryColor,
+                  foregroundColor: AppTheme.bondsColor,
                 ),
                 tooltip: 'Odśwież listę',
               ),
@@ -184,46 +180,50 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
   }
 
   Widget _buildStatistics() {
-    final totalCapital = widget.investors.fold(
-      0.0,
-      (sum, investor) => sum + investor.viableRemainingCapital,
-    );
-
-    final totalInvestments = widget.investors.fold(
+    // 📊 STATYSTYKI INWESTORÓW - bardziej odpowiednie dla tej zakładki
+    
+    // Suma wszystkich inwestycji (nie wartość, ale liczba)
+    final totalInvestmentCount = widget.investors.fold(
       0,
-      (sum, investor) => sum + investor.investmentCount,
+      (sum, investor) => sum + _getProductInvestmentCount(investor),
     );
 
-    final avgCapital = widget.investors.isNotEmpty
-        ? totalCapital / widget.investors.length
-        : 0.0;
+    // Liczba aktywnych inwestorów (mających inwestycje w tym produkcie)
+    final activeInvestorsCount = widget.investors.where(
+      (investor) => _getProductInvestmentCount(investor) > 0,
+    ).length;
+
+    // Średnia liczba inwestycji na inwestora
+    final averageInvestmentsPerInvestor = activeInvestorsCount > 0 
+        ? (totalInvestmentCount / activeInvestorsCount).toStringAsFixed(1)
+        : '0.0';
 
     return Row(
       children: [
         Expanded(
           child: _buildStatCard(
-            'Łączny Kapitał',
-            _service.formatCurrency(totalCapital),
-            Icons.account_balance_wallet,
-            AppTheme.secondaryGold,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Inwestycje',
-            totalInvestments.toString(),
+            'Suma inwestycji',
+            totalInvestmentCount.toString(),
             Icons.trending_up,
-            AppTheme.gainPrimary,
+            AppTheme.infoPrimary,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
-            'Średnia',
-            _service.formatCurrency(avgCapital),
+            'Aktywni inwestorzy',
+            activeInvestorsCount.toString(),
+            Icons.people,
+            AppTheme.successPrimary,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            'Śr. inwes./osobę',
+            averageInvestmentsPerInvestor,
             Icons.analytics,
-            AppTheme.infoPrimary,
+            AppTheme.warningPrimary,
           ),
         ),
       ],

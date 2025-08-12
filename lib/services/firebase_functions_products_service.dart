@@ -36,21 +36,7 @@ class FirebaseFunctionsProductsService extends BaseService {
           '[FirebaseFunctionsProductsService] Kolekcja "investments": ${investmentsSnapshot.docs.length} dokumentów',
         );
 
-        if (investmentsSnapshot.docs.isNotEmpty) {
-          print('[FirebaseFunctionsProductsService] Przykładowe dokumenty:');
-          for (var doc in investmentsSnapshot.docs.take(3)) {
-            final data = doc.data();
-            print('  - ID: ${doc.id}');
-            print('    productType: ${data['productType']}');
-            print('    clientId: ${data['clientId']}');
-            print('    investmentAmount: ${data['investmentAmount']}');
-            print('    productName: ${data['productName']}');
-          }
-        } else {
-          print(
-            '[FirebaseFunctionsProductsService] ⚠️ BRAK DANYCH w kolekcji investments!',
-          );
-        }
+      
       }
     } catch (e) {
       if (kDebugMode) {

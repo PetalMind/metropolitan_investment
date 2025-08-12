@@ -55,6 +55,7 @@ export 'services/standard_product_investors_service.dart';
 // New voting and analytics services - UNIFIED VERSION
 export 'services/unified_voting_status_service.dart';
 export 'services/unified_statistics_utils.dart';
+export 'services/unified_statistics_service.dart'; // NOWY ZUNIFIKOWANY SERWIS
 export 'services/debug_firestore_service.dart';
 
 // Voting status change model
