@@ -32,6 +32,9 @@ class _EnhancedProductDetailsDialogState
   bool _isLoadingInvestors = true;
   String? _investorsError;
 
+  // ⭐ NOWE: Stan edycji dla przekazania do ProductInvestorsTab
+  bool _isEditModeEnabled = false;
+
   @override
   void initState() {
     super.initState();
@@ -53,10 +56,6 @@ class _EnhancedProductDetailsDialogState
         _investorsError = null;
       });
 
-      print('🔍 [ProductDetailsDialog] Ładowanie inwestorów dla produktu:');
-      print('  - Nazwa: "${widget.product.name}"');
-      print('  - Typ: ${widget.product.productType.displayName}');
-
       final investors = await _service.getInvestorsForProduct(widget.product);
 
       if (mounted) {
@@ -65,12 +64,8 @@ class _EnhancedProductDetailsDialogState
           _isLoadingInvestors = false;
         });
 
-        print(
-          '✅ [ProductDetailsDialog] Załadowano ${investors.length} inwestorów',
-        );
       }
     } catch (e) {
-      print('❌ [ProductDetailsDialog] Błąd podczas ładowania inwestorów: $e');
       if (mounted) {
         setState(() {
           _investorsError = 'Błąd podczas ładowania inwestorów: $e';
@@ -129,6 +124,15 @@ class _EnhancedProductDetailsDialogState
               isLoadingInvestors: _isLoadingInvestors,
               onClose: () => Navigator.of(context).pop(),
               onShowInvestors: widget.onShowInvestors,
+              onEditModeChanged: (editMode) {
+                setState(() {
+                  _isEditModeEnabled = editMode;
+                });
+              },
+              onTabChanged: (tabIndex) {
+                // ⭐ NOWE: Przełącz na wybrany tab
+                _tabController.animateTo(tabIndex);
+              },
             ),
 
             // Tab Content
@@ -140,6 +144,8 @@ class _EnhancedProductDetailsDialogState
                 isLoadingInvestors: _isLoadingInvestors,
                 investorsError: _investorsError,
                 onRefreshInvestors: _loadInvestors,
+                isEditModeEnabled:
+                    _isEditModeEnabled, // ⭐ NOWE: Przekazanie stanu edycji
               ),
             ),
           ],

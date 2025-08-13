@@ -13,6 +13,7 @@ class ProductDetailsTabs extends StatelessWidget {
   final bool isLoadingInvestors;
   final String? investorsError;
   final VoidCallback onRefreshInvestors;
+  final bool isEditModeEnabled; // ⭐ NOWE: Stan edycji
 
   const ProductDetailsTabs({
     super.key,
@@ -22,6 +23,7 @@ class ProductDetailsTabs extends StatelessWidget {
     required this.isLoadingInvestors,
     required this.investorsError,
     required this.onRefreshInvestors,
+    this.isEditModeEnabled = false, // ⭐ NOWE: Stan edycji (domyślnie false)
   });
 
   @override
@@ -29,12 +31,15 @@ class ProductDetailsTabs extends StatelessWidget {
     return Column(
       children: [
         // Tab Bar
-        _buildTabBar(),
+        _buildTabBar(context),
 
         // Tab Bar View
         Expanded(
           child: TabBarView(
             controller: tabController,
+            physics: isEditModeEnabled 
+                ? const NeverScrollableScrollPhysics() // ⭐ NOWE: Zablokuj przesuwanie w trybie edycji
+                : null, // Domyślne zachowanie gdy tryb edycji wyłączony
             children: [
               ProductOverviewTab(product: product),
               ProductInvestorsTab(
@@ -43,6 +48,8 @@ class ProductDetailsTabs extends StatelessWidget {
                 isLoading: isLoadingInvestors,
                 error: investorsError,
                 onRefresh: onRefreshInvestors,
+                isEditModeEnabled:
+                    isEditModeEnabled, // ⭐ NOWE: Przekazanie stanu edycji
               ),
               ProductAnalyticsTab(
                 product: product,
@@ -58,7 +65,7 @@ class ProductDetailsTabs extends StatelessWidget {
     );
   }
 
-  Widget _buildTabBar() {
+  Widget _buildTabBar(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.backgroundModal,
@@ -75,22 +82,75 @@ class ProductDetailsTabs extends StatelessWidget {
       ),
       child: TabBar(
         controller: tabController,
+        // ⭐ NOWE: Wyłącz interakcję z zabami w trybie edycji (tylko tab "Inwestorzy" dostępny)
+        onTap: isEditModeEnabled ? (index) {
+          if (index != 1) { // Tab "Inwestorzy" ma index 1
+            // Pokaż komunikat i wróć do tab "Inwestorzy"
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Row(
+                  children: [
+                    Icon(Icons.warning, color: Colors.white, size: 20),
+                    SizedBox(width: 12),
+                    Text('W trybie edycji dostępna jest tylko zakładka "Inwestorzy"'),
+                  ],
+                ),
+                backgroundColor: AppTheme.warningPrimary,
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            );
+            // Wróć do tab "Inwestorzy"
+            tabController.animateTo(1);
+          }
+        } : null,
         tabs: [
+          // ⭐ Tab "Szczegóły" - zablokowany w trybie edycji
           Tab(
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.info_outline, size: 18),
+                Icon(
+                  Icons.info_outline, 
+                  size: 18,
+                  color: isEditModeEnabled 
+                      ? AppTheme.textTertiary.withOpacity(0.5) 
+                      : null,
+                ),
                 const SizedBox(width: 8),
-                const Text('Szczegóły'),
+                Text(
+                  'Szczegóły',
+                  style: isEditModeEnabled 
+                      ? TextStyle(
+                          color: AppTheme.textTertiary.withOpacity(0.5),
+                          decoration: TextDecoration.lineThrough,
+                        )
+                      : null,
+                ),
+                if (isEditModeEnabled) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.lock_outline, 
+                    size: 14,
+                    color: AppTheme.textTertiary.withOpacity(0.5),
+                  ),
+                ],
               ],
             ),
           ),
+          
+          // ⭐ Tab "Inwestorzy" - zawsze dostępny, podświetlony w trybie edycji
           Tab(
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.people_outline, size: 18),
+                Icon(
+                  Icons.people_outline, 
+                  size: 18,
+                  color: isEditModeEnabled ? AppTheme.warningPrimary : null,
+                ),
                 const SizedBox(width: 8),
                 isLoadingInvestors
                     ? const Row(
@@ -108,17 +168,57 @@ class ProductDetailsTabs extends StatelessWidget {
                           ),
                         ],
                       )
-                    : Text('Inwestorzy (${investors.length})'),
+                    : Text(
+                        'Inwestorzy (${investors.length})',
+                        style: isEditModeEnabled 
+                            ? TextStyle(
+                                color: AppTheme.warningPrimary,
+                                fontWeight: FontWeight.bold,
+                              )
+                            : null,
+                      ),
+                if (isEditModeEnabled) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.edit, 
+                    size: 14,
+                    color: AppTheme.warningPrimary,
+                  ),
+                ],
               ],
             ),
           ),
+          
+          // ⭐ Tab "Analiza" - zablokowany w trybie edycji
           Tab(
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.analytics_outlined, size: 18),
+                Icon(
+                  Icons.analytics_outlined, 
+                  size: 18,
+                  color: isEditModeEnabled 
+                      ? AppTheme.textTertiary.withOpacity(0.5) 
+                      : null,
+                ),
                 const SizedBox(width: 8),
-                const Text('Analiza'),
+                Text(
+                  'Analiza',
+                  style: isEditModeEnabled 
+                      ? TextStyle(
+                          color: AppTheme.textTertiary.withOpacity(0.5),
+                          decoration: TextDecoration.lineThrough,
+                        )
+                      : null,
+                ),
+                if (isEditModeEnabled) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.lock_outline, 
+                    size: 14,
+                    color: AppTheme.textTertiary.withOpacity(0.5),
+                  ),
+                ],
               ],
             ),
           ),

@@ -5,6 +5,7 @@ import '../../models_and_services.dart'; // Centralized import
 import '../premium_loading_widget.dart';
 import '../premium_error_widget.dart';
 import 'product_details_service.dart';
+import 'investor_edit_dialog.dart'; // ⭐ NOWE: Import dialogu edycji
 
 /// Zakładka z inwestorami produktu
 class ProductInvestorsTab extends StatefulWidget {
@@ -13,6 +14,7 @@ class ProductInvestorsTab extends StatefulWidget {
   final bool isLoading;
   final String? error;
   final VoidCallback onRefresh;
+  final bool isEditModeEnabled; // ⭐ NOWE: Stan edycji
 
   const ProductInvestorsTab({
     super.key,
@@ -21,6 +23,7 @@ class ProductInvestorsTab extends StatefulWidget {
     required this.isLoading,
     required this.error,
     required this.onRefresh,
+    this.isEditModeEnabled = false, // ⭐ NOWE: Stan edycji (domyślnie false)
   });
 
   @override
@@ -136,15 +139,61 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Inwestorzy Produktu',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppTheme.secondaryGold,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          'Inwestorzy Produktu',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: AppTheme.secondaryGold,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        // ⭐ NOWE: Wskaźnik trybu edycji
+                        if (widget.isEditModeEnabled) ...[
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.warningPrimary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppTheme.warningPrimary.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.edit,
+                                  size: 14,
+                                  color: AppTheme.warningPrimary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'TRYB EDYCJI',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: AppTheme.warningPrimary,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 11,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
+                    const SizedBox(height: 4),
                     Text(
-                      '${widget.investors.length} ${_getInvestorText(widget.investors.length)}',
+                      widget.isEditModeEnabled
+                          ? '${widget.investors.length} ${_getInvestorText(widget.investors.length)} • Kliknij inwestora aby edytować'
+                          : '${widget.investors.length} ${_getInvestorText(widget.investors.length)}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppTheme.textSecondary,
                       ),
@@ -182,7 +231,13 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
   Widget _buildStatistics() {
     // 📊 STATYSTYKI INWESTORÓW - bardziej odpowiednie dla tej zakładki
 
-    // Suma wszystkich inwestycji (nie wartość, ale liczba)
+    // Suma wartości wszystkich inwestycji w tym produkcie
+    final totalInvestmentValue = widget.investors.fold(
+      0.0,
+      (sum, investor) => sum + _getProductCapital(investor),
+    );
+
+    // Suma wszystkich inwestycji (liczba)
     final totalInvestmentCount = widget.investors.fold(
       0,
       (sum, investor) => sum + _getProductInvestmentCount(investor),
@@ -202,8 +257,8 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       children: [
         Expanded(
           child: _buildStatCard(
-            'Suma inwestycji',
-            totalInvestmentCount.toString(),
+            'Suma kapitału',
+            _service.formatCurrency(totalInvestmentValue),
             Icons.trending_up,
             AppTheme.infoPrimary,
           ),
@@ -369,13 +424,20 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
 
   Widget _buildInvestorCard(InvestorSummary investor, int index) {
     final isTopInvestor = index < 3;
+    final isEditMode = widget.isEditModeEnabled; // ⭐ NOWE: Sprawdź tryb edycji
 
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: isTopInvestor
+          colors: isEditMode
+              ? [
+                  // ⭐ NOWE: Podświetlenie w trybie edycji
+                  AppTheme.warningPrimary.withOpacity(0.1),
+                  AppTheme.backgroundSecondary.withOpacity(0.9),
+                ]
+              : isTopInvestor
               ? [
                   AppTheme.secondaryGold.withOpacity(0.05),
                   AppTheme.backgroundSecondary.withOpacity(0.8),
@@ -387,10 +449,14 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isTopInvestor
+          color: isEditMode
+              ? AppTheme.warningPrimary.withOpacity(
+                  0.5,
+                ) // ⭐ NOWE: Pomarańczowa ramka w trybie edycji
+              : isTopInvestor
               ? AppTheme.secondaryGold.withOpacity(0.3)
               : AppTheme.borderPrimary.withOpacity(0.2),
-          width: 1,
+          width: isEditMode ? 2 : 1, // ⭐ NOWE: Grubsza ramka w trybie edycji
         ),
         boxShadow: [
           BoxShadow(
@@ -404,15 +470,50 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
+          if (isEditMode) // ⭐ NOWE: Dodatkowy cień w trybie edycji
+            BoxShadow(
+              color: AppTheme.warningPrimary.withOpacity(0.2),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
         ],
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: _buildInvestorAvatar(investor, index),
-        title: _buildInvestorTitle(investor),
-        subtitle: _buildInvestorSubtitle(investor),
-        trailing: _buildInvestorTrailing(investor),
-        onTap: () => _showInvestorDetails(investor),
+      child: Stack(
+        // ⭐ NOWE: Stack dla ikony edycji
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.all(16),
+            leading: _buildInvestorAvatar(investor, index),
+            title: _buildInvestorTitle(investor),
+            subtitle: _buildInvestorSubtitle(investor),
+            trailing: _buildInvestorTrailing(
+              investor,
+            ), // ⭐ Bez dodatkowego parametru
+            onTap: () => _showInvestorDetails(investor),
+          ),
+          // ⭐ NOWE: Ikona edycji w prawym górnym rogu
+          if (isEditMode)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppTheme.warningPrimary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.warningPrimary.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  Icons.edit,
+                  size: 14,
+                  color: AppTheme.warningPrimary,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -552,20 +653,9 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
           ),
         ],
         const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppTheme.infoPrimary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            '${_getProductInvestmentCount(investor)} ${_getInvestmentText(_getProductInvestmentCount(investor))}',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.infoPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
+
+        // 🔢 SZCZEGÓŁOWE KWOTY INWESTORA W TYM PRODUKCIE
+        _buildInvestorAmountsSection(investor),
       ],
     );
   }
@@ -746,12 +836,217 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
   }
 
   void _showInvestorDetails(InvestorSummary investor) {
-    // Zamknij dialog produktu i przejdź do analityki inwestorów
-    Navigator.of(context).pop(); // Zamknij dialog produktu
+    // ⭐ NOWE: Sprawdź czy tryb edycji jest włączony
+    if (widget.isEditModeEnabled) {
+      // Pokaż dialog edycji inwestora
+      _showInvestorEditDialog(investor);
+    } else {
+      // Stara logika - przejście do analityki inwestorów
+      Navigator.of(context).pop(); // Zamknij dialog produktu
+      context.go(
+        '/investor-analytics?search=${Uri.encodeComponent(investor.client.name)}',
+      );
+    }
+  }
 
-    // Przejdź do analityki inwestorów z wyszukiwaniem imienia inwestora
-    context.go(
-      '/investor-analytics?search=${Uri.encodeComponent(investor.client.name)}',
+  /// ⭐ NOWA METODA: Pokazuje dialog edycji inwestora
+  void _showInvestorEditDialog(InvestorSummary investor) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.7),
+      builder: (context) => InvestorEditDialog(
+        investor: investor,
+        product: widget.product,
+        onSaved: () {
+          // Odśwież dane po zapisaniu
+          widget.onRefresh();
+          _showSuccessSnackBar('Zmiany zostały zapisane pomyślnie!');
+        },
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: AppTheme.successPrimary,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  /// 🔢 NOWA METODA: Buduje sekcję ze szczegółowymi kwotami inwestora w produkcie
+  Widget _buildInvestorAmountsSection(InvestorSummary investor) {
+    // Pobierz inwestycje tego inwestora dla danego produktu
+    final productInvestments = _getProductInvestments(investor);
+
+    if (productInvestments.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppTheme.infoPrimary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          '0 inwestycji',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.infoPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    // Oblicz sumy wszystkich kwot tego inwestora w produkcie
+    final totalInvestmentAmount = productInvestments.fold(
+      0.0,
+      (sum, inv) => sum + inv.investmentAmount,
+    );
+    final totalRemainingCapital = productInvestments.fold(
+      0.0,
+      (sum, inv) => sum + inv.remainingCapital,
+    );
+    final totalRealizedCapital = productInvestments.fold(
+      0.0,
+      (sum, inv) => sum + inv.realizedCapital,
+    );
+    final totalCapitalForRestructuring = productInvestments.fold(
+      0.0,
+      (sum, inv) => sum + inv.capitalForRestructuring,
+    );
+    final totalCapitalSecuredByRealEstate = productInvestments.fold(
+      0.0,
+      (sum, inv) => sum + inv.capitalSecuredByRealEstate,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Liczba inwestycji
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.infoPrimary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            '${productInvestments.length} ${_getInvestmentText(productInvestments.length)}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.infoPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        // Szczegółowe kwoty w kompaktowych kartach
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            // Kwota pierwotnej inwestycji
+            _buildAmountChip(
+              'Inwestycja',
+              totalInvestmentAmount,
+              Icons.trending_up,
+              AppTheme.bondsColor,
+            ),
+
+            // Kapitał pozostały (najważniejszy)
+            _buildAmountChip(
+              'Pozostały',
+              totalRemainingCapital,
+              Icons.account_balance_wallet,
+              AppTheme.gainPrimary,
+            ),
+
+            // Zrealizowany kapitał (jeśli > 0)
+            if (totalRealizedCapital > 0)
+              _buildAmountChip(
+                'Zrealizowany',
+                totalRealizedCapital,
+                Icons.done_all,
+                AppTheme.successPrimary,
+              ),
+
+            // Kapitał na restrukturyzację (jeśli > 0)
+            if (totalCapitalForRestructuring > 0)
+              _buildAmountChip(
+                'Restrukt.',
+                totalCapitalForRestructuring,
+                Icons.transform,
+                AppTheme.warningPrimary,
+              ),
+
+            // Kapitał zabezpieczony nieruchomościami (jeśli > 0)
+            if (totalCapitalSecuredByRealEstate > 0)
+              _buildAmountChip(
+                'Nierucho.',
+                totalCapitalSecuredByRealEstate,
+                Icons.home,
+                AppTheme.neutralPrimary,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// 🔢 NOWA METODA: Buduje kompaktowy chip z kwotą
+  Widget _buildAmountChip(
+    String label,
+    double amount,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 10,
+                ),
+              ),
+              Text(
+                _formatCompactCurrency(amount),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -767,20 +1062,60 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
     return 'inwestycji';
   }
 
+  /// 🔢 NOWA METODA: Pobiera wszystkie inwestycje danego inwestora w tym produkcie
+  List<Investment> _getProductInvestments(InvestorSummary investor) {
+    // Grupa inwestycje po ID żeby wyeliminować duplikaty (podobnie jak w _getProductInvestmentCount)
+    final uniqueInvestments = <String, Investment>{};
+
+    for (final investment in investor.investments) {
+      final key = investment.id.isNotEmpty
+          ? investment.id
+          : '${investment.productName}_${investment.investmentAmount}_${investment.clientId}';
+      uniqueInvestments[key] = investment;
+    }
+
+    final uniqueInvestmentsList = uniqueInvestments.values.toList();
+
+    // Sprawdź po ID produktu (jeśli dostępne)
+    if (widget.product.id.isNotEmpty) {
+      final matchingInvestments = uniqueInvestmentsList
+          .where(
+            (investment) =>
+                investment.productId != null &&
+                investment.productId!.isNotEmpty &&
+                investment.productId != "null" && // Wyklucz "null" jako string
+                investment.productId == widget.product.id,
+          )
+          .toList();
+
+      if (matchingInvestments.isNotEmpty) {
+        return matchingInvestments;
+      }
+    }
+
+    // Fallback: sprawdź po nazwie produktu
+    return uniqueInvestmentsList
+        .where(
+          (investment) =>
+              investment.productName.trim().toLowerCase() ==
+              widget.product.name.trim().toLowerCase(),
+        )
+        .toList();
+  }
+
+  /// 🔢 NOWA METODA: Formatuje kwoty w kompaktowy sposób
+  String _formatCompactCurrency(double amount) {
+    if (amount >= 1000000) {
+      return '${(amount / 1000000).toStringAsFixed(1)}M zł';
+    } else if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(1)}K zł';
+    } else {
+      return _service.formatCurrency(amount);
+    }
+  }
+
   /// Zwraca liczbę inwestycji klienta w tym konkretnym produkcie
   int _getProductInvestmentCount(InvestorSummary investor) {
-    print(
-      '🔍 [_getProductInvestmentCount] Sprawdzam dla inwestora: ${investor.client.name}',
-    );
-    print(
-      '🔍 [_getProductInvestmentCount] - Szukany produkt: "${widget.product.name}"',
-    );
-    print(
-      '🔍 [_getProductInvestmentCount] - Szukane ID: "${widget.product.id}"',
-    );
-    print(
-      '🔍 [_getProductInvestmentCount] - Inwestycje klienta (${investor.investments.length}):',
-    );
 
     // Grupa inwestycje po ID żeby wyeliminować duplikaty
     final uniqueInvestments = <String, Investment>{};
@@ -794,15 +1129,8 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
 
     final uniqueInvestmentsList = uniqueInvestments.values.toList();
 
-    print(
-      '🔍 [_getProductInvestmentCount] - Unikalne inwestycje (${uniqueInvestmentsList.length}):',
-    );
-
     for (int i = 0; i < uniqueInvestmentsList.length; i++) {
       final inv = uniqueInvestmentsList[i];
-      print(
-        '  $i: productName="${inv.productName}", productId="${inv.productId}", amount=${inv.investmentAmount}',
-      );
     }
 
     // Sprawdź po ID produktu (uwaga na "null" jako string!)
@@ -817,8 +1145,6 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
           )
           .length;
 
-      print('🔍 [_getProductInvestmentCount] - Znaleziono po ID: $countById');
-
       if (countById > 0) {
         return countById;
       }
@@ -832,10 +1158,6 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
               widget.product.name.trim().toLowerCase(),
         )
         .length;
-
-    print(
-      '🔍 [_getProductInvestmentCount] - Znaleziono po nazwie: $countByName',
-    );
 
     return countByName;
   }

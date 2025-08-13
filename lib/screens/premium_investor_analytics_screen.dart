@@ -43,6 +43,8 @@ class _PremiumInvestorAnalyticsScreenState
   final ia_service.InvestorAnalyticsService _updateService =
       ia_service.InvestorAnalyticsService(); // Dla aktualizacji danych
   final VotingAnalysisManager _votingManager = VotingAnalysisManager();
+  final UnifiedDashboardStatisticsService _statisticsService =
+      UnifiedDashboardStatisticsService(); // 🚀 NOWE: Zunifikowane statystyki
 
   // 🎛️ UI CONTROLLERS
   final TextEditingController _searchController = TextEditingController();
@@ -78,6 +80,8 @@ class _PremiumInvestorAnalyticsScreenState
   bool _isLoadingMore = false;
   bool _isRefreshing = false;
   String? _error;
+  UnifiedDashboardStatistics?
+  _dashboardStatistics; // 🚀 NOWE: Zunifikowane statystyki
 
   // 📄 PAGINATION
   int _currentPage = 1;
@@ -270,11 +274,8 @@ class _PremiumInvestorAnalyticsScreenState
       _currentPage = 1;
     });
 
-    print('🚀 [DEBUG] _loadInitialData rozpoczęta...');
-
     try {
       // NAJPIERW SPRÓBUJ FALLBACK SERVICE - żeby sprawdzić czy w ogóle mamy dane
-      print('🔄 [DEBUG] Próbuję fallback serwisu NAJPIERW...');
       final fallbackService = ia_service.InvestorAnalyticsService();
       final fallbackResult = await fallbackService
           .getInvestorsSortedByRemainingCapital(
@@ -288,23 +289,23 @@ class _PremiumInvestorAnalyticsScreenState
             showOnlyWithUnviableInvestments: _showOnlyWithUnviableInvestments,
           );
 
-      print('✅ [DEBUG] Fallback service odpowiedział');
-      print(
-        '📊 [DEBUG] Fallback result: ${fallbackResult.totalCount} investors, ${fallbackResult.totalViableCapital.toStringAsFixed(2)} total capital',
-      );
-
       if (mounted) {
         // Konwertuj standardowy wynik do enhanced format
         final enhancedResult = _convertToEnhancedResult(fallbackResult);
-        print(
-          '📊 [DEBUG] Enhanced result: ${enhancedResult.totalCount} investors, ${enhancedResult.totalViableCapital.toStringAsFixed(2)} total capital',
-        );
+
+        // 🚀 NOWE: Załaduj zunifikowane statystyki równolegle
+        try {
+          _dashboardStatistics = await _statisticsService
+              .getStatisticsFromInvestors();
+        } catch (statsError) {
+          // Nie przerywamy działania - statystyki nie są krytyczne
+        }
+
         _processAnalyticsResult(enhancedResult);
         _calculateMajorityAnalysis();
         _calculateVotingAnalysis();
       }
     } catch (fallbackError) {
-      print('❌ [DEBUG] Fallback też nie działa: $fallbackError');
       if (mounted) {
         setState(() {
           _error = _handleAnalyticsError(fallbackError);
@@ -444,12 +445,6 @@ class _PremiumInvestorAnalyticsScreenState
     // Apply sorting
     _sortInvestors(filtered);
 
-    print('🔍 [DEBUG] Po filtrowaniu i sortowaniu:');
-    print('   - Filtered count: ${filtered.length}');
-    print('   - Search query: "$_searchQuery"');
-    print('   - Voting status filter: $_selectedVotingStatus');
-    print('   - Client type filter: $_selectedClientType');
-
     setState(() {
       _displayedInvestors = filtered; // Pokaż wszystkie przefiltrowane wyniki
       _totalCount = filtered.length;
@@ -460,46 +455,13 @@ class _PremiumInvestorAnalyticsScreenState
     if (!mounted) return;
 
     // 🔍 DEBUG: Dodaj informacje debugujące
-    print('🔍 [DEBUG] _processAnalyticsResult:');
-    print('   - Investors count: ${result.investors.length}');
-    print('   - All investors count: ${result.allInvestors.length}');
-    print('   - Total count: ${result.totalCount}');
-    print('   - Total viable capital: ${result.totalViableCapital}');
-    print('   - Source: ${result.source}');
-    print('   - Message: ${result.message}');
 
     if (result.investors.isNotEmpty) {
       final firstInvestor = result.investors.first;
-      print('   - First investor: ${firstInvestor.client.name}');
-      print(
-        '   - First investor viableRemainingCapital: ${firstInvestor.viableRemainingCapital}',
-      );
-      print(
-        '   - First investor investments: ${firstInvestor.investmentCount}',
-      );
-      print(
-        '   - First investor capitalForRestructuring: ${firstInvestor.capitalForRestructuring}',
-      );
-      print(
-        '   - First investor capitalSecuredByRealEstate: ${firstInvestor.capitalSecuredByRealEstate}',
-      );
 
       // 🔍 DEBUG: Sprawdź pierwsze inwestycje
       if (firstInvestor.investments.isNotEmpty) {
         final firstInvestment = firstInvestor.investments.first;
-        print('   - First investment: ${firstInvestment.productName}');
-        print(
-          '   - First investment remainingCapital: ${firstInvestment.remainingCapital}',
-        );
-        print(
-          '   - First investment capitalForRestructuring: ${firstInvestment.capitalForRestructuring}',
-        );
-        print(
-          '   - First investment capitalSecuredByRealEstate: ${firstInvestment.capitalSecuredByRealEstate}',
-        );
-        print(
-          '   - First investment additionalInfo: ${firstInvestment.additionalInfo}',
-        );
       }
     }
 
@@ -514,21 +476,10 @@ class _PremiumInvestorAnalyticsScreenState
       _isLoading = false;
     });
 
-    print('🔍 [DEBUG] Po ustawieniu danych:');
-    print('   - _allInvestors count: ${_allInvestors.length}');
-    print('   - _displayedInvestors count: ${_displayedInvestors.length}');
-    print('   - _totalCount: $_totalCount');
-
     // Update voting analysis
     _votingManager.calculateVotingCapitalDistribution(_allInvestors);
 
     // 🔍 DEBUG: Sprawdź voting manager po aktualizacji
-    print('🔍 [DEBUG] Voting Manager po aktualizacji:');
-    print('   - Total viable capital: ${_votingManager.totalViableCapital}');
-    print('   - Yes voting %: ${_votingManager.yesVotingPercentage}');
-    print(
-      '   - Undecided voting %: ${_votingManager.undecidedVotingPercentage}',
-    );
 
     // Apply initial sorting and filtering to all data
     _applyFiltersAndSort();
@@ -613,18 +564,9 @@ class _PremiumInvestorAnalyticsScreenState
   InvestorAnalyticsResult _convertToEnhancedResult(
     ia_service.InvestorAnalyticsResult standardResult,
   ) {
-    print('🔄 [DEBUG] Converting to enhanced result...');
-    print('   - Standard result investors: ${standardResult.investors.length}');
-    print('   - Standard result totalCount: ${standardResult.totalCount}');
-    print(
-      '   - Standard result total capital: ${standardResult.totalViableCapital}',
-    );
 
     // Sprawdź czy investors i totalCount są spójne
     if (standardResult.investors.length != standardResult.totalCount) {
-      print(
-        '⚠️  [WARNING] Niezgodność: investors.length (${standardResult.investors.length}) != totalCount (${standardResult.totalCount})',
-      );
     }
 
     return InvestorAnalyticsResult(
@@ -796,6 +738,28 @@ class _PremiumInvestorAnalyticsScreenState
                     '${_totalCount} inwestorów • ${CurrencyFormatter.formatCurrency(_votingManager.totalViableCapital, showDecimals: false)}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.successPrimary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.successPrimary.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Text(
+                      'Źródło: Inwestorzy (viableCapital)',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppTheme.successPrimary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -1422,14 +1386,28 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildStatsGrid() {
-    // Oblicz kapitał pozostały (viableCapital)
-    final totalViableCapital = _votingManager.totalViableCapital;
+    // 🚀 NOWE: Spróbuj użyć zunifikowanych statystyk, jeśli dostępne
+    double totalViableCapital;
+    double totalCapital;
 
-    // Oblicz kapitał całkowity (uwzględniając wszystkie inwestycje)
-    final totalCapital = _allInvestors.fold<double>(
-      0.0,
-      (sum, investor) => sum + investor.totalInvestmentAmount,
-    );
+    if (_dashboardStatistics != null) {
+      // Używamy zunifikowanych statystyk (preferowane)
+      totalViableCapital = _dashboardStatistics!.totalViableCapital;
+      totalCapital = _dashboardStatistics!.totalInvestmentAmount;
+
+      print('   - Viable Capital: ${totalViableCapital.toStringAsFixed(2)}');
+      print('   - Total Capital: ${totalCapital.toStringAsFixed(2)}');
+    } else {
+      // Fallback na poprzedni sposób obliczania
+      totalViableCapital = _votingManager.totalViableCapital;
+      totalCapital = _allInvestors.fold<double>(
+        0.0,
+        (sum, investor) => sum + investor.totalInvestmentAmount,
+      );
+
+      print('   - Viable Capital: ${totalViableCapital.toStringAsFixed(2)}');
+      print('   - Total Capital: ${totalCapital.toStringAsFixed(2)}');
+    }
 
     // Oblicz próg 51% kapitału
     final majorityCapitalThreshold = totalViableCapital * 0.51;

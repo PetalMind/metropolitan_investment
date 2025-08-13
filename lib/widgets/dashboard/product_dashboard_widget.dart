@@ -43,6 +43,8 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   final AuthService _authService = AuthService();
   final DeduplicatedProductService _deduplicatedProductService =
       DeduplicatedProductService();
+  final UnifiedDashboardStatisticsService _statisticsService =
+      UnifiedDashboardStatisticsService();
 
   // State
   bool _isLoading = true;
@@ -55,6 +57,8 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   Investment? _selectedInvestment;
   Set<String> _selectedProductIds = {};
   bool _showDeduplicatedView = true; // Domyślnie pokazuj deduplikowane produkty
+  UnifiedDashboardStatistics?
+  _dashboardStatistics; // 🚀 NOWE: Zunifikowane statystyki
 
   // Filtering and sorting state
   String _searchQuery = '';
@@ -129,13 +133,18 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
           forceRefresh: true,
         ),
         _deduplicatedProductService.getAllUniqueProducts(),
+        _statisticsService
+            .getStatisticsFromInvestors(), // 🚀 NOWE: Zunifikowane statystyki (źródło Investor)
       ]);
 
       final investmentsResult = results[0] as InvestmentsResult;
       final deduplicatedProducts = results[1] as List<DeduplicatedProduct>;
+      final dashboardStatistics = results[2] as UnifiedDashboardStatistics;
 
       _investments = investmentsResult.investments;
       _deduplicatedProducts = deduplicatedProducts;
+      _dashboardStatistics =
+          dashboardStatistics; // 🚀 NOWE: Zapisz zunifikowane statystyki
 
       // Apply filtering and sorting
       _applyFilteringAndSorting();
@@ -608,13 +617,14 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   }
 
   Widget _buildGlobalSummary() {
-    if (_investments.isEmpty) {
+    // 🚀 NOWE: Używamy zunifikowanych statystyk zamiast manualnych obliczeń
+    if (_dashboardStatistics == null) {
       return Container(
         padding: const EdgeInsets.all(32),
         decoration: AppThemePro.premiumCardDecoration,
         child: Center(
           child: Text(
-            'Brak danych w bazie',
+            'Ładowanie statystyk...',
             style: Theme.of(
               context,
             ).textTheme.bodyLarge?.copyWith(color: AppThemePro.textMuted),
@@ -623,52 +633,65 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       );
     }
 
-    // Oblicz statystyki globalnej bazy danych
-    double totalInvestmentAmount = 0;
-    double totalRemainingCapital = 0;
-    double totalCapitalForRestructuring = 0;
+    final stats = _dashboardStatistics!;
 
-    for (final investment in _investments) {
-      totalInvestmentAmount += investment.investmentAmount;
-      totalRemainingCapital += investment.remainingCapital;
-      totalCapitalForRestructuring += _getCapitalForRestructuring(investment);
-    }
-
-    // Globalny wzór (spójny z serwerem): secured = max(Σremaining - Σrestruct, 0)
-    final double totalCapitalSecured =
-        (totalRemainingCapital - totalCapitalForRestructuring).clamp(
-          0,
-          double.infinity,
-        );
+    // 💡 Informacja o źródle danych dla użytkownika
+    final dataSourceInfo = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppThemePro.profitGreen.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppThemePro.profitGreen.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.data_usage_rounded,
+            size: 14,
+            color: AppThemePro.profitGreen,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'Źródło: Inwestorzy (viableCapital)',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppThemePro.profitGreen,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
 
     final tiles = [
       _SummaryTileData(
         title: 'Łączna kwota inwestycji',
-        value: _currencyFormat.format(totalInvestmentAmount),
+        value: _currencyFormat.format(stats.totalInvestmentAmount),
         icon: Icons.account_balance_wallet,
         color: AppThemePro.accentGold,
         trend: null,
       ),
       _SummaryTileData(
         title: 'Łączny pozostały kapitał',
-        value: _currencyFormat.format(totalRemainingCapital),
+        value: _currencyFormat.format(stats.totalRemainingCapital),
         icon: Icons.trending_up,
         color: AppThemePro.profitGreen,
-        trend: totalRemainingCapital > 0 ? 'positive' : 'negative',
+        trend: stats.totalRemainingCapital > 0 ? 'positive' : 'negative',
       ),
       _SummaryTileData(
         title: 'Łączny kapitał zabezpieczony',
-        value: _currencyFormat.format(totalCapitalSecured),
+        value: _currencyFormat.format(stats.totalCapitalSecured),
         icon: Icons.security,
         color: AppThemePro.bondsBlue,
         trend: null,
       ),
       _SummaryTileData(
         title: 'Łączny kapitał w restrukturyzacji',
-        value: _currencyFormat.format(totalCapitalForRestructuring),
+        value: _currencyFormat.format(stats.totalCapitalForRestructuring),
         icon: Icons.refresh,
         color: AppThemePro.loansOrange,
-        trend: totalCapitalForRestructuring > 0 ? 'warning' : null,
+        trend: stats.totalCapitalForRestructuring > 0 ? 'warning' : null,
       ),
       _SummaryTileData(
         title: 'Liczba produktów (unikalne)',
@@ -713,6 +736,8 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+              dataSourceInfo, // 💡 Informacja o źródle danych
             ],
           ),
           const SizedBox(height: 16),
@@ -1165,6 +1190,18 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
               setState(() {
                 if (value == true) {
                   _selectedProductIds.add(product.id);
+                  // 🚀 NOWE: Wywołaj callback przy wyborze produktu
+                  // Znajdź pierwszą powiązaną inwestycję
+                  final relatedInvestment = _investments.firstWhere(
+                    (inv) =>
+                        inv.productName == product.name &&
+                        inv.creditorCompany == product.companyName,
+                    orElse: () => _investments.isNotEmpty
+                        ? _investments.first
+                        : throw Exception('Brak inwestycji'),
+                  );
+                  _selectedInvestment = relatedInvestment;
+                  widget.onProductSelected?.call(relatedInvestment.id);
                 } else {
                   _selectedProductIds.remove(product.id);
                 }
@@ -1237,6 +1274,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
               setState(() {
                 if (value == true) {
                   _selectedProductIds.add(investment.id);
+                  // 🚀 NOWE: Wywołaj callback przy wyborze inwestycji
+                  _selectedInvestment = investment;
+                  widget.onProductSelected?.call(investment.id);
                 } else {
                   _selectedProductIds.remove(investment.id);
                 }
@@ -1334,7 +1374,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       );
     }
 
-    // Oblicz statystyki wybranych produktów
+    // 🚀 ULEPSZONY: Oblicz statystyki wybranych produktów używając zunifikowanego podejścia
     double totalInvestmentAmount = 0;
     double totalRemainingCapital = 0;
     double totalCapitalSecured = 0;
@@ -1346,21 +1386,49 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       for (final product in selectedItems.cast<DeduplicatedProduct>()) {
         totalInvestmentAmount += product.totalValue;
         totalRemainingCapital += product.totalRemainingCapital;
-        totalCapitalSecured += 0; // DeduplicatedProduct nie ma tej właściwości
-        totalCapitalForRestructuring +=
-            0; // DeduplicatedProduct nie ma tej właściwości
+
+        // 🚀 NOWE: Lepsze obliczenie kapitału zabezpieczonego dla deduplikowanych produktów
+        // Szukamy powiązanych inwestycji dla tego produktu
+        final relatedInvestments = _investments
+            .where(
+              (inv) =>
+                  inv.productName == product.name &&
+                  inv.creditorCompany == product.companyName,
+            )
+            .toList();
+
+        double productCapitalForRestructuring = 0;
+        for (final inv in relatedInvestments) {
+          productCapitalForRestructuring += _getCapitalForRestructuring(inv);
+        }
+
+        totalCapitalForRestructuring += productCapitalForRestructuring;
+        // Zunifikowany wzór: secured = max(remaining - restructuring, 0)
+        final productCapitalSecured =
+            (product.totalRemainingCapital - productCapitalForRestructuring)
+                .clamp(0, double.infinity);
+        totalCapitalSecured += productCapitalSecured;
 
         if (product.status == ProductStatus.active) {
           activeItems++;
         }
       }
     } else {
-      // Oblicz dla inwestycji
+      // 🚀 ULEPSZONY: Oblicz dla inwestycji używając zunifikowanego wzoru
       for (final investment in selectedItems.cast<Investment>()) {
         totalInvestmentAmount += investment.investmentAmount;
         totalRemainingCapital += investment.remainingCapital;
-        totalCapitalSecured += _getCapitalSecuredByRealEstate(investment);
-        totalCapitalForRestructuring += _getCapitalForRestructuring(investment);
+
+        final investmentCapitalForRestructuring = _getCapitalForRestructuring(
+          investment,
+        );
+        totalCapitalForRestructuring += investmentCapitalForRestructuring;
+
+        // Zunifikowany wzór: secured = max(remaining - restructuring, 0)
+        final investmentCapitalSecured =
+            (investment.remainingCapital - investmentCapitalForRestructuring)
+                .clamp(0, double.infinity);
+        totalCapitalSecured += investmentCapitalSecured;
 
         if (investment.status == InvestmentStatus.active) {
           activeItems++;
@@ -1770,17 +1838,75 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     final investment = _selectedInvestment!;
     final now = DateTime.now();
 
+    // 🚀 NOWE: Licznik terminów wymagających uwagi
+    final dates = [
+      investment.signedDate,
+      investment.issueDate,
+      investment.entryDate,
+      investment.redemptionDate,
+      DateTime.tryParse(investment.additionalInfo['repaymentDate'] ?? ''),
+    ];
+
+    final warningCount = dates
+        .where((date) => _shouldShowWarningForDate(date, 'termin'))
+        .length;
+
     return SlideTransition(
       position: _slideAnimation,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Terminy i oś czasu',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: AppThemePro.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Terminy i oś czasu',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: AppThemePro.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              // 🎨 NOWE: Badge z liczbą terminów wymagających uwagi
+              if (warningCount > 0) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.statusWarning.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppThemePro.statusWarning.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: AppThemePro.statusWarning,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$warningCount ${warningCount == 1
+                            ? 'termin'
+                            : warningCount <= 4
+                            ? 'terminy'
+                            : 'terminów'}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppThemePro.statusWarning,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 16),
           Container(
@@ -1792,27 +1918,39 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   investment.signedDate,
                   Icons.edit,
                   AppThemePro.accentGold,
+                  showWarning: _shouldShowWarningForDate(
+                    investment.signedDate,
+                    'Data podpisania',
+                  ),
                 ),
                 _buildTimelineItem(
                   'Data emisji',
                   investment.issueDate,
                   Icons.launch,
                   AppThemePro.bondsBlue,
+                  showWarning: _shouldShowWarningForDate(
+                    investment.issueDate,
+                    'Data emisji',
+                  ),
                 ),
                 _buildTimelineItem(
                   'Data wprowadzenia',
                   investment.entryDate,
                   Icons.input,
                   AppThemePro.sharesGreen,
+                  showWarning: _shouldShowWarningForDate(
+                    investment.entryDate,
+                    'Data wprowadzenia',
+                  ),
                 ),
                 _buildTimelineItem(
                   'Data wykupu',
                   investment.redemptionDate,
                   Icons.event_available,
                   _getTimelineColor(investment.redemptionDate, now),
-                  showWarning: _shouldShowWarning(
+                  showWarning: _shouldShowWarningForDate(
                     investment.redemptionDate,
-                    now,
+                    'Data wykupu',
                   ),
                 ),
                 if (investment.additionalInfo['repaymentDate'] != null)
@@ -1823,7 +1961,68 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                     ),
                     Icons.payment,
                     AppThemePro.profitGreen,
+                    showWarning: _shouldShowWarningForDate(
+                      DateTime.tryParse(
+                        investment.additionalInfo['repaymentDate'],
+                      ),
+                      'Data faktycznej spłaty',
+                    ),
                   ),
+                // 📊 NOWE: Podsumowanie timeline
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.backgroundSecondary,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(12),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: AppThemePro.textMuted,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          warningCount > 0
+                              ? 'Uwaga: $warningCount ${warningCount == 1 ? 'termin wymaga' : 'terminów wymaga'} uwagi'
+                              : 'Wszystkie terminy pod kontrolą',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: warningCount > 0
+                                    ? AppThemePro.statusWarning
+                                    : AppThemePro.textMuted,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                              ),
+                        ),
+                      ),
+                      if (investment.redemptionDate != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          investment.redemptionDate!.isAfter(DateTime.now())
+                              ? 'Status: Aktywna'
+                              : 'Status: Zakończona',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color:
+                                    investment.redemptionDate!.isAfter(
+                                      DateTime.now(),
+                                    )
+                                    ? AppThemePro.profitGreen
+                                    : AppThemePro.textMuted,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                              ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -1839,43 +2038,159 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     Color color, {
     bool showWarning = false,
   }) {
+    if (date == null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppThemePro.borderPrimary, width: 0.5),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppThemePro.textMuted.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: AppThemePro.textMuted, size: 20),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppThemePro.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Text(
+              '—',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppThemePro.textMuted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 🚀 NOWE: Oblicz dynamiczne informacje o terminie
+    final now = DateTime.now();
+    final daysDiff = date.difference(now).inDays;
+    final isPast = daysDiff < 0;
+    final isToday = daysDiff == 0;
+    final isNearDue = daysDiff > 0 && daysDiff <= 30;
+
+    // Przygotuj dodatkowy tekst statusu
+    String statusText = '';
+    Color statusColor = color;
+
+    if (isToday) {
+      statusText = ' • DZISIAJ';
+      statusColor = AppThemePro.statusWarning;
+      showWarning = true;
+    } else if (isPast) {
+      statusText = ' • ${daysDiff.abs()} dni temu';
+      statusColor = AppThemePro.textMuted;
+    } else if (isNearDue) {
+      statusText = ' • Za $daysDiff dni';
+      statusColor = AppThemePro.statusWarning;
+      showWarning = true;
+    } else if (daysDiff > 30) {
+      statusText = ' • Za $daysDiff dni';
+      statusColor = AppThemePro.statusSuccess;
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(color: AppThemePro.borderPrimary, width: 0.5),
         ),
+        // 🎨 NOWE: Subtelne podświetlenie dla terminów wymagających uwagi
+        color: showWarning ? statusColor.withOpacity(0.05) : null,
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: statusColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
+              // 🎨 NOWE: Border dla ważnych terminów
+              border: showWarning
+                  ? Border.all(color: statusColor.withOpacity(0.3), width: 1)
+                  : null,
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(
+              showWarning && (isToday || isNearDue)
+                  ? Icons.warning_amber_rounded
+                  : icon,
+              color: statusColor,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppThemePro.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppThemePro.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (statusText.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    statusText.substring(3), // Usuń " • " z początku
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: statusColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                date != null ? _dateFormat.format(date) : '—',
+                _dateFormat.format(date),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: color,
+                  color: statusColor,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              if (showWarning) ...[
+              if (showWarning && (isToday || isNearDue)) ...[
+                const SizedBox(height: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: statusColor.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    isToday ? 'DZIŚ' : 'PILNE',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 8),
                 Icon(
                   Icons.warning_rounded,
@@ -1888,6 +2203,40 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         ],
       ),
     );
+  }
+
+  // 🚀 NOWE: Pomocnicza metoda do automatycznego wykrywania ostrzeżeń
+  bool _shouldShowWarningForDate(DateTime? date, String label) {
+    if (date == null) return false;
+
+    final now = DateTime.now();
+    final daysDiff = date.difference(now).inDays;
+
+    // Terminy wykupu - ostrzeżenie 60 dni wcześniej
+    if (label.toLowerCase().contains('wykup') &&
+        daysDiff > 0 &&
+        daysDiff <= 60) {
+      return true;
+    }
+
+    // Wprowadzenie na rynek - ostrzeżenie 30 dni wcześniej
+    if (label.toLowerCase().contains('wprowadzenie') &&
+        daysDiff > 0 &&
+        daysDiff <= 30) {
+      return true;
+    }
+
+    // Wszystkie terminy dzisiejsze
+    if (daysDiff == 0) {
+      return true;
+    }
+
+    // Terminy przeterminowane (do 7 dni wstecz)
+    if (daysDiff < 0 && daysDiff >= -7) {
+      return true;
+    }
+
+    return false;
   }
 
   Widget _buildFinancialRisksSection() {
@@ -2140,29 +2489,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   }
 
   // Helper methods
-  double _getCapitalSecuredByRealEstate(Investment investment) {
-    // Pełne mapowanie + fallback: remainingCapital - capitalForRestructuring (>=0)
-    dynamic raw = investment.additionalInfo['capitalSecuredByRealEstate'];
-    raw ??= investment.additionalInfo['realEstateSecuredCapital'];
-    raw ??= investment.additionalInfo['Kapitał zabezpieczony nieruchomością'];
-    raw ??= investment.additionalInfo['kapital_zabezpieczony_nieruchomoscia'];
-
-    double? parsed;
-    if (raw is double)
-      parsed = raw;
-    else if (raw is int)
-      parsed = raw.toDouble();
-    else if (raw is String) {
-      parsed = double.tryParse(raw.replaceAll(',', ''));
-    }
-
-    if (parsed != null) return parsed;
-
-    final fallback =
-        investment.remainingCapital - investment.capitalForRestructuring;
-    return fallback > 0 ? fallback : 0.0;
-  }
-
   double _getCapitalForRestructuring(Investment investment) {
     return investment.capitalForRestructuring;
   }
@@ -2244,12 +2570,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     if (daysUntil < 0) return AppThemePro.lossRed; // Past due
     if (daysUntil <= 30) return AppThemePro.statusWarning; // Warning
     return AppThemePro.profitGreen; // Good
-  }
-
-  bool _shouldShowWarning(DateTime? date, DateTime now) {
-    if (date == null) return false;
-    final daysUntil = date.difference(now).inDays;
-    return daysUntil <= 30;
   }
 
   String _getRiskStatus(double value) {
