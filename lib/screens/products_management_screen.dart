@@ -100,12 +100,15 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       print('📊 [ProductsManagementScreen] DEBUG - Załadowano produkty:');
       for (final product in _allProducts.take(5)) {
         print('📊 [ProductsManagementScreen] - ${product.id}: ${product.name}');
+        print('📊 [ProductsManagementScreen]   - Typ: ${product.productType} (${product.productType.displayName})');
+        print('📊 [ProductsManagementScreen]   - Collection: ${product.productType.collectionName}');
         print(
           '📊 [ProductsManagementScreen]   originalProduct: ${product.originalProduct?.runtimeType}',
         );
         if (product.originalProduct is Investment) {
           final inv = product.originalProduct as Investment;
           print('📊 [ProductsManagementScreen]   investmentId: ${inv.id}');
+          print('📊 [ProductsManagementScreen]   - Original Investment Type: ${inv.productType} (${inv.productType.runtimeType})');
         }
       }
     }
@@ -524,6 +527,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   }
 
   void _applyFiltersAndSearch() {
+    print('🔄 [ProductsManagement] _applyFiltersAndSearch wywołane: showDeduplicated=$_showDeduplicatedView');
     if (_showDeduplicatedView) {
       _applyFiltersAndSearchForDeduplicatedProducts();
     } else {
@@ -658,6 +662,117 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       );
     }
 
+    // Aplikuj filtry z ProductFilterCriteria
+    print('🔧 [ProductsManagement] Aplikowanie filtrów do deduplikowanych produktów...');
+    print('🔧 [ProductsManagement] Filtry - typy: ${_filterCriteria.productTypes?.map((t) => t.displayName).join(", ")}');
+    print('🔧 [ProductsManagement] Filtry - statusy: ${_filterCriteria.statuses?.map((s) => s.displayName).join(", ")}');
+    print('🔧 [ProductsManagement] Filtry - firma: "${_filterCriteria.companyName}"');
+    print('🔧 [ProductsManagement] Filtry - kwoty: ${_filterCriteria.minInvestmentAmount}-${_filterCriteria.maxInvestmentAmount}');
+    
+    if (_filterCriteria.productTypes != null && _filterCriteria.productTypes!.isNotEmpty) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        // Porównuj bezpośrednio UnifiedProductType z UnifiedProductType
+        final matches = _filterCriteria.productTypes!.contains(product.productType);
+        if (!matches) {
+          print('🔧 [ProductsManagement] Filtrowanie - odrzucam "${product.name}" (${product.productType.displayName}) - nie pasuje do ${_filterCriteria.productTypes!.map((t) => t.displayName).join(", ")}');
+        } else {
+          print('🔧 [ProductsManagement] Filtrowanie - akceptuję "${product.name}" (${product.productType.displayName})');
+        }
+        return matches;
+      }).toList();
+      print('🔧 [ProductsManagement] Filtr typów: ${beforeCount} → ${filtered.length}');
+    }
+    
+    if (_filterCriteria.statuses != null && _filterCriteria.statuses!.isNotEmpty) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        final matches = _filterCriteria.statuses!.contains(product.status);
+        return matches;
+      }).toList();
+      print('🔧 [ProductsManagement] Filtr statusów: ${beforeCount} → ${filtered.length}');
+    }
+    
+    if (_filterCriteria.companyName != null && _filterCriteria.companyName!.isNotEmpty) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        final matches = product.companyName.toLowerCase().contains(_filterCriteria.companyName!.toLowerCase());
+        return matches;
+      }).toList();
+      print('🔧 [ProductsManagement] Filtr firmy: ${beforeCount} → ${filtered.length}');
+    }
+    
+    if (_filterCriteria.minInvestmentAmount != null) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        final matches = product.averageInvestment >= _filterCriteria.minInvestmentAmount!;
+        return matches;
+      }).toList();
+      print('🔧 [ProductsManagement] Filtr min kwoty: ${beforeCount} → ${filtered.length}');
+    }
+    
+    if (_filterCriteria.maxInvestmentAmount != null) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        final matches = product.averageInvestment <= _filterCriteria.maxInvestmentAmount!;
+        return matches;
+      }).toList();
+      print('🔧 [ProductsManagement] Filtr max kwoty: ${beforeCount} → ${filtered.length}');
+    }
+
+    if (_filterCriteria.minInterestRate != null) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        final rate = product.interestRate ?? 0.0;
+        final matches = rate >= _filterCriteria.minInterestRate!;
+        return matches;
+      }).toList();
+      print('🔧 [ProductsManagement] Filtr min oprocentowania: ${beforeCount} → ${filtered.length}');
+    }
+    
+    if (_filterCriteria.maxInterestRate != null) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        final rate = product.interestRate ?? 0.0;
+        final matches = rate <= _filterCriteria.maxInterestRate!;
+        return matches;
+      }).toList();
+      print('🔧 [ProductsManagement] Filtr max oprocentowania: ${beforeCount} → ${filtered.length}');
+    }
+
+    if (_filterCriteria.createdAfter != null) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        final matches = product.earliestInvestmentDate.isAfter(_filterCriteria.createdAfter!) || 
+                       product.earliestInvestmentDate.isAtSameMomentAs(_filterCriteria.createdAfter!);
+        return matches;
+      }).toList();
+      print('🔧 [ProductsManagement] Filtr daty początkowej: ${beforeCount} → ${filtered.length}');
+    }
+    
+    if (_filterCriteria.createdBefore != null) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        final matches = product.latestInvestmentDate.isBefore(_filterCriteria.createdBefore!) || 
+                       product.latestInvestmentDate.isAtSameMomentAs(_filterCriteria.createdBefore!);
+        return matches;
+      }).toList();
+      print('🔧 [ProductsManagement] Filtr daty końcowej: ${beforeCount} → ${filtered.length}');
+    }
+    
+    print('🔧 [ProductsManagement] Filtry zastosowane: ${_deduplicatedProducts.length} → ${filtered.length}');
+
+    print('🔄 [ProductsManagement] Sortowanie ${filtered.length} deduplikowanych produktów po: ${_sortField.displayName} (${_sortDirection.displayName})');
+    
+    // Debug: wypisz pierwsze 3 produkty przed sortowaniem
+    if (filtered.length > 0) {
+      print('🔧 [ProductsManagement] PRZED sortowaniem:');
+      for (int i = 0; i < filtered.length && i < 3; i++) {
+        final product = filtered[i];
+        print('🔧 [ProductsManagement]   ${i+1}. ${product.name} - ${product.productType.displayName} (${product.productType.collectionName})');
+      }
+    }
+    
     // Sortowanie deduplikowanych produktów
     filtered.sort((a, b) {
       int comparison;
@@ -667,8 +782,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           comparison = a.name.compareTo(b.name);
           break;
         case ProductSortField.type:
-          comparison = a.productType.displayName.compareTo(
-            b.productType.displayName,
+          // Użyj collectionName dla bardziej stabilnego sortowania deduplikowanych
+          comparison = a.productType.collectionName.compareTo(
+            b.productType.collectionName,
           );
           break;
         case ProductSortField.investmentAmount:
@@ -698,17 +814,27 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           break;
       }
 
-      return _sortDirection == SortDirection.ascending
+      int result = _sortDirection == SortDirection.ascending
           ? comparison
           : -comparison;
+      
+      if (_sortField == ProductSortField.type) {
+        print('🔧 [ProductsManagement] Porównywanie DEDUPLIKOWANE "${a.name}" (${a.productType.collectionName}/${a.productType.displayName}) vs "${b.name}" (${b.productType.collectionName}/${b.productType.displayName}) = $comparison (result: $result)');
+      }
+      
+      return result;
     });
 
     setState(() {
       _filteredDeduplicatedProducts = filtered;
     });
+    
+    print('🔄 [ProductsManagement] Sortowanie deduplikowanych produktów zakończone, znaleziono: ${_filteredDeduplicatedProducts.length}');
   }
 
   void _sortProducts(List<UnifiedProduct> products) {
+    print('🔄 [ProductsManagement] Sortowanie ${products.length} zwykłych produktów po: ${_sortField.displayName} (${_sortDirection.displayName})');
+    
     products.sort((a, b) {
       int comparison;
 
@@ -717,8 +843,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           comparison = a.name.compareTo(b.name);
           break;
         case ProductSortField.type:
-          comparison = a.productType.displayName.compareTo(
-            b.productType.displayName,
+          // Użyj collectionName dla bardziej stabilnego sortowania zwykłych produktów
+          comparison = a.productType.collectionName.compareTo(
+            b.productType.collectionName,
           );
           break;
         case ProductSortField.investmentAmount:
@@ -744,24 +871,40 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           break;
       }
 
-      return _sortDirection == SortDirection.ascending
+      int result = _sortDirection == SortDirection.ascending
           ? comparison
           : -comparison;
+      
+      if (_sortField == ProductSortField.type) {
+        print('🔧 [ProductsManagement] Porównywanie ZWYKLE "${a.name}" (${a.productType.collectionName}/${a.productType.displayName}) vs "${b.name}" (${b.productType.collectionName}/${b.productType.displayName}) = $comparison (result: $result)');
+      }
+      
+      return result;
     });
+    
+    print('🔄 [ProductsManagement] Sortowanie zakończone');
   }
 
   void _onFilterChanged(ProductFilterCriteria criteria) {
+    print('🔧 [ProductsManagement] _onFilterChanged wywołane');
+    print('🔧 [ProductsManagement] Nowe kryteria: productTypes=${criteria.productTypes?.map((t) => t.displayName).join(", ")}, statuses=${criteria.statuses?.map((s) => s.displayName).join(", ")}');
+    print('🔧 [ProductsManagement] Firma: "${criteria.companyName}", kwoty: ${criteria.minInvestmentAmount}-${criteria.maxInvestmentAmount}');
+    print('🔧 [ProductsManagement] Poprzednie kryteria: productTypes=${_filterCriteria?.productTypes?.map((t) => t.displayName).join(", ")}, statuses=${_filterCriteria?.statuses?.map((s) => s.displayName).join(", ")}');
     setState(() {
       _filterCriteria = criteria;
     });
+    print('🔧 [ProductsManagement] setState zakończone, wywołuję _applyFiltersAndSearch');
     _applyFiltersAndSearch();
   }
 
   void _onSortChanged(ProductSortField field, SortDirection direction) {
+    print('🔄 [ProductsManagement] Sortowanie zmienione na: ${field.displayName} (${direction.displayName})');
+    print('🔄 [ProductsManagement] Poprzednie sortowanie: ${_sortField.displayName} (${_sortDirection.displayName})');
     setState(() {
       _sortField = field;
       _sortDirection = direction;
     });
+    print('🔄 [ProductsManagement] setState zakończone, wywołuję _applyFiltersAndSearch');
     _applyFiltersAndSearch();
   }
 
@@ -1044,6 +1187,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     return SliverPadding(
       padding: const EdgeInsets.all(16),
       sliver: SliverList(
+        key: ValueKey('deduplicated_list_${_sortField.name}_${_sortDirection.name}'),
         delegate: SliverChildBuilderDelegate((context, index) {
           final product = _filteredDeduplicatedProducts[index];
           return FadeTransition(
@@ -1062,6 +1206,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     return SliverPadding(
       padding: const EdgeInsets.all(16),
       sliver: SliverGrid(
+        key: ValueKey('grid_view_${_sortField.name}_${_sortDirection.name}'),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           childAspectRatio: 1.0,
@@ -1089,6 +1234,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       sliver: SliverList(
+        key: ValueKey('regular_list_${_sortField.name}_${_sortDirection.name}'),
         delegate: SliverChildBuilderDelegate((context, index) {
           return FadeTransition(
             opacity: _fadeAnimation,

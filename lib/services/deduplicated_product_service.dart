@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/unified_product.dart';
 import '../models/investment.dart';
+import '../models/product.dart'; // Import dla ProductType
 import '../services/unified_product_service.dart';
 import 'base_service.dart';
 
@@ -403,7 +404,34 @@ class DeduplicatedProductService extends BaseService {
   UnifiedProductType _mapProductType(dynamic productType) {
     if (productType == null) return UnifiedProductType.bonds;
 
+    print('🔧 [DeduplicatedProductService] Mapowanie typu produktu: $productType (${productType.runtimeType})');
+
+    // Sprawdź czy to enum ProductType
+    if (productType is ProductType) {
+      print('🔧 [DeduplicatedProductService] To jest ProductType enum: $productType');
+      switch (productType) {
+        case ProductType.bonds:
+          return UnifiedProductType.bonds;
+        case ProductType.shares:
+          return UnifiedProductType.shares;
+        case ProductType.loans:
+          return UnifiedProductType.loans;
+        case ProductType.apartments:
+          return UnifiedProductType.apartments;
+      }
+    }
+
     final typeStr = productType.toString().toLowerCase();
+
+    // Sprawdź enum toString format (ProductType.bonds -> bonds)
+    if (typeStr.contains('.bonds'))
+      return UnifiedProductType.bonds;
+    if (typeStr.contains('.shares'))
+      return UnifiedProductType.shares;
+    if (typeStr.contains('.loans'))
+      return UnifiedProductType.loans;
+    if (typeStr.contains('.apartments'))
+      return UnifiedProductType.apartments;
 
     if (typeStr.contains('apartment') || typeStr.contains('apartament')) {
       return UnifiedProductType.apartments;
