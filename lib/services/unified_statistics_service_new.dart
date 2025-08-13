@@ -13,7 +13,6 @@ class UnifiedStatisticsService {
         totalInvestmentAmount: 0,
         totalRemainingCapital: 0,
         totalCapitalSecuredByRealEstate: 0,
-        totalCapitalForRestructuring: 0,
         viableCapital: 0,
         majorityThreshold: 0,
         investorsCount: 0,
@@ -25,14 +24,9 @@ class UnifiedStatisticsService {
 
     double totalInvestmentAmount = 0.0;
     double totalRemainingCapital = 0.0;
-    double totalCapitalForRestructuring = 0.0; // 🔧 NOWE POLE
+    double totalCapitalSecuredByRealEstate = 0.0;
     int activeInvestorsCount = 0;
     bool hasInactiveInvestors = false;
-
-    // 🔧 DEDUPLIKACJA - użyj Set do śledzenia przetworzonych inwestycji (GLOBALNIE dla wszystkich inwestorów)
-    final Set<String> processedInvestmentIds = {};
-    final Map<String, double> recordedCapitalForRestructuring =
-        {}; // śledzi wartości by móc uzupełniać przy duplikatach
 
     print(
       '🔥 [UnifiedStatisticsService] OBLICZANIE STATYSTYK PRODUKTU: $productName',
@@ -45,75 +39,25 @@ class UnifiedStatisticsService {
       }
       activeInvestorsCount++;
 
-      print('🔍 [UnifiedStatisticsService] Inwestor: ${investor.client.name}');
-      print('  - Liczba inwestycji: ${investor.investments.length}');
-      print(
-        '  - capitalForRestructuring w InvestorSummary: ${investor.capitalForRestructuring}',
-      );
-      print(
-        '  - capitalSecuredByRealEstate w InvestorSummary: ${investor.capitalSecuredByRealEstate}',
-      );
-
       for (final investment in investor.investments) {
         // Filtruj tylko inwestycje danego produktu
         if (investment.productName == productName) {
-          // 🚨 DEDUPLIKACJA - sprawdź czy już przetwarzaliśmy tę inwestycję
-          if (processedInvestmentIds.contains(investment.id)) {
-            // 🚧 ULEPSZONE SCALANIE: jeśli pierwotnie capitalForRestructuring było 0 a nowy duplikat ma >0, zaktualizuj sumę różnicą
-            final existing =
-                recordedCapitalForRestructuring[investment.id] ?? 0.0;
-            final current = investment.capitalForRestructuring;
-            if (current > existing) {
-              final diff = current - existing;
-              totalCapitalForRestructuring += diff;
-              recordedCapitalForRestructuring[investment.id] = current;
-              print(
-                '    ♻️ UZUPEŁNIONO capitalForRestructuring dla ${investment.id}: +$diff (now $current)',
-              );
-            } else {
-              print('    ⚠️ DUPLIKAT POMINIĘTY (bez zmian): ${investment.id}');
-            }
-            continue;
-          }
-          processedInvestmentIds.add(investment.id);
-
-          // 📊 SUMUJ TYLKO PODSTAWOWE WARTOŚCI (pierwsze wystąpienie)
           totalInvestmentAmount += investment.investmentAmount;
           totalRemainingCapital += investment.remainingCapital;
-          totalCapitalForRestructuring += investment.capitalForRestructuring;
-          recordedCapitalForRestructuring[investment.id] =
-              investment.capitalForRestructuring;
 
-          print('  ✅ ${investor.client.name}: ${investment.productName}');
+          // 🔥 UŻYWAJ POLA Z GŁÓWNEGO POZIOMU FIREBASE!
+          totalCapitalSecuredByRealEstate +=
+              investment.capitalSecuredByRealEstate;
+
+          print('  - ${investor.client.name}: ${investment.productName}');
           print('    * investmentAmount: ${investment.investmentAmount}');
           print('    * remainingCapital: ${investment.remainingCapital}');
           print(
-            '    * capitalForRestructuring: ${investment.capitalForRestructuring}',
-          );
-          print(
             '    * capitalSecuredByRealEstate: ${investment.capitalSecuredByRealEstate}',
           );
-          print('    🔍 Investment ID: ${investment.id}');
         }
       }
     }
-
-    // 🎯 OBLICZ totalCapitalSecuredByRealEstate NA KOŃCU Z WZORU
-    final totalCapitalSecuredByRealEstate =
-        (totalRemainingCapital - totalCapitalForRestructuring).clamp(
-          0.0,
-          double.infinity,
-        );
-
-    print('🧮 [UnifiedStatisticsService] OBLICZANIE KOŃCOWE:');
-    print('  - totalRemainingCapital: $totalRemainingCapital');
-    print('  - totalCapitalForRestructuring: $totalCapitalForRestructuring');
-    print(
-      '  - 🔥 totalCapitalSecuredByRealEstate = $totalRemainingCapital - $totalCapitalForRestructuring = $totalCapitalSecuredByRealEstate',
-    );
-    print(
-      '  - Przetworzono unikalnych inwestycji: ${processedInvestmentIds.length}',
-    );
 
     // Oblicz pozostałe metryki
     final viableCapital = totalRemainingCapital;
@@ -126,7 +70,6 @@ class UnifiedStatisticsService {
       totalInvestmentAmount: totalInvestmentAmount,
       totalRemainingCapital: totalRemainingCapital,
       totalCapitalSecuredByRealEstate: totalCapitalSecuredByRealEstate,
-      totalCapitalForRestructuring: totalCapitalForRestructuring,
       viableCapital: viableCapital,
       majorityThreshold: majorityThreshold,
       investorsCount: investors.length,
@@ -162,7 +105,6 @@ class UnifiedProductStatistics {
   final double totalInvestmentAmount;
   final double totalRemainingCapital;
   final double totalCapitalSecuredByRealEstate;
-  final double totalCapitalForRestructuring; // NOWE
   final double viableCapital;
   final double majorityThreshold;
   final int investorsCount;
@@ -174,7 +116,6 @@ class UnifiedProductStatistics {
     required this.totalInvestmentAmount,
     required this.totalRemainingCapital,
     required this.totalCapitalSecuredByRealEstate,
-    required this.totalCapitalForRestructuring,
     required this.viableCapital,
     required this.majorityThreshold,
     required this.investorsCount,

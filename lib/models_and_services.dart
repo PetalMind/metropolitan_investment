@@ -10,7 +10,7 @@ export 'models/loan.dart';
 export 'models/share.dart';
 export 'models/apartment.dart';
 export 'models/unified_product.dart';
-export 'models/investor_summary.dart';
+export 'models/investor_summary.dart'; // 🚀 NOWE: InvestorSummary.withoutCalculations() + calculateSecuredCapitalForAll()
 export 'models/excel_import_models.dart';
 export 'models/voting_status_change.dart';
 
@@ -52,10 +52,19 @@ export 'services/advanced_analytics_service.dart' hide AdvancedDashboardMetrics;
 export 'services/investor_analytics_service.dart' hide InvestorAnalyticsResult;
 export 'services/standard_product_investors_service.dart';
 
+// 🚀 OPTIMIZED SERVICES - Migracja na optymalne obliczenia
+// Te serwisy teraz używają InvestorSummary.withoutCalculations() + calculateSecuredCapitalForAll()
+// zamiast obliczeń dla każdego klienta osobno w InvestorSummary.fromInvestments()
+// Korzyści:
+// - Obliczenia wykonują się TYLKO RAZ na końcu dla wszystkich zsumowanych kwot
+// - Eliminuje redundantne obliczenia capitalSecuredByRealEstate dla każdego inwestora
+// - Lepsze zgodność z wzorem: capitalSecured = sum(remainingCapital) - sum(capitalForRestructuring)
+
 // New voting and analytics services - UNIFIED VERSION
 export 'services/unified_voting_status_service.dart';
 export 'services/unified_statistics_utils.dart';
-export 'services/unified_statistics_service.dart'; // NOWY ZUNIFIKOWANY SERWIS
+export 'services/unified_statistics_service.dart'; // ZUNIFIKOWANY SERWIS (lokalny fallback)
+export 'services/server_side_statistics_service.dart'; // 🚀 SERWIS SERWEROWY (Firebase Functions)
 export 'services/debug_firestore_service.dart';
 
 // Voting status change model

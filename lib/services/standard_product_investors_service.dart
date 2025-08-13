@@ -223,6 +223,7 @@ class StandardProductInvestorsService extends BaseService {
   }
 
   /// Przetwarza dokumenty inwestycji na listę inwestorów
+  /// 🚀 NOWE: UŻYWA obliczenia NA KOŃCU zamiast dla każdego klienta osobno
   Future<List<InvestorSummary>> _processInvestmentsToInvestors(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) async {
@@ -251,7 +252,6 @@ class StandardProductInvestorsService extends BaseService {
       print(
         '👥 [StandardProductInvestors] Znaleziono ${clientIds.length} unikalnych klientów',
       );
-      print('🆔 [StandardProductInvestors] Client IDs: $clientIds');
 
       // Pobierz dane klientów
       final clients = await _getClientsByIds(clientIds);
@@ -268,13 +268,11 @@ class StandardProductInvestorsService extends BaseService {
         print(
           '👤 [StandardProductInvestors] Znaleziono ${clientsByName.length} klientów po nazwie',
         );
-        return _createInvestorSummariesFromClientNames(
+        return await _createInvestorSummariesFromClientNames(
           investments,
           clientsByName,
         );
-      }
-
-      // Utwórz mapowanie numeryczne ID -> UUID klienta
+      } // Utwórz mapowanie numeryczne ID -> UUID klienta
       final Map<String, String> numericIdToUuid = {};
       for (final client in clients) {
         // Bezpośrednie mapowanie przez excelId
@@ -303,8 +301,12 @@ class StandardProductInvestorsService extends BaseService {
         '🔗 [StandardProductInvestors] Utworzono mapowanie numericId -> UUID: $numericIdToUuid',
       );
 
-      // Utwórz podsumowania inwestorów używając mapowania
-      final List<InvestorSummary> investors = [];
+      print(
+        '🚀 [StandardProductInvestors] Tworzenie inwestorów z obliczeniami na końcu',
+      );
+
+      // ✅ NOWE: Utwórz podsumowania BEZ OBLICZEŃ (tylko zbieranie danych)
+      final List<InvestorSummary> investorsWithoutCalculations = [];
       for (final client in clients) {
         // Znajdź inwestycje dla tego klienta przez mapowanie
         List<Investment> clientInvestments = [];
@@ -315,19 +317,29 @@ class StandardProductInvestorsService extends BaseService {
         }
 
         if (clientInvestments.isNotEmpty) {
-          final investorSummary = InvestorSummary.fromInvestments(
+          // ⭐ KLUCZOWA ZMIANA: Używamy withoutCalculations() zamiast fromInvestments()
+          final investorSummary = InvestorSummary.withoutCalculations(
             client,
             clientInvestments,
           );
-          investors.add(investorSummary);
+          investorsWithoutCalculations.add(investorSummary);
         }
       }
+
+      print(
+        '  ✅ Utworzono ${investorsWithoutCalculations.length} InvestorSummary bez obliczeń',
+      );
+
+      // 🧮 OBLICZENIA NA KOŃCU: Oblicz capitalSecuredByRealEstate TYLKO RAZ dla wszystkich
+      final investors = InvestorSummary.calculateSecuredCapitalForAll(
+        investorsWithoutCalculations,
+      );
 
       // Sortuj według wartości inwestycji (malejąco)
       investors.sort((a, b) => b.totalValue.compareTo(a.totalValue));
 
       print(
-        '✅ [StandardProductInvestors] Utworzono ${investors.length} podsumowań inwestorów',
+        '✅ [StandardProductInvestors] Utworzono ${investors.length} podsumowań inwestorów z ServerSideStatisticsService',
       );
       return investors;
     } catch (e) {
@@ -453,6 +465,7 @@ class StandardProductInvestorsService extends BaseService {
   }
 
   /// Tworzy podsumowania inwestorów na podstawie nazw klientów
+  /// 🚀 NOWE: Używa obliczenia NA KOŃCU zamiast dla każdego klienta osobno
   Future<List<InvestorSummary>> _createInvestorSummariesFromClientNames(
     List<Investment> investments,
     List<Client> clients,
@@ -467,24 +480,38 @@ class StandardProductInvestorsService extends BaseService {
             .add(investment);
       }
 
-      // Utwórz podsumowania inwestorów
-      final List<InvestorSummary> investors = [];
+      print(
+        '🚀 [StandardProductInvestors] Tworzenie ${clients.length} inwestorów z obliczeniami na końcu',
+      );
+
+      // ✅ NOWE: Utwórz podsumowania BEZ OBLICZEŃ (tylko zbieranie danych)
+      final List<InvestorSummary> investorsWithoutCalculations = [];
       for (final client in clients) {
         final clientInvestments = investmentsByClientName[client.name] ?? [];
         if (clientInvestments.isNotEmpty) {
-          final investorSummary = InvestorSummary.fromInvestments(
+          // ⭐ KLUCZOWA ZMIANA: Używamy withoutCalculations() zamiast fromInvestments()
+          final investorSummary = InvestorSummary.withoutCalculations(
             client,
             clientInvestments,
           );
-          investors.add(investorSummary);
+          investorsWithoutCalculations.add(investorSummary);
         }
       }
+
+      print(
+        '  ✅ Utworzono ${investorsWithoutCalculations.length} InvestorSummary bez obliczeń',
+      );
+
+      // 🧮 OBLICZENIA NA KOŃCU: Oblicz capitalSecuredByRealEstate TYLKO RAZ dla wszystkich
+      final investors = InvestorSummary.calculateSecuredCapitalForAll(
+        investorsWithoutCalculations,
+      );
 
       // Sortuj według wartości inwestycji (malejąco)
       investors.sort((a, b) => b.totalValue.compareTo(a.totalValue));
 
       print(
-        '✅ [StandardProductInvestors] Utworzono ${investors.length} podsumowań inwestorów na podstawie nazw',
+        '✅ [StandardProductInvestors] Utworzono ${investors.length} podsumowań inwestorów z obliczeniami na końcu',
       );
       return investors;
     } catch (e) {

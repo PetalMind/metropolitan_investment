@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+// CENTRALNY IMPORT zgodnie z wytycznymi (models + services)
+import '../../models_and_services.dart';
 import '../../theme/app_theme.dart';
-import '../../models/unified_product.dart';
 import 'product_details_service.dart';
 
 /// Zakładka ze szczegółami produktu
 class ProductOverviewTab extends StatefulWidget {
-  final UnifiedProduct product;
+  final UnifiedProduct product; // Wejściowy produkt (może być niepełny / cache)
 
   const ProductOverviewTab({super.key, required this.product});
 
@@ -20,11 +21,42 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   final ProductDetailsService _service = ProductDetailsService();
+  final UnifiedProductService _productService = UnifiedProductService();
+
+  UnifiedProduct? _freshProduct;
+  bool _isLoading = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
+    _loadProduct();
+  }
+
+  Future<void> _loadProduct() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final loaded = await _productService.getProductById(widget.product.id);
+      if (mounted) {
+        setState(() {
+          // Jeśli nic nie znaleziono w Firestore – użyj przekazanego obiektu (brak placeholderów)
+          _freshProduct = loaded ?? widget.product;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _freshProduct = widget.product; // fallback do istniejących danych
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _initializeAnimations() {
@@ -68,60 +100,153 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
 
   @override
   Widget build(BuildContext context) {
+    final product = _freshProduct ?? widget.product;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Szczegółowe informacje specyficzne dla typu produktu
-              _buildProductSpecificDetails(),
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_isLoading)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Column(
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Ładowanie aktualnych danych produktu…',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (_error != null)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        color: AppTheme.errorColor,
+                        size: 32,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Błąd pobierania: $_error',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.errorColor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: _loadProduct,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Ponów próbę'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
-              const SizedBox(height: 24),
-
-              // Podstawowe informacje
-              _buildBasicInformation(),
-
-              const SizedBox(height: 24),
-
-              // Opis produktu
-              if (widget.product.description.isNotEmpty) ...[
-                _buildDescriptionSection(),
-                const SizedBox(height: 24),
-              ],
-
-              // Dodatkowe informacje
-              if (widget.product.additionalInfo.isNotEmpty) ...[
-                _buildAdditionalInfoSection(),
-              ],
+            if (!_isLoading && _error == null) ...[
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildProductSpecificDetails(product),
+                      const SizedBox(height: 24),
+                      _buildBasicInformation(product),
+                      if (product.description.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        _buildDescriptionSection(product),
+                      ],
+                      // UWAGA: Sekcja "Dodatkowe informacje" USUNIĘTA zgodnie z wymaganiem
+                    ],
+                  ),
+                ),
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 
   /// Buduje szczegóły specyficzne dla typu produktu
-  Widget _buildProductSpecificDetails() {
-    switch (widget.product.productType) {
+  Widget _buildProductSpecificDetails(UnifiedProduct product) {
+    switch (product.productType) {
       case UnifiedProductType.bonds:
-        return _buildBondsDetails();
+        return _buildBondsDetails(product);
       case UnifiedProductType.shares:
-        return _buildSharesDetails();
+        return _buildSharesDetails(product);
       case UnifiedProductType.loans:
-        return _buildLoansDetails();
+        return _buildLoansDetails(product);
       case UnifiedProductType.apartments:
-        return _buildApartmentsDetails();
+        return _buildApartmentsDetails(product);
       case UnifiedProductType.other:
-        return _buildOtherProductDetails();
+        return _buildOtherProductDetails(product);
     }
   }
 
   /// Szczegóły dla obligacji
-  Widget _buildBondsDetails() {
+  Widget _buildBondsDetails(UnifiedProduct product) {
+    final children = <Widget>[];
+    if (product.realizedCapital != null)
+      children.add(
+        _buildDetailRow(
+          'Zrealizowany kapitał',
+          _service.formatCurrency(product.realizedCapital!),
+        ),
+      );
+    if (product.remainingCapital != null)
+      children.add(
+        _buildDetailRow(
+          'Pozostały kapitał',
+          _service.formatCurrency(product.remainingCapital!),
+        ),
+      );
+    if (product.realizedInterest != null)
+      children.add(
+        _buildDetailRow(
+          'Zrealizowane odsetki',
+          _service.formatCurrency(product.realizedInterest!),
+        ),
+      );
+    if (product.remainingInterest != null)
+      children.add(
+        _buildDetailRow(
+          'Pozostałe odsetki',
+          _service.formatCurrency(product.remainingInterest!),
+        ),
+      );
+    if (product.interestRate != null)
+      children.add(
+        _buildDetailRow(
+          'Oprocentowanie',
+          '${product.interestRate!.toStringAsFixed(2)}%',
+        ),
+      );
+    if (product.maturityDate != null)
+      children.add(
+        _buildDetailRow(
+          'Data zapadalności',
+          _service.formatDate(product.maturityDate!),
+        ),
+      );
+    if (product.companyName != null)
+      children.add(_buildDetailRow('Emitent', product.companyName!));
+    if (children.isEmpty) return const SizedBox.shrink();
     return _buildProductTypeContainer(
       title: 'Szczegóły Obligacji',
       subtitle: 'Informacje o instrumencie dłużnym',
@@ -131,45 +256,33 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
         AppTheme.bondsColor.withOpacity(0.1),
         AppTheme.bondsBackground,
       ],
-      children: [
-        if (widget.product.realizedCapital != null)
-          _buildDetailRow(
-            'Zrealizowany kapitał',
-            _service.formatCurrency(widget.product.realizedCapital!),
-          ),
-        if (widget.product.remainingCapital != null)
-          _buildDetailRow(
-            'Pozostały kapitał',
-            _service.formatCurrency(widget.product.remainingCapital!),
-          ),
-        if (widget.product.realizedInterest != null)
-          _buildDetailRow(
-            'Zrealizowane odsetki',
-            _service.formatCurrency(widget.product.realizedInterest!),
-          ),
-        if (widget.product.remainingInterest != null)
-          _buildDetailRow(
-            'Pozostałe odsetki',
-            _service.formatCurrency(widget.product.remainingInterest!),
-          ),
-        if (widget.product.interestRate != null)
-          _buildDetailRow(
-            'Oprocentowanie',
-            '${widget.product.interestRate!.toStringAsFixed(2)}%',
-          ),
-        if (widget.product.maturityDate != null)
-          _buildDetailRow(
-            'Data zapadalności',
-            _service.formatDate(widget.product.maturityDate!),
-          ),
-        if (widget.product.companyName != null)
-          _buildDetailRow('Emitent', widget.product.companyName!),
-      ],
+      children: children,
     );
   }
 
   /// Szczegóły dla udziałów
-  Widget _buildSharesDetails() {
+  Widget _buildSharesDetails(UnifiedProduct product) {
+    final children = <Widget>[];
+    if (product.sharesCount != null)
+      children.add(
+        _buildDetailRow('Liczba udziałów', product.sharesCount.toString()),
+      );
+    if (product.pricePerShare != null)
+      children.add(
+        _buildDetailRow(
+          'Cena za udział',
+          _service.formatCurrency(product.pricePerShare!),
+        ),
+      );
+    if (product.companyName != null)
+      children.add(_buildDetailRow('Nazwa spółki', product.companyName!));
+    children.add(
+      _buildDetailRow(
+        'Wartość całkowita',
+        _service.formatCurrency(product.totalValue),
+      ),
+    );
+    if (children.isEmpty) return const SizedBox.shrink();
     return _buildProductTypeContainer(
       title: 'Szczegóły Udziałów',
       subtitle: 'Informacje o udziałach w spółce',
@@ -179,29 +292,54 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
         AppTheme.sharesColor.withOpacity(0.1),
         AppTheme.sharesBackground,
       ],
-      children: [
-        if (widget.product.sharesCount != null)
-          _buildDetailRow(
-            'Liczba udziałów',
-            widget.product.sharesCount.toString(),
-          ),
-        if (widget.product.pricePerShare != null)
-          _buildDetailRow(
-            'Cena za udział',
-            _service.formatCurrency(widget.product.pricePerShare!),
-          ),
-        if (widget.product.companyName != null)
-          _buildDetailRow('Nazwa spółki', widget.product.companyName!),
-        _buildDetailRow(
-          'Wartość całkowita',
-          _service.formatCurrency(widget.product.totalValue),
-        ),
-      ],
+      children: children,
     );
   }
 
   /// Szczegóły dla pożyczek
-  Widget _buildLoansDetails() {
+  Widget _buildLoansDetails(UnifiedProduct product) {
+    final children = <Widget>[];
+    final info = product.additionalInfo;
+    if (info['borrower'] != null) {
+      children.add(
+        _buildDetailRow('Pożyczkobiorca', info['borrower'].toString()),
+      );
+    }
+    if (info['creditorCompany'] != null) {
+      children.add(
+        _buildDetailRow(
+          'Spółka wierzyciel',
+          info['creditorCompany'].toString(),
+        ),
+      );
+    }
+    if (product.interestRate != null) {
+      children.add(
+        _buildDetailRow(
+          'Oprocentowanie',
+          '${product.interestRate!.toStringAsFixed(2)}%',
+        ),
+      );
+    }
+    if (product.maturityDate != null) {
+      children.add(
+        _buildDetailRow(
+          'Termin spłaty',
+          _service.formatDate(product.maturityDate!),
+        ),
+      );
+    }
+    if (info['collateral'] != null) {
+      children.add(
+        _buildDetailRow('Zabezpieczenie', info['collateral'].toString()),
+      );
+    }
+    if (info['status'] != null) {
+      children.add(
+        _buildDetailRow('Status pożyczki', info['status'].toString()),
+      );
+    }
+    if (children.isEmpty) return const SizedBox.shrink();
     return _buildProductTypeContainer(
       title: 'Szczegóły Pożyczki',
       subtitle: 'Informacje o produkcie pożyczkowym',
@@ -211,43 +349,48 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
         AppTheme.loansColor.withOpacity(0.1),
         AppTheme.loansBackground,
       ],
-      children: [
-        if (widget.product.additionalInfo['borrower'] != null)
-          _buildDetailRow(
-            'Pożyczkobiorca',
-            widget.product.additionalInfo['borrower'].toString(),
-          ),
-        if (widget.product.additionalInfo['creditorCompany'] != null)
-          _buildDetailRow(
-            'Spółka wierzyciel',
-            widget.product.additionalInfo['creditorCompany'].toString(),
-          ),
-        if (widget.product.interestRate != null)
-          _buildDetailRow(
-            'Oprocentowanie',
-            '${widget.product.interestRate!.toStringAsFixed(2)}%',
-          ),
-        if (widget.product.maturityDate != null)
-          _buildDetailRow(
-            'Termin spłaty',
-            _service.formatDate(widget.product.maturityDate!),
-          ),
-        if (widget.product.additionalInfo['collateral'] != null)
-          _buildDetailRow(
-            'Zabezpieczenie',
-            widget.product.additionalInfo['collateral'].toString(),
-          ),
-        if (widget.product.additionalInfo['status'] != null)
-          _buildDetailRow(
-            'Status pożyczki',
-            widget.product.additionalInfo['status'].toString(),
-          ),
-      ],
+      children: children,
     );
   }
 
   /// Szczegóły dla apartamentów
-  Widget _buildApartmentsDetails() {
+  Widget _buildApartmentsDetails(UnifiedProduct product) {
+    final info = product.additionalInfo;
+    final children = <Widget>[];
+    void addIf(String key, String label, [String? suffix]) {
+      final v = info[key];
+      if (v != null && v.toString().isNotEmpty) {
+        children.add(
+          _buildDetailRow(
+            label,
+            suffix == null ? v.toString() : '${v.toString()} $suffix',
+          ),
+        );
+      }
+    }
+
+    addIf('apartmentNumber', 'Numer apartamentu');
+    addIf('building', 'Budynek');
+    if (info['area'] != null) {
+      children.add(_buildDetailRow('Powierzchnia', '${info['area']} m²'));
+    }
+    addIf('roomCount', 'Liczba pokoi');
+    addIf('floor', 'Piętro');
+    addIf('apartmentType', 'Typ apartamentu');
+    if (info['pricePerSquareMeter'] != null) {
+      children.add(
+        _buildDetailRow('Cena za m²', '${info['pricePerSquareMeter']} PLN/m²'),
+      );
+    }
+    addIf('address', 'Adres');
+    // Amenity chips
+    if (info['hasBalcony'] == true ||
+        info['hasParkingSpace'] == true ||
+        info['hasStorage'] == true) {
+      children.add(const SizedBox(height: 16));
+      children.add(_buildAmenities(product));
+    }
+    if (children.isEmpty) return const SizedBox.shrink();
     return _buildProductTypeContainer(
       title: 'Szczegóły Apartamentu',
       subtitle: 'Informacje o nieruchomości',
@@ -257,56 +400,26 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
         AppTheme.apartmentsColor.withOpacity(0.1),
         AppTheme.apartmentsBackground,
       ],
-      children: [
-        if (widget.product.additionalInfo['apartmentNumber'] != null)
-          _buildDetailRow(
-            'Numer apartamentu',
-            widget.product.additionalInfo['apartmentNumber'].toString(),
-          ),
-        if (widget.product.additionalInfo['building'] != null)
-          _buildDetailRow(
-            'Budynek',
-            widget.product.additionalInfo['building'].toString(),
-          ),
-        if (widget.product.additionalInfo['area'] != null)
-          _buildDetailRow(
-            'Powierzchnia',
-            '${widget.product.additionalInfo['area']} m²',
-          ),
-        if (widget.product.additionalInfo['roomCount'] != null)
-          _buildDetailRow(
-            'Liczba pokoi',
-            widget.product.additionalInfo['roomCount'].toString(),
-          ),
-        if (widget.product.additionalInfo['floor'] != null)
-          _buildDetailRow(
-            'Piętro',
-            widget.product.additionalInfo['floor'].toString(),
-          ),
-        if (widget.product.additionalInfo['apartmentType'] != null)
-          _buildDetailRow(
-            'Typ apartamentu',
-            widget.product.additionalInfo['apartmentType'].toString(),
-          ),
-        if (widget.product.additionalInfo['pricePerSquareMeter'] != null)
-          _buildDetailRow(
-            'Cena za m²',
-            '${widget.product.additionalInfo['pricePerSquareMeter']} PLN/m²',
-          ),
-        if (widget.product.additionalInfo['address'] != null)
-          _buildDetailRow(
-            'Adres',
-            widget.product.additionalInfo['address'].toString(),
-          ),
-        // Dodatkowe amenity
-        const SizedBox(height: 16),
-        _buildAmenities(),
-      ],
+      children: children,
     );
   }
 
   /// Szczegóły dla innych produktów
-  Widget _buildOtherProductDetails() {
+  Widget _buildOtherProductDetails(UnifiedProduct product) {
+    final children = <Widget>[];
+    children.add(
+      _buildDetailRow(
+        'Wartość całkowita',
+        _service.formatCurrency(product.totalValue),
+      ),
+    );
+    if (product.companyName != null) {
+      children.add(_buildDetailRow('Firma', product.companyName!));
+    }
+    if (product.currency != null) {
+      children.add(_buildDetailRow('Waluta', product.currency!));
+    }
+    if (children.isEmpty) return const SizedBox.shrink();
     return _buildProductTypeContainer(
       title: 'Szczegóły Produktu',
       subtitle: 'Informacje o produkcie inwestycyjnym',
@@ -316,16 +429,7 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
         AppTheme.primaryColor.withOpacity(0.1),
         AppTheme.backgroundTertiary,
       ],
-      children: [
-        _buildDetailRow(
-          'Wartość całkowita',
-          _service.formatCurrency(widget.product.totalValue),
-        ),
-        if (widget.product.companyName != null)
-          _buildDetailRow('Firma', widget.product.companyName!),
-        if (widget.product.currency != null)
-          _buildDetailRow('Waluta', widget.product.currency!),
-      ],
+      children: children,
     );
   }
 
@@ -412,23 +516,19 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
   }
 
   /// Buduje amenities dla apartamentów
-  Widget _buildAmenities() {
+  Widget _buildAmenities(UnifiedProduct product) {
     final amenities = <Widget>[];
-
-    if (widget.product.additionalInfo['hasBalcony'] == true) {
+    final info = product.additionalInfo;
+    if (info['hasBalcony'] == true) {
       amenities.add(_buildAmenityChip('Balkon', Icons.balcony));
     }
-
-    if (widget.product.additionalInfo['hasParkingSpace'] == true) {
+    if (info['hasParkingSpace'] == true) {
       amenities.add(_buildAmenityChip('Parking', Icons.local_parking));
     }
-
-    if (widget.product.additionalInfo['hasStorage'] == true) {
+    if (info['hasStorage'] == true) {
       amenities.add(_buildAmenityChip('Komórka', Icons.storage));
     }
-
     if (amenities.isEmpty) return const SizedBox.shrink();
-
     return Wrap(spacing: 8, runSpacing: 8, children: amenities);
   }
 
@@ -462,7 +562,7 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
   }
 
   /// Buduje podstawowe informacje o produkcie
-  Widget _buildBasicInformation() {
+  Widget _buildBasicInformation(UnifiedProduct product) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -497,34 +597,31 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
             AppTheme.secondaryGold,
           ),
           const SizedBox(height: 20),
-          _buildDetailRow(
-            'Typ produktu',
-            widget.product.productType.displayName,
-          ),
+          _buildDetailRow('Typ produktu', product.productType.displayName),
           _buildDetailRow(
             'Status',
-            widget.product.isActive ? 'Aktywny' : 'Nieaktywny',
+            product.isActive ? 'Aktywny' : 'Nieaktywny',
           ),
           _buildDetailRow(
             'Kwota inwestycji',
-            _service.formatCurrency(widget.product.investmentAmount),
+            _service.formatCurrency(product.investmentAmount),
           ),
           _buildDetailRow(
             'Data utworzenia',
-            _service.formatDate(widget.product.createdAt),
+            _service.formatDate(product.createdAt),
           ),
           _buildDetailRow(
             'Ostatnia aktualizacja',
-            _service.formatDate(widget.product.uploadedAt),
+            _service.formatDate(product.uploadedAt),
           ),
-          _buildDetailRow('Waluta', widget.product.currency ?? 'PLN'),
+          _buildDetailRow('Waluta', product.currency ?? 'PLN'),
         ],
       ),
     );
   }
 
   /// Buduje sekcję opisu
-  Widget _buildDescriptionSection() {
+  Widget _buildDescriptionSection(UnifiedProduct product) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -563,7 +660,7 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
               ),
             ),
             child: Text(
-              widget.product.description,
+              product.description,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: AppTheme.textPrimary,
                 height: 1.6,
@@ -571,48 +668,6 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  /// Buduje sekcję dodatkowych informacji
-  Widget _buildAdditionalInfoSection() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.neutralPrimary.withOpacity(0.05),
-            AppTheme.neutralBackground,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppTheme.neutralPrimary.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader(
-            'Dodatkowe Informacje',
-            'Inne dane o produkcie',
-            Icons.more_horiz,
-            AppTheme.neutralPrimary,
-          ),
-          const SizedBox(height: 20),
-          ...widget.product.additionalInfo.entries
-              .where((entry) => !_service.isSpecialField(entry.key))
-              .map(
-                (entry) => _buildDetailRow(
-                  _service.formatFieldName(entry.key),
-                  entry.value.toString(),
-                ),
-              ),
         ],
       ),
     );

@@ -67,6 +67,39 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
       print('📊 [Updated Functions Service] Status: ${data['message']}');
       print('📊 [Updated Functions Service] Source: ${data['source']}');
 
+      // 🔍 DEBUG: Sprawdź pierwsze dane inwestorów
+      final investorsDataDebug = data['investors'] as List? ?? [];
+      if (investorsDataDebug.isNotEmpty) {
+        final firstInvestor = investorsDataDebug.first as Map<String, dynamic>;
+        print('🔍 [DEBUG] Pierwszy inwestor z Functions:');
+        print('  - client: ${firstInvestor['client']}');
+        print(
+          '  - capitalForRestructuring: ${firstInvestor['capitalForRestructuring']}',
+        );
+        print(
+          '  - capitalSecuredByRealEstate: ${firstInvestor['capitalSecuredByRealEstate']}',
+        );
+        print(
+          '  - investments: ${(firstInvestor['investments'] as List?)?.length ?? 0}',
+        );
+
+        // Sprawdź pierwsze inwestycje
+        final investments = firstInvestor['investments'] as List? ?? [];
+        if (investments.isNotEmpty) {
+          final firstInvestment = investments.first as Map<String, dynamic>;
+          print(
+            '  - Investment[0] capitalForRestructuring: ${firstInvestment['capitalForRestructuring']}',
+          );
+          print(
+            '  - Investment[0] capitalSecuredByRealEstate: ${firstInvestment['capitalSecuredByRealEstate']}',
+          );
+          print(
+            '  - Investment[0] remainingCapital: ${firstInvestment['remainingCapital']}',
+          );
+          print('  - Investment[0] keys: ${firstInvestment.keys.toList()}');
+        }
+      }
+
       // Parse investors z Firebase Functions response
       final investorsData = data['investors'] as List? ?? [];
       final allInvestorsData = data['allInvestors'] as List? ?? [];
@@ -395,6 +428,41 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
     Map<String, dynamic> data,
   ) {
     try {
+      // 🔍 DEBUG: Loguj pełne dane otrzymane z Firebase Functions
+      if (data['client'] != null && data['client']['name'] != null) {
+        print(
+          '🔍 [DEBUG] Dane z Firebase Functions dla ${data['client']['name']}:',
+        );
+        print(
+          '  - capitalForRestructuring: ${data['capitalForRestructuring']}',
+        );
+        print(
+          '  - capitalSecuredByRealEstate: ${data['capitalSecuredByRealEstate']}',
+        );
+        print('  - viableRemainingCapital: ${data['viableRemainingCapital']}');
+        print(
+          '  - investments count: ${(data['investments'] as List?)?.length ?? 0}',
+        );
+
+        // 🔍 DEBUG: Sprawdź pierwsze inwestycje
+        final investments = data['investments'] as List? ?? [];
+        if (investments.isNotEmpty) {
+          final firstInvestment = investments.first as Map<String, dynamic>;
+          print(
+            '  - Investment[0] capitalForRestructuring: ${firstInvestment['capitalForRestructuring']}',
+          );
+          print(
+            '  - Investment[0] capitalSecuredByRealEstate: ${firstInvestment['capitalSecuredByRealEstate']}',
+          );
+          print(
+            '  - Investment[0] remainingCapital: ${firstInvestment['remainingCapital']}',
+          );
+          print(
+            '  - Investment[0] productName: ${firstInvestment['productName']}',
+          );
+        }
+      }
+
       // Parse client data
       final clientData = data['client'] as Map<String, dynamic>;
       final client = Client(
@@ -444,6 +512,11 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
           remainingCapital: (invMap['remainingCapital'] ?? 0.0).toDouble(),
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
+          // 🔥 NAPRAWKA: Dodaj pola kapitałów z poziomu inwestycji
+          capitalSecuredByRealEstate:
+              (invMap['capitalSecuredByRealEstate'] ?? 0.0).toDouble(),
+          capitalForRestructuring: (invMap['capitalForRestructuring'] ?? 0.0)
+              .toDouble(),
         );
       }).toList();
 
@@ -463,6 +536,7 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
         print('  - capitalForRestructuring: $capitalForRestructuring');
         print('  - capitalSecuredByRealEstate: $capitalSecuredByRealEstate');
         print('  - viableRemainingCapital: $totalViableCapital');
+        print('  - investments created: ${investments.length}');
       }
 
       return InvestorSummary(
@@ -586,6 +660,11 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
       currency: data['waluta']?.toString() ?? 'PLN',
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
+      // 🔥 NAPRAWKA: Dodaj pola kapitałów z głównego poziomu
+      capitalSecuredByRealEstate: (data['capitalSecuredByRealEstate'] ?? 0.0)
+          .toDouble(),
+      capitalForRestructuring: (data['capitalForRestructuring'] ?? 0.0)
+          .toDouble(),
       additionalInfo: {
         'source': 'firebase-functions-updated',
         'numer_kontraktu': (data['numer_kontraktu'] ?? '').toString(),

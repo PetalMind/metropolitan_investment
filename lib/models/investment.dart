@@ -57,6 +57,9 @@ class Investment {
   final double? exchangeRate;
   final DateTime createdAt;
   final DateTime updatedAt;
+  // 🔥 POLA Z GŁÓWNEGO POZIOMU FIREBASE
+  final double capitalSecuredByRealEstate;
+  final double capitalForRestructuring;
   final Map<String, dynamic> additionalInfo;
 
   Investment({
@@ -96,6 +99,9 @@ class Investment {
     required this.createdAt,
     required this.updatedAt,
     this.additionalInfo = const {},
+    // 🔥 POLA Z GŁÓWNEGO POZIOMU FIREBASE
+    this.capitalSecuredByRealEstate = 0.0,
+    this.capitalForRestructuring = 0.0,
   });
 
   String get employeeFullName => '$employeeFirstName $employeeLastName';
@@ -344,6 +350,20 @@ class Investment {
           parseDate(data['uploadedAt']) ??
           parseDate(data['uploaded_at']) ??
           DateTime.now(),
+      // 🔥 POLA Z GŁÓWNEGO POZIOMU FIREBASE
+      capitalSecuredByRealEstate: parseCapitalValue(
+        data['capitalSecuredByRealEstate'] ??
+            data['realEstateSecuredCapital'] ??
+            data['Kapitał zabezpieczony nieruchomością'] ??
+            data['Kapital zabezpieczony nieruchomoscia'] ??
+            data['kapital_zabezpieczony_nieruchomoscia'],
+      ),
+      capitalForRestructuring: parseCapitalValue(
+        data['capitalForRestructuring'] ??
+            data['kapital_do_restrukturyzacji'] ??
+            data['Kapitał do restrukturyzacji'] ??
+            data['Kapital do restrukturyzacji'],
+      ),
       additionalInfo: {
         'sourceFile': data['sourceFile'] ?? data['source_file'],
         'saleId': data['saleId'] ?? data['ID_Sprzedaz'] ?? data['id_sprzedaz'],
@@ -354,16 +374,6 @@ class Investment {
         'loanNumber': data['loanNumber'] ?? data['pozyczka_numer'],
         'borrower': data['borrower'] ?? data['pozyczkobiorca'],
         'collateral': data['collateral'] ?? data['zabezpieczenie'],
-        // ⭐ POPRAWKA: Pola kapitałów są na głównym poziomie dokumentu
-        'realEstateSecuredCapital':
-            data['capitalSecuredByRealEstate'] ?? // 🔥 GŁÓWNY POZIOM FIRST
-            data['realEstateSecuredCapital'] ??
-            data['Kapitał zabezpieczony nieruchomością'] ??
-            data['kapital_zabezpieczony_nieruchomoscia'],
-        'capitalForRestructuring':
-            data['capitalForRestructuring'] ?? // 🔥 GŁÓWNY POZIOM FIRST
-            data['Kapitał do restrukturyzacji'] ??
-            data['kapital_do_restrukturyzacji'],
         'repaymentDate': data['repaymentDate'] ?? data['data_splaty'],
         'disbursementDate': data['disbursementDate'] ?? data['data_udzielenia'],
         'accruedInterest': data['accruedInterest'] ?? data['odsetki_naliczone'],
@@ -392,6 +402,11 @@ class Investment {
       'realizedCapital': realizedCapital.toStringAsFixed(2),
       'transferToOtherProduct': transferToOtherProduct.toStringAsFixed(2),
       'remainingCapital': remainingCapital.toStringAsFixed(2),
+      // 🔥 DODAJ POLA KAPITAŁÓW Z GŁÓWNEGO POZIOMU
+      'capitalSecuredByRealEstate': capitalSecuredByRealEstate.toStringAsFixed(
+        2,
+      ),
+      'capitalForRestructuring': capitalForRestructuring.toStringAsFixed(2),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'uploadedAt': updatedAt.toIso8601String(),
@@ -477,24 +492,9 @@ class Investment {
       'collateral': additionalInfo['collateral'],
       'zabezpieczenie':
           additionalInfo['collateral'] ?? additionalInfo['zabezpieczenie'],
-      'realEstateSecuredCapital': additionalInfo['realEstateSecuredCapital'],
-      'Kapitał zabezpieczony nieruchomością':
-          additionalInfo['realEstateSecuredCapital'] ??
-          additionalInfo['Kapitał zabezpieczony nieruchomością'] ??
-          additionalInfo['kapital_zabezpieczony_nieruchomoscia'],
-      'kapital_zabezpieczony_nieruchomoscia':
-          additionalInfo['realEstateSecuredCapital'] ??
-          additionalInfo['Kapitał zabezpieczony nieruchomością'] ??
-          additionalInfo['kapital_zabezpieczony_nieruchomoscia'],
-      'capitalForRestructuring': additionalInfo['capitalForRestructuring'],
-      'Kapitał do restrukturyzacji':
-          additionalInfo['capitalForRestructuring'] ??
-          additionalInfo['Kapitał do restrukturyzacji'] ??
-          additionalInfo['kapital_do_restrukturyzacji'],
-      'kapital_do_restrukturyzacji':
-          additionalInfo['capitalForRestructuring'] ??
-          additionalInfo['Kapitał do restrukturyzacji'] ??
-          additionalInfo['kapital_do_restrukturyzacji'],
+      'realEstateSecuredCapital': capitalSecuredByRealEstate.toStringAsFixed(2),
+      'Kapitał zabezpieczony nieruchomością': capitalSecuredByRealEstate,
+      'kapital_do_restrukturyzacji': capitalForRestructuring,
       'repaymentDate': additionalInfo['repaymentDate'],
       'data_splaty':
           additionalInfo['repaymentDate'] ?? additionalInfo['data_splaty'],
@@ -543,6 +543,8 @@ class Investment {
     double? transferToOtherProduct,
     double? remainingCapital,
     double? remainingInterest,
+    double? capitalSecuredByRealEstate,
+    double? capitalForRestructuring,
     double? plannedTax,
     double? realizedTax,
     String? currency,
@@ -581,6 +583,10 @@ class Investment {
           transferToOtherProduct ?? this.transferToOtherProduct,
       remainingCapital: remainingCapital ?? this.remainingCapital,
       remainingInterest: remainingInterest ?? this.remainingInterest,
+      capitalSecuredByRealEstate:
+          capitalSecuredByRealEstate ?? this.capitalSecuredByRealEstate,
+      capitalForRestructuring:
+          capitalForRestructuring ?? this.capitalForRestructuring,
       plannedTax: plannedTax ?? this.plannedTax,
       realizedTax: realizedTax ?? this.realizedTax,
       currency: currency ?? this.currency,
@@ -720,22 +726,11 @@ class Investment {
       exchangeRate: safeToDouble(map['exchangeRate']),
       createdAt: parseDate(map['createdAt']) ?? DateTime.now(),
       updatedAt: parseDate(map['updatedAt']) ?? DateTime.now(),
-      additionalInfo: {
-        ...(map['additionalInfo'] as Map<String, dynamic>? ?? {}),
-        // ⭐ DODAJ pola kapitałów z głównego poziomu do additionalInfo dla spójności
-        'realEstateSecuredCapital':
-            map['capitalSecuredByRealEstate'] ??
-            (map['additionalInfo']
-                as Map<String, dynamic>?)?['realEstateSecuredCapital'],
-        'capitalForRestructuring':
-            map['capitalForRestructuring'] ??
-            (map['additionalInfo']
-                as Map<String, dynamic>?)?['capitalForRestructuring'],
-        // 🐛 DEBUG - pola otrzymane z serwera
-        '_debug_raw_remainingCapital': map['remainingCapital'],
-        '_debug_raw_investmentAmount': map['investmentAmount'],
-        '_debug_raw_productName': map['productName'],
-      },
+      capitalForRestructuring: safeToDouble(map['capitalForRestructuring']),
+      capitalSecuredByRealEstate: safeToDouble(
+        map['capitalSecuredByRealEstate'],
+      ),
+      additionalInfo: {},
     );
   }
 }

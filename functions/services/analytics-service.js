@@ -102,7 +102,7 @@ const getOptimizedInvestorAnalytics = onCall({
         return {
           ...normalizedInvestment,
           capitalSecuredByRealEstate, // Dynamicznie obliczona wartość
-          capitalForRestructuring,
+          capitalForRestructuring,    // 🔥 DODANE - wartość z getUnifiedField
         };
       });
 

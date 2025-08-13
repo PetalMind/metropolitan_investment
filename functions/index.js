@@ -17,6 +17,7 @@ const clientsService = require("./services/clients-service");
 const debugService = require("./services/debug-service");
 const capitalCalculationService = require("./services/capital-calculation-service");
 const productInvestorsService = require("./product-investors-optimization");
+const productStatisticsService = require("./services/product-statistics-service");
 
 // Import nowych analityk - tylko funkcje pomocnicze
 const employeesAnalytics = require('./analytics/employees_analytics');
@@ -167,4 +168,58 @@ module.exports = {
 
   // Import funkcji premium analytics z CORS
   ...require('./premium-analytics-filters'),
+
+  // Funkcja obliczania statystyk produktu po stronie serwera - NAPRAWIONA
+  getProductStatistics: functions.https.onCall(async (data, context) => {
+    try {
+      console.log('🔥 [getProductStatistics] Wywołanie funkcji:', {
+        productName: data?.productName,
+        investmentsCount: data?.investments?.length || 0
+      });
+
+      const { productName, investments } = data;
+
+      // ⚠️ POPRAWIONA WALIDACJA - sprawdź czy productName nie jest pusty i investments to tablica
+      if (!productName || typeof productName !== 'string' || productName.trim() === '') {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'Parametr productName jest wymagany i musi być niepustym stringiem'
+        );
+      }
+
+      if (!investments || !Array.isArray(investments)) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'Parametr investments jest wymagany i musi być tablicą'
+        );
+      }
+
+      console.log(`📊 [getProductStatistics] Przetwarzanie ${investments.length} inwestycji dla produktu: "${productName}"`);
+
+      // ⚠️ DODAJ INFORMACJĘ O PUSTEJ LIŚCIE
+      if (investments.length === 0) {
+        console.log(`⚠️ [getProductStatistics] Pusta lista inwestycji dla produktu: "${productName}"`);
+      }
+
+      const statistics = await productStatisticsService.calculateProductStatistics(investments, productName);
+
+      console.log('✅ [getProductStatistics] Statystyki obliczone pomyślnie:', {
+        totalInvestmentAmount: statistics.totalInvestmentAmount,
+        totalRemainingCapital: statistics.totalRemainingCapital,
+        totalCapitalForRestructuring: statistics.totalCapitalForRestructuring,
+        totalCapitalSecuredByRealEstate: statistics.totalCapitalSecuredByRealEstate
+      });
+
+      return { success: true, statistics };
+
+    } catch (error) {
+      console.error('❌ [getProductStatistics] Błąd:', error);
+      console.error('❌ [getProductStatistics] Stack trace:', error.stack);
+      console.error('❌ [getProductStatistics] Parametry wejściowe:', {
+        productName: data?.productName,
+        investmentsCount: data?.investments?.length || 0
+      });
+      throw new functions.https.HttpsError('internal', `Błąd serwera: ${error.message}`);
+    }
+  }),
 };

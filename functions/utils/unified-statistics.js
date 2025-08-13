@@ -186,18 +186,9 @@ function calculateUnifiedViableCapital(investment) {
  * @param {Object} investment - dokument inwestycji  
  * @returns {number} - capitalSecuredByRealEstate = remainingCapital - capitalForRestructuring
  */
-function calculateCapitalSecuredByRealEstate(investment) {
-  const remainingCapital = getUnifiedField(investment, 'remainingCapital');
-  const capitalForRestructuring = getUnifiedField(investment, 'capitalForRestructuring');
-
-  const capitalSecuredByRealEstate = remainingCapital - capitalForRestructuring;
-
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[Unified] capitalSecuredByRealEstate: ${remainingCapital} - ${capitalForRestructuring} = ${capitalSecuredByRealEstate}`);
-  }
-
-  // Zwróć nie mniej niż 0
-  return Math.max(0, capitalSecuredByRealEstate);
+// 🔕 DEPRECATED: backend calculation disabled – always return 0 to reduce processing.
+function calculateCapitalSecuredByRealEstate(_investment) {
+  return 0;
 }
 
 /**
@@ -328,13 +319,15 @@ function normalizeInvestmentDocument(investment) {
     remainingInterest: getUnifiedField(investment, 'remainingInterest'),
     investmentAmount: getUnifiedField(investment, 'investmentAmount'),
     productStatus: getUnifiedField(investment, 'productStatus'),
-    productType: investment.productType || 'Nieznany',
+    productName: getUnifiedField(investment, 'productName'), // DODANE
+    productType: getUnifiedField(investment, 'productType') || 'Nieznany',
 
     // Obliczone pola
     totalValue: calculateUnifiedTotalValue(investment),
     viableCapital: calculateUnifiedViableCapital(investment),
     isActive: isInvestmentActive(investment),
     capitalSecuredByRealEstate: calculateCapitalSecuredByRealEstate(investment), // NOWY
+    capitalForRestructuring: getUnifiedField(investment, 'capitalForRestructuring'), // 🔥 NAPRAWKA
 
     // Oryginalne dane w additionalInfo
     originalData: investment

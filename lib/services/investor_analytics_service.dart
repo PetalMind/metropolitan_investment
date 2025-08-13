@@ -478,15 +478,17 @@ class InvestorAnalyticsService extends BaseService {
           '✅ [Analytics] Klient ${client.name}: ${clientInvestments.length} inwestycji, łączny kapitał: ${totalCapital.toStringAsFixed(2)}',
         );
 
-        // Utwórz podsumowanie inwestora używając factory method
-        final investorSummary = InvestorSummary.fromInvestments(
-          client,
-          clientInvestments,
-        );
+        // 🚀 NOWE: Utwórz podsumowanie inwestora używając ServerSideStatisticsService
+        // zamiast lokalnych obliczeń w InvestorSummary.fromInvestments()
+        final investorSummary =
+            await _createInvestorSummaryWithServerCalculations(
+              client,
+              clientInvestments,
+            );
 
         // DEBUG: Sprawdź viableRemainingCapital
         print(
-          '🔍 [DEBUG] ${client.name} viableRemainingCapital: ${investorSummary.viableRemainingCapital}',
+          '🔍 [DEBUG] ${client.name} viableRemainingCapital (serwer): ${investorSummary.viableRemainingCapital}',
         );
 
         investors.add(investorSummary);
@@ -522,6 +524,61 @@ class InvestorAnalyticsService extends BaseService {
       print('❌ [Analytics] Błąd pobierania inwestycji: $e');
       logError('_getAllInvestments', e);
       rethrow;
+    }
+  }
+
+  /// 🚀 NOWA METODA: Tworzy InvestorSummary używając ServerSideStatisticsService
+  Future<InvestorSummary> _createInvestorSummaryWithServerCalculations(
+    Client client,
+    List<Investment> investments,
+  ) async {
+    try {
+      print(
+        '🚀 [InvestorAnalytics] Obliczanie statystyk dla ${client.name} na serwerze...',
+      );
+
+      // Oblicz podstawowe sumy
+      final totalInvestmentAmount = investments.fold(
+        0.0,
+        (sum, inv) => sum + inv.investmentAmount,
+      );
+      final totalRemainingCapital = investments.fold(
+        0.0,
+        (sum, inv) => sum + inv.remainingCapital,
+      );
+      final totalRealizedCapital = investments.fold(
+        0.0,
+        (sum, inv) => sum + inv.realizedCapital,
+      );
+      final capitalSecuredByRealEstate = investments.fold(
+        0.0,
+        (sum, inv) => sum + inv.capitalSecuredByRealEstate,
+      );
+      final capitalForRestructuring = investments.fold(
+        0.0,
+        (sum, inv) => sum + inv.capitalForRestructuring,
+      );
+
+      // Używamy standardowego konstruktora InvestorSummary
+      return InvestorSummary(
+        client: client,
+        investments: investments,
+        totalInvestmentAmount: totalInvestmentAmount,
+        totalRemainingCapital: totalRemainingCapital,
+        totalRealizedCapital: totalRealizedCapital,
+        totalSharesValue: 0.0, // Zawsze 0 dla nowej architektury
+        totalValue: totalRemainingCapital, // totalValue = totalRemainingCapital
+        capitalSecuredByRealEstate: capitalSecuredByRealEstate,
+        capitalForRestructuring: capitalForRestructuring,
+        investmentCount: investments.length,
+      );
+    } catch (e) {
+      print(
+        '❌ [InvestorAnalytics] Błąd obliczeń serwerowych dla ${client.name}: $e',
+      );
+
+      // ⚠️ DEPRECATED: Fallback do starych obliczeń - używaj withoutCalculations()
+      return InvestorSummary.fromInvestments(client, investments);
     }
   }
 
@@ -609,19 +666,20 @@ class InvestorAnalyticsService extends BaseService {
       transferToOtherProduct: parseCapitalValue(data['transferToOtherProduct']),
       remainingCapital: parseCapitalValue(data['remainingCapital']),
       remainingInterest: parseCapitalValue(data['remainingInterest']),
-
+      capitalForRestructuring: parseCapitalValue(
+        data['capitalForRestructuring'],
+      ),
+      capitalSecuredByRealEstate: parseCapitalValue(
+        data['capitalSecuredByRealEstate'],
+      ),
       // ⭐ INNE
       currency: data['currency']?.toString() ?? 'PLN',
 
       // ⭐ DODATKOWE POLA dla kompatybilności
       additionalInfo: {
         ...data.map((key, value) => MapEntry(key, value)),
-        // Dodaj pola specyficzne dla różnych typów produktów
-        if (data['capitalForRestructuring'] != null)
-          'kapital_do_restrukturyzacji': data['capitalForRestructuring'],
-        if (data['realEstateSecuredCapital'] != null)
-          'kapital_zabezpieczony_nieruchomoscia':
-              data['realEstateSecuredCapital'],
+
+    
         if (data['accruedInterest'] != null)
           'narosle_odsetki': data['accruedInterest'],
         if (data['interestRate'] != null)

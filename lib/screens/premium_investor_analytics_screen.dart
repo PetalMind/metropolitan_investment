@@ -472,11 +472,35 @@ class _PremiumInvestorAnalyticsScreenState
       final firstInvestor = result.investors.first;
       print('   - First investor: ${firstInvestor.client.name}');
       print(
-        '   - First investor capital: ${firstInvestor.viableRemainingCapital}',
+        '   - First investor viableRemainingCapital: ${firstInvestor.viableRemainingCapital}',
       );
       print(
         '   - First investor investments: ${firstInvestor.investmentCount}',
       );
+      print(
+        '   - First investor capitalForRestructuring: ${firstInvestor.capitalForRestructuring}',
+      );
+      print(
+        '   - First investor capitalSecuredByRealEstate: ${firstInvestor.capitalSecuredByRealEstate}',
+      );
+
+      // 🔍 DEBUG: Sprawdź pierwsze inwestycje
+      if (firstInvestor.investments.isNotEmpty) {
+        final firstInvestment = firstInvestor.investments.first;
+        print('   - First investment: ${firstInvestment.productName}');
+        print(
+          '   - First investment remainingCapital: ${firstInvestment.remainingCapital}',
+        );
+        print(
+          '   - First investment capitalForRestructuring: ${firstInvestment.capitalForRestructuring}',
+        );
+        print(
+          '   - First investment capitalSecuredByRealEstate: ${firstInvestment.capitalSecuredByRealEstate}',
+        );
+        print(
+          '   - First investment additionalInfo: ${firstInvestment.additionalInfo}',
+        );
+      }
     }
 
     setState(() {

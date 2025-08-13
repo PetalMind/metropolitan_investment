@@ -2,17 +2,25 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../models/unified_product.dart';
 import '../../models/investor_summary.dart';
-import '../../models_and_services.dart'; // Import wszystkich serwisów
+import '../../models_and_services.dart';
 import 'product_details_service.dart';
 
-/// Header dialogu szczegółów produktu z animacjami i gradientem
+// Lokalny model tylko dla dwóch podstawowych sum.
+class _LocalProductStats {
+  final double totalInvestmentAmount;
+  final double totalRemainingCapital;
+  const _LocalProductStats({
+    required this.totalInvestmentAmount,
+    required this.totalRemainingCapital,
+  });
+}
+
 class ProductDetailsHeader extends StatefulWidget {
   final UnifiedProduct product;
   final List<InvestorSummary> investors;
   final bool isLoadingInvestors;
   final VoidCallback onClose;
   final VoidCallback? onShowInvestors;
-
   const ProductDetailsHeader({
     super.key,
     required this.product,
@@ -21,21 +29,19 @@ class ProductDetailsHeader extends StatefulWidget {
     required this.onClose,
     this.onShowInvestors,
   });
-
   @override
   State<ProductDetailsHeader> createState() => _ProductDetailsHeaderState();
 }
 
 class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     with TickerProviderStateMixin {
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
+  late final AnimationController _fadeController;
+  late final Animation<double> _fadeAnimation;
   final ProductDetailsService _service = ProductDetailsService();
-  final UnifiedStatisticsService _statisticsService =
-      UnifiedStatisticsService();
-  // ignore: unused_field
-  final EnhancedUnifiedProductService _productService =
-      EnhancedUnifiedProductService();
+
+  UnifiedProductStatistics?
+  _serverStatistics; // nadal możemy użyć serwerowych sum (bez pól restrukt.)
+  bool _isLoadingStatistics = false;
 
   @override
   void initState() {
@@ -44,12 +50,42 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
-
     _fadeController.forward();
+    _loadServerStatistics();
+  }
+
+  Future<void> _loadServerStatistics() async {
+    if (widget.isLoadingInvestors || widget.investors.isEmpty) return;
+    if (widget.product.name.trim().isEmpty) return;
+    setState(() => _isLoadingStatistics = true);
+    try {
+      final stats =
+          await ServerSideStatisticsService.calculateProductStatistics(
+            widget.investors,
+            widget.product.name,
+            isLoadingInvestors: widget.isLoadingInvestors,
+          );
+      if (!mounted) return;
+      setState(() {
+        _serverStatistics = stats;
+        _isLoadingStatistics = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingStatistics = false);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ProductDetailsHeader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.investors != widget.investors ||
+        oldWidget.isLoadingInvestors != widget.isLoadingInvestors) {
+      _loadServerStatistics();
+    }
   }
 
   @override
@@ -90,20 +126,117 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Przycisk zamknięcia
             _buildCloseButton(),
             const SizedBox(height: 8),
-
-            // Główne informacje o produkcie
             _buildMainInfo(),
             const SizedBox(height: 20),
-
-            // Metryki finansowe
             _buildFinancialMetrics(),
           ],
         ),
       ),
     );
+  }
+
+  // --- Metryki (TYLKO 2) ---
+  Widget _buildFinancialMetrics() {
+    final local = _computeLocalProductStats();
+    final double totalInvestmentAmountDisplay;
+    final double totalRemainingCapitalDisplay;
+    final double totalCapitalForRestructuringDisplay;
+    if (_isLoadingStatistics) {
+      return Row(
+        children: List.generate(
+          2,
+          (i) => Expanded(
+            child: Container(
+              margin: EdgeInsets.only(right: i == 0 ? 16 : 0),
+              child: _buildMetricLoadingCard(),
+            ),
+          ),
+        ),
+      );
+    }
+    if (_serverStatistics != null) {
+      totalInvestmentAmountDisplay = _serverStatistics!.totalInvestmentAmount;
+      totalRemainingCapitalDisplay = _serverStatistics!.totalRemainingCapital;
+      totalCapitalForRestructuringDisplay =
+          _serverStatistics!.totalCapitalForRestructuring;
+    } else {
+      totalInvestmentAmountDisplay = local.totalInvestmentAmount;
+      totalRemainingCapitalDisplay = local.totalRemainingCapital;
+      totalCapitalForRestructuringDisplay =
+          _computeLocalCapitalForRestructuring();
+    }
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: [
+        SizedBox(
+          width: 220,
+          child: _buildMetricCard(
+            title: 'Suma inwestycji',
+            value: _service.formatCurrency(totalInvestmentAmountDisplay),
+            subtitle: 'PLN',
+            icon: Icons.trending_down,
+            color: AppTheme.infoPrimary,
+          ),
+        ),
+        SizedBox(
+          width: 220,
+          child: _buildMetricCard(
+            title: 'Kapitał pozostały',
+            value: _service.formatCurrency(totalRemainingCapitalDisplay),
+            subtitle: 'PLN',
+            icon: Icons.account_balance_wallet,
+            color: AppTheme.successPrimary,
+          ),
+        ),
+        SizedBox(
+          width: 220,
+          child: _buildMetricCard(
+            title: 'Kapitał do restrukt.',
+            value:
+                totalCapitalForRestructuringDisplay.toStringAsFixed(2) + ' PLN',
+            subtitle: 'Suma capitalForRestructuring',
+            icon: Icons.build,
+            color: Colors.orangeAccent,
+          ),
+        ),
+      ],
+    );
+  }
+
+  _LocalProductStats _computeLocalProductStats() {
+    double totalInvestmentAmount = 0;
+    double totalRemainingCapital = 0;
+    final processedIds = <String>{};
+    for (final investor in widget.investors) {
+      for (final inv in investor.investments) {
+        if (inv.productName != widget.product.name) continue;
+        if (processedIds.contains(inv.id)) continue; // deduplikacja
+        processedIds.add(inv.id);
+        totalInvestmentAmount += inv.investmentAmount;
+        totalRemainingCapital += inv.remainingCapital;
+      }
+    }
+    return _LocalProductStats(
+      totalInvestmentAmount: totalInvestmentAmount,
+      totalRemainingCapital: totalRemainingCapital,
+    );
+  }
+
+  double _computeLocalCapitalForRestructuring() {
+    double sum = 0;
+    final processedIds = <String>{};
+    for (final investor in widget.investors) {
+      for (final inv in investor.investments) {
+        if (inv.productName != widget.product.name) continue;
+        if (processedIds.contains(inv.id)) continue;
+        processedIds.add(inv.id);
+        sum += inv.capitalForRestructuring;
+      }
+    }
+    return sum;
   }
 
   Widget _buildCloseButton() {
@@ -407,101 +540,66 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     );
   }
 
-  Widget _buildFinancialMetrics() {
-    // ⭐ ZUNIFIKOWANE STATYSTYKI - używamy UnifiedStatisticsService
-    // Obliczamy statystyki zgodnie z STATISTICS_UNIFICATION_GUIDE.md
-
-    final statistics = _statisticsService.calculateProductStatistics(
-      widget.product,
-      widget.investors,
-    );
-
-    // 🐛 DEBUG - Śledzenie wartości statystyk
-    print('🔍 [ProductDetailsHeader] Zunifikowane statystyki finansowe:');
-    print('  - isLoadingInvestors: ${widget.isLoadingInvestors}');
-    print('  - investorsCount: ${widget.investors.length}');
-    print('  - productType: ${widget.product.productType.displayName}');
-    print('  - source: ${statistics.source.displayName}');
-    print('  - product.totalValue (raw): ${widget.product.totalValue}');
-    print('  - product.remainingCapital: ${widget.product.remainingCapital}');
-    print('  - product.remainingInterest: ${widget.product.remainingInterest}');
-    print('  - product.investmentAmount: ${widget.product.investmentAmount}');
-    print(
-      '  - ⭐ ZUNIFIKOWANE totalInvestmentAmount: ${statistics.totalInvestmentAmount}',
-    );
-    print(
-      '  - ⭐ ZUNIFIKOWANE totalRemainingCapital: ${statistics.totalRemainingCapital}',
-    );
-    print(
-      '  - ⭐ ZUNIFIKOWANE totalCapitalSecuredByRealEstate: ${statistics.totalCapitalSecuredByRealEstate}',
-    );
-
-    // 🐛 DEBUG - Szczegółowe dane inwestorów (pierwsze 3)
-    if (widget.investors.isNotEmpty) {
-      print('📊 [ProductDetailsHeader] Próbka danych inwestorów:');
-      for (int i = 0; i < widget.investors.length.clamp(0, 3); i++) {
-        final investor = widget.investors[i];
-        print('  Inwestor $i:');
-        print('    - totalInvestmentAmount: ${investor.totalInvestmentAmount}');
-        print('    - totalRemainingCapital: ${investor.totalRemainingCapital}');
-        print(
-          '    - capitalSecuredByRealEstate: ${investor.capitalSecuredByRealEstate}',
-        );
-        print('    - investmentCount: ${investor.investmentCount}');
-
-        // Sprawdź pierwsze inwestycje
-        if (investor.investments.isNotEmpty) {
-          final investment = investor.investments.first;
-          print(
-            '    - pierwsza inwestycja.remainingCapital: ${investment.remainingCapital}',
-          );
-          print(
-            '    - pierwsza inwestycja.investmentAmount: ${investment.investmentAmount}',
-          );
-          print(
-            '    - pierwsza inwestycja.remainingInterest: ${investment.remainingInterest}',
-          );
-          print(
-            '    - pierwsza inwestycja.productName: "${investment.productName}"',
-          );
-        }
-      }
-    }
-
-    return Row(
-      children: [
-        Expanded(
-          child: _buildMetricCard(
-            title: 'Suma inwestycji',
-            value: _service.formatCurrency(statistics.totalInvestmentAmount),
-            subtitle: 'PLN',
-            icon: Icons.trending_down,
-            color: AppTheme.infoPrimary,
+  /// Widget loading state dla metryk podczas ładowania z serwera
+  Widget _buildMetricLoadingCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildMetricCard(
-            title: 'Kapitał pozostały',
-            value: _service.formatCurrency(statistics.totalRemainingCapital),
-            subtitle: 'PLN',
-            icon: Icons.account_balance_wallet,
-            color: AppTheme.successPrimary,
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                width: 60,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildMetricCard(
-            title: 'Zabezpiecz. nieru.',
-            value: _service.formatCurrency(
-              statistics.totalCapitalSecuredByRealEstate,
+          const SizedBox(height: 8),
+          Container(
+            width: 80,
+            height: 20,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.4),
+              borderRadius: BorderRadius.circular(10),
             ),
-            subtitle: 'PLN',
-            icon: Icons.home,
-            color: AppTheme.warningPrimary,
           ),
-        ),
-      ],
+          const SizedBox(height: 4),
+          Container(
+            width: 30,
+            height: 12,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

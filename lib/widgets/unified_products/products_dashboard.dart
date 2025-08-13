@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:responsive_framework/responsive_framework.dart';
-import '../../models/unified_product.dart';
-import '../../services/unified_product_service.dart';
-import '../../theme/app_theme.dart';
+// Zgodnie z wytycznymi: zawsze importuj z models_and_services.dart
+import 'package:metropolitan_investment/models_and_services.dart';
 import 'products_statistics_card.dart';
-import '../charts/product_distribution_chart.dart';
+// product_distribution_chart.dart nieużywany po wprowadzeniu własnych wykresów
 
 /// Dashboard z podsumowaniem produktów
 class ProductsDashboard extends StatefulWidget {
@@ -27,7 +26,7 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
   @override
   Widget build(BuildContext context) {
     final isMobile = ResponsiveBreakpoints.of(context).isMobile;
-    
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(isMobile ? 16 : 24),
       child: Column(
@@ -35,23 +34,23 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
         children: [
           // Nagłówek dashboard
           _buildDashboardHeader(context),
-          
+
           const SizedBox(height: 24),
-          
+
           // Statystyki główne
           if (widget.statistics != null)
             ProductsStatisticsCard(statistics: widget.statistics!),
-          
+
           const SizedBox(height: 24),
-          
+
           // Layout responsywny
           if (isMobile)
             _buildMobileLayout(context)
           else
             _buildDesktopLayout(context),
-          
+
           const SizedBox(height: 24),
-          
+
           // Ostatnie produkty
           _buildRecentProductsSection(context, isMobile),
         ],
@@ -93,9 +92,9 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
               const SizedBox(height: 4),
               Text(
                 'Przegląd wszystkich produktów inwestycyjnych',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
               ),
             ],
           ),
@@ -118,15 +117,9 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          flex: 2,
-          child: _buildQuickStatsCards(context, false),
-        ),
+        Expanded(flex: 2, child: _buildQuickStatsCards(context, false)),
         const SizedBox(width: 24),
-        Expanded(
-          flex: 3,
-          child: _buildProductTypesOverview(context, false),
-        ),
+        Expanded(flex: 3, child: _buildProductTypesOverview(context, false)),
       ],
     );
   }
@@ -137,11 +130,13 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
 
     final cards = [
       _QuickStatCard(
-        title: 'Najwyższe ROI',
+        title: 'Zwrot (ROI)',
         value: '${stats.profitLossPercentage.toStringAsFixed(1)}%',
-        subtitle: 'Zwrot z inwestycji',
+        subtitle: _formatSignedCurrency(stats.profitLoss),
         icon: Icons.trending_up,
-        color: stats.profitLoss >= 0 ? AppTheme.successColor : AppTheme.errorColor,
+        color: stats.profitLoss >= 0
+            ? AppTheme.successColor
+            : AppTheme.errorColor,
       ),
       _QuickStatCard(
         title: 'Średnia wartość',
@@ -157,67 +152,154 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
         icon: Icons.check_circle,
         color: AppTheme.successColor,
       ),
+      _QuickStatCard(
+        title: 'Łączna inwestycja',
+        value: _compactCurrency(stats.totalInvestmentAmount),
+        subtitle: 'Suma kapitału',
+        icon: Icons.savings,
+        color: AppTheme.secondaryGold,
+      ),
+      _QuickStatCard(
+        title: 'Łączna wartość',
+        value: _compactCurrency(stats.totalValue),
+        subtitle: 'Aktualna wycena',
+        icon: Icons.pie_chart,
+        color: AppTheme.getProductTypeColor(stats.mostValuableType.name),
+      ),
     ];
 
     if (isMobile) {
       return Column(
         children: cards
-            .map((card) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: card,
-                ))
+            .map(
+              (card) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: card,
+              ),
+            )
             .toList(),
       );
     } else {
       return Column(
         children: cards
-            .map((card) => Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: card,
-                ))
+            .map(
+              (card) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: card,
+              ),
+            )
             .toList(),
       );
     }
   }
 
   Widget _buildProductTypesOverview(BuildContext context, bool isMobile) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppTheme.premiumCardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    final stats = widget.statistics;
+    if (stats == null) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: AppTheme.premiumCardDecoration,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.pie_chart_outline,
-                color: AppTheme.secondaryGold,
-                size: 20,
+              Row(
+                children: [
+                  Icon(
+                    Icons.pie_chart_outline,
+                    color: AppTheme.secondaryGold,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Dystrybucja produktów & statusów',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (!isMobile)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceInteractive,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.leaderboard,
+                            size: 14,
+                            color: AppTheme.textTertiary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Top: ${stats.mostValuableType.displayName}',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: AppTheme.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Rozkład typów produktów',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(height: 20),
+              // Wiersz z dwoma wykresami: typy i statusy
+              if (isMobile)
+                Column(
+                  children: [
+                    ProductTypeDistributionChart(
+                      distribution: stats.typeDistribution,
+                      isCompact: true,
+                    ),
+                    const SizedBox(height: 16),
+                    _StatusDistributionChart(
+                      distribution: stats.statusDistribution,
+                      isCompact: true,
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: ProductTypeDistributionChart(
+                        distribution: stats.typeDistribution,
+                        isCompact: true,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _StatusDistributionChart(
+                        distribution: stats.statusDistribution,
+                        isCompact: true,
+                      ),
+                    ),
+                  ],
                 ),
+              const SizedBox(height: 20),
+              _buildTypeButtons(context, isMobile),
+              const SizedBox(height: 20),
+              _ValueByTypeList(
+                typeDistribution: stats.typeDistribution,
+                products: widget.products,
               ),
             ],
           ),
-          
-          const SizedBox(height: 20),
-          
-          if (widget.statistics != null)
-            ProductTypeDistributionChart(
-              distribution: widget.statistics!.typeDistribution,
-              isCompact: isMobile,
-            ),
-          
-          const SizedBox(height: 16),
-          
-          _buildTypeButtons(context, isMobile),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -231,7 +313,7 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
       children: UnifiedProductType.values.map((type) {
         final count = stats.typeDistribution[type] ?? 0;
         final color = AppTheme.getProductTypeColor(type.name);
-        
+
         return Material(
           color: Colors.transparent,
           child: InkWell(
@@ -276,9 +358,7 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
   }
 
   Widget _buildRecentProductsSection(BuildContext context, bool isMobile) {
-    final recentProducts = widget.products
-        .take(isMobile ? 3 : 5)
-        .toList();
+    final recentProducts = widget.products.take(isMobile ? 3 : 5).toList();
 
     if (recentProducts.isEmpty) return const SizedBox.shrink();
 
@@ -290,11 +370,7 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.access_time,
-                color: AppTheme.secondaryGold,
-                size: 20,
-              ),
+              Icon(Icons.access_time, color: AppTheme.secondaryGold, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Ostatnio dodane produkty',
@@ -305,10 +381,12 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
-          ...recentProducts.map((product) => _buildRecentProductTile(context, product)),
+
+          ...recentProducts.map(
+            (product) => _buildRecentProductTile(context, product),
+          ),
         ],
       ),
     );
@@ -316,7 +394,7 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
 
   Widget _buildRecentProductTile(BuildContext context, UnifiedProduct product) {
     final color = AppTheme.getProductTypeColor(product.productType.name);
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -334,9 +412,9 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
               size: 20,
             ),
           ),
-          
+
           const SizedBox(width: 12),
-          
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,7 +437,7 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
               ],
             ),
           ),
-          
+
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -372,9 +450,9 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
               ),
               Text(
                 _formatDate(product.createdAt),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.textTertiary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
               ),
             ],
           ),
@@ -406,6 +484,24 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
     } else {
       return '${value.toStringAsFixed(0)} PLN';
     }
+  }
+
+  static String _compactCurrency(double value) {
+    if (value >= 1000000000)
+      return '${(value / 1000000000).toStringAsFixed(1)}B';
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}k';
+    return value.toStringAsFixed(0);
+  }
+
+  static String _formatSignedCurrency(double value) {
+    final abs = _compactCurrency(value.abs());
+    final sign = value > 0
+        ? '+'
+        : value < 0
+        ? '-'
+        : '';
+    return '$sign$abs';
   }
 
   String _formatDate(DateTime date) {
@@ -443,15 +539,11 @@ class _QuickStatCard extends StatelessWidget {
               color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 24,
-            ),
+            child: Icon(icon, color: color, size: 24),
           ),
-          
+
           const SizedBox(width: 16),
-          
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -472,9 +564,9 @@ class _QuickStatCard extends StatelessWidget {
                 ),
                 Text(
                   subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textTertiary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
                 ),
               ],
             ),
@@ -482,5 +574,218 @@ class _QuickStatCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Wykres/statystyka rozkładu statusów produktów
+class _StatusDistributionChart extends StatelessWidget {
+  final Map<ProductStatus, int> distribution;
+  final bool isCompact;
+
+  const _StatusDistributionChart({
+    required this.distribution,
+    this.isCompact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (distribution.isEmpty) {
+      return Container(
+        height: isCompact ? 120 : 180,
+        decoration: AppTheme.premiumCardDecoration,
+        child: const Center(
+          child: Text(
+            'Brak danych statusów',
+            style: TextStyle(color: AppTheme.textTertiary),
+          ),
+        ),
+      );
+    }
+
+    final total = distribution.values.fold<int>(0, (a, b) => a + b);
+    final sorted = distribution.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Container(
+      height: isCompact ? 120 : 180,
+      padding: const EdgeInsets.all(16),
+      decoration: AppTheme.premiumCardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Statusy produktów',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Column(
+              children: sorted.take(4).map((e) {
+                final percent = total > 0 ? (e.value / total) * 100 : 0.0;
+                final color = _statusColor(e.key);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 70,
+                        child: Text(
+                          e.key.displayName,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppTheme.textSecondary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Container(
+                          height: isCompact ? 6 : 8,
+                          decoration: BoxDecoration(
+                            color: AppTheme.surfaceInteractive,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: percent / 100,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: color,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 46,
+                        child: Text(
+                          '${e.value}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _statusColor(ProductStatus status) {
+    switch (status) {
+      case ProductStatus.active:
+        return AppTheme.successColor;
+      case ProductStatus.inactive:
+        return AppTheme.errorColor;
+      case ProductStatus.pending:
+        return AppTheme.warningColor;
+      case ProductStatus.suspended:
+        return AppTheme.primaryAccent;
+    }
+  }
+}
+
+/// Lista wartości per typ produktu (sumuje totalValue z listy produktów)
+class _ValueByTypeList extends StatelessWidget {
+  final Map<UnifiedProductType, int> typeDistribution;
+  final List<UnifiedProduct> products;
+
+  const _ValueByTypeList({
+    required this.typeDistribution,
+    required this.products,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (products.isEmpty) return const SizedBox.shrink();
+
+    // Sumy wartości per typ
+    final Map<UnifiedProductType, double> valuePerType = {};
+    for (final p in products) {
+      valuePerType[p.productType] =
+          (valuePerType[p.productType] ?? 0) + p.totalValue;
+    }
+
+    final entries = valuePerType.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Wartość wg typu',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...entries.map((e) {
+          final count = typeDistribution[e.key] ?? 0;
+          final color = AppTheme.getProductTypeColor(e.key.name);
+          final avg = count > 0 ? e.value / count : 0.0;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${e.key.displayName} (${count})',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Text(
+                  _compactCurrency(e.value),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.secondaryGold,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'avg ${_compactCurrency(avg)}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppTheme.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  String _compactCurrency(double value) {
+    if (value >= 1000000000)
+      return '${(value / 1000000000).toStringAsFixed(1)}B';
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}k';
+    return value.toStringAsFixed(0);
   }
 }

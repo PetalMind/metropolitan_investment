@@ -31,11 +31,9 @@ class InvestorSummary {
     Client client,
     List<Investment> investments,
   ) {
-    // 🐛 DEBUG - śledzenie obliczeń
-    print(
-      '🔍 [InvestorSummary.fromInvestments] Obliczanie dla klienta: ${client.name}',
-    );
-    print('  - Liczba inwestycji: ${investments.length}');
+    // � DEBUG - wyłączone dla lepszej wydajności (włącz tylko gdy potrzebne)
+    // print('🔍 [InvestorSummary.fromInvestments] Obliczanie dla klienta: ${client.name}');
+    // print('  - Liczba inwestycji: ${investments.length}');
 
     // Helper function to parse capital values with commas
     double parseCapitalValue(dynamic value) {
@@ -57,13 +55,14 @@ class InvestorSummary {
     double totalInvestmentAmount = 0;
     double totalRealizedCapital = 0;
     double capitalSecuredByRealEstate = 0;
-    double capitalForRestructuring = 0;
+    double capitalForRestructuring =
+        0; // Teraz traktowane identycznie jak remainingCapital – bez dodatkowych fallbacków tutaj
 
     for (final investment in investments) {
-      // 🐛 DEBUG - szczegóły każdej inwestycji
-      print('    - Inwestycja ${investment.id}: ${investment.productName}');
-      print('      * remainingCapital: ${investment.remainingCapital}');
-      print('      * investmentAmount: ${investment.investmentAmount}');
+      // � DEBUG - wyłączone dla lepszej wydajności (włącz tylko gdy potrzebne)
+      // print('    - Inwestycja ${investment.id}: ${investment.productName}');
+      // print('      * remainingCapital: ${investment.remainingCapital}');
+      // print('      * investmentAmount: ${investment.investmentAmount}');
 
       // ⭐ TYLKO KAPITAŁ POZOSTAŁY - dla wszystkich typów produktów
       totalRemainingCapital += investment.remainingCapital;
@@ -100,11 +99,7 @@ class InvestorSummary {
         );
       } else {
         // Automatyczne obliczenie jako fallback
-        final capitalForRestructuringValue = parseCapitalValue(
-          investment.additionalInfo['capitalForRestructuring'] ??
-              investment.additionalInfo['Kapitał do restrukturyzacji'] ??
-              investment.additionalInfo['kapital_do_restrukturyzacji'],
-        );
+        final capitalForRestructuringValue = investment.capitalForRestructuring;
         final result =
             investment.remainingCapital - capitalForRestructuringValue;
         investmentCapitalSecured = result > 0 ? result : 0.0;
@@ -112,31 +107,20 @@ class InvestorSummary {
 
       capitalSecuredByRealEstate += investmentCapitalSecured;
 
-      // Mapowanie dla kapitału do restrukturyzacji
-      if (investment.additionalInfo['capitalForRestructuring'] != null) {
-        final value = investment.additionalInfo['capitalForRestructuring'];
-        capitalForRestructuring += parseCapitalValue(value);
-      } else if (investment.additionalInfo['Kapitał do restrukturyzacji'] !=
-          null) {
-        final value = investment.additionalInfo['Kapitał do restrukturyzacji'];
-        capitalForRestructuring += parseCapitalValue(value);
-      } else if (investment.additionalInfo['kapital_do_restrukturyzacji'] !=
-          null) {
-        final value = investment.additionalInfo['kapital_do_restrukturyzacji'];
-        capitalForRestructuring += parseCapitalValue(value);
-      }
+      // Sumowanie capitalForRestructuring bez dodatkowych lokalnych fallbacków (logika fallback w Investment.fromFirestore)
+      capitalForRestructuring += investment.capitalForRestructuring;
     }
 
     // ⭐ WARTOŚĆ CAŁKOWITA = TYLKO kapitał pozostały
     final totalValue = totalRemainingCapital;
 
-    // 🐛 DEBUG - podsumowanie obliczeń
-    print('  ⭐ OBLICZONE SUMY:');
-    print('    - totalInvestmentAmount: $totalInvestmentAmount');
-    print('    - totalRemainingCapital: $totalRemainingCapital');
-    print('    - totalValue: $totalValue');
-    print('    - capitalSecuredByRealEstate: $capitalSecuredByRealEstate');
-    print('    - capitalForRestructuring: $capitalForRestructuring');
+    // � DEBUG - wyłączone dla lepszej wydajności (włącz tylko gdy potrzebne)
+    // print('  ⭐ OBLICZONE SUMY:');
+    // print('    - totalInvestmentAmount: $totalInvestmentAmount');
+    // print('    - totalRemainingCapital: $totalRemainingCapital');
+    // print('    - totalValue: $totalValue');
+    // print('    - capitalSecuredByRealEstate: $capitalSecuredByRealEstate');
+    // print('    - capitalForRestructuring: $capitalForRestructuring');
 
     return InvestorSummary(
       client: client,
@@ -152,6 +136,125 @@ class InvestorSummary {
     );
   }
 
+  /// 🚀 NOWY: Tylko zbiera dane bez obliczeń - obliczenia na końcu dla wszystkich inwestorów
+  /// Używaj tej metody zamiast fromInvestments() gdy chcesz unikać obliczeń dla każdego klienta
+  factory InvestorSummary.withoutCalculations(
+    Client client,
+    List<Investment> investments,
+  ) {
+    print(
+      '✅ [InvestorSummary.withoutCalculations] Zbieranie danych dla: ${client.name} (${investments.length} inwestycji)',
+    );
+
+    // ✅ TYLKO ZBIERANIE DANYCH - bez obliczeń zabezpieczonego kapitału
+    double totalRemainingCapital = 0;
+    double totalInvestmentAmount = 0;
+    double totalRealizedCapital = 0;
+    double capitalForRestructuring =
+        0; // identyczne traktowanie jak remainingCapital
+
+    for (final investment in investments) {
+      // Podstawowe sumy - bez skomplikowanych obliczeń
+      totalRemainingCapital += investment.remainingCapital;
+      totalInvestmentAmount += investment.investmentAmount;
+      totalRealizedCapital += investment.realizedCapital;
+
+      // Sumowanie direct – analogicznie do remainingCapital
+      capitalForRestructuring += investment.capitalForRestructuring;
+    }
+
+    print(
+      '  💰 Zebrane kwoty: remainingCapital=${totalRemainingCapital}, capitalForRestructuring=${capitalForRestructuring}',
+    );
+
+    // Automatyczne obliczenie jako fallback
+    // Na razie zwracamy tylko zebrane dane z Firebase
+    return InvestorSummary(
+      client: client,
+      investments: investments,
+      totalRemainingCapital: totalRemainingCapital,
+      totalSharesValue: 0, // Zawsze 0 dla kompatybilności
+      totalValue: totalRemainingCapital, // Prosta wartość bez obliczeń
+      totalInvestmentAmount: totalInvestmentAmount,
+      totalRealizedCapital: totalRealizedCapital,
+      capitalSecuredByRealEstate:
+          0, // ⚠️ NIE OBLICZANE - będzie obliczone na końcu
+      capitalForRestructuring: capitalForRestructuring,
+      investmentCount: investments.length,
+    );
+  }
+
+  /// 🧮 OBLICZENIA NA KOŃCU: Oblicza capitalSecuredByRealEstate dla wszystkich inwestorów jednocześnie
+  /// Używaj po utworzeniu wszystkich InvestorSummary za pomocą withoutCalculations()
+  static List<InvestorSummary> calculateSecuredCapitalForAll(
+    List<InvestorSummary> investors,
+  ) {
+    print(
+      '🧮 [InvestorSummary.calculateSecuredCapitalForAll] Obliczanie dla ${investors.length} inwestorów',
+    );
+
+    // Zsumuj wszystkie kwoty
+    double totalRemainingCapital = 0;
+    double totalCapitalForRestructuring = 0;
+
+    for (final investor in investors) {
+      totalRemainingCapital += investor.totalRemainingCapital;
+      totalCapitalForRestructuring += investor.capitalForRestructuring;
+    }
+
+    // JEDYNE OBLICZENIE - NA KOŃCU dla wszystkich zsumowanych kwot
+    final totalCapitalSecuredByRealEstate =
+        (totalRemainingCapital - totalCapitalForRestructuring).clamp(
+          0.0,
+          double.infinity,
+        );
+
+    print('  📊 WYNIKI OBLICZEŃ:');
+    print('    - Zsumowany remainingCapital: ${totalRemainingCapital}');
+    print(
+      '    - Zsumowany capitalForRestructuring: ${totalCapitalForRestructuring}',
+    );
+    print(
+      '    - 🎯 Obliczony capitalSecuredByRealEstate: ${totalCapitalSecuredByRealEstate}',
+    );
+
+    // Teraz oblicz proporcjonalnie dla każdego inwestora
+    final List<InvestorSummary> updatedInvestors = [];
+
+    for (final investor in investors) {
+      // Oblicz proporcję tego inwestora w całości
+      final proportion = totalRemainingCapital > 0
+          ? investor.totalRemainingCapital / totalRemainingCapital
+          : 0.0;
+
+      final investorSecuredCapital =
+          totalCapitalSecuredByRealEstate * proportion;
+
+      print(
+        '    - ${investor.client.name}: ${investor.totalRemainingCapital} PLN (${(proportion * 100).toStringAsFixed(1)}%) → secured: ${investorSecuredCapital.toStringAsFixed(2)}',
+      );
+
+      // Stwórz nowy obiekt z obliczonym capitalSecuredByRealEstate
+      updatedInvestors.add(
+        InvestorSummary(
+          client: investor.client,
+          investments: investor.investments,
+          totalRemainingCapital: investor.totalRemainingCapital,
+          totalSharesValue: investor.totalSharesValue,
+          totalValue: investor.totalValue,
+          totalInvestmentAmount: investor.totalInvestmentAmount,
+          totalRealizedCapital: investor.totalRealizedCapital,
+          capitalSecuredByRealEstate:
+              investorSecuredCapital, // ⭐ OBLICZONE PROPORCJONALNIE
+          capitalForRestructuring: investor.capitalForRestructuring,
+          investmentCount: investor.investmentCount,
+        ),
+      );
+    }
+
+    return updatedInvestors;
+  }
+
   // Pomocnicze gettery
   double get percentageOfPortfolio => 0.0; // Będzie obliczane na poziomie listy
   bool get hasUnviableInvestments => client.unviableInvestments.isNotEmpty;
@@ -162,9 +265,9 @@ class InvestorSummary {
 
     return investments
         .map((investment) {
-          // ⭐ TYLKO KAPITAŁ POZOSTAŁY - dla wszystkich typów produktów
-          final amount = investment.remainingCapital;
-          return '${investment.productName}: ${amount.toStringAsFixed(2)} PLN';
+          final remaining = investment.remainingCapital;
+          final restructuring = investment.capitalForRestructuring;
+          return '${investment.productName}: pozostały=${remaining.toStringAsFixed(2)} PLN | restrukt.=${restructuring.toStringAsFixed(2)} PLN';
         })
         .join('\n');
   }

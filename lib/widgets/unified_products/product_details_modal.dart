@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:responsive_framework/responsive_framework.dart';
-import '../../models/unified_product.dart';
-import '../../models/investor_summary.dart';
+import '../../models_and_services.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/currency_formatter.dart';
-import '../../services/firebase_functions_product_investors_service.dart';
+import '../../services/firebase_functions_product_investors_service.dart'; // już w models_and_services ale lokalny import pozostawiony dla jawności
 import '../dialogs/product_investors_tab.dart';
 
 /// Modal ze szczegółami produktu z zakładkami
@@ -22,17 +21,23 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   late TabController _tabController;
   final FirebaseFunctionsProductInvestorsService _investorsService =
       FirebaseFunctionsProductInvestorsService();
+  final UnifiedProductService _productService = UnifiedProductService();
 
   List<InvestorSummary> _investors = [];
   bool _isLoadingInvestors = false;
   String? _investorsError;
+
+  UnifiedProduct? _freshProduct;
+  bool _isLoadingProduct = false;
+  String? _productError;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_onTabChanged);
-    _loadInvestors(); // Załaduj inwestorów od razu
+    _loadInvestors(); // inwestorzy
+    _loadProduct(); // świeże dane produktu
   }
 
   @override
@@ -47,6 +52,11 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         _investors.isEmpty &&
         !_isLoadingInvestors) {
       _loadInvestors();
+    }
+    if (_tabController.index == 3 &&
+        _freshProduct == null &&
+        !_isLoadingProduct) {
+      _loadProduct();
     }
   }
 
@@ -94,6 +104,31 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         setState(() {
           _investorsError = e.toString();
           _isLoadingInvestors = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadProduct() async {
+    if (_isLoadingProduct) return;
+    setState(() {
+      _isLoadingProduct = true;
+      _productError = null;
+    });
+    try {
+      final loaded = await _productService.getProductById(widget.product.id);
+      if (mounted) {
+        setState(() {
+          _freshProduct = loaded ?? widget.product; // brak placeholderów
+          _isLoadingProduct = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _productError = e.toString();
+          _freshProduct = widget.product; // fallback
+          _isLoadingProduct = false;
         });
       }
     }
@@ -324,11 +359,61 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   }
 
   Widget _buildDetailsTab(BuildContext context, bool isMobile) {
+    final product = _freshProduct ?? widget.product;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_isLoadingProduct)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Column(
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Ładowanie aktualnych danych produktu…',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (_productError != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Column(
+                  children: [
+                    Icon(Icons.error_outline, color: AppTheme.errorColor),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Błąd pobierania danych produktu',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.errorColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _productError!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textTertiary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: _loadProduct,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Ponów próbę'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // Sekcja kwot
           _buildAmountsSection(context, isMobile),
 
@@ -337,18 +422,17 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           // Sekcja szczegółów
           _buildDetailsSection(context, isMobile),
 
-          if (widget.product.productType == UnifiedProductType.bonds) ...[
+          if (product.productType == UnifiedProductType.bonds) ...[
             const SizedBox(height: 24),
             _buildBondsSpecificSection(context, isMobile),
           ],
 
-          if (widget.product.productType == UnifiedProductType.shares) ...[
+          if (product.productType == UnifiedProductType.shares) ...[
             const SizedBox(height: 24),
             _buildSharesSpecificSection(context, isMobile),
           ],
-
           const SizedBox(height: 24),
-          _buildFooterInfo(context),
+          _buildSourceInfoBar(product),
         ],
       ),
     );
@@ -808,13 +892,52 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
-  Widget _buildFooterInfo(BuildContext context) {
+  Widget _buildSourceInfoBar(UnifiedProduct product) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundSecondary.withValues(alpha: 0.3),
+        color: AppTheme.backgroundSecondary.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.borderSecondary),
+      ),
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 8,
+        children: [
+          _buildMetaChip(Icons.tag, 'ID: ${product.id}'),
+          _buildMetaChip(Icons.source, 'Źródło: ${product.sourceFile}'),
+          _buildMetaChip(
+            Icons.upload,
+            'Aktualizacja: ${product.uploadedAt.day.toString().padLeft(2, '0')}.${product.uploadedAt.month.toString().padLeft(2, '0')}.${product.uploadedAt.year}',
+          ),
+          _buildMetaChip(
+            Icons.calendar_today,
+            'Utworzono: ${product.createdAt.day.toString().padLeft(2, '0')}.${product.createdAt.month.toString().padLeft(2, '0')}.${product.createdAt.year}',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetaChip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.borderSecondary),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppTheme.textSecondary),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 11),
+          ),
+        ],
       ),
     );
   }

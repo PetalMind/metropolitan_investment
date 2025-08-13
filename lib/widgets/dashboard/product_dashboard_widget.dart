@@ -626,15 +626,20 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     // Oblicz statystyki globalnej bazy danych
     double totalInvestmentAmount = 0;
     double totalRemainingCapital = 0;
-    double totalCapitalSecured = 0;
     double totalCapitalForRestructuring = 0;
 
     for (final investment in _investments) {
       totalInvestmentAmount += investment.investmentAmount;
       totalRemainingCapital += investment.remainingCapital;
-      totalCapitalSecured += _getCapitalSecuredByRealEstate(investment);
       totalCapitalForRestructuring += _getCapitalForRestructuring(investment);
     }
+
+    // Globalny wzór (spójny z serwerem): secured = max(Σremaining - Σrestruct, 0)
+    final double totalCapitalSecured =
+        (totalRemainingCapital - totalCapitalForRestructuring).clamp(
+          0,
+          double.infinity,
+        );
 
     final tiles = [
       _SummaryTileData(
@@ -2136,27 +2141,30 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
 
   // Helper methods
   double _getCapitalSecuredByRealEstate(Investment investment) {
-    final value =
-        investment.additionalInfo['realEstateSecuredCapital'] ??
-        investment.additionalInfo['capitalSecuredByRealEstate'];
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) {
-      final parsed = double.tryParse(value.replaceAll(',', ''));
-      return parsed ?? 0.0;
+    // Pełne mapowanie + fallback: remainingCapital - capitalForRestructuring (>=0)
+    dynamic raw = investment.additionalInfo['capitalSecuredByRealEstate'];
+    raw ??= investment.additionalInfo['realEstateSecuredCapital'];
+    raw ??= investment.additionalInfo['Kapitał zabezpieczony nieruchomością'];
+    raw ??= investment.additionalInfo['kapital_zabezpieczony_nieruchomoscia'];
+
+    double? parsed;
+    if (raw is double)
+      parsed = raw;
+    else if (raw is int)
+      parsed = raw.toDouble();
+    else if (raw is String) {
+      parsed = double.tryParse(raw.replaceAll(',', ''));
     }
-    return 0.0;
+
+    if (parsed != null) return parsed;
+
+    final fallback =
+        investment.remainingCapital - investment.capitalForRestructuring;
+    return fallback > 0 ? fallback : 0.0;
   }
 
   double _getCapitalForRestructuring(Investment investment) {
-    final value = investment.additionalInfo['capitalForRestructuring'];
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) {
-      final parsed = double.tryParse(value.replaceAll(',', ''));
-      return parsed ?? 0.0;
-    }
-    return 0.0;
+    return investment.capitalForRestructuring;
   }
 
   IconData _getStatusIcon(InvestmentStatus status) {
