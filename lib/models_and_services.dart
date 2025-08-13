@@ -44,7 +44,6 @@ export 'services/firebase_functions_analytics_service_updated.dart'
         PaginationInfo,
         ProductTypeStatistics;
 export 'services/firebase_functions_capital_calculation_service.dart';
-export 'services/dashboard_service.dart';
 export 'services/auth_service.dart';
 export 'services/email_service.dart';
 export 'services/user_preferences_service.dart';
