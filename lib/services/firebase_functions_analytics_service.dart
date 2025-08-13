@@ -30,9 +30,6 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
     bool forceRefresh = false,
   }) async {
     final startTime = DateTime.now();
-    print(
-      '🚀 [Functions Service] Rozpoczynam analizę przez Firebase Functions...',
-    );
 
     try {
       // Wywołaj Firebase Function
@@ -61,14 +58,6 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
       final data = response.data as Map<String, dynamic>;
       final executionTime = DateTime.now().difference(startTime);
 
-      print(
-        '⚡ [Functions Service] Otrzymano dane w ${executionTime.inMilliseconds}ms',
-      );
-      print(
-        '📊 [Functions Service] Server execution: ${data['executionTime']}ms',
-      );
-      print('👥 [Functions Service] Inwestorów: ${data['totalCount']}');
-
       // Konwertuj dane z Functions na Flutter modele
       final investors = (data['investors'] as List)
           .map((investorData) => _convertToInvestorSummary(investorData))
@@ -96,7 +85,6 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
         source: 'firebase-functions',
       );
     } catch (e) {
-      print('❌ [Functions Service] Błąd: $e');
       throw Exception('Błąd Firebase Functions: $e');
     }
   }
@@ -106,9 +94,6 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
     bool includeInactive = false,
     double controlThreshold = 51.0,
   }) async {
-    print(
-      '🎯 [Functions Service] Rozpoczynam analizę kontroli większościowej...',
-    );
 
     try {
       final callable = _functions.httpsCallable('analyzeMajorityControl');
@@ -119,12 +104,6 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
       });
 
       final data = response.data as Map<String, dynamic>;
-
-      print('✅ [Functions Service] Analiza kontroli zakończona');
-      print('🏢 [Functions Service] Firm: ${data['totalCompanies']}');
-      print(
-        '👑 [Functions Service] Z większością: ${data['companiesWithMajority']}',
-      );
 
       return MajorityControlAnalysis(
         totalCompanies: data['totalCompanies'] ?? 0,
@@ -165,14 +144,12 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
             .toList(),
       );
     } catch (e) {
-      print('❌ [Functions Service] Błąd analizy kontroli: $e');
       throw Exception('Błąd analizy kontroli: $e');
     }
   }
 
   /// **FORCE REFRESH CACHE** - Wymusza odświeżenie cache na serwerze
   Future<void> refreshAnalyticsCache() async {
-    print('🔄 [Functions Service] Wymuszam odświeżenie cache...');
 
     try {
       await getOptimizedInvestorAnalytics(
@@ -181,9 +158,7 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
         forceRefresh: true,
       );
 
-      print('✅ [Functions Service] Cache odświeżony');
     } catch (e) {
-      print('❌ [Functions Service] Błąd odświeżania cache: $e');
       throw Exception('Błąd odświeżania cache: $e');
     }
   }
@@ -196,7 +171,6 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
     String sortBy = 'imie_nazwisko',
     bool forceRefresh = false,
   }) async {
-    print('👥 [Functions Service] Pobieranie klientów z Functions...');
 
     try {
       final callable = _functions.httpsCallable('getAllClients');
@@ -215,8 +189,6 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
           .map((clientData) => _convertToClient(clientData))
           .toList();
 
-      print('✅ [Functions Service] Pobrano ${clients.length} klientów');
-
       return ClientsResult(
         clients: clients,
         totalCount: data['totalCount'] ?? 0,
@@ -227,7 +199,6 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
         source: data['source'] ?? 'firebase-functions',
       );
     } catch (e) {
-      print('❌ [Functions Service] Błąd pobierania klientów: $e');
       throw Exception('Błąd pobierania klientów: $e');
     }
   }
@@ -241,7 +212,6 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
     String sortBy = 'data_kontraktu',
     bool forceRefresh = false,
   }) async {
-    print('💼 [Functions Service] Pobieranie inwestycji z Functions...');
 
     try {
       final callable = _functions.httpsCallable('getAllInvestments');
@@ -261,8 +231,6 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
           .map((investmentData) => _convertToInvestment(investmentData))
           .toList();
 
-      print('✅ [Functions Service] Pobrano ${investments.length} inwestycji');
-
       return InvestmentsResult(
         investments: investments,
         totalCount: data['totalCount'] ?? 0,
@@ -277,14 +245,12 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
         source: data['source'] ?? 'firebase-functions',
       );
     } catch (e) {
-      print('❌ [Functions Service] Błąd pobierania inwestycji: $e');
       throw Exception('Błąd pobierania inwestycji: $e');
     }
   }
 
   /// **STATYSTYKI SYSTEMU** przez Firebase Functions
   Future<SystemStats> getSystemStats({bool forceRefresh = false}) async {
-    print('📊 [Functions Service] Pobieranie statystyk systemu...');
 
     try {
       final callable = _functions.httpsCallable('getSystemStats');
@@ -292,8 +258,6 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
       final response = await callable.call({'forceRefresh': forceRefresh});
 
       final data = response.data as Map<String, dynamic>;
-
-      print('✅ [Functions Service] Pobrano statystyki systemu');
 
       return SystemStats(
         totalClients: data['totalClients'] ?? 0,
@@ -321,7 +285,6 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
         source: data['source'] ?? 'firebase-functions',
       );
     } catch (e) {
-      print('❌ [Functions Service] Błąd pobierania statystyk: $e');
       throw Exception('Błąd pobierania statystyk: $e');
     }
   }
@@ -529,15 +492,11 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
   /// Czyści cache analityki po aktualizacji danych
   void clearAnalyticsCache() {
     clearAllCache();
-    print('🗑️ [Functions Service] Cache analityki wyczyszczony');
   }
 
   /// Wywołuje Firebase Function do czyszczenia cache po stronie serwera
   Future<void> clearServerCache() async {
     try {
-      print(
-        '🗑️ [Functions Service] Rozpoczynam czyszczenie cache na serwerze...',
-      );
 
       final callable = _functions.httpsCallable(
         'clearAnalyticsCache',
@@ -547,12 +506,7 @@ class FirebaseFunctionsAnalyticsService extends BaseService {
       final response = await callable.call({});
       final data = response.data as Map<String, dynamic>;
 
-      print('✅ [Functions Service] Cache serwera wyczyszczony');
-      print(
-        '🗑️ [Functions Service] Wyczyszczono ${data['clearedKeys']} kluczy',
-      );
     } catch (e) {
-      print('❌ [Functions Service] Błąd czyszczenia cache serwera: $e');
       // Nie rethrow - czyszczenie cache nie powinno blokować głównej operacji
     }
   }

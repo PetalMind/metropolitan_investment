@@ -58,7 +58,6 @@ exports.getFilteredInvestorAnalytics = onCall({
     } = data;
 
     // 📊 KROK 1: Pobierz wszystkie dane
-    console.log("📋 [Premium Filter] Pobieranie danych...");
     const [clientsSnapshot, investmentsSnapshot] = await Promise.all([
       admin.firestore().collection("clients").limit(10000).get(),
       admin.firestore().collection("investments").limit(50000).get(),
@@ -98,11 +97,7 @@ exports.getFilteredInvestorAnalytics = onCall({
       totalCount: systemStats.totalCount
     });
 
-    console.log(`📊 [Analytics] Znaleziono ${investments.length} inwestycji`);
-    console.log(`📊 [Analytics] Utworzono ${allInvestors.length} zunifikowanych podsumowań inwestorów`);
-
     // 📊 KROK 4: Zastosuj filtry
-    console.log("🎛️ [Premium Filter] Zastosowuję filtry...");
     const filteredInvestors = applyAdvancedFilters(allInvestors, {
       searchQuery,
       votingStatusFilter,
@@ -125,7 +120,6 @@ exports.getFilteredInvestorAnalytics = onCall({
     );
 
     // 📊 KROK 5: Sortowanie
-    console.log("📶 [Premium Filter] Sortuję wyniki...");
     sortInvestors(filteredInvestors, sortBy, sortAscending);
 
     // 📊 KROK 6: Paginacja
@@ -144,11 +138,9 @@ exports.getFilteredInvestorAnalytics = onCall({
       systemStats
     );
 
-    console.log(`📊 [Analytics] Po filtrowaniu: ${filteredInvestors.length} inwestorów`);
     console.log(`📊 [Analytics] Całkowity kapitał (po filtrach): ${analytics.totalCapital.toFixed(2)} PLN`);
 
     // Log voting capital distribution
-    console.log("📊 [Voting Capital Distribution]");
     console.log(`   TAK: ${analytics.votingDistribution.yes.capital.toFixed(2)} PLN (${((analytics.votingDistribution.yes.capital / analytics.totalCapital) * 100).toFixed(1)}%)`);
     console.log(`   NIE: ${analytics.votingDistribution.no.capital.toFixed(2)} PLN (${((analytics.votingDistribution.no.capital / analytics.totalCapital) * 100).toFixed(1)}%)`);
     console.log(`   WSTRZYMUJE: ${analytics.votingDistribution.abstain.capital.toFixed(2)} PLN (${((analytics.votingDistribution.abstain.capital / analytics.totalCapital) * 100).toFixed(1)}%)`);
@@ -185,7 +177,6 @@ exports.getFilteredInvestorAnalytics = onCall({
     );
     return result;
   } catch (error) {
-    console.error("❌ [Premium Filter] Błąd:", error);
     throw new HttpsError(
       "internal",
       "Błąd podczas zaawansowanego filtrowania",
@@ -200,7 +191,6 @@ exports.getSmartSearchSuggestions = onCall({
   timeoutSeconds: 120,
 }, async (request) => {
   const data = request.data || {};
-  console.log("🔍 [Smart Search] Generuję sugestie wyszukiwania...", data);
 
   try {
     const { query = "", limit = 10 } = data;
@@ -264,7 +254,6 @@ exports.getSmartSearchSuggestions = onCall({
 
     return { suggestions: uniqueSuggestions };
   } catch (error) {
-    console.error("❌ [Smart Search] Błąd:", error);
     throw new HttpsError(
       "internal",
       "Błąd podczas wyszukiwania sugestii",
@@ -278,7 +267,6 @@ exports.getAnalyticsDashboardPresets = onCall({
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
-  console.log("📊 [Dashboard Presets] Generuję presety dashboardu...");
 
   try {
     const presets = [
@@ -356,7 +344,6 @@ exports.getAnalyticsDashboardPresets = onCall({
 
     return { presets };
   } catch (error) {
-    console.error("❌ [Dashboard Presets] Błąd:", error);
     throw new HttpsError(
       "internal",
       "Błąd podczas pobierania presetów",
@@ -401,8 +388,6 @@ function createUnifiedInvestorSummaries(clients, investmentsByClient) {
 
     if (clientInvestments.length === 0) return;
 
-    console.log(`✅ [Unified Analytics] Klient ${client.imie_nazwisko}: ${clientInvestments.length} inwestycji`);
-
     const summary = createUnifiedInvestorSummary(client, clientInvestments);
     investors.push(summary);
   });
@@ -420,8 +405,6 @@ function createUnifiedInvestorSummary(client, investments) {
   let totalViableCapital = 0;
   let unifiedTotalValue = 0;
   let totalInvestmentAmount = 0;
-
-  console.log(`🔍 [Unified Analytics] Przetwarzanie inwestora: ${client.imie_nazwisko || "Nieznany"}, inwestycji: ${investments.length}`);
 
   const processedInvestments = investments.map((investment) => {
     // UŻYWAJ ZUNIFIKOWANYCH FUNKCJI

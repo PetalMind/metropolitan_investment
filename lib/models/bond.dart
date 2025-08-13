@@ -138,7 +138,6 @@ class Bond {
         }
         return DateTime.parse(dateStr);
       } catch (e) {
-        print('Error parsing date: $dateStr - $e');
         return null;
       }
     }

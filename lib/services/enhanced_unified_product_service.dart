@@ -62,9 +62,6 @@ class EnhancedUnifiedProductService extends BaseService {
           .toList();
 
       if (kDebugMode && apartments.isNotEmpty) {
-        print(
-          '[EnhancedUnifiedProductService] Znaleziono ${apartments.length} apartamentów z kolekcji apartments',
-        );
       }
 
       return apartments;
@@ -87,9 +84,6 @@ class EnhancedUnifiedProductService extends BaseService {
           .toList();
 
       if (kDebugMode && apartments.isNotEmpty) {
-        print(
-          '[EnhancedUnifiedProductService] Znaleziono ${apartments.length} apartamentów z kolekcji products',
-        );
       }
 
       return apartments;
@@ -219,23 +213,11 @@ class EnhancedUnifiedProductService extends BaseService {
     if (!kDebugMode) return;
 
     final diagnostics = await getApartmentsDiagnostics();
-    print('=== ENHANCED UNIFIED PRODUCT SERVICE DEBUG ===');
-    print(
-      'Apartamenty w kolekcji apartments: ${diagnostics['apartments_in_apartments_collection']}',
-    );
-    print('Apartamenty w products: ${diagnostics['apartments_in_products']}');
-    print('Rekomendacja: ${diagnostics['recommended_action']}');
-    print('===============================================');
   }
 
   /// Aktualizuje produkt w odpowiedniej kolekcji na podstawie typu
   Future<void> updateUnifiedProduct(UnifiedProduct product) async {
     try {
-      print(
-        '🔧 [EnhancedUnifiedProductService] Aktualizacja produktu: ${product.name}',
-      );
-      print('  - ID: ${product.id}');
-      print('  - Typ: ${product.productType.displayName}');
 
       if (product.id.isEmpty) {
         throw Exception('ID produktu nie może być puste');
@@ -289,16 +271,9 @@ class EnhancedUnifiedProductService extends BaseService {
       // Wykonaj aktualizację
       await firestore.collection(collection).doc(product.id).update(data);
 
-      print(
-        '✅ [EnhancedUnifiedProductService] Produkt zaktualizowany w kolekcji: $collection',
-      );
-
       // Wyczyść cache aby wymusić odświeżenie danych
       clearProductsCache();
     } catch (e) {
-      print(
-        '❌ [EnhancedUnifiedProductService] Błąd podczas aktualizacji produktu: $e',
-      );
       logError('updateUnifiedProduct', e);
       rethrow;
     }

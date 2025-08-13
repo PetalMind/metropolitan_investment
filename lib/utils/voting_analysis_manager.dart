@@ -140,19 +140,6 @@ class VotingAnalysisManager {
   void _logVotingDistribution() {
     final total = totalViableCapital;
 
-    print('📊 [Voting Capital Distribution]');
-    print(
-      '   TAK: ${yesVotingCapital.toStringAsFixed(2)} PLN (${total > 0 ? yesVotingPercentage.toStringAsFixed(1) : "0.0"}%)',
-    );
-    print(
-      '   NIE: ${noVotingCapital.toStringAsFixed(2)} PLN (${total > 0 ? noVotingPercentage.toStringAsFixed(1) : "0.0"}%)',
-    );
-    print(
-      '   WSTRZYMUJE: ${abstainVotingCapital.toStringAsFixed(2)} PLN (${total > 0 ? abstainVotingPercentage.toStringAsFixed(1) : "0.0"}%)',
-    );
-    print(
-      '   NIEZDECYDOWANY: ${undecidedVotingCapital.toStringAsFixed(2)} PLN (${total > 0 ? undecidedVotingPercentage.toStringAsFixed(1) : "0.0"}%)',
-    );
     print('   ŁĄCZNIE WYKONALNY KAPITAŁ: ${total.toStringAsFixed(2)} PLN');
   }
 

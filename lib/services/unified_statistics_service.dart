@@ -8,7 +8,6 @@ class UnifiedStatisticsService {
     bool isLoadingInvestors = false,
   }) {
     if (investors.isEmpty || isLoadingInvestors) {
-      print('⚠️ [UnifiedStatisticsService] Brak inwestorów do analizowania');
       return UnifiedProductStatistics(
         totalInvestmentAmount: 0,
         totalRemainingCapital: 0,
@@ -34,25 +33,12 @@ class UnifiedStatisticsService {
     final Map<String, double> recordedCapitalForRestructuring =
         {}; // śledzi wartości by móc uzupełniać przy duplikatach
 
-    print(
-      '🔥 [UnifiedStatisticsService] OBLICZANIE STATYSTYK PRODUKTU: $productName',
-    );
-
     for (final investor in investors) {
       if (investor.client.votingStatus.name == 'inactive') {
         hasInactiveInvestors = true;
         continue;
       }
       activeInvestorsCount++;
-
-      print('🔍 [UnifiedStatisticsService] Inwestor: ${investor.client.name}');
-      print('  - Liczba inwestycji: ${investor.investments.length}');
-      print(
-        '  - capitalForRestructuring w InvestorSummary: ${investor.capitalForRestructuring}',
-      );
-      print(
-        '  - capitalSecuredByRealEstate w InvestorSummary: ${investor.capitalSecuredByRealEstate}',
-      );
 
       for (final investment in investor.investments) {
         // Filtruj tylko inwestycje danego produktu
@@ -67,9 +53,6 @@ class UnifiedStatisticsService {
               final diff = current - existing;
               totalCapitalForRestructuring += diff;
               recordedCapitalForRestructuring[investment.id] = current;
-              print(
-                '    ♻️ UZUPEŁNIONO capitalForRestructuring dla ${investment.id}: +$diff (now $current)',
-              );
             } else {
               print('    ⚠️ DUPLIKAT POMINIĘTY (bez zmian): ${investment.id}');
             }
@@ -84,16 +67,6 @@ class UnifiedStatisticsService {
           recordedCapitalForRestructuring[investment.id] =
               investment.capitalForRestructuring;
 
-          print('  ✅ ${investor.client.name}: ${investment.productName}');
-          print('    * investmentAmount: ${investment.investmentAmount}');
-          print('    * remainingCapital: ${investment.remainingCapital}');
-          print(
-            '    * capitalForRestructuring: ${investment.capitalForRestructuring}',
-          );
-          print(
-            '    * capitalSecuredByRealEstate: ${investment.capitalSecuredByRealEstate}',
-          );
-          print('    🔍 Investment ID: ${investment.id}');
         }
       }
     }
@@ -104,16 +77,6 @@ class UnifiedStatisticsService {
           0.0,
           double.infinity,
         );
-
-    print('🧮 [UnifiedStatisticsService] OBLICZANIE KOŃCOWE:');
-    print('  - totalRemainingCapital: $totalRemainingCapital');
-    print('  - totalCapitalForRestructuring: $totalCapitalForRestructuring');
-    print(
-      '  - 🔥 totalCapitalSecuredByRealEstate = $totalRemainingCapital - $totalCapitalForRestructuring = $totalCapitalSecuredByRealEstate',
-    );
-    print(
-      '  - Przetworzono unikalnych inwestycji: ${processedInvestmentIds.length}',
-    );
 
     // Oblicz pozostałe metryki
     final viableCapital = totalRemainingCapital;
@@ -134,15 +97,6 @@ class UnifiedStatisticsService {
       majorityVotingCapacity: majorityVotingCapacity,
       hasInactiveInvestors: hasInactiveInvestors,
     );
-
-    print('📊 [UnifiedStatisticsService] KOŃCOWE ZUNIFIKOWANE STATYSTYKI:');
-    print('  - totalInvestmentAmount: $totalInvestmentAmount');
-    print('  - totalRemainingCapital: $totalRemainingCapital');
-    print(
-      '  - ⭐ totalCapitalSecuredByRealEstate: $totalCapitalSecuredByRealEstate',
-    );
-    print('  - viableCapital: $viableCapital');
-    print('  - investorsCount: ${investors.length}');
 
     return statistics;
   }

@@ -21,7 +21,6 @@ const updateCapitalSecuredByRealEstate = onCall({
 }, async (request) => {
   const data = request.data || {};
   const startTime = Date.now();
-  console.log("🚫 [CapitalCalculation] Funkcja zdezaktywowana – brak aktualizacji kapitału zabezpieczonego.");
 
   try {
     return {
@@ -35,7 +34,6 @@ const updateCapitalSecuredByRealEstate = onCall({
     };
 
   } catch (error) {
-    console.error("❌ [CapitalCalculation] Błąd:", error);
     throw new HttpsError(
       "internal",
       "Nie udało się zaktualizować kapitału zabezpieczonego nieruchomością",

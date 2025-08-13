@@ -28,13 +28,10 @@ class EmployeesAnalyticsService {
         }
       }
 
-      print('Pobieranie analityki zespołu dla $timeRangeMonths miesięcy...');
-
       final callable = _functions.httpsCallable('getEmployeesAnalytics');
       final result = await callable.call({'timeRangeMonths': timeRangeMonths});
 
       if (result.data == null) {
-        print('Brak danych w odpowiedzi analityki zespołu');
         return null;
       }
 
@@ -44,7 +41,6 @@ class EmployeesAnalyticsService {
 
       return _parseEmployeesAnalytics(result.data);
     } catch (e) {
-      print('Błąd pobierania analityki zespołu: $e');
       return _getFallbackEmployeesAnalytics(timeRangeMonths);
     }
   }
@@ -211,7 +207,6 @@ class EmployeesAnalyticsService {
           .where((emp) => emp.employeeId == employeeId)
           .firstOrNull;
     } catch (e) {
-      print('Błąd pobierania metryki pracownika $employeeId: $e');
       return null;
     }
   }
@@ -230,7 +225,6 @@ class EmployeesAnalyticsService {
 
       return analytics.ranking.topPerformers.take(limit).toList();
     } catch (e) {
-      print('Błąd pobierania top performers: $e');
       return [];
     }
   }
@@ -248,7 +242,6 @@ class EmployeesAnalyticsService {
 
       return analytics.teamMetrics;
     } catch (e) {
-      print('Błąd pobierania analityki działów: $e');
       return [];
     }
   }
@@ -296,7 +289,6 @@ class EmployeesAnalyticsService {
         ],
       );
     } catch (e) {
-      print('Błąd analizy konwersji: $e');
       return _getFallbackConversionAnalytics();
     }
   }

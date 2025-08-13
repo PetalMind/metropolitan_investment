@@ -70,7 +70,6 @@ const getAllInvestments = onCall({
   const startTime = Date.now();
 
   try {
-    console.log('🚀 [getAllInvestments] Rozpoczynam pobieranie inwestycji');
 
     const {
       page = 1,
@@ -88,7 +87,6 @@ const getAllInvestments = onCall({
     if (!forceRefresh) {
       const cachedResult = await getCachedResult(cacheKey);
       if (cachedResult) {
-        console.log('📋 [getAllInvestments] Zwracam z cache');
         return cachedResult;
       }
     }
@@ -133,10 +131,7 @@ const getAllInvestments = onCall({
     query = query.orderBy(orderByField, orderDirection);
 
     // Pobierz dane (bez paginacji na razie - można dodać później)
-    console.log('💾 [getAllInvestments] Wykonuję zapytanie do Firestore...');
     const querySnapshot = await query.get();
-
-    console.log(`📊 [getAllInvestments] Pobrano ${querySnapshot.size} dokumentów`);
 
     // Konwertuj dokumenty
     const investments = [];
@@ -145,7 +140,6 @@ const getAllInvestments = onCall({
         const investment = convertInvestmentData(doc);
         investments.push(investment);
       } catch (convertError) {
-        console.error(`❌ [getAllInvestments] Błąd konwersji dokumentu ${doc.id}:`, convertError);
         // Pomiń błędny dokument ale kontynuuj
       }
     });
@@ -185,7 +179,6 @@ const getAllInvestments = onCall({
     return result;
 
   } catch (error) {
-    console.error('❌ [getAllInvestments] Błąd pobierania inwestycji:', error);
     throw new HttpsError(
       'internal',
       'Nie udało się pobrać inwestycji',

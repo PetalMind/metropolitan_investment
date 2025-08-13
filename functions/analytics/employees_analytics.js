@@ -15,7 +15,6 @@ const db = admin.firestore();
 exports.getEmployeesAnalytics = functions
   .https.onCall(async (data, context) => {
     try {
-      console.log('Rozpoczynam analizę zespołu:', data);
 
       const { timeRangeMonths = 12 } = data;
       const now = new Date();
@@ -70,11 +69,9 @@ exports.getEmployeesAnalytics = functions
         }
       };
 
-      console.log('Analiza zespołu zakończona:', result.teamMetrics);
       return result;
 
     } catch (error) {
-      console.error('Błąd analizy zespołu:', error);
       throw new functions.https.HttpsError('internal', 'Błąd podczas analizy zespołu', error.message);
     }
   });

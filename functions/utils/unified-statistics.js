@@ -153,7 +153,6 @@ function calculateUnifiedTotalValue(investment) {
   const totalValue = remainingCapital + remainingInterest;
 
   if (process.env.NODE_ENV === 'development') {
-    console.log(`[Unified] totalValue calculation: ${remainingCapital} + ${remainingInterest} = ${totalValue}`);
   }
 
   return totalValue;
@@ -175,7 +174,6 @@ function calculateUnifiedViableCapital(investment) {
   const remainingCapital = getUnifiedField(investment, 'remainingCapital');
 
   if (process.env.NODE_ENV === 'development') {
-    console.log(`[Unified] viableCapital: status=${productStatus}, capital=${remainingCapital}`);
   }
 
   return remainingCapital;
@@ -210,7 +208,6 @@ function getUnifiedField(data, fieldType) {
   const possibleFields = STATISTICS_CONFIG.FIELD_MAPPING[fieldType];
 
   if (!possibleFields) {
-    console.warn(`[Unified] Unknown field type: ${fieldType}`);
     return fieldType.includes('Capital') || fieldType.includes('Interest') || fieldType.includes('Amount') ? 0 : '';
   }
 

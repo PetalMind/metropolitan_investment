@@ -165,7 +165,6 @@ class EmailService {
       // W rzeczywistej implementacji można użyć url_launcher
       return false; // Tymczasowo zwracamy false
     } catch (e) {
-      debugPrint('Błąd podczas otwierania klienta email: $e');
       return false;
     }
   }
@@ -214,7 +213,6 @@ class EmailService {
 
       return emails;
     } catch (e) {
-      debugPrint('Błąd podczas generowania maili grupowych: $e');
       return [];
     }
   }

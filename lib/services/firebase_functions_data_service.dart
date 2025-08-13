@@ -29,7 +29,6 @@ class FirebaseFunctionsDataService extends BaseService {
   /// Loguje informacje w trybie debug
   void _logInfo(String message) {
     if (kDebugMode) {
-      print('[FirebaseFunctionsDataService] $message');
     }
   }
 
@@ -401,7 +400,6 @@ class FirebaseFunctionsDataService extends BaseService {
     bool forceRefresh = false,
   }) async {
     try {
-      print('🔍 [Firebase Functions] Pobieranie klientów - strona $page');
 
       final callable = _functions.httpsCallable('getAllClients');
       final result = await callable.call({
@@ -431,7 +429,6 @@ class FirebaseFunctionsDataService extends BaseService {
         fromCache: data['fromCache'] ?? false,
       );
     } catch (e) {
-      print('❌ [Firebase Functions] Błąd pobierania klientów: $e');
       rethrow;
     }
   }
@@ -446,7 +443,6 @@ class FirebaseFunctionsDataService extends BaseService {
     bool forceRefresh = false,
   }) async {
     try {
-      print('💰 [Firebase Functions] Pobieranie inwestycji - strona $page');
 
       final callable = _functions.httpsCallable('getUnifiedProducts');
       final result = await callable.call({
@@ -489,7 +485,6 @@ class FirebaseFunctionsDataService extends BaseService {
         fromCache: data['fromCache'] ?? false,
       );
     } catch (e) {
-      print('❌ [Firebase Functions] Błąd pobierania inwestycji: $e');
       rethrow;
     }
   }
@@ -497,7 +492,6 @@ class FirebaseFunctionsDataService extends BaseService {
   /// 📊 POBIERANIE STATYSTYK SYSTEMU
   static Future<SystemStats> getSystemStats({bool forceRefresh = false}) async {
     try {
-      print('📈 [Firebase Functions] Pobieranie statystyk systemu');
 
       final callable = _functions.httpsCallable('getSystemStats');
       final result = await callable.call({'forceRefresh': forceRefresh});
@@ -530,7 +524,6 @@ class FirebaseFunctionsDataService extends BaseService {
         source: data['source'] ?? 'firebase-functions',
       );
     } catch (e) {
-      print('❌ [Firebase Functions] Błąd pobierania statystyk: $e');
       rethrow;
     }
   }

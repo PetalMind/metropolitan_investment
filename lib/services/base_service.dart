@@ -50,7 +50,6 @@ abstract class BaseService {
   /// Loguje błędy w trybie debug
   void logError(String operation, dynamic error) {
     if (kDebugMode) {
-      print('[$runtimeType] Błąd w $operation: $error');
     }
   }
 }

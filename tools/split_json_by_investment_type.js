@@ -15,8 +15,6 @@ const OUTPUT_DIR = 'split_investment_data';
 
 // Sprawdź czy plik wejściowy istnieje
 if (!fs.existsSync(INPUT_FILE)) {
-  console.error(`❌ Plik ${INPUT_FILE} nie istnieje`);
-  console.log('Użycie: node split_json_by_investment_type.js <ścieżka_do_pliku.json>');
   process.exit(1);
 }
 
@@ -197,13 +195,10 @@ function createLoanData(originalData, index) {
 
 // Główna funkcja przetwarzania
 function processJsonFile() {
-  console.log(`📖 Czytanie pliku: ${INPUT_FILE}`);
 
   try {
     const rawData = fs.readFileSync(INPUT_FILE, 'utf8');
     const jsonData = JSON.parse(rawData);
-
-    console.log(`📊 Znaleziono ${jsonData.length} rekordów`);
 
     // Kontenery dla różnych typów
     const bonds = [];
@@ -242,7 +237,6 @@ function processJsonFile() {
     });
 
     // Zapisz pliki
-    console.log(`💾 Zapisywanie plików do katalogu: ${OUTPUT_DIR}`);
 
     if (bonds.length > 0) {
       fs.writeFileSync(
@@ -250,7 +244,6 @@ function processJsonFile() {
         JSON.stringify(bonds, null, 2),
         'utf8'
       );
-      console.log(`✅ Obligacje: ${bonds.length} rekordów → bonds.json`);
     }
 
     if (shares.length > 0) {
@@ -259,7 +252,6 @@ function processJsonFile() {
         JSON.stringify(shares, null, 2),
         'utf8'
       );
-      console.log(`✅ Udziały: ${shares.length} rekordów → shares.json`);
     }
 
     if (loans.length > 0) {
@@ -268,7 +260,6 @@ function processJsonFile() {
         JSON.stringify(loans, null, 2),
         'utf8'
       );
-      console.log(`✅ Pożyczki: ${loans.length} rekordów → loans.json`);
     }
 
     // Zapisz zbiorczy plik z metadanymi
@@ -291,15 +282,12 @@ function processJsonFile() {
     );
 
     // Wyświetl podsumowanie
-    console.log('\n📈 PODSUMOWANIE:');
     console.log(`Całkowita wartość: ${stats.totalValue.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}`);
     console.log(`Obligacje: ${stats.bonds} (${((stats.bonds / jsonData.length) * 100).toFixed(1)}%)`);
     console.log(`Udziały: ${stats.shares} (${((stats.shares / jsonData.length) * 100).toFixed(1)}%)`);
     console.log(`Pożyczki: ${stats.loans} (${((stats.loans / jsonData.length) * 100).toFixed(1)}%)`);
-    console.log(`\n✨ Pliki zapisane w katalogu: ${OUTPUT_DIR}`);
 
   } catch (error) {
-    console.error('❌ Błąd przetwarzania:', error.message);
     process.exit(1);
   }
 }

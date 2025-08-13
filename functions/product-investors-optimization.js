@@ -24,8 +24,6 @@ exports.getProductInvestorsOptimized = onCall({
   // Inicjalizuj Firestore wewnątrz funkcji
   const db = admin.firestore();
 
-  console.log("🔍 [Product Investors] Rozpoczynam optymalizowane wyszukiwanie...", data);
-
   try {
     const {
       productName,
@@ -45,7 +43,6 @@ exports.getProductInvestorsOptimized = onCall({
     if (!forceRefresh) {
       const cached = await getCachedResult(cacheKey);
       if (cached) {
-        console.log("⚡ [Product Investors] Zwracam z cache");
         return {
           ...cached,
           fromCache: true,
@@ -55,7 +52,6 @@ exports.getProductInvestorsOptimized = onCall({
     }
 
     // 📊 KROK 1: Pobieranie danych TYLKO z kolekcji 'investments'
-    console.log("📋 [Product Investors] Pobieranie danych z kolekcji 'investments'...");
 
     // Zwiększ limit dla pełnych danych
     const dataLimit = 5000; // Zwiększony limit dla kolekcji investments
@@ -109,8 +105,6 @@ exports.getProductInvestorsOptimized = onCall({
       - Excel ID: ${clientsByExcelId.size}
       - Nazwy: ${clientsByName.size}`);
 
-    console.log(`👥 [Product Investors] Mapa klientów: ${clientsMap.size} total, ${clientsByExcelId.size} z Excel ID`);
-
     // 📊 KROK 3: Zbierz wszystkie inwestycje z różnych kolekcji
     const allInvestments = [];
 
@@ -128,37 +122,29 @@ exports.getProductInvestorsOptimized = onCall({
     // Dodaj wszystkie inwestycje z kolekcji 'investments'
     addInvestments(investmentsSnapshot, 'investments');
 
-    console.log(`💼 [Product Investors] Łącznie inwestycji: ${allInvestments.length}`);
-
     // 📊 KROK 4: Filtrowanie inwestycji według strategii wyszukiwania
     let matchingInvestments = [];
 
     if (searchStrategy === 'id' && productId) {
       // Strategia według ID produktu (najdokładniejsza)
-      console.log(`🔍 [Product Investors] Szukam inwestycji z productId: ${productId}`);
 
       // Debug: sprawdź kilka pierwszych inwestycji
-      console.log(`🔍 [Product Investors] Próbka pierwszych 3 inwestycji:`);
       allInvestments.slice(0, 3).forEach((inv, index) => {
         const invId = getInvestmentProductId(inv);
         const invName = getInvestmentProductName(inv);
-        console.log(`  ${index}: productId="${invId}", productName="${invName}"`);
       });
 
       matchingInvestments = allInvestments.filter(investment => {
         const investmentProductId = getInvestmentProductId(investment);
         return investmentProductId === productId;
       });
-      console.log(`🎯 [Product Investors] Strategia ID: ${matchingInvestments.length} inwestycji`);
 
       // Fallback: jeśli nie znaleziono po ID, spróbuj po nazwie
       if (matchingInvestments.length === 0 && productName) {
-        console.log(`🔄 [Product Investors] Fallback ID->Name dla: ${productName}`);
         matchingInvestments = allInvestments.filter(investment => {
           const investmentProductName = getInvestmentProductName(investment);
           return investmentProductName === productName;
         });
-        console.log(`🎯 [Product Investors] Fallback Name: ${matchingInvestments.length} inwestycji`);
       }
 
     } else if (searchStrategy === 'exact' && productName) {
@@ -167,7 +153,6 @@ exports.getProductInvestorsOptimized = onCall({
         const investmentProductName = getInvestmentProductName(investment);
         return investmentProductName === productName;
       });
-      console.log(`🎯 [Product Investors] Strategia dokładna: ${matchingInvestments.length} inwestycji`);
 
     } else if (searchStrategy === 'type' && productType) {
       // Strategia według typu produktu
@@ -178,7 +163,6 @@ exports.getProductInvestorsOptimized = onCall({
           investmentType.toLowerCase().includes(variant.toLowerCase())
         );
       });
-      console.log(`🎯 [Product Investors] Strategia typ: ${matchingInvestments.length} inwestycji`);
 
     } else {
       // Strategia komprehensywna (domyślna) z preferencją dla ID
@@ -188,11 +172,9 @@ exports.getProductInvestorsOptimized = onCall({
         productType,
         productId  // Dodano productId jako nowy parametr
       );
-      console.log(`🎯 [Product Investors] Strategia komprehensywna: ${matchingInvestments.length} inwestycji`);
     }
 
     if (matchingInvestments.length === 0) {
-      console.log("⚠️ [Product Investors] Brak pasujących inwestycji");
       const emptyResult = {
         investors: [],
         totalCount: 0,
@@ -214,7 +196,6 @@ exports.getProductInvestorsOptimized = onCall({
     }
 
     // 📊 KROK 5: Grupowanie inwestycji według klientów z ulepszonym mapowaniem
-    console.log("🔄 [Product Investors] Grupowanie według klientów...");
     const investmentsByClient = new Map();
     let mappedInvestments = 0;
     let unmappedInvestments = 0;
@@ -230,21 +211,17 @@ exports.getProductInvestorsOptimized = onCall({
       if (excelClientId && clientsByExcelId.has(excelClientId)) {
         resolvedClient = clientsByExcelId.get(excelClientId);
         mappedInvestments++;
-        console.log(`✅ [Product Investors] Zmapowano przez Excel ID: ${excelClientId} -> ${resolvedClient.fullName || resolvedClient.imie_nazwisko || resolvedClient.name}`);
       }
       // Strategia 2: Mapowanie przez nazwę klienta (fallback)
       else if (clientName && clientsByName.has(clientName)) {
         resolvedClient = clientsByName.get(clientName);
         mappedInvestments++;
-        console.log(`✅ [Product Investors] Zmapowano przez nazwę: ${clientName}`);
       }
       // Strategia 3: Nie udało się zmapować - loguj problem
       else {
         unmappedInvestments++;
         if (!excelClientId && !clientName) {
-          console.warn(`⚠️ [Product Investors] Inwestycja bez ID klienta: ${investment.id}`);
         } else {
-          console.warn(`❌ [Product Investors] Nie znaleziono klienta o ID: ${excelClientId} lub nazwie: ${clientName}`);
         }
         return; // Pomiń tę inwestycję
       }
@@ -294,7 +271,6 @@ exports.getProductInvestorsOptimized = onCall({
               clientDbName.toLowerCase().includes(clientName.toLowerCase()) ||
               clientName.toLowerCase().includes(clientDbName.toLowerCase())) {
               matchedClient = client;
-              console.log(`✅[Product Investors] Dopasowano klienta po nazwie: "${clientName}" -> "${clientDbName}"`);
               break;
             }
           }
@@ -311,14 +287,10 @@ exports.getProductInvestorsOptimized = onCall({
         }
         investmentsByClient.get(clientKey).investments.push(investment);
       } else {
-        console.log(`⚠️ [Product Investors] Nie można dopasować klienta dla inwestycji: ${investment.id}`);
       }
     });
 
-    console.log(`👥 [Product Investors] Pogrupowane dla ${investmentsByClient.size} klientów`);
-
     // 📊 KROK 6: Tworzenie podsumowań inwestorów
-    console.log("📈 [Product Investors] Tworzenie podsumowań...");
     const investors = [];
 
     for (const [clientId, clientData] of investmentsByClient.entries()) {
@@ -362,7 +334,6 @@ exports.getProductInvestorsOptimized = onCall({
     // 💾 Cache wyników na 5 minut
     await setCachedResult(cacheKey, result, 300);
 
-    console.log(`✅ [Product Investors] Zakończone w ${result.executionTime}ms, zwracam ${investors.length} inwestorów`);
     return result;
 
   } catch (error) {
@@ -478,21 +449,18 @@ function findInvestmentsByComprehensiveSearch(allInvestments, productName, produ
 
   // PRIORYTET 1: Wyszukaj po ID produktu (jeśli podany)
   if (productId) {
-    console.log(`🎯 [Comprehensive] Próba 1: Wyszukiwanie po productId=${productId}`);
     matching = allInvestments.filter(investment => {
       const investmentProductId = getInvestmentProductId(investment);
       return investmentProductId === productId;
     });
 
     if (matching.length > 0) {
-      console.log(`✅ [Comprehensive] Znaleziono ${matching.length} inwestycji po ID`);
       return matching;
     }
   }
 
   // PRIORYTET 2: Wyszukaj po dokładnej nazwie produktu
   if (productName) {
-    console.log(`🎯 [Comprehensive] Próba 2: Wyszukiwanie po dokładnej nazwie="${productName}"`);
 
     // Debug: pokaż kilka przykładowych nazw produktów w inwestycjach
     const sampleNames = allInvestments.slice(0, 10).map(inv => getInvestmentProductName(inv)).filter(name => name);
@@ -504,10 +472,8 @@ function findInvestmentsByComprehensiveSearch(allInvestments, productName, produ
     });
 
     if (matching.length > 0) {
-      console.log(`✅ [Comprehensive] Znaleziono ${matching.length} inwestycji po dokładnej nazwie`);
       return matching;
     } else {
-      console.log(`⚠️ [Comprehensive] Brak inwestycji o dokładnej nazwie "${productName}"`);
     }
   }
 
@@ -546,7 +512,6 @@ function findInvestmentsByComprehensiveSearch(allInvestments, productName, produ
     }
   });
 
-  console.log(`🔍 [Comprehensive] Znaleziono ${matching.length} inwestycji po wyszukiwaniu częściowym`);
   return matching;
 }
 

@@ -19,7 +19,6 @@ class FirebaseFunctionsDialogsUpdated {
   /// Wykorzystuje getUnifiedProductStatistics z statistics-service.js
   static Future<void> showProductStatistics(BuildContext context) async {
     try {
-      print('📊 [Updated Functions] Pobieranie statystyk produktów...');
 
       _showLoadingDialog(context, 'Pobieranie statystyk produktów...');
 
@@ -103,10 +102,8 @@ class FirebaseFunctionsDialogsUpdated {
         ),
       );
 
-      print('✅ [Updated Functions] Wyświetlono statystyki produktów');
     } catch (e) {
       Navigator.of(context).pop(); // Zamknij dialog ładowania
-      print('❌ [Updated Functions] Błąd statystyk produktów: $e');
       _showErrorSnackBar(context, 'Błąd pobierania statystyk produktów: $e');
     }
   }
@@ -115,7 +112,6 @@ class FirebaseFunctionsDialogsUpdated {
   /// Wykorzystuje getAllClients z clients-service.js
   static Future<void> showClientsInfo(BuildContext context) async {
     try {
-      print('👥 [Updated Functions] Pobieranie informacji o klientach...');
 
       _showLoadingDialog(context, 'Pobieranie informacji o klientach...');
 
@@ -191,10 +187,8 @@ class FirebaseFunctionsDialogsUpdated {
         ),
       );
 
-      print('✅ [Updated Functions] Wyświetlono informacje o klientach');
     } catch (e) {
       Navigator.of(context).pop(); // Zamknij dialog ładowania
-      print('❌ [Updated Functions] Błąd informacji o klientach: $e');
       _showErrorSnackBar(context, 'Błąd pobierania informacji o klientach: $e');
     }
   }
@@ -203,7 +197,6 @@ class FirebaseFunctionsDialogsUpdated {
   /// Wykorzystuje debugClientsTest z debug-service.js
   static Future<void> showDebugTest(BuildContext context) async {
     try {
-      print('🧪 [Updated Functions] Uruchamianie testu debug...');
 
       _showLoadingDialog(context, 'Uruchamianie testu debug...');
 
@@ -247,10 +240,8 @@ class FirebaseFunctionsDialogsUpdated {
         ),
       );
 
-      print('✅ [Updated Functions] Wyświetlono wynik testu debug');
     } catch (e) {
       Navigator.of(context).pop(); // Zamknij dialog ładowania
-      print('❌ [Updated Functions] Błąd testu debug: $e');
       _showErrorSnackBar(context, 'Błąd testu debug: $e');
     }
   }
@@ -263,7 +254,6 @@ class FirebaseFunctionsDialogsUpdated {
     String? productType,
   }) async {
     try {
-      print('🔍 [Updated Functions] Wyszukiwanie inwestorów produktu...');
 
       _showLoadingDialog(context, 'Wyszukiwanie inwestorów...');
 
@@ -344,10 +334,8 @@ class FirebaseFunctionsDialogsUpdated {
         ),
       );
 
-      print('✅ [Updated Functions] Wyświetlono inwestorów produktu');
     } catch (e) {
       Navigator.of(context).pop(); // Zamknij dialog ładowania
-      print('❌ [Updated Functions] Błąd wyszukiwania inwestorów: $e');
       _showErrorSnackBar(context, 'Błąd wyszukiwania inwestorów produktu: $e');
     }
   }
@@ -358,7 +346,6 @@ class FirebaseFunctionsDialogsUpdated {
     VoidCallback onClearComplete,
   ) async {
     try {
-      print('🗑️ [Updated Functions] Czyszczenie cache...');
 
       _showLoadingDialog(context, 'Czyszczenie cache...');
 
@@ -369,10 +356,8 @@ class FirebaseFunctionsDialogsUpdated {
       _showSuccessSnackBar(context, 'Cache został wyczyszczony');
       onClearComplete();
 
-      print('✅ [Updated Functions] Cache wyczyszczony');
     } catch (e) {
       Navigator.of(context).pop(); // Zamknij dialog ładowania
-      print('❌ [Updated Functions] Błąd czyszczenia cache: $e');
       _showErrorSnackBar(context, 'Błąd czyszczenia cache: $e');
     }
   }

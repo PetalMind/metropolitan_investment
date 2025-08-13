@@ -53,12 +53,10 @@ employees.sort((a, b) => a.lastName.localeCompare(b.lastName));
 // Zapisz do pliku
 fs.writeFileSync('./employees_data.json', JSON.stringify(employees, null, 2));
 
-console.log(`✅ Wyekstraktowano ${employees.length} unikalnych pracowników:`);
 employees.forEach(emp => {
   console.log(`   - ${emp.fullName} (${emp.branchCode})`);
 });
 
-console.log(`\n📊 Statystyki:`);
 const branchStats = {};
 employees.forEach(emp => {
   const branch = emp.branchCode || 'Nieznany';
@@ -66,5 +64,4 @@ employees.forEach(emp => {
 });
 
 Object.entries(branchStats).forEach(([branch, count]) => {
-  console.log(`   ${branch}: ${count} pracowników`);
 });

@@ -569,7 +569,6 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen> {
         orElse: () => throw Exception('Produkt nie znaleziony'),
       );
     } catch (e) {
-      print('Błąd ładowania szczegółów produktu: $e');
       return null;
     }
   }

@@ -102,7 +102,6 @@ class DetailedExcelAnalyzer {
     for (int i = 0; i < filePaths.length; i++) {
       String filePath = filePaths[i];
       try {
-        print('Analizuję plik ${i + 1}/${filePaths.length}: $filePath');
 
         // Sprawdź rozmiar pliku
         var file = File(filePath);
@@ -111,9 +110,7 @@ class DetailedExcelAnalyzer {
 
         final result = await _analyzeExcelFile(filePath);
         results.add(result);
-        print('✓ Zakończono analizę pliku: $filePath');
       } catch (e) {
-        print('✗ Błąd podczas analizy pliku $filePath: $e');
       }
     }
 
@@ -121,7 +118,6 @@ class DetailedExcelAnalyzer {
   }
 
   static Future<ExcelAnalysisResult> _analyzeExcelFile(String filePath) async {
-    print('Czytam plik Excel...');
     var bytes = File(filePath).readAsBytesSync();
     var excel = Excel.decodeBytes(bytes);
 
@@ -133,9 +129,6 @@ class DetailedExcelAnalyzer {
     for (int sheetIndex = 0; sheetIndex < sheetNames.length; sheetIndex++) {
       String sheetName = sheetNames[sheetIndex];
       var table = excel.tables[sheetName]!;
-      print(
-        'Analizuję arkusz ${sheetIndex + 1}/${sheetNames.length}: $sheetName (${table.maxRows} wierszy)',
-      );
 
       // Pobierz nagłówki z pierwszego wiersza
       List<String> headers = [];
@@ -145,8 +138,6 @@ class DetailedExcelAnalyzer {
           headers.add(cell?.value?.toString() ?? '');
         }
       }
-
-      print('Znaleziono ${headers.length} kolumn');
 
       // Analizuj kolumny z ograniczeniem próbek dla dużych plików
       Map<String, ColumnAnalysis> columnsAnalysis = {};
@@ -230,7 +221,6 @@ class DetailedExcelAnalyzer {
         sampleRows: sampleRows,
       );
 
-      print('✓ Zakończono analizę arkusza: $sheetName');
     }
 
     return ExcelAnalysisResult(
@@ -326,7 +316,6 @@ class DetailedExcelAnalyzer {
     final jsonResults = results.map((r) => r.toJson()).toList();
     final jsonString = JsonEncoder.withIndent('  ').convert(jsonResults);
     await File(outputPath).writeAsString(jsonString);
-    print('Analiza zapisana do: $outputPath');
   }
 }
 
@@ -336,8 +325,6 @@ void main() async {
     'Kopia 20200619 Aktywni klienci.xlsx',
   ];
 
-  print('Rozpoczynam szczegółową analizę plików Excel...');
-
   final results = await DetailedExcelAnalyzer.analyzeExcelFiles(excelFiles);
 
   await DetailedExcelAnalyzer.saveAnalysisToFile(
@@ -345,22 +332,13 @@ void main() async {
     'tools/detailed_excel_analysis.json',
   );
 
-  print('\n=== PODSUMOWANIE ANALIZY ===');
   for (final result in results) {
-    print('\nPlik: ${result.fileName}');
     print('Arkusze: ${result.sheetNames.join(', ')}');
 
     for (final sheetAnalysis in result.sheetsAnalysis.values) {
-      print('\n  Arkusz: ${sheetAnalysis.sheetName}');
-      print('  Wiersze: ${sheetAnalysis.totalRows}');
-      print('  Kolumny: ${sheetAnalysis.totalColumns}');
       print('  Nagłówki: ${sheetAnalysis.headers.join(', ')}');
 
-      print('  Analiza kolumn:');
       for (final column in sheetAnalysis.columnsAnalysis.values) {
-        print(
-          '    ${column.header}: ${column.dataType} (${column.nonEmptyCount} wypełnionych, ${column.emptyCount} pustych)',
-        );
         if (column.sampleValues.isNotEmpty) {
           print('      Przykłady: ${column.sampleValues.take(3).join(', ')}');
         }

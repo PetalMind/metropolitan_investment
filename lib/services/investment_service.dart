@@ -313,7 +313,6 @@ class InvestmentService extends BaseService {
         return _convertExcelDataToInvestment(doc.id, data);
       }).toList();
     } catch (e) {
-      print('Błąd podczas pobierania inwestycji wymagających uwagi: $e');
       return [];
     }
   }

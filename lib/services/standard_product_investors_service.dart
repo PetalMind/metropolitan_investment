@@ -14,9 +14,6 @@ class StandardProductInvestorsService extends BaseService {
     String productName,
   ) async {
     try {
-      print(
-        '📊 [StandardProductInvestors] Pobieranie inwestorów dla produktu: $productName',
-      );
 
       // Pobierz wszystkie inwestycje dla danego produktu
       final snapshot = await firestore
@@ -25,16 +22,12 @@ class StandardProductInvestorsService extends BaseService {
           .get();
 
       if (snapshot.docs.isEmpty) {
-        print(
-          '⚠️ [StandardProductInvestors] Brak inwestycji dla produktu: $productName',
-        );
         return [];
       }
 
       return await _processInvestmentsToInvestors(snapshot.docs);
     } catch (e) {
       logError('getInvestorsByProductName', e);
-      print('❌ [StandardProductInvestors] Błąd: $e');
       return [];
     }
   }
@@ -44,9 +37,6 @@ class StandardProductInvestorsService extends BaseService {
     ProductType productType,
   ) async {
     try {
-      print(
-        '📊 [StandardProductInvestors] Pobieranie inwestorów dla typu: ${productType.displayName}',
-      );
 
       // Mapowanie typu na string używany w bazie danych
       String typeStr;
@@ -72,16 +62,12 @@ class StandardProductInvestorsService extends BaseService {
           .get();
 
       if (snapshot.docs.isEmpty) {
-        print(
-          '⚠️ [StandardProductInvestors] Brak inwestycji dla typu: $typeStr',
-        );
         return [];
       }
 
       return await _processInvestmentsToInvestors(snapshot.docs);
     } catch (e) {
       logError('getInvestorsByProductType', e);
-      print('❌ [StandardProductInvestors] Błąd: $e');
       return [];
     }
   }
@@ -95,9 +81,6 @@ class StandardProductInvestorsService extends BaseService {
   /// Pobiera inwestorów dla spółki
   Future<List<InvestorSummary>> getInvestorsByCompany(String companyId) async {
     try {
-      print(
-        '📊 [StandardProductInvestors] Pobieranie inwestorów dla spółki: $companyId',
-      );
 
       // Pobierz wszystkie inwestycje dla danej spółki
       final snapshot = await firestore
@@ -106,16 +89,12 @@ class StandardProductInvestorsService extends BaseService {
           .get();
 
       if (snapshot.docs.isEmpty) {
-        print(
-          '⚠️ [StandardProductInvestors] Brak inwestycji dla spółki: $companyId',
-        );
         return [];
       }
 
       return await _processInvestmentsToInvestors(snapshot.docs);
     } catch (e) {
       logError('getInvestorsByCompany', e);
-      print('❌ [StandardProductInvestors] Błąd: $e');
       return [];
     }
   }
@@ -233,41 +212,22 @@ class StandardProductInvestorsService extends BaseService {
         return Investment.fromFirestore(doc);
       }).toList();
 
-      print(
-        '📈 [StandardProductInvestors] Znaleziono ${investments.length} inwestycji',
-      );
-
       // Grupuj inwestycje według klientów
       final Map<String, List<Investment>> investmentsByClientId = {};
       for (final investment in investments) {
         final clientId = investment.clientId;
-        print(
-          '🔍 [StandardProductInvestors] Investment clientId: "$clientId", clientName: "${investment.clientName}"',
-        );
         investmentsByClientId.putIfAbsent(clientId, () => []).add(investment);
       }
 
       // Pobierz unikalne ID klientów
       final clientIds = investmentsByClientId.keys.toList();
-      print(
-        '👥 [StandardProductInvestors] Znaleziono ${clientIds.length} unikalnych klientów',
-      );
 
       // Pobierz dane klientów
       final clients = await _getClientsByIds(clientIds);
-      print(
-        '👤 [StandardProductInvestors] Załadowano dane ${clients.length} klientów',
-      );
 
       // Jeśli nie znaleziono klientów po ID, spróbuj wyszukać po nazwie
       if (clients.isEmpty && clientIds.isNotEmpty) {
-        print(
-          '🔄 [StandardProductInvestors] Próbuję wyszukać klientów po nazwie...',
-        );
         final clientsByName = await _getClientsByNames(investments);
-        print(
-          '👤 [StandardProductInvestors] Znaleziono ${clientsByName.length} klientów po nazwie',
-        );
         return await _createInvestorSummariesFromClientNames(
           investments,
           clientsByName,
@@ -278,9 +238,6 @@ class StandardProductInvestorsService extends BaseService {
         // Bezpośrednie mapowanie przez excelId
         if (client.excelId != null && clientIds.contains(client.excelId!)) {
           numericIdToUuid[client.excelId!] = client.id;
-          print(
-            '🔗 [StandardProductInvestors] Mapowanie przez excelId: ${client.excelId} -> ${client.id}',
-          );
         } else {
           // Fallback: spróbuj znaleźć numeryczne ID dla tego klienta przez nazwę
           for (final numericId in clientIds) {
@@ -288,22 +245,11 @@ class StandardProductInvestorsService extends BaseService {
             // Sprawdź czy któraś z inwestycji ma nazwę tego klienta
             if (clientInvestments.any((inv) => inv.clientName == client.name)) {
               numericIdToUuid[numericId] = client.id;
-              print(
-                '🔗 [StandardProductInvestors] Mapowanie przez nazwę: $numericId (${client.name}) -> ${client.id}',
-              );
               break;
             }
           }
         }
       }
-
-      print(
-        '🔗 [StandardProductInvestors] Utworzono mapowanie numericId -> UUID: $numericIdToUuid',
-      );
-
-      print(
-        '🚀 [StandardProductInvestors] Tworzenie inwestorów z obliczeniami na końcu',
-      );
 
       // ✅ NOWE: Utwórz podsumowania BEZ OBLICZEŃ (tylko zbieranie danych)
       final List<InvestorSummary> investorsWithoutCalculations = [];
@@ -326,10 +272,6 @@ class StandardProductInvestorsService extends BaseService {
         }
       }
 
-      print(
-        '  ✅ Utworzono ${investorsWithoutCalculations.length} InvestorSummary bez obliczeń',
-      );
-
       // 🧮 OBLICZENIA NA KOŃCU: Oblicz capitalSecuredByRealEstate TYLKO RAZ dla wszystkich
       final investors = InvestorSummary.calculateSecuredCapitalForAll(
         investorsWithoutCalculations,
@@ -338,9 +280,6 @@ class StandardProductInvestorsService extends BaseService {
       // Sortuj według wartości inwestycji (malejąco)
       investors.sort((a, b) => b.totalValue.compareTo(a.totalValue));
 
-      print(
-        '✅ [StandardProductInvestors] Utworzono ${investors.length} podsumowań inwestorów z ServerSideStatisticsService',
-      );
       return investors;
     } catch (e) {
       logError('_processInvestmentsToInvestors', e);
@@ -351,28 +290,19 @@ class StandardProductInvestorsService extends BaseService {
   /// Pobiera dane klientów na podstawie listy ID
   Future<List<Client>> _getClientsByIds(List<String> clientIds) async {
     try {
-      print('🔍 [StandardProductInvestors] Szukam klientów o ID: $clientIds');
       final List<Client> clients = [];
 
       // Pierwszy krok: próbuj znaleźć po UUID (document ID)
       const batchSize = 10;
       for (int i = 0; i < clientIds.length; i += batchSize) {
         final batch = clientIds.skip(i).take(batchSize).toList();
-        print('� [StandardProductInvestors] Przetwarzam batch UUID: $batch');
 
         final snapshot = await firestore
             .collection('clients')
             .where(FieldPath.documentId, whereIn: batch)
             .get();
 
-        print(
-          '� [StandardProductInvestors] Znaleziono ${snapshot.docs.length} dokumentów klientów w batch UUID',
-        );
-
         final batchClients = snapshot.docs.map((doc) {
-          print(
-            '👤 [StandardProductInvestors] Przetwarzam klienta UUID: ${doc.id}',
-          );
           return Client.fromFirestore(doc);
         }).toList();
 
@@ -386,9 +316,6 @@ class StandardProductInvestorsService extends BaseService {
           .toList();
 
       if (missingClientIds.isNotEmpty) {
-        print(
-          '🔄 [StandardProductInvestors] Próbuję znaleźć brakujących klientów przez excelId: $missingClientIds',
-        );
 
         for (final missingId in missingClientIds) {
           final excelSnapshot = await firestore
@@ -400,24 +327,14 @@ class StandardProductInvestorsService extends BaseService {
           if (excelSnapshot.docs.isNotEmpty) {
             final client = Client.fromFirestore(excelSnapshot.docs.first);
             clients.add(client);
-            print(
-              '✅ [StandardProductInvestors] Znaleziono klienta przez excelId: $missingId -> ${client.id}',
-            );
           } else {
-            print(
-              '❌ [StandardProductInvestors] Nie znaleziono klienta o ID: $missingId',
-            );
           }
         }
       }
 
-      print(
-        '🎯 [StandardProductInvestors] Łącznie załadowano ${clients.length} klientów',
-      );
       return clients;
     } catch (e) {
       logError('_getClientsByIds', e);
-      print('❌ [StandardProductInvestors] Błąd pobierania klientów: $e');
       return [];
     }
   }
@@ -431,10 +348,6 @@ class StandardProductInvestorsService extends BaseService {
           .toSet()
           .toList();
 
-      print(
-        '🔍 [StandardProductInvestors] Szukam klientów po nazwach: $uniqueClientNames',
-      );
-
       final List<Client> clients = [];
 
       for (final clientName in uniqueClientNames) {
@@ -447,13 +360,7 @@ class StandardProductInvestorsService extends BaseService {
         if (snapshot.docs.isNotEmpty) {
           final client = Client.fromFirestore(snapshot.docs.first);
           clients.add(client);
-          print(
-            '✅ [StandardProductInvestors] Znaleziono klienta po nazwie: ${client.name}',
-          );
         } else {
-          print(
-            '❌ [StandardProductInvestors] Nie znaleziono klienta: $clientName',
-          );
         }
       }
 
@@ -480,10 +387,6 @@ class StandardProductInvestorsService extends BaseService {
             .add(investment);
       }
 
-      print(
-        '🚀 [StandardProductInvestors] Tworzenie ${clients.length} inwestorów z obliczeniami na końcu',
-      );
-
       // ✅ NOWE: Utwórz podsumowania BEZ OBLICZEŃ (tylko zbieranie danych)
       final List<InvestorSummary> investorsWithoutCalculations = [];
       for (final client in clients) {
@@ -498,10 +401,6 @@ class StandardProductInvestorsService extends BaseService {
         }
       }
 
-      print(
-        '  ✅ Utworzono ${investorsWithoutCalculations.length} InvestorSummary bez obliczeń',
-      );
-
       // 🧮 OBLICZENIA NA KOŃCU: Oblicz capitalSecuredByRealEstate TYLKO RAZ dla wszystkich
       final investors = InvestorSummary.calculateSecuredCapitalForAll(
         investorsWithoutCalculations,
@@ -510,9 +409,6 @@ class StandardProductInvestorsService extends BaseService {
       // Sortuj według wartości inwestycji (malejąco)
       investors.sort((a, b) => b.totalValue.compareTo(a.totalValue));
 
-      print(
-        '✅ [StandardProductInvestors] Utworzono ${investors.length} podsumowań inwestorów z obliczeniami na końcu',
-      );
       return investors;
     } catch (e) {
       logError('_createInvestorSummariesFromClientNames', e);

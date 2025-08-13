@@ -124,7 +124,6 @@ class _CompanyFormState extends State<CompanyForm> {
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) {
-      debugPrint('CompanyForm: Validation failed');
       return;
     }
 
@@ -133,7 +132,6 @@ class _CompanyFormState extends State<CompanyForm> {
     });
 
     try {
-      debugPrint('CompanyForm: Submitting form...');
       debugPrint('  Name: ${_nameController.text.trim()}');
       debugPrint('  Full Name: ${_fullNameController.text.trim()}');
       debugPrint('  Tax ID: ${_taxIdController.text.trim()}');
@@ -142,7 +140,6 @@ class _CompanyFormState extends State<CompanyForm> {
       debugPrint('  Email: ${_emailController.text.trim()}');
       debugPrint('  Website: ${_websiteController.text.trim()}');
       debugPrint('  Description: ${_descriptionController.text.trim()}');
-      debugPrint('  Is Active: $_isActive');
 
       // Check if NIP already exists for other companies
       if (widget.company == null) {
@@ -184,13 +181,9 @@ class _CompanyFormState extends State<CompanyForm> {
       );
 
       if (widget.company == null) {
-        debugPrint('CompanyForm: Creating new company...');
         await _companyService.createCompany(company);
-        debugPrint('CompanyForm: Company created successfully');
       } else {
-        debugPrint('CompanyForm: Updating existing company...');
         await _companyService.updateCompany(widget.company!.id, company);
-        debugPrint('CompanyForm: Company updated successfully');
       }
 
       if (mounted) {
@@ -207,7 +200,6 @@ class _CompanyFormState extends State<CompanyForm> {
         );
       }
     } catch (e) {
-      debugPrint('CompanyForm: Error occurred: $e');
 
       // Parse Firebase Console link if present
       String errorMessage = e.toString();

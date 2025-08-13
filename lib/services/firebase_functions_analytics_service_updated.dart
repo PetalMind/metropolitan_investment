@@ -37,7 +37,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
     bool forceRefresh = false,
   }) async {
     final startTime = DateTime.now();
-    print('🚀 [Updated Functions Service] Rozpoczynam analizę inwestorów...');
 
     try {
       final callable = _functions.httpsCallable(
@@ -61,41 +60,15 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
       final data = response.data as Map<String, dynamic>;
       final executionTime = DateTime.now().difference(startTime);
 
-      print(
-        '⚡ [Updated Functions Service] Otrzymano odpowiedź w ${executionTime.inMilliseconds}ms',
-      );
-      print('📊 [Updated Functions Service] Status: ${data['message']}');
-      print('📊 [Updated Functions Service] Source: ${data['source']}');
-
       // 🔍 DEBUG: Sprawdź pierwsze dane inwestorów
       final investorsDataDebug = data['investors'] as List? ?? [];
       if (investorsDataDebug.isNotEmpty) {
         final firstInvestor = investorsDataDebug.first as Map<String, dynamic>;
-        print('🔍 [DEBUG] Pierwszy inwestor z Functions:');
-        print('  - client: ${firstInvestor['client']}');
-        print(
-          '  - capitalForRestructuring: ${firstInvestor['capitalForRestructuring']}',
-        );
-        print(
-          '  - capitalSecuredByRealEstate: ${firstInvestor['capitalSecuredByRealEstate']}',
-        );
-        print(
-          '  - investments: ${(firstInvestor['investments'] as List?)?.length ?? 0}',
-        );
 
         // Sprawdź pierwsze inwestycje
         final investments = firstInvestor['investments'] as List? ?? [];
         if (investments.isNotEmpty) {
           final firstInvestment = investments.first as Map<String, dynamic>;
-          print(
-            '  - Investment[0] capitalForRestructuring: ${firstInvestment['capitalForRestructuring']}',
-          );
-          print(
-            '  - Investment[0] capitalSecuredByRealEstate: ${firstInvestment['capitalSecuredByRealEstate']}',
-          );
-          print(
-            '  - Investment[0] remainingCapital: ${firstInvestment['remainingCapital']}',
-          );
           print('  - Investment[0] keys: ${firstInvestment.keys.toList()}');
         }
       }
@@ -130,10 +103,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
         );
       }
 
-      print(
-        '✅ [Updated Functions Service] Przetworzono ${investors.length} inwestorów',
-      );
-
       return InvestorAnalyticsResult(
         investors: investors,
         allInvestors: allInvestors,
@@ -151,7 +120,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
         timestamp: data['timestamp'] as String?,
       );
     } catch (e) {
-      print('❌ [Updated Functions Service] Błąd analizy inwestorów: $e');
       throw Exception('Błąd Firebase Functions Analytics: $e');
     }
   }
@@ -165,7 +133,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
     String sortBy = 'imie_nazwisko',
     bool forceRefresh = false,
   }) async {
-    print('👥 [Updated Functions Service] Pobieranie klientów...');
 
     try {
       final callable = _functions.httpsCallable('getAllClients');
@@ -184,8 +151,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
           .map((clientData) => _convertToClient(clientData))
           .toList();
 
-      print('✅ [Updated Functions Service] Pobrano ${clients.length} klientów');
-
       return ClientsResult(
         clients: clients,
         totalCount: data['totalCount'] ?? 0,
@@ -197,7 +162,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
         processingTime: data['processingTime'],
       );
     } catch (e) {
-      print('❌ [Updated Functions Service] Błąd pobierania klientów: $e');
       throw Exception('Błąd pobierania klientów: $e');
     }
   }
@@ -215,9 +179,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
     bool sortAscending = false,
     bool forceRefresh = false,
   }) async {
-    print(
-      '📦 [Updated Functions Service] Pobieranie zunifikowanych produktów...',
-    );
 
     try {
       final callable = _functions.httpsCallable('getUnifiedProducts');
@@ -235,11 +196,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
       });
 
       final data = response.data as Map<String, dynamic>;
-
-      print('✅ [Updated Functions Service] Pobrano produkty');
-      print(
-        '📊 [Updated Functions Service] Wykonanie: ${data['metadata']?['executionTime']}ms',
-      );
 
       return ProductsResult(
         products: data['products'] as List? ?? [],
@@ -259,7 +215,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
         ),
       );
     } catch (e) {
-      print('❌ [Updated Functions Service] Błąd pobierania produktów: $e');
       throw Exception('Błąd pobierania produktów: $e');
     }
   }
@@ -269,7 +224,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
   Future<ProductStatisticsResult> getUnifiedProductStatistics({
     bool forceRefresh = false,
   }) async {
-    print('📈 [Updated Functions Service] Pobieranie statystyk produktów...');
 
     try {
       final callable = _functions.httpsCallable('getUnifiedProductStatistics');
@@ -277,11 +231,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
       final response = await callable.call({'forceRefresh': forceRefresh});
 
       final data = response.data as Map<String, dynamic>;
-
-      print('✅ [Updated Functions Service] Pobrano statystyki produktów');
-      print(
-        '📊 [Updated Functions Service] Wykonanie: ${data['metadata']?['executionTime']}ms',
-      );
 
       return ProductStatisticsResult(
         totalProducts: data['totalProducts'] ?? 0,
@@ -306,7 +255,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
         ),
       );
     } catch (e) {
-      print('❌ [Updated Functions Service] Błąd pobierania statystyk: $e');
       throw Exception('Błąd pobierania statystyk produktów: $e');
     }
   }
@@ -319,7 +267,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
     String searchStrategy = 'comprehensive',
     bool forceRefresh = false,
   }) async {
-    print('🔍 [Updated Functions Service] Wyszukiwanie inwestorów produktu...');
 
     try {
       final callable = _functions.httpsCallable('getProductInvestorsOptimized');
@@ -332,11 +279,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
       });
 
       final data = response.data as Map<String, dynamic>;
-
-      print('✅ [Updated Functions Service] Znaleziono inwestorów produktu');
-      print(
-        '📊 [Updated Functions Service] Wykonanie: ${data['executionTime']}ms',
-      );
 
       return ProductInvestorsResult(
         investors: (data['investors'] as List? ?? [])
@@ -357,7 +299,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
         executionTime: data['executionTime'] ?? 0,
       );
     } catch (e) {
-      print('❌ [Updated Functions Service] Błąd wyszukiwania inwestorów: $e');
       throw Exception('Błąd wyszukiwania inwestorów produktu: $e');
     }
   }
@@ -365,14 +306,11 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
   /// **TEST DEBUGOWANIA** 🧪
   /// Wykorzystuje funkcję debugClientsTest z debug-service.js
   Future<DebugResult> debugClientsTest() async {
-    print('🧪 [Updated Functions Service] Uruchamianie testu debug...');
 
     try {
       final callable = _functions.httpsCallable('debugClientsTest');
       final response = await callable.call({});
       final data = response.data as Map<String, dynamic>;
-
-      print('✅ [Updated Functions Service] Test debug zakończony');
 
       return DebugResult(
         functionStatus: data['functionStatus'] ?? 'unknown',
@@ -381,7 +319,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
         additionalInfo: data,
       );
     } catch (e) {
-      print('❌ [Updated Functions Service] Błąd testu debug: $e');
       throw Exception('Błąd testu debug: $e');
     }
   }
@@ -390,16 +327,12 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
   /// Czyści cache zarówno lokalnie jak i na serwerze
   Future<void> clearAnalyticsCache() async {
     try {
-      print('🗑️ [Updated Functions Service] Czyszczenie cache...');
 
       // Wyczyść lokalny cache
       clearAllCache();
 
       // Wyczyść cache na serwerze
       try {
-        print(
-          '🗑️ [Functions Service] Rozpoczynam czyszczenie cache na serwerze...',
-        );
 
         final callable = _functions.httpsCallable(
           'clearAnalyticsCache',
@@ -407,16 +340,10 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
         );
 
         await callable.call({});
-        print('✅ [Functions Service] Cache serwera wyczyszczony');
       } catch (serverError) {
-        print(
-          '❌ [Functions Service] Błąd czyszczenia cache serwera: $serverError',
-        );
         // Nie rethrow - czyszczenie cache nie powinno blokować głównej operacji
       }
-      print('✅ [Updated Functions Service] Cache wyczyszczony');
     } catch (e) {
-      print('❌ [Updated Functions Service] Błąd czyszczenia cache: $e');
       // Nie rethrow - czyszczenie cache nie powinno blokować
     }
   }
@@ -430,36 +357,11 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
     try {
       // 🔍 DEBUG: Loguj pełne dane otrzymane z Firebase Functions
       if (data['client'] != null && data['client']['name'] != null) {
-        print(
-          '🔍 [DEBUG] Dane z Firebase Functions dla ${data['client']['name']}:',
-        );
-        print(
-          '  - capitalForRestructuring: ${data['capitalForRestructuring']}',
-        );
-        print(
-          '  - capitalSecuredByRealEstate: ${data['capitalSecuredByRealEstate']}',
-        );
-        print('  - viableRemainingCapital: ${data['viableRemainingCapital']}');
-        print(
-          '  - investments count: ${(data['investments'] as List?)?.length ?? 0}',
-        );
 
         // 🔍 DEBUG: Sprawdź pierwsze inwestycje
         final investments = data['investments'] as List? ?? [];
         if (investments.isNotEmpty) {
           final firstInvestment = investments.first as Map<String, dynamic>;
-          print(
-            '  - Investment[0] capitalForRestructuring: ${firstInvestment['capitalForRestructuring']}',
-          );
-          print(
-            '  - Investment[0] capitalSecuredByRealEstate: ${firstInvestment['capitalSecuredByRealEstate']}',
-          );
-          print(
-            '  - Investment[0] remainingCapital: ${firstInvestment['remainingCapital']}',
-          );
-          print(
-            '  - Investment[0] productName: ${firstInvestment['productName']}',
-          );
         }
       }
 
@@ -532,11 +434,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
 
       // 🔍 DEBUG: Log wartości dla pierwszych inwestorów
       if (client.name.isNotEmpty) {
-        print('🔍 [DEBUG] ${client.name}:');
-        print('  - capitalForRestructuring: $capitalForRestructuring');
-        print('  - capitalSecuredByRealEstate: $capitalSecuredByRealEstate');
-        print('  - viableRemainingCapital: $totalViableCapital');
-        print('  - investments created: ${investments.length}');
       }
 
       return InvestorSummary(
@@ -555,8 +452,6 @@ class FirebaseFunctionsAnalyticsServiceUpdated extends BaseService {
         investmentCount: data['investmentCount'] ?? investments.length,
       );
     } catch (e) {
-      print('❌ [Parse Error] Błąd parsowania InvestorSummary: $e');
-      print('❌ [Parse Error] Data: $data');
       rethrow;
     }
   }

@@ -81,9 +81,6 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
 
       // Jeśli status głosowania się zmienił, zapisz historię przez UnifiedVotingService
       if (votingStatusChanged) {
-        print(
-          '🗳️ [InvestorDetailsDialog] Status głosowania zmieniony: ${oldVotingStatus.name} -> ${_selectedVotingStatus.name}',
-        );
 
         await _votingService.updateVotingStatus(
           widget.investor.client.id,
@@ -94,7 +91,6 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
           updatedVia: 'investor_details_dialog',
         );
 
-        print('✅ [InvestorDetailsDialog] Historia głosowania zapisana');
       }
 
       if (mounted) {

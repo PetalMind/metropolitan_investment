@@ -10,12 +10,10 @@ class ClientIdMappingService extends BaseService {
   /// Znajdź prawdziwe Firestore ID na podstawie Excel ID lub nazwy klienta
   Future<String?> findFirestoreIdByExcelId(String excelId) async {
     try {
-      print('🔍 [IDMapping] Szukam Firestore ID dla Excel ID: $excelId');
 
       // Sprawdź cache
       if (_excelToFirestoreIdCache.containsKey(excelId)) {
         final cachedId = _excelToFirestoreIdCache[excelId]!;
-        print('✅ [IDMapping] Znaleziono w cache: $cachedId');
         return cachedId;
       }
 
@@ -30,7 +28,6 @@ class ClientIdMappingService extends BaseService {
         final doc = query.docs.first;
         final firestoreId = doc.id;
         _cacheMapping(excelId, firestoreId);
-        print('✅ [IDMapping] Znaleziono przez excelId: $firestoreId');
         return firestoreId;
       }
 
@@ -45,7 +42,6 @@ class ClientIdMappingService extends BaseService {
         final doc = query.docs.first;
         final firestoreId = doc.id;
         _cacheMapping(excelId, firestoreId);
-        print('✅ [IDMapping] Znaleziono przez pole id: $firestoreId');
         return firestoreId;
       }
 
@@ -60,14 +56,11 @@ class ClientIdMappingService extends BaseService {
         final doc = query.docs.first;
         final firestoreId = doc.id;
         _cacheMapping(excelId, firestoreId);
-        print('✅ [IDMapping] Znaleziono przez id string: $firestoreId');
         return firestoreId;
       }
 
-      print('❌ [IDMapping] Nie znaleziono Firestore ID dla Excel ID: $excelId');
       return null;
     } catch (e) {
-      print('❌ [IDMapping] Błąd wyszukiwania ID: $e');
       logError('findFirestoreIdByExcelId', e);
       return null;
     }
@@ -76,7 +69,6 @@ class ClientIdMappingService extends BaseService {
   /// Znajdź Firestore ID na podstawie nazwy klienta
   Future<String?> findFirestoreIdByClientName(String clientName) async {
     try {
-      print('🔍 [IDMapping] Szukam klienta po nazwie: $clientName');
 
       final query = await firestore
           .collection('clients')
@@ -93,14 +85,11 @@ class ClientIdMappingService extends BaseService {
           _cacheMapping(excelId, doc.id);
         }
 
-        print('✅ [IDMapping] Znaleziono klienta po nazwie: ${doc.id}');
         return doc.id;
       }
 
-      print('❌ [IDMapping] Nie znaleziono klienta o nazwie: $clientName');
       return null;
     } catch (e) {
-      print('❌ [IDMapping] Błąd wyszukiwania po nazwie: $e');
       logError('findFirestoreIdByClientName', e);
       return null;
     }
@@ -109,7 +98,6 @@ class ClientIdMappingService extends BaseService {
   /// Znajdź i utwórz pełne mapowanie Excel ID -> Firestore ID
   Future<Map<String, String>> buildCompleteIdMapping() async {
     try {
-      print('🔄 [IDMapping] Tworzenie kompletnego mapowania ID...');
 
       final snapshot = await firestore.collection('clients').get();
       final mapping = <String, String>{};
@@ -132,10 +120,8 @@ class ClientIdMappingService extends BaseService {
         _firestoreToExcelIdCache[entry.value] = entry.key;
       }
 
-      print('✅ [IDMapping] Utworzono mapowanie dla ${mapping.length} klientów');
       return mapping;
     } catch (e) {
-      print('❌ [IDMapping] Błąd tworzenia mapowania: $e');
       logError('buildCompleteIdMapping', e);
       return {};
     }
@@ -144,13 +130,11 @@ class ClientIdMappingService extends BaseService {
   /// Aktualizuj Investment z poprawnymi Firestore ID
   Future<void> fixInvestmentClientIds() async {
     try {
-      print('🔧 [IDMapping] Naprawiam ID klientów w inwestycjach...');
 
       // Utwórz mapowanie
       final mapping = await buildCompleteIdMapping();
 
       if (mapping.isEmpty) {
-        print('❌ [IDMapping] Brak mapowania - przerywam');
         return;
       }
 
@@ -183,12 +167,9 @@ class ClientIdMappingService extends BaseService {
 
       if (fixedCount > 0) {
         await batch.commit();
-        print('✅ [IDMapping] Naprawiono $fixedCount inwestycji');
       } else {
-        print('ℹ️ [IDMapping] Brak inwestycji do naprawy');
       }
     } catch (e) {
-      print('❌ [IDMapping] Błąd naprawy ID inwestycji: $e');
       logError('fixInvestmentClientIds', e);
       rethrow;
     }

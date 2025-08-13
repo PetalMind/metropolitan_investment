@@ -1116,18 +1116,6 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
 
   /// Zwraca liczbę inwestycji klienta w tym konkretnym produkcie
   int _getProductInvestmentCount(InvestorSummary investor) {
-    print(
-      '🔍 [_getProductInvestmentCount] Sprawdzam dla inwestora: ${investor.client.name}',
-    );
-    print(
-      '🔍 [_getProductInvestmentCount] - Szukany produkt: "${widget.product.name}"',
-    );
-    print(
-      '🔍 [_getProductInvestmentCount] - Szukane ID: "${widget.product.id}"',
-    );
-    print(
-      '🔍 [_getProductInvestmentCount] - Inwestycje klienta (${investor.investments.length}):',
-    );
 
     // Grupa inwestycje po ID żeby wyeliminować duplikaty
     final uniqueInvestments = <String, Investment>{};
@@ -1141,15 +1129,8 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
 
     final uniqueInvestmentsList = uniqueInvestments.values.toList();
 
-    print(
-      '🔍 [_getProductInvestmentCount] - Unikalne inwestycje (${uniqueInvestmentsList.length}):',
-    );
-
     for (int i = 0; i < uniqueInvestmentsList.length; i++) {
       final inv = uniqueInvestmentsList[i];
-      print(
-        '  $i: productName="${inv.productName}", productId="${inv.productId}", amount=${inv.investmentAmount}',
-      );
     }
 
     // Sprawdź po ID produktu (uwaga na "null" jako string!)
@@ -1164,8 +1145,6 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
           )
           .length;
 
-      print('🔍 [_getProductInvestmentCount] - Znaleziono po ID: $countById');
-
       if (countById > 0) {
         return countById;
       }
@@ -1179,10 +1158,6 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
               widget.product.name.trim().toLowerCase(),
         )
         .length;
-
-    print(
-      '🔍 [_getProductInvestmentCount] - Znaleziono po nazwie: $countByName',
-    );
 
     return countByName;
   }

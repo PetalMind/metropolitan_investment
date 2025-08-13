@@ -60,15 +60,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
     super.initState();
 
     // 🔍 DEBUG: Sprawdź dane otrzymane przez modal
-    print('🔍 [InvestorModal] DEBUG - Dane klienta:');
-    print('  - ID: ${widget.investor.client.id}');
-    print('  - ExcelID: ${widget.investor.client.excelId}');
-    print('  - Nazwa: "${widget.investor.client.name}"');
-    print('  - Email: "${widget.investor.client.email}"');
-    print('  - Telefon: "${widget.investor.client.phone}"');
-    print('  - Firma: "${widget.investor.client.companyName ?? 'brak'}"');
-    print('  - Liczba inwestycji: ${widget.investor.investments.length}');
-    print('  - Całkowita wartość: ${widget.investor.totalValue}');
 
     // Initialize controllers
     _notesController = TextEditingController(
@@ -1620,11 +1611,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
     });
 
     try {
-      print(
-        '🔄 [Modal] Rozpoczynam zapisywanie zmian dla klienta: ${widget.investor.client.id}',
-      );
-      print('🔄 [Modal] Nazwa klienta: ${widget.investor.client.name}');
-      print('🔄 [Modal] Nowy status głosowania: $_selectedVotingStatus');
 
       if (widget.analyticsService == null) {
         throw Exception('Analytics service nie jest dostępny');
@@ -1636,9 +1622,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
       }
 
       // Debugowanie - sprawdź format ID
-      print(
-        '🔍 [Modal] Format ID: ${widget.investor.client.id} (długość: ${widget.investor.client.id.length})',
-      );
 
       // Pobierz informacje o obecnie zalogowanym użytkowniku (potrzebne dla obu przypadków)
       final authProvider = context.read<AuthProvider>();
@@ -1649,16 +1632,8 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
           authProvider.userProfile?.fullName ??
           userEmail.split('@').first;
 
-      print('🔍 [InvestorModal] DEBUG - Dane użytkownika:');
-      print('  - Email: $userEmail');
-      print('  - Nazwa: $userName');
-      print('  - UID: ${currentUser?.uid}');
-
       // Jeśli status głosowania się zmienił, zapisz także historię
       if (widget.investor.client.votingStatus != _selectedVotingStatus) {
-        print(
-          '🗳️ [InvestorModal] Status głosowania zmieniony: ${widget.investor.client.votingStatus.name} -> ${_selectedVotingStatus.name}',
-        );
 
         // Pobierz informacje o obecnie zalogowanym użytkowniku
         final authProvider = context.read<AuthProvider>();
@@ -1668,11 +1643,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
             currentUser?.displayName ??
             authProvider.userProfile?.fullName ??
             userEmail.split('@').first;
-
-        print('🔍 [InvestorModal] DEBUG - Dane użytkownika:');
-        print('  - Email: $userEmail');
-        print('  - Nazwa: $userName');
-        print('  - UID: ${currentUser?.uid}');
 
         // Użyj nowego jednolitego serwisu
         final result = await _votingService.updateVotingStatus(
@@ -1698,9 +1668,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
           );
         }
 
-        print(
-          '✅ [InvestorModal] Historia głosowania zapisana przez UnifiedVotingStatusService',
-        );
       } else {
         // Jeśli status się nie zmienił, zaktualizuj tylko inne pola
         // Pobierz dane użytkownika także dla tej ścieżki
@@ -1726,14 +1693,10 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
           updatedVia: 'investor_details_modal',
         );
 
-        print(
-          '✅ [InvestorModal] Dane zaktualizowane przez InvestorAnalyticsService z danymi użytkownika: $userEmail',
-        );
       }
 
       // Dodatkowo wyczyść cache dla pewności
       widget.analyticsService!.clearAnalyticsCache();
-      print('🗑️ [Modal] Cache analityk wyczyszczony po zapisaniu zmian');
 
       // Aktualizuj lokalny obiekt klienta
       final updatedClient = widget.investor.client.copyWith(
@@ -1778,8 +1741,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
       final errorMessage = e.toString().contains('does not exist')
           ? 'Klient nie istnieje w bazie danych. Być może został usunięty.'
           : 'Błąd zapisywania: $e';
-
-      print('❌ Błąd zapisu: $errorMessage');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1870,11 +1831,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
   void _navigateToProductDetails(Investment investment) {
     Navigator.of(context).pop(); // Zamknij dialog
-
-    print('🎯 [InvestorModal] Nawigacja do konkretnego produktu:');
-    print('🎯 [InvestorModal] - Investment ID: ${investment.id}');
-    print('🎯 [InvestorModal] - Product Name: ${investment.productName}');
-    print('🎯 [InvestorModal] - Product Type: ${investment.productType.name}');
 
     // Użyj nowego systemu nawigacji z konkretnym ID inwestycji
     final uri = Uri(

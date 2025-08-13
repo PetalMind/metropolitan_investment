@@ -4,7 +4,6 @@ import 'package:excel/excel.dart';
 
 class QuickExcelImporter {
   static Future<void> importAllData() async {
-    print('🚀 Rozpoczynam szybki import danych z Excel...');
 
     // Import klientów z pierwszego pliku
     await importClientsData();
@@ -12,11 +11,9 @@ class QuickExcelImporter {
     // Import danych inwestycyjnych z drugiego pliku
     await importInvestmentData();
 
-    print('✅ Import zakończony pomyślnie!');
   }
 
   static Future<void> importClientsData() async {
-    print('\n📝 Importuję dane klientów...');
 
     final clientsFile = 'Klienci MISA all maile i telefony.xlsx';
     var bytes = File(clientsFile).readAsBytesSync();
@@ -45,11 +42,9 @@ class QuickExcelImporter {
       'clients_data.json',
     ).writeAsString(JsonEncoder.withIndent('  ').convert(clients));
 
-    print('✅ Zaimportowano ${clients.length} klientów');
   }
 
   static Future<void> importInvestmentData() async {
-    print('\n💰 Importuję dane inwestycyjne...');
 
     final investmentsFile = 'Kopia 20200619 Aktywni klienci.xlsx';
     var bytes = File(investmentsFile).readAsBytesSync();
@@ -140,7 +135,6 @@ class QuickExcelImporter {
       'investments_data.json',
     ).writeAsString(JsonEncoder.withIndent('  ').convert(investments));
 
-    print('✅ Zaimportowano ${investments.length} inwestycji');
   }
 
   static Future<void> importSharesData(Excel excel) async {
@@ -165,7 +159,6 @@ class QuickExcelImporter {
       'shares_data.json',
     ).writeAsString(JsonEncoder.withIndent('  ').convert(shares));
 
-    print('✅ Zaimportowano ${shares.length} pozycji udziałów');
   }
 
   static Future<void> importBondsData(Excel excel) async {
@@ -196,7 +189,6 @@ class QuickExcelImporter {
       'bonds_data.json',
     ).writeAsString(JsonEncoder.withIndent('  ').convert(bonds));
 
-    print('✅ Zaimportowano ${bonds.length} pozycji obligacji');
   }
 
   static Future<void> importLoansData(Excel excel) async {
@@ -223,7 +215,6 @@ class QuickExcelImporter {
       'loans_data.json',
     ).writeAsString(JsonEncoder.withIndent('  ').convert(loans));
 
-    print('✅ Zaimportowano ${loans.length} pozycji pożyczek');
   }
 
   static bool _isNumeric(String? str) {
@@ -243,7 +234,6 @@ class QuickExcelImporter {
   }
 
   static Future<void> generateSummaryReport() async {
-    print('\n📊 Generuję raport podsumowujący...');
 
     // Przeczytaj wszystkie pliki JSON
     final clientsData = await _readJsonFile('clients_data.json');
@@ -299,15 +289,6 @@ class QuickExcelImporter {
       'import_summary.json',
     ).writeAsString(JsonEncoder.withIndent('  ').convert(summary));
 
-    print('✅ Raport zapisany w import_summary.json');
-    print('\n📈 PODSUMOWANIE:');
-    print('Klienci: ${summary['statistics']['total_clients']}');
-    print('Inwestycje: ${summary['statistics']['total_investments']}');
-    print('Udziały: ${summary['statistics']['total_shares']}');
-    print('Obligacje: ${summary['statistics']['total_bonds']}');
-    print('Pożyczki: ${summary['statistics']['total_loans']}');
-    print('Klienci z emailem: ${summary['clients_with_email']}');
-    print('Klienci z telefonem: ${summary['clients_with_phone']}');
   }
 
   static List<dynamic>? _readJsonFile(String filename) {
@@ -318,7 +299,6 @@ class QuickExcelImporter {
         return json.decode(content);
       }
     } catch (e) {
-      print('Błąd czytania pliku $filename: $e');
     }
     return null;
   }
@@ -343,8 +323,6 @@ void main() async {
     // Generuj raport podsumowujący
     await QuickExcelImporter.generateSummaryReport();
 
-    print('\n🎉 IMPORT ZAKOŃCZONY SUKCESEM!');
-    print('Dane zostały zaimportowane do plików JSON:');
     print('- clients_data.json (klienci)');
     print('- investments_data.json (główne dane inwestycyjne)');
     print('- shares_data.json (udziały)');
@@ -352,7 +330,6 @@ void main() async {
     print('- loans_data.json (pożyczki)');
     print('- import_summary.json (podsumowanie)');
   } catch (e) {
-    print('❌ BŁĄD PODCZAS IMPORTU: $e');
     exit(1);
   }
 }

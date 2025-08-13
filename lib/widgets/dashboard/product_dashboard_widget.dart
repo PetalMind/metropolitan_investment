@@ -146,10 +146,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       _dashboardStatistics =
           dashboardStatistics; // 🚀 NOWE: Zapisz zunifikowane statystyki
 
-      print(
-        '📊 [Dashboard] Załadowano zunifikowane statystyki: $_dashboardStatistics',
-      );
-
       // Apply filtering and sorting
       _applyFilteringAndSorting();
 

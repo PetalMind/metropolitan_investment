@@ -19,7 +19,6 @@ class UnifiedVotingService extends BaseService {
     Map<String, dynamic>? additionalChanges,
   }) async {
     try {
-      print('🗳️ [UnifiedVoting] Aktualizacja statusu dla klienta: $clientId');
 
       final result = await _enhancedService.updateVotingStatusWithHistory(
         clientId,

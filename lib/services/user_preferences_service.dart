@@ -26,7 +26,6 @@ class UserPreferencesService {
       return await _preferences!.setBool(_rememberMeKey, value);
     } catch (e) {
       if (kDebugMode) {
-        print('Error setting remember me: $e');
       }
       return false;
     }
@@ -37,7 +36,6 @@ class UserPreferencesService {
       return _preferences?.getBool(_rememberMeKey) ?? false;
     } catch (e) {
       if (kDebugMode) {
-        print('Error getting remember me: $e');
       }
       return false;
     }
@@ -49,7 +47,6 @@ class UserPreferencesService {
       return await _preferences!.setString(_lastEmailKey, email);
     } catch (e) {
       if (kDebugMode) {
-        print('Error setting last email: $e');
       }
       return false;
     }
@@ -60,7 +57,6 @@ class UserPreferencesService {
       return _preferences?.getString(_lastEmailKey);
     } catch (e) {
       if (kDebugMode) {
-        print('Error getting last email: $e');
       }
       return null;
     }
@@ -72,7 +68,6 @@ class UserPreferencesService {
       return await _preferences!.setBool(_autoLoginEnabledKey, value);
     } catch (e) {
       if (kDebugMode) {
-        print('Error setting auto login enabled: $e');
       }
       return false;
     }
@@ -83,7 +78,6 @@ class UserPreferencesService {
       return _preferences?.getBool(_autoLoginEnabledKey) ?? true;
     } catch (e) {
       if (kDebugMode) {
-        print('Error getting auto login enabled: $e');
       }
       return true;
     }
@@ -95,7 +89,6 @@ class UserPreferencesService {
       return await _preferences!.setBool(_biometricEnabledKey, value);
     } catch (e) {
       if (kDebugMode) {
-        print('Error setting biometric enabled: $e');
       }
       return false;
     }
@@ -106,7 +99,6 @@ class UserPreferencesService {
       return _preferences?.getBool(_biometricEnabledKey) ?? false;
     } catch (e) {
       if (kDebugMode) {
-        print('Error getting biometric enabled: $e');
       }
       return false;
     }
@@ -121,7 +113,6 @@ class UserPreferencesService {
       );
     } catch (e) {
       if (kDebugMode) {
-        print('Error setting last login timestamp: $e');
       }
       return false;
     }
@@ -136,7 +127,6 @@ class UserPreferencesService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('Error getting last login timestamp: $e');
       }
       return null;
     }
@@ -148,7 +138,6 @@ class UserPreferencesService {
       return await _preferences!.setInt(_sessionTimeoutKey, minutes);
     } catch (e) {
       if (kDebugMode) {
-        print('Error setting session timeout: $e');
       }
       return false;
     }
@@ -160,7 +149,6 @@ class UserPreferencesService {
           (30 * 24 * 60); // 30 days
     } catch (e) {
       if (kDebugMode) {
-        print('Error getting session timeout: $e');
       }
       return 30 * 24 * 60; // 30 days default
     }
@@ -188,7 +176,6 @@ class UserPreferencesService {
       return futures.every((result) => result);
     } catch (e) {
       if (kDebugMode) {
-        print('Error clearing auth preferences: $e');
       }
       return false;
     }
@@ -200,7 +187,6 @@ class UserPreferencesService {
       return await _preferences!.clear();
     } catch (e) {
       if (kDebugMode) {
-        print('Error clearing all preferences: $e');
       }
       return false;
     }

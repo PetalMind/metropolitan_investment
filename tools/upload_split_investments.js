@@ -18,9 +18,7 @@ function initializeFirebase() {
         credential: admin.credential.cert(serviceAccount),
         databaseURL: 'https://your-project-id.firebaseio.com' // Zmień na swoją bazę
       });
-      console.log('🔥 Firebase initialized successfully');
     } catch (error) {
-      console.error('❌ Firebase initialization failed:', error.message);
       process.exit(1);
     }
   }
@@ -59,8 +57,6 @@ class FirebaseUploader {
     if (missingFiles.length > 0 && missingFiles.length < 6) {
       console.log(`⚠️  Uwaga: Nie znaleziono plików: ${missingFiles.join(', ')}`);
     } else if (missingFiles.length === 6) {
-      console.error(`❌ Katalog ${INPUT_DIR} nie zawiera plików danych`);
-      console.log('Uruchom najpierw: node split_json_by_investment_type_complete.js <plik.json>');
       process.exit(1);
     }
   }
@@ -69,8 +65,6 @@ class FirebaseUploader {
   async uploadInBatches(collectionName, data) {
     const totalRecords = data.length;
     let uploadedCount = 0;
-
-    console.log(`📤 Uploadowanie ${totalRecords} rekordów do kolekcji: ${collectionName}`);
 
     for (let i = 0; i < data.length; i += this.batchSize) {
       const batch = this.db.batch();
@@ -91,7 +85,6 @@ class FirebaseUploader {
         console.log(`  ✅ ${uploadedCount}/${totalRecords} (${progress}%)`);
 
       } catch (error) {
-        console.error(`❌ Błąd podczas uploadowania batcha ${i}-${i + chunk.length}:`, error.message);
         throw error;
       }
     }
@@ -103,7 +96,6 @@ class FirebaseUploader {
   async uploadBonds() {
     const filePath = path.join(INPUT_DIR, 'bonds.json');
     if (!fs.existsSync(filePath)) {
-      console.log('⏭️  Pomijam obligacje - plik bonds.json nie istnieje');
       return 0;
     }
 
@@ -111,7 +103,6 @@ class FirebaseUploader {
       const bondsData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       return await this.uploadInBatches(COLLECTIONS.bonds, bondsData);
     } catch (error) {
-      console.error('❌ Błąd podczas uploadowania obligacji:', error.message);
       throw error;
     }
   }
@@ -120,7 +111,6 @@ class FirebaseUploader {
   async uploadShares() {
     const filePath = path.join(INPUT_DIR, 'shares.json');
     if (!fs.existsSync(filePath)) {
-      console.log('⏭️  Pomijam udziały - plik shares.json nie istnieje');
       return 0;
     }
 
@@ -128,7 +118,6 @@ class FirebaseUploader {
       const sharesData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       return await this.uploadInBatches(COLLECTIONS.shares, sharesData);
     } catch (error) {
-      console.error('❌ Błąd podczas uploadowania udziałów:', error.message);
       throw error;
     }
   }
@@ -137,7 +126,6 @@ class FirebaseUploader {
   async uploadLoans() {
     const filePath = path.join(INPUT_DIR, 'loans.json');
     if (!fs.existsSync(filePath)) {
-      console.log('⏭️  Pomijam pożyczki - plik loans.json nie istnieje');
       return 0;
     }
 
@@ -145,7 +133,6 @@ class FirebaseUploader {
       const loansData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       return await this.uploadInBatches(COLLECTIONS.loans, loansData);
     } catch (error) {
-      console.error('❌ Błąd podczas uploadowania pożyczek:', error.message);
       throw error;
     }
   }
@@ -154,7 +141,6 @@ class FirebaseUploader {
   async uploadApartments() {
     const filePath = path.join(INPUT_DIR, 'apartments.json');
     if (!fs.existsSync(filePath)) {
-      console.log('⏭️  Pomijam apartamenty - plik apartments.json nie istnieje');
       return 0;
     }
 
@@ -162,7 +148,6 @@ class FirebaseUploader {
       const apartmentsData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       return await this.uploadInBatches(COLLECTIONS.apartments, apartmentsData);
     } catch (error) {
-      console.error('❌ Błąd podczas uploadowania apartamentów:', error.message);
       throw error;
     }
   }
@@ -171,7 +156,6 @@ class FirebaseUploader {
   async uploadClients() {
     const filePath = path.join(INPUT_DIR, 'clients.json');
     if (!fs.existsSync(filePath)) {
-      console.log('⏭️  Pomijam klientów - plik clients.json nie istnieje');
       return 0;
     }
 
@@ -179,14 +163,12 @@ class FirebaseUploader {
       const clientsData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       return await this.uploadInBatches(COLLECTIONS.clients, clientsData);
     } catch (error) {
-      console.error('❌ Błąd podczas uploadowania klientów:', error.message);
       throw error;
     }
   }
 
   // Stwórz zbiorczą kolekcję investments (opcjonalne)
   async createUnifiedInvestments() {
-    console.log('🔄 Tworzenie zbiorczo kolekcji investments...');
 
     const files = ['bonds.json', 'shares.json', 'loans.json', 'apartments.json'];
     const allInvestments = [];
@@ -225,13 +207,11 @@ class FirebaseUploader {
 
   // Wyczyść kolekcje (użyj ostrożnie!)
   async clearCollection(collectionName) {
-    console.log(`🗑️  Czyszczenie kolekcji: ${collectionName}`);
 
     const collectionRef = this.db.collection(collectionName);
     const snapshot = await collectionRef.get();
 
     if (snapshot.empty) {
-      console.log(`  ✅ Kolekcja ${collectionName} jest już pusta`);
       return;
     }
 
@@ -239,7 +219,6 @@ class FirebaseUploader {
     snapshot.docs.forEach(doc => batch.delete(doc.ref));
 
     await batch.commit();
-    console.log(`  ✅ Usunięto ${snapshot.docs.length} dokumentów z kolekcji ${collectionName}`);
   }
 
   // Główny proces uploadowania
@@ -248,10 +227,7 @@ class FirebaseUploader {
       const startTime = Date.now();
       let totalUploaded = 0;
 
-      console.log(`🚀 Rozpoczynanie uploadowania danych z katalogu: ${INPUT_DIR}`);
-
       if (clearFirst) {
-        console.log('⚠️  Czyszczenie istniejących danych...');
         await Promise.all([
           this.clearCollection(COLLECTIONS.bonds),
           this.clearCollection(COLLECTIONS.shares),
@@ -270,15 +246,6 @@ class FirebaseUploader {
 
       totalUploaded = bondsCount + sharesCount + loansCount + apartmentsCount + clientsCount; const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
-      console.log('\n🎉 UPLOAD ZAKOŃCZONY POMYŚLNIE!');
-      console.log(`📊 Statystyki:`);
-      console.log(`  Obligacje: ${bondsCount} rekordów`);
-      console.log(`  Udziały: ${sharesCount} rekordów`);
-      console.log(`  Pożyczki: ${loansCount} rekordów`);
-      console.log(`  Apartamenty: ${apartmentsCount} rekordów`);
-      console.log(`  Klienci: ${clientsCount} rekordów`);
-      console.log(`  Zbiorczy investments: ${investmentsCount} rekordów`);
-      console.log(`  Całkowity czas: ${duration}s`);
       console.log(`  Rekordów na sekundę: ${(totalUploaded / parseFloat(duration)).toFixed(1)}`);
 
       // Zapisz log uploadu
@@ -303,8 +270,6 @@ class FirebaseUploader {
       );
 
     } catch (error) {
-      console.error('💥 Błąd krytyczny podczas uploadu:', error.message);
-      console.error(error.stack);
       process.exit(1);
     }
   }
@@ -315,28 +280,22 @@ async function main() {
   const args = process.argv.slice(2);
   const clearFirst = args.includes('--clear');
 
-  console.log('🔧 Firebase Investment Data Uploader');
-  console.log('=====================================\n');
-
   initializeFirebase();
 
   const uploader = new FirebaseUploader();
   uploader.checkInputFiles();
 
   if (clearFirst) {
-    console.log('⚠️  UWAGA: Zostanie usunięte wszystkie dane z kolekcji!');
     // W rzeczywistej aplikacji dodałbyś tu potwierdzenie
   }
 
   await uploader.uploadAll(clearFirst);
 
-  console.log('\n✨ Zakończono pomyślnie!');
   process.exit(0);
 }
 
 // Obsługa błędów
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('💥 Nieobsłużone odrzucenie Promise:', promise, 'powód:', reason);
   process.exit(1);
 });
 

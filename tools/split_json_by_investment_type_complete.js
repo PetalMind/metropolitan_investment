@@ -16,8 +16,6 @@ const OUTPUT_DIR = 'split_investment_data';
 
 // Sprawdź czy plik wejściowy istnieje
 if (!fs.existsSync(INPUT_FILE)) {
-  console.error(`❌ Plik ${INPUT_FILE} nie istnieje`);
-  console.log('Użycie: node split_json_by_investment_type_complete.js <ścieżka_do_pliku.json>');
   process.exit(1);
 }
 
@@ -278,13 +276,10 @@ function createClientData(originalData, index) {
 
 // Główna funkcja przetwarzania
 function processJsonFile() {
-  console.log(`📖 Czytanie pliku: ${INPUT_FILE}`);
 
   try {
     const rawData = fs.readFileSync(INPUT_FILE, 'utf8');
     const jsonData = JSON.parse(rawData);
-
-    console.log(`📊 Znaleziono ${jsonData.length} rekordów`);
 
     // Kontenery dla różnych typów
     const bonds = [];
@@ -337,7 +332,6 @@ function processJsonFile() {
     });
 
     // Zapisz pliki
-    console.log(`💾 Zapisywanie plików do katalogu: ${OUTPUT_DIR}`);
 
     const filesToSave = [
       { data: bonds, filename: 'bonds.json', label: 'Obligacje' },
@@ -354,7 +348,6 @@ function processJsonFile() {
           JSON.stringify(data, null, 2),
           'utf8'
         );
-        console.log(`✅ ${label}: ${data.length} rekordów → ${filename}`);
       }
     });
 
@@ -379,17 +372,14 @@ function processJsonFile() {
     );
 
     // Wyświetl podsumowanie
-    console.log('\n📈 PODSUMOWANIE:');
     console.log(`Całkowita wartość inwestycji: ${stats.totalValue.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}`);
     console.log(`Obligacje: ${stats.bonds} (${((stats.bonds / jsonData.length) * 100).toFixed(1)}%)`);
     console.log(`Udziały: ${stats.shares} (${((stats.shares / jsonData.length) * 100).toFixed(1)}%)`);
     console.log(`Pożyczki: ${stats.loans} (${((stats.loans / jsonData.length) * 100).toFixed(1)}%)`);
     console.log(`Apartamenty: ${stats.apartments} (${((stats.apartments / jsonData.length) * 100).toFixed(1)}%)`);
     console.log(`Klienci: ${stats.clients} (${((stats.clients / jsonData.length) * 100).toFixed(1)}%)`);
-    console.log(`\n✨ Pliki zapisane w katalogu: ${OUTPUT_DIR}`);
 
   } catch (error) {
-    console.error('❌ Błąd przetwarzania:', error.message);
     process.exit(1);
   }
 }

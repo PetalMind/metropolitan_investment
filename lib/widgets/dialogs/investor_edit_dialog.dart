@@ -1074,7 +1074,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
   void _collectModifiedInvestments() {
     _modifiedInvestments.clear();
     
-    print('🔍 [_collectModifiedInvestments] Sprawdzam ${_productInvestments.length} inwestycji...');
 
     for (int i = 0; i < _productInvestments.length; i++) {
       final investment = _productInvestments[i];
@@ -1132,10 +1131,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
           newPlannedTax != investment.plannedTax ||
           newRealizedTax != investment.realizedTax;
 
-      print('🔍 [_collectModifiedInvestments] Investment $i hasChanges: $hasChanges');
       if (hasChanges) {
-        print('  - investmentAmount: ${investment.investmentAmount} -> $newInvestmentAmount');
-        print('  - remainingCapital: ${investment.remainingCapital} -> $newRemainingCapital');
       }
 
       // 🔍 SPRAWDŹ CZY KTÓRAKOLWIEK WARTOŚĆ SIĘ ZMIENIŁA
@@ -1178,9 +1174,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     setState(() {
       _collectModifiedInvestments();
       // 🔍 DEBUG: Sprawdź stan modyfikacji
-      print('🔍 [_trackChanges] _isEditMode: $_isEditMode');
-      print('🔍 [_trackChanges] _modifiedInvestments.length: ${_modifiedInvestments.length}');
-      print('🔍 [_trackChanges] _isSaving: $_isSaving');
     });
   }
 
@@ -1246,9 +1239,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
         );
       } catch (historyError) {
         // Nie przerywaj procesu jeśli historia się nie zapisze
-        print(
-          '⚠️ [InvestorEditDialog] Błąd podczas zapisywania historii: $historyError',
-        );
       }
 
       _showSnackBar(

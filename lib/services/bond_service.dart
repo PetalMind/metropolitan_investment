@@ -9,7 +9,6 @@ class BondService extends BaseService {
   )
   Future<List<Bond>> getAllBonds() async {
     // Return empty list as bonds are now in investments collection
-    print('⚠️ [BondService] DEPRECATED: Use UnifiedProductService instead');
     return [];
   }
 
@@ -17,7 +16,6 @@ class BondService extends BaseService {
     'Use UnifiedProductService instead. Bond data is now in investments collection.',
   )
   Future<Bond?> getBond(String id) async {
-    print('⚠️ [BondService] DEPRECATED: Use UnifiedProductService instead');
     return null;
   }
 

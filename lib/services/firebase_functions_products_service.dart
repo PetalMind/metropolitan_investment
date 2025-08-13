@@ -18,9 +18,6 @@ class FirebaseFunctionsProductsService extends BaseService {
   Future<void> testDirectFirestoreAccess() async {
     try {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] 🧪 SPRAWDZANIE DOSTĘPU DO KOLEKCJI INVESTMENTS',
-        );
       }
 
       final firestore = FirebaseFirestore.instance;
@@ -32,17 +29,11 @@ class FirebaseFunctionsProductsService extends BaseService {
           .get();
 
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] Kolekcja "investments": ${investmentsSnapshot.docs.length} dokumentów',
-        );
 
       
       }
     } catch (e) {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] ❌ Błąd dostępu do Firestore: $e',
-        );
       }
     }
   }
@@ -51,12 +42,6 @@ class FirebaseFunctionsProductsService extends BaseService {
   Future<void> testConnection() async {
     try {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] 🧪 ROZPOCZYNAM TEST POŁĄCZENIA',
-        );
-        print(
-          '[FirebaseFunctionsProductsService] Region: ${_functions.app.options.projectId} -> europe-west1',
-        );
       }
 
       // Wywołaj prostą funkcję testową
@@ -68,34 +53,21 @@ class FirebaseFunctionsProductsService extends BaseService {
       });
 
       if (kDebugMode) {
-        print('[FirebaseFunctionsProductsService] ✅ Test zakończony pomyślnie');
-        print(
-          '[FirebaseFunctionsProductsService] Response type: ${result.data.runtimeType}',
-        );
 
         if (result.data is Map) {
           final data = result.data as Map<String, dynamic>;
-          print(
-            '[FirebaseFunctionsProductsService] Response keys: ${data.keys.toList()}',
-          );
 
           if (data.containsKey('products')) {
             final products = data['products'] as List?;
-            print(
-              '[FirebaseFunctionsProductsService] Products count: ${products?.length ?? 0}',
-            );
           }
 
           if (data.containsKey('metadata')) {
             final metadata = data['metadata'] as Map?;
-            print('[FirebaseFunctionsProductsService] Metadata: $metadata');
           }
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('[FirebaseFunctionsProductsService] ❌ Test nie powiódł się:');
-        print('[FirebaseFunctionsProductsService] Error: $e');
       }
       rethrow;
     }
@@ -140,9 +112,6 @@ class FirebaseFunctionsProductsService extends BaseService {
       );
     } catch (e) {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] ⚠️ Firebase Functions failed, using Firestore fallback: $e',
-        );
       }
 
       // Fallback: Pobierz dane bezpośrednio z Firestore
@@ -221,12 +190,6 @@ class FirebaseFunctionsProductsService extends BaseService {
       }
 
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] Wywołuję getUnifiedProducts z parametrami: $parameters',
-        );
-        print(
-          '[FirebaseFunctionsProductsService] Funkcja: getUnifiedProducts, region: europe-west1',
-        );
       }
 
       // Wywołaj funkcję Firebase
@@ -234,15 +197,6 @@ class FirebaseFunctionsProductsService extends BaseService {
       final result = await callable.call(parameters);
 
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] Otrzymano odpowiedź z Firebase Functions',
-        );
-        print(
-          '[FirebaseFunctionsProductsService] result.data type: ${result.data.runtimeType}',
-        );
-        print(
-          '[FirebaseFunctionsProductsService] result.data keys: ${result.data is Map ? (result.data as Map).keys.toList() : 'NIE MAP'}',
-        );
       }
 
       if (result.data == null) {
@@ -278,9 +232,6 @@ class FirebaseFunctionsProductsService extends BaseService {
           : UnifiedProductsMetadata.empty();
 
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] Otrzymano ${products.length} produktów',
-        );
       }
 
       return UnifiedProductsResult(
@@ -290,10 +241,6 @@ class FirebaseFunctionsProductsService extends BaseService {
       );
     } on FirebaseFunctionsException catch (e) {
       if (kDebugMode) {
-        print('[FirebaseFunctionsProductsService] Firebase Functions błąd:');
-        print('[FirebaseFunctionsProductsService] Kod: ${e.code}');
-        print('[FirebaseFunctionsProductsService] Wiadomość: ${e.message}');
-        print('[FirebaseFunctionsProductsService] Szczegóły: ${e.details}');
       }
 
       // Lepszy komunikat dla użytkownika
@@ -311,9 +258,6 @@ class FirebaseFunctionsProductsService extends BaseService {
       throw Exception('$userMessage: ${e.message}');
     } catch (e) {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] Błąd w getUnifiedProducts: $e',
-        );
       }
       rethrow;
     }
@@ -329,9 +273,6 @@ class FirebaseFunctionsProductsService extends BaseService {
       );
     } catch (e) {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] ⚠️ Statistics Firebase Functions failed, using Firestore fallback: $e',
-        );
       }
 
       // Fallback: Zwróć podstawowe statystyki
@@ -347,9 +288,6 @@ class FirebaseFunctionsProductsService extends BaseService {
       final parameters = <String, dynamic>{'forceRefresh': forceRefresh};
 
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] Wywołuję getUnifiedProductStatistics',
-        );
       }
 
       final callable = _functions.httpsCallable('getUnifiedProductStatistics');
@@ -364,12 +302,6 @@ class FirebaseFunctionsProductsService extends BaseService {
       return ProductStatistics.fromServerData(data);
     } on FirebaseFunctionsException catch (e) {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] Firebase Functions błąd (statystyki):',
-        );
-        print('[FirebaseFunctionsProductsService] Kod: ${e.code}');
-        print('[FirebaseFunctionsProductsService] Wiadomość: ${e.message}');
-        print('[FirebaseFunctionsProductsService] Szczegóły: ${e.details}');
       }
 
       String userMessage = 'Błąd pobierania statystyk';
@@ -386,9 +318,6 @@ class FirebaseFunctionsProductsService extends BaseService {
       throw Exception('$userMessage: ${e.message}');
     } catch (e) {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] Błąd w getProductStatistics: $e',
-        );
       }
       rethrow;
     }
@@ -479,7 +408,6 @@ class FirebaseFunctionsProductsService extends BaseService {
   Future<void> refreshCache() async {
     try {
       if (kDebugMode) {
-        print('[FirebaseFunctionsProductsService] Odświeżam cache na serwerze');
       }
 
       // Wymuś odświeżenie cache przez pobranie danych
@@ -487,7 +415,6 @@ class FirebaseFunctionsProductsService extends BaseService {
       await getProductStatistics(forceRefresh: true);
 
       if (kDebugMode) {
-        print('[FirebaseFunctionsProductsService] Cache odświeżony');
       }
     } catch (e) {
       logError('refreshCache', e);
@@ -876,9 +803,6 @@ extension FirebaseFunctionsProductsServiceFallback
   }) async {
     try {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] 🔄 Používam Firestore fallback...',
-        );
       }
 
       final firestore = FirebaseFirestore.instance;
@@ -899,9 +823,6 @@ extension FirebaseFunctionsProductsServiceFallback
       final snapshot = await query.get();
 
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] Pobrano ${snapshot.docs.length} dokumentów z Firestore',
-        );
       }
 
       // Konwertuj dokumenty na UnifiedProduct
@@ -933,9 +854,6 @@ extension FirebaseFunctionsProductsServiceFallback
           allProducts.add(product);
         } catch (e) {
           if (kDebugMode) {
-            print(
-              '[FirebaseFunctionsProductsService] ⚠️ Błąd konwersji dokumentu ${doc.id}: $e',
-            );
           }
         }
       }
@@ -971,9 +889,6 @@ extension FirebaseFunctionsProductsServiceFallback
       );
 
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] Fallback zakończony: ${paginatedProducts.length} z ${totalCount} produktów',
-        );
       }
 
       return UnifiedProductsResult(
@@ -999,9 +914,6 @@ extension FirebaseFunctionsProductsServiceFallback
       );
     } catch (e) {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] ❌ Fallback też nie powiódł się: $e',
-        );
       }
       rethrow;
     }
@@ -1079,9 +991,6 @@ extension FirebaseFunctionsProductsServiceFallback
   Future<ProductStatistics> _getBasicStatisticsFromFirestore() async {
     try {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] 🔄 Używam podstawowych statystyk z Firestore...',
-        );
       }
 
       final firestore = FirebaseFirestore.instance;
@@ -1149,9 +1058,6 @@ extension FirebaseFunctionsProductsServiceFallback
       );
     } catch (e) {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductsService] ❌ Fallback statystyki nie powiodły się: $e',
-        );
       }
       return ProductStatistics.empty();
     }

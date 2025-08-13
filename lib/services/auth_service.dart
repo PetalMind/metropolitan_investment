@@ -147,7 +147,6 @@ class AuthService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error signing out: $e');
       }
     }
   }
@@ -161,7 +160,6 @@ class AuthService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error getting user profile: $e');
       }
     }
     return null;
@@ -189,7 +187,6 @@ class AuthService {
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('Error updating user profile: $e');
       }
       return false;
     }
@@ -228,7 +225,6 @@ class AuthService {
       });
     } catch (e) {
       if (kDebugMode) {
-        print('Error updating last login: $e');
       }
     }
   }

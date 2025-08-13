@@ -38,9 +38,6 @@ class DataCacheService extends BaseService {
   }) async {
     // Sprawdź cache w pamięci
     if (!forceRefresh && _isInvestmentsCacheValid()) {
-      print(
-        '📊 [DataCache] Używam cache w pamięci dla wszystkich inwestycji (${_allInvestmentsCache!.length} elementów)',
-      );
       return _allInvestmentsCache!;
     }
 
@@ -50,16 +47,9 @@ class DataCacheService extends BaseService {
       if (cachedData != null) {
         _allInvestmentsCache = cachedData;
         _allInvestmentsCacheTimestamp = DateTime.now();
-        print(
-          '📊 [DataCache] Załadowano z lokalnego storage (${cachedData.length} elementów)',
-        );
         return cachedData;
       }
     }
-
-    print(
-      '📊 [DataCache] Pobieranie świeżych danych ze wszystkich kolekcji...',
-    );
 
     try {
       // Pobierz dane równolegle ze wszystkich kolekcji
@@ -99,13 +89,6 @@ class DataCacheService extends BaseService {
       // Zapisz do persistent cache
       await _saveToPersistentCache(allInvestments);
 
-      print(
-        '📊 [DataCache] Cache zaktualizowany z ${allInvestments.length} inwestycjami',
-      );
-      print(
-        '📊 [DataCache] Breakdown: investments=${results[0].length}, bonds=${results[1].length}, loans=${results[2].length}, shares=${results[3].length}',
-      );
-
       return allInvestments;
     } catch (e) {
       logError('getAllInvestments', e);
@@ -123,7 +106,6 @@ class DataCacheService extends BaseService {
     }
 
     try {
-      print('📊 [DataCache] Pobieranie $collectionName z Firebase...');
       final snapshot = await firestore.collection(collectionName).get();
 
       final data = snapshot.docs.map((doc) {
@@ -134,9 +116,7 @@ class DataCacheService extends BaseService {
 
       // Debug: pokaż jakie pola mamy w pierwszym dokumencie
       if (data.isNotEmpty) {
-        print('🔍 [DataCache] === PIERWSZY DOKUMENT Z $collectionName ===');
         final first = data.first;
-        print('🔍 [DataCache] ID: ${first['id']}');
 
         // Pokaż wszystkie pola z wartościami
         final sortedKeys = first.keys.toList()..sort();
@@ -175,7 +155,6 @@ class DataCacheService extends BaseService {
             print('  - $field: ${first[field]} (${first[field].runtimeType})');
           }
         }
-        print('🔍 [DataCache] === KONIEC DOKUMENTU ===');
       }
 
       // Zapisz do cache
@@ -255,7 +234,6 @@ class DataCacheService extends BaseService {
     _collectionsCache.clear();
     _collectionsCacheTimestamp.clear();
     _clearPersistentCache();
-    print('📊 [DataCache] Cache wyczyszczony');
   }
 
   /// Czyści cache konkretnej kolekcji
@@ -268,7 +246,6 @@ class DataCacheService extends BaseService {
       _allInvestmentsCacheTimestamp = null;
       _clearPersistentCache();
     }
-    print('📊 [DataCache] Cache dla $collectionName wyczyszczony');
   }
 
   // === PERSISTENT CACHE METHODS ===
@@ -284,7 +261,6 @@ class DataCacheService extends BaseService {
 
       final timestamp = DateTime.parse(timestampStr);
       if (DateTime.now().difference(timestamp) > _investmentsCacheTimeout) {
-        print('📊 [DataCache] Lokalny cache wygasł');
         return null;
       }
 
@@ -304,12 +280,8 @@ class DataCacheService extends BaseService {
         }
       }
 
-      print(
-        '📊 [DataCache] Załadowano ${investments.length} inwestycji z lokalnego storage',
-      );
       return investments;
     } catch (e) {
-      print('📊 [DataCache] Błąd podczas ładowania z lokalnego storage: $e');
       return null;
     }
   }
@@ -334,11 +306,7 @@ class DataCacheService extends BaseService {
 
       await prefs.setString(_cacheKeyInvestments, json.encode(dataList));
 
-      print(
-        '📊 [DataCache] Zapisano ${investments.length} inwestycji do lokalnego storage',
-      );
     } catch (e) {
-      print('📊 [DataCache] Błąd podczas zapisu do lokalnego storage: $e');
     }
   }
 
@@ -348,9 +316,7 @@ class DataCacheService extends BaseService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_cacheKeyInvestments);
       await prefs.remove(_cacheKeyInvestmentsTimestamp);
-      print('📊 [DataCache] Lokalny cache wyczyszczony');
     } catch (e) {
-      print('📊 [DataCache] Błąd podczas czyszczenia lokalnego cache: $e');
     }
   }
 
@@ -408,7 +374,6 @@ class DataCacheService extends BaseService {
 
   /// Force refresh - usuwa wszystkie cache i pobiera fresh data
   Future<List<Investment>> forceRefreshFromFirebase() async {
-    print('📊 [DataCache] FORCE REFRESH - czyszczę wszystkie cache');
     await _clearPersistentCache();
     invalidateCache();
     return getAllInvestments(forceRefresh: true);

@@ -56,10 +56,6 @@ class _EnhancedProductDetailsDialogState
         _investorsError = null;
       });
 
-      print('🔍 [ProductDetailsDialog] Ładowanie inwestorów dla produktu:');
-      print('  - Nazwa: "${widget.product.name}"');
-      print('  - Typ: ${widget.product.productType.displayName}');
-
       final investors = await _service.getInvestorsForProduct(widget.product);
 
       if (mounted) {
@@ -68,12 +64,8 @@ class _EnhancedProductDetailsDialogState
           _isLoadingInvestors = false;
         });
 
-        print(
-          '✅ [ProductDetailsDialog] Załadowano ${investors.length} inwestorów',
-        );
       }
     } catch (e) {
-      print('❌ [ProductDetailsDialog] Błąd podczas ładowania inwestorów: $e');
       if (mounted) {
         setState(() {
           _investorsError = 'Błąd podczas ładowania inwestorów: $e';

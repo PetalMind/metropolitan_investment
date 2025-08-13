@@ -237,19 +237,9 @@ class _ProductFormState extends State<ProductForm> {
                     if (_formKey.currentState?.validate() ?? false) {
                       _formKey.currentState?.save();
                       // LOGUJEMY WSZYSTKO DO KONSOLI
-                      debugPrint('[ProductForm] _name: $_name');
-                      debugPrint('[ProductForm] _type: $_type');
-                      debugPrint('[ProductForm] _companyId: $_companyId');
-                      debugPrint('[ProductForm] _companyName: $_companyName');
-                      debugPrint('[ProductForm] _interestRate: $_interestRate');
-                      debugPrint('[ProductForm] _sharesCount: $_sharesCount');
-                      debugPrint('[ProductForm] _sharePrice: $_sharePrice');
-                      debugPrint('[ProductForm] _currency: $_currency');
-                      debugPrint('[ProductForm] _exchangeRate: $_exchangeRate');
                       debugPrint(
                         '[ProductForm] _isPrivateIssue: $_isPrivateIssue',
                       );
-                      debugPrint('[ProductForm] _isActive: $_isActive');
                       try {
                         widget.onSave(
                           Product(
@@ -277,7 +267,6 @@ class _ProductFormState extends State<ProductForm> {
                         debugPrint(
                           '[ProductForm] BŁĄD PRZY ZAPISIE PRODUKTU: $e',
                         );
-                        debugPrint('[ProductForm] STACK TRACE: $stack');
 
                         // Specjalne logowanie dla błędu Firestore o indeksie
                         if (e.toString().contains(

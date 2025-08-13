@@ -169,12 +169,7 @@ class PaginationManager {
 
   /// Debug info
   void logPaginationState() {
-    print('📄 [Pagination State]');
     print('   Current Page: ${currentPage + 1}/${getTotalPages()}');
-    print('   Page Size: $pageSize');
-    print('   Total Items: ${filteredData.length}');
-    print('   Has Next: $hasNextPage');
-    print('   Has Previous: $hasPreviousPage');
     print('   Items Range: ${getItemsRange()}');
   }
 }

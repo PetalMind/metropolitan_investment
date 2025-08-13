@@ -23,7 +23,6 @@ class IntegratedClientService extends BaseService {
     bool forceRefresh = false,
     Function(double progress, String stage)? onProgress,
   }) async {
-    print('🚀 [getAllClients] START - pageSize: $pageSize');
     try {
       onProgress?.call(0.1, 'Próba połączenia z Firebase Functions...');
 
@@ -55,9 +54,6 @@ class IntegratedClientService extends BaseService {
           .map((clientData) => _convertFirebaseFunctionToClient(clientData))
           .toList();
 
-      print(
-        '🎉 [getAllClients] Firebase Functions SUCCESS - pobranych ${clients.length} klientów',
-      );
       logError(
         'getAllClients',
         'Pobrano ${clients.length} klientów z Firebase Functions',
@@ -81,10 +77,6 @@ class IntegratedClientService extends BaseService {
           },
         );
 
-        print(
-          '🔍 [getAllClients] Fallback pobrał ${clients.length} klientów z bazy',
-        );
-
         // Zastosuj filtrację jeśli jest searchQuery
         List<Client> filteredClients = clients;
         if (searchQuery != null && searchQuery.trim().isNotEmpty) {
@@ -96,9 +88,6 @@ class IntegratedClientService extends BaseService {
                 client.phone.toLowerCase().contains(query) ||
                 (client.pesel?.toLowerCase().contains(query) ?? false);
           }).toList();
-          print(
-            '🔍 [getAllClients] Po filtrowaniu: ${filteredClients.length} klientów',
-          );
         }
 
         // Zastosuj sortowanie
@@ -109,9 +98,6 @@ class IntegratedClientService extends BaseService {
         // USUNIĘTE OGRANICZENIE PAGINACJI - zwracamy wszystkich gdy pageSize >= 1000
         List<Client> finalClients;
         if (pageSize >= 1000) {
-          print(
-            '🔍 [getAllClients] Zwracam wszystkich ${filteredClients.length} klientów (pageSize=$pageSize)',
-          );
           finalClients = filteredClients;
         } else {
           // Zastosuj paginację tylko dla małych pageSize
@@ -123,9 +109,6 @@ class IntegratedClientService extends BaseService {
           finalClients = filteredClients.sublist(
             startIndex.clamp(0, filteredClients.length),
             endIndex,
-          );
-          print(
-            '🔍 [getAllClients] Paginacja: ${finalClients.length} z ${filteredClients.length} (strona $page, rozmiar $pageSize)',
           );
         }
 
@@ -148,10 +131,8 @@ class IntegratedClientService extends BaseService {
 
   /// Pobiera aktywnych klientów - próbuje Firebase Functions, fallback to ClientService
   Future<List<Client>> getActiveClients({bool forceRefresh = false}) async {
-    print('🚀 [getActiveClients] Rozpoczynam pobieranie aktywnych klientów...');
     try {
       // Najpierw spróbuj Firebase Functions
-      print('   - Próbuję Firebase Functions...');
       final result = await _functions
           .httpsCallable('getActiveClients')
           .call({'forceRefresh': forceRefresh})
@@ -169,16 +150,12 @@ class IntegratedClientService extends BaseService {
           .map((clientData) => _convertFirebaseFunctionToClient(clientData))
           .toList();
 
-      print(
-        '🎉 [getActiveClients] Firebase Functions - pobrano ${activeClients.length} aktywnych klientów',
-      );
       logError(
         'getActiveClients',
         'Pobrano ${activeClients.length} aktywnych klientów z Firebase Functions',
       );
       return activeClients;
     } catch (e) {
-      print('⚠️ [getActiveClients] Firebase Functions błąd: $e');
       logError(
         'getActiveClients',
         'Firebase Functions nie działają: $e, przechodzę na fallback',
@@ -186,15 +163,10 @@ class IntegratedClientService extends BaseService {
 
       // Fallback do standardowego ClientService
       try {
-        print('   - Próbuję fallback ClientService z limitem 10000...');
         final stream = _fallbackService.getActiveClients(
           limit: 10000,
         ); // Zwiększony limit
         final activeClients = await stream.first;
-
-        print(
-          '� [getActiveClients] Fallback pobrał ${activeClients.length} aktywnych klientów',
-        );
 
         logError(
           'getActiveClients',
@@ -202,7 +174,6 @@ class IntegratedClientService extends BaseService {
         );
         return activeClients;
       } catch (fallbackError) {
-        print('❌ [getActiveClients] Fallback też nie działa: $fallbackError');
         logError('getActiveClients', 'Fallback też nie działa: $fallbackError');
         throw Exception(
           'Nie można pobrać aktywnych klientów: Firebase Functions ($e), Fallback ($fallbackError)',
@@ -213,11 +184,9 @@ class IntegratedClientService extends BaseService {
 
   /// Pobiera statystyki klientów - próbuje Firebase Functions, fallback to ClientService
   Future<ClientStats> getClientStats({bool forceRefresh = false}) async {
-    print('🔍 [IntegratedClientService] Pobieranie statystyk klientów...');
 
     try {
       // Najpierw spróbuj Firebase Functions
-      print('   - Próba Firebase Functions...');
       final result = await _functions
           .httpsCallable('getSystemStats')
           .call({'forceRefresh': forceRefresh})
@@ -227,39 +196,15 @@ class IntegratedClientService extends BaseService {
           );
 
       final data = result.data;
-      print('   - Raw Firebase Functions data: $data');
 
       if (data == null) {
         throw Exception('Brak danych z Firebase Functions');
       }
 
-      print('   - Firebase Functions response:');
-      print(
-        '     * totalClients: ${data['totalClients']} (${data['totalClients'].runtimeType})',
-      );
-      print(
-        '     * totalInvestments: ${data['totalInvestments']} (${data['totalInvestments'].runtimeType})',
-      );
-      print(
-        '     * totalRemainingCapital: ${data['totalRemainingCapital']} (${data['totalRemainingCapital'].runtimeType})',
-      );
-      print('     * source: ${data['source']}');
-
       // Sprawdź czy dane są prawidłowe (nie null)
       if (data['totalClients'] == null ||
           data['totalInvestments'] == null ||
           data['totalRemainingCapital'] == null) {
-        print(
-          '⚠️ [WARNING] Firebase Functions zwróciły null dla kluczowych pól',
-        );
-        print('   - totalClients null: ${data['totalClients'] == null}');
-        print(
-          '   - totalInvestments null: ${data['totalInvestments'] == null}',
-        );
-        print(
-          '   - totalRemainingCapital null: ${data['totalRemainingCapital'] == null}',
-        );
-        print('   - Wymuszam fallback...');
         throw Exception('Nieprawidłowe dane z Firebase Functions - pola null');
       }
 
@@ -276,17 +221,12 @@ class IntegratedClientService extends BaseService {
 
       // Dodatkowa walidacja - sprawdź czy dane wyglądają sensownie
       if (stats.totalRemainingCapital == 0 && stats.totalClients > 0) {
-        print(
-          '⚠️ [WARNING] Firebase Functions zwróciły 0 kapitału dla ${stats.totalClients} klientów',
-        );
-        print('   - Wymuszam fallback...');
         throw Exception('Nieprawidłowe dane z Firebase Functions - 0 kapitału');
       }
 
       logError('getClientStats', 'Pobrano statystyki z Firebase Functions');
       return stats;
     } catch (e) {
-      print('❌ [IntegratedClientService] Firebase Functions błąd: $e');
       logError(
         'getClientStats',
         'Firebase Functions nie działają: $e, przechodzę na zaawansowany fallback',
@@ -294,7 +234,6 @@ class IntegratedClientService extends BaseService {
 
       // Zaawansowany fallback - pobierz rzeczywiste dane
       try {
-        print('   - Próba zaawansowanego fallback...');
         // Pobierz statystyki klientów i zunifikowane statystyki inwestycji
         final unifiedStats = await _getUnifiedClientStats();
         final clientsStats = await _fallbackService.getClientStats();
@@ -304,11 +243,6 @@ class IntegratedClientService extends BaseService {
             unifiedStats.totalClients;
         final totalInvestments = unifiedStats.totalInvestments;
         final totalRemainingCapital = unifiedStats.totalRemainingCapital;
-
-        print('   - Zaawansowany fallback response:');
-        print('     * totalClients: $totalClients');
-        print('     * totalInvestments: $totalInvestments');
-        print('     * totalRemainingCapital: $totalRemainingCapital');
 
         final stats = ClientStats(
           totalClients: totalClients,
@@ -327,9 +261,6 @@ class IntegratedClientService extends BaseService {
         );
         return stats;
       } catch (fallbackError) {
-        print(
-          '❌ [IntegratedClientService] Zaawansowany fallback błąd: $fallbackError',
-        );
         logError(
           'getClientStats',
           'Zaawansowany fallback też nie działa: $fallbackError',
@@ -337,12 +268,8 @@ class IntegratedClientService extends BaseService {
 
         // Podstawowy fallback
         try {
-          print('   - Próba podstawowego fallback...');
           final clientsStats = await _fallbackService.getClientStats();
           final totalClients = clientsStats['total_clients'] ?? 0;
-
-          print('   - Podstawowy fallback response:');
-          print('     * totalClients: $totalClients');
 
           final stats = ClientStats(
             totalClients: totalClients,
@@ -359,9 +286,6 @@ class IntegratedClientService extends BaseService {
           );
           return stats;
         } catch (basicError) {
-          print(
-            '❌ [IntegratedClientService] Wszystkie fallbacki zawiodły: $basicError',
-          );
           logError(
             'getClientStats',
             'Wszystkie fallbacki zawiodły: $basicError',
@@ -479,14 +403,11 @@ class IntegratedClientService extends BaseService {
 
   /// Pobiera statystyki klientów używając zunifikowanych metod
   Future<ClientStats> _getUnifiedClientStats() async {
-    print('🔍 [_getUnifiedClientStats] Rozpoczynam obliczenia...');
 
     // Pobierz wszystkie inwestycje z Firestore
     final investmentsSnapshot = await FirebaseFirestore.instance
         .collection('investments')
         .get();
-
-    print('   - Znaleziono ${investmentsSnapshot.docs.length} inwestycji');
 
     double totalRemainingCapital = 0.0;
     int validInvestments = 0;
@@ -517,9 +438,6 @@ class IntegratedClientService extends BaseService {
 
         if (validInvestments <= 5) {
           // Log pierwszych 5 dla debugowania
-          print(
-            '   - Doc ${doc.id}: kapital=$parsedCapital (${data.keys.toList()})',
-          );
         }
       }
     }
@@ -530,10 +448,6 @@ class IntegratedClientService extends BaseService {
         .get();
 
     final totalClients = clientsSnapshot.docs.length;
-
-    print(
-      '   - Wyniki: $totalClients klientów, $validInvestments inwestycji, ${totalRemainingCapital.toStringAsFixed(2)} PLN',
-    );
 
     return ClientStats(
       totalClients: totalClients,

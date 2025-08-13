@@ -6,7 +6,6 @@ class FirestoreDataInspector {
 
   /// 🔍 Sprawdź rzeczywiste dane w kolekcjach i porównaj z modelami
   static Future<Map<String, dynamic>> inspectRealData() async {
-    print('\n🔍 === FIRESTORE DATA INSPECTOR ===\n');
 
     final results = <String, dynamic>{
       'timestamp': DateTime.now().toIso8601String(),
@@ -18,7 +17,6 @@ class FirestoreDataInspector {
 
     try {
       // 📊 Sprawdź kolekcję investments
-      print('📊 Analizuję kolekcję investments...');
       final investmentsSnapshot = await _firestore
           .collection('investments')
           .limit(3)
@@ -77,13 +75,7 @@ class FirestoreDataInspector {
       results['collections']['investments']['uniqueFields'] =
           results['collections']['investments']['uniqueFields'].toList();
 
-      print('📊 Znaleziono ${investmentsSnapshot.size} dokumentów investments');
-      print(
-        '📊 Unikalne pola: ${results['collections']['investments']['uniqueFields'].length}',
-      );
-
       // 👥 Sprawdź kolekcję clients
-      print('👥 Analizuję kolekcję clients...');
       final clientsSnapshot = await _firestore
           .collection('clients')
           .limit(3)
@@ -134,10 +126,7 @@ class FirestoreDataInspector {
       results['collections']['clients']['uniqueFields'] =
           results['collections']['clients']['uniqueFields'].toList();
 
-      print('👥 Znaleziono ${clientsSnapshot.size} dokumentów clients');
-
       // 🧪 Test konwersji modeli
-      print('🧪 Testuję konwersję modeli...');
 
       if (investmentsSnapshot.docs.isNotEmpty) {
         try {
@@ -188,9 +177,7 @@ class FirestoreDataInspector {
       // 💡 Generuj rekomendacje
       _generateRecommendations(results);
 
-      print('✅ Analiza zakończona pomyślnie');
     } catch (e) {
-      print('❌ Błąd podczas analizy: $e');
       results['error'] = e.toString();
     }
 

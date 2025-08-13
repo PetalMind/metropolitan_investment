@@ -36,7 +36,6 @@ class UnifiedDashboardStatisticsService extends BaseService {
   Future<UnifiedDashboardStatistics>
   _calculateStatisticsFromInvestments() async {
     try {
-      print('📊 [UnifiedDashboard] Obliczanie statystyk z inwestycji...');
 
       // Pobierz wszystkie inwestycje przez Firebase Functions
       final result = await FirebaseFunctionsDataService.getAllInvestments(
@@ -46,7 +45,6 @@ class UnifiedDashboardStatisticsService extends BaseService {
       );
 
       final investments = result.investments;
-      print('📊 [UnifiedDashboard] Pobrano ${investments.length} inwestycji');
 
       return _calculateStatisticsFromInvestmentsList(investments);
     } catch (e) {
@@ -58,7 +56,6 @@ class UnifiedDashboardStatisticsService extends BaseService {
   /// Oblicza statystyki z pogrupowanych inwestorów (podejście premium analytics)
   Future<UnifiedDashboardStatistics> _calculateStatisticsFromInvestors() async {
     try {
-      print('📊 [UnifiedDashboard] Obliczanie statystyk z inwestorów...');
 
       // Używamy InvestorAnalyticsService - tego samego co premium analytics
       final analyticsService = InvestorAnalyticsService();
@@ -70,7 +67,6 @@ class UnifiedDashboardStatisticsService extends BaseService {
           );
 
       final investors = result.investors;
-      print('📊 [UnifiedDashboard] Pobrano ${investors.length} inwestorów');
 
       return _calculateStatisticsFromInvestorsList(investors);
     } catch (e) {
@@ -83,9 +79,6 @@ class UnifiedDashboardStatisticsService extends BaseService {
   UnifiedDashboardStatistics _calculateStatisticsFromInvestmentsList(
     List<Investment> investments,
   ) {
-    print(
-      '💰 [UnifiedDashboard] Obliczanie statystyk dla ${investments.length} inwestycji',
-    );
 
     double totalInvestmentAmount = 0;
     double totalRemainingCapital = 0;
@@ -114,17 +107,7 @@ class UnifiedDashboardStatisticsService extends BaseService {
     // W tym przypadku nie mamy informacji o niewykonalnych inwestycjach na poziomie Investment
     final double totalViableCapital = totalRemainingCapital;
 
-    print('💰 [UnifiedDashboard] Wyniki obliczeń:');
     print('   - Kwota inwestycji: ${totalInvestmentAmount.toStringAsFixed(2)}');
-    print(
-      '   - Kapitał pozostały: ${totalRemainingCapital.toStringAsFixed(2)}',
-    );
-    print(
-      '   - Kapitał zabezpieczony: ${totalCapitalSecured.toStringAsFixed(2)}',
-    );
-    print(
-      '   - Kapitał w restrukturyzacji: ${totalCapitalForRestructuring.toStringAsFixed(2)}',
-    );
     print('   - Wykonalny kapitał: ${totalViableCapital.toStringAsFixed(2)}');
 
     return UnifiedDashboardStatistics(
@@ -150,9 +133,6 @@ class UnifiedDashboardStatisticsService extends BaseService {
   UnifiedDashboardStatistics _calculateStatisticsFromInvestorsList(
     List<InvestorSummary> investors,
   ) {
-    print(
-      '👥 [UnifiedDashboard] Obliczanie statystyk dla ${investors.length} inwestorów',
-    );
 
     double totalInvestmentAmount = 0;
     double totalRemainingCapital = 0;
@@ -183,17 +163,7 @@ class UnifiedDashboardStatisticsService extends BaseService {
           double.infinity,
         );
 
-    print('👥 [UnifiedDashboard] Wyniki obliczeń:');
     print('   - Kwota inwestycji: ${totalInvestmentAmount.toStringAsFixed(2)}');
-    print(
-      '   - Kapitał pozostały: ${totalRemainingCapital.toStringAsFixed(2)}',
-    );
-    print(
-      '   - Kapitał zabezpieczony: ${totalCapitalSecured.toStringAsFixed(2)}',
-    );
-    print(
-      '   - Kapitał w restrukturyzacji: ${totalCapitalForRestructuring.toStringAsFixed(2)}',
-    );
     print('   - Wykonalny kapitał: ${totalViableCapital.toStringAsFixed(2)}');
 
     return UnifiedDashboardStatistics(

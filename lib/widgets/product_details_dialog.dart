@@ -54,10 +54,6 @@ class _EnhancedProductDetailsDialogState
         _investorsError = null;
       });
 
-      print('🔍 [ProductDetailsDialog] Ładowanie inwestorów dla produktu:');
-      print('  - Nazwa: "${widget.product.name}"');
-      print('  - Typ: ${widget.product.productType.displayName}');
-
       // Używamy Firebase Functions z wyszukiwaniem po ID produktu z fallback'iem
       final result = await _investorsService.getProductInvestors(
         productId: widget.product.id,
@@ -74,12 +70,8 @@ class _EnhancedProductDetailsDialogState
           _isLoadingInvestors = false;
         });
 
-        print(
-          '✅ [ProductDetailsDialog] Załadowano ${investors.length} inwestorów',
-        );
       }
     } catch (e) {
-      print('❌ [ProductDetailsDialog] Błąd podczas ładowania inwestorów: $e');
       if (mounted) {
         setState(() {
           _investorsError = 'Błąd podczas ładowania inwestorów: $e';
@@ -111,10 +103,8 @@ class _EnhancedProductDetailsDialogState
       if (result == true) {
         // Dialog został zamknięty po pomyślnej edycji
         // Możemy tutaj odświeżyć dane lub zamknąć aktualny dialog
-        print('✅ Produkt został zaktualizowany pomyślnie');
       }
     } catch (e) {
-      print('❌ Błąd podczas edycji produktu: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -153,11 +143,9 @@ class _EnhancedProductDetailsDialogState
 
       if (result == true) {
         // Dialog został zamknięty po pomyślnym usunięciu
-        print('✅ Produkt został usunięty pomyślnie');
         Navigator.of(context).pop(); // Zamknij dialog szczegółów produktu
       }
     } catch (e) {
-      print('❌ Błąd podczas usuwania produktu: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -16,14 +16,10 @@ class EnhancedClientIdMappingService extends BaseService {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    print('🔄 [EnhancedIDMapping] Inicjalizacja mapowania klientów...');
-
     try {
       await _buildCompleteMapping();
       _isInitialized = true;
-      print('✅ [EnhancedIDMapping] Mapowanie zainicjalizowane pomyślnie');
     } catch (e) {
-      print('❌ [EnhancedIDMapping] Błąd inicjalizacji: $e');
       logError('initialize', e);
     }
   }
@@ -37,7 +33,6 @@ class EnhancedClientIdMappingService extends BaseService {
       return _excelToFirestoreCache[excelId];
     }
 
-    print('🔍 [EnhancedIDMapping] Cache miss dla Excel ID: $excelId');
     return null;
   }
 
@@ -50,7 +45,6 @@ class EnhancedClientIdMappingService extends BaseService {
       return _nameToFirestoreCache[clientName];
     }
 
-    print('🔍 [EnhancedIDMapping] Cache miss dla nazwy: $clientName');
     return null;
   }
 
@@ -70,9 +64,6 @@ class EnhancedClientIdMappingService extends BaseService {
     if (excelId != null && excelId.isNotEmpty) {
       final firestoreId = await getFirestoreIdByExcelId(excelId);
       if (firestoreId != null) {
-        print(
-          '✅ [EnhancedIDMapping] Zmapowano przez Excel ID: $excelId -> $firestoreId',
-        );
         return firestoreId;
       }
     }
@@ -81,24 +72,15 @@ class EnhancedClientIdMappingService extends BaseService {
     if (clientName != null && clientName.isNotEmpty) {
       final firestoreId = await getFirestoreIdByClientName(clientName);
       if (firestoreId != null) {
-        print(
-          '✅ [EnhancedIDMapping] Zmapowano przez nazwę: $clientName -> $firestoreId',
-        );
         return firestoreId;
       }
     }
 
-    print(
-      '❌ [EnhancedIDMapping] Nie znaleziono mapowania dla: Excel ID: $excelId, Nazwa: $clientName',
-    );
     return null;
   }
 
   /// Napraw wszystkie produkty inwestycyjne - dodaj poprawne Firebase UUID
   Future<void> fixAllProductsClientMapping() async {
-    print(
-      '🔧 [EnhancedIDMapping] Rozpoczynam naprawę mapowania we wszystkich produktach...',
-    );
 
     await _ensureInitialized();
 
@@ -112,11 +94,7 @@ class EnhancedClientIdMappingService extends BaseService {
         _fixApartmentIds(),
       ]);
 
-      print(
-        '✅ [EnhancedIDMapping] Naprawiono mapowanie we wszystkich kolekcjach',
-      );
     } catch (e) {
-      print('❌ [EnhancedIDMapping] Błąd podczas naprawy: $e');
       logError('fixAllProductsClientMapping', e);
       rethrow;
     }
@@ -124,7 +102,6 @@ class EnhancedClientIdMappingService extends BaseService {
 
   /// Odśwież cache - wywołaj po dodaniu nowych klientów
   Future<void> refreshCache() async {
-    print('🔄 [EnhancedIDMapping] Odświeżanie cache mapowania...');
 
     _excelToFirestoreCache.clear();
     _firestoreToExcelCache.clear();
@@ -179,9 +156,6 @@ class EnhancedClientIdMappingService extends BaseService {
       }
     }
 
-    print('📊 [EnhancedIDMapping] Utworzono mapowania:');
-    print('   - Excel ID -> Firestore: ${_excelToFirestoreCache.length}');
-    print('   - Nazwa -> Firestore: ${_nameToFirestoreCache.length}');
   }
 
   Future<void> _fixInvestmentIds() async {
@@ -213,7 +187,6 @@ class EnhancedClientIdMappingService extends BaseService {
 
     if (fixedCount > 0) {
       await batch.commit();
-      print('✅ [EnhancedIDMapping] Naprawiono $fixedCount inwestycji');
     }
   }
 
@@ -244,7 +217,6 @@ class EnhancedClientIdMappingService extends BaseService {
 
     if (fixedCount > 0) {
       await batch.commit();
-      print('✅ [EnhancedIDMapping] Naprawiono $fixedCount obligacji');
     }
   }
 
@@ -275,7 +247,6 @@ class EnhancedClientIdMappingService extends BaseService {
 
     if (fixedCount > 0) {
       await batch.commit();
-      print('✅ [EnhancedIDMapping] Naprawiono $fixedCount udziałów');
     }
   }
 
@@ -306,7 +277,6 @@ class EnhancedClientIdMappingService extends BaseService {
 
     if (fixedCount > 0) {
       await batch.commit();
-      print('✅ [EnhancedIDMapping] Naprawiono $fixedCount pożyczek');
     }
   }
 
@@ -337,7 +307,6 @@ class EnhancedClientIdMappingService extends BaseService {
 
     if (fixedCount > 0) {
       await batch.commit();
-      print('✅ [EnhancedIDMapping] Naprawiono $fixedCount apartamentów');
     }
   }
 }

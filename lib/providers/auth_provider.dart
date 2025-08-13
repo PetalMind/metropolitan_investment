@@ -50,7 +50,6 @@ class AuthProvider extends ChangeNotifier {
       });
     } catch (e) {
       if (kDebugMode) {
-        print('Error initializing auth: $e');
       }
       _setInitializing(false);
     }

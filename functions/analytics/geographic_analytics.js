@@ -15,7 +15,6 @@ const db = admin.firestore();
 exports.getGeographicAnalytics = functions
   .https.onCall(async (data, context) => {
     try {
-      console.log('Rozpoczynam analizę geograficzną:', data);
 
       const { timeRangeMonths = 12 } = data;
       const now = new Date();
@@ -72,11 +71,9 @@ exports.getGeographicAnalytics = functions
         }
       };
 
-      console.log('Analiza geograficzna zakończona:', result.summary);
       return result;
 
     } catch (error) {
-      console.error('Błąd analizy geograficznej:', error);
       throw new functions.https.HttpsError('internal', 'Błąd podczas analizy geograficznej', error.message);
     }
   });

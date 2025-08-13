@@ -48,10 +48,6 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
         );
       }
 
-      print(
-        '✅ [VotingChangesTab] Loaded ${changes.length} changes for ${widget.investor.client.name}',
-      );
-
       if (mounted) {
         setState(() {
           _changes = changes;
@@ -59,7 +55,6 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
         });
       }
     } catch (e) {
-      print('❌ [VotingChangesTab] Error loading changes: $e');
       if (mounted) {
         setState(() {
           _error = e.toString();

@@ -177,7 +177,6 @@ const getUnifiedProducts = onCall({
 }, async (request) => {
   const data = request.data || {};
   const startTime = Date.now();
-  console.log("🚀 [Unified Products] Rozpoczynam pobieranie z kolekcji 'investments'...", data);
 
   try {
     const {
@@ -203,21 +202,15 @@ const getUnifiedProducts = onCall({
     if (!forceRefresh) {
       const cached = await getCachedResult(cacheKey);
       if (cached) {
-        console.log("⚡ [Unified Products] Zwracam z cache");
         return cached;
       }
     }
 
-    console.log("📊 [Unified Products] Pobieranie z kolekcji 'investments'...");
-
     // Pobierz wszystkie dokumenty z kolekcji 'investments'
     const investmentsSnapshot = await db.collection("investments").get();
 
-    console.log(`📊 [Unified Products] Pobrano ${investmentsSnapshot.size} dokumentów z kolekcji 'investments'`);
-
     // Sprawdź czy mamy w ogóle jakieś dane
     if (investmentsSnapshot.size === 0) {
-      console.error("🚫 [Unified Products] BRAK DANYCH w kolekcji 'investments'!");
 
       return {
         products: [],
@@ -247,11 +240,8 @@ const getUnifiedProducts = onCall({
         const product = convertInvestmentToUnifiedProduct(doc);
         allProducts.push(product);
       } catch (error) {
-        console.warn(`⚠️ [Unified Products] Błąd konwersji dokumentu ${doc.id}:`, error);
       }
     });
-
-    console.log(`📊 [Unified Products] Skonwertowano ${allProducts.length} produktów`);
 
     // Zastosuj filtry
     let filteredProducts = [...allProducts];
@@ -301,8 +291,6 @@ const getUnifiedProducts = onCall({
       const beforeDate = new Date(createdBefore);
       filteredProducts = filteredProducts.filter(p => new Date(p.createdAt) <= beforeDate);
     }
-
-    console.log(`📊 [Unified Products] Po filtrach: ${filteredProducts.length} produktów`);
 
     // Sortowanie
     filteredProducts.sort((a, b) => {
@@ -367,7 +355,6 @@ const getUnifiedProducts = onCall({
     return result;
 
   } catch (error) {
-    console.error("❌ [Unified Products] Błąd:", error);
     throw new HttpsError(
       "internal",
       "Nie udało się pobrać zunifikowanych produktów",

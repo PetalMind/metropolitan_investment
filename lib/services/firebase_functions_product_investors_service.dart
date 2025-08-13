@@ -23,21 +23,6 @@ class FirebaseFunctionsProductInvestorsService {
   }) async {
     try {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductInvestorsService] 🔄 Pobieranie inwestorów produktu...',
-        );
-        print(
-          '[FirebaseFunctionsProductInvestorsService] - productName: $productName',
-        );
-        print(
-          '[FirebaseFunctionsProductInvestorsService] - productId: $productId',
-        );
-        print(
-          '[FirebaseFunctionsProductInvestorsService] - productType: $productType',
-        );
-        print(
-          '[FirebaseFunctionsProductInvestorsService] - searchStrategy: $searchStrategy',
-        );
       }
 
       final callable = _functions.httpsCallable('getProductInvestorsOptimized');
@@ -51,17 +36,11 @@ class FirebaseFunctionsProductInvestorsService {
       });
 
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductInvestorsService] ✅ Pobrano dane z Firebase Functions',
-        );
       }
 
       return ProductInvestorsResult.fromMap(result.data);
     } catch (e) {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductInvestorsService] ❌ Błąd Firebase Functions: $e',
-        );
       }
 
       // Fallback - zwróć pustą listę
@@ -83,17 +62,11 @@ class FirebaseFunctionsProductInvestorsService {
       );
 
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductInvestorsService] ✅ Test połączenia udany',
-        );
       }
 
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print(
-          '[FirebaseFunctionsProductInvestorsService] ❌ Test połączenia nieudany: $e',
-        );
       }
       return false;
     }

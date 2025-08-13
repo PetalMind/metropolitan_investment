@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:excel/excel.dart';
 
 void main() async {
-  print('=== SZCZEGÓŁOWA ANALIZA WSZYSTKICH KLIENTÓW ===\n');
 
   // Sprawdź czy w drugim pliku jest więcej danych
   await deepAnalyzeSecondFile();
@@ -13,7 +12,6 @@ void main() async {
 }
 
 Future<void> deepAnalyzeSecondFile() async {
-  print('1. GŁĘBOKA ANALIZA: Kopia 20200619 Aktywni klienci.xlsx\n');
 
   try {
     var bytes = File('Kopia 20200619 Aktywni klienci.xlsx').readAsBytesSync();
@@ -25,22 +23,16 @@ Future<void> deepAnalyzeSecondFile() async {
       var table = excel.tables[sheetName]!;
       Set<String> sheetClients = {};
 
-      print('=== ARKUSZ: $sheetName ===');
-      print('Wierszy: ${table.maxRows}');
-
       if (table.maxRows == 0) {
-        print('Pusty arkusz\n');
         continue;
       }
 
       // Sprawdź nagłówki
       if (table.rows.isNotEmpty) {
-        print('Nagłówki:');
         for (int col = 0; col < table.rows[0].length && col < 15; col++) {
           var cell = table.rows[0][col];
           String header = cell?.value?.toString() ?? '';
           if (header.isNotEmpty) {
-            print('  $col: "$header"');
           }
         }
       }
@@ -75,8 +67,6 @@ Future<void> deepAnalyzeSecondFile() async {
         }
       }
 
-      print('Unikalnych potencjalnych klientów: ${sheetClients.length}');
-
       // Pokaż próbki
       if (sheetClients.isNotEmpty) {
         print('Przykłady (pierwsze 10):');
@@ -84,7 +74,6 @@ Future<void> deepAnalyzeSecondFile() async {
       }
 
       clientsBySheet[sheetName] = sheetClients;
-      print('');
     }
 
     // Podsumowanie
@@ -93,25 +82,17 @@ Future<void> deepAnalyzeSecondFile() async {
       allUniqueFromSecond.addAll(sheetClients);
     }
 
-    print('=== PODSUMOWANIE DRUGIEGO PLIKU ===');
-    print('Wszystkich unikalnych klientów: ${allUniqueFromSecond.length}');
-
     for (var entry in clientsBySheet.entries) {
-      print('${entry.key}: ${entry.value.length} klientów');
     }
-    print('');
   } catch (e) {
-    print('Błąd: $e');
   }
 }
 
 Future<void> findAllPossibleClients() async {
-  print('2. ZNAJDOWANIE WSZYSTKICH MOŻLIWYCH KLIENTÓW\n');
 
   Set<String> allClients = {};
 
   // Pierwszy plik
-  print('Analizuję pierwszy plik...');
   try {
     var bytes1 = File(
       'Klienci MISA all maile i telefony.xlsx',
@@ -127,13 +108,10 @@ Future<void> findAllPossibleClients() async {
         allClients.add(name.toLowerCase().trim());
       }
     }
-    print('Z pierwszego pliku: ${allClients.length} klientów');
   } catch (e) {
-    print('Błąd pierwszego pliku: $e');
   }
 
   // Drugi plik - wszystkie możliwe źródła
-  print('Analizuję drugi plik - wszystkie arkusze...');
   try {
     var bytes2 = File('Kopia 20200619 Aktywni klienci.xlsx').readAsBytesSync();
     var excel2 = Excel.decodeBytes(bytes2);
@@ -174,30 +152,14 @@ Future<void> findAllPossibleClients() async {
     }
 
     int afterCount = allClients.length;
-    print('Z drugiego pliku dodano: ${afterCount - beforeCount} klientów');
   } catch (e) {
-    print('Błąd drugiego pliku: $e');
   }
 
-  print('\n=== WYNIK KOŃCOWY ===');
-  print('Wszystkich unikalnych klientów znalezionych: ${allClients.length}');
-
   if (allClients.length >= 1059) {
-    print(
-      '🎯 ZNALEZIONO ${allClients.length} klientów - więcej niż oczekiwane 1059!',
-    );
   } else {
-    print(
-      '📊 Brakuje jeszcze ${1059 - allClients.length} klientów do osiągnięcia 1059',
-    );
-    print('Możliwe przyczyny:');
-    print('- Niektórzy klienci mogą być zapisani w innych formatach');
-    print('- Mogą być ukryte arkusze lub dodatkowe pliki');
-    print('- Liczba 1059 może obejmować usunięte/nieaktywne konta');
   }
 
   // Zapisz wszystkich znalezionych klientów
   var sortedClients = allClients.toList()..sort();
   await File('all_found_clients.txt').writeAsString(sortedClients.join('\n'));
-  print('\nWszyscy znalezieni klienci zapisani w: all_found_clients.txt');
 }

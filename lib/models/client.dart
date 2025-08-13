@@ -80,16 +80,10 @@ class Client {
         try {
           return DateTime.parse(dateValue);
         } catch (e) {
-          print(
-            '⚠️ [Client.fromFirestore] Błąd parsowania daty "$dateValue": $e',
-          );
           return DateTime.now();
         }
       }
 
-      print(
-        '🔍 [Client.fromFirestore] Nieznany typ daty: $dateValue (${dateValue.runtimeType})',
-      );
       return DateTime.now();
     }
 

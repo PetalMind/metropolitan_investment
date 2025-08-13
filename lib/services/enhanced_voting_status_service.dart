@@ -15,9 +15,6 @@ class EnhancedVotingStatusService extends BaseService {
     Map<String, dynamic>? additionalChanges,
   }) async {
     try {
-      print(
-        '🗳️ [EnhancedVotingStatus] Aktualizacja statusu dla klienta: $clientId',
-      );
 
       // Get current client data
       final client = await _clientService.getClient(clientId);
@@ -65,17 +62,12 @@ class EnhancedVotingStatusService extends BaseService {
         metadata: additionalChanges ?? {},
       );
 
-      print(
-        '✅ [EnhancedVotingStatus] Status zaktualizowany: ${oldStatus.name} -> ${newStatus.name}',
-      );
-
       return VotingStatusUpdateResult(
         isSuccess: true,
         previousStatus: oldStatus,
         newStatus: newStatus,
       );
     } catch (e) {
-      print('❌ [EnhancedVotingStatus] Błąd aktualizacji statusu: $e');
       logError('updateVotingStatusWithHistory', e);
       return VotingStatusUpdateResult(isSuccess: false, error: e.toString());
     }
@@ -165,9 +157,6 @@ class EnhancedVotingStatusService extends BaseService {
     String? batchReason,
   }) async {
     try {
-      print(
-        '🔄 [EnhancedVotingStatus] Batch update dla ${updates.length} klientów',
-      );
 
       final List<VotingStatusChangeResult> results = [];
       int successfulUpdates = 0;
@@ -215,10 +204,6 @@ class EnhancedVotingStatusService extends BaseService {
           );
         }
       }
-
-      print(
-        '✅ [EnhancedVotingStatus] Batch update zakończony: $successfulUpdates sukces, $failedUpdates błędów',
-      );
 
       return BatchVotingStatusResult(
         totalUpdates: updates.length,

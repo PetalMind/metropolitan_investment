@@ -15,7 +15,6 @@ const db = admin.firestore();
 exports.getTrendsAnalytics = functions
   .https.onCall(async (data, context) => {
     try {
-      console.log('Rozpoczynam analizę trendów:', data);
 
       const { timeRangeMonths = 24 } = data; // Trendy wymagają dłuższego okresu
       const now = new Date();
@@ -69,11 +68,9 @@ exports.getTrendsAnalytics = functions
         }
       };
 
-      console.log('Analiza trendów zakończona:', result.summary);
       return result;
 
     } catch (error) {
-      console.error('Błąd analizy trendów:', error);
       throw new functions.https.HttpsError('internal', 'Błąd podczas analizy trendów', error.message);
     }
   });

@@ -28,19 +28,16 @@ const getOptimizedInvestorAnalytics = onCall({
 }, async (request) => {
   const data = request.data || {};
   const startTime = Date.now();
-  console.log("🚀 [Analytics] Rozpoczynam podstawową analizę inwestorów...", data);
 
   try {
     // 💾 Sprawdź cache
     const cacheKey = `investor_analytics_${JSON.stringify(data)}`;
     const cached = await getCachedResult(cacheKey);
     if (cached && !data.forceRefresh) {
-      console.log("⚡ [Analytics] Zwracam z cache");
       return cached;
     }
 
     // 📊 Pobierz dane z bazy
-    console.log("📋 [Analytics] Pobieranie danych...");
     const [clientsSnapshot, investmentsSnapshot] = await Promise.all([
       db.collection("clients").limit(10000).get(),
       db.collection("investments").limit(50000).get(),
@@ -49,15 +46,12 @@ const getOptimizedInvestorAnalytics = onCall({
     const clients = clientsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     const investments = investmentsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-    console.log(`📊 [Analytics] Dane: ${clients.length} klientów, ${investments.length} inwestycji`);
-
     // 📊 Grupuj inwestycje według klientów - UŻYWAJ ZUNIFIKOWANYCH FUNKCJI
     const investmentsByClient = new Map();
     investments.forEach((investment) => {
       // UŻYJ zunifikowanej funkcji dla clientName
       const clientName = getUnifiedField(investment, 'clientName');
       if (!clientName) {
-        console.log("⚠️ [Analytics] Investment bez clientName:", investment.id);
         return;
       }
       if (!investmentsByClient.has(clientName)) {
@@ -66,8 +60,6 @@ const getOptimizedInvestorAnalytics = onCall({
       investmentsByClient.get(clientName).push(investment);
     });
 
-    console.log(`📊 [Analytics] Mapa inwestycji: ${investmentsByClient.size} unique clientNames`);
-
     // 📊 Utwórz podsumowania inwestorów - UŻYWAJ ZUNIFIKOWANYCH OBLICZEŃ
     const allInvestors = [];
     clients.forEach((client) => {
@@ -75,7 +67,6 @@ const getOptimizedInvestorAnalytics = onCall({
       const clientInvestments = investmentsByClient.get(clientName) || [];
 
       if (clientInvestments.length === 0) {
-        console.log(`⚠️ [Analytics] Klient ${clientName} bez inwestycji`);
         return;
       }
 
@@ -129,13 +120,9 @@ const getOptimizedInvestorAnalytics = onCall({
       });
     });
 
-    console.log(`✅ [Analytics] Utworzono ${allInvestors.length} podsumowań inwestorów`);
-
     // 📊 Sortowanie według wybranego pola
     const sortBy = data.sortBy || 'viableRemainingCapital';
     const sortAscending = data.sortAscending || false;
-
-    console.log(`🔄 [Analytics] Sortowanie po ${sortBy}, rosnąco: ${sortAscending}`);
 
     allInvestors.sort((a, b) => {
       let valueA = a[sortBy] || (a.client && a.client[sortBy]) || 0;
@@ -157,8 +144,6 @@ const getOptimizedInvestorAnalytics = onCall({
     const startIndex = (page - 1) * pageSize;
     const endIndex = Math.min(startIndex + pageSize, allInvestors.length);
     const paginatedInvestors = allInvestors.slice(startIndex, endIndex);
-
-    console.log(`📄 [Analytics] Paginacja: strona ${page}, rozmiar ${pageSize}, zwracam ${paginatedInvestors.length}/${allInvestors.length} inwestorów`);
 
     // 📊 Oblicz statystyki - UŻYJ ZUNIFIKOWANYCH FUNKCJI
     const systemStats = calculateUnifiedSystemStats(investments);
@@ -206,11 +191,9 @@ const getOptimizedInvestorAnalytics = onCall({
     // 💾 Cache wyników na 10 minut
     await setCachedResult(cacheKey, result, 600);
 
-    console.log(`✅ [Analytics] Zakończono w ${result.executionTime}ms`);
     return result;
 
   } catch (error) {
-    console.error("❌ [Analytics] Błąd:", error);
     throw new HttpsError(
       "internal",
       "Nie udało się wykonać analizy inwestorów",
@@ -225,13 +208,11 @@ const getOptimizedInvestorAnalytics = onCall({
 const clearAnalyticsCache = onCall({
   cors: true,
 }, async (request) => {
-  console.log("🗑️ [Analytics] Czyszczenie cache...");
 
   try {
     // Wyczyść cache
     clearCache();
 
-    console.log("✅ [Analytics] Cache wyczyszczony pomyślnie");
     return {
       success: true,
       message: "Cache analityk został wyczyszczony",
@@ -239,7 +220,6 @@ const clearAnalyticsCache = onCall({
     };
 
   } catch (error) {
-    console.error("❌ [Analytics] Błąd czyszczenia cache:", error);
     throw new HttpsError(
       "internal",
       "Nie udało się wyczyścić cache",

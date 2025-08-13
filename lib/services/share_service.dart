@@ -9,7 +9,6 @@ class ShareService extends BaseService {
   )
   Future<List<Share>> getAllShares() async {
     // Return empty list as shares are now in investments collection
-    print('⚠️ [ShareService] DEPRECATED: Use UnifiedProductService instead');
     return [];
   }
 
@@ -17,7 +16,6 @@ class ShareService extends BaseService {
     'Use UnifiedProductService instead. Share data is now in investments collection.',
   )
   Future<Share?> getShare(String id) async {
-    print('⚠️ [ShareService] DEPRECATED: Use UnifiedProductService instead');
     return null;
   }
 

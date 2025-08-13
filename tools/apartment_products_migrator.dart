@@ -5,8 +5,6 @@ import 'dart:convert';
 /// i stworzenia odpowiednich wpisów w kolekcji products
 class ApartmentProductsMigrator {
   static Future<void> main() async {
-    print('🏠 APARTMENT PRODUCTS MIGRATOR 🏠');
-    print('=====================================\n');
 
     try {
       // 1. Wczytaj dane inwestycji
@@ -23,20 +21,13 @@ class ApartmentProductsMigrator {
       // 4. Generuj skrypt upload do Firebase
       await _generateFirebaseUploadScript(apartmentProducts);
 
-      print('\n✅ MIGRACJA APARTAMENTÓW ZAKOŃCZONA SUKCESEM!');
-      print('📁 Pliki wygenerowane:');
-      print(
-        '  - apartment_products.json (${apartmentProducts.length} produktów)',
-      );
       print('  - upload_apartments.js (skrypt Firebase)');
     } catch (e) {
-      print('❌ BŁĄD MIGRACJI: $e');
       exit(1);
     }
   }
 
   static Future<List<Map<String, dynamic>>> _loadInvestmentsData() async {
-    print('📂 Wczytuję dane inwestycji...');
 
     final investmentsFile = File('investments_data_complete.json');
     if (!investmentsFile.existsSync()) {
@@ -46,12 +37,10 @@ class ApartmentProductsMigrator {
           'Nie znaleziono pliku investments_data_complete.json ani investments_with_clients.json',
         );
       }
-      print('📄 Używam investments_with_clients.json');
       final jsonString = await altFile.readAsString();
       return List<Map<String, dynamic>>.from(json.decode(jsonString));
     }
 
-    print('📄 Używam investments_data_complete.json');
     final jsonString = await investmentsFile.readAsString();
     return List<Map<String, dynamic>>.from(json.decode(jsonString));
   }
@@ -59,17 +48,12 @@ class ApartmentProductsMigrator {
   static Future<List<Map<String, dynamic>>> _extractApartmentProducts(
     List<Map<String, dynamic>> investmentsData,
   ) async {
-    print('🔍 Ekstraktuję produkty apartamentowe...');
 
     // Znajdź wszystkie inwestycje apartamentowe
     final apartmentInvestments = investmentsData.where((investment) {
       final productType = investment['typ_produktu']?.toString().toLowerCase();
       return productType == 'apartamenty';
     }).toList();
-
-    print(
-      '📊 Znaleziono ${apartmentInvestments.length} inwestycji apartamentowych',
-    );
 
     // Grupuj po nazwie produktu i spółce
     final Map<String, Map<String, dynamic>> uniqueProducts = {};
@@ -170,12 +154,8 @@ class ApartmentProductsMigrator {
     }
 
     final products = uniqueProducts.values.toList();
-    print(
-      '🏗️  Utworzono ${products.length} unikalnych produktów apartamentowych',
-    );
 
     // Statystyki
-    print('\n📈 STATYSTYKI PRODUKTÓW APARTAMENTOWYCH:');
     final totalInvestments = products.fold<int>(
       0,
       (sum, p) => sum + (p['metadata']['totalInvestments'] as int),
@@ -185,22 +165,13 @@ class ApartmentProductsMigrator {
       (sum, p) => sum + (p['metadata']['totalAmount'] as double),
     );
 
-    print('  🏠 Unikalne produkty: ${products.length}');
-    print('  💼 Łączne inwestycje: $totalInvestments');
     print('  💰 Łączna wartość: ${totalAmount.toStringAsFixed(2)} PLN');
-    print(
-      '  📊 Średnia na produkt: ${(totalAmount / products.length).toStringAsFixed(2)} PLN',
-    );
 
     // Pokaż przykłady
-    print('\n📋 PRZYKŁADY PRODUKTÓW:');
     for (int i = 0; i < 5 && i < products.length; i++) {
       final p = products[i];
       final meta = p['metadata'] as Map<String, dynamic>;
       print('  ${i + 1}. ${p['name']} (${p['companyName']})');
-      print(
-        '     💰 ${meta['totalAmount']} PLN (${meta['totalInvestments']} inwestycji)',
-      );
     }
 
     return products;
@@ -209,18 +180,15 @@ class ApartmentProductsMigrator {
   static Future<void> _generateApartmentProductsFile(
     List<Map<String, dynamic>> products,
   ) async {
-    print('\n💾 Generuję plik apartment_products.json...');
 
     final file = File('apartment_products.json');
     await file.writeAsString(JsonEncoder.withIndent('  ').convert(products));
 
-    print('✅ Zapisano ${products.length} produktów do apartment_products.json');
   }
 
   static Future<void> _generateFirebaseUploadScript(
     List<Map<String, dynamic>> products,
   ) async {
-    print('🔥 Generuję skrypt Firebase upload_apartments.js...');
 
     final script = '''
 const { initializeApp } = require('firebase/app');
@@ -506,14 +474,6 @@ module.exports = { ApartmentProductsUploader };
     final file = File('upload_apartments.js');
     await file.writeAsString(script);
 
-    print('✅ Skrypt upload_apartments.js wygenerowany');
-    print('💡 Sposób użycia:');
-    print(
-      '   node upload_apartments.js           # Bezpieczny tryb (pomija duplikaty)',
-    );
-    print(
-      '   node upload_apartments.js --force   # Tryb force (nadpisuje duplikaty)',
-    );
   }
 
   static String _generateProductId(String productName, String companyName) {

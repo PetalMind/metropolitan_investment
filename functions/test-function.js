@@ -7,7 +7,6 @@ const {onCall} = require("firebase-functions/v2/https");
 exports.testFunction = onCall({
   region: "europe-west1",
 }, async (request) => {
-  console.log("🧪 [Test Function] Wywołana funkcja testowa");
 
   return {
     success: true,

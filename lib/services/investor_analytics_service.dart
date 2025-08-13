@@ -21,9 +21,6 @@ class InvestorAnalyticsService extends BaseService {
     double controlThreshold = 51.0,
   }) async {
     final startTime = DateTime.now();
-    print(
-      '📊 [MajorityControl] Rozpoczynam analizę kontroli ${controlThreshold}%...',
-    );
 
     try {
       // Pobierz wszystkich inwestorów
@@ -44,10 +41,6 @@ class InvestorAnalyticsService extends BaseService {
         (sum, investor) => sum + investor.viableRemainingCapital,
       );
 
-      print(
-        '📊 [MajorityControl] Całkowity kapitał pozostały: ${totalViableCapital.toStringAsFixed(2)} PLN',
-      );
-
       if (totalViableCapital <= 0) {
         return MajorityControlAnalysis.empty();
       }
@@ -58,10 +51,6 @@ class InvestorAnalyticsService extends BaseService {
       double cumulativeCapital = 0.0;
       double controlThresholdAmount =
           totalViableCapital * (controlThreshold / 100);
-
-      print(
-        '📊 [MajorityControl] Próg kontrolny: ${controlThresholdAmount.toStringAsFixed(2)} PLN (${controlThreshold}%)',
-      );
 
       for (final investor in allInvestors) {
         final previousCumulative = cumulativeCapital;
@@ -92,13 +81,6 @@ class InvestorAnalyticsService extends BaseService {
         (sum, investor) => sum + investor.summary.viableRemainingCapital,
       );
 
-      print(
-        '📊 [MajorityControl] Grupa kontrolna: ${controlInvestors.length} inwestorów z kapitałem ${controlGroupCapital.toStringAsFixed(2)} PLN',
-      );
-      print(
-        '📊 [MajorityControl] Analiza zakończona w ${DateTime.now().difference(startTime).inMilliseconds}ms',
-      );
-
       return MajorityControlAnalysis(
         allInvestors: allInvestorsWithInfo,
         controlGroupInvestors: controlInvestors,
@@ -109,7 +91,6 @@ class InvestorAnalyticsService extends BaseService {
         analysisDate: DateTime.now(),
       );
     } catch (e) {
-      print('❌ [MajorityControl] Błąd analizy: $e');
       logError('analyzeMajorityControl', e);
       return MajorityControlAnalysis.empty();
     }
@@ -119,7 +100,6 @@ class InvestorAnalyticsService extends BaseService {
   Future<VotingCapitalDistribution> analyzeVotingDistribution({
     bool includeInactive = false,
   }) async {
-    print('📊 [VotingDistribution] Rozpoczynam analizę rozkładu głosowania...');
 
     try {
       final allInvestors = await _loadAllInvestors(includeInactive);
@@ -148,18 +128,10 @@ class InvestorAnalyticsService extends BaseService {
         totalCapital += capital;
       }
 
-      print(
-        '📊 [VotingDistribution] Całkowity kapitał: ${totalCapital.toStringAsFixed(2)} PLN',
-      );
-      print('📊 [VotingDistribution] Rozkład według statusów:');
-
       for (final entry in distribution.entries) {
         final percentage = totalCapital > 0
             ? (entry.value / totalCapital) * 100
             : 0.0;
-        print(
-          '   ${entry.key.name}: ${entry.value.toStringAsFixed(2)} PLN (${percentage.toStringAsFixed(1)}%) - ${counts[entry.key]} inwestorów',
-        );
       }
 
       return VotingCapitalDistribution(
@@ -170,7 +142,6 @@ class InvestorAnalyticsService extends BaseService {
         analysisDate: DateTime.now(),
       );
     } catch (e) {
-      print('❌ [VotingDistribution] Błąd analizy: $e');
       logError('analyzeVotingDistribution', e);
       return VotingCapitalDistribution.empty();
     }
@@ -187,12 +158,6 @@ class InvestorAnalyticsService extends BaseService {
     ClientType? clientTypeFilter,
     bool showOnlyWithUnviableInvestments = false,
   }) async {
-    print(
-      '📊 [Analytics] Pobieranie inwestorów - strona $page, rozmiar $pageSize',
-    );
-    print(
-      '📊 [Analytics] Sortowanie: $sortBy (${sortAscending ? 'rosnąco' : 'malejąco'})',
-    );
 
     try {
       // Sprawdź cache
@@ -204,10 +169,8 @@ class InvestorAnalyticsService extends BaseService {
       List<InvestorSummary> allInvestors;
 
       if (isCacheValid) {
-        print('📊 [Analytics] Używam danych z cache');
         allInvestors = _investorsCache!.values.expand((x) => x).toList();
       } else {
-        print('📊 [Analytics] Ładuję świeże dane z bazy');
         allInvestors = await _loadAllInvestors(includeInactive);
 
         // Aktualizuj cache
@@ -241,10 +204,6 @@ class InvestorAnalyticsService extends BaseService {
             )
             .toList();
       }
-
-      print(
-        '📊 [Analytics] Po filtrowaniu: ${filteredInvestors.length} inwestorów',
-      );
 
       // Sortowanie
       filteredInvestors.sort((a, b) {
@@ -303,10 +262,6 @@ class InvestorAnalyticsService extends BaseService {
         (sum, investor) => sum + investor.viableRemainingCapital,
       );
 
-      print(
-        '📊 [Analytics] Całkowity kapitał (po filtrach): ${totalViableCapital.toStringAsFixed(2)} PLN',
-      );
-
       // Paginacja
       final totalCount = filteredInvestors.length;
       final totalPages = (totalCount / pageSize).ceil();
@@ -316,10 +271,6 @@ class InvestorAnalyticsService extends BaseService {
       final paginatedInvestors = filteredInvestors.sublist(
         startIndex,
         endIndex, // Usuń ograniczenie do 250
-      );
-
-      print(
-        '📄 [Analytics] Paginacja ZAKTUALIZOWANA: strona $page, rozmiar $pageSize, startIndex $startIndex, endIndex $endIndex, zwracam ${paginatedInvestors.length}/${filteredInvestors.length} inwestorów',
       );
 
       return InvestorAnalyticsResult(
@@ -333,7 +284,6 @@ class InvestorAnalyticsService extends BaseService {
         hasPreviousPage: page > 1,
       );
     } catch (e) {
-      print('❌ [Analytics] Błąd pobierania danych: $e');
       logError('getInvestorsSortedByRemainingCapital', e);
       rethrow;
     }
@@ -367,45 +317,29 @@ class InvestorAnalyticsService extends BaseService {
   Future<List<InvestorSummary>> getAllInvestorsForAnalysis({
     bool includeInactive = false,
   }) async {
-    print('📊 [Analytics] Pobieranie wszystkich inwestorów do analizy...');
 
     try {
       print('🔍 [DEBUG] Wywołuję _clientService.getAllClients()...');
       final clients = await _clientService.getAllClients();
-      print('📊 [Analytics] Znaleziono ${clients.length} klientów');
 
       // DODATKOWE SPRAWDZENIE - czy to rzeczywiście wszystkie dokumenty?
-      print('🔍 [DEBUG] Sprawdzenie bezpośrednio z Firestore...');
       final directCheck = await FirebaseFirestore.instance
           .collection('clients')
           .get();
-      print(
-        '🔍 [DEBUG] Bezpośrednie zapytanie Firestore: ${directCheck.docs.length} dokumentów',
-      );
 
       if (directCheck.docs.length != clients.length) {
-        print(
-          '⚠️ [WARNING] NIEZGODNOŚĆ! ClientService zwrócił ${clients.length}, ale Firestore ma ${directCheck.docs.length}',
-        );
       }
 
       // DEBUG: Sprawdź pierwsze kilku klientów
       if (clients.isNotEmpty) {
         final firstClient = clients.first;
-        print(
-          '🔍 [DEBUG] Pierwszy klient: ${firstClient.name} (ID: ${firstClient.id}, ExcelID: ${firstClient.excelId})',
-        );
       }
 
       final allInvestments = await _getAllInvestments();
-      print('📊 [Analytics] Znaleziono ${allInvestments.length} inwestycji');
 
       // DEBUG: Sprawdź pierwsze kilka inwestycji
       if (allInvestments.isNotEmpty) {
         final firstInvestment = allInvestments.first;
-        print(
-          '🔍 [DEBUG] Pierwsza inwestycja: ${firstInvestment.clientName} (ClientID: ${firstInvestment.clientId}, remainingCapital: ${firstInvestment.remainingCapital})',
-        );
       }
 
       // Grupa inwestycji według clientId (nie ExcelID!)
@@ -414,14 +348,6 @@ class InvestorAnalyticsService extends BaseService {
         final clientId = investment.clientId; // To powinno odpowiadać client.id
         investmentsByClientId.putIfAbsent(clientId, () => []).add(investment);
       }
-
-      print('📊 [Analytics] Grupowanie inwestycji według Client ID...');
-      print(
-        '🔍 [DEBUG] Unique Client IDs w inwestycjach: ${investmentsByClientId.keys.length}',
-      );
-      print(
-        '🔍 [DEBUG] Pierwsze 5 Client IDs w inwestycjach: ${investmentsByClientId.keys.take(5).toList()}',
-      );
 
       final List<InvestorSummary> investors = [];
 
@@ -434,17 +360,11 @@ class InvestorAnalyticsService extends BaseService {
         // 1. Sprawdź po excelId (to jest data['id'] number z Firebase jako string)
         if (client.excelId != null && client.excelId!.isNotEmpty) {
           clientInvestments = investmentsByClientId[client.excelId!] ?? [];
-          print(
-            '🔍 [DEBUG] Szukam inwestycji dla klienta ${client.name} po excelId: ${client.excelId}',
-          );
         }
 
         // 2. Jeśli nie znaleziono po excelId, spróbuj po Firebase doc ID
         if (clientInvestments.isEmpty) {
           clientInvestments = investmentsByClientId[client.id] ?? [];
-          print(
-            '🔍 [DEBUG] Szukam inwestycji dla klienta ${client.name} po Firebase ID: ${client.id}',
-          );
         }
 
         // 3. Jeśli nadal nie ma, spróbuj po nazwie klienta
@@ -456,16 +376,10 @@ class InvestorAnalyticsService extends BaseService {
             }
           }
           if (clientInvestments.isNotEmpty) {
-            print(
-              '🔍 [DEBUG] Znaleziono inwestycje dla ${client.name} po nazwie',
-            );
           }
         }
 
         if (clientInvestments.isEmpty) {
-          print(
-            '⚠️ [Analytics] Klient ${client.name} (Firebase ID: ${client.id}, ExcelID: ${client.excelId}) nie ma inwestycji',
-          );
           continue;
         }
 
@@ -473,9 +387,6 @@ class InvestorAnalyticsService extends BaseService {
         final totalCapital = clientInvestments.fold<double>(
           0.0,
           (sum, inv) => sum + inv.remainingCapital,
-        );
-        print(
-          '✅ [Analytics] Klient ${client.name}: ${clientInvestments.length} inwestycji, łączny kapitał: ${totalCapital.toStringAsFixed(2)}',
         );
 
         // 🚀 NOWE: Utwórz podsumowanie inwestora używając ServerSideStatisticsService
@@ -487,9 +398,6 @@ class InvestorAnalyticsService extends BaseService {
             );
 
         // DEBUG: Sprawdź viableRemainingCapital
-        print(
-          '🔍 [DEBUG] ${client.name} viableRemainingCapital (serwer): ${investorSummary.viableRemainingCapital}',
-        );
 
         investors.add(investorSummary);
       }
@@ -498,16 +406,9 @@ class InvestorAnalyticsService extends BaseService {
         0.0,
         (sum, inv) => sum + inv.viableRemainingCapital,
       );
-      print(
-        '📊 [Analytics] Utworzono ${investors.length} podsumowań inwestorów',
-      );
-      print(
-        '💰 [Analytics] Łączny kapitał wszystkich inwestorów: ${totalCapitalAllInvestors.toStringAsFixed(2)} PLN',
-      );
 
       return investors;
     } catch (e) {
-      print('❌ [Analytics] Błąd pobierania inwestorów: $e');
       logError('getAllInvestorsForAnalysis', e);
       rethrow;
     }
@@ -521,7 +422,6 @@ class InvestorAnalyticsService extends BaseService {
           .map((doc) => _convertExcelDataToInvestment(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      print('❌ [Analytics] Błąd pobierania inwestycji: $e');
       logError('_getAllInvestments', e);
       rethrow;
     }
@@ -533,9 +433,6 @@ class InvestorAnalyticsService extends BaseService {
     List<Investment> investments,
   ) async {
     try {
-      print(
-        '🚀 [InvestorAnalytics] Obliczanie statystyk dla ${client.name} na serwerze...',
-      );
 
       // Oblicz podstawowe sumy
       final totalInvestmentAmount = investments.fold(
@@ -573,9 +470,6 @@ class InvestorAnalyticsService extends BaseService {
         investmentCount: investments.length,
       );
     } catch (e) {
-      print(
-        '❌ [InvestorAnalytics] Błąd obliczeń serwerowych dla ${client.name}: $e',
-      );
 
       // ⚠️ DEPRECATED: Fallback do starych obliczeń - używaj withoutCalculations()
       return InvestorSummary.fromInvestments(client, investments);
@@ -602,13 +496,11 @@ class InvestorAnalyticsService extends BaseService {
 
         // Debug logging for problematic values
         if (value.contains(',')) {
-          print('🔍 [Analytics] Parsowanie wartości z przecinkiem: "$value"');
         }
         // Handle string values like "200,000.00" from Firebase
         final cleaned = value.toString().replaceAll(',', '');
         final parsed = double.tryParse(cleaned);
         if (parsed == null) {
-          print('❌ [Analytics] Nie można sparsować: "$value" -> "$cleaned"');
         }
         return parsed ?? 0.0;
       }
@@ -867,40 +759,27 @@ class InvestorAnalyticsService extends BaseService {
     String? updatedVia,
   }) async {
     try {
-      print('🔄 [InvestorAnalyticsService] Aktualizacja klienta: $clientId');
 
       // Spróbuj znaleźć prawdziwe Firestore ID jeśli to Excel ID
       String? actualFirestoreId = clientId;
 
       // Sprawdź czy to może być Excel ID (numeryczne)
       if (RegExp(r'^\d+$').hasMatch(clientId)) {
-        print(
-          '🔍 [InvestorAnalyticsService] Wykryto Excel ID, szukam Firestore ID...',
-        );
         actualFirestoreId = await _idMappingService.findFirestoreIdByExcelId(
           clientId,
         );
 
         if (actualFirestoreId == null) {
-          print(
-            '❌ [InvestorAnalyticsService] Nie znaleziono mapowania dla Excel ID: $clientId',
-          );
           throw Exception(
             'Cannot find Firestore ID for Excel ID: $clientId. The client may have been deleted or the ID mapping is incomplete.',
           );
         }
 
-        print(
-          '✅ [InvestorAnalyticsService] Zmapowano Excel ID $clientId -> Firestore ID $actualFirestoreId',
-        );
       }
 
       // Sprawdź czy klient istnieje w Firestore
       final exists = await _clientService.clientExists(actualFirestoreId);
       if (!exists) {
-        print(
-          '❌ [InvestorAnalyticsService] Klient $actualFirestoreId nie istnieje w Firestore',
-        );
         throw Exception(
           'Client with Firestore ID $actualFirestoreId does not exist',
         );
@@ -910,9 +789,6 @@ class InvestorAnalyticsService extends BaseService {
 
       // Handle voting status update with history using EnhancedVotingStatusService
       if (votingStatus != null) {
-        print(
-          '🗳️ [InvestorAnalyticsService] Aktualizacja statusu głosowania przez UnifiedVotingStatusService: ${votingStatus.displayName}',
-        );
 
         // Use UnifiedVotingStatusService for voting status with history
         final result = await _votingService.updateVotingStatus(
@@ -929,9 +805,6 @@ class InvestorAnalyticsService extends BaseService {
           additionalChanges: {'original_client_id': clientId},
         );
 
-        print(
-          '✅ [InvestorAnalyticsService] Status głosowania zaktualizowany: ${result.isSuccess}',
-        );
         if (!result.isSuccess) {
           throw Exception(
             'Błąd aktualizacji statusu głosowania: ${result.error}',
@@ -948,7 +821,6 @@ class InvestorAnalyticsService extends BaseService {
       }
       if (type != null) {
         updates['type'] = type; // Przekaż enum object
-        print('👤 [InvestorAnalyticsService] Typ klienta: ${type.displayName}');
       }
       if (isActive != null) {
         updates['isActive'] = isActive;
@@ -956,20 +828,13 @@ class InvestorAnalyticsService extends BaseService {
 
       // Update remaining non-voting fields if any
       if (updates.isNotEmpty) {
-        print(
-          '✅ [InvestorAnalyticsService] Aktualizuje pozostałe pola dla Firestore ID $actualFirestoreId: ${updates.keys.join(', ')}',
-        );
         await _clientService.updateClientFields(actualFirestoreId, updates);
       }
 
       // Clear analytics cache
       _clearAnalyticsCache();
 
-      print(
-        '✅ [InvestorAnalyticsService] Pomyślnie zaktualizowano klienta $actualFirestoreId (oryginalne ID: $clientId)',
-      );
     } catch (e) {
-      print('❌ [InvestorAnalyticsService] Błąd w updateInvestorDetails: $e');
       logError('updateInvestorDetails', e);
       rethrow;
     }
@@ -991,15 +856,9 @@ class InvestorAnalyticsService extends BaseService {
   /// Publiczna metoda czyszczenia cache dla całej analityki
   void clearAnalyticsCache() {
     _clearAnalyticsCache();
-    print(
-      '🗑️ [InvestorAnalyticsService] Publiczne czyszczenie cache analityk',
-    );
 
     // Asynchronicznie wyczyść także cache Firebase Functions
     _functionsService.clearServerCache().catchError((e) {
-      print(
-        '⚠️ [InvestorAnalyticsService] Nie udało się wyczyścić cache serwera: $e',
-      );
     });
   }
 
@@ -1030,9 +889,6 @@ class InvestorAnalyticsService extends BaseService {
     List<String> clientIds,
   ) async {
     try {
-      print(
-        '📧 [Analytics] Pobieranie inwestorów dla ${clientIds.length} klientów...',
-      );
 
       final allInvestors = await getAllInvestorsForAnalysis(
         includeInactive: true,
@@ -1041,10 +897,6 @@ class InvestorAnalyticsService extends BaseService {
       final filteredInvestors = allInvestors
           .where((investor) => clientIds.contains(investor.client.id))
           .toList();
-
-      print(
-        '📧 [Analytics] Znaleziono ${filteredInvestors.length} inwestorów z adresami email',
-      );
 
       return filteredInvestors;
     } catch (e) {
@@ -1058,7 +910,6 @@ class InvestorAnalyticsService extends BaseService {
   void clearCache(String key) {
     _investorsCache = null;
     _cacheTimestamp = null;
-    print('🗑️ [Analytics] Cache wyczyszczony');
   }
 }
 

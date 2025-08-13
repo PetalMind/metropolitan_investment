@@ -30,8 +30,9 @@ Future<void> main() async {
 
     // Setup Firebase Functions region
     FirebaseFunctions.instanceFor(region: 'europe-west1');
+    
   } catch (e) {
-    // Silent fail for production
+    // Don't fail completely, but log the error
   }
 
   runApp(

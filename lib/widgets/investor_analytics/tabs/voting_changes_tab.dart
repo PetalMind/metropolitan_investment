@@ -36,10 +36,6 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
       List<VotingStatusChange> changes = [];
 
       // Try by client ID first
-      print('🔍 [VotingChangesTab] Pobieranie zmian dla klienta:');
-      print('  - Nazwa: ${widget.investor.client.name}');
-      print('  - Client ID: "${widget.investor.client.id}"');
-      print('  - Excel ID: "${widget.investor.client.excelId}"');
 
       changes = await _changeService.getVotingStatusHistory(
         widget.investor.client.id,
@@ -47,17 +43,10 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
 
       // If empty and excelId exists, try that
       if (changes.isEmpty && widget.investor.client.excelId != null) {
-        print(
-          '🔍 [VotingChangesTab] Brak zmian dla ID ${widget.investor.client.id}, próbuję excelId: ${widget.investor.client.excelId}',
-        );
         changes = await _changeService.getVotingStatusHistory(
           widget.investor.client.excelId!,
         );
       }
-
-      print(
-        '✅ [VotingChangesTab] Loaded ${changes.length} changes for ${widget.investor.client.name}',
-      );
 
       if (mounted) {
         setState(() {
@@ -66,7 +55,6 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
         });
       }
     } catch (e) {
-      print('❌ [VotingChangesTab] Error loading changes: $e');
       if (mounted) {
         setState(() {
           _error = e.toString();

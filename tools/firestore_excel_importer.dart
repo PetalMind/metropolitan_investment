@@ -22,15 +22,12 @@ class FirestoreExcelImporter {
         options: DefaultFirebaseOptions.currentPlatform,
       );
       _firestore = FirebaseFirestore.instance;
-      print('✅ Firebase zainicjalizowany pomyślnie');
     } catch (e) {
-      print('❌ Błąd inicjalizacji Firebase: $e');
       throw e;
     }
   }
 
   static Future<void> importAllDataToFirestore() async {
-    print('🚀 Rozpoczynam PEŁNY import danych do Cloud Firestore...\n');
 
     await initializeFirebase();
 
@@ -52,12 +49,10 @@ class FirestoreExcelImporter {
     // 6. Import podsumowań (udziały, obligacje, pożyczki)
     await importInvestmentSummariesToFirestore();
 
-    print('\n🎉 IMPORT DO FIRESTORE ZAKOŃCZONY SUKCESEM!');
     await generateFirestoreReport();
   }
 
   static Future<void> importClientsToFirestore() async {
-    print('👥 Importuję klientów do Firestore...');
 
     final clientsFile = 'Klienci MISA all maile i telefony.xlsx';
     var bytes = File(clientsFile).readAsBytesSync();
@@ -106,7 +101,6 @@ class FirestoreExcelImporter {
           if (batchCount >= _batchSize) {
             await batch.commit();
             totalImported += batchCount;
-            print('  📝 Zapisano ${totalImported} klientów...');
             batchCount = 0;
           }
         }
@@ -123,11 +117,9 @@ class FirestoreExcelImporter {
       'client_name_to_id_mapping.json',
     ).writeAsString(JsonEncoder.withIndent('  ').convert(clientNameToId));
 
-    print('✅ Zaimportowano ${totalImported} klientów do Firestore');
   }
 
   static Future<void> importCompaniesToFirestore() async {
-    print('🏢 Importuję firmy do Firestore...');
 
     final investmentsFile = 'Kopia 20200619 Aktywni klienci.xlsx';
     var bytes = File(investmentsFile).readAsBytesSync();
@@ -191,11 +183,9 @@ class FirestoreExcelImporter {
       await batch.commit();
     }
 
-    print('✅ Zaimportowano ${uniqueCompanies.length} firm do Firestore');
   }
 
   static Future<void> importEmployeesToFirestore() async {
-    print('👨‍💼 Importuję pracowników do Firestore...');
 
     final investmentsFile = 'Kopia 20200619 Aktywni klienci.xlsx';
     var bytes = File(investmentsFile).readAsBytesSync();
@@ -262,11 +252,9 @@ class FirestoreExcelImporter {
       await batch.commit();
     }
 
-    print('✅ Zaimportowano ${uniqueEmployees.length} pracowników do Firestore');
   }
 
   static Future<void> importProductsToFirestore() async {
-    print('📦 Importuję produkty do Firestore...');
 
     final investmentsFile = 'Kopia 20200619 Aktywni klienci.xlsx';
     var bytes = File(investmentsFile).readAsBytesSync();
@@ -340,11 +328,9 @@ class FirestoreExcelImporter {
       await batch.commit();
     }
 
-    print('✅ Zaimportowano ${uniqueProducts.length} produktów do Firestore');
   }
 
   static Future<void> importInvestmentsToFirestore() async {
-    print('💰 Importuję inwestycje do Firestore...');
 
     // Wczytaj mapowanie klientów
     Map<String, String> clientMapping = {};
@@ -358,7 +344,6 @@ class FirestoreExcelImporter {
         );
       }
     } catch (e) {
-      print('⚠️  Nie można wczytać mapowania klientów: $e');
     }
 
     final investmentsFile = 'Kopia 20200619 Aktywni klienci.xlsx';
@@ -447,11 +432,9 @@ class FirestoreExcelImporter {
           if (batchCount >= _batchSize) {
             await batch.commit();
             totalImported += batchCount;
-            print('  💰 Zapisano ${totalImported} inwestycji...');
             batchCount = 0;
           }
         } catch (e) {
-          print('⚠️  Błąd podczas przetwarzania wiersza $i: $e');
         }
       }
     }
@@ -461,11 +444,9 @@ class FirestoreExcelImporter {
       totalImported += batchCount;
     }
 
-    print('✅ Zaimportowano ${totalImported} inwestycji do Firestore');
   }
 
   static Future<void> importInvestmentSummariesToFirestore() async {
-    print('📊 Importuję podsumowania inwestycji do Firestore...');
 
     final investmentsFile = 'Kopia 20200619 Aktywni klienci.xlsx';
     var bytes = File(investmentsFile).readAsBytesSync();
@@ -492,7 +473,6 @@ class FirestoreExcelImporter {
       'investment_summaries_loans',
     );
 
-    print('✅ Zaimportowano podsumowania inwestycji do Firestore');
   }
 
   static Future<void> _importSheetToCollection(
@@ -561,11 +541,9 @@ class FirestoreExcelImporter {
       await batch.commit();
     }
 
-    print('  📊 Zaimportowano dane z arkusza: $sheetName');
   }
 
   static Future<void> generateFirestoreReport() async {
-    print('\n📈 Generuję raport z Firestore...');
 
     try {
       final clientsCount = await _firestore!
@@ -610,16 +588,7 @@ class FirestoreExcelImporter {
         'firestore_import_report.json',
       ).writeAsString(JsonEncoder.withIndent('  ').convert(report));
 
-      print('✅ Raport Firestore zapisany w firestore_import_report.json');
-      print('\n🏆 STATYSTYKI FIRESTORE:');
-      print('Klienci: ${clientsCount.count}');
-      print('Firmy: ${companiesCount.count}');
-      print('Pracownicy: ${employeesCount.count}');
-      print('Produkty: ${productsCount.count}');
-      print('Inwestycje: ${investmentsCount.count}');
-      print('ŁĄCZNIE DOKUMENTÓW: ${report['total_documents']}');
     } catch (e) {
-      print('❌ Błąd podczas generowania raportu: $e');
     }
   }
 
@@ -662,13 +631,9 @@ class FirestoreExcelImporter {
 
 void main() async {
   try {
-    print('🔥 FIRESTORE EXCEL IMPORTER 🔥');
-    print('==============================\n');
 
     await FirestoreExcelImporter.importAllDataToFirestore();
 
-    print('\n🎊 IMPORT DO CLOUD FIRESTORE ZAKOŃCZONY!');
-    print('Dane zostały zaimportowane do następujących kolekcji:');
     print('• clients (klienci)');
     print('• companies (firmy)');
     print('• employees (pracownicy)');
@@ -678,7 +643,6 @@ void main() async {
     print('• investment_summaries_bonds (podsumowania obligacji)');
     print('• investment_summaries_loans (podsumowania pożyczek)');
   } catch (e) {
-    print('💥 KRYTYCZNY BŁĄD PODCZAS IMPORTU: $e');
     exit(1);
   }
 }

@@ -29,7 +29,6 @@ function convertToFirebaseTimestamp(dateString) {
     const date = new Date(dateString);
     return admin.firestore.Timestamp.fromDate(date);
   } catch (error) {
-    console.warn(`Błąd konwersji daty: ${dateString}`, error);
     return admin.firestore.Timestamp.now();
   }
 }
@@ -106,7 +105,6 @@ function mapClientToFirebaseFormat(client) {
  */
 async function loadClientsData(filePath) {
   try {
-    console.log(`📂 Ładowanie danych z: ${filePath}`);
     const data = await fs.readFile(filePath, 'utf8');
     const clients = JSON.parse(data);
 
@@ -121,7 +119,6 @@ async function loadClientsData(filePath) {
     console.log(`✅ Załadowano ${validClients.length} prawidłowych klientów (z ${clients.length} rekordów)`);
     return validClients;
   } catch (error) {
-    console.error('❌ Błąd podczas ładowania pliku:', error);
     throw error;
   }
 }
@@ -136,7 +133,6 @@ async function clientExists(clientId) {
     const doc = await db.collection('clients').doc(clientId).get();
     return doc.exists;
   } catch (error) {
-    console.warn(`⚠️ Błąd sprawdzania istnienia klienta ${clientId}:`, error);
     return false;
   }
 }
@@ -173,7 +169,6 @@ async function addClientToFirestore(clientData, overwrite = false) {
     };
 
   } catch (error) {
-    console.error(`❌ Błąd dodawania klienta ${clientData.documentId}:`, error);
     return {
       success: false,
       clientId: clientData.documentId,
@@ -194,16 +189,12 @@ async function uploadAllClients(options = {}) {
     dryRun = false
   } = options;
 
-  console.log('🚀 Rozpoczynanie uploadu klientów do Firebase...');
-  console.log(`📋 Opcje: overwrite=${overwrite}, batchSize=${batchSize}, dryRun=${dryRun}`);
-
   try {
     // Ładowanie danych
     const clientsFile = path.join(__dirname, 'split_investment_data_normalized', 'clients_normalized.json');
     const clients = await loadClientsData(clientsFile);
 
     if (clients.length === 0) {
-      console.log('⚠️ Brak klientów do przetworzenia');
       return;
     }
 
@@ -217,8 +208,6 @@ async function uploadAllClients(options = {}) {
       errors: 0
     };
 
-    console.log(`\n📊 Rozpoczynanie przetwarzania ${stats.total} klientów...`);
-
     // Przetwarzanie w batches
     for (let i = 0; i < clients.length; i += batchSize) {
       const batch = clients.slice(i, i + batchSize);
@@ -231,7 +220,6 @@ async function uploadAllClients(options = {}) {
           const clientData = mapClientToFirebaseFormat(client);
 
           if (dryRun) {
-            console.log(`🔍 [DRY RUN] Klient ${client.id}: ${client.fullName}`);
             return { success: true, clientId: client.id, action: 'dry_run' };
           }
 
@@ -240,7 +228,6 @@ async function uploadAllClients(options = {}) {
           // Logowanie postępu
           if (result.success) {
             const action = result.action === 'created' ? '✅' : '🔄';
-            console.log(`${action} ${client.id}: ${client.fullName}`);
           } else if (result.reason === 'already_exists') {
             console.log(`⏭️ ${client.id}: ${client.fullName} (już istnieje)`);
           } else {
@@ -250,7 +237,6 @@ async function uploadAllClients(options = {}) {
           return result;
 
         } catch (error) {
-          console.error(`❌ Błąd przetwarzania klienta ${client.id}:`, error);
           return {
             success: false,
             clientId: client.id,
@@ -283,23 +269,15 @@ async function uploadAllClients(options = {}) {
 
     // Podsumowanie
     console.log('\n' + '='.repeat(50));
-    console.log('📊 PODSUMOWANIE UPLOADU');
     console.log('='.repeat(50));
-    console.log(`📋 Łącznie przetworzonych: ${stats.processed}/${stats.total}`);
-    console.log(`✅ Utworzonych: ${stats.created}`);
-    console.log(`🔄 Zaktualizowanych: ${stats.updated}`);
     console.log(`⏭️ Pominiętych (już istnieją): ${stats.skipped}`);
-    console.log(`❌ Błędów: ${stats.errors}`);
     console.log('='.repeat(50));
 
     if (stats.errors === 0) {
-      console.log('🎉 Upload zakończony pomyślnie!');
     } else {
-      console.log('⚠️ Upload zakończony z błędami. Sprawdź logi powyżej.');
     }
 
   } catch (error) {
-    console.error('💥 Krytyczny błąd podczas uploadu:', error);
     process.exit(1);
   }
 }
@@ -309,7 +287,6 @@ async function uploadAllClients(options = {}) {
  */
 async function testFirebaseConnection() {
   try {
-    console.log('🔍 Testowanie połączenia z Firebase...');
 
     // Test zapisu
     const testDoc = db.collection('test').doc('connection_test');
@@ -321,7 +298,6 @@ async function testFirebaseConnection() {
     // Test odczytu
     const doc = await testDoc.get();
     if (doc.exists) {
-      console.log('✅ Połączenie z Firebase działa poprawnie');
 
       // Usunięcie dokumentu testowego
       await testDoc.delete();
@@ -330,7 +306,6 @@ async function testFirebaseConnection() {
 
     return false;
   } catch (error) {
-    console.error('❌ Błąd połączenia z Firebase:', error);
     return false;
   }
 }
@@ -377,10 +352,8 @@ Przykłady:
     }
 
     // Test połączenia przed głównym uploadem
-    console.log('🔍 Sprawdzanie połączenia z Firebase...');
     const connected = await testFirebaseConnection();
     if (!connected) {
-      console.error('❌ Nie można nawiązać połączenia z Firebase. Sprawdź konfigurację.');
       process.exit(1);
     }
 
@@ -388,11 +361,9 @@ Przykłady:
     await uploadAllClients(options);
 
   } catch (error) {
-    console.error('💥 Nieoczekiwany błąd:', error);
     process.exit(1);
   } finally {
     // Zakończenie połączenia
-    console.log('👋 Zamykanie połączenia...');
     process.exit(0);
   }
 }

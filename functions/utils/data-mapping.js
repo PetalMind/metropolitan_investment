@@ -12,7 +12,6 @@ function safeToDouble(value) {
 
   // Handle "NULL" string literal
   if (typeof value === "string" && (value.toUpperCase() === "NULL" || value.trim() === "")) {
-    console.log(`❌ [Analytics] Nie można sparsować: "${value}" -> "${value}"`);
     return 0.0;
   }
 
@@ -28,12 +27,10 @@ function safeToDouble(value) {
 
     // Empty string after trim
     if (trimmed === "") {
-      console.log(`❌ [Analytics] Nie można sparsować: "${value}" -> "${value}"`);
       return 0.0;
     }
 
     // Handle comma-separated numbers (European format)
-    console.log(`🔍 [Analytics] Parsowanie wartości z przecinkiem: "${trimmed}"`);
 
     // Obsługuj polskie separatory dziesiętne i tysiące
     let cleaned = trimmed
@@ -44,7 +41,6 @@ function safeToDouble(value) {
     const parsed = parseFloat(cleaned);
 
     if (isNaN(parsed) || !isFinite(parsed)) {
-      console.log(`❌ [Analytics] Nie można sparsować: "${value}" -> "${value}"`);
       return 0.0;
     }
 
@@ -52,7 +48,6 @@ function safeToDouble(value) {
   }
 
   // Fallback for other types
-  console.log(`❌ [Analytics] Niepodporowany typ dla: "${value}"`);
   return 0.0;
 }
 
@@ -115,7 +110,6 @@ function parseDate(value) {
 
     return null;
   } catch (error) {
-    console.warn("Błąd parsowania daty:", value, error);
     return null;
   }
 }

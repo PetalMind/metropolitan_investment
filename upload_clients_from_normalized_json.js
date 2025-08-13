@@ -26,7 +26,6 @@ function parseDate(dateString) {
     const date = new Date(dateString);
     return admin.firestore.Timestamp.fromDate(date);
   } catch (error) {
-    console.log(`⚠️ Date parsing error "${dateString}": ${error.message}`);
     return admin.firestore.Timestamp.now();
   }
 }
@@ -104,7 +103,6 @@ function convertClientData(client) {
 
 async function uploadClientsToFirestore() {
   try {
-    console.log('🚀 Starting client upload to Firestore...');
 
     // Load data from JSON file with complete client data
     // Sprawdź różne możliwe pliki z danymi - priorytet dla clients_normalized_updated.json
@@ -119,7 +117,6 @@ async function uploadClientsToFirestore() {
 
     for (const filePath of possiblePaths) {
       if (fs.existsSync(filePath)) {
-        console.log(`📁 Found data file: ${filePath}`);
         jsonPath = filePath;
         break;
       }
@@ -132,7 +129,6 @@ async function uploadClientsToFirestore() {
     const rawData = fs.readFileSync(jsonPath, 'utf8');
     clientsData = JSON.parse(rawData);
 
-    console.log(`📁 Loading from: ${jsonPath}`);
     console.log(`📊 Found ${clientsData.length} clients to upload (will upload ALL records, including duplicates)`);
 
     let batch = db.batch();
@@ -150,7 +146,6 @@ async function uploadClientsToFirestore() {
 
       // Skip tylko całkowicie puste obiekty
       if (!client) {
-        console.log(`⚠️ Skipping null client at index ${i}`);
         continue;
       }
 
@@ -164,7 +159,6 @@ async function uploadClientsToFirestore() {
         const counter = excelIdCounters.get(excelId) + 1;
         excelIdCounters.set(excelId, counter);
         documentId = `${excelId}_dup${counter}`;
-        console.log(`🔄 Duplicate excelId ${excelId}, using document ID: ${documentId}`);
       } else {
         excelIdCounters.set(excelId, 0);
       }
@@ -184,13 +178,11 @@ async function uploadClientsToFirestore() {
 
         // Execute batch every batchSize operations or at the end
         if (batchOperations >= batchSize || i === clientsData.length - 1) {
-          console.log(`🔄 Executing batch ${batchNumber} with ${batchOperations} operations...`);
           await batch.commit();
           console.log(`✅ Uploaded ${processedCount} clients (batch ${batchNumber} completed)`);
 
           // Verify batch execution by checking collection size
           const currentSnapshot = await db.collection('clients').get();
-          console.log(`📊 Current Firestore collection size: ${currentSnapshot.size} documents`);
 
           // Create new batch for next operations
           if (i < clientsData.length - 1) {
@@ -202,23 +194,15 @@ async function uploadClientsToFirestore() {
 
         // Progress indicator
         if (processedCount % 100 === 0) {
-          console.log(`📈 Processed ${processedCount}/${clientsData.length} clients`);
         }
 
       } catch (error) {
         errorCount++;
-        console.error(`❌ Error processing client ${client.excelId}:`, error.message);
 
         // Continue with next client
         continue;
       }
     }
-
-    console.log('\n🎉 Upload completed!');
-    console.log(`✅ Successfully uploaded: ${processedCount} clients`);
-    console.log(`❌ Errors: ${errorCount}`);
-    console.log(`📊 Total records processed: ${clientsData.length}`);
-    console.log(`🔢 ExcelId counters: ${excelIdCounters.size} unique base excelIds`);
 
     // Count duplicates
     let duplicateCount = 0;
@@ -229,37 +213,28 @@ async function uploadClientsToFirestore() {
       }
     });
 
-    console.log(`🔄 Total duplicates handled: ${duplicateCount}`);
-
     // Check number of documents in collection
     const snapshot = await db.collection('clients').get();
-    console.log(`📋 Final documents in 'clients' collection: ${snapshot.size}`);
 
     // SUCCESS ANALYSIS
     if (snapshot.size === processedCount) {
-      console.log(`✅ SUCCESS: All ${processedCount} records uploaded successfully!`);
     } else {
-      console.log(`🚨 MISMATCH: Expected ${processedCount} documents, but Firestore has ${snapshot.size}`);
 
       // Sample check - verify some documents exist
-      console.log('\n🔍 Verifying random sample of uploaded documents...');
       const sampleExcelIds = Array.from(excelIdCounters.keys()).slice(0, 5);
       for (const excelId of sampleExcelIds) {
         const docRef = db.collection('clients').doc(excelId);
         const docSnap = await docRef.get();
-        console.log(`   Doc ${excelId}: ${docSnap.exists ? 'EXISTS' : 'MISSING'}`);
 
         // Check duplicates too
         if (excelIdCounters.get(excelId) > 0) {
           const dupRef = db.collection('clients').doc(`${excelId}_dup1`);
           const dupSnap = await dupRef.get();
-          console.log(`   Doc ${excelId}_dup1: ${dupSnap.exists ? 'EXISTS' : 'MISSING'}`);
         }
       }
     }
 
     // Final data verification
-    console.log('\n🔍 Final verification - checking uploaded data...');
     const sampleDocs = await db.collection('clients').limit(3).get();
     let emailCount = 0, phoneCount = 0;
 
@@ -269,10 +244,7 @@ async function uploadClientsToFirestore() {
       if (data.phone && data.phone.trim() !== '') phoneCount++;
     });
 
-    console.log(`Sample check: ${emailCount}/3 have email, ${phoneCount}/3 have phone`);
-
   } catch (error) {
-    console.error('❌ Main application error:', error);
     process.exit(1);
   }
 }
@@ -290,7 +262,6 @@ async function verifyData() {
     let jsonPath;
     for (const filePath of possiblePaths) {
       if (fs.existsSync(filePath)) {
-        console.log(`📁 Found data file for verification: ${filePath}`);
         jsonPath = filePath;
         break;
       }
@@ -303,23 +274,14 @@ async function verifyData() {
     const rawData = fs.readFileSync(jsonPath, 'utf8');
     const clientsData = JSON.parse(rawData);
 
-    console.log('🔍 Data verification...');
-    console.log(`📁 Reading from: ${jsonPath}`);
-    console.log(`Total records in JSON file: ${clientsData.length}`);
-
     const validClients = clientsData.filter(client => client && client.excelId);
-    console.log(`Valid records with excelId: ${validClients.length}`);
 
     const uniqueExcelIds = new Set(validClients.map(c => c.excelId));
-    console.log(`Unique excelIds: ${uniqueExcelIds.size}`);
 
     // Check current Firestore collection size
-    console.log('\n📊 Current Firestore state...');
     const currentSnapshot = await db.collection('clients').get();
-    console.log(`Current documents in Firestore 'clients' collection: ${currentSnapshot.size}`);
 
     if (validClients.length !== uniqueExcelIds.size) {
-      console.log('⚠️ WARNING: Found duplicate excelIds!');
 
       // Find duplicates
       const excelIdCounts = {};
@@ -328,11 +290,9 @@ async function verifyData() {
       });
 
       const duplicates = Object.entries(excelIdCounts).filter(([id, count]) => count > 1);
-      console.log('Duplicates:', duplicates);
     }
 
     // Sample record
-    console.log('\n📋 Sample converted record:');
     if (validClients.length > 0) {
       const example = convertClientData(validClients[0]);
       console.log(JSON.stringify(example, null, 2));
@@ -342,12 +302,10 @@ async function verifyData() {
     const withEmail = validClients.filter(c => c.email && c.email !== 'brak').length;
     const withPhone = validClients.filter(c => c.phone && c.phone.trim() !== '').length;
 
-    console.log(`\n📊 Data completeness:`);
     console.log(`Clients with email: ${withEmail}/${validClients.length} (${Math.round(withEmail / validClients.length * 100)}%)`);
     console.log(`Clients with phone: ${withPhone}/${validClients.length} (${Math.round(withPhone / validClients.length * 100)}%)`);
 
   } catch (error) {
-    console.error('❌ Verification error:', error);
   }
 }
 
@@ -385,7 +343,6 @@ async function main() {
     if (answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes') {
       await uploadClientsToFirestore();
     } else {
-      console.log('🛑 Cancelled by user');
     }
     readline.close();
     process.exit(0);
@@ -394,12 +351,10 @@ async function main() {
 
 // Handle errors and graceful shutdown
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled rejection:', reason);
   process.exit(1);
 });
 
 process.on('SIGINT', () => {
-  console.log('\n🛑 Interrupted by user');
   process.exit(0);
 });
 

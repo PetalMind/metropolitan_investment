@@ -8,7 +8,6 @@ class UnifiedStatisticsService {
     bool isLoadingInvestors = false,
   }) {
     if (investors.isEmpty || isLoadingInvestors) {
-      print('⚠️ [UnifiedStatisticsService] Brak inwestorów do analizowania');
       return UnifiedProductStatistics(
         totalInvestmentAmount: 0,
         totalRemainingCapital: 0,
@@ -28,10 +27,6 @@ class UnifiedStatisticsService {
     int activeInvestorsCount = 0;
     bool hasInactiveInvestors = false;
 
-    print(
-      '🔥 [UnifiedStatisticsService] OBLICZANIE STATYSTYK PRODUKTU: $productName',
-    );
-
     for (final investor in investors) {
       if (investor.client.votingStatus.name == 'inactive') {
         hasInactiveInvestors = true;
@@ -47,7 +42,6 @@ class UnifiedStatisticsService {
         if (investment.productName == productName) {
           // 🚨 DEDUPLIKACJA - sprawdź czy już przetwarzaliśmy tę inwestycję
           if (processedInvestmentIds.contains(investment.id)) {
-            print('    ⚠️ DUPLIKAT POMINIĘTY: ${investment.id}');
             continue;
           }
           processedInvestmentIds.add(investment.id);
@@ -57,12 +51,6 @@ class UnifiedStatisticsService {
           totalRemainingCapital += investment.remainingCapital;
           totalCapitalForRestructuring += investment.capitalForRestructuring;
 
-          print('  ✅ ${investor.client.name}: ${investment.productName}');
-          print('    * investmentAmount: ${investment.investmentAmount}');
-          print('    * remainingCapital: ${investment.remainingCapital}');
-          print(
-            '    * capitalForRestructuring: ${investment.capitalForRestructuring}',
-          );
         }
       }
     }
@@ -73,13 +61,6 @@ class UnifiedStatisticsService {
           0.0,
           double.infinity,
         );
-
-    print('🧮 [UnifiedStatisticsService] OBLICZANIE KOŃCOWE:');
-    print('  - totalRemainingCapital: $totalRemainingCapital');
-    print('  - totalCapitalForRestructuring: $totalCapitalForRestructuring');
-    print(
-      '  - 🔥 totalCapitalSecuredByRealEstate = $totalRemainingCapital - $totalCapitalForRestructuring = $totalCapitalSecuredByRealEstate',
-    );
 
     // Oblicz pozostałe metryki
     final viableCapital = totalRemainingCapital;
@@ -99,15 +80,6 @@ class UnifiedStatisticsService {
       majorityVotingCapacity: majorityVotingCapacity,
       hasInactiveInvestors: hasInactiveInvestors,
     );
-
-    print('📊 [UnifiedStatisticsService] KOŃCOWE ZUNIFIKOWANE STATYSTYKI:');
-    print('  - totalInvestmentAmount: $totalInvestmentAmount');
-    print('  - totalRemainingCapital: $totalRemainingCapital');
-    print(
-      '  - ⭐ totalCapitalSecuredByRealEstate: $totalCapitalSecuredByRealEstate',
-    );
-    print('  - viableCapital: $viableCapital');
-    print('  - investorsCount: ${investors.length}');
 
     return statistics;
   }

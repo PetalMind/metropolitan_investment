@@ -21,12 +21,8 @@ class AdvancedAnalyticsService extends BaseService {
   /// Oblicza zaawansowane metryki
   Future<AdvancedDashboardMetrics> _calculateAdvancedMetrics() async {
     try {
-      print(
-        '🔍 [AdvancedAnalytics] Rozpoczynam obliczanie zaawansowanych metryk...',
-      );
 
       final investments = await _getAllInvestments();
-      print('🔍 [AdvancedAnalytics] Pobrano ${investments.length} inwestycji');
 
       final metrics = AdvancedDashboardMetrics(
         portfolioMetrics: await _calculatePortfolioMetrics(investments),
@@ -41,7 +37,6 @@ class AdvancedAnalyticsService extends BaseService {
         benchmarkMetrics: _calculateBenchmarkMetrics(investments),
       );
 
-      print('🔍 [AdvancedAnalytics] Zakończono obliczanie metryk');
       return metrics;
     } catch (e) {
       logError('_calculateAdvancedMetrics', e);
@@ -52,9 +47,6 @@ class AdvancedAnalyticsService extends BaseService {
   /// Pobiera wszystkie inwestycje z kolekcji investments (zunifikowane)
   Future<List<Investment>> _getAllInvestments() async {
     try {
-      print(
-        '🔍 [AdvancedAnalytics] Pobieranie inwestycji z kolekcji investments...',
-      );
 
       // Pobranie danych z zunifikowanej kolekcji investments
       final investmentsSnapshot = await firestore
@@ -65,10 +57,6 @@ class AdvancedAnalyticsService extends BaseService {
       final investments = investmentsSnapshot.docs.map((doc) {
         return _convertUnifiedInvestmentData(doc.id, doc.data());
       }).toList();
-
-      print(
-        '🔍 [AdvancedAnalytics] Pobrano ${investments.length} inwestycji z zunifikowanej kolekcji',
-      );
 
       return investments;
     } catch (e) {
@@ -88,23 +76,8 @@ class AdvancedAnalyticsService extends BaseService {
     double totalInterest = 0;
     int activeCount = 0;
 
-    print('🔍 [AdvancedAnalytics] Analiza ${investments.length} inwestycji...');
-
     for (final investment in investments) {
       if (totalValue == 0 && totalInvested == 0) {
-        print(
-          '🔍 [AdvancedAnalytics] Sample investment: ${investment.clientName}',
-        );
-        print('🔍 [AdvancedAnalytics] - totalValue: ${investment.totalValue}');
-        print(
-          '🔍 [AdvancedAnalytics] - investmentAmount: ${investment.investmentAmount}',
-        );
-        print(
-          '🔍 [AdvancedAnalytics] - realizedCapital: ${investment.realizedCapital}',
-        );
-        print(
-          '🔍 [AdvancedAnalytics] - remainingCapital: ${investment.remainingCapital}',
-        );
       }
 
       totalValue += investment.totalValue;
@@ -118,10 +91,6 @@ class AdvancedAnalyticsService extends BaseService {
         activeCount++;
       }
     }
-
-    print(
-      '🔍 [AdvancedAnalytics] Sumy: totalValue=$totalValue, totalInvested=$totalInvested',
-    );
 
     final totalProfit = totalRealized + totalInterest - totalInvested;
     final roi = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0.0;

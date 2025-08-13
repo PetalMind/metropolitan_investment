@@ -86,7 +86,6 @@ const getUnifiedProductStatistics = onCall({
   cors: true,
 }, async (request) => {
   const data = request.data || {};
-  console.log("📊 [Product Statistics] Rozpoczynam analizę statystyk produktów...");
 
   try {
     const { forceRefresh = false } = data;
@@ -96,16 +95,12 @@ const getUnifiedProductStatistics = onCall({
     if (!forceRefresh) {
       const cached = await getCachedResult(cacheKey);
       if (cached) {
-        console.log("⚡ [Product Statistics] Zwracam z cache");
         return cached;
       }
     }
 
     // Pobierz dane bezpośrednio z kolekcji 'investments'
-    console.log("📊 [Product Statistics] Pobieranie danych z kolekcji 'investments'...");
     const investmentsSnapshot = await db.collection("investments").get();
-
-    console.log(`📊 [Product Statistics] Pobrano ${investmentsSnapshot.size} dokumentów`);
 
     if (investmentsSnapshot.size === 0) {
       const emptyStats = {
@@ -151,7 +146,6 @@ const getUnifiedProductStatistics = onCall({
         const product = convertDocumentForAnalysis(doc.id, data);
         products.push(product);
       } catch (error) {
-        console.warn(`⚠️ [Product Statistics] Błąd konwersji dokumentu ${doc.id}:`, error);
       }
     });
 
@@ -306,11 +300,9 @@ const getUnifiedProductStatistics = onCall({
     // 💾 Cache wyników na 5 minut
     await setCachedResult(cacheKey, result, 300);
 
-    console.log(`✅ [Product Statistics] Wygenerowano statystyki dla ${totalProducts} produktów`);
     return result;
 
   } catch (error) {
-    console.error("❌ [Product Statistics] Błąd:", error);
     throw new HttpsError(
       "internal",
       "Nie udało się wygenerować statystyk produktów",

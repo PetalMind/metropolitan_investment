@@ -626,17 +626,11 @@ class Investment {
 
         // Debug logging for problematic values
         if (value.contains(',')) {
-          print(
-            '🔍 [Investment.fromServerMap] Parsowanie wartości z przecinkiem: "$value"',
-          );
         }
         // Handle Polish number format with comma as thousands separator
         final cleaned = value.toString().replaceAll(',', '');
         final parsed = double.tryParse(cleaned);
         if (parsed == null) {
-          print(
-            '❌ [Investment.fromServerMap] Nie można sparsować: "$value" -> "$cleaned"',
-          );
         }
         return parsed ?? 0.0;
       }

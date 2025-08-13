@@ -275,13 +275,6 @@ class _ImprovedInvestorDetailsDialogState
     });
 
     try {
-      print(
-        '🔄 [ImprovedModal] Rozpoczynam zapisywanie zmian dla klienta: ${widget.investor.client.id}',
-      );
-      print('🔄 [ImprovedModal] Nazwa klienta: ${widget.investor.client.name}');
-      print(
-        '🔄 [ImprovedModal] Nowy status głosowania: $_selectedVotingStatus',
-      );
 
       // Preload mapowanie ID aby uniknąć problemów
       await _idMappingService.preloadMapping();
@@ -344,7 +337,6 @@ class _ImprovedInvestorDetailsDialogState
         );
       }
     } catch (e) {
-      print('❌ [ImprovedModal] Błąd zapisu: $e');
 
       String errorMessage = 'Błąd podczas zapisywania zmian';
 

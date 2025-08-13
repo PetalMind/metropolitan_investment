@@ -19,14 +19,11 @@ class JsonToFirestore {
         ),
       );
       _firestore = FirebaseFirestore.instance;
-      print('✅ Firebase połączony');
     } catch (e) {
-      print('❌ Błąd Firebase: $e');
     }
   }
 
   static Future<void> uploadAllJsonsToFirestore() async {
-    print('🚀 WGRYWAM WSZYSTKIE JSONY DO FIREBASE!');
 
     await initFirebase();
 
@@ -45,19 +42,16 @@ class JsonToFirestore {
     // 5. Pożyczki
     await uploadJsonToCollection('loans_data.json', 'loans');
 
-    print('🎉 WSZYSTKO WGRANE DO FIREBASE!');
   }
 
   static Future<void> uploadJsonToCollection(
     String fileName,
     String collectionName,
   ) async {
-    print('\n📤 Wgrywam $fileName do kolekcji $collectionName...');
 
     try {
       final file = File(fileName);
       if (!file.existsSync()) {
-        print('⚠️ Plik $fileName nie istnieje!');
         return;
       }
 
@@ -86,7 +80,6 @@ class JsonToFirestore {
         if (batchCount >= _batchSize) {
           await batch.commit();
           totalUploaded += batchCount;
-          print('  📝 Wgrano ${totalUploaded}/${data.length} rekordów...');
           batchCount = 0;
         }
       }
@@ -97,14 +90,11 @@ class JsonToFirestore {
         totalUploaded += batchCount;
       }
 
-      print('✅ SUKCES! Wgrano ${totalUploaded} rekordów do $collectionName');
     } catch (e) {
-      print('❌ BŁĄD podczas wgrywania $fileName: $e');
     }
   }
 
   static Future<void> generateFirestoreStats() async {
-    print('\n📊 SPRAWDZAM STATYSTYKI FIREBASE...');
 
     try {
       final stats = <String, int>{};
@@ -125,30 +115,22 @@ class JsonToFirestore {
         stats[collectionName] = snapshot.count ?? 0;
       }
 
-      print('\n🏆 STATYSTYKI FIREBASE:');
       stats.forEach((collection, count) {
-        print('$collection: $count dokumentów');
       });
 
       final total = stats.values.fold(0, (sum, count) => sum + count);
-      print('ŁĄCZNIE: $total dokumentów w Firebase');
     } catch (e) {
-      print('❌ Błąd podczas sprawdzania statystyk: $e');
     }
   }
 }
 
 void main() async {
   try {
-    print('🔥 JSON → FIREBASE UPLOADER 🔥');
-    print('================================\n');
 
     await JsonToFirestore.uploadAllJsonsToFirestore();
     await JsonToFirestore.generateFirestoreStats();
 
-    print('\n🎊 KURWA WSZYSTKO WGRANE DO FIREBASE! 🎊');
   } catch (e) {
-    print('💥 KURWA BŁĄD: $e');
     exit(1);
   }
 }

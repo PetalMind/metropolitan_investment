@@ -41,9 +41,6 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
   void dispose() {
     _searchController.dispose();
     // Żeby upewnić się, że żadne pending operacje nie wywołają setState() po dispose
-    print(
-      '🔧 [ClientNotesWidget] Widget disposed for client: ${widget.clientId}',
-    );
     super.dispose();
   }
 

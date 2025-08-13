@@ -88,7 +88,6 @@ class InvestorAnalyticsStateService extends ChangeNotifier {
     _setLoading(true);
 
     try {
-      print('🚀 [InvestorState] Ładowanie danych inwestorów...');
 
       // Ładuj wszystkich inwestorów
       final allInvestors = await _analyticsService.getAllInvestorsForAnalysis(
@@ -109,9 +108,7 @@ class InvestorAnalyticsStateService extends ChangeNotifier {
       // Zastosuj filtry
       _applyFiltersInternal();
 
-      print('✅ [InvestorState] Załadowano ${allInvestors.length} inwestorów');
     } catch (e) {
-      print('❌ [InvestorState] Błąd ładowania: $e');
       _error = e.toString();
     } finally {
       _setLoading(false);
@@ -339,9 +336,6 @@ class InvestorAnalyticsStateService extends ChangeNotifier {
     _currentPage = 0; // Reset paginacji
     _updatePaginationState();
 
-    print(
-      '🔍 [InvestorState] Filtrowanie: ${_allInvestors.length} -> ${_filteredInvestors.length} inwestorów',
-    );
   }
 
   void _updatePaginationState() {

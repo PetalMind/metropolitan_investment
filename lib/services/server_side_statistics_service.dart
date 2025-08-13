@@ -18,14 +18,10 @@ class ServerSideStatisticsService {
   }) async {
     // 🔧 PRZEŁĄCZNIK: Jeśli wyłączone Firebase Functions, użyj od razu fallback
     if (!USE_FIREBASE_FUNCTIONS) {
-      print(
-        '🔧 [ServerSideStatisticsService] Firebase Functions WYŁĄCZONE - używam fallback',
-      );
       return _calculateFallbackStatistics(investors, productName);
     }
 
     if (investors.isEmpty || isLoadingInvestors) {
-      print('⚠️ [ServerSideStatisticsService] Brak inwestorów do analizowania');
       return UnifiedProductStatistics(
         totalInvestmentAmount: 0,
         totalRemainingCapital: 0,
@@ -42,20 +38,10 @@ class ServerSideStatisticsService {
 
     // ⚠️ WALIDACJA PRODUKTU: Sprawdź czy productName nie jest pusty
     if (productName.trim().isEmpty) {
-      print('❌ [ServerSideStatisticsService] productName jest pusty!');
-      print('  - Otrzymany productName: "$productName"');
-      print('  - Używam fallback do lokalnych obliczeń');
       return _calculateFallbackStatistics(investors, productName);
     }
 
     try {
-      print(
-        '🚀 [ServerSideStatisticsService] Wywołuję Firebase Function dla: $productName',
-      );
-      print('🔍 [ServerSideStatisticsService] Parametry wejściowe:');
-      print('  - productName: "$productName"');
-      print('  - investors.length: ${investors.length}');
-      print('  - isLoadingInvestors: $isLoadingInvestors');
 
       // Przygotuj dane inwestycji do przesłania
       final List<Map<String, dynamic>> investmentsData = [];
@@ -64,16 +50,10 @@ class ServerSideStatisticsService {
 
       for (final investor in investors) {
         processedInvestors++;
-        print(
-          '  🧑‍💼 Investor ${processedInvestors}: ${investor.client.name} (${investor.investments.length} inwestycji)',
-        );
 
         for (final investment in investor.investments) {
           if (investment.productName == productName) {
             processedInvestments++;
-            print(
-              '    ✅ Inwestycja ${processedInvestments}: ${investment.id} - ${investment.productName}',
-            );
 
             // Konwertuj Investment na Map zgodnie z oczekiwaniami serwera
             investmentsData.add({
@@ -96,18 +76,8 @@ class ServerSideStatisticsService {
         }
       }
 
-      print('📊 [ServerSideStatisticsService] PODSUMOWANIE PRZETWARZANIA:');
-      print('  - Przetworzonych inwestorów: $processedInvestors');
-      print(
-        '  - Znalezionych inwestycji dla "$productName": $processedInvestments',
-      );
-      print('  - Przesyłam ${investmentsData.length} inwestycji do serwera');
-
       // ⚠️ WALIDACJA: Sprawdź czy mamy dane do przesłania
       if (investmentsData.isEmpty) {
-        print(
-          '⚠️ [ServerSideStatisticsService] Brak inwestycji dla produktu: $productName',
-        );
         return UnifiedProductStatistics(
           totalInvestmentAmount: 0,
           totalRemainingCapital: 0,
@@ -122,20 +92,10 @@ class ServerSideStatisticsService {
         );
       }
 
-      print('🔍 [ServerSideStatisticsService] Debugowanie parametrów:');
-      print('  - productName: "$productName"');
-      print('  - productName.length: ${productName.length}');
       print('  - productName.trim().isEmpty: ${productName.trim().isEmpty}');
-      print('  - investments.length: ${investmentsData.length}');
-      print(
-        '  - investments[0]: ${investmentsData.isNotEmpty ? investmentsData.first : "N/A"}',
-      );
 
       // ⚠️ DRUGA WALIDACJA: Sprawdź jeszcze raz przed wywołaniem Firebase
       if (productName.trim().isEmpty) {
-        print(
-          '❌ [ServerSideStatisticsService] STOP! productName jest wciąż pusty przed wywołaniem Firebase',
-        );
         throw Exception('productName nie może być pusty');
       }
 
@@ -144,14 +104,10 @@ class ServerSideStatisticsService {
         'getProductStatistics',
       );
 
-      print(
-        '🔥 [ServerSideStatisticsService] Wywołuję Firebase Function z parametrami:',
-      );
       final parameters = {
         'productName': productName,
         'investments': investmentsData,
       };
-      print('  - Parametry: $parameters');
 
       final result = await callable.call(parameters);
 
@@ -162,17 +118,6 @@ class ServerSideStatisticsService {
       }
 
       final Map<String, dynamic> statistics = data['statistics'];
-
-      print('✅ [ServerSideStatisticsService] Otrzymano statystyki z serwera');
-      print(
-        '  - totalCapitalSecuredByRealEstate: ${statistics['totalCapitalSecuredByRealEstate']}',
-      );
-      print(
-        '  - totalRemainingCapital: ${statistics['totalRemainingCapital']}',
-      );
-      print(
-        '  - totalCapitalForRestructuring: ${statistics['totalCapitalForRestructuring']}',
-      );
 
       return UnifiedProductStatistics(
         totalInvestmentAmount: (statistics['totalInvestmentAmount'] ?? 0)
@@ -192,12 +137,8 @@ class ServerSideStatisticsService {
         hasInactiveInvestors: statistics['hasInactiveInvestors'] ?? false,
       );
     } catch (error) {
-      print(
-        '❌ [ServerSideStatisticsService] Błąd podczas wywołania Firebase Function: $error',
-      );
 
       // Fallback do lokalnych obliczeń w przypadku błędu serwera
-      print('🔄 [ServerSideStatisticsService] Fallback do obliczeń lokalnych');
       return _calculateFallbackStatistics(investors, productName);
     }
   }
@@ -207,9 +148,6 @@ class ServerSideStatisticsService {
     List<InvestorSummary> investors,
     String productName,
   ) {
-    print('🔧 [ServerSideStatisticsService] FALLBACK - obliczenia lokalne');
-    print('  - Produkt: "$productName"');
-    print('  - Liczba inwestorów: ${investors.length}');
 
     double totalInvestmentAmount = 0.0;
     double totalRemainingCapital = 0.0;
@@ -239,13 +177,7 @@ class ServerSideStatisticsService {
               final diff = current - existing;
               totalCapitalForRestructuring += diff;
               recordedCapitalForRestructuring[investment.id] = current;
-              print(
-                '    ♻️ FALLBACK UZUPEŁNIONO capitalForRestructuring dla ${investment.id}: +$diff (now $current)',
-              );
             } else {
-              print(
-                '    ⚠️ FALLBACK DUPLIKAT POMINIĘTY (bez zmian): ${investment.id}',
-              );
             }
             continue;
           }
@@ -257,12 +189,6 @@ class ServerSideStatisticsService {
           recordedCapitalForRestructuring[investment.id] =
               investment.capitalForRestructuring;
 
-          print('  ✅ ${investor.client.name}: ${investment.productName}');
-          print('    * investmentAmount: ${investment.investmentAmount}');
-          print('    * remainingCapital: ${investment.remainingCapital}');
-          print(
-            '    * capitalForRestructuring: ${investment.capitalForRestructuring}',
-          );
         }
       }
     }
@@ -273,16 +199,6 @@ class ServerSideStatisticsService {
           0.0,
           double.infinity,
         );
-
-    print('🧮 [ServerSideStatisticsService] FALLBACK OBLICZANIE KOŃCOWE:');
-    print('  - totalRemainingCapital: $totalRemainingCapital');
-    print('  - totalCapitalForRestructuring: $totalCapitalForRestructuring');
-    print(
-      '  - 🔥 totalCapitalSecuredByRealEstate = $totalRemainingCapital - $totalCapitalForRestructuring = $totalCapitalSecuredByRealEstate',
-    );
-    print(
-      '  - Przetworzono unikalnych inwestycji: ${processedInvestmentIds.length}',
-    );
 
     final viableCapital = totalRemainingCapital;
     final majorityThreshold = viableCapital * 0.5;

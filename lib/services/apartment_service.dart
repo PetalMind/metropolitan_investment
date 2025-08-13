@@ -9,9 +9,6 @@ class ApartmentService extends BaseService {
   )
   Future<List<Apartment>> getAllApartments() async {
     // Return empty list as apartments are now in investments collection
-    print(
-      '⚠️ [ApartmentService] DEPRECATED: Use UnifiedProductService instead',
-    );
     return [];
   }
 
@@ -19,9 +16,6 @@ class ApartmentService extends BaseService {
     'Use UnifiedProductService instead. Apartment data is now in investments collection.',
   )
   Future<Apartment?> getApartment(String id) async {
-    print(
-      '⚠️ [ApartmentService] DEPRECATED: Use UnifiedProductService instead',
-    );
     return null;
   }
 

@@ -14,7 +14,6 @@ class FirebaseFunctionsDialogs {
   /// **STATYSTYKI SYSTEMU** przez Firebase Functions
   static Future<void> showSystemStats(BuildContext context) async {
     try {
-      print('📊 [Functions] Pobieranie statystyk systemu...');
 
       _showLoadingDialog(context, 'Pobieranie statystyk systemu...');
 
@@ -82,12 +81,10 @@ class FirebaseFunctionsDialogs {
         ),
       );
 
-      print('✅ [Functions] Wyświetlono statystyki systemu');
     } catch (e) {
       Navigator.of(
         context,
       ).pop(); // Zamknij dialog ładowania jeśli jest otwarty
-      print('❌ [Functions] Błąd statystyk: $e');
 
       _showErrorSnackBar(context, 'Błąd pobierania statystyk: $e');
     }
@@ -99,7 +96,6 @@ class FirebaseFunctionsDialogs {
     VoidCallback onRefreshComplete,
   ) async {
     try {
-      print('🔄 [Functions] Odświeżanie cache...');
 
       _showLoadingDialog(context, 'Odświeżanie cache...');
 
@@ -111,12 +107,10 @@ class FirebaseFunctionsDialogs {
 
       onRefreshComplete();
 
-      print('✅ [Functions] Cache odświeżony');
     } catch (e) {
       Navigator.of(
         context,
       ).pop(); // Zamknij dialog ładowania jeśli jest otwarty
-      print('❌ [Functions] Błąd odświeżania cache: $e');
 
       _showErrorSnackBar(context, 'Błąd odświeżania cache: $e');
     }
@@ -125,7 +119,6 @@ class FirebaseFunctionsDialogs {
   /// **WSZYSCY KLIENCI** przez Firebase Functions
   static Future<void> showAllClients(BuildContext context) async {
     try {
-      print('👥 [Functions] Pobieranie wszystkich klientów...');
 
       _showLoadingDialog(context, 'Pobieranie klientów...');
 
@@ -189,12 +182,10 @@ class FirebaseFunctionsDialogs {
         ),
       );
 
-      print('✅ [Functions] Wyświetlono ${result.clients.length} klientów');
     } catch (e) {
       Navigator.of(
         context,
       ).pop(); // Zamknij dialog ładowania jeśli jest otwarty
-      print('❌ [Functions] Błąd pobierania klientów: $e');
 
       _showErrorSnackBar(context, 'Błąd pobierania klientów: $e');
     }
@@ -203,7 +194,6 @@ class FirebaseFunctionsDialogs {
   /// **WSZYSTKIE INWESTYCJE** przez Firebase Functions
   static Future<void> showAllInvestments(BuildContext context) async {
     try {
-      print('💼 [Functions] Pobieranie wszystkich inwestycji...');
 
       _showLoadingDialog(context, 'Pobieranie inwestycji...');
 
@@ -269,14 +259,10 @@ class FirebaseFunctionsDialogs {
         ),
       );
 
-      print(
-        '✅ [Functions] Wyświetlono ${result.investments.length} inwestycji',
-      );
     } catch (e) {
       Navigator.of(
         context,
       ).pop(); // Zamknij dialog ładowania jeśli jest otwarty
-      print('❌ [Functions] Błąd pobierania inwestycji: $e');
 
       _showErrorSnackBar(context, 'Błąd pobierania inwestycji: $e');
     }

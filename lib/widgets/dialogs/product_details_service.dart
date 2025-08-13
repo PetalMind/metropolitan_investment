@@ -13,9 +13,6 @@ class ProductDetailsService {
     UnifiedProduct product,
   ) async {
     try {
-      print('� [ProductDetailsService] Używam zoptymalizowanego serwisu...');
-      print('  - Nazwa: "${product.name}"');
-      print('  - Typ: ${product.productType.displayName}');
 
       // Używamy zoptymalizowanej Firebase Function
       final result = await _investorsService.getProductInvestors(
@@ -26,13 +23,8 @@ class ProductDetailsService {
       );
       final investors = result.investors;
 
-      print(
-        '✅ [ProductDetailsService] Załadowano ${investors.length} inwestorów (zoptymalizowane)',
-      );
-
       return investors;
     } catch (e) {
-      print('❌ [ProductDetailsService] Błąd podczas ładowania inwestorów: $e');
       rethrow;
     }
   }

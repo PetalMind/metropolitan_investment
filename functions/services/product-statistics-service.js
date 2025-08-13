@@ -12,8 +12,6 @@ const { getUnifiedField, isInvestmentActive } = require('../utils/unified-statis
  * @returns {Object} - statystyki produktu
  */
 async function calculateProductStatistics(investments, productName) {
-  console.log(`🔥 [ProductStatisticsService] OBLICZANIE STATYSTYK PRODUKTU: ${productName}`);
-  console.log(`📊 Liczba inwestycji do przetworzenia: ${investments.length}`);
 
   // ⚠️ WALIDACJA PARAMETRÓW
   if (!productName || typeof productName !== 'string' || productName.trim() === '') {
@@ -48,7 +46,6 @@ async function calculateProductStatistics(investments, productName) {
 
         // Deduplikacja
         if (processedInvestmentIds.has(investment.id)) {
-          console.log(`⚠️ DUPLIKAT POMINIĘTY: ${investment.id}`);
           continue;
         }
         processedInvestmentIds.add(investment.id);
@@ -71,21 +68,15 @@ async function calculateProductStatistics(investments, productName) {
         totalRemainingCapital += remainingCapital;
 
         console.log(`  ✅ ${getUnifiedField(investment, 'clientName')}: ${investmentProductName}`);
-        console.log(`    * investmentAmount: ${investmentAmount}`);
-        console.log(`    * remainingCapital: ${remainingCapital}`);
         const capitalForRestructuring = getUnifiedField(investment, 'capitalForRestructuring');
         totalCapitalForRestructuring += capitalForRestructuring;
-        console.log(`    * capitalForRestructuring: ${capitalForRestructuring}`);
       } catch (investmentError) {
-        console.error(`❌ Błąd przetwarzania inwestycji ${investment?.id || 'nieznane'}:`, investmentError);
         // Kontynuuj przetwarzanie innych inwestycji
         continue;
       }
     }
 
     console.log('🧮 [ProductStatisticsService] OBLICZANIE KOŃCOWE (uproszczone):');
-    console.log(`  - totalRemainingCapital: ${totalRemainingCapital}`);
-    console.log(`  - totalCapitalForRestructuring: ${totalCapitalForRestructuring}`);
     const totalCapitalSecuredByRealEstate = Math.max(
       totalRemainingCapital - totalCapitalForRestructuring,
       0
@@ -117,19 +108,9 @@ async function calculateProductStatistics(investments, productName) {
       originalInvestmentsCount: investments.length
     };
 
-    console.log('📊 [ProductStatisticsService] KOŃCOWE ZUNIFIKOWANE STATYSTYKI:');
-    console.log(`  - totalInvestmentAmount: ${totalInvestmentAmount}`);
-    console.log(`  - totalRemainingCapital: ${totalRemainingCapital}`);
-    console.log('  - totalCapitalForRestructuring: ' + totalCapitalForRestructuring);
-    console.log('  - totalCapitalSecuredByRealEstate: ' + totalCapitalSecuredByRealEstate);
-    console.log(`  - viableCapital: ${viableCapital}`);
-    console.log(`  - investorsCount: ${investorsCount}`);
-
     return statistics;
 
   } catch (error) {
-    console.error(`❌ [ProductStatisticsService] Krityczny błąd obliczania statystyk dla produktu "${productName}":`, error);
-    console.error(`❌ [ProductStatisticsService] Stack trace:`, error.stack);
     throw error;
   }
 }

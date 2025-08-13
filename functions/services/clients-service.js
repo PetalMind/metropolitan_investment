@@ -48,15 +48,12 @@ exports.getAllClients = onCall({
       }
     }
 
-    console.log(`🔍 [getAllClients] Pobieranie klientów - strona ${page}, rozmiar ${pageSize}, wyszukiwanie: "${searchQuery}"`);
-
     // Pobierz klientów z Firestore
     let query = db.collection('clients');
 
     // Sprawdź czy kolekcja istnieje
     const testSnapshot = await query.limit(1).get();
     if (testSnapshot.empty) {
-      console.log(`⚠️ [getAllClients] Kolekcja 'clients' jest pusta`);
       return {
         clients: [],
         totalCount: 0,
@@ -132,12 +129,9 @@ exports.getAllClients = onCall({
 
     } else {
       // Bez filtrowania - użyj paginacji Firestore (uproszczona wersja)
-      console.log(`🔍 [getAllClients] Pobieranie bez filtrowania, strona ${page}, rozmiar ${pageSize}`);
 
       const totalSnapshot = await db.collection('clients').get();
       const totalCount = totalSnapshot.size;
-
-      console.log(`📊 [getAllClients] Łączna liczba klientów w bazie: ${totalCount}`);
 
       // Pobierz wszystkich klientów i zastosuj paginację lokalnie (prostsze i bardziej niezawodne)
       const allClientsSnapshot = await db.collection('clients').get();
@@ -147,8 +141,6 @@ exports.getAllClients = onCall({
         allClients.push(convertDocumentToClient(doc.id, doc.data()));
       });
 
-      console.log(`🔄 [getAllClients] Przekonwertowano ${allClients.length} klientów`);
-
       // Sortowanie lokalne
       const sortedClients = sortClients(allClients, sortBy);
 
@@ -156,8 +148,6 @@ exports.getAllClients = onCall({
       const startIndex = (page - 1) * pageSize;
       const endIndex = Math.min(startIndex + pageSize, sortedClients.length);
       const paginatedClients = sortedClients.slice(startIndex, endIndex);
-
-      console.log(`📄 [getAllClients] Paginacja: ${startIndex}-${endIndex}, zwracam ${paginatedClients.length} klientów`);
 
       const result = {
         clients: paginatedClients,
@@ -184,7 +174,6 @@ exports.getAllClients = onCall({
     }
 
   } catch (error) {
-    console.error(`❌ [getAllClients] Błąd:`, error);
     throw new HttpsError('internal', `Błąd podczas pobierania klientów: ${error.message}`);
   }
 });
@@ -216,19 +205,14 @@ exports.getActiveClients = onCall({
       }
     }
 
-    console.log('🔍 [getActiveClients] Pobieranie aktywnych klientów...');
-
     // Pobierz wszystkich klientów
     const clientsSnapshot = await db.collection('clients').get();
-    console.log(`📊 [getActiveClients] Znaleziono ${clientsSnapshot.size} klientów w bazie`);
 
     // Pobierz wszystkie inwestycje aby zidentyfikować aktywnych klientów
     const investmentsSnapshot = await db.collection('investments').get();
-    console.log(`💼 [getActiveClients] Znaleziono ${investmentsSnapshot.size} inwestycji w bazie`);
 
     // Sprawdź czy kolekcje nie są puste
     if (clientsSnapshot.empty) {
-      console.log(`⚠️ [getActiveClients] Kolekcja 'clients' jest pusta`);
       return {
         clients: [],
         totalActiveClients: 0,
@@ -294,7 +278,6 @@ exports.getActiveClients = onCall({
     return result;
 
   } catch (error) {
-    console.error('❌ [getActiveClients] Błąd:', error);
     throw new HttpsError('internal', `Błąd podczas pobierania aktywnych klientów: ${error.message}`);
   }
 });
@@ -325,8 +308,6 @@ exports.getSystemStats = onCall({
         };
       }
     }
-
-    console.log('📊 [getSystemStats] Generowanie statystyk systemu...');
 
     // Pobierz dane równolegle
     const [clientsSnapshot, investmentsSnapshot] = await Promise.all([
@@ -387,7 +368,6 @@ exports.getSystemStats = onCall({
     return result;
 
   } catch (error) {
-    console.error('❌ [getSystemStats] Błąd:', error);
     throw new HttpsError('internal', `Błąd podczas generowania statystyk: ${error.message}`);
   }
 });
@@ -425,17 +405,14 @@ function convertDocumentToClient(id, data) {
  * Sortuje listę klientów według określonego pola
  */
 function sortClients(clients, sortBy) {
-  console.log(`🔄 [sortClients] Sortowanie ${clients.length} klientów po polu '${sortBy}'`);
 
   if (!clients || clients.length === 0) {
-    console.log(`⚠️ [sortClients] Pusta lista klientów`);
     return [];
   }
 
   // Sprawdź czy pierwsze kilka rekordów ma to pole
   const sampleClient = clients[0];
   const hasField = sampleClient[sortBy] !== undefined;
-  console.log(`🔍 [sortClients] Czy pole '${sortBy}' istnieje w danych? ${hasField}`);
 
   if (!hasField) {
     console.log(`📋 [sortClients] Dostępne pola w pierwszym kliencie:`, Object.keys(sampleClient));

@@ -33,7 +33,6 @@ class InvestmentChangeHistoryService extends BaseService {
       // Sprawdź czy faktycznie są jakieś zmiany
       final hasChanges = _hasAnyChanges(oldValues, newValues);
       if (!hasChanges) {
-        print('🔍 [InvestmentChangeHistoryService] Brak zmian do zapisania');
         return;
       }
 
@@ -53,10 +52,6 @@ class InvestmentChangeHistoryService extends BaseService {
           .collection(_collectionName)
           .add(changeHistory.toFirestore());
 
-      print(
-        '✅ [InvestmentChangeHistoryService] Zapisano historię zmian dla inwestycji: $investmentId',
-      );
-      print('   Zmienione pola: ${changeHistory.fieldChanges.length}');
     } catch (e) {
       logError('recordChange', 'Błąd podczas zapisywania historii zmian: $e');
     }
@@ -247,9 +242,6 @@ class InvestmentChangeHistoryService extends BaseService {
 
       if (changesCount > 0) {
         await batch.commit();
-        print(
-          '✅ [InvestmentChangeHistoryService] Zapisano historię dla $changesCount inwestycji',
-        );
       }
     } catch (e) {
       logError(
@@ -304,9 +296,6 @@ class InvestmentChangeHistoryService extends BaseService {
           .get();
 
       if (snapshot.docs.isEmpty) {
-        print(
-          '🧹 [InvestmentChangeHistoryService] Brak starych rekordów do usunięcia',
-        );
         return;
       }
 
@@ -316,9 +305,6 @@ class InvestmentChangeHistoryService extends BaseService {
       }
 
       await batch.commit();
-      print(
-        '🧹 [InvestmentChangeHistoryService] Usunięto ${snapshot.docs.length} starych rekordów historii',
-      );
     } catch (e) {
       logError(
         'cleanupOldHistory',

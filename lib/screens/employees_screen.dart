@@ -42,7 +42,6 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
         _branches = branches;
       });
     } catch (e) {
-      debugPrint('Error loading branches: $e');
     }
   }
 

@@ -34,7 +34,6 @@ const getComprehensiveAnalytics = functions
     const admin = require('firebase-admin');
 
     try {
-      console.log('Rozpoczynam kompleksową analizę:', data);
 
       const {
         timeRangeMonths = 12,
@@ -64,11 +63,9 @@ const getComprehensiveAnalytics = functions
         }
       };
 
-      console.log('Kompleksowa analiza zakończona');
       return comprehensiveResult;
 
     } catch (error) {
-      console.error('Błąd kompleksowej analizy:', error);
       throw new functions.https.HttpsError('internal', 'Błąd podczas kompleksowej analizy', error.message);
     }
   });
@@ -117,7 +114,6 @@ async function calculateRiskAnalytics(timeRangeMonths) {
     };
 
   } catch (error) {
-    console.error('Błąd analizy ryzyka:', error);
     return {
       portfolioMetrics: {
         volatility: 12.8,
@@ -194,11 +190,8 @@ module.exports = {
         );
       }
 
-      console.log(`📊 [getProductStatistics] Przetwarzanie ${investments.length} inwestycji dla produktu: "${productName}"`);
-
       // ⚠️ DODAJ INFORMACJĘ O PUSTEJ LIŚCIE
       if (investments.length === 0) {
-        console.log(`⚠️ [getProductStatistics] Pusta lista inwestycji dla produktu: "${productName}"`);
       }
 
       const statistics = await productStatisticsService.calculateProductStatistics(investments, productName);
@@ -213,8 +206,6 @@ module.exports = {
       return { success: true, statistics };
 
     } catch (error) {
-      console.error('❌ [getProductStatistics] Błąd:', error);
-      console.error('❌ [getProductStatistics] Stack trace:', error.stack);
       console.error('❌ [getProductStatistics] Parametry wejściowe:', {
         productName: data?.productName,
         investmentsCount: data?.investments?.length || 0

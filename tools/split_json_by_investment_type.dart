@@ -196,7 +196,6 @@ class InvestmentJsonSplitter {
 
   /// Główna funkcja przetwarzania pliku JSON
   Future<void> processJsonFile(String inputFile) async {
-    print('📖 Czytanie pliku: $inputFile');
 
     try {
       // Sprawdź czy plik istnieje
@@ -208,8 +207,6 @@ class InvestmentJsonSplitter {
       // Przeczytaj i sparsuj JSON
       final rawData = await file.readAsString();
       final jsonData = json.decode(rawData) as List<dynamic>;
-
-      print('📊 Znaleziono ${jsonData.length} rekordów');
 
       // Kontenery dla różnych typów
       final bonds = <Map<String, dynamic>>[];
@@ -249,22 +246,17 @@ class InvestmentJsonSplitter {
         await outputDirectory.create(recursive: true);
       }
 
-      print('💾 Zapisywanie plików do katalogu: $outputDir');
-
       // Zapisz pliki dla każdego typu
       if (bonds.isNotEmpty) {
         await _saveJsonFile('bonds.json', bonds);
-        print('✅ Obligacje: ${bonds.length} rekordów → bonds.json');
       }
 
       if (shares.isNotEmpty) {
         await _saveJsonFile('shares.json', shares);
-        print('✅ Udziały: ${shares.length} rekordów → shares.json');
       }
 
       if (loans.isNotEmpty) {
         await _saveJsonFile('loans.json', loans);
-        print('✅ Pożyczki: ${loans.length} rekordów → loans.json');
       }
 
       // Zapisz metadane
@@ -285,7 +277,6 @@ class InvestmentJsonSplitter {
       // Wyświetl podsumowanie
       _printSummary(jsonData.length);
     } catch (error) {
-      print('❌ Błąd przetwarzania: $error');
       exit(1);
     }
   }
@@ -299,28 +290,13 @@ class InvestmentJsonSplitter {
 
   /// Wyświetl podsumowanie
   void _printSummary(int totalRecords) {
-    print('\n📈 PODSUMOWANIE:');
     print('Całkowita wartość: ${totalValue.toStringAsFixed(2)} PLN');
-    print(
-      'Obligacje: ${stats['bonds']} (${((stats['bonds']! / totalRecords) * 100).toStringAsFixed(1)}%)',
-    );
-    print(
-      'Udziały: ${stats['shares']} (${((stats['shares']! / totalRecords) * 100).toStringAsFixed(1)}%)',
-    );
-    print(
-      'Pożyczki: ${stats['loans']} (${((stats['loans']! / totalRecords) * 100).toStringAsFixed(1)}%)',
-    );
-    print('\n✨ Pliki zapisane w katalogu: $outputDir');
   }
 }
 
 /// Główna funkcja programu
 void main(List<String> arguments) async {
   if (arguments.isEmpty) {
-    print('❌ Nie podano ścieżki do pliku JSON');
-    print(
-      'Użycie: dart split_json_by_investment_type.dart <ścieżka_do_pliku.json>',
-    );
     exit(1);
   }
 

@@ -371,7 +371,6 @@ class UnifiedProductService extends BaseService {
       await Future.wait([getAllProducts(), getProductStatistics()]);
 
       if (kDebugMode) {
-        print('[UnifiedProductService] Cache refreshed successfully');
       }
     } catch (e) {
       logError('refreshCache', e);

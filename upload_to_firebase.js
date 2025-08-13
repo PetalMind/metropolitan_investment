@@ -15,7 +15,6 @@ admin.initializeApp({
 const db = admin.firestore();
 
 async function uploadBatch(collectionName, documents, batchSize = 500) {
-  console.log(`📦 Uploading ${documents.length} documents to collection '${collectionName}'...`);
 
   let uploadedCount = 0;
   let errorCount = 0;
@@ -84,7 +83,6 @@ async function uploadBatch(collectionName, documents, batchSize = 500) {
             try {
               cleanDoc[field] = admin.firestore.Timestamp.fromDate(new Date(cleanDoc[field]));
             } catch (error) {
-              console.warn(`⚠️  Could not convert date field '${field}': ${cleanDoc[field]}`);
               cleanDoc[field] = null; // Set to null if conversion fails
             }
           } else {
@@ -97,11 +95,9 @@ async function uploadBatch(collectionName, documents, batchSize = 500) {
 
       await batch.commit();
       uploadedCount += currentBatch.length;
-      console.log(`✅ Batch committed successfully. Total uploaded: ${uploadedCount}/${documents.length}`);
 
     } catch (error) {
       errorCount += currentBatch.length;
-      console.error(`❌ Error uploading batch: ${error.message}`);
       console.error(`Failed documents: ${JSON.stringify(currentBatch.slice(0, 3), null, 2)}`);
     }
 
@@ -111,7 +107,6 @@ async function uploadBatch(collectionName, documents, batchSize = 500) {
     }
   }
 
-  console.log(`📊 Upload summary for '${collectionName}': ${uploadedCount} successful, ${errorCount} failed`);
   return { uploaded: uploadedCount, failed: errorCount };
 }
 
@@ -120,27 +115,23 @@ async function loadJsonFile(filePath) {
     const data = fs.readFileSync(filePath, 'utf8');
     return JSON.parse(data);
   } catch (error) {
-    console.error(`❌ Error reading ${filePath}: ${error.message}`);
     return null;
   }
 }
 
 async function main() {
-  console.log('🚀 Starting Firebase upload process...');
 
   const dataDir = './split_investment_data_normalized';
   const results = {};
 
   try {
     // 1. Upload Clients
-    console.log('\n👥 === UPLOADING CLIENTS ===');
     const clients = await loadJsonFile(path.join(dataDir, 'clients_normalized.json'));
     if (clients) {
       results.clients = await uploadBatch('clients', clients);
     }
 
     // 2. Collect all investments from different files
-    console.log('\n💰 === UPLOADING INVESTMENTS ===');
 
     const investmentFiles = [
       'apartments_normalized.json',
@@ -153,53 +144,39 @@ async function main() {
 
     for (const fileName of investmentFiles) {
       const filePath = path.join(dataDir, fileName);
-      console.log(`📁 Loading ${fileName}...`);
 
       const data = await loadJsonFile(filePath);
       if (data && Array.isArray(data)) {
-        console.log(`📊 Found ${data.length} records in ${fileName}`);
         allInvestments = allInvestments.concat(data);
       }
     }
-
-    console.log(`📈 Total investments to upload: ${allInvestments.length}`);
 
     if (allInvestments.length > 0) {
       results.investments = await uploadBatch('investments', allInvestments);
     }
 
     // 3. Summary
-    console.log('\n🎉 === UPLOAD COMPLETE ===');
-    console.log('📊 Final Results:');
 
     Object.keys(results).forEach(collection => {
       const result = results[collection];
-      console.log(`  ${collection}: ${result.uploaded} uploaded, ${result.failed} failed`);
     });
 
     const totalUploaded = Object.values(results).reduce((sum, r) => sum + r.uploaded, 0);
     const totalFailed = Object.values(results).reduce((sum, r) => sum + r.failed, 0);
 
-    console.log(`🏆 Grand Total: ${totalUploaded} successful, ${totalFailed} failed`);
-
   } catch (error) {
-    console.error('❌ Fatal error:', error.message);
-    console.error(error.stack);
   } finally {
     // Clean up
-    console.log('🔧 Cleaning up...');
     process.exit(0);
   }
 }
 
 // Handle process termination
 process.on('SIGINT', () => {
-  console.log('\n⏹️  Process interrupted by user');
   process.exit(0);
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('💥 Uncaught Exception:', error);
   process.exit(1);
 });
 

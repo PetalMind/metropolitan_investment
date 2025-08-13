@@ -24,9 +24,6 @@ class VotingStatusChangeService extends BaseService {
 
       await firestore.collection('voting_status_changes').add(changeRecord);
 
-      print(
-        '✅ [VotingStatusChange] Zapisano zmianę statusu dla klienta $clientId: ${oldStatus.name} -> ${newStatus.name}',
-      );
     } catch (e) {
       logError('recordVotingStatusChange', e);
       rethrow;

@@ -23,21 +23,10 @@ class UnifiedVotingStatusService extends BaseService {
     Map<String, dynamic>? additionalChanges,
   }) async {
     try {
-      print(
-        '🗳️ [UnifiedVotingStatus] Rozpoczynam aktualizację statusu dla klienta: $clientId',
-      );
-      print('🗳️ [UnifiedVotingStatus] Nowy status: ${newStatus.name}');
-      print('🗳️ [UnifiedVotingStatus] Parametry użytkownika:');
-      print('  - editedBy: "$editedBy"');
-      print('  - editedByEmail: "$editedByEmail"');
-      print('  - editedByName: "$editedByName"');
-      print('  - userId: "$userId"');
-      print('  - updatedVia: "$updatedVia"');
 
       // Get current client data
       final client = await _clientService.getClient(clientId);
       if (client == null) {
-        print('❌ [UnifiedVotingStatus] Klient nie znaleziony: $clientId');
         return VotingStatusUpdateResult(
           isSuccess: false,
           error: 'Client not found: $clientId',
@@ -45,11 +34,9 @@ class UnifiedVotingStatusService extends BaseService {
       }
 
       final oldStatus = client.votingStatus;
-      print('🗳️ [UnifiedVotingStatus] Poprzedni status: ${oldStatus.name}');
 
       // Skip if status is the same
       if (oldStatus == newStatus) {
-        print('🗳️ [UnifiedVotingStatus] Status bez zmian - pomijam');
         return VotingStatusUpdateResult(
           isSuccess: true,
           previousStatus: oldStatus,
@@ -76,7 +63,6 @@ class UnifiedVotingStatusService extends BaseService {
       if (userId != null) updateFields['lastEditedByUserId'] = userId;
 
       await _clientService.updateClientFields(clientId, updateFields);
-      print('✅ [UnifiedVotingStatus] Zaktualizowano dokument klienta');
 
       // 2. Record the change in voting_status_changes collection
       await _recordVotingStatusChange(
@@ -98,17 +84,12 @@ class UnifiedVotingStatusService extends BaseService {
       clearCache('voting_status_change_stats');
       clearCache('client_${clientId}');
 
-      print(
-        '✅ [UnifiedVotingStatus] Pomyślnie zaktualizowano status głosowania',
-      );
-
       return VotingStatusUpdateResult(
         isSuccess: true,
         previousStatus: oldStatus,
         newStatus: newStatus,
       );
     } catch (e) {
-      print('❌ [UnifiedVotingStatus] Błąd aktualizacji statusu: $e');
       logError('updateVotingStatus', e);
       return VotingStatusUpdateResult(
         isSuccess: false,
@@ -153,28 +134,13 @@ class UnifiedVotingStatusService extends BaseService {
         'updated_via': updatedVia ?? 'system',
       };
 
-      print('🔍 [UnifiedVotingStatus] Zapisuję zmianę z danymi:');
-      print('  - clientId: $clientId');
-      print('  - clientName: $clientName');
       print('  - editedBy: "$editedBy" (original: "${editedBy ?? 'NULL'}")');
-      print(
-        '  - editedByEmail: "$editedByEmail" (original: "${editedByEmail ?? 'NULL'}")',
-      );
-      print(
-        '  - editedByName: "$editedByName" (original: "${editedByName ?? 'NULL'}")',
-      );
       print('  - userId: "$userId" (original: "${userId ?? 'NULL'}")');
-      print(
-        '  - updatedVia: "$updatedVia" (original: "${updatedVia ?? 'NULL'}")',
-      );
       changeRecord.forEach((key, value) {
-        print('    $key: $value');
       });
 
       await firestore.collection('voting_status_changes').add(changeRecord);
-      print('✅ [UnifiedVotingStatus] Zapisano historię zmiany statusu');
     } catch (e) {
-      print('❌ [UnifiedVotingStatus] Błąd zapisu historii: $e');
       logError('_recordVotingStatusChange', e);
       rethrow;
     }
@@ -185,9 +151,6 @@ class UnifiedVotingStatusService extends BaseService {
     String clientId,
   ) async {
     try {
-      print(
-        '🔍 [UnifiedVotingStatus] Pobieranie historii dla klienta: $clientId',
-      );
 
       // Najpierw sprawdź wszystkie dostępne zmiany w kolekcji
       final allChangesSnapshot = await firestore
@@ -198,9 +161,6 @@ class UnifiedVotingStatusService extends BaseService {
       print('🔍 [UnifiedVotingStatus] Wszystkie zmiany w bazie (pierwsze 10):');
       for (final doc in allChangesSnapshot.docs) {
         final data = doc.data();
-        print(
-          '  - ID: ${doc.id}, clientId: "${data['clientId']}", clientName: "${data['clientName']}"',
-        );
       }
 
       final snapshot = await firestore
@@ -212,18 +172,10 @@ class UnifiedVotingStatusService extends BaseService {
           ) // Użyj 'timestamp' zamiast 'changedAt'
           .get();
 
-      print(
-        '🔍 [UnifiedVotingStatus] Znaleziono ${snapshot.docs.length} zmian',
-      );
-
       return snapshot.docs.map((doc) {
-        print(
-          '🔍 [UnifiedVotingStatus] Dokument: ${doc.id}, dane: ${doc.data()}',
-        );
         return VotingStatusChange.fromFirestore(doc);
       }).toList();
     } catch (e) {
-      print('❌ [UnifiedVotingStatus] Błąd pobierania historii: $e');
       logError('getVotingStatusHistory', e);
       return [];
     }

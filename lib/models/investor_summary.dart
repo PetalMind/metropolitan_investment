@@ -142,9 +142,6 @@ class InvestorSummary {
     Client client,
     List<Investment> investments,
   ) {
-    print(
-      '✅ [InvestorSummary.withoutCalculations] Zbieranie danych dla: ${client.name} (${investments.length} inwestycji)',
-    );
 
     // ✅ TYLKO ZBIERANIE DANYCH - bez obliczeń zabezpieczonego kapitału
     double totalRemainingCapital = 0;
@@ -162,10 +159,6 @@ class InvestorSummary {
       // Sumowanie direct – analogicznie do remainingCapital
       capitalForRestructuring += investment.capitalForRestructuring;
     }
-
-    print(
-      '  💰 Zebrane kwoty: remainingCapital=${totalRemainingCapital}, capitalForRestructuring=${capitalForRestructuring}',
-    );
 
     // Automatyczne obliczenie jako fallback
     // Na razie zwracamy tylko zebrane dane z Firebase
@@ -189,9 +182,6 @@ class InvestorSummary {
   static List<InvestorSummary> calculateSecuredCapitalForAll(
     List<InvestorSummary> investors,
   ) {
-    print(
-      '🧮 [InvestorSummary.calculateSecuredCapitalForAll] Obliczanie dla ${investors.length} inwestorów',
-    );
 
     // Zsumuj wszystkie kwoty
     double totalRemainingCapital = 0;
@@ -209,15 +199,6 @@ class InvestorSummary {
           double.infinity,
         );
 
-    print('  📊 WYNIKI OBLICZEŃ:');
-    print('    - Zsumowany remainingCapital: ${totalRemainingCapital}');
-    print(
-      '    - Zsumowany capitalForRestructuring: ${totalCapitalForRestructuring}',
-    );
-    print(
-      '    - 🎯 Obliczony capitalSecuredByRealEstate: ${totalCapitalSecuredByRealEstate}',
-    );
-
     // Teraz oblicz proporcjonalnie dla każdego inwestora
     final List<InvestorSummary> updatedInvestors = [];
 
@@ -229,10 +210,6 @@ class InvestorSummary {
 
       final investorSecuredCapital =
           totalCapitalSecuredByRealEstate * proportion;
-
-      print(
-        '    - ${investor.client.name}: ${investor.totalRemainingCapital} PLN (${(proportion * 100).toStringAsFixed(1)}%) → secured: ${investorSecuredCapital.toStringAsFixed(2)}',
-      );
 
       // Stwórz nowy obiekt z obliczonym capitalSecuredByRealEstate
       updatedInvestors.add(

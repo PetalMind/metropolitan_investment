@@ -131,7 +131,6 @@ class _EmployeeFormState extends State<EmployeeForm> {
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) {
-      debugPrint('EmployeeForm: Validation failed');
       return;
     }
 
@@ -140,7 +139,6 @@ class _EmployeeFormState extends State<EmployeeForm> {
     });
 
     try {
-      debugPrint('EmployeeForm: Submitting form...');
       debugPrint('  First Name: ${_firstNameController.text.trim()}');
       debugPrint('  Last Name: ${_lastNameController.text.trim()}');
       debugPrint('  Email: ${_emailController.text.trim()}');
@@ -148,7 +146,6 @@ class _EmployeeFormState extends State<EmployeeForm> {
       debugPrint('  Branch Code: ${_branchCodeController.text.trim()}');
       debugPrint('  Branch Name: ${_branchNameController.text.trim()}');
       debugPrint('  Position: ${_positionController.text.trim()}');
-      debugPrint('  Is Active: $_isActive');
 
       final employee = Employee(
         id: widget.employee?.id ?? '',
@@ -169,13 +166,9 @@ class _EmployeeFormState extends State<EmployeeForm> {
       );
 
       if (widget.employee == null) {
-        debugPrint('EmployeeForm: Creating new employee...');
         await _employeeService.createEmployee(employee);
-        debugPrint('EmployeeForm: Employee created successfully');
       } else {
-        debugPrint('EmployeeForm: Updating existing employee...');
         await _employeeService.updateEmployee(widget.employee!.id, employee);
-        debugPrint('EmployeeForm: Employee updated successfully');
       }
 
       if (mounted) {
@@ -192,7 +185,6 @@ class _EmployeeFormState extends State<EmployeeForm> {
         );
       }
     } catch (e) {
-      debugPrint('EmployeeForm: Error occurred: $e');
 
       // Parse Firebase Console link if present
       String errorMessage = e.toString();

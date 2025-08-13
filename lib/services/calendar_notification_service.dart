@@ -31,7 +31,6 @@ class CalendarNotificationService {
 
       _notificationService.updateCalendarNotifications(pendingEvents.length);
     } catch (e) {
-      print('Błąd podczas sprawdzania wydarzeń kalendarza: $e');
       // W przypadku błędu, ustaw 0 powiadomień
       _notificationService.updateCalendarNotifications(0);
     }
@@ -60,7 +59,6 @@ class CalendarNotificationService {
 
       _notificationService.updateCalendarNotifications(importantEvents.length);
     } catch (e) {
-      print('Błąd podczas sprawdzania nadchodzących wydarzeń: $e');
       // Fallback do symulacji tylko jeśli nie ma danych
       _simulateCalendarNotifications();
     }
@@ -87,9 +85,7 @@ class CalendarNotificationService {
           .toList();
 
       // Informacyjnie - nie wpływa na główny licznik powiadomień kalendarza
-      print('Znaleziono ${overdueEvents.length} przeterminowanych wydarzeń');
     } catch (e) {
-      print('Błąd podczas sprawdzania przeterminowanych wydarzeń: $e');
     }
   }
 
@@ -100,7 +96,6 @@ class CalendarNotificationService {
       // Tutaj tylko odświeżamy licznik powiadomień
       await checkTodayEvents();
     } catch (e) {
-      print('Błąd podczas oznaczania wydarzenia jako zakończone: $e');
     }
   }
 
@@ -165,7 +160,6 @@ class CalendarNotificationService {
           )
           .toList();
     } catch (e) {
-      print('Błąd podczas pobierania powiadomień kalendarza: $e');
       return _getMockCalendarNotifications();
     }
   }

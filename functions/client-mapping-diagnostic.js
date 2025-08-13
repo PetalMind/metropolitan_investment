@@ -18,8 +18,6 @@ exports.diagnosticClientMapping = onCall({
   const startTime = Date.now();
   const db = admin.firestore();
 
-  console.log("🔍 [Diagnostic] Rozpoczynam diagnostykę mapowania klientów...");
-
   try {
     // KROK 1: Pobierz wszystkich klientów
     const clientsSnapshot = await db.collection('clients').get();
@@ -179,7 +177,6 @@ exports.diagnosticClientMapping = onCall({
     }
 
     console.log(`✅ [Diagnostic] Diagnostyka zakończona w ${Date.now() - startTime}ms`);
-    console.log(`📊 [Diagnostic] Klienci: ${clients.length}, Produkty: ${totalProducts}, Zmapowane: ${productsMapped}`);
 
     return {
       success: true,
@@ -187,7 +184,6 @@ exports.diagnosticClientMapping = onCall({
     };
 
   } catch (error) {
-    console.error("❌ [Diagnostic] Błąd diagnostyki:", error);
     throw new HttpsError(
       'internal',
       `Błąd podczas diagnostyki: ${error.message}`
@@ -210,7 +206,6 @@ exports.testClientMapping = onCall({
   }
 
   const db = admin.firestore();
-  console.log(`🧪 [Test Mapping] Testowanie: Excel ID: ${excelId}, Nazwa: ${clientName}`);
 
   try {
     // Znajdź klienta
@@ -282,7 +277,6 @@ exports.testClientMapping = onCall({
     };
 
   } catch (error) {
-    console.error("❌ [Test Mapping] Błąd:", error);
     throw new HttpsError('internal', `Błąd testowania: ${error.message}`);
   }
 });

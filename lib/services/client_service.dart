@@ -251,22 +251,12 @@ class ClientService extends BaseService {
   // Get all clients (helper method for analytics)
   Future<List<Client>> getAllClients() async {
     try {
-      print(
-        '🔍 [ClientService.getAllClients] Pobieranie WSZYSTKICH klientów z Firestore...',
-      );
       final snapshot = await firestore.collection(_collection).get();
-      print(
-        '🔍 [ClientService.getAllClients] Firestore zwrócił ${snapshot.docs.length} dokumentów',
-      );
       final clients = snapshot.docs
           .map((doc) => Client.fromFirestore(doc))
           .toList();
-      print(
-        '🔍 [ClientService.getAllClients] Przekonwertowano do ${clients.length} obiektów Client',
-      );
       return clients;
     } catch (e) {
-      print('❌ [ClientService.getAllClients] Błąd: $e');
       logError('getAllClients', e);
       throw Exception('Failed to get all clients: $e');
     }
@@ -286,20 +276,12 @@ class ClientService extends BaseService {
       onProgress?.call(0.4, 'Pobieranie danych klientów...');
       final snapshot = await firestore.collection(_collection).get();
 
-      print(
-        '🔍 [ClientService.loadAllClientsWithProgress] Pobrałem ${snapshot.docs.length} dokumentów z Firestore',
-      );
-
       onProgress?.call(0.6, 'Przetwarzanie informacji...');
       await Future.delayed(const Duration(milliseconds: 200));
 
       final clients = snapshot.docs
           .map((doc) => Client.fromFirestore(doc))
           .toList();
-
-      print(
-        '🔍 [ClientService.loadAllClientsWithProgress] Przetworzyłem ${clients.length} klientów',
-      );
 
       onProgress?.call(0.8, 'Optymalizacja wyświetlania...');
       await Future.delayed(const Duration(milliseconds: 200));
@@ -320,20 +302,14 @@ class ClientService extends BaseService {
     Map<String, dynamic> fields,
   ) async {
     try {
-      print('🔄 [ClientService] Sprawdzanie istnienia klienta: $id');
 
       // Sprawdź czy dokument istnieje przed aktualizacją
       final docRef = firestore.collection(_collection).doc(id);
       final docSnapshot = await docRef.get();
 
       if (!docSnapshot.exists) {
-        print('❌ [ClientService] Klient $id nie istnieje w kolekcji clients');
         throw Exception('Client with ID $id does not exist');
       }
-
-      print(
-        '✅ [ClientService] Klient $id istnieje, aktualizuję pola: ${fields.keys.join(', ')}',
-      );
 
       // Waliduj i konwertuj enum values do string format
       final processedFields = <String, dynamic>{};
@@ -345,14 +321,8 @@ class ClientService extends BaseService {
         // Konwertuj enum na string name zgodnie z modelem Client
         if (key == 'votingStatus' && value is VotingStatus) {
           processedFields[key] = value.name;
-          print(
-            '🗳️ [ClientService] Konwertuję votingStatus: ${value.displayName} -> ${value.name}',
-          );
         } else if (key == 'type' && value is ClientType) {
           processedFields[key] = value.name;
-          print(
-            '👤 [ClientService] Konwertuję type: ${value.displayName} -> ${value.name}',
-          );
         } else {
           processedFields[key] = value;
         }
@@ -360,12 +330,9 @@ class ClientService extends BaseService {
 
       await docRef.update({...processedFields, 'updatedAt': Timestamp.now()});
 
-      print('✅ [ClientService] Pomyślnie zaktualizowano klienta $id');
-
       // Rozszerzone czyszczenie cache dla danych głosowania
       _clearClientRelatedCache();
     } catch (e) {
-      print('❌ [ClientService] Błąd w updateClientFields: $e');
       logError('updateClientFields', e);
       throw Exception('Failed to update client fields: $e');
     }

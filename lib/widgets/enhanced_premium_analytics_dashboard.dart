@@ -99,7 +99,6 @@ class _EnhancedPremiumAnalyticsDashboardState
       if (mounted) {
         setState(() => _isLoadingStats = false);
       }
-      print('❌ [Enhanced Dashboard] Błąd ładowania danych: $e');
     }
   }
 

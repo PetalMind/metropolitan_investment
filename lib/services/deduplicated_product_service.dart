@@ -245,9 +245,6 @@ class DeduplicatedProductService extends BaseService {
       }
 
       if (kDebugMode) {
-        print(
-          '[DeduplicatedProductService] Pogrupowano ${snapshot.docs.length} inwestycji w ${groupedInvestments.length} unikalnych produktów',
-        );
       }
 
       // Konwertuj grupy na deduplikowane produkty

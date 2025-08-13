@@ -34,21 +34,16 @@ class ClientInfo {
 }
 
 void main() async {
-  print('=== KOMPLETNA ANALIZA KLIENTÓW Z PLIKÓW EXCEL ===\n');
 
   List<ClientInfo> allClients = [];
 
   // Analizuj pierwszy plik Excel (Klienci MISA)
-  print('1. Analizuję plik: Klienci MISA all maile i telefony.xlsx');
   var misaClients = await extractFromMisaFile();
   allClients.addAll(misaClients);
-  print('   Znaleziono ${misaClients.length} klientów\n');
 
   // Analizuj drugi plik Excel (Aktywni klienci) - wszystkie arkusze
-  print('2. Analizuję plik: Kopia 20200619 Aktywni klienci.xlsx');
   var aktywniClients = await extractFromAktywniFile();
   allClients.addAll(aktywniClients);
-  print('   Znaleziono ${aktywniClients.length} dodatkowych klientów\n');
 
   // Utwórz mapę unikalnych klientów
   Map<String, ClientInfo> uniqueClients = {};
@@ -72,11 +67,6 @@ void main() async {
       }
     }
   }
-
-  print('3. PODSUMOWANIE:');
-  print(
-    '   Wszystkich unikalnych klientów znalezionych: ${uniqueClients.length}',
-  );
 
   // Porównaj z istniejącym JSON
   await compareWithExistingJson(uniqueClients);
@@ -119,7 +109,6 @@ Future<List<ClientInfo>> extractFromMisaFile() async {
       }
     }
   } catch (e) {
-    print('Błąd podczas czytania pliku MISA: $e');
   }
 
   return clients;
@@ -200,7 +189,6 @@ Future<List<ClientInfo>> extractFromAktywniFile() async {
       }
     }
   } catch (e) {
-    print('Błąd podczas czytania pliku Aktywni: $e');
   }
 
   return clients;
@@ -221,8 +209,6 @@ Future<void> compareWithExistingJson(
       }
     }
 
-    print('   Klientów w aktualnym JSON: ${existingNames.length}');
-
     // Znajdź brakujących klientów
     var missingClients = <ClientInfo>[];
     for (var client in uniqueClients.values) {
@@ -231,8 +217,6 @@ Future<void> compareWithExistingJson(
       }
     }
 
-    print('   Brakujących klientów w JSON: ${missingClients.length}');
-
     if (missingClients.isNotEmpty) {
       print('\n   BRAKUJĄCY KLIENCI (pierwsze 20):');
       for (int i = 0; i < missingClients.length && i < 20; i++) {
@@ -240,17 +224,11 @@ Future<void> compareWithExistingJson(
         print('   ${i + 1}. "${client.name}" (źródło: ${client.source})');
       }
       if (missingClients.length > 20) {
-        print('   ... i ${missingClients.length - 20} więcej');
       }
 
-      print(
-        '\n   🔥 ROZWIĄZANIE: Należy uzupełnić clients_data.json o brakujących klientów!',
-      );
     } else {
-      print('\n   ✅ Wszystkich klienci z Excel są już w JSON');
     }
   } catch (e) {
-    print('Błąd podczas porównania z JSON: $e');
   }
 }
 
@@ -274,16 +252,10 @@ Future<void> saveCompleteClientList(List<ClientInfo> clients) async {
     String jsonString = JsonEncoder.withIndent('  ').convert(jsonClients);
     await File('clients_data_complete.json').writeAsString(jsonString);
 
-    print('\n4. ZAPISANO KOMPLETNĄ LISTĘ:');
-    print('   Plik: clients_data_complete.json');
-    print('   Liczba klientów: ${clients.length}');
-
     if (clients.length == 1059) {
-      print('   🎯 SUKCES! Znaleziono dokładnie 1059 oczekiwanych klientów!');
     } else {
       print('   📊 Liczba klientów: ${clients.length} (oczekiwano: 1059)');
     }
   } catch (e) {
-    print('Błąd podczas zapisywania pliku: $e');
   }
 }

@@ -11,7 +11,6 @@ class FinalFirebaseUploader {
 
   static Future<void> initializeFirebase() async {
     try {
-      print('🔥 ŁĄCZĘ Z PRAWDZIWYM FIREBASE...');
 
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
@@ -25,16 +24,12 @@ class FinalFirebaseUploader {
         'message': 'Firebase działa!',
       });
 
-      print('✅ FIREBASE POŁĄCZONY! Projekt: metropolitan-investment');
     } catch (e) {
-      print('❌ BŁĄD FIREBASE: $e');
       rethrow;
     }
   }
 
   static Future<void> uploadAllDataNow() async {
-    print('🚀 OSTATECZNY UPLOAD DO FIREBASE!');
-    print('=================================\n');
 
     await initializeFirebase();
 
@@ -47,26 +42,21 @@ class FinalFirebaseUploader {
 
     await _verifyAllData();
 
-    print('\n🎉 KURWA WSZYSTKO WGRANE DO FIREBASE! 🎉');
   }
 
   static Future<void> _realUpload(
     String fileName,
     String collectionName,
   ) async {
-    print('\n📤 WGRYWAM $fileName → Firebase/$collectionName');
 
     try {
       final file = File(fileName);
       if (!file.existsSync()) {
-        print('❌ BRAK PLIKU: $fileName');
         return;
       }
 
       final jsonString = await file.readAsString();
       final List<dynamic> data = json.decode(jsonString);
-
-      print('📊 Wgrywam ${data.length} rekordów...');
 
       final collection = _firestore!.collection(collectionName);
 
@@ -107,15 +97,12 @@ class FinalFirebaseUploader {
         await Future.delayed(Duration(milliseconds: 200));
       }
 
-      print('  ✅ SUKCES! ${uploaded} rekordów w Firebase/$collectionName');
     } catch (e) {
-      print('  ❌ BŁĄD: $e');
       rethrow;
     }
   }
 
   static Future<void> _verifyAllData() async {
-    print('\n🔍 SPRAWDZAM DANE W FIREBASE...');
 
     final collections = ['clients', 'investments', 'shares', 'bonds', 'loans'];
     int totalDocs = 0;
@@ -130,7 +117,6 @@ class FinalFirebaseUploader {
         totalDocs += count;
 
         if (count > 0) {
-          print('✅ $collectionName: $count dokumentów');
 
           // Pokaż przykład
           final sampleDoc = await _firestore!
@@ -145,18 +131,10 @@ class FinalFirebaseUploader {
             print('   📋 Pola: ${keys.join(', ')}');
           }
         } else {
-          print('❌ $collectionName: PUSTY!');
         }
       } catch (e) {
-        print('❌ Błąd $collectionName: $e');
       }
     }
-
-    print('\n🏆 FIREBASE STATISTICS:');
-    print('   📊 Łącznie dokumentów: $totalDocs');
-    print(
-      '   🔗 Firebase Console: https://console.firebase.google.com/project/metropolitan-investment/firestore',
-    );
 
     if (totalDocs == 0) {
       throw Exception('KURWA ŻADNYCH DANYCH W FIREBASE!');
@@ -164,7 +142,6 @@ class FinalFirebaseUploader {
   }
 
   static Future<void> createSampleQueries() async {
-    print('\n🔍 TESTUJĘ ZAPYTANIA FIREBASE...');
 
     try {
       // Test 1: Klienci z emailem
@@ -174,8 +151,6 @@ class FinalFirebaseUploader {
           .limit(5)
           .get();
 
-      print('✅ Klienci z emailem: ${clientsWithEmail.docs.length}');
-
       // Test 2: Najwyższe inwestycje
       final topInvestments = await _firestore!
           .collection('investments')
@@ -183,10 +158,8 @@ class FinalFirebaseUploader {
           .limit(3)
           .get();
 
-      print('✅ Top inwestycje: ${topInvestments.docs.length}');
       for (var doc in topInvestments.docs) {
         final data = doc.data();
-        print('   💰 ${data['klient']}: ${data['kwota_inwestycji']} PLN');
       }
 
       // Test 3: Obligacje
@@ -196,29 +169,18 @@ class FinalFirebaseUploader {
           .limit(1)
           .get();
 
-      print('✅ Obligacje znalezione: ${bonds.docs.length}');
     } catch (e) {
-      print('⚠️ Błąd zapytań: $e');
     }
   }
 }
 
 void main() async {
   try {
-    print('🔥🔥🔥 FINAL FIREBASE UPLOADER 🔥🔥🔥');
-    print('=====================================\n');
 
     await FinalFirebaseUploader.uploadAllDataNow();
     await FinalFirebaseUploader.createSampleQueries();
 
-    print('\n🎊🎊🎊 SUKCES! WSZYSTKO W FIREBASE! 🎊🎊🎊');
-    print('Sprawdź Firebase Console:');
-    print(
-      'https://console.firebase.google.com/project/metropolitan-investment/firestore',
-    );
   } catch (e) {
-    print('\n💥💥💥 KRYTYCZNY BŁĄD: $e 💥💥💥');
-    print('Stack: ${StackTrace.current}');
     exit(1);
   }
 }

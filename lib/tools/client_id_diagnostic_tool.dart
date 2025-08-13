@@ -11,9 +11,6 @@ class ClientIdDiagnosticTool {
 
   /// Przeprowadź pełną diagnostykę systemu mapowania
   Future<void> runCompleteDiagnostic() async {
-    print(
-      '🔍 [Diagnostic] Rozpoczynam pełną diagnostykę mapowania ID klientów...\n',
-    );
 
     await _mappingService.initialize();
 
@@ -22,28 +19,19 @@ class ClientIdDiagnosticTool {
     await _checkDuplicates();
     await _generateRecommendations();
 
-    print('\n✅ [Diagnostic] Diagnostyka zakończona');
   }
 
   /// Sprawdź jakość mapowania
   Future<void> _checkMappingQuality() async {
-    print('📊 === ANALIZA JAKOŚCI MAPOWANIA ===');
 
     final stats = _mappingService.getStatistics();
-    print('📈 Statystyki mapowania:');
-    print('   - Excel ID -> Firestore: ${stats['excelMappings']}');
-    print('   - Nazwa -> Firestore: ${stats['nameMappings']}');
-    print('   - Status inicjalizacji: ${stats['isInitialized']}');
 
     // Sprawdź przykłady mapowania
-    print('\n🔍 Przykłady mapowania:');
     await _showMappingExamples();
-    print('');
   }
 
   /// Sprawdź integralność produktów
   Future<void> _checkProductsIntegrity() async {
-    print('🔗 === ANALIZA INTEGRALNOŚCI PRODUKTÓW ===');
 
     final collections = [
       {'name': 'bonds', 'idField': 'ID_Klient', 'nameField': 'Klient'},
@@ -60,12 +48,10 @@ class ClientIdDiagnosticTool {
         collection['nameField']!,
       );
     }
-    print('');
   }
 
   /// Sprawdź duplikaty
   Future<void> _checkDuplicates() async {
-    print('👥 === ANALIZA DUPLIKATÓW ===');
 
     final firestore = FirebaseFirestore.instance;
     final clientsSnapshot = await firestore.collection('clients').get();
@@ -97,15 +83,10 @@ class ClientIdDiagnosticTool {
         .where((entry) => entry.value.length > 1)
         .toList();
 
-    print('📊 Wyniki analizy duplikatów:');
-    print('   - Duplikaty nazw: ${nameDuplicates.length}');
-    print('   - Duplikaty Excel ID: ${excelIdDuplicates.length}');
-
     if (nameDuplicates.isNotEmpty) {
       print('\n⚠️ Duplikaty nazw (pierwsze 3):');
       for (int i = 0; i < nameDuplicates.length && i < 3; i++) {
         final duplicate = nameDuplicates[i];
-        print('   "${duplicate.key}": ${duplicate.value.length} wystąpień');
       }
     }
 
@@ -113,31 +94,22 @@ class ClientIdDiagnosticTool {
       print('\n⚠️ Duplikaty Excel ID (pierwsze 3):');
       for (int i = 0; i < excelIdDuplicates.length && i < 3; i++) {
         final duplicate = excelIdDuplicates[i];
-        print('   "${duplicate.key}": ${duplicate.value.length} wystąpień');
       }
     }
-    print('');
   }
 
   /// Generuj rekomendacje
   Future<void> _generateRecommendations() async {
-    print('💡 === REKOMENDACJE ===');
 
     final stats = _mappingService.getStatistics();
 
     if (stats['excelMappings'] < 100) {
-      print('⚠️ Mało mapowań Excel ID - sprawdź importy danych');
     }
 
     if (stats['nameMappings'] > stats['excelMappings'] * 1.2) {
-      print('⚠️ Więcej mapowań nazw niż Excel ID - możliwe duplikaty');
     }
 
-    print('✅ Zalecane działania:');
     print('   1. Uruchom migrację: `runClientIdMigration()`');
-    print('   2. Zweryfikuj duplikaty klientów w bazie');
-    print('   3. Dodaj brakujące excelId do klientów');
-    print('   4. Przetestuj Firebase Functions z nowym mapowaniem');
   }
 
   /// Pokaż przykłady mapowania
@@ -153,9 +125,6 @@ class ClientIdDiagnosticTool {
       if (excelId != null) {
         final resolvedId = await _mappingService.getFirestoreIdByExcelId(
           excelId,
-        );
-        print(
-          '   Excel "$excelId" -> Firestore "${resolvedId == doc.id ? '✅' : '❌'}" ($name)',
         );
       }
     }
@@ -193,22 +162,15 @@ class ClientIdDiagnosticTool {
       if (resolved != null) resolvable++;
     }
 
-    print('📋 $collectionName:');
-    print('   - Dokumentów: $total');
     print('   - Z Excel ID ($idField): $withId');
     print('   - Z nazwą ($nameField): $withName');
-    print('   - Mozoliwe do zmapowania: $resolvable');
 
     if (resolvable < total * 0.8) {
-      print('   ⚠️ Niski procent mapowania - wymaga naprawy');
     }
   }
 
   /// Sprawdź konkretny przypadek
   Future<void> testSpecificCase(String excelId, String clientName) async {
-    print('🧪 === TEST KONKRETNEGO PRZYPADKU ===');
-    print('Excel ID: $excelId');
-    print('Nazwa klienta: $clientName');
 
     await _mappingService.initialize();
 
@@ -218,7 +180,6 @@ class ClientIdDiagnosticTool {
     );
 
     if (firestoreId != null) {
-      print('✅ Zmapowano na: $firestoreId');
 
       // Sprawdź czy dokument istnieje
       final firestore = FirebaseFirestore.instance;
@@ -226,15 +187,9 @@ class ClientIdDiagnosticTool {
 
       if (doc.exists) {
         final data = doc.data()!;
-        print('✅ Dokument istnieje:');
-        print('   - Nazwa: ${data['imie_nazwisko'] ?? data['name']}');
-        print('   - Excel ID: ${data['excelId']}');
-        print('   - Email: ${data['email']}');
       } else {
-        print('❌ BŁĄD: Dokument nie istnieje!');
       }
     } else {
-      print('❌ Nie udało się zmapować');
     }
   }
 }

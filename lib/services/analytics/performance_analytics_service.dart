@@ -23,12 +23,8 @@ class PerformanceAnalyticsService extends BaseService {
     int timeRangeMonths,
   ) async {
     try {
-      print('🔍 [PerformanceAnalytics] Rozpoczynam obliczenia...');
 
       final investments = await _getAllInvestments(timeRangeMonths);
-      print(
-        '🔍 [PerformanceAnalytics] Pobrano ${investments.length} inwestycji',
-      );
 
       final overview = _calculatePerformanceOverview(investments);
       final benchmarkComparison = _calculateBenchmarkComparison(investments);

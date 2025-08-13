@@ -330,8 +330,6 @@ class _EnhancedVotingChangesTabState extends State<EnhancedVotingChangesTab> {
         changes = await _changeService.getClientVotingStatusHistory(widget.investor.client.excelId!);
       }
 
-      print('✅ [EnhancedVotingChangesTab] Loaded ${changes.length} changes for ${widget.investor.client.name}');
-
       if (mounted) {
         setState(() {
           _changes = changes;
@@ -339,7 +337,6 @@ class _EnhancedVotingChangesTabState extends State<EnhancedVotingChangesTab> {
         });
       }
     } catch (e) {
-      print('❌ [EnhancedVotingChangesTab] Error loading changes: $e');
       if (mounted) {
         setState(() {
           _error = e.toString();
@@ -890,7 +887,6 @@ class _EnhancedVotingChangesTabState extends State<EnhancedVotingChangesTab> {
 
   Future<void> _loadChanges() async {
     try {
-      print('🔍 [EnhancedVotingChangesTab] Ładowanie historii zmian dla: ${widget.investor.client.name}');
       setState(() {
         _isLoading = true;
         _error = null;
@@ -909,8 +905,6 @@ class _EnhancedVotingChangesTabState extends State<EnhancedVotingChangesTab> {
       }
       }
 
-      print('✅ [EnhancedVotingChangesTab] Znaleziono ${changes.length} zmian w historii');
-
       if (mounted) {
         setState(() {
           _changes = changes;
@@ -920,7 +914,6 @@ class _EnhancedVotingChangesTabState extends State<EnhancedVotingChangesTab> {
         });
       }
     } catch (e) {
-      print('❌ [EnhancedVotingChangesTab] Błąd ładowania historii: $e');
       if (mounted) {
         setState(() {
           _error = 'Błąd ładowania historii zmian: $e';
@@ -963,7 +956,6 @@ class _EnhancedVotingChangesTabState extends State<EnhancedVotingChangesTab> {
         _statistics = stats;
       });
     } catch (e) {
-      print('Error loading statistics: $e');
     }
   }
 

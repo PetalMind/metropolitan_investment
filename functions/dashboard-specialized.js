@@ -23,7 +23,6 @@ exports.getDashboardPerformanceMetrics = onCall({
   timeoutSeconds: 300,
 }, async (request) => {
   const startTime = Date.now();
-  console.log("📈 [Performance] Rozpoczynam obliczanie metryk wydajności...");
 
   try {
     const db = admin.firestore(); // Initialize db inside function
@@ -57,11 +56,9 @@ exports.getDashboardPerformanceMetrics = onCall({
     };
 
     await setCachedResult(cacheKey, metrics, 180); // 3 minuty cache
-    console.log(`✅ [Performance] Metryki obliczone w ${metrics.executionTime}ms`);
 
     return metrics;
   } catch (error) {
-    console.error("❌ [Performance] Błąd:", error);
     throw new HttpsError(
       "internal",
       "Błąd podczas obliczania metryk wydajności",
@@ -79,7 +76,6 @@ exports.getDashboardRiskMetrics = onCall({
   timeoutSeconds: 300,
 }, async (request) => {
   const startTime = Date.now();
-  console.log("⚠️ [Risk] Rozpoczynam analizę ryzyka...");
 
   try {
     const db = admin.firestore(); // Initialize db inside function
@@ -110,11 +106,9 @@ exports.getDashboardRiskMetrics = onCall({
     };
 
     await setCachedResult(cacheKey, metrics, 180);
-    console.log(`✅ [Risk] Analiza ryzyka zakończona w ${metrics.executionTime}ms`);
 
     return metrics;
   } catch (error) {
-    console.error("❌ [Risk] Błąd:", error);
     throw new HttpsError(
       "internal",
       "Błąd podczas analizy ryzyka",
@@ -132,7 +126,6 @@ exports.getDashboardPredictions = onCall({
   timeoutSeconds: 300,
 }, async (request) => {
   const startTime = Date.now();
-  console.log("🔮 [Predictions] Rozpoczynam analizę predykcyjną...");
 
   try {
     const db = admin.firestore(); // Initialize db inside function
@@ -162,11 +155,9 @@ exports.getDashboardPredictions = onCall({
     };
 
     await setCachedResult(cacheKey, metrics, 300); // 5 minut cache dla predykcji
-    console.log(`✅ [Predictions] Analiza predykcyjna zakończona w ${metrics.executionTime}ms`);
 
     return metrics;
   } catch (error) {
-    console.error("❌ [Predictions] Błąd:", error);
     throw new HttpsError(
       "internal",
       "Błąd podczas analizy predykcyjnej",
@@ -184,7 +175,6 @@ exports.getDashboardBenchmarks = onCall({
   timeoutSeconds: 300,
 }, async (request) => {
   const startTime = Date.now();
-  console.log("📊 [Benchmark] Rozpoczynam analizę benchmarków...");
 
   try {
     const db = admin.firestore(); // Initialize db inside function
@@ -214,11 +204,9 @@ exports.getDashboardBenchmarks = onCall({
     };
 
     await setCachedResult(cacheKey, metrics, 240); // 4 minuty cache
-    console.log(`✅ [Benchmark] Analiza benchmarków zakończona w ${metrics.executionTime}ms`);
 
     return metrics;
   } catch (error) {
-    console.error("❌ [Benchmark] Błąd:", error);
     throw new HttpsError(
       "internal",
       "Błąd podczas analizy benchmarków",

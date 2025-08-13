@@ -23,7 +23,6 @@ exports.getAdvancedDashboardMetrics = onCall({
   timeoutSeconds: 540,
 }, async (request) => {
   const startTime = Date.now();
-  console.log("🔍 [Advanced Analytics] Rozpoczynam obliczanie metryk...");
 
   try {
     const db = admin.firestore(); // Initialize db inside function
@@ -34,13 +33,11 @@ exports.getAdvancedDashboardMetrics = onCall({
     if (!forceRefresh) {
       const cached = await getCachedResult(cacheKey);
       if (cached) {
-        console.log("⚡ [Advanced Analytics] Zwracam z cache");
         return cached;
       }
     }
 
     // 📊 KROK 1: Pobierz wszystkie inwestycje ze wszystkich kolekcji
-    console.log("📋 [Advanced Analytics] Pobieranie danych ze wszystkich kolekcji...");
 
     const [
       investmentsSnapshot,
@@ -123,7 +120,6 @@ exports.getAdvancedDashboardMetrics = onCall({
     );
     return metrics;
   } catch (error) {
-    console.error("❌ [Advanced Analytics] Błąd:", error);
     throw new HttpsError(
       "internal",
       "Błąd podczas obliczania metryk",

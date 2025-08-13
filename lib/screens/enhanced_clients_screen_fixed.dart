@@ -54,7 +54,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
     });
 
     try {
-      print('🔄 [EnhancedClientsScreen] Rozpoczynam ładowanie danych...');
 
       // Równoległe ładowanie danych z progress tracking
       final futures = await Future.wait([
@@ -82,15 +81,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
         final activeClients = futures[1] as List<Client>;
         final clientStats = futures[2] as ClientStats;
 
-        print('📊 [EnhancedClientsScreen] Wyniki ładowania:');
-        print('   - Wszyscy klienci: ${allClients.length}');
-        print('   - Aktywni klienci: ${activeClients.length}');
-        print('   - Statystyki - łącznie: ${clientStats.totalClients}');
-        print('   - Statystyki - inwestycje: ${clientStats.totalInvestments}');
-        print(
-          '   - Statystyki - kapitał: ${clientStats.totalRemainingCapital}',
-        );
-
         setState(() {
           _allClients = allClients;
           _activeClients = activeClients;
@@ -103,7 +93,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
         _applyCurrentFilters();
       }
     } catch (e) {
-      print('❌ [EnhancedClientsScreen] Błąd ładowania: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -117,8 +106,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
   /// Force reload all data method
   Future<void> _forceReloadAllData() async {
     if (!mounted) return;
-
-    print('DEBUG: Force reloading all data...');
 
     setState(() {
       _isLoading = true;
@@ -137,7 +124,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
         _showInfo('Dane zostały odświeżone');
       }
     } catch (e) {
-      print('ERROR: Failed to force reload data: $e');
       if (mounted) {
         _showInfo('Błąd podczas odświeżania danych: $e');
       }
