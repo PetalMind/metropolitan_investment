@@ -3,17 +3,10 @@ import '../../theme/app_theme.dart';
 import '../../models/unified_product.dart';
 import '../../models/investor_summary.dart';
 import '../../models_and_services.dart';
-import 'product_details_service.dart';
+import '../../utils/currency_formatter.dart';
 
-// Lokalny model tylko dla dwóch podstawowych sum.
-class _LocalProductStats {
-  final double totalInvestmentAmount;
-  final double totalRemainingCapital;
-  const _LocalProductStats({
-    required this.totalInvestmentAmount,
-    required this.totalRemainingCapital,
-  });
-}
+// ⭐ UJEDNOLICONY WZORZEC: Używamy UnifiedDashboardStatisticsService
+// zamiast ProductDetailsService + ServerSideStatisticsService
 
 class ProductDetailsHeader extends StatefulWidget {
   final UnifiedProduct product;
@@ -21,6 +14,10 @@ class ProductDetailsHeader extends StatefulWidget {
   final bool isLoadingInvestors;
   final VoidCallback onClose;
   final VoidCallback? onShowInvestors;
+  final Function(bool)?
+  onEditModeChanged; // ⭐ NOWE: Callback dla zmiany trybu edycji
+  final Function(int)? onTabChanged; // ⭐ NOWE: Callback dla zmiany tabu
+
   const ProductDetailsHeader({
     super.key,
     required this.product,
@@ -28,6 +25,8 @@ class ProductDetailsHeader extends StatefulWidget {
     required this.isLoadingInvestors,
     required this.onClose,
     this.onShowInvestors,
+    this.onEditModeChanged, // ⭐ NOWE: Callback dla zmiany trybu edycji
+    this.onTabChanged, // ⭐ NOWE: Callback dla zmiany tabu
   });
   @override
   State<ProductDetailsHeader> createState() => _ProductDetailsHeaderState();
@@ -37,11 +36,15 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     with TickerProviderStateMixin {
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
-  final ProductDetailsService _service = ProductDetailsService();
+  // ⭐ UJEDNOLICONY SERWIS: Wykorzystujemy zunifikowane statystyki dashboard
+  final UnifiedDashboardStatisticsService _statisticsService =
+      UnifiedDashboardStatisticsService();
 
-  UnifiedProductStatistics?
-  _serverStatistics; // nadal możemy użyć serwerowych sum (bez pól restrukt.)
+  UnifiedDashboardStatistics? _unifiedStatistics;
   bool _isLoadingStatistics = false;
+
+  // ⭐ NOWE: Stan edycji - przekazywany do product_investors_tab
+  bool _isEditModeEnabled = false;
 
   @override
   void initState() {
@@ -60,22 +63,27 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   Future<void> _loadServerStatistics() async {
     if (widget.isLoadingInvestors || widget.investors.isEmpty) return;
     if (widget.product.name.trim().isEmpty) return;
+
     setState(() => _isLoadingStatistics = true);
+
     try {
-      final stats =
-          await ServerSideStatisticsService.calculateProductStatistics(
-            widget.investors,
-            widget.product.name,
-            isLoadingInvestors: widget.isLoadingInvestors,
-          );
+      // ⭐ UJEDNOLICONE OBLICZENIA: Używamy zunifikowanych statystyk z inwestorów
+      final stats = await _statisticsService.getStatisticsFromInvestors();
+
       if (!mounted) return;
+
       setState(() {
-        _serverStatistics = stats;
+        _unifiedStatistics = stats;
         _isLoadingStatistics = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() => _isLoadingStatistics = false);
+
+      // Fallback do lokalnych obliczeń
+      debugPrint(
+        '⚠️ [ProductDetailsHeader] Fallback do lokalnych statystyk: $error',
+      );
     }
   }
 
@@ -137,103 +145,151 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     );
   }
 
-  // --- Metryki (TYLKO 2) ---
+  // --- Metryki (UJEDNOLICONE ŹRÓDŁO DANYCH) ---
   Widget _buildFinancialMetrics() {
-    final local = _computeLocalProductStats();
-    final double totalInvestmentAmountDisplay;
-    final double totalRemainingCapitalDisplay;
-    final double totalCapitalForRestructuringDisplay;
     if (_isLoadingStatistics) {
       return Row(
         children: List.generate(
-          2,
+          3,
           (i) => Expanded(
             child: Container(
-              margin: EdgeInsets.only(right: i == 0 ? 16 : 0),
+              margin: EdgeInsets.only(right: i < 2 ? 16 : 0),
               child: _buildMetricLoadingCard(),
             ),
           ),
         ),
       );
     }
-    if (_serverStatistics != null) {
-      totalInvestmentAmountDisplay = _serverStatistics!.totalInvestmentAmount;
-      totalRemainingCapitalDisplay = _serverStatistics!.totalRemainingCapital;
-      totalCapitalForRestructuringDisplay =
-          _serverStatistics!.totalCapitalForRestructuring;
+
+    // ⭐ UJEDNOLICONE OBLICZENIA: Używamy zunifikowanych statystyk lub fallback lokalny
+    final double totalInvestmentAmount;
+    final double totalRemainingCapital;
+    final double totalCapitalSecured;
+
+    if (_unifiedStatistics != null) {
+      // Zunifikowane statystyki z serwisu
+      totalInvestmentAmount = _unifiedStatistics!.totalInvestmentAmount;
+      totalRemainingCapital = _unifiedStatistics!.totalRemainingCapital;
+      totalCapitalSecured = _unifiedStatistics!.totalCapitalSecured;
     } else {
-      totalInvestmentAmountDisplay = local.totalInvestmentAmount;
-      totalRemainingCapitalDisplay = local.totalRemainingCapital;
-      totalCapitalForRestructuringDisplay =
-          _computeLocalCapitalForRestructuring();
+      // Fallback: Obliczenia lokalne według wzoru z product_details_modal.dart
+      totalInvestmentAmount = _computeTotalInvestmentAmount();
+      totalRemainingCapital = _computeTotalRemainingCapital();
+      totalCapitalSecured = _computeTotalCapitalSecured();
     }
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 220,
-          child: _buildMetricCard(
-            title: 'Suma inwestycji',
-            value: _service.formatCurrency(totalInvestmentAmountDisplay),
-            subtitle: 'PLN',
-            icon: Icons.trending_down,
-            color: AppTheme.infoPrimary,
+        // Etykieta źródła danych (dla przejrzystości)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: 14,
+                color: Colors.white.withOpacity(0.7),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Źródło: ${_unifiedStatistics != null ? "Zunifikowane statystyki" : "Obliczenia lokalne"}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
-        SizedBox(
-          width: 220,
-          child: _buildMetricCard(
-            title: 'Kapitał pozostały',
-            value: _service.formatCurrency(totalRemainingCapitalDisplay),
-            subtitle: 'PLN',
-            icon: Icons.account_balance_wallet,
-            color: AppTheme.successPrimary,
-          ),
-        ),
-        SizedBox(
-          width: 220,
-          child: _buildMetricCard(
-            title: 'Kapitał do restrukt.',
-            value:
-                totalCapitalForRestructuringDisplay.toStringAsFixed(2) + ' PLN',
-            subtitle: 'Suma capitalForRestructuring',
-            icon: Icons.build,
-            color: Colors.orangeAccent,
-          ),
+        Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: [
+            SizedBox(
+              width: 220,
+              child: _buildMetricCard(
+                title: 'Suma inwestycji',
+                value: CurrencyFormatter.formatCurrency(totalInvestmentAmount),
+                subtitle: 'PLN',
+                icon: Icons.trending_up,
+                color: AppTheme.infoPrimary,
+              ),
+            ),
+            SizedBox(
+              width: 220,
+              child: _buildMetricCard(
+                title: 'Kapitał pozostały',
+                value: CurrencyFormatter.formatCurrency(totalRemainingCapital),
+                subtitle: 'PLN',
+                icon: Icons.account_balance_wallet,
+                color: AppTheme.successPrimary,
+              ),
+            ),
+            SizedBox(
+              width: 220,
+              child: _buildMetricCard(
+                title: 'Kapitał zabezpieczony',
+                value: CurrencyFormatter.formatCurrency(totalCapitalSecured),
+                subtitle: 'PLN',
+                icon: Icons.security,
+                color: AppTheme.warningPrimary,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  _LocalProductStats _computeLocalProductStats() {
-    double totalInvestmentAmount = 0;
-    double totalRemainingCapital = 0;
+  // ⭐ POMOCNICZE METODY OBLICZENIOWE (wzór z product_details_modal.dart)
+  double _computeTotalInvestmentAmount() {
+    double sum = 0.0;
     final processedIds = <String>{};
+
     for (final investor in widget.investors) {
-      for (final inv in investor.investments) {
-        if (inv.productName != widget.product.name) continue;
-        if (processedIds.contains(inv.id)) continue; // deduplikacja
-        processedIds.add(inv.id);
-        totalInvestmentAmount += inv.investmentAmount;
-        totalRemainingCapital += inv.remainingCapital;
+      for (final investment in investor.investments) {
+        if (investment.productName != widget.product.name) continue;
+        if (processedIds.contains(investment.id)) continue;
+        processedIds.add(investment.id);
+        sum += investment.investmentAmount;
       }
     }
-    return _LocalProductStats(
-      totalInvestmentAmount: totalInvestmentAmount,
-      totalRemainingCapital: totalRemainingCapital,
-    );
+    return sum;
   }
 
-  double _computeLocalCapitalForRestructuring() {
-    double sum = 0;
+  double _computeTotalRemainingCapital() {
+    double sum = 0.0;
     final processedIds = <String>{};
+
     for (final investor in widget.investors) {
-      for (final inv in investor.investments) {
-        if (inv.productName != widget.product.name) continue;
-        if (processedIds.contains(inv.id)) continue;
-        processedIds.add(inv.id);
-        sum += inv.capitalForRestructuring;
+      for (final investment in investor.investments) {
+        if (investment.productName != widget.product.name) continue;
+        if (processedIds.contains(investment.id)) continue;
+        processedIds.add(investment.id);
+        sum += investment.remainingCapital;
+      }
+    }
+    return sum;
+  }
+
+  double _computeTotalCapitalSecured() {
+    final totalRemaining = _computeTotalRemainingCapital();
+    final totalForRestructuring = _computeTotalCapitalForRestructuring();
+    // Wzór: capitalSecured = max(remainingCapital - capitalForRestructuring, 0)
+    return (totalRemaining - totalForRestructuring).clamp(0.0, double.infinity);
+  }
+
+  double _computeTotalCapitalForRestructuring() {
+    double sum = 0.0;
+    final processedIds = <String>{};
+
+    for (final investor in widget.investors) {
+      for (final investment in investor.investments) {
+        if (investment.productName != widget.product.name) continue;
+        if (processedIds.contains(investment.id)) continue;
+        processedIds.add(investment.id);
+        sum += investment.capitalForRestructuring;
       }
     }
     return sum;
@@ -290,88 +346,54 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   }
 
   void _editProduct() async {
-    try {
-      // Zamykamy obecny dialog
-      widget.onClose();
+    setState(() {
+      _isEditModeEnabled = !_isEditModeEnabled;
+    });
 
-      // Pokazujemy dialog ładowania
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
+    // ⭐ NOWE: Powiadom parent o zmianie trybu edycji
+    widget.onEditModeChanged?.call(_isEditModeEnabled);
+
+    if (_isEditModeEnabled) {
+      // ⭐ NOWE: Automatycznie przełącz na tab "Inwestorzy" (index 1)
+      widget.onTabChanged?.call(1);
+      
+      _showSnackBar(
+        'Tryb edycji włączony - kliknij na inwestora aby edytować',
+        isError: false,
+        icon: Icons.edit,
       );
-
-      // Tutaj będzie logika otwierania formularza edycji
-      // Na razie symulujemy proces
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      if (mounted) {
-        Navigator.of(context).pop(); // Zamknij dialog ładowania
-
-        // Pokazuj informację o dostępności funkcji
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.info, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Funkcja edycji produktu',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Formularz edycji dla ${widget.product.name} zostanie wkrótce dodany',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: AppTheme.warningPrimary,
-            duration: const Duration(seconds: 4),
-            action: SnackBarAction(
-              label: 'OK',
-              textColor: Colors.white,
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              },
-            ),
-          ),
-        );
-      }
-
-      print(
-        '🔧 [ProductDetailsHeader] Edycja produktu: ${widget.product.name}',
+    } else {
+      _showSnackBar(
+        'Tryb edycji wyłączony',
+        isError: false,
+        icon: Icons.visibility,
       );
-      print('  - ID: ${widget.product.id}');
-      print('  - Typ: ${widget.product.productType.displayName}');
-      print(
-        '  - Kolekcja docelowa: ${widget.product.productType.collectionName}',
-      );
-      print('  - Serwis dostępny: TAK');
-
-      // Potencjalna logika dla przyszłego formularza edycji:
-      // await _productService.updateUnifiedProduct(modifiedProduct);
-    } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop(); // Zamknij dialog ładowania jeśli błąd
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Błąd podczas przygotowania edycji: $e'),
-            backgroundColor: AppTheme.errorPrimary,
-          ),
-        );
-      }
-
-      print('❌ [ProductDetailsHeader] Błąd podczas edycji produktu: $e');
     }
+  }
+
+  void _showSnackBar(String message, {required bool isError, IconData? icon}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              icon ?? (isError ? Icons.error : Icons.check_circle),
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: isError
+            ? AppTheme.errorPrimary
+            : AppTheme.successPrimary,
+        duration: Duration(seconds: isError ? 5 : 3),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
   }
 
   Widget _buildMainInfo() {
@@ -416,7 +438,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                   ],
                 ),
                 child: Icon(
-                  _service.getProductIcon(widget.product.productType),
+                  _getProductIcon(widget.product.productType),
                   color: Colors.white,
                   size: 32,
                 ),
@@ -677,5 +699,21 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
         );
       },
     );
+  }
+
+  // ⭐ POMOCNICZA METODA: Ikona produktu (wzór z product_details_modal.dart)
+  IconData _getProductIcon(UnifiedProductType productType) {
+    switch (productType) {
+      case UnifiedProductType.bonds:
+        return Icons.account_balance;
+      case UnifiedProductType.shares:
+        return Icons.trending_up;
+      case UnifiedProductType.loans:
+        return Icons.monetization_on;
+      case UnifiedProductType.apartments:
+        return Icons.home;
+      case UnifiedProductType.other:
+        return Icons.inventory;
+    }
   }
 }

@@ -43,6 +43,8 @@ class _PremiumInvestorAnalyticsScreenState
   final ia_service.InvestorAnalyticsService _updateService =
       ia_service.InvestorAnalyticsService(); // Dla aktualizacji danych
   final VotingAnalysisManager _votingManager = VotingAnalysisManager();
+  final UnifiedDashboardStatisticsService _statisticsService =
+      UnifiedDashboardStatisticsService(); // 🚀 NOWE: Zunifikowane statystyki
 
   // 🎛️ UI CONTROLLERS
   final TextEditingController _searchController = TextEditingController();
@@ -78,6 +80,8 @@ class _PremiumInvestorAnalyticsScreenState
   bool _isLoadingMore = false;
   bool _isRefreshing = false;
   String? _error;
+  UnifiedDashboardStatistics?
+  _dashboardStatistics; // 🚀 NOWE: Zunifikowane statystyki
 
   // 📄 PAGINATION
   int _currentPage = 1;
@@ -299,6 +303,19 @@ class _PremiumInvestorAnalyticsScreenState
         print(
           '📊 [DEBUG] Enhanced result: ${enhancedResult.totalCount} investors, ${enhancedResult.totalViableCapital.toStringAsFixed(2)} total capital',
         );
+
+        // 🚀 NOWE: Załaduj zunifikowane statystyki równolegle
+        try {
+          _dashboardStatistics = await _statisticsService
+              .getStatisticsFromInvestors();
+          print(
+            '📊 [PremiumAnalytics] Załadowano zunifikowane statystyki: $_dashboardStatistics',
+          );
+        } catch (statsError) {
+          print('⚠️ [PremiumAnalytics] Błąd ładowania statystyk: $statsError');
+          // Nie przerywamy działania - statystyki nie są krytyczne
+        }
+
         _processAnalyticsResult(enhancedResult);
         _calculateMajorityAnalysis();
         _calculateVotingAnalysis();
@@ -796,6 +813,28 @@ class _PremiumInvestorAnalyticsScreenState
                     '${_totalCount} inwestorów • ${CurrencyFormatter.formatCurrency(_votingManager.totalViableCapital, showDecimals: false)}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.successPrimary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.successPrimary.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Text(
+                      'Źródło: Inwestorzy (viableCapital)',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppTheme.successPrimary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -1422,14 +1461,30 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildStatsGrid() {
-    // Oblicz kapitał pozostały (viableCapital)
-    final totalViableCapital = _votingManager.totalViableCapital;
+    // 🚀 NOWE: Spróbuj użyć zunifikowanych statystyk, jeśli dostępne
+    double totalViableCapital;
+    double totalCapital;
 
-    // Oblicz kapitał całkowity (uwzględniając wszystkie inwestycje)
-    final totalCapital = _allInvestors.fold<double>(
-      0.0,
-      (sum, investor) => sum + investor.totalInvestmentAmount,
-    );
+    if (_dashboardStatistics != null) {
+      // Używamy zunifikowanych statystyk (preferowane)
+      totalViableCapital = _dashboardStatistics!.totalViableCapital;
+      totalCapital = _dashboardStatistics!.totalInvestmentAmount;
+
+      print('📊 [PremiumAnalytics] Używam zunifikowanych statystyk:');
+      print('   - Viable Capital: ${totalViableCapital.toStringAsFixed(2)}');
+      print('   - Total Capital: ${totalCapital.toStringAsFixed(2)}');
+    } else {
+      // Fallback na poprzedni sposób obliczania
+      totalViableCapital = _votingManager.totalViableCapital;
+      totalCapital = _allInvestors.fold<double>(
+        0.0,
+        (sum, investor) => sum + investor.totalInvestmentAmount,
+      );
+
+      print('📊 [PremiumAnalytics] Używam fallback obliczenia:');
+      print('   - Viable Capital: ${totalViableCapital.toStringAsFixed(2)}');
+      print('   - Total Capital: ${totalCapital.toStringAsFixed(2)}');
+    }
 
     // Oblicz próg 51% kapitału
     final majorityCapitalThreshold = totalViableCapital * 0.51;

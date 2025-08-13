@@ -13,6 +13,7 @@ export 'models/unified_product.dart';
 export 'models/investor_summary.dart'; // 🚀 NOWE: InvestorSummary.withoutCalculations() + calculateSecuredCapitalForAll()
 export 'models/excel_import_models.dart';
 export 'models/voting_status_change.dart';
+export 'models/investment_change_history.dart'; // 🚀 NOWE: Historia zmian inwestycji
 
 // Analytics models exports
 export 'models/analytics/overview_analytics_models.dart';
@@ -64,7 +65,9 @@ export 'services/unified_voting_status_service.dart';
 export 'services/unified_statistics_utils.dart';
 export 'services/unified_statistics_service.dart'; // ZUNIFIKOWANY SERWIS (lokalny fallback)
 export 'services/server_side_statistics_service.dart'; // 🚀 SERWIS SERWEROWY (Firebase Functions)
+export 'services/unified_dashboard_statistics_service.dart'; // 🚀 NOWE: Zunifikowane statystyki dashboard
 export 'services/debug_firestore_service.dart';
+export 'services/investment_change_history_service.dart'; // 🚀 NOWE: Historia zmian inwestycji
 
 // Voting status change model
 // VotingStatusChange is exported via models/voting_status_change.dart above
@@ -100,6 +103,9 @@ export 'widgets/client_stats_widget.dart';
 export 'widgets/enhanced_client_stats_widget.dart';
 export 'widgets/client_stats_demo.dart';
 export 'widgets/client_stats_debug_widget.dart';
+
+// Dialog widgets
+export 'widgets/dialogs/investor_edit_dialog.dart'; // ⭐ NOWE: Dialog edycji inwestora
 
 // Investor Analytics Widgets - Professional Financial Views
 export 'widgets/investor_analytics/investor_views_container.dart';

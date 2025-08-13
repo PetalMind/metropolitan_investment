@@ -32,6 +32,9 @@ class _EnhancedProductDetailsDialogState
   bool _isLoadingInvestors = true;
   String? _investorsError;
 
+  // ⭐ NOWE: Stan edycji dla przekazania do ProductInvestorsTab
+  bool _isEditModeEnabled = false;
+
   @override
   void initState() {
     super.initState();
@@ -129,6 +132,15 @@ class _EnhancedProductDetailsDialogState
               isLoadingInvestors: _isLoadingInvestors,
               onClose: () => Navigator.of(context).pop(),
               onShowInvestors: widget.onShowInvestors,
+              onEditModeChanged: (editMode) {
+                setState(() {
+                  _isEditModeEnabled = editMode;
+                });
+              },
+              onTabChanged: (tabIndex) {
+                // ⭐ NOWE: Przełącz na wybrany tab
+                _tabController.animateTo(tabIndex);
+              },
             ),
 
             // Tab Content
@@ -140,6 +152,8 @@ class _EnhancedProductDetailsDialogState
                 isLoadingInvestors: _isLoadingInvestors,
                 investorsError: _investorsError,
                 onRefreshInvestors: _loadInvestors,
+                isEditModeEnabled:
+                    _isEditModeEnabled, // ⭐ NOWE: Przekazanie stanu edycji
               ),
             ),
           ],
