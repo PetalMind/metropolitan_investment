@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/investment.dart';
 import '../models/product.dart';
 import 'base_service.dart';
@@ -218,14 +219,63 @@ class InvestmentService extends BaseService {
         );
   }
 
-  // Update investment
+  // Update investment with auto-create fallback
   Future<void> updateInvestment(String id, Investment investment) async {
     try {
+      final data = investment.toFirestore();
+      debugPrint('🔍 [InvestmentService] Preparing update for investment: $id');
+      debugPrint('📊 [InvestmentService] Data keys: ${data.keys.toList()}');
+      debugPrint('🔢 [InvestmentService] Numeric fields: investmentAmount=${data['investmentAmount']?.runtimeType}, remainingCapital=${data['remainingCapital']?.runtimeType}');
+      
+      // 🛡️ Validate and clean data before sending to Firestore
+      final cleanedData = <String, dynamic>{};
+      for (final entry in data.entries) {
+        final key = entry.key;
+        final value = entry.value;
+        
+        // Skip null values to prevent Firestore validation errors
+        if (value != null) {
+          // Handle potential infinity or NaN values
+          if (value is double) {
+            if (value.isNaN || value.isInfinite) {
+              debugPrint('⚠️ [InvestmentService] Skipping invalid double value for $key: $value');
+              continue;
+            }
+          }
+          cleanedData[key] = value;
+        }
+      }
+      
+      debugPrint('🧹 [InvestmentService] Cleaned data has ${cleanedData.length} fields (removed ${data.length - cleanedData.length} null/invalid values)');
+      
       await firestore
           .collection(_collection)
           .doc(id)
-          .update(investment.toFirestore());
+          .update(cleanedData);
+      debugPrint('✅ [InvestmentService] Successfully updated investment: $id');
     } catch (e) {
+      debugPrint('❌ [InvestmentService] Update failed for investment $id: $e');
+      
+      // 🔧 Auto-recovery: If document doesn't exist, try to create it
+      if (e.toString().contains('not-found') || e.toString().contains('No document to update')) {
+        debugPrint('🔧 [InvestmentService] Document not found, attempting to create: $id');
+        try {
+          await firestore
+              .collection(_collection)
+              .doc(id)
+              .set(investment.toFirestore());
+          debugPrint('✅ [InvestmentService] Successfully created missing document: $id');
+          return; // Exit successfully after creating
+        } catch (createError) {
+          debugPrint('❌ [InvestmentService] Failed to create missing document $id: $createError');
+          throw Exception('Błąd podczas tworzenia brakującego dokumentu $id: $createError');
+        }
+      }
+      
+      if (e.toString().contains('400')) {
+        debugPrint('🔍 [InvestmentService] Firestore 400 error - possible data validation issue');
+        debugPrint('📋 [InvestmentService] Investment data: ${investment.toFirestore()}');
+      }
       throw Exception('Błąd podczas aktualizacji inwestycji: $e');
     }
   }

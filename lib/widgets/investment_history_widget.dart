@@ -1,8 +1,7 @@
-@ -0,0 +1,512 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../theme/app_theme_professional.dart';
-import '../../models_and_services.dart';
+import '../theme/app_theme_professional.dart';
+import '../models_and_services.dart';
 
 /// Widget do wyświetlania historii zmian inwestycji
 class InvestmentHistoryWidget extends StatefulWidget {

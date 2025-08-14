@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
+import '../../services/investment_change_history_service.dart';
 import '../premium_loading_widget.dart';
+import '../investment_history_widget.dart';
 
 /// 📝 Dialog edycji inwestora
 /// 
@@ -69,13 +72,176 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
   }
 
   void _initializeData() {
-    // Znajdź inwestycje tego inwestora w danym produkcie
-    _editableInvestments = widget.investor.investments
-        .where((investment) => 
-            investment.productId == widget.product.id ||
-            (investment.productName == widget.product.name &&
-             investment.creditorCompany == widget.product.companyName))
+    // 🔍 DEBUG: Wyświetl informacje o produkcie i inwestycjach
+    debugPrint('🔍 [InvestorEditDialog] Szukam inwestycji dla produktu:');
+    debugPrint('  Product ID: ${widget.product.id}');
+    debugPrint('  Product Name: ${widget.product.name}');
+    debugPrint('  Company Name: ${widget.product.companyName}');
+    debugPrint('  Company ID: ${widget.product.companyId}');
+    debugPrint('  Source File: ${widget.product.sourceFile}');
+    debugPrint('  Product Type: ${widget.product.productType}');
+    
+    debugPrint('🔍 [InvestorEditDialog] Inwestycje inwestora (${widget.investor.investments.length}):');
+    for (int i = 0; i < widget.investor.investments.length; i++) {
+      final inv = widget.investor.investments[i];
+      debugPrint('  [$i] Investment ID: ${inv.id}');
+      debugPrint('      Product ID: ${inv.productId}');
+      debugPrint('      Product Name: ${inv.productName}');
+      debugPrint('      Creditor Company: ${inv.creditorCompany}');
+      debugPrint('      Company ID: ${inv.companyId}');
+      debugPrint('      Product Type: ${inv.productType}');
+    }
+
+    // 🔧 ULEPSZONA LOGIKA WYSZUKIWANIA (bazowana na product_investors_tab.dart)
+    
+    // 1. Najpierw deduplikacja inwestycji
+    final uniqueInvestments = <String, Investment>{};
+    for (final investment in widget.investor.investments) {
+      final key = investment.id.isNotEmpty
+          ? investment.id
+          : '${investment.productName}_${investment.investmentAmount}_${investment.clientId}';
+      uniqueInvestments[key] = investment;
+    }
+
+    final uniqueInvestmentsList = uniqueInvestments.values.toList();
+    debugPrint('🔍 [InvestorEditDialog] Po deduplikacji: ${uniqueInvestmentsList.length} unikalnych inwestycji');
+
+    // 2. Sprawdź po ID produktu (jeśli dostępne i niepuste)
+    if (widget.product.id.isNotEmpty) {
+      final matchingInvestments = uniqueInvestmentsList
+          .where((investment) =>
+              investment.productId != null &&
+              investment.productId!.isNotEmpty &&
+              investment.productId != "null" && // Wyklucz "null" jako string
+              investment.productId == widget.product.id)
+          .toList();
+
+      if (matchingInvestments.isNotEmpty) {
+        debugPrint('✅ [InvestorEditDialog] Znaleziono dopasowania po productId: ${matchingInvestments.length}');
+        _editableInvestments = matchingInvestments;
+        _setupControllers();
+        return;
+      } else {
+        debugPrint('⚠️ [InvestorEditDialog] Brak dopasowań po productId');
+      }
+    }
+
+    // 3. Fallback: sprawdź po nazwie produktu (case-insensitive trim)
+    final fallbackMatches = uniqueInvestmentsList
+        .where((investment) =>
+            investment.productName.trim().toLowerCase() ==
+            widget.product.name.trim().toLowerCase())
         .toList();
+    
+    if (fallbackMatches.isNotEmpty) {
+      debugPrint('✅ [InvestorEditDialog] Znaleziono dopasowania po nazwie produktu: ${fallbackMatches.length}');
+      _editableInvestments = fallbackMatches;
+      _setupControllers();
+      return;
+    }
+
+    // 4. Fallback 2: sprawdź po nazwie produktu + firmie
+    final companyMatches = uniqueInvestmentsList
+        .where((investment) =>
+            investment.productName.trim().toLowerCase() ==
+                widget.product.name.trim().toLowerCase() &&
+            (investment.creditorCompany == widget.product.companyName ||
+             investment.companyId == widget.product.companyId))
+        .toList();
+    
+    if (companyMatches.isNotEmpty) {
+      debugPrint('✅ [InvestorEditDialog] Znaleziono dopasowania po nazwie + firmie: ${companyMatches.length}');
+      _editableInvestments = companyMatches;
+      _setupControllers();
+      return;
+    }
+    
+    // 5. Ostatni fallback: jeśli to UnifiedProduct pochodzący z inwestycji, sprawdź po ID inwestycji
+    if (widget.product.sourceFile == 'investments') {
+      final investmentIdMatches = uniqueInvestmentsList
+          .where((investment) => investment.id == widget.product.id)
+          .toList();
+      
+      if (investmentIdMatches.isNotEmpty) {
+        debugPrint('✅ [InvestorEditDialog] Znaleziono dopasowania po ID inwestycji: ${investmentIdMatches.length}');
+        _editableInvestments = investmentIdMatches;
+        _setupControllers();
+        return;
+      }
+    }
+
+    // 6. Ostateczny fallback: bardziej tolerancyjne wyszukiwanie po fragmentach nazwy
+    if (_editableInvestments.isEmpty) {
+      final partialMatches = uniqueInvestmentsList
+          .where((investment) {
+            // Usuń nadmiarowe spacje i zamień na małe litery
+            final investmentName = investment.productName.trim().toLowerCase();
+            final productName = widget.product.name.trim().toLowerCase();
+            
+            // Sprawdź czy nazwy zawierają się nawzajem
+            return investmentName.contains(productName) || 
+                   productName.contains(investmentName) ||
+                   // Lub sprawdź po częściach rozdzielonych spacjami
+                   _hasCommonWords(investmentName, productName);
+          })
+          .toList();
+      
+      if (partialMatches.isNotEmpty) {
+        debugPrint('✅ [InvestorEditDialog] Znaleziono dopasowania przez podobieństwo nazw: ${partialMatches.length}');
+        _editableInvestments = partialMatches;
+        _setupControllers();
+        return;
+      }
+    }
+
+    // 7. Fallback dla produktów utworzonych z Firebase Functions (sprawdź ID inwestycji jako backup)
+    if (_editableInvestments.isEmpty && widget.product.originalProduct != null) {
+      if (widget.product.originalProduct is Map<String, dynamic>) {
+        final originalData = widget.product.originalProduct as Map<String, dynamic>;
+        final originalIds = [
+          originalData['id'],
+          originalData['investment_id'], 
+          originalData['originalInvestmentId']
+        ].where((id) => id != null).map((id) => id.toString()).toList();
+        
+        if (originalIds.isNotEmpty) {
+          final originalMatches = uniqueInvestmentsList
+              .where((investment) => originalIds.contains(investment.id))
+              .toList();
+          
+          if (originalMatches.isNotEmpty) {
+            debugPrint('✅ [InvestorEditDialog] Znaleziono dopasowania przez original IDs: ${originalMatches.length}');
+            _editableInvestments = originalMatches;
+            _setupControllers();
+            return;
+          }
+        }
+      }
+    }
+
+    debugPrint('❌ [InvestorEditDialog] Nie znaleziono żadnych dopasowań!');
+    _editableInvestments = [];
+    _setupControllers();
+  }
+
+  /// Sprawdza czy dwie nazwy mają wspólne słowa (minimum 2 znaki)
+  bool _hasCommonWords(String name1, String name2) {
+    final words1 = name1.split(' ').where((w) => w.length >= 2).toSet();
+    final words2 = name2.split(' ').where((w) => w.length >= 2).toSet();
+    return words1.intersection(words2).isNotEmpty;
+  }
+
+  void _setupControllers() {
+    // Wyczyść istniejące controllery
+    for (final controller in _remainingCapitalControllers) {
+      controller.dispose();
+    }
+    for (final controller in _investmentAmountControllers) {
+      controller.dispose();
+    }
+    _remainingCapitalControllers.clear();
+    _investmentAmountControllers.clear();
+    _statusValues.clear();
 
     // Utwórz controllery dla każdej inwestycji
     for (final investment in _editableInvestments) {
@@ -442,7 +608,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
                       ),
                     ),
                     Text(
-                      'ID: ${investment.id.substring(0, 8)}...',
+                      'ID: ${investment.id.length > 8 ? investment.id.substring(0, 8) + '...' : investment.id}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppThemePro.textTertiary,
                       ),
@@ -477,6 +643,9 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          // 🔍 Przycisk historii zmian
+          _buildHistoryButton(investment),
         ],
       ),
     );
@@ -746,10 +915,80 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
       // Zapisz zmiany przez InvestmentService
       final investmentService = InvestmentService();
       for (final updatedInvestment in updatedInvestments) {
-        await investmentService.updateInvestment(
-          updatedInvestment.id,
-          updatedInvestment,
-        );
+        try {
+          debugPrint('🔧 [InvestorEditDialog] Attempting to update investment: ${updatedInvestment.id}');
+          debugPrint('📊 [InvestorEditDialog] Investment fields: remainingCapital=${updatedInvestment.remainingCapital}, investmentAmount=${updatedInvestment.investmentAmount}, status=${updatedInvestment.status.displayName}');
+          
+          await investmentService.updateInvestment(
+            updatedInvestment.id,
+            updatedInvestment,
+          );
+          debugPrint('✅ [InvestorEditDialog] Zaktualizowano inwestycję: ${updatedInvestment.id}');
+        } catch (updateError) {
+          debugPrint('❌ [InvestorEditDialog] Błąd aktualizacji inwestycji ${updatedInvestment.id}: $updateError');
+          
+          // Provide more specific error messages
+          String userFriendlyError = 'Błąd podczas aktualizacji inwestycji ${updatedInvestment.id.length > 8 ? updatedInvestment.id.substring(0, 8) + '...' : updatedInvestment.id}';
+          if (updateError.toString().contains('400')) {
+            userFriendlyError += ' (Błąd walidacji danych)';
+          } else if (updateError.toString().contains('permission')) {
+            userFriendlyError += ' (Brak uprawnień)';
+          } else if (updateError.toString().contains('network')) {
+            userFriendlyError += ' (Problemy z połączeniem)';
+          } else if (updateError.toString().contains('not-found')) {
+            userFriendlyError = 'Inwestycja ${updatedInvestment.id.length > 8 ? updatedInvestment.id.substring(0, 8) + '...' : updatedInvestment.id} została automatycznie utworzona w bazie';
+            debugPrint('🔧 [InvestorEditDialog] Auto-recovery should have handled this case');
+          } else if (updateError.toString().contains('Successfully created missing document')) {
+            // This is actually a success after auto-recovery
+            debugPrint('✅ [InvestorEditDialog] Auto-recovery successful for ${updatedInvestment.id}');
+            continue; // Don't treat as error, continue with next investment
+          }
+          
+          throw Exception(userFriendlyError);
+        }
+      }
+      
+      // 🔍 ZAPISZ HISTORIĘ ZMIAN
+      try {
+        final historyService = InvestmentChangeHistoryService();
+        final oldInvestments = <Investment>[];
+        final newInvestments = <Investment>[];
+        
+        // Przygotuj listy do historii
+        for (int i = 0; i < _editableInvestments.length; i++) {
+          final originalInvestment = _editableInvestments[i];
+          final updatedInvestment = updatedInvestments.firstWhere(
+            (inv) => inv.id == originalInvestment.id,
+            orElse: () => originalInvestment,
+          );
+          
+          if (updatedInvestment != originalInvestment) {
+            oldInvestments.add(originalInvestment);
+            newInvestments.add(updatedInvestment);
+          }
+        }
+        
+        if (oldInvestments.isNotEmpty) {
+          await historyService.recordBulkChanges(
+            oldInvestments: oldInvestments,
+            newInvestments: newInvestments,
+            customDescription: 'Edycja inwestycji przez InvestorEditDialog - ${widget.product.name}',
+            metadata: {
+              'source': 'investor_edit_dialog',
+              'productId': widget.product.id,
+              'productName': widget.product.name,
+              'clientId': widget.investor.client.id,
+              'clientName': widget.investor.client.name,
+              'investmentsCount': updatedInvestments.length,
+              'platform': 'web',
+              'userAgent': 'flutter_web',
+            },
+          );
+          debugPrint('✅ [InvestorEditDialog] Historia zmian zapisana pomyślnie');
+        }
+      } catch (historyError) {
+        debugPrint('⚠️ [InvestorEditDialog] Błąd zapisu historii (nie blokuje operacji): $historyError');
+        // Historia nie powinna blokować głównej operacji
       }
 
       // Powiadom o sukcesie
@@ -764,5 +1003,111 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
         _isLoading = false;
       });
     }
+  }
+
+  /// 🔍 Przycisk do wyświetlania historii zmian inwestycji
+  Widget _buildHistoryButton(Investment investment) {
+    return Container(
+      width: double.infinity,
+      child: TextButton.icon(
+        onPressed: () => _showInvestmentHistory(investment),
+        style: TextButton.styleFrom(
+          backgroundColor: AppThemePro.accentGold.withOpacity(0.1),
+          foregroundColor: AppThemePro.accentGold,
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(
+              color: AppThemePro.accentGold.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+        ),
+        icon: const Icon(Icons.history, size: 16),
+        label: const Text(
+          'Historia zmian',
+          style: TextStyle(fontSize: 13),
+        ),
+      ),
+    );
+  }
+
+  /// 📋 Pokazuje historię zmian inwestycji w dialogu
+  void _showInvestmentHistory(Investment investment) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: BoxDecoration(
+            color: AppThemePro.backgroundPrimary,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppThemePro.borderPrimary),
+          ),
+          child: Column(
+            children: [
+              // Header dialogu
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppThemePro.surfaceElevated,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.history,
+                      color: AppThemePro.accentGold,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Historia zmian inwestycji',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: AppThemePro.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'ID: ${investment.id.length > 12 ? investment.id.substring(0, 12) + '...' : investment.id}',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppThemePro.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(
+                        Icons.close,
+                        color: AppThemePro.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Widget historii
+              Expanded(
+                child: InvestmentHistoryWidget(
+                  investmentId: investment.id,
+                  isCompact: false,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

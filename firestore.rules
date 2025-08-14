@@ -24,6 +24,8 @@ service cloud.firestore {
       allow create: if request.auth != null && 
         resource == null &&
         request.resource.data.keys().hasAll(['clientId', 'employeeId', 'productType', 'investmentAmount', 'createdAt', 'updatedAt']);
+      // Allow more flexible updates - just require authentication
+      allow update: if request.auth != null;
     }
     
     // Products collection
@@ -48,6 +50,16 @@ service cloud.firestore {
     match /analytics/{document} {
       allow read: if request.auth != null;
       allow write: if request.auth != null; // You might want to restrict this further
+    }
+    
+    // Investment change history collection
+    match /investment_change_history/{historyId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+        resource == null &&
+        request.resource.data.keys().hasAll(['investmentId', 'userId', 'changedAt', 'changeType']);
+      // Prevent updates and deletes for audit trail integrity
+      allow update, delete: if false;
     }
     
     // Voting status changes collection

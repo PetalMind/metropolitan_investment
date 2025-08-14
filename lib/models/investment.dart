@@ -396,17 +396,15 @@ class Investment {
       'productName': productName,
       'productId': productId, // Dodane nowe pole
       'companyId': companyId,
-      'shareCount': sharesCount?.toString() ?? 'NULL',
-      'investmentAmount': investmentAmount.toString(),
-      'paidAmount': paidAmount.toString(),
-      'realizedCapital': realizedCapital.toStringAsFixed(2),
-      'transferToOtherProduct': transferToOtherProduct.toStringAsFixed(2),
-      'remainingCapital': remainingCapital.toStringAsFixed(2),
+      'shareCount': sharesCount, // Numeric value instead of string
+      'investmentAmount': investmentAmount, // Numeric value
+      'paidAmount': paidAmount, // Numeric value
+      'realizedCapital': realizedCapital, // Numeric value
+      'transferToOtherProduct': transferToOtherProduct, // Numeric value
+      'remainingCapital': remainingCapital, // Numeric value
       // 🔥 DODAJ POLA KAPITAŁÓW Z GŁÓWNEGO POZIOMU
-      'capitalSecuredByRealEstate': capitalSecuredByRealEstate.toStringAsFixed(
-        2,
-      ),
-      'capitalForRestructuring': capitalForRestructuring.toStringAsFixed(2),
+      'capitalSecuredByRealEstate': capitalSecuredByRealEstate,
+      'capitalForRestructuring': capitalForRestructuring,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'uploadedAt': updatedAt.toIso8601String(),
@@ -424,15 +422,15 @@ class Investment {
       'Typ_produktu': productType.displayName,
       'Produkt_nazwa': productName,
       'ID_Spolka': companyId,
-      'Ilosc_Udzialow': sharesCount?.toString() ?? 'NULL',
-      'Kwota_inwestycji': investmentAmount.toString(),
-      'Kwota_wplat': paidAmount.toString(),
-      'Kapital zrealizowany': realizedCapital.toStringAsFixed(2),
-      'Przekaz na inny produkt': transferToOtherProduct.toStringAsFixed(2),
-      'Kapital Pozostaly': remainingCapital.toStringAsFixed(2),
+      'Ilosc_Udzialow': sharesCount, // Numeric value
+      'Kwota_inwestycji': investmentAmount, // Numeric value
+      'Kwota_wplat': paidAmount, // Numeric value  
+      'Kapital zrealizowany': realizedCapital, // Numeric value
+      'Przekaz na inny produkt': transferToOtherProduct, // Numeric value
+      'Kapital Pozostaly': remainingCapital, // Numeric value
 
       // Zachowaj stare nazwy dla kompatybilności wstecznej (małe litery)
-      'id_klient': int.tryParse(clientId) ?? 0,
+      'id_klient': clientId, // Keep as string to avoid parsing issues
       'klient': clientName,
       'pracownik_imie': employeeFirstName,
       'pracownik_nazwisko': employeeLastName,
@@ -444,26 +442,26 @@ class Investment {
       'data_podpisania': signedDate.toIso8601String(),
       'data_wejscia_do_inwestycji': entryDate?.toIso8601String(),
       'data_wyjscia_z_inwestycji': exitDate?.toIso8601String(),
-      'id_propozycja_nabycia': int.tryParse(proposalId) ?? 0,
-      'id_sprzedaz': int.tryParse(proposalId) ?? 0,
+      'id_propozycja_nabycia': proposalId, // Keep as string 
+      'id_sprzedaz': proposalId, // Keep as string
       'typ_produktu': productType.displayName,
       'produkt_nazwa': productName,
       'wierzyciel_spolka': creditorCompany,
       'id_spolka': companyId,
       'data_emisji': issueDate?.toIso8601String(),
       'data_wykupu': redemptionDate?.toIso8601String(),
-      'ilosc_udzialow': sharesCount,
-      'kwota_inwestycji': investmentAmount,
-      'kwota_wplat': paidAmount,
-      'kapital_zrealizowany': realizedCapital,
-      'odsetki_zrealizowane': realizedInterest,
-      'przekaz_na_inny_produkt': transferToOtherProduct,
-      'kapital_pozostaly': remainingCapital,
-      'odsetki_pozostale': remainingInterest,
-      'podatek_pozostaly': plannedTax,
-      'podatek_zrealizowany': realizedTax,
-      'planowany_podatek': plannedTax,
-      'zrealizowany_podatek': realizedTax,
+      'ilosc_udzialow': sharesCount, // Numeric value
+      'kwota_inwestycji': investmentAmount, // Numeric value
+      'kwota_wplat': paidAmount, // Numeric value
+      'kapital_zrealizowany': realizedCapital, // Numeric value
+      'odsetki_zrealizowane': realizedInterest, // Numeric value
+      'przekaz_na_inny_produkt': transferToOtherProduct, // Numeric value
+      'kapital_pozostaly': remainingCapital, // Numeric value
+      'odsetki_pozostale': remainingInterest, // Numeric value
+      'podatek_pozostaly': plannedTax, // Numeric value
+      'podatek_zrealizowany': realizedTax, // Numeric value
+      'planowany_podatek': plannedTax, // Numeric value
+      'zrealizowany_podatek': realizedTax, // Numeric value
       'created_at': createdAt.toIso8601String(),
       'uploaded_at': updatedAt.toIso8601String(),
       'source_file':
@@ -492,9 +490,9 @@ class Investment {
       'collateral': additionalInfo['collateral'],
       'zabezpieczenie':
           additionalInfo['collateral'] ?? additionalInfo['zabezpieczenie'],
-      'realEstateSecuredCapital': capitalSecuredByRealEstate.toStringAsFixed(2),
-      'Kapitał zabezpieczony nieruchomością': capitalSecuredByRealEstate,
-      'kapital_do_restrukturyzacji': capitalForRestructuring,
+      'realEstateSecuredCapital': capitalSecuredByRealEstate, // Numeric value
+      'Kapitał zabezpieczony nieruchomością': capitalSecuredByRealEstate, // Numeric value
+      'kapital_do_restrukturyzacji': capitalForRestructuring, // Numeric value
       'repaymentDate': additionalInfo['repaymentDate'],
       'data_splaty':
           additionalInfo['repaymentDate'] ?? additionalInfo['data_splaty'],
