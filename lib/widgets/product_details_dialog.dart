@@ -57,15 +57,31 @@ class _EnhancedProductDetailsDialogState
       print('🔍 [ProductDetailsDialog] Ładowanie inwestorów dla produktu:');
       print('  - Nazwa: "${widget.product.name}"');
       print('  - Typ: ${widget.product.productType.displayName}');
+      print('  - ID: ${widget.product.id}');
 
-      // Używamy Firebase Functions z wyszukiwaniem po ID produktu z fallback'iem
+      // ⭐ ZAWSZE UŻYWAJ PRAWDZIWEGO ID Z FIREBASE
+      final isDeduplicated =
+          widget.product.additionalInfo['isDeduplicated'] == true;
+
       final result = await _investorsService.getProductInvestors(
-        productId: widget.product.id,
+        productId: widget
+            .product
+            .id, // Używamy prawdziwego ID inwestycji (np. "bond_0770")
         productName: widget.product.name,
         productType: widget.product.productType.name.toLowerCase(),
         searchStrategy:
-            'comprehensive', // Zmieniono z 'id' na 'comprehensive' dla lepszego fallback'u
+            'comprehensive', // Comprehensive żeby znalazło po ID lub nazwie
       );
+
+      if (isDeduplicated) {
+        print(
+          '🔄 [ProductDetailsDialog] Produkt deduplikowany - szukam po ID pierwszej inwestycji: ${widget.product.id}',
+        );
+      } else {
+        print(
+          '🔄 [ProductDetailsDialog] Produkt pojedynczy - szukam po ID: ${widget.product.id}',
+        );
+      }
       final investors = result.investors;
 
       if (mounted) {

@@ -36,7 +36,9 @@ export 'services/unified_product_service.dart';
 export 'services/enhanced_unified_product_service.dart';
 export 'services/deduplicated_product_service.dart';
 export 'services/optimized_product_service.dart'; // 🚀 NOWE: Zoptymalizowany serwis produktów (batch)
-export 'services/firebase_functions_data_service.dart' hide ClientsResult; // 🚀 UPDATED: Enhanced Firebase Functions integration with normalized field mapping
+export 'services/firebase_functions_data_service.dart'
+    hide
+        ClientsResult; // 🚀 UPDATED: Enhanced Firebase Functions integration with normalized field mapping
 export 'services/firebase_functions_products_service.dart'
     hide ProductStatistics;
 export 'services/firebase_functions_product_investors_service.dart';
@@ -59,13 +61,13 @@ export 'services/standard_product_investors_service.dart';
 // 🚀 OPTIMIZED SERVICES - Migracja na optymalne obliczenia
 // Te serwisy teraz używają InvestorSummary.withoutCalculations() + calculateSecuredCapitalForAll()
 // zamiast obliczeń dla każdego klienta osobno w InvestorSummary.fromInvestments()
-// 
+//
 // ⭐ NOWA ARCHITEKTURA DANYCH (Styczeń 2025):
 // - Unified investments collection z logicznymi ID (bond_0001, loan_0005, etc.)
 // - Enhanced field mapping: English property names ↔ Polish Firebase field names
 // - Normalized JSON import support with apartment ID generation
 // - Backward compatibility with legacy field names maintained
-// 
+//
 // Korzyści:
 // - Obliczenia wykonują się TYLKO RAZ na końcu dla wszystkich zsumowanych kwot
 // - Eliminuje redundantne obliczenia capitalSecuredByRealEstate dla każdego inwestora

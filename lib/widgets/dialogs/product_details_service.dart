@@ -19,13 +19,27 @@ class ProductDetailsService {
       print('  - Typ: ${product.productType.displayName}');
       print('  - ID: ${product.id}');
 
-      // ⭐ ZSYNCHRONIZOWANE: Używamy tej samej strategii co DeduplicatedProductService
+      // ⭐ ZAWSZE UŻYWAJ PRAWDZIWEGO ID Z FIREBASE
+      final isDeduplicated = product.additionalInfo['isDeduplicated'] == true;
+
       final result = await _investorsService.getProductInvestors(
-        productId: product.id,
+        productId:
+            product.id, // Używamy prawdziwego ID inwestycji (np. "bond_0770")
         productName: product.name,
         productType: product.productType.name.toLowerCase(),
-        searchStrategy: 'comprehensive', // Ta sama strategia
+        searchStrategy:
+            'comprehensive', // Comprehensive żeby znalazło po ID lub nazwie
       );
+
+      if (isDeduplicated) {
+        print(
+          '🔄 [ProductDetailsService] Produkt deduplikowany - szukam po ID pierwszej inwestycji: ${product.id}',
+        );
+      } else {
+        print(
+          '🔄 [ProductDetailsService] Produkt pojedynczy - szukam po ID: ${product.id}',
+        );
+      }
       final investors = result.investors;
 
       print(
@@ -33,7 +47,9 @@ class ProductDetailsService {
       );
       print('📊 [ProductDetailsService] Statystyki Firebase Functions:');
       print('   - totalCount: ${result.totalCount}');
-      print('   - totalCapital: ${result.statistics.totalCapital.toStringAsFixed(2)}');
+      print(
+        '   - totalCapital: ${result.statistics.totalCapital.toStringAsFixed(2)}',
+      );
       print('   - searchStrategy: ${result.searchStrategy}');
       print('   - executionTime: ${result.executionTime}ms');
       print('   - fromCache: ${result.fromCache}');

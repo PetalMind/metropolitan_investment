@@ -3,7 +3,7 @@ import '../../utils/currency_input_formatter.dart';
 import '../../theme/app_theme_professional.dart';
 
 /// Widget dla pól edycji kwot walutowych z formatowaniem
-/// 
+///
 /// Zapewnia:
 /// - Automatyczne formatowanie z separatorami tysięcznymi
 /// - Walidację wartości
@@ -38,11 +38,7 @@ class CurrencyInputField extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: color,
-            ),
+            Icon(icon, size: 16, color: color),
             const SizedBox(width: 8),
             Text(
               label,
@@ -60,15 +56,15 @@ class CurrencyInputField extends StatelessWidget {
           inputFormatters: isEditable ? [CurrencyInputFormatter()] : null,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: isEditable 
-                ? AppThemePro.textPrimary 
+            color: isEditable
+                ? AppThemePro.textPrimary
                 : AppThemePro.textSecondary,
             fontWeight: FontWeight.w500,
           ),
           decoration: InputDecoration(
             filled: true,
-            fillColor: isEditable 
-                ? AppThemePro.backgroundSecondary 
+            fillColor: isEditable
+                ? AppThemePro.backgroundSecondary
                 : AppThemePro.backgroundTertiary,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -169,18 +165,19 @@ class ProductTotalAmountControl extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          
+
           CurrencyInputField(
             label: 'Nowa kwota całkowita',
             controller: controller,
             icon: Icons.edit,
             color: AppThemePro.accentGold,
-            helpText: 'Zmiana tej wartości przeskaluje wszystkie inwestycje proporcjonalnie',
+            helpText:
+                'Zmiana tej wartości przeskaluje wszystkie inwestycje proporcjonalnie',
             onChanged: onChanged,
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           if (pendingChange != null) ...[
             Container(
               padding: const EdgeInsets.all(12),
@@ -225,7 +222,7 @@ class ProductTotalAmountControl extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-          
+
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(

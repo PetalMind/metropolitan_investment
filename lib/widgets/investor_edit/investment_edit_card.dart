@@ -86,9 +86,9 @@ class InvestmentEditCard extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Informacje o inwestycji
           Text(
             'ID: ${investment.id}',
@@ -97,9 +97,9 @@ class InvestmentEditCard extends StatelessWidget {
               fontFamily: 'monospace',
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Pola edycji w siatce
           GridView.count(
             shrinkWrap: true,
@@ -140,20 +140,16 @@ class InvestmentEditCard extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Status dropdown
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.flag,
-                    size: 16,
-                    color: AppThemePro.accentGold,
-                  ),
+                  Icon(Icons.flag, size: 16, color: AppThemePro.accentGold),
                   const SizedBox(width: 8),
                   Text(
                     'Status inwestycji',
@@ -167,7 +163,10 @@ class InvestmentEditCard extends StatelessWidget {
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppThemePro.backgroundTertiary,
                   borderRadius: BorderRadius.circular(8),
@@ -214,7 +213,7 @@ class InvestmentEditCard extends StatelessWidget {
               ),
             ],
           ),
-          
+
           // Historia zmian (opcjonalne - można dodać później)
           const SizedBox(height: 12),
           SizedBox(

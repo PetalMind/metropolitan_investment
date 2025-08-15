@@ -5,7 +5,7 @@ import '../models/investor_edit_models.dart';
 import '../utils/currency_formatter.dart';
 
 /// Serwis obsługujący logikę biznesową edycji inwestora
-/// 
+///
 /// Odpowiada za:
 /// - Wyszukiwanie inwestycji dla produktu
 /// - Walidację danych
@@ -21,10 +21,10 @@ class InvestorEditService {
     InvestmentService? investmentService,
     InvestmentChangeHistoryService? historyService,
   }) : _investmentService = investmentService ?? InvestmentService(),
-        _historyService = historyService ?? InvestmentChangeHistoryService();
+       _historyService = historyService ?? InvestmentChangeHistoryService();
 
   /// Wyszukuje inwestycje dla danego produktu i inwestora
-  /// 
+  ///
   /// Używa ulepszonej logiki wyszukiwania z product_investors_tab.dart:
   /// 1. Deduplikacja inwestycji
   /// 2. Wyszukiwanie po ID produktu
@@ -71,23 +71,40 @@ class InvestorEditService {
       '🔍 [InvestorEditService] Po deduplikacji: ${uniqueInvestmentsList.length} unikalnych inwestycji',
     );
 
-    // 2. Sprawdź po ID produktu (jeśli dostępne i niepuste)
+    // ⭐ ZAWSZE UŻYWAJ PRAWDZIWEGO ID Z FIREBASE
+    final isDeduplicated = product.additionalInfo['isDeduplicated'] == true;
+
+    if (isDeduplicated) {
+      debugPrint(
+        '🔄 [InvestorEditService] Produkt deduplikowany - szukam po ID pierwszej inwestycji: ${product.id}',
+      );
+    } else {
+      debugPrint(
+        '🔄 [InvestorEditService] Produkt pojedynczy - szukam po ID: ${product.id}',
+      );
+    }
+
+    // Sprawdź po ID produktu (teraz używamy prawdziwego ID dla wszystkich)
     if (product.id.isNotEmpty) {
       final matchingInvestments = uniqueInvestmentsList
-          .where((investment) => investment.productId == product.id)
+          .where(
+            (investment) =>
+                investment.productId == product.id ||
+                investment.id == product.id,
+          )
           .toList();
 
       if (matchingInvestments.isNotEmpty) {
         debugPrint(
-          '✅ [InvestorEditService] Znaleziono dopasowania po productId: ${matchingInvestments.length}',
+          '✅ [InvestorEditService] Znaleziono dopasowania po productId/id: ${matchingInvestments.length}',
         );
         return matchingInvestments;
       } else {
-        debugPrint('⚠️ [InvestorEditService] Brak dopasowań po productId');
+        debugPrint('⚠️ [InvestorEditService] Brak dopasowań po productId/id');
       }
     }
 
-    // 3. Fallback: sprawdź po nazwie produktu (case-insensitive trim)
+    // Fallback: sprawdź po nazwie produktu (case-insensitive trim)
     final fallbackMatches = uniqueInvestmentsList
         .where(
           (investment) =>
@@ -209,9 +226,12 @@ class InvestorEditService {
   }
 
   /// Oblicza automatyczne wartości na podstawie wprowadzonych kwot
-  /// 
+  ///
   /// NOWA LOGIKA: kapitał pozostały = kapitał zabezpieczony + kapitał do restrukturyzacji
-  double calculateRemainingCapital(double capitalSecured, double capitalForRestructuring) {
+  double calculateRemainingCapital(
+    double capitalSecured,
+    double capitalForRestructuring,
+  ) {
     return capitalSecured + capitalForRestructuring;
   }
 
@@ -227,27 +247,44 @@ class InvestorEditService {
     final warnings = <String>[];
 
     for (int i = 0; i < investments.length; i++) {
-      final remainingCapital = parseValueFromController(remainingCapitalControllers[i].text);
-      final investmentAmount = parseValueFromController(investmentAmountControllers[i].text);
-      final capitalForRestructuring = parseValueFromController(capitalForRestructuringControllers[i].text);
-      final capitalSecured = parseValueFromController(capitalSecuredControllers[i].text);
+      final remainingCapital = parseValueFromController(
+        remainingCapitalControllers[i].text,
+      );
+      final investmentAmount = parseValueFromController(
+        investmentAmountControllers[i].text,
+      );
+      final capitalForRestructuring = parseValueFromController(
+        capitalForRestructuringControllers[i].text,
+      );
+      final capitalSecured = parseValueFromController(
+        capitalSecuredControllers[i].text,
+      );
 
       // Sprawdź czy kwoty są dodatnie
       if (remainingCapital < 0) {
-        errors.add('Kapitał pozostały w inwestycji ${i + 1} nie może być ujemny');
+        errors.add(
+          'Kapitał pozostały w inwestycji ${i + 1} nie może być ujemny',
+        );
       }
       if (investmentAmount < 0) {
         errors.add('Kwota inwestycji ${i + 1} nie może być ujemna');
       }
       if (capitalForRestructuring < 0) {
-        errors.add('Kapitał do restrukturyzacji w inwestycji ${i + 1} nie może być ujemny');
+        errors.add(
+          'Kapitał do restrukturyzacji w inwestycji ${i + 1} nie może być ujemny',
+        );
       }
       if (capitalSecured < 0) {
-        errors.add('Kapitał zabezpieczony w inwestycji ${i + 1} nie może być ujemny');
+        errors.add(
+          'Kapitał zabezpieczony w inwestycji ${i + 1} nie może być ujemny',
+        );
       }
 
       // Sprawdź zgodność sum
-      final calculatedRemainingCapital = calculateRemainingCapital(capitalSecured, capitalForRestructuring);
+      final calculatedRemainingCapital = calculateRemainingCapital(
+        capitalSecured,
+        capitalForRestructuring,
+      );
       if ((calculatedRemainingCapital - investmentAmount).abs() > 0.01) {
         warnings.add(
           'Niezgodność sum w inwestycji ${i + 1}: '
@@ -280,17 +317,26 @@ class InvestorEditService {
     double totalCapitalSecured = 0.0;
 
     for (int i = 0; i < investments.length; i++) {
-      final remainingCapital = parseValueFromController(remainingCapitalControllers[i].text);
-      final investmentAmount = parseValueFromController(investmentAmountControllers[i].text);
-      final capitalForRestructuring = parseValueFromController(capitalForRestructuringControllers[i].text);
-      final capitalSecured = parseValueFromController(capitalSecuredControllers[i].text);
+      final remainingCapital = parseValueFromController(
+        remainingCapitalControllers[i].text,
+      );
+      final investmentAmount = parseValueFromController(
+        investmentAmountControllers[i].text,
+      );
+      final capitalForRestructuring = parseValueFromController(
+        capitalForRestructuringControllers[i].text,
+      );
+      final capitalSecured = parseValueFromController(
+        capitalSecuredControllers[i].text,
+      );
       final status = statusValues[i];
 
       // Sprawdź czy dane się zmieniły
       final original = investments[i];
       if ((remainingCapital - original.remainingCapital).abs() > 0.01 ||
           (investmentAmount - original.investmentAmount).abs() > 0.01 ||
-          (capitalForRestructuring - original.capitalForRestructuring).abs() > 0.01 ||
+          (capitalForRestructuring - original.capitalForRestructuring).abs() >
+              0.01 ||
           (capitalSecured - original.capitalSecuredByRealEstate).abs() > 0.01 ||
           status != original.status) {
         changedInvestments++;
@@ -320,13 +366,25 @@ class InvestorEditService {
     required String reason,
   }) async {
     try {
-      debugPrint('🎯 [InvestorEditService] Obsługuję skalowanie całego produktu...');
+      debugPrint(
+        '🎯 [InvestorEditService] Obsługuję skalowanie całego produktu...',
+      );
       debugPrint('   - Produkt: ${product.name}');
       debugPrint('   - Nowa kwota: ${newTotalAmount.toStringAsFixed(2)}');
-      debugPrint('   - Poprzednia kwota: ${originalTotalAmount.toStringAsFixed(2)}');
+      debugPrint(
+        '   - Poprzednia kwota: ${originalTotalAmount.toStringAsFixed(2)}',
+      );
+
+      // ⭐ ZAWSZE UŻYWAJ PRAWDZIWEGO ID Z FIREBASE
+      final isDeduplicated = product.additionalInfo['isDeduplicated'] == true;
+
+      debugPrint('🔄 [InvestorEditService] Strategia skalowania:');
+      debugPrint('   - Deduplikowany: $isDeduplicated');
+      debugPrint('   - ProductId: ${product.id}');
 
       final scalingResult = await _investmentService.scaleProductInvestments(
-        productId: product.id.isNotEmpty ? product.id : null,
+        productId: product
+            .id, // Zawsze używamy prawdziwego ID z Firebase (np. "bond_0770")
         productName: product.name,
         newTotalAmount: newTotalAmount,
         reason: reason,
@@ -372,11 +430,19 @@ class InvestorEditService {
 
       for (int i = 0; i < originalInvestments.length; i++) {
         final original = originalInvestments[i];
-        
-        final remainingCapital = parseValueFromController(remainingCapitalControllers[i].text);
-        final investmentAmount = parseValueFromController(investmentAmountControllers[i].text);
-        final capitalForRestructuring = parseValueFromController(capitalForRestructuringControllers[i].text);
-        final capitalSecured = parseValueFromController(capitalSecuredControllers[i].text);
+
+        final remainingCapital = parseValueFromController(
+          remainingCapitalControllers[i].text,
+        );
+        final investmentAmount = parseValueFromController(
+          investmentAmountControllers[i].text,
+        );
+        final capitalForRestructuring = parseValueFromController(
+          capitalForRestructuringControllers[i].text,
+        );
+        final capitalSecured = parseValueFromController(
+          capitalSecuredControllers[i].text,
+        );
         final status = statusValues[i];
 
         // Sprawdź czy dane się zmieniły
@@ -396,15 +462,19 @@ class InvestorEditService {
           newValues['investmentAmount'] = investmentAmount;
         }
 
-        if ((capitalForRestructuring - original.capitalForRestructuring).abs() > 0.01) {
+        if ((capitalForRestructuring - original.capitalForRestructuring).abs() >
+            0.01) {
           hasChanges = true;
-          oldValues['capitalForRestructuring'] = original.capitalForRestructuring;
+          oldValues['capitalForRestructuring'] =
+              original.capitalForRestructuring;
           newValues['capitalForRestructuring'] = capitalForRestructuring;
         }
 
-        if ((capitalSecured - original.capitalSecuredByRealEstate).abs() > 0.01) {
+        if ((capitalSecured - original.capitalSecuredByRealEstate).abs() >
+            0.01) {
           hasChanges = true;
-          oldValues['capitalSecuredByRealEstate'] = original.capitalSecuredByRealEstate;
+          oldValues['capitalSecuredByRealEstate'] =
+              original.capitalSecuredByRealEstate;
           newValues['capitalSecuredByRealEstate'] = capitalSecured;
         }
 
@@ -469,7 +539,9 @@ class InvestorEditService {
               customDescription: changeReason,
             );
           } catch (historyError) {
-            debugPrint('⚠️ [InvestorEditService] Błąd zapisywania historii: $historyError');
+            debugPrint(
+              '⚠️ [InvestorEditService] Błąd zapisywania historii: $historyError',
+            );
           }
         }
       }
@@ -479,20 +551,31 @@ class InvestorEditService {
         return true;
       }
 
-      debugPrint('💾 [InvestorEditService] Zapisuję ${updatedInvestments.length} zmian...');
+      debugPrint(
+        '💾 [InvestorEditService] Zapisuję ${updatedInvestments.length} zmian...',
+      );
 
       // Zapisz zmiany przez InvestmentService
       for (final updatedInvestment in updatedInvestments) {
         try {
-          await _investmentService.updateInvestment(updatedInvestment.id, updatedInvestment);
-          debugPrint('✅ [InvestorEditService] Zapisano inwestycję: ${updatedInvestment.id}');
+          await _investmentService.updateInvestment(
+            updatedInvestment.id,
+            updatedInvestment,
+          );
+          debugPrint(
+            '✅ [InvestorEditService] Zapisano inwestycję: ${updatedInvestment.id}',
+          );
         } catch (e) {
-          debugPrint('❌ [InvestorEditService] Błąd zapisywania inwestycji ${updatedInvestment.id}: $e');
+          debugPrint(
+            '❌ [InvestorEditService] Błąd zapisywania inwestycji ${updatedInvestment.id}: $e',
+          );
           return false;
         }
       }
 
-      debugPrint('✅ [InvestorEditService] Wszystkie zmiany zostały zapisane pomyślnie');
+      debugPrint(
+        '✅ [InvestorEditService] Wszystkie zmiany zostały zapisane pomyślnie',
+      );
       return true;
     } catch (e) {
       debugPrint('❌ [InvestorEditService] Błąd podczas zapisywania zmian: $e');
@@ -501,21 +584,31 @@ class InvestorEditService {
   }
 
   /// Ponownie ładuje dane inwestycji z backend po skalowaniu
-  Future<List<Investment>> reloadInvestmentsAfterScaling(List<Investment> originalInvestments) async {
+  Future<List<Investment>> reloadInvestmentsAfterScaling(
+    List<Investment> originalInvestments,
+  ) async {
     try {
-      debugPrint('🔄 [InvestorEditService] Ponowne ładowanie danych po skalowaniu...');
+      debugPrint(
+        '🔄 [InvestorEditService] Ponowne ładowanie danych po skalowaniu...',
+      );
 
       final updatedInvestments = <Investment>[];
 
       for (final originalInvestment in originalInvestments) {
         // Pobierz zaktualizowane dane z Firebase
-        final updatedInvestment = await _investmentService.getInvestment(originalInvestment.id);
+        final updatedInvestment = await _investmentService.getInvestment(
+          originalInvestment.id,
+        );
 
         if (updatedInvestment != null) {
           updatedInvestments.add(updatedInvestment);
-          debugPrint('✅ [InvestorEditService] Zaktualizowano inwestycję: ${originalInvestment.id}');
+          debugPrint(
+            '✅ [InvestorEditService] Zaktualizowano inwestycję: ${originalInvestment.id}',
+          );
         } else {
-          debugPrint('⚠️ [InvestorEditService] Nie znaleziono zaktualizowanych danych dla inwestycji: ${originalInvestment.id}');
+          debugPrint(
+            '⚠️ [InvestorEditService] Nie znaleziono zaktualizowanych danych dla inwestycji: ${originalInvestment.id}',
+          );
           // Zachowaj oryginalną inwestycję jeśli nie udało się załadować nowych danych
           updatedInvestments.add(originalInvestment);
         }
@@ -524,7 +617,9 @@ class InvestorEditService {
       debugPrint('✅ [InvestorEditService] Ponowne ładowanie zakończone');
       return updatedInvestments;
     } catch (e) {
-      debugPrint('❌ [InvestorEditService] Błąd podczas ponownego ładowania: $e');
+      debugPrint(
+        '❌ [InvestorEditService] Błąd podczas ponownego ładowania: $e',
+      );
       // Zwróć oryginalne inwestycje w przypadku błędu
       return originalInvestments;
     }

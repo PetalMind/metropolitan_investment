@@ -13,11 +13,13 @@ import 'base_service.dart';
 /// co tworzy duplikaty. Ten serwis grupuje inwestycje według produktów i
 /// zwraca unikalne produkty z agregowanymi statystykami.
 class DeduplicatedProductService extends BaseService {
-  static const String _cacheKeyPrefix = 'deduped_products_v2_'; // ⭐ ZMIENIONE: nowa wersja cache
-  static const String _cacheKeyAll = 'deduped_products_all_v2'; // ⭐ ZMIENIONE: nowa wersja cache
-  
+  static const String _cacheKeyPrefix =
+      'deduped_products_v2_'; // ⭐ ZMIENIONE: nowa wersja cache
+  static const String _cacheKeyAll =
+      'deduped_products_all_v2'; // ⭐ ZMIENIONE: nowa wersja cache
+
   // ⭐ NOWE: Serwis do zsynchronizowanego liczenia inwestorów
-  final FirebaseFunctionsProductInvestorsService _investorsService = 
+  final FirebaseFunctionsProductInvestorsService _investorsService =
       FirebaseFunctionsProductInvestorsService();
 
   /// Pobiera wszystkie unikalne produkty (deduplikowane)
@@ -265,7 +267,7 @@ class DeduplicatedProductService extends BaseService {
 
       for (int i = 0; i < entries.length; i += batchSize) {
         final batch = entries.skip(i).take(batchSize);
-        
+
         final batchResults = await Future.wait(
           batch.map((entry) async {
             final productKey = entry.key;
@@ -293,7 +295,9 @@ class DeduplicatedProductService extends BaseService {
         }
       }
 
-      print('🎯 [DeduplicatedProductService] Przetworzono ${uniqueProducts.length} produktów z Firebase Functions');
+      print(
+        '🎯 [DeduplicatedProductService] Przetworzono ${uniqueProducts.length} produktów z Firebase Functions',
+      );
 
       // Sortuj według łącznej wartości inwestycji (malejąco)
       uniqueProducts.sort((a, b) => b.totalValue.compareTo(a.totalValue));
@@ -364,30 +368,35 @@ class DeduplicatedProductService extends BaseService {
     }
 
     final uniqueInvestorsCount = uniqueClientIds.length;
-    
+
     // ⭐ NOWE: Używaj Firebase Functions do precyzyjnego liczenia inwestorów
     int actualInvestorCount = 0;
     try {
-      final productName = firstInvestment['productName'] ??
+      final productName =
+          firstInvestment['productName'] ??
           firstInvestment['projectName'] ??
           firstInvestment['nazwa_produktu'] ??
           'Nieznany Produkt';
-      
+
       final productType = _mapProductType(
         firstInvestment['productType'] ?? firstInvestment['typ_produktu'],
       );
 
-      print('🔄 [DeduplicatedProduct] Pobieranie rzeczywistej liczby inwestorów dla: $productName');
-      
+      print(
+        '🔄 [DeduplicatedProduct] Pobieranie rzeczywistej liczby inwestorów dla: $productName',
+      );
+
       final result = await _investorsService.getProductInvestors(
-        productId: productKey.hashCode.abs().toString(),
+        productId:
+            firstInvestment['id'], // ⭐ UŻYWAMY PRAWDZIWEGO ID PIERWSZEJ INWESTYCJI
         productName: productName,
         productType: productType.name.toLowerCase(),
-        searchStrategy: 'comprehensive',
+        searchStrategy:
+            'comprehensive', // Używamy comprehensive żeby szukało po ID oraz nazwie
       );
-      
+
       actualInvestorCount = result.totalCount;
-      
+
       print('✅ [DeduplicatedProduct] ${productName}:');
       print('   - Lokalne liczenie: ${uniqueInvestorsCount}');
       print('   - Firebase Functions: ${actualInvestorCount}');
@@ -395,7 +404,9 @@ class DeduplicatedProductService extends BaseService {
       print('   - Strategia: ${result.searchStrategy}');
       print('   - Z cache: ${result.fromCache}');
     } catch (e) {
-      print('⚠️ [DeduplicatedProduct] Błąd Firebase Functions dla $productKey: $e');
+      print(
+        '⚠️ [DeduplicatedProduct] Błąd Firebase Functions dla $productKey: $e',
+      );
       // Fallback: użyj lokalne liczenie
       actualInvestorCount = uniqueInvestorsCount;
     }
@@ -422,7 +433,9 @@ class DeduplicatedProductService extends BaseService {
     }
 
     return DeduplicatedProduct(
-      id: productKey.hashCode.abs().toString(),
+      id:
+          firstInvestment['id'] ??
+          productKey.hashCode.abs().toString(), // ⭐ UŻYWAMY PRAWDZIWEGO ID
       name:
           firstInvestment['productName'] ??
           firstInvestment['projectName'] ??
@@ -472,11 +485,15 @@ class DeduplicatedProductService extends BaseService {
   UnifiedProductType _mapProductType(dynamic productType) {
     if (productType == null) return UnifiedProductType.bonds;
 
-    print('🔧 [DeduplicatedProductService] Mapowanie typu produktu: $productType (${productType.runtimeType})');
+    print(
+      '🔧 [DeduplicatedProductService] Mapowanie typu produktu: $productType (${productType.runtimeType})',
+    );
 
     // Sprawdź czy to enum ProductType
     if (productType is ProductType) {
-      print('🔧 [DeduplicatedProductService] To jest ProductType enum: $productType');
+      print(
+        '🔧 [DeduplicatedProductService] To jest ProductType enum: $productType',
+      );
       switch (productType) {
         case ProductType.bonds:
           return UnifiedProductType.bonds;
@@ -492,14 +509,10 @@ class DeduplicatedProductService extends BaseService {
     final typeStr = productType.toString().toLowerCase();
 
     // Sprawdź enum toString format (ProductType.bonds -> bonds)
-    if (typeStr.contains('.bonds'))
-      return UnifiedProductType.bonds;
-    if (typeStr.contains('.shares'))
-      return UnifiedProductType.shares;
-    if (typeStr.contains('.loans'))
-      return UnifiedProductType.loans;
-    if (typeStr.contains('.apartments'))
-      return UnifiedProductType.apartments;
+    if (typeStr.contains('.bonds')) return UnifiedProductType.bonds;
+    if (typeStr.contains('.shares')) return UnifiedProductType.shares;
+    if (typeStr.contains('.loans')) return UnifiedProductType.loans;
+    if (typeStr.contains('.apartments')) return UnifiedProductType.apartments;
 
     if (typeStr.contains('apartment') || typeStr.contains('apartament')) {
       return UnifiedProductType.apartments;
@@ -597,7 +610,8 @@ class DeduplicatedProduct {
   final double totalRemainingCapital;
   final int totalInvestments;
   final int uniqueInvestors;
-  final int actualInvestorCount; // ⭐ NOWE: liczba inwestorów z Firebase Functions
+  final int
+  actualInvestorCount; // ⭐ NOWE: liczba inwestorów z Firebase Functions
   final double averageInvestment;
   final DateTime earliestInvestmentDate;
   final DateTime latestInvestmentDate;
@@ -637,7 +651,8 @@ class DeduplicatedProduct {
   bool get hasDuplicates => totalInvestments > uniqueInvestors;
 
   /// ⭐ NOWE: Zwraca właściwą liczbę inwestorów (preferuje actualInvestorCount)
-  int get investorCount => actualInvestorCount > 0 ? actualInvestorCount : uniqueInvestors;
+  int get investorCount =>
+      actualInvestorCount > 0 ? actualInvestorCount : uniqueInvestors;
 
   /// Procent zwrotu kapitału
   double get capitalReturnPercentage {

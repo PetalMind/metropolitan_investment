@@ -50,9 +50,12 @@ class InvestorEditState {
       isLoading: isLoading ?? this.isLoading,
       isChanged: isChanged ?? this.isChanged,
       error: error ?? this.error,
-      isChangingTotalAmount: isChangingTotalAmount ?? this.isChangingTotalAmount,
-      pendingTotalAmountChange: pendingTotalAmountChange ?? this.pendingTotalAmountChange,
-      originalTotalProductAmount: originalTotalProductAmount ?? this.originalTotalProductAmount,
+      isChangingTotalAmount:
+          isChangingTotalAmount ?? this.isChangingTotalAmount,
+      pendingTotalAmountChange:
+          pendingTotalAmountChange ?? this.pendingTotalAmountChange,
+      originalTotalProductAmount:
+          originalTotalProductAmount ?? this.originalTotalProductAmount,
     );
   }
 
@@ -73,10 +76,7 @@ class InvestorEditState {
 
   /// Resetuje stan zmian
   InvestorEditState resetChanges() {
-    return copyWith(
-      isChanged: false,
-      pendingTotalAmountChange: null,
-    );
+    return copyWith(isChanged: false, pendingTotalAmountChange: null);
   }
 }
 
@@ -168,7 +168,10 @@ class ValidationResult {
     return const ValidationResult(isValid: true);
   }
 
-  factory ValidationResult.invalid(List<String> errors, [List<String>? warnings]) {
+  factory ValidationResult.invalid(
+    List<String> errors, [
+    List<String>? warnings,
+  ]) {
     return ValidationResult(
       isValid: false,
       errors: errors,

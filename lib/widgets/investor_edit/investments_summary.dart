@@ -36,7 +36,9 @@ class InvestmentsSummaryWidget extends StatelessWidget {
     for (int i = 0; i < investments.length; i++) {
       totalRemainingCapital += _parseValue(remainingCapitalControllers[i].text);
       totalInvestmentAmount += _parseValue(investmentAmountControllers[i].text);
-      totalCapitalForRestructuring += _parseValue(capitalForRestructuringControllers[i].text);
+      totalCapitalForRestructuring += _parseValue(
+        capitalForRestructuringControllers[i].text,
+      );
       totalCapitalSecured += _parseValue(capitalSecuredControllers[i].text);
     }
 
@@ -52,11 +54,7 @@ class InvestmentsSummaryWidget extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.summarize,
-                color: AppThemePro.accentGold,
-                size: 20,
-              ),
+              Icon(Icons.summarize, color: AppThemePro.accentGold, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Podsumowanie inwestycji (${investments.length})',
@@ -68,7 +66,7 @@ class InvestmentsSummaryWidget extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          
+
           Wrap(
             spacing: 16,
             runSpacing: 16,
@@ -103,9 +101,9 @@ class InvestmentsSummaryWidget extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Informacja o automatycznych obliczeniach
           Container(
             padding: const EdgeInsets.all(12),
@@ -173,11 +171,7 @@ class InvestmentsSummaryWidget extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                color: color,
-                size: 16,
-              ),
+              Icon(icon, color: color, size: 16),
               const SizedBox(width: 8),
               Text(
                 label,

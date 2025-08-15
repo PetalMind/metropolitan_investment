@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 
 /// Klasa formatera dla pól kwot z separatorami tysięcznymi
-/// 
+///
 /// Obsługuje:
 /// - Automatyczne formatowanie z separatorami tysięcznymi (spacje)
 /// - Obsługę przecinków i kropek jako separatorów dziesiętnych

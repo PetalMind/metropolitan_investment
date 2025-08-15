@@ -4,7 +4,6 @@ import '../../theme/app_theme_professional.dart';
 import '../investor_edit/currency_controls.dart';
 import '../investor_edit/investments_summary.dart';
 import '../investor_edit/investment_edit_card.dart';
-import '../investment_history_widget.dart';
 
 /// 📝 Dialog edycji inwestora - Wersja refaktoryzowana
 ///
@@ -30,12 +29,10 @@ class InvestorEditDialog extends StatefulWidget {
   });
 
   @override
-  State<InvestorEditDialog> createState() =>
-      _InvestorEditDialogState();
+  State<InvestorEditDialog> createState() => _InvestorEditDialogState();
 }
 
-class _InvestorEditDialogState
-    extends State<InvestorEditDialog> {
+class _InvestorEditDialogState extends State<InvestorEditDialog> {
   final _formKey = GlobalKey<FormState>();
 
   // Services
@@ -652,69 +649,5 @@ class _InvestorEditDialogState
             .copyWith(error: 'Błąd podczas zapisywania zmian: ${e.toString()}');
       });
     }
-  }
-
-  /// Pokazuje historię zmian inwestycji w dialogu
-  void _showInvestmentHistory(Investment investment) {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.8,
-          height: MediaQuery.of(context).size.height * 0.7,
-          decoration: BoxDecoration(
-            color: AppThemePro.backgroundPrimary,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppThemePro.borderPrimary),
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppThemePro.backgroundSecondary,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                  border: Border(
-                    bottom: BorderSide(color: AppThemePro.borderPrimary),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.history,
-                      color: AppThemePro.accentGold,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Historia zmian - ${investment.id}',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: AppThemePro.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(Icons.close, color: AppThemePro.textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: InvestmentHistoryWidget(investmentId: investment.id),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
