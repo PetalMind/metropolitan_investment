@@ -15,6 +15,7 @@ import '../widgets/product_card_widget.dart';
 import '../widgets/product_stats_widget.dart';
 import '../widgets/product_filter_widget.dart';
 import '../widgets/dialogs/product_details_dialog.dart';
+import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
 
 /// Ekran zarządzania produktami pobieranymi z kolekcji 'investments'
 /// Wykorzystuje FirebaseFunctionsProductsService do server-side przetwarzania danych
@@ -82,6 +83,17 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   bool _showDeduplicatedView = true; // Domyślnie pokazuj deduplikowane produkty
   bool _useOptimizedMode =
       true; // 🚀 NOWA FLAGA - używaj zoptymalizowanego trybu
+
+  // Email functionality
+  bool _isSelectionMode = false;
+  Set<String> _selectedProductIds = <String>{};
+
+  // Gettery dla wybranych produktów
+  List<DeduplicatedProduct> get _selectedProducts {
+    return _filteredDeduplicatedProducts
+        .where((product) => _selectedProductIds.contains(product.id))
+        .toList();
+  }
 
   @override
   void initState() {
@@ -1737,7 +1749,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: Text(
-                      'Zarządzanie Produktami',
+                      _isSelectionMode
+                          ? 'Wybrano produktów: ${_selectedProducts.length}'
+                          : 'Zarządzanie Produktami',
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
                             color: AppTheme.textOnPrimary,
@@ -1765,6 +1779,40 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         ),
       ),
       actions: [
+        // Email functionality w trybie selekcji
+        if (_isSelectionMode) ...[
+          IconButton(
+            icon: Icon(
+              Icons.email,
+              color: _selectedProducts.isNotEmpty
+                  ? AppTheme.secondaryGold
+                  : AppTheme.textSecondary,
+            ),
+            onPressed: _selectedProducts.isNotEmpty ? _showEmailDialog : null,
+            tooltip: 'Wyślij email do wybranych (${_selectedProducts.length})',
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: AppTheme.secondaryGold),
+            onPressed: () {
+              setState(() {
+                _isSelectionMode = false;
+                _selectedProductIds.clear();
+              });
+            },
+            tooltip: 'Anuluj selekcję',
+          ),
+        ] else ...[
+          // Przycisk rozpoczęcia selekcji email
+          IconButton(
+            icon: const Icon(Icons.email, color: AppTheme.secondaryGold),
+            onPressed: () {
+              setState(() {
+                _isSelectionMode = true;
+              });
+            },
+            tooltip: 'Wybierz produkty do email',
+          ),
+        ],
         // 🚀 NOWY: Przełącznik trybu optymalizacji
         IconButton(
           icon: Icon(
@@ -2137,12 +2185,30 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   }
 
   Widget _buildDeduplicatedProductCard(DeduplicatedProduct product, int index) {
+    final isSelected = _selectedProductIds.contains(product.id);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: AppTheme.premiumCardDecoration,
+      decoration: isSelected
+          ? AppTheme.premiumCardDecoration.copyWith(
+              border: Border.all(color: AppTheme.secondaryGold, width: 2),
+            )
+          : AppTheme.premiumCardDecoration,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => _showDeduplicatedProductDetails(product),
+        onTap: () {
+          if (_isSelectionMode) {
+            setState(() {
+              if (isSelected) {
+                _selectedProductIds.remove(product.id);
+              } else {
+                _selectedProductIds.add(product.id);
+              }
+            });
+          } else {
+            _showDeduplicatedProductDetails(product);
+          }
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -2150,6 +2216,23 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             children: [
               Row(
                 children: [
+                  // Checkbox w trybie selekcji
+                  if (_isSelectionMode) ...[
+                    Checkbox(
+                      value: isSelected,
+                      onChanged: (bool? value) {
+                        setState(() {
+                          if (value == true) {
+                            _selectedProductIds.add(product.id);
+                          } else {
+                            _selectedProductIds.remove(product.id);
+                          }
+                        });
+                      },
+                      activeColor: AppTheme.secondaryGold,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -2744,6 +2827,68 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           _refreshData();
         },
       ),
+    );
+  }
+
+  Future<void> _showEmailDialog() async {
+    if (_selectedProducts.isEmpty) {
+      _showErrorSnackBar('Nie wybrano żadnych produktów');
+      return;
+    }
+
+    // Konwertuj wybrane produkty na InvestorSummary dla kompatybilności
+    final List<InvestorSummary> investorSummaries = [];
+
+    for (final product in _selectedProducts) {
+      // Utwórz tymczasowego klienta z danymi produktu
+      final client = Client(
+        id: product.companyId,
+        name: product.companyName,
+        email: '', // Będzie można edytować w dialogu
+        phone: '',
+        pesel: null,
+        companyName: product.companyName,
+        address: '',
+        notes: '',
+        isActive: product.status == ProductStatus.active,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      // Tworzenie InvestorSummary z prawidłowymi parametrami
+      final investorSummary = InvestorSummary(
+        client: client,
+        investments: [], // Puste - dialog pozwoli na edycję
+        totalRemainingCapital: product.totalRemainingCapital,
+        totalSharesValue: 0.0,
+        totalValue: product.totalValue,
+        totalInvestmentAmount: product.totalValue,
+        totalRealizedCapital: 0.0,
+        capitalSecuredByRealEstate: 0.0,
+        capitalForRestructuring: 0.0,
+        investmentCount: product.totalInvestments,
+      );
+      investorSummaries.add(investorSummary);
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) => EnhancedInvestorEmailDialog(
+        selectedInvestors: investorSummaries,
+        onEmailSent: () {
+          // Wróć do normalnego trybu po wysłaniu email
+          setState(() {
+            _isSelectionMode = false;
+            _selectedProductIds.clear();
+          });
+        },
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppTheme.errorColor),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../models_and_services.dart';
+import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
 
 class EnhancedClientsScreen extends StatefulWidget {
   const EnhancedClientsScreen({super.key});
@@ -31,6 +32,13 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
   String _currentSearchQuery = '';
   bool _useEnhancedStats = false; // Przełącznik dla rozszerzonych statystyk
   bool _showDebugStats = false; // Przełącznik dla debugowania statystyk
+
+  // 🚀 NOWE: Multi-selection dla email
+  bool _isSelectionMode = false;
+  Set<String> _selectedClientIds = <String>{};
+  List<Client> get _selectedClients => _activeClients
+      .where((client) => _selectedClientIds.contains(client.id))
+      .toList();
 
   @override
   void initState() {
@@ -302,7 +310,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '👥 Klienci',
+                  _isSelectionMode ? '✉️ Wybór klientów' : '👥 Klienci',
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                     color: AppTheme.textOnPrimary,
                     fontWeight: FontWeight.bold,
@@ -310,7 +318,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Zarządzanie bazą klientów',
+                  _isSelectionMode && _selectedClientIds.isNotEmpty
+                      ? 'Wybrano ${_selectedClientIds.length} z ${_activeClients.length} klientów'
+                      : 'Zarządzanie bazą klientów',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: AppTheme.textOnPrimary.withValues(alpha: 0.8),
                   ),
@@ -328,21 +338,74 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
               ],
             ),
           ),
-          ElevatedButton.icon(
-            onPressed: () => _showClientForm(),
-            icon: const Icon(Icons.add),
-            label: const Text('Nowy Klient'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.secondaryGold,
-              foregroundColor: AppTheme.textOnSecondary,
-              elevation: 4,
-              shadowColor: AppTheme.secondaryGold.withValues(alpha: 0.3),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          // 🚀 NOWE: Przyciski w trybie selekcji
+          if (_isSelectionMode) ...[
+            if (_selectedClientIds.isNotEmpty) ...[
+              ElevatedButton.icon(
+                onPressed: _showEmailDialog,
+                icon: const Icon(Icons.email),
+                label: Text('Email (${_selectedClientIds.length})'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.secondaryGold,
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+            ],
+            TextButton.icon(
+              onPressed: _exitSelectionMode,
+              icon: const Icon(Icons.close),
+              label: const Text('Anuluj'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.textOnPrimary.withValues(alpha: 0.8),
               ),
             ),
-          ),
+          ] else ...[
+            ElevatedButton.icon(
+              onPressed: _enterSelectionMode,
+              icon: const Icon(Icons.email),
+              label: const Text('Wyślij Email'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.secondaryGold.withOpacity(0.2),
+                foregroundColor: AppTheme.textOnPrimary,
+                elevation: 2,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () => _showClientForm(),
+              icon: const Icon(Icons.add),
+              label: const Text('Nowy Klient'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.secondaryGold,
+                foregroundColor: AppTheme.textOnSecondary,
+                elevation: 4,
+                shadowColor: AppTheme.secondaryGold.withValues(alpha: 0.3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -600,6 +663,15 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
   Widget _buildClientsList() {
     return DataTableWidget<Client>(
       items: _displayedClients,
+      showCheckboxColumn: _isSelectionMode,
+      onSelectionChanged: _isSelectionMode
+          ? (selectedClients) {
+              setState(() {
+                _selectedClientIds = selectedClients.map((c) => c.id).toSet();
+              });
+            }
+          : null,
+      onRowTap: _isSelectionMode ? null : (client) => _showClientForm(client),
       columns: [
         DataTableColumn<Client>(
           label: 'Imię i nazwisko',
@@ -655,28 +727,31 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
             ),
           ),
         ),
-        DataTableColumn<Client>(
-          label: 'Akcje',
-          value: (client) => '',
-          width: 120,
-          widget: (client) => Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: () => _showClientForm(client),
-                icon: const Icon(Icons.edit, size: 18),
-                tooltip: 'Edytuj',
-              ),
-              IconButton(
-                onPressed: () => _deleteClient(client),
-                icon: const Icon(Icons.delete, size: 18),
-                tooltip: 'Usuń',
-              ),
-            ],
+        if (!_isSelectionMode) // Ukryj akcje w trybie selekcji
+          DataTableColumn<Client>(
+            label: 'Akcje',
+            value: (client) => '',
+            width: 120,
+            widget: (client) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: () => _showClientForm(client),
+                  icon: const Icon(Icons.edit, size: 18),
+                  tooltip: 'Edytuj',
+                ),
+                IconButton(
+                  onPressed: () => _deleteClient(client),
+                  icon: const Icon(Icons.delete, size: 18),
+                  tooltip: 'Usuń',
+                  style: IconButton.styleFrom(
+                    foregroundColor: AppTheme.errorColor,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
       ],
-      onRowTap: (client) => _showClientForm(client),
     );
   }
 
@@ -842,5 +917,57 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  // 🚀 NOWE: Funkcje multi-selection dla email
+  void _enterSelectionMode() {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedClientIds.clear();
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedClientIds.clear();
+    });
+  }
+
+  Future<void> _showEmailDialog() async {
+    if (_selectedClients.isEmpty) {
+      _showErrorSnackBar('Nie wybrano żadnych klientów');
+      return;
+    }
+
+    // Konwertuj klientów na InvestorSummary (potrzebne dane inwestycji)
+    final investorAnalyticsService = InvestorAnalyticsService();
+
+    try {
+      // Pobierz dane inwestycji dla wybranych klientów
+      final investorsData = await investorAnalyticsService
+          .getInvestorsByClientIds(_selectedClients.map((c) => c.id).toList());
+
+      if (!mounted) return;
+
+      if (investorsData.isEmpty) {
+        _showErrorSnackBar('Wybrani klienci nie mają żadnych inwestycji');
+        return;
+      }
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => EnhancedInvestorEmailDialog(
+          selectedInvestors: investorsData,
+          onEmailSent: () {
+            _exitSelectionMode();
+            _showSuccessSnackBar('Email został wysłany pomyślnie');
+          },
+        ),
+      );
+    } catch (e) {
+      _showErrorSnackBar('Błąd podczas pobierania danych inwestycji: $e');
+    }
   }
 }

@@ -7,7 +7,7 @@ import '../theme/app_theme.dart';
 import '../models_and_services.dart'; // Centralny export wszystkich modeli i serwisów
 import '../services/investor_analytics_service.dart'
     as ia_service; // Tylko dla InvestorAnalyticsResult conflict resolution
-import '../widgets/dialogs/investor_email_dialog.dart';
+import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
 import '../widgets/dialogs/investor_export_dialog.dart';
 
 /// 🎯 PREMIUM INVESTOR ANALYTICS DASHBOARD
@@ -349,14 +349,18 @@ class _PremiumInvestorAnalyticsScreenState
   Future<void> _refreshDataAfterUpdate() async {
     if (!mounted) return;
 
-    print('📍 [Analytics] Rozpoczynam odświeżanie danych po aktualizacji inwestora');
+    print(
+      '📍 [Analytics] Rozpoczynam odświeżanie danych po aktualizacji inwestora',
+    );
 
     // 📍 ZACHOWAJ obecną pozycję scroll przed odświeżeniem
-    final currentScrollOffset = _scrollController.hasClients 
-        ? _scrollController.offset 
+    final currentScrollOffset = _scrollController.hasClients
+        ? _scrollController.offset
         : 0.0;
 
-    print('📍 [Analytics] Zachowuję pozycję scroll: ${currentScrollOffset.toStringAsFixed(1)}px');
+    print(
+      '📍 [Analytics] Zachowuję pozycję scroll: ${currentScrollOffset.toStringAsFixed(1)}px',
+    );
 
     setState(() {
       _isLoading = true;
@@ -387,7 +391,9 @@ class _PremiumInvestorAnalyticsScreenState
         // 📍 PRZYWRÓĆ pozycję scroll po odświeżeniu danych
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController.hasClients && currentScrollOffset > 0) {
-            print('📍 [Analytics] Przywracam pozycję scroll: ${currentScrollOffset.toStringAsFixed(1)}px');
+            print(
+              '📍 [Analytics] Przywracam pozycję scroll: ${currentScrollOffset.toStringAsFixed(1)}px',
+            );
             _scrollController.animateTo(
               currentScrollOffset,
               duration: const Duration(milliseconds: 300),
@@ -492,9 +498,7 @@ class _PremiumInvestorAnalyticsScreenState
       final firstInvestor = result.investors.first;
 
       // 🔍 DEBUG: Sprawdź pierwsze inwestycje
-      if (firstInvestor.investments.isNotEmpty) {
-        final firstInvestment = firstInvestor.investments.first;
-      }
+      if (firstInvestor.investments.isNotEmpty) {}
     }
 
     setState(() {
@@ -596,10 +600,8 @@ class _PremiumInvestorAnalyticsScreenState
   InvestorAnalyticsResult _convertToEnhancedResult(
     ia_service.InvestorAnalyticsResult standardResult,
   ) {
-
     // Sprawdź czy investors i totalCount są spójne
-    if (standardResult.investors.length != standardResult.totalCount) {
-    }
+    if (standardResult.investors.length != standardResult.totalCount) {}
 
     return InvestorAnalyticsResult(
       investors: standardResult.investors,
@@ -758,7 +760,9 @@ class _PremiumInvestorAnalyticsScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _isSelectionMode ? 'Wybór Inwestorów' : 'Analityka Inwestorów',
+                  _isSelectionMode
+                      ? 'Wybór Inwestorów'
+                      : 'Analityka Inwestorów',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w700,
@@ -804,24 +808,28 @@ class _PremiumInvestorAnalyticsScreenState
             // Przyciski w trybie selekcji
             if (_displayedInvestors.isNotEmpty)
               TextButton.icon(
-                onPressed: _selectedInvestorIds.length == _displayedInvestors.length 
-                    ? _clearSelection 
+                onPressed:
+                    _selectedInvestorIds.length == _displayedInvestors.length
+                    ? _clearSelection
                     : _selectAllVisibleInvestors,
                 icon: Icon(
-                  _selectedInvestorIds.length == _displayedInvestors.length 
-                      ? Icons.deselect 
+                  _selectedInvestorIds.length == _displayedInvestors.length
+                      ? Icons.deselect
                       : Icons.select_all,
                   size: 20,
                 ),
                 label: Text(
-                  _selectedInvestorIds.length == _displayedInvestors.length 
-                      ? 'Usuń zaznaczenie' 
+                  _selectedInvestorIds.length == _displayedInvestors.length
+                      ? 'Usuń zaznaczenie'
                       : 'Zaznacz wszystko',
                   style: const TextStyle(fontSize: 12),
                 ),
                 style: TextButton.styleFrom(
                   foregroundColor: AppTheme.secondaryGold,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                 ),
               ),
             const SizedBox(width: 8),
@@ -1648,7 +1656,7 @@ class _PremiumInvestorAnalyticsScreenState
             ),
           ),
           const SizedBox(height: 20),
-          
+
           // Nowa opcja wielokrotnego wyboru
           _buildActionTile(
             'Wybór wielu inwestorów',
@@ -1657,7 +1665,7 @@ class _PremiumInvestorAnalyticsScreenState
             AppTheme.primaryAccent,
             _enterSelectionMode,
           ),
-          
+
           _buildActionTile(
             'Eksportuj emaile',
             'Skopiuj adresy email do schowka',
@@ -2005,9 +2013,9 @@ class _PremiumInvestorAnalyticsScreenState
       isTablet: _isTablet,
       isLoading: false, // Already handled at screen level
       error: null, // Already handled at screen level
-      onInvestorTap: _isSelectionMode ? 
-          (investor) => _toggleInvestorSelection(investor.client.id) : 
-          _showInvestorDetails,
+      onInvestorTap: _isSelectionMode
+          ? (investor) => _toggleInvestorSelection(investor.client.id)
+          : _showInvestorDetails,
       isSelectionMode: _isSelectionMode,
       selectedInvestorIds: _selectedInvestorIds,
       onInvestorSelectionToggle: _toggleInvestorSelection,
@@ -3139,7 +3147,7 @@ class _PremiumInvestorAnalyticsScreenState
   void _showInvestorDetails(InvestorSummary investor) {
     // 📍 Resetuj flagę przed otwarciem modalu
     _dataWasUpdated = false;
-    
+
     InvestorDetailsModalHelper.show(
       context: context,
       investor: investor,
@@ -3161,7 +3169,9 @@ class _PremiumInvestorAnalyticsScreenState
     ).then((_) {
       // 📍 Po zamknięciu modalu - sprawdź czy potrzebne jest odświeżenie
       if (!_dataWasUpdated) {
-        print('📍 [Analytics] Modal zamknięty bez zmian - nie odświeżam danych');
+        print(
+          '📍 [Analytics] Modal zamknięty bez zmian - nie odświeżam danych',
+        );
       }
     });
   }
@@ -4927,9 +4937,9 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
       _isSelectionMode = true;
       _selectedInvestorIds.clear();
     });
-    
+
     _fabAnimationController.forward();
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('👆 Dotknij inwestorów aby ich wybrać'),
@@ -4988,7 +4998,8 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
 
     showDialog(
       context: context,
-      builder: (context) => InvestorEmailDialog(
+      barrierDismissible: false,
+      builder: (context) => EnhancedInvestorEmailDialog(
         selectedInvestors: _selectedInvestors,
         onEmailSent: () {
           _exitSelectionMode();
@@ -5018,14 +5029,4 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
       ),
     );
   }
-}
-
-/// Helper class for financial details display
-class _FinancialDetail {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  _FinancialDetail(this.label, this.value, this.icon, this.color);
 }
