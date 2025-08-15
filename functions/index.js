@@ -19,6 +19,9 @@ const capitalCalculationService = require("./services/capital-calculation-servic
 const productInvestorsService = require("./product-investors-optimization");
 const productStatisticsService = require("./services/product-statistics-service");
 const getAllInvestmentsService = require("./services/getAllInvestments-service"); // 🚀 DODANE: Serwis pobierania inwestycji
+const investmentScalingService = require("./services/investment-scaling-service"); // 🚀 DODANE: Serwis skalowania inwestycji
+const emailService = require("./services/email-service-dev"); // 🚀 DODANE: Serwis email (DEV VERSION)
+const exportService = require("./services/export-service"); // 🚀 DODANE: Serwis eksportu danych
 
 // Import nowych analityk - tylko funkcje pomocnicze
 const employeesAnalytics = require('./analytics/employees_analytics');
@@ -163,6 +166,18 @@ module.exports = {
 
   // Funkcje pobierania inwestycji - 🚀 NOWE
   ...getAllInvestmentsService,
+
+  // Funkcje skalowania inwestycji - 🚀 NOWE
+  ...investmentScalingService,
+
+  // Funkcje email - 🚀 NOWE
+  ...emailService,
+
+  // Funkcje eksportu danych - 🚀 NOWE
+  ...exportService,
+
+  // Funkcje batch produktów - 🚀 NOWE OPTYMALIZACJA
+  ...require("./services/product-batch-service"),
 
   // Funkcje obliczania kapitału zabezpieczonego nieruchomością
   ...capitalCalculationService,

@@ -12,6 +12,11 @@ class InvestorListWidget extends StatelessWidget {
   final bool isTablet;
   final Function(InvestorSummary) onInvestorTap;
   final Function(InvestorSummary) onExportInvestor;
+  
+  // Multi-selection parameters
+  final bool isSelectionMode;
+  final Set<String> selectedInvestorIds;
+  final Function(String) onInvestorSelectionToggle;
 
   const InvestorListWidget({
     super.key,
@@ -21,6 +26,9 @@ class InvestorListWidget extends StatelessWidget {
     required this.isTablet,
     required this.onInvestorTap,
     required this.onExportInvestor,
+    this.isSelectionMode = false,
+    this.selectedInvestorIds = const <String>{},
+    required this.onInvestorSelectionToggle,
   });
 
   @override
@@ -79,41 +87,65 @@ class InvestorListWidget extends StatelessWidget {
         ? (investor.viableRemainingCapital / totalViableCapital) * 100
         : 0.0;
     final isMajorityHolder = majorityHolders.contains(investor);
+    final isSelected = selectedInvestorIds.contains(investor.client.id);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
+      color: isSelectionMode && isSelected 
+          ? AppTheme.primaryAccent.withOpacity(0.1) 
+          : null,
       child: InkWell(
-        onTap: () => onInvestorTap(investor),
+        onTap: () {
+          if (isSelectionMode) {
+            onInvestorSelectionToggle(investor.client.id);
+          } else {
+            onInvestorTap(investor);
+          }
+        },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header row with number, name, and majority star
+              // Header row with checkbox/number, name, and majority star
               Row(
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: votingStatusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: votingStatusColor.withOpacity(0.3),
+                  // Selection checkbox or position number
+                  if (isSelectionMode)
+                    Container(
+                      width: 48,
+                      height: 48,
+                      child: Center(
+                        child: Checkbox(
+                          value: isSelected,
+                          onChanged: (value) => onInvestorSelectionToggle(investor.client.id),
+                          activeColor: AppTheme.primaryAccent,
+                        ),
                       ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${index + 1}',
-                        style: TextStyle(
-                          color: votingStatusColor,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
+                    )
+                  else
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: votingStatusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: votingStatusColor.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color: votingStatusColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -153,6 +185,14 @@ class InvestorListWidget extends StatelessWidget {
                     Icon(
                       Icons.star_rounded,
                       color: AppTheme.secondaryGold,
+                      size: 20,
+                    ),
+                  ],
+                  if (isSelectionMode && isSelected) ...[
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.check_circle,
+                      color: AppTheme.primaryAccent,
                       size: 20,
                     ),
                   ],

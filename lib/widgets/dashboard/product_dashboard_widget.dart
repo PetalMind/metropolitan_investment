@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../theme/app_theme_professional.dart';
 import '../../models_and_services.dart';
+import '../../services/optimized_product_service.dart'; // 🚀 NOWY ZOPTYMALIZOWANY SERWIS
 import '../premium_loading_widget.dart';
 import '../premium_error_widget.dart';
 
@@ -41,8 +43,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
 
   // Services
   final AuthService _authService = AuthService();
-  final DeduplicatedProductService _deduplicatedProductService =
-      DeduplicatedProductService();
+  final OptimizedProductService _optimizedProductService = OptimizedProductService(); // 🚀 NOWY
   final UnifiedDashboardStatisticsService _statisticsService =
       UnifiedDashboardStatisticsService();
 
@@ -51,14 +52,20 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   String? _error;
   UserProfile? _userProfile;
   List<Investment> _investments = [];
-  List<DeduplicatedProduct> _deduplicatedProducts = [];
+  List<OptimizedProduct> _optimizedProducts = []; // 🚀 NOWY TYP
   List<Investment> _filteredInvestments = [];
-  List<DeduplicatedProduct> _filteredDeduplicatedProducts = [];
+  List<OptimizedProduct> _filteredOptimizedProducts = []; // 🚀 NOWY TYP
   Investment? _selectedInvestment;
   Set<String> _selectedProductIds = {};
-  bool _showDeduplicatedView = true; // Domyślnie pokazuj deduplikowane produkty
+  bool _showOptimizedView = true; // 🚀 NOWA FLAGA - domyślnie zoptymalizowany widok
+  OptimizedProductsResult? _optimizedResult; // 🚀 NOWE: Kompletny wynik z serwera
   UnifiedDashboardStatistics?
   _dashboardStatistics; // 🚀 NOWE: Zunifikowane statystyki
+
+  // 🚀 COMPATIBILITY: Dodaj aliasy dla kompatybilności wstecznej
+  List<OptimizedProduct> get _deduplicatedProducts => _optimizedProducts;
+  List<OptimizedProduct> get _filteredDeduplicatedProducts => _filteredOptimizedProducts;
+  bool get _showDeduplicatedView => _showOptimizedView;
 
   // Filtering and sorting state
   String _searchQuery = '';
@@ -125,26 +132,33 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         _userProfile = await _authService.getUserProfile(currentUser.uid);
       }
 
-      // Load investments data and deduplicated products in parallel
-      final results = await Future.wait([
-        FirebaseFunctionsDataService.getAllInvestments(
-          page: 1,
-          pageSize: 5000, // Pobierz wszystkie dostępne inwestycje
-          forceRefresh: true,
-        ),
-        _deduplicatedProductService.getAllUniqueProducts(),
-        _statisticsService
-            .getStatisticsFromInvestors(), // 🚀 NOWE: Zunifikowane statystyki (źródło Investor)
-      ]);
+      // 🚀 NOWE: Używaj zoptymalizowanego serwisu - JEDNO WYWOŁANIE zamiast setek
+      final optimizedResult = await _optimizedProductService.getAllProductsOptimized(
+        forceRefresh: true,
+        includeStatistics: true,
+      );
 
-      final investmentsResult = results[0] as InvestmentsResult;
-      final deduplicatedProducts = results[1] as List<DeduplicatedProduct>;
-      final dashboardStatistics = results[2] as UnifiedDashboardStatistics;
+      _optimizedProducts = optimizedResult.products;
+      _optimizedResult = optimizedResult;
 
-      _investments = investmentsResult.investments;
-      _deduplicatedProducts = deduplicatedProducts;
-      _dashboardStatistics =
-          dashboardStatistics; // 🚀 NOWE: Zapisz zunifikowane statystyki
+      // 🚀 OPTYMALIZACJA: Nie rób dodatkowego wywołania getAllInvestments - użyj danych z OptimizedProductService
+      if (kDebugMode) {
+        print('🚀 [ProductDashboardWidget] Używam danych z OptimizedProductService - brak dodatkowych wywołań!');
+        print('🚀 [ProductDashboardWidget] Produkty: ${optimizedResult.products.length}');
+      }
+
+      // 🚀 NOWE: Używaj OptimizedProduct bezpośrednio, nie konwertuj na Investment
+      // Investment jest zbyt różne od OptimizedProduct - zostaw puste i użyj _optimizedProducts
+      _investments = []; // Puste - używamy _optimizedProducts zamiast _investments
+
+      if (kDebugMode) {
+        print('🚀 [ProductDashboardWidget] Używam ${_optimizedProducts.length} OptimizedProducts bezpośrednio');
+      }
+
+      // Load dashboard statistics (jeśli nie ma w optimizedResult)
+      if (optimizedResult.statistics == null) {
+        _dashboardStatistics = await _statisticsService.getStatisticsFromInvestors();
+      }
 
       // Apply filtering and sorting
       _applyFilteringAndSorting();
@@ -155,9 +169,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
             .where((inv) => inv.id == widget.selectedProductId)
             .firstOrNull;
       }
-      _selectedInvestment ??= _investments.isNotEmpty
-          ? _investments.first
-          : null;
+      _selectedInvestment ??= _investments.isNotEmpty ? _investments.first : null;
 
       if (mounted) {
         setState(() {
@@ -171,6 +183,11 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       _slideController.forward();
       await Future.delayed(const Duration(milliseconds: 100));
       _scaleController.forward();
+
+      if (kDebugMode) {
+        print('✅ [ProductDashboard] Załadowano ${_optimizedProducts.length} produktów w ${optimizedResult.executionTime}ms (cache: ${optimizedResult.fromCache})');
+      }
+
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -216,8 +233,8 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       return true;
     }).toList();
 
-    // Apply filtering and sorting to deduplicated products
-    _filteredDeduplicatedProducts = _deduplicatedProducts.where((product) {
+    // 🚀 NOWE: Apply filtering and sorting to optimized products
+    _filteredOptimizedProducts = _optimizedProducts.where((product) {
       // Search filter
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
@@ -232,7 +249,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         return false;
       }
 
-      // Status filter (for deduplicated products)
+      // Status filter (for optimized products)
       if (_filterByProductStatus != null &&
           product.status != _filterByProductStatus) {
         return false;
@@ -269,8 +286,8 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       return _sortAscending ? comparison : -comparison;
     });
 
-    // Sort deduplicated products
-    _filteredDeduplicatedProducts.sort((a, b) {
+    // 🚀 NOWE: Sort optimized products
+    _filteredOptimizedProducts.sort((a, b) {
       int comparison = 0;
       switch (_sortBy) {
         case 'name':
@@ -287,6 +304,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         case 'investments':
           comparison = a.totalInvestments.compareTo(b.totalInvestments);
           break;
+        case 'investors':
+          comparison = a.actualInvestorCount.compareTo(b.actualInvestorCount);
+          break;
         case 'type':
           comparison = a.productType.displayName.compareTo(
             b.productType.displayName,
@@ -294,6 +314,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
           break;
         case 'status':
           comparison = a.status.displayName.compareTo(b.status.displayName);
+          break;
+        case 'value':
+          comparison = a.totalValue.compareTo(b.totalValue);
           break;
       }
       return _sortAscending ? comparison : -comparison;
@@ -603,7 +626,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
               value: _showDeduplicatedView,
               onChanged: (value) {
                 setState(() {
-                  _showDeduplicatedView = value;
+                  _showOptimizedView = value; // 🚀 FIXED: Używaj rzeczywistej zmiennej
                   // Wyczyść wybrane produkty przy przełączaniu trybu
                   _selectedProductIds.clear();
                 });

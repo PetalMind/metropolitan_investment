@@ -91,9 +91,12 @@ class ProductStatisticsAdapter {
 
     return fb.ProductStatistics(
       totalProducts: unifiedStats.totalProducts,
+      totalInvestments: unifiedStats.totalProducts, // 🚀 DODANE - aproximacja
+      uniqueInvestors: unifiedStats.totalProducts, // 🚀 DODANE - aproximacja
       activeProducts: unifiedStats.activeProducts,
       inactiveProducts: unifiedStats.inactiveProducts,
       totalInvestmentAmount: unifiedStats.totalInvestmentAmount,
+      totalRemainingCapital: unifiedStats.totalValue, // 🚀 DODANE - aproximacja
       totalValue: unifiedStats.totalValue,
       averageInvestmentAmount: unifiedStats.averageInvestmentAmount,
       averageValue: unifiedStats.averageValue,

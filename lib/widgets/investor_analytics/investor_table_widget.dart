@@ -12,6 +12,11 @@ class InvestorTableWidget extends StatelessWidget {
   final bool isTablet;
   final Function(InvestorSummary) onInvestorTap;
   final Function(InvestorSummary) onExportInvestor;
+  
+  // Multi-selection parameters
+  final bool isSelectionMode;
+  final Set<String> selectedInvestorIds;
+  final Function(String) onInvestorSelectionToggle;
 
   const InvestorTableWidget({
     super.key,
@@ -21,6 +26,9 @@ class InvestorTableWidget extends StatelessWidget {
     required this.isTablet,
     required this.onInvestorTap,
     required this.onExportInvestor,
+    this.isSelectionMode = false,
+    this.selectedInvestorIds = const <String>{},
+    required this.onInvestorSelectionToggle,
   });
 
   @override
@@ -154,41 +162,60 @@ class InvestorTableWidget extends StatelessWidget {
         ? (investor.viableRemainingCapital / totalViableCapital) * 100
         : 0.0;
     final isMajorityHolder = majorityHolders.contains(investor);
+    final isSelected = selectedInvestorIds.contains(investor.client.id);
 
     return InkWell(
-      onTap: () => onInvestorTap(investor),
+      onTap: () {
+        if (isSelectionMode) {
+          onInvestorSelectionToggle(investor.client.id);
+        } else {
+          onInvestorTap(investor);
+        }
+      },
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isMajorityHolder
               ? AppTheme.secondaryGold.withOpacity(0.05)
-              : AppTheme.backgroundSecondary,
+              : isSelectionMode && isSelected
+                  ? AppTheme.primaryAccent.withOpacity(0.1)
+                  : AppTheme.backgroundSecondary,
           border: Border(
             bottom: BorderSide(color: AppTheme.borderSecondary, width: 0.5),
+            left: isSelectionMode && isSelected 
+                ? BorderSide(color: AppTheme.primaryAccent, width: 3)
+                : BorderSide.none,
           ),
         ),
         child: Row(
           children: [
-            // Position Number
+            // Selection checkbox or position number
             SizedBox(
               width: 30,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: votingStatusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: votingStatusColor.withOpacity(0.3)),
-                ),
-                child: Text(
-                  '${index + 1}',
-                  style: TextStyle(
-                    color: votingStatusColor,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+              child: isSelectionMode
+                  ? Checkbox(
+                      value: isSelected,
+                      onChanged: (value) => onInvestorSelectionToggle(investor.client.id),
+                      activeColor: AppTheme.primaryAccent,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    )
+                  : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: votingStatusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: votingStatusColor.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        '${index + 1}',
+                        style: TextStyle(
+                          color: votingStatusColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
             ),
 
             // Investor Name & Type

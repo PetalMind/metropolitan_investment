@@ -591,9 +591,12 @@ class UnifiedProductsMetadata {
 class ProductStatistics {
   // Podstawowe statystyki
   final int totalProducts;
+  final int totalInvestments; // 🚀 DODANE
+  final int uniqueInvestors; // 🚀 DODANE
   final int activeProducts;
   final int inactiveProducts;
   final double totalInvestmentAmount;
+  final double totalRemainingCapital; // 🚀 DODANE dla optymalizacji
   final double totalValue;
   final double averageInvestmentAmount;
   final double averageValue;
@@ -626,9 +629,12 @@ class ProductStatistics {
 
   const ProductStatistics({
     required this.totalProducts,
+    required this.totalInvestments, // 🚀 DODANE
+    required this.uniqueInvestors, // 🚀 DODANE
     required this.activeProducts,
     required this.inactiveProducts,
     required this.totalInvestmentAmount,
+    required this.totalRemainingCapital, // 🚀 DODANE
     required this.totalValue,
     required this.averageInvestmentAmount,
     required this.averageValue,
@@ -649,9 +655,12 @@ class ProductStatistics {
   factory ProductStatistics.fromServerData(Map<String, dynamic> data) {
     return ProductStatistics(
       totalProducts: data['totalProducts'] ?? 0,
+      totalInvestments: data['totalInvestments'] ?? 0, // 🚀 DODANE
+      uniqueInvestors: data['uniqueInvestors'] ?? 0, // 🚀 DODANE
       activeProducts: data['activeProducts'] ?? 0,
       inactiveProducts: data['inactiveProducts'] ?? 0,
       totalInvestmentAmount: (data['totalInvestmentAmount'] ?? 0).toDouble(),
+      totalRemainingCapital: (data['totalRemainingCapital'] ?? 0).toDouble(), // 🚀 DODANE
       totalValue: (data['totalValue'] ?? 0).toDouble(),
       averageInvestmentAmount: (data['averageInvestmentAmount'] ?? 0)
           .toDouble(),
@@ -695,9 +704,12 @@ class ProductStatistics {
   factory ProductStatistics.empty() {
     return ProductStatistics(
       totalProducts: 0,
+      totalInvestments: 0, // 🚀 DODANE
+      uniqueInvestors: 0, // 🚀 DODANE
       activeProducts: 0,
       inactiveProducts: 0,
       totalInvestmentAmount: 0.0,
+      totalRemainingCapital: 0.0, // 🚀 DODANE
       totalValue: 0.0,
       averageInvestmentAmount: 0.0,
       averageValue: 0.0,
@@ -1088,7 +1100,10 @@ extension FirebaseFunctionsProductsServiceFallback
       final snapshot = await firestore.collection('investments').get();
 
       final totalProducts = snapshot.docs.length;
+      final totalInvestments = snapshot.docs.length; // 🚀 DODANE - każdy dokument to inwestycja
       double totalInvestmentAmount = 0.0;
+      double totalRemainingCapital = 0.0; // 🚀 DODANE
+      final Set<String> uniqueClientIds = <String>{}; // 🚀 DODANE - dla unique investors
       final Map<String, int> typeDistribution = {};
 
       for (var doc in snapshot.docs) {
@@ -1096,6 +1111,16 @@ extension FirebaseFunctionsProductsServiceFallback
         totalInvestmentAmount +=
             _safeToDouble(data['investmentAmount'] ?? data['paidAmount']) ??
             0.0;
+        
+        // 🚀 DODANE: Dodaj remaining capital
+        totalRemainingCapital +=
+            _safeToDouble(data['remainingCapital'] ?? data['kapital_pozostaly']) ?? 0.0;
+
+        // 🚀 DODANE: Zbierz unique client IDs
+        final clientId = data['clientId'] ?? data['klient'] ?? data['ID_Klient'];
+        if (clientId != null) {
+          uniqueClientIds.add(clientId.toString());
+        }
 
         final productType = _mapProductType(data['productType']);
         typeDistribution[productType] =
@@ -1104,9 +1129,12 @@ extension FirebaseFunctionsProductsServiceFallback
 
       return ProductStatistics(
         totalProducts: totalProducts,
+        totalInvestments: totalInvestments, // 🚀 DODANE
+        uniqueInvestors: uniqueClientIds.length, // 🚀 DODANE - liczba unikalnych klientów
         activeProducts: totalProducts, // Wszystkie jako aktywne w fallback
         inactiveProducts: 0,
         totalInvestmentAmount: totalInvestmentAmount,
+        totalRemainingCapital: totalRemainingCapital, // 🚀 DODANE
         totalValue: totalInvestmentAmount,
         averageInvestmentAmount: totalProducts > 0
             ? totalInvestmentAmount / totalProducts

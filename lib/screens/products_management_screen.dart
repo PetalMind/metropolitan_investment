@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../models_and_services.dart';
 import '../services/firebase_functions_products_service.dart' as fb;
+import '../services/optimized_product_service.dart'; // 🚀 NOWY IMPORT
 import '../adapters/product_statistics_adapter.dart';
 import '../widgets/premium_loading_widget.dart';
 import '../widgets/premium_error_widget.dart';
@@ -46,6 +47,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   late final FirebaseFunctionsProductsService _productService;
   late final FirebaseFunctionsProductInvestorsService _productInvestorsService;
   late final DeduplicatedProductService _deduplicatedProductService;
+  late final OptimizedProductService _optimizedProductService; // 🚀 NOWY SERWIS
   late final AnimationController _fadeController;
   late final AnimationController _slideController;
   late final Animation<double> _fadeAnimation;
@@ -56,8 +58,11 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   List<UnifiedProduct> _filteredProducts = [];
   List<DeduplicatedProduct> _deduplicatedProducts = [];
   List<DeduplicatedProduct> _filteredDeduplicatedProducts = [];
+  List<OptimizedProduct> _optimizedProducts = []; // 🚀 NOWY STAN
+  List<OptimizedProduct> _filteredOptimizedProducts = []; // 🚀 NOWY STAN
   fb.ProductStatistics? _statistics;
   UnifiedProductsMetadata? _metadata;
+  OptimizedProductsResult? _optimizedResult; // 🚀 NOWY REZULTAT
   bool _isLoading = true;
   bool _isRefreshing = false;
   String? _error;
@@ -73,6 +78,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   bool _showStatistics = true;
   ViewMode _viewMode = ViewMode.list;
   bool _showDeduplicatedView = true; // Domyślnie pokazuj deduplikowane produkty
+  bool _useOptimizedMode = true; // 🚀 NOWA FLAGA - używaj zoptymalizowanego trybu
 
   @override
   void initState() {
@@ -347,6 +353,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     _productService = FirebaseFunctionsProductsService();
     _productInvestorsService = FirebaseFunctionsProductInvestorsService();
     _deduplicatedProductService = DeduplicatedProductService();
+    _optimizedProductService = OptimizedProductService(); // 🚀 NOWY SERWIS
   }
 
   void _initializeAnimations() {
@@ -383,87 +390,171 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         _error = null;
       });
 
-      print('🔄 [ProductsManagementScreen] Rozpoczynam ładowanie danych...');
-
-      // TEST: Sprawdź połączenie z Firebase Functions
-      // Z fallback system, testy nie będą blokować aplikacji
       if (kDebugMode) {
-        print(
-          '🔄 [ProductsManagementScreen] Testowanie Firebase Functions (z fallback)...',
-        );
-        try {
-          await _productService.testDirectFirestoreAccess();
-          await _productService.testConnection();
-        } catch (e) {
-          print(
-            '❌ [ProductsManagementScreen] Test połączenia nieudany (będzie używany fallback): $e',
-          );
-        }
+        print('🔄 [ProductsManagementScreen] Rozpoczynam ładowanie danych...');
       }
 
-      // Pobierz produkty, statystyki i deduplikowane produkty równolegle
-      final results = await Future.wait([
-        _productService.getUnifiedProducts(
-          pageSize: 1000, // Pobierz więcej na początku
-          sortBy: _sortField.name,
-          sortAscending: _sortDirection == SortDirection.ascending,
-        ),
-        _showDeduplicatedView
-            ? _deduplicatedProductService
-                  .getDeduplicatedProductStatistics()
-                  .then(
-                    (stats) =>
-                        ProductStatisticsAdapter.adaptFromUnifiedToFB(stats),
-                  )
-            : _productService.getProductStatistics(),
-        _deduplicatedProductService.getAllUniqueProducts(),
-      ]);
+      // 🚀 NOWE: Używaj zoptymalizowanego serwisu jako głównego
+      if (_useOptimizedMode) {
+        await _loadOptimizedData();
+      } else {
+        await _loadLegacyData();
+      }
 
-      final productsResult = results[0] as UnifiedProductsResult;
-      final statistics = results[1] as fb.ProductStatistics;
-      final deduplicatedProducts = results[2] as List<DeduplicatedProduct>;
-
-      if (mounted) {
-        setState(() {
-          _allProducts = productsResult.products;
-          _filteredProducts = List.from(
-            _allProducts,
-          ); // Kopia dla filtrowania lokalnego
-          _deduplicatedProducts = deduplicatedProducts;
-          _filteredDeduplicatedProducts = List.from(deduplicatedProducts);
-          _statistics = statistics;
-          _metadata = productsResult.metadata;
-          _isLoading = false;
-        });
-
-        _applyFiltersAndSearch();
-        _startAnimations();
-
-        // Debugowanie - wypisz informacje o produktach
-        _debugProductsLoaded();
-
-        // Sprawdź czy trzeba wyróżnić konkretny produkt
-        if (widget.highlightedProductId != null ||
-            widget.highlightedInvestmentId != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              _highlightSpecificProduct();
-            }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [ProductsManagementScreen] Błąd podczas ładowania: $e');
+      }
+      
+      // Fallback: Spróbuj legacy mode jeśli optimized nie działa
+      if (_useOptimizedMode) {
+        if (kDebugMode) {
+          print('🔄 [ProductsManagementScreen] Fallback do legacy mode...');
+        }
+        try {
+          setState(() {
+            _useOptimizedMode = false;
+          });
+          await _loadLegacyData();
+        } catch (fallbackError) {
+          if (mounted) {
+            setState(() {
+              _error = 'Błąd podczas ładowania produktów: $fallbackError';
+              _isLoading = false;
+            });
+          }
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _error = 'Błąd podczas ładowania produktów: $e';
+            _isLoading = false;
           });
         }
-
-        print(
-          '📊 [ProductsManagementScreen] Załadowano ${_allProducts.length} produktów, '
-          'cache używany: ${_metadata?.cacheUsed ?? false}',
-        );
       }
-    } catch (e) {
-      print('❌ [ProductsManagementScreen] Błąd podczas ładowania: $e');
-      if (mounted) {
-        setState(() {
-          _error = 'Błąd podczas ładowania produktów: $e';
-          _isLoading = false;
+    }
+  }
+
+  /// 🚀 NOWA METODA: Szybkie ładowanie z OptimizedProductService
+  Future<void> _loadOptimizedData() async {
+    if (kDebugMode) {
+      print('⚡ [ProductsManagementScreen] Używam OptimizedProductService...');
+    }
+
+    final stopwatch = Stopwatch()..start();
+
+    // Jedno wywołanie dla wszystkich produktów
+    final optimizedResult = await _optimizedProductService.getAllProductsOptimized(
+      forceRefresh: false,
+      includeStatistics: true,
+    );
+
+    stopwatch.stop();
+
+    if (mounted) {
+      setState(() {
+        _optimizedProducts = optimizedResult.products;
+        _filteredOptimizedProducts = List.from(optimizedResult.products);
+        _optimizedResult = optimizedResult;
+
+        // Konwertuj OptimizedProduct na DeduplicatedProduct dla kompatybilności
+        _deduplicatedProducts = optimizedResult.products
+            .map((opt) => _convertOptimizedToDeduplicatedProduct(opt))
+            .toList();
+        _filteredDeduplicatedProducts = List.from(_deduplicatedProducts);
+
+        // Utwórz statystyki z OptimizedProductsResult
+        if (optimizedResult.statistics != null) {
+          _statistics = _convertGlobalStatsToFBStats(optimizedResult.statistics!);
+        }
+
+        _isLoading = false;
+      });
+
+      _applyFiltersAndSearch();
+      _startAnimations();
+
+      if (kDebugMode) {
+        print('✅ [ProductsManagementScreen] OptimizedProductService: ${optimizedResult.products.length} produktów w ${stopwatch.elapsedMilliseconds}ms (cache: ${optimizedResult.fromCache})');
+      }
+
+      // Sprawdź czy trzeba wyróżnić konkretny produkt
+      if (widget.highlightedProductId != null || widget.highlightedInvestmentId != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _highlightSpecificProduct();
+          }
         });
+      }
+    }
+  }
+
+  /// 🔄 LEGACY METODA: Stare ładowanie dla fallback
+  Future<void> _loadLegacyData() async {
+    if (kDebugMode) {
+      print('🔄 [ProductsManagementScreen] Używam legacy loading...');
+    }
+
+    // TEST: Sprawdź połączenie z Firebase Functions
+    if (kDebugMode) {
+      print('🔄 [ProductsManagementScreen] Testowanie Firebase Functions (z fallback)...');
+      try {
+        await _productService.testDirectFirestoreAccess();
+        await _productService.testConnection();
+      } catch (e) {
+        if (kDebugMode) {
+          print('❌ [ProductsManagementScreen] Test połączenia nieudany (będzie używany fallback): $e');
+        }
+      }
+    }
+
+    // Pobierz produkty, statystyki i deduplikowane produkty równolegle
+    final results = await Future.wait([
+      _productService.getUnifiedProducts(
+        pageSize: 1000,
+        sortBy: _sortField.name,
+        sortAscending: _sortDirection == SortDirection.ascending,
+      ),
+      _showDeduplicatedView
+          ? _deduplicatedProductService.getDeduplicatedProductStatistics().then(
+                (stats) => ProductStatisticsAdapter.adaptFromUnifiedToFB(stats),
+              )
+          : _productService.getProductStatistics(),
+      _deduplicatedProductService.getAllUniqueProducts(),
+    ]);
+
+    final productsResult = results[0] as UnifiedProductsResult;
+    final statistics = results[1] as fb.ProductStatistics;
+    final deduplicatedProducts = results[2] as List<DeduplicatedProduct>;
+
+    if (mounted) {
+      setState(() {
+        _allProducts = productsResult.products;
+        _filteredProducts = List.from(_allProducts);
+        _deduplicatedProducts = deduplicatedProducts;
+        _filteredDeduplicatedProducts = List.from(deduplicatedProducts);
+        _statistics = statistics;
+        _metadata = productsResult.metadata;
+        _isLoading = false;
+      });
+
+      _applyFiltersAndSearch();
+      _startAnimations();
+
+      // Debugowanie - wypisz informacje o produktach
+      _debugProductsLoaded();
+
+      // Sprawdź czy trzeba wyróżnić konkretny produkt
+      if (widget.highlightedProductId != null || widget.highlightedInvestmentId != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _highlightSpecificProduct();
+          }
+        });
+      }
+
+      if (kDebugMode) {
+        print('📊 [ProductsManagementScreen] Legacy: Załadowano ${_allProducts.length} produktów, cache używany: ${_metadata?.cacheUsed ?? false}');
       }
     }
   }
@@ -473,14 +564,18 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     if (_statistics == null) return;
 
     try {
-      final newStats = _showDeduplicatedView
-          ? await _deduplicatedProductService
-                .getDeduplicatedProductStatistics()
-                .then(
-                  (stats) =>
-                      ProductStatisticsAdapter.adaptFromUnifiedToFB(stats),
-                )
-          : await _productService.getProductStatistics();
+      fb.ProductStatistics newStats;
+      
+      if (_useOptimizedMode && _optimizedResult?.statistics != null) {
+        // Użyj statystyk z OptimizedProductsResult
+        newStats = _convertGlobalStatsToFBStats(_optimizedResult!.statistics!);
+      } else if (_showDeduplicatedView) {
+        newStats = await _deduplicatedProductService
+            .getDeduplicatedProductStatistics()
+            .then((stats) => ProductStatisticsAdapter.adaptFromUnifiedToFB(stats));
+      } else {
+        newStats = await _productService.getProductStatistics();
+      }
 
       if (mounted) {
         setState(() {
@@ -488,8 +583,52 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         });
       }
     } catch (e) {
-      print('❌ [ProductsManagementScreen] Błąd odświeżania statystyk: $e');
+      if (kDebugMode) {
+        print('❌ [ProductsManagementScreen] Błąd odświeżania statystyk: $e');
+      }
     }
+  }
+
+  /// 🚀 NOWA METODA: Konwertuje OptimizedProduct na DeduplicatedProduct
+  DeduplicatedProduct _convertOptimizedToDeduplicatedProduct(OptimizedProduct opt) {
+    return DeduplicatedProduct(
+      id: opt.id,
+      name: opt.name,
+      productType: opt.productType,
+      companyId: opt.companyId,
+      companyName: opt.companyName,
+      totalValue: opt.totalValue,
+      totalRemainingCapital: opt.totalRemainingCapital,
+      totalInvestments: opt.totalInvestments,
+      uniqueInvestors: opt.uniqueInvestors,
+      actualInvestorCount: opt.actualInvestorCount,
+      averageInvestment: opt.averageInvestment,
+      earliestInvestmentDate: opt.earliestInvestmentDate,
+      latestInvestmentDate: opt.latestInvestmentDate,
+      status: opt.status,
+      interestRate: opt.interestRate,
+      maturityDate: null, // OptimizedProduct może nie mieć maturityDate
+      originalInvestmentIds: [], // OptimizedProduct nie przechowuje tej informacji
+      metadata: opt.metadata,
+    );
+  }
+
+  /// 🚀 NOWA METODA: Konwertuje GlobalProductStatistics na fb.ProductStatistics
+  fb.ProductStatistics _convertGlobalStatsToFBStats(GlobalProductStatistics global) {
+    return fb.ProductStatistics(
+      totalProducts: global.totalProducts,
+      totalValue: global.totalValue,
+      totalRemainingCapital: global.totalRemainingCapital,
+      averageValue: global.averageValuePerProduct,
+      totalInvestments: global.totalProducts, // Aproximacja
+      uniqueInvestors: global.totalInvestors,
+      averageInvestorsPerProduct: global.averageInvestorsPerProduct,
+      metadata: {
+        'source': 'OptimizedProductService',
+        'generatedAt': DateTime.now().toIso8601String(),
+        'productTypeDistribution': global.productTypeDistribution,
+      },
+    );
   }
 
   void _startAnimations() {
@@ -512,11 +651,19 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     HapticFeedback.mediumImpact();
 
     try {
-      // Odśwież cache na serwerze
-      await _productService.refreshCache();
-      await _loadInitialData();
+      if (_useOptimizedMode) {
+        // 🚀 NOWE: Odśwież cache w OptimizedProductService
+        await _optimizedProductService.refreshProducts();
+        await _loadOptimizedData();
+      } else {
+        // Legacy: Odśwież cache na serwerze
+        await _productService.refreshCache();
+        await _loadLegacyData();
+      }
 
-      print('🔄 [ProductsManagementScreen] Dane odświeżone');
+      if (kDebugMode) {
+        print('🔄 [ProductsManagementScreen] Dane odświeżone (mode: ${_useOptimizedMode ? "optimized" : "legacy"})');
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -527,11 +674,205 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   }
 
   void _applyFiltersAndSearch() {
-    print('🔄 [ProductsManagement] _applyFiltersAndSearch wywołane: showDeduplicated=$_showDeduplicatedView');
-    if (_showDeduplicatedView) {
+    if (kDebugMode) {
+      print('🔄 [ProductsManagement] _applyFiltersAndSearch wywołane: showDeduplicated=$_showDeduplicatedView, useOptimized=$_useOptimizedMode');
+    }
+    
+    if (_useOptimizedMode) {
+      _applyFiltersAndSearchForOptimizedProducts();
+    } else if (_showDeduplicatedView) {
       _applyFiltersAndSearchForDeduplicatedProducts();
     } else {
       _applyFiltersAndSearchForRegularProducts();
+    }
+  }
+
+  /// 🚀 NOWA METODA: Filtrowanie dla zoptymalizowanych produktów
+  void _applyFiltersAndSearchForOptimizedProducts() {
+    List<OptimizedProduct> filtered = List.from(_optimizedProducts);
+
+    // Zastosuj wyszukiwanie tekstowe
+    final searchText = _searchController.text.trim();
+    if (searchText.isNotEmpty) {
+      final searchLower = searchText.toLowerCase();
+      if (kDebugMode) {
+        print('🔍 [ProductsManagementScreen] Wyszukiwanie zoptymalizowanych produktów: "$searchLower"');
+      }
+
+      filtered = filtered.where((product) {
+        return product.name.toLowerCase().contains(searchLower) ||
+            product.companyName.toLowerCase().contains(searchLower) ||
+            product.productType.displayName.toLowerCase().contains(searchLower);
+      }).toList();
+
+      if (kDebugMode) {
+        print('🔍 [ProductsManagementScreen] Znaleziono ${filtered.length} z ${_optimizedProducts.length} zoptymalizowanych produktów');
+      }
+    }
+
+    // Aplikuj filtry podobnie jak dla deduplikowanych produktów
+    if (kDebugMode) {
+      print('🔧 [ProductsManagement] Aplikowanie filtrów do zoptymalizowanych produktów...');
+    }
+    
+    if (_filterCriteria.productTypes != null && _filterCriteria.productTypes!.isNotEmpty) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        return _filterCriteria.productTypes!.contains(product.productType);
+      }).toList();
+      if (kDebugMode) {
+        print('🔧 [ProductsManagement] Filtr typów: $beforeCount → ${filtered.length}');
+      }
+    }
+    
+    if (_filterCriteria.statuses != null && _filterCriteria.statuses!.isNotEmpty) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        return _filterCriteria.statuses!.contains(product.status);
+      }).toList();
+      if (kDebugMode) {
+        print('🔧 [ProductsManagement] Filtr statusów: $beforeCount → ${filtered.length}');
+      }
+    }
+    
+    if (_filterCriteria.companyName != null && _filterCriteria.companyName!.isNotEmpty) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        return product.companyName.toLowerCase().contains(_filterCriteria.companyName!.toLowerCase());
+      }).toList();
+      if (kDebugMode) {
+        print('🔧 [ProductsManagement] Filtr firmy: $beforeCount → ${filtered.length}');
+      }
+    }
+    
+    if (_filterCriteria.minInvestmentAmount != null) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        return product.averageInvestment >= _filterCriteria.minInvestmentAmount!;
+      }).toList();
+      if (kDebugMode) {
+        print('🔧 [ProductsManagement] Filtr min kwoty: $beforeCount → ${filtered.length}');
+      }
+    }
+    
+    if (_filterCriteria.maxInvestmentAmount != null) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        return product.averageInvestment <= _filterCriteria.maxInvestmentAmount!;
+      }).toList();
+      if (kDebugMode) {
+        print('🔧 [ProductsManagement] Filtr max kwoty: $beforeCount → ${filtered.length}');
+      }
+    }
+
+    if (_filterCriteria.minInterestRate != null) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        final rate = product.interestRate;
+        return rate >= _filterCriteria.minInterestRate!;
+      }).toList();
+      if (kDebugMode) {
+        print('🔧 [ProductsManagement] Filtr min oprocentowania: $beforeCount → ${filtered.length}');
+      }
+    }
+    
+    if (_filterCriteria.maxInterestRate != null) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        final rate = product.interestRate;
+        return rate <= _filterCriteria.maxInterestRate!;
+      }).toList();
+      if (kDebugMode) {
+        print('🔧 [ProductsManagement] Filtr max oprocentowania: $beforeCount → ${filtered.length}');
+      }
+    }
+
+    if (_filterCriteria.createdAfter != null) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        return product.earliestInvestmentDate.isAfter(_filterCriteria.createdAfter!) || 
+               product.earliestInvestmentDate.isAtSameMomentAs(_filterCriteria.createdAfter!);
+      }).toList();
+      if (kDebugMode) {
+        print('🔧 [ProductsManagement] Filtr daty początkowej: $beforeCount → ${filtered.length}');
+      }
+    }
+    
+    if (_filterCriteria.createdBefore != null) {
+      final beforeCount = filtered.length;
+      filtered = filtered.where((product) {
+        return product.latestInvestmentDate.isBefore(_filterCriteria.createdBefore!) || 
+               product.latestInvestmentDate.isAtSameMomentAs(_filterCriteria.createdBefore!);
+      }).toList();
+      if (kDebugMode) {
+        print('🔧 [ProductsManagement] Filtr daty końcowej: $beforeCount → ${filtered.length}');
+      }
+    }
+    
+    if (kDebugMode) {
+      print('🔧 [ProductsManagement] Filtry zastosowane (optimized): ${_optimizedProducts.length} → ${filtered.length}');
+    }
+
+    // Sortowanie zoptymalizowanych produktów
+    _sortOptimizedProducts(filtered);
+
+    setState(() {
+      _filteredOptimizedProducts = filtered;
+      // Synchronizuj z deduplikowanymi dla kompatybilności
+      _filteredDeduplicatedProducts = filtered
+          .map((opt) => _convertOptimizedToDeduplicatedProduct(opt))
+          .toList();
+    });
+    
+    if (kDebugMode) {
+      print('🔄 [ProductsManagement] Sortowanie zoptymalizowanych produktów zakończone, znaleziono: ${_filteredOptimizedProducts.length}');
+    }
+  }
+
+  /// 🚀 NOWA METODA: Sortowanie zoptymalizowanych produktów
+  void _sortOptimizedProducts(List<OptimizedProduct> products) {
+    if (kDebugMode) {
+      print('🔄 [ProductsManagement] Sortowanie ${products.length} zoptymalizowanych produktów po: ${_sortField.displayName} (${_sortDirection.displayName})');
+    }
+    
+    products.sort((a, b) {
+      int comparison;
+
+      switch (_sortField) {
+        case ProductSortField.name:
+          comparison = a.name.compareTo(b.name);
+          break;
+        case ProductSortField.type:
+          comparison = a.productType.collectionName.compareTo(b.productType.collectionName);
+          break;
+        case ProductSortField.investmentAmount:
+          comparison = a.averageInvestment.compareTo(b.averageInvestment);
+          break;
+        case ProductSortField.totalValue:
+          comparison = a.totalValue.compareTo(b.totalValue);
+          break;
+        case ProductSortField.createdAt:
+          comparison = a.earliestInvestmentDate.compareTo(b.earliestInvestmentDate);
+          break;
+        case ProductSortField.uploadedAt:
+          comparison = a.latestInvestmentDate.compareTo(b.latestInvestmentDate);
+          break;
+        case ProductSortField.status:
+          comparison = a.status.displayName.compareTo(b.status.displayName);
+          break;
+        case ProductSortField.companyName:
+          comparison = a.companyName.compareTo(b.companyName);
+          break;
+        case ProductSortField.interestRate:
+          comparison = a.interestRate.compareTo(b.interestRate);
+          break;
+      }
+
+      return _sortDirection == SortDirection.ascending ? comparison : -comparison;
+    });
+    
+    if (kDebugMode) {
+      print('🔄 [ProductsManagement] Sortowanie zoptymalizowanych produktów zakończone');
     }
   }
 
@@ -1000,6 +1341,25 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         ),
       ),
       actions: [
+        // 🚀 NOWY: Przełącznik trybu optymalizacji
+        IconButton(
+          icon: Icon(
+            _useOptimizedMode ? Icons.rocket_launch : Icons.speed,
+            color: AppTheme.secondaryGold,
+          ),
+          onPressed: () async {
+            setState(() {
+              _useOptimizedMode = !_useOptimizedMode;
+            });
+            HapticFeedback.lightImpact();
+            
+            // Odśwież dane w nowym trybie
+            await _loadInitialData();
+          },
+          tooltip: _useOptimizedMode
+              ? 'Przełącz na tryb legacy'
+              : 'Przełącz na tryb zoptymalizowany',
+        ),
         // Przełącznik deduplikacji
         IconButton(
           icon: Icon(

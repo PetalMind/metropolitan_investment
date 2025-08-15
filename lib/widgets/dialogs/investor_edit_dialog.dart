@@ -52,6 +52,12 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
   final List<TextEditingController> _capitalSecuredByRealEstateControllers = [];
   final List<InvestmentStatus> _statusValues = [];
 
+  // 🆕 Controller dla całkowitej kwoty produktu
+  final TextEditingController _totalProductAmountController = TextEditingController();
+  double _originalTotalProductAmount = 0.0;
+  bool _isChangingTotalAmount = false;
+  double? _pendingTotalAmountChange; // 🚀 NOWE: Zapisuje nową kwotę do obsługi przez backend
+
   // Kopia inwestycji do edycji
   late List<Investment> _editableInvestments;
 
@@ -76,6 +82,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
     for (final controller in _capitalSecuredByRealEstateControllers) {
       controller.dispose();
     }
+    _totalProductAmountController.dispose();
     super.dispose();
   }
 
@@ -287,8 +294,19 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
         _onDataChanged();
         _calculateAutomaticValues(i);
       });
-      _capitalSecuredByRealEstateControllers[i].addListener(_onDataChanged);
+      _capitalSecuredByRealEstateControllers[i].addListener(() {
+        _onDataChanged();
+        _calculateAutomaticValues(i);
+      });
     }
+
+    // 🆕 Ustaw wartość całkowitej kwoty produktu
+    _originalTotalProductAmount = _editableInvestments.fold<double>(
+      0.0, 
+      (sum, inv) => sum + inv.investmentAmount
+    );
+    _totalProductAmountController.text = _originalTotalProductAmount.toStringAsFixed(2);
+    _totalProductAmountController.addListener(_onTotalAmountChanged);
   }
 
   void _onDataChanged() {
@@ -297,16 +315,41 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
     });
   }
 
-  /// Automatyczne obliczanie wartości na podstawie wprowadzonych kwot
+  /// 🆕 ULEPSZONE: Obsługa zmiany całkowitej kwoty produktu - TERAZ Z BACKEND SERWISEM
+  void _onTotalAmountChanged() {
+    if (_isChangingTotalAmount) return; // Zapobiegaj zapętleniu
+
+    final newTotalAmountText = _totalProductAmountController.text;
+    final newTotalAmount = double.tryParse(newTotalAmountText) ?? 0.0;
+    
+    if (newTotalAmount <= 0 || newTotalAmount == _originalTotalProductAmount) {
+      return;
+    }
+
+    debugPrint('🔢 [InvestorEditDialog] Zmiana całkowitej kwoty produktu:');
+    debugPrint('   - Oryginalna kwota: ${_originalTotalProductAmount.toStringAsFixed(2)}');
+    debugPrint('   - Nowa kwota: ${newTotalAmount.toStringAsFixed(2)}');
+    debugPrint('   - Użyję backend skalowania zamiast lokalnego');
+
+    // 🚀 NOWE: Oznacz że zmiana będzie obsłużona przez backend przy zapisie
+    _isChangingTotalAmount = true;
+    _pendingTotalAmountChange = newTotalAmount; // Zapisz do obsługi w _saveChanges
+    _isChangingTotalAmount = false;
+    _onDataChanged();
+  }
+
+  /// ✨ ULEPSZONE: Automatyczne obliczanie wartości na podstawie wprowadzonych kwot
   void _calculateAutomaticValues(int index) {
     final investmentAmountText = _investmentAmountControllers[index].text;
     final capitalForRestructuringText = _capitalForRestructuringControllers[index].text;
+    final capitalSecuredText = _capitalSecuredByRealEstateControllers[index].text;
     
     final investmentAmount = double.tryParse(investmentAmountText) ?? 0.0;
     final capitalForRestructuring = double.tryParse(capitalForRestructuringText) ?? 0.0;
+    final capitalSecured = double.tryParse(capitalSecuredText) ?? 0.0;
     
-    // Oblicz pozostały kapitał (kwota inwestycji minus kapitał do restrukturyzacji)
-    final calculatedRemainingCapital = investmentAmount - capitalForRestructuring;
+    // 🆕 NOWA LOGIKA: kapitał pozostały = kapitał zabezpieczony + kapitał do restrukturyzacji
+    final calculatedRemainingCapital = capitalSecured + capitalForRestructuring;
     
     // Aktualizuj pole pozostałego kapitału (tylko jeśli wartość się zmieniła)
     final currentRemainingCapital = double.tryParse(_remainingCapitalControllers[index].text) ?? 0.0;
@@ -314,14 +357,12 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
       _remainingCapitalControllers[index].text = calculatedRemainingCapital.toStringAsFixed(2);
     }
     
-    // Oblicz kapitał zabezpieczony nieruchomością
-    // Logika: kapitał zabezpieczony = pozostały kapitał (jeśli pozytywny)
-    final calculatedCapitalSecured = calculatedRemainingCapital > 0 ? calculatedRemainingCapital : 0.0;
-    
-    // Aktualizuj pole kapitału zabezpieczonego (tylko jeśli wartość się zmieniła)
-    final currentCapitalSecured = double.tryParse(_capitalSecuredByRealEstateControllers[index].text) ?? 0.0;
-    if ((calculatedCapitalSecured - currentCapitalSecured).abs() > 0.01) {
-      _capitalSecuredByRealEstateControllers[index].text = calculatedCapitalSecured.toStringAsFixed(2);
+    // Opcjonalnie: sprawdź czy suma się zgadza z kwotą inwestycji
+    if ((calculatedRemainingCapital - investmentAmount).abs() > 0.01) {
+      debugPrint('⚠️ [InvestorEditDialog] Niezgodność sum dla inwestycji ${index + 1}:');
+      debugPrint('   - Kwota inwestycji: ${investmentAmount.toStringAsFixed(2)}');
+      debugPrint('   - Kapitał pozostały: ${calculatedRemainingCapital.toStringAsFixed(2)}');
+      debugPrint('   - Różnica: ${(investmentAmount - calculatedRemainingCapital).toStringAsFixed(2)}');
     }
   }
 
@@ -464,6 +505,8 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
               _buildErrorCard(),
               const SizedBox(height: 16),
             ],
+            _buildTotalAmountControl(),
+            const SizedBox(height: 24),
             _buildInvestmentsSummary(),
             const SizedBox(height: 24),
             _buildInvestmentsEditList(),
@@ -499,6 +542,182 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
           TextButton(
             onPressed: () => setState(() => _error = null),
             child: Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 🆕 Kontrolka do zmiany całkowitej kwoty produktu
+  Widget _buildTotalAmountControl() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.accentGold.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppThemePro.accentGold.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppThemePro.accentGold.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.account_balance,
+                  color: AppThemePro.accentGold,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Całkowita kwota produktu',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: AppThemePro.accentGold,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'Zmiana tej kwoty proporcjonalnie zmieni udziały wszystkich inwestorów',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppThemePro.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextFormField(
+                  controller: _totalProductAmountController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: 'Nowa całkowita kwota',
+                    prefixIcon: Icon(
+                      Icons.edit,
+                      color: AppThemePro.accentGold,
+                      size: 20,
+                    ),
+                    suffixText: 'zł',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppThemePro.accentGold.withOpacity(0.5)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppThemePro.accentGold, width: 2),
+                    ),
+                    filled: true,
+                    fillColor: AppThemePro.backgroundPrimary,
+                  ),
+                  style: TextStyle(
+                    color: AppThemePro.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 1,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.surfaceElevated,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppThemePro.borderPrimary),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Oryginalna kwota',
+                        style: TextStyle(
+                          color: AppThemePro.textTertiary,
+                          fontSize: 11,
+                        ),
+                      ),
+                      Text(
+                        _currencyFormat.format(_originalTotalProductAmount),
+                        style: TextStyle(
+                          color: AppThemePro.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      // Pokaż współczynnik skalowania jeśli jest zmiana
+                      if (_originalTotalProductAmount > 0) ...[
+                        Text(
+                          'Skalowanie',
+                          style: TextStyle(
+                            color: AppThemePro.textTertiary,
+                            fontSize: 11,
+                          ),
+                        ),
+                        Builder(
+                          builder: (context) {
+                            final newAmount = double.tryParse(_totalProductAmountController.text) ?? _originalTotalProductAmount;
+                            final scalingFactor = newAmount / _originalTotalProductAmount;
+                            final isChanged = (scalingFactor - 1.0).abs() > 0.001;
+                            
+                            return Text(
+                              '${(scalingFactor * 100).toStringAsFixed(1)}%',
+                              style: TextStyle(
+                                color: isChanged 
+                                    ? (scalingFactor > 1.0 ? AppThemePro.profitGreen : AppThemePro.lossRed)
+                                    : AppThemePro.textSecondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Ostrzeżenie o proporcjonalnych zmianach
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: AppThemePro.statusWarning,
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Uwaga: Zmiana spowoduje proporcjonalne przeskalowanie udziałów wszystkich inwestorów w tym produkcie',
+                  style: TextStyle(
+                    color: AppThemePro.statusWarning,
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -692,14 +911,21 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Pozostały kapitał = Kwota inwestycji - Kapitał do restrukturyzacji',
+            '• Kapitał pozostały = Kapitał zabezpieczony + Kapitał do restrukturyzacji',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppThemePro.textSecondary,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'Pole "Zabezpieczony nieruchomością" można edytować ręcznie',
+            '• Zmiana całkowitej kwoty produktu proporcjonalnie zmienia udziały wszystkich inwestorów',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppThemePro.textTertiary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '• Kapitał zabezpieczony i do restrukturyzacji można edytować niezależnie',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppThemePro.textTertiary,
             ),
@@ -764,16 +990,17 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
             ],
           ),
           const SizedBox(height: 16),
-          // Pola edycji - pierwszy rząd (kwoty podstawowe)
+          // Pola edycji - pierwszy rząd (kapitał zabezpieczony i do restrukturyzacji)
           Row(
             children: [
               Expanded(
                 child: _buildCurrencyField(
-                  label: 'Kwota inwestycji',
-                  controller: _investmentAmountControllers[index],
-                  icon: Icons.account_balance_wallet,
-                  color: AppThemePro.bondsBlue,
+                  label: 'Kapitał zabezpieczony',
+                  controller: _capitalSecuredByRealEstateControllers[index],
+                  icon: Icons.security,
+                  color: AppThemePro.statusSuccess,
                   isEditable: true,
+                  helpText: 'Kapitał zabezpieczony nieruchomościami',
                 ),
               ),
               const SizedBox(width: 16),
@@ -784,33 +1011,34 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
                   icon: Icons.build,
                   color: AppThemePro.statusWarning,
                   isEditable: true,
+                  helpText: 'Kapitał wymagający restrukturyzacji',
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          // Drugi rząd (kwoty automatycznie obliczane)
+          // Drugi rząd (kwoty obliczane automatycznie)
           Row(
             children: [
               Expanded(
                 child: _buildCurrencyField(
-                  label: 'Pozostały kapitał (obliczany)',
+                  label: 'Kapitał pozostały (obliczany)',
                   controller: _remainingCapitalControllers[index],
-                  icon: Icons.trending_up,
+                  icon: Icons.calculate,
                   color: AppThemePro.profitGreen,
                   isEditable: false, // Tylko do odczytu
-                  helpText: 'Kwota inwestycji - Kapitał do restrukturyzacji',
+                  helpText: 'Zabezpieczony + Do restrukturyzacji',
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: _buildCurrencyField(
-                  label: 'Zabezpieczony nieruchomością',
-                  controller: _capitalSecuredByRealEstateControllers[index],
-                  icon: Icons.security,
-                  color: AppThemePro.statusSuccess,
+                  label: 'Kwota inwestycji',
+                  controller: _investmentAmountControllers[index],
+                  icon: Icons.account_balance_wallet,
+                  color: AppThemePro.bondsBlue,
                   isEditable: true,
-                  helpText: 'Może być edytowany ręcznie',
+                  helpText: 'Może być zmieniana indywidualnie lub poprzez całkowitą kwotę produktu',
                 ),
               ),
             ],
@@ -1065,6 +1293,88 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
     });
 
     try {
+      final investmentService = InvestmentService();
+
+      // 🚀 NOWE: Najpierw obsłuż skalowanie całego produktu (jeśli wymagane)
+      if (_pendingTotalAmountChange != null && 
+          _pendingTotalAmountChange! > 0 && 
+          _pendingTotalAmountChange != _originalTotalProductAmount) {
+        
+        debugPrint('🎯 [InvestorEditDialog] Obsługuję skalowanie całego produktu...');
+        debugPrint('   - Produkt: ${widget.product.name}');
+        debugPrint('   - Nowa kwota: ${_pendingTotalAmountChange!.toStringAsFixed(2)}');
+        debugPrint('   - Poprzednia kwota: ${_originalTotalProductAmount.toStringAsFixed(2)}');
+        
+        try {
+          final scalingResult = await investmentService.scaleProductInvestments(
+            productId: widget.product.id.isNotEmpty ? widget.product.id : null,
+            productName: widget.product.name,
+            newTotalAmount: _pendingTotalAmountChange!,
+            reason: 'Skalowanie całkowitej kwoty produktu przez ${widget.investor.client.name}',
+            companyId: widget.product.companyId,
+            creditorCompany: widget.product.companyName,
+          );
+
+          debugPrint('✅ [InvestorEditDialog] Skalowanie zakończone pomyślnie');
+          debugPrint('📊 Podsumowanie: ${scalingResult.summary.formattedSummary}');
+          
+          // Po pomyślnym skalowaniu, pokaż wynik użytkownikowi
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('✅ Skalowanie produktu zakończone pomyślnie'),
+                    const SizedBox(height: 8),
+                    Text(
+                      '• Zaktualizowano: ${scalingResult.summary.affectedInvestments} inwestycji\n'
+                      '• Współczynnik: ${(scalingResult.summary.scalingFactor * 100).toStringAsFixed(1)}%\n'
+                      '• Czas wykonania: ${scalingResult.summary.executionTimeMs}ms',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.green[700],
+                duration: const Duration(seconds: 5),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+
+          // Po skalowaniu, odśwież dane i zamknij dialog
+          widget.onSaved();
+          if (mounted) Navigator.of(context).pop();
+          return;
+          
+        } catch (scalingError) {
+          debugPrint('❌ [InvestorEditDialog] Błąd skalowania: $scalingError');
+          
+          // Pokaż użytkownikowi dokładny błąd skalowania
+          setState(() {
+            _error = 'Błąd skalowania produktu: ${scalingError.toString()}';
+            _isLoading = false;
+          });
+          
+          // Pokaż również SnackBar z błędem
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('❌ ${scalingError.toString()}'),
+                backgroundColor: Colors.red[700],
+                duration: const Duration(seconds: 8),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      // 🔄 NASTĘPNIE: Obsłuż standardowe zmiany pojedynczych inwestycji (istniejąca logika)
+      debugPrint('🔧 [InvestorEditDialog] Obsługuję standardowe zmiany inwestycji...');
+
       // Przygotuj listę zmian do zapisania
       final List<Investment> updatedInvestments = [];
       
@@ -1149,7 +1459,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
       debugPrint('📊 [InvestorEditDialog] Produktu: ${widget.product.name} (ID: ${widget.product.id})');
 
       // 🚀 ENHANCED: Zapisz zmiany przez InvestmentService z lepszą obsługą błędów
-      final investmentService = InvestmentService();
       for (final updatedInvestment in updatedInvestments) {
         try {
           debugPrint('🔧 [InvestorEditDialog] Aktualizuję inwestycję: ${updatedInvestment.id}');

@@ -1,0 +1,26 @@
+// 🚀 OPTYMALIZACJA PRODUKTÓW - Dodaj do models_and_services.dart
+
+// ========================
+// PRZED eksportami:
+// ========================
+
+// Stary sposób (zostaw jako backup):
+// export 'services/deduplicated_product_service.dart';
+
+// ========================
+// DODAJ te nowe eksporty:
+// ========================
+
+// 🚀 NOWE: Zoptymalizowany serwis produktów
+export 'services/optimized_product_service.dart';
+
+// ========================
+// ALTERNATYWNIE możesz zastąpić:
+// ========================
+
+// PRZED:
+// export 'services/deduplicated_product_service.dart';
+
+// PO:
+// export 'services/deduplicated_product_service.dart'; // Backup
+// export 'services/optimized_product_service.dart';   // Nowy główny

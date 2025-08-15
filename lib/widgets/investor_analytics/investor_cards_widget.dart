@@ -11,6 +11,11 @@ class InvestorCardsWidget extends StatelessWidget {
   final double totalViableCapital;
   final bool isTablet;
   final Function(InvestorSummary) onInvestorTap;
+  
+  // Multi-selection parameters
+  final bool isSelectionMode;
+  final Set<String> selectedInvestorIds;
+  final Function(String) onInvestorSelectionToggle;
 
   const InvestorCardsWidget({
     super.key,
@@ -19,6 +24,9 @@ class InvestorCardsWidget extends StatelessWidget {
     required this.totalViableCapital,
     required this.isTablet,
     required this.onInvestorTap,
+    this.isSelectionMode = false,
+    this.selectedInvestorIds = const <String>{},
+    required this.onInvestorSelectionToggle,
   });
 
   @override
@@ -83,11 +91,18 @@ class InvestorCardsWidget extends StatelessWidget {
         ? (investor.viableRemainingCapital / totalViableCapital) * 100
         : 0.0;
     final isMajorityHolder = majorityHolders.contains(investor);
+    final isSelected = selectedInvestorIds.contains(investor.client.id);
 
     return Card(
       elevation: isMajorityHolder ? 4 : 2,
       child: InkWell(
-        onTap: () => onInvestorTap(investor),
+        onTap: () {
+          if (isSelectionMode) {
+            onInvestorSelectionToggle(investor.client.id);
+          } else {
+            onInvestorTap(investor);
+          }
+        },
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -102,10 +117,21 @@ class InvestorCardsWidget extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   )
-                : null,
+                : isSelectionMode && isSelected
+                    ? LinearGradient(
+                        colors: [
+                          AppTheme.primaryAccent.withOpacity(0.1),
+                          AppTheme.primaryAccent.withOpacity(0.05),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
             border: isMajorityHolder
                 ? Border.all(color: AppTheme.secondaryGold.withOpacity(0.3))
-                : null,
+                : isSelectionMode && isSelected
+                    ? Border.all(color: AppTheme.primaryAccent.withOpacity(0.5), width: 2)
+                    : null,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,27 +139,40 @@ class InvestorCardsWidget extends StatelessWidget {
               // Header with position and name
               Row(
                 children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: votingStatusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: votingStatusColor.withOpacity(0.3),
+                  // Selection checkbox or position number
+                  if (isSelectionMode)
+                    Container(
+                      width: 32,
+                      height: 32,
+                      child: Checkbox(
+                        value: isSelected,
+                        onChanged: (value) => onInvestorSelectionToggle(investor.client.id),
+                        activeColor: AppTheme.primaryAccent,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${index + 1}',
-                        style: TextStyle(
-                          color: votingStatusColor,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
+                    )
+                  else
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: votingStatusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: votingStatusColor.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color: votingStatusColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

@@ -7,6 +7,8 @@ import '../theme/app_theme.dart';
 import '../models_and_services.dart'; // Centralny export wszystkich modeli i serwisów
 import '../services/investor_analytics_service.dart'
     as ia_service; // Tylko dla InvestorAnalyticsResult conflict resolution
+import '../widgets/dialogs/investor_email_dialog.dart';
+import '../widgets/dialogs/investor_export_dialog.dart';
 
 /// 🎯 PREMIUM INVESTOR ANALYTICS DASHBOARD
 ///
@@ -109,6 +111,13 @@ class _PremiumInvestorAnalyticsScreenState
   // 📊 VIEW MODES
   ViewMode _investorsViewMode = ViewMode.list; // Domyślnie lista zamiast kart
   ViewMode _majorityViewMode = ViewMode.list;
+
+  // 📋 MULTI-SELECTION STATE
+  bool _isSelectionMode = false;
+  Set<String> _selectedInvestorIds = <String>{};
+  List<InvestorSummary> get _selectedInvestors => _allInvestors
+      .where((investor) => _selectedInvestorIds.contains(investor.client.id))
+      .toList();
 
   // 📱 RESPONSIVE BREAKPOINTS
   bool get _isTablet => MediaQuery.of(context).size.width > 768;
@@ -749,7 +758,7 @@ class _PremiumInvestorAnalyticsScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Analityka Inwestorów',
+                  _isSelectionMode ? 'Wybór Inwestorów' : 'Analityka Inwestorów',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w700,
@@ -758,7 +767,9 @@ class _PremiumInvestorAnalyticsScreenState
                 if (_totalCount > 0) ...[
                   const SizedBox(height: 4),
                   Text(
-                    '${_totalCount} inwestorów • ${CurrencyFormatter.formatCurrency(_votingManager.totalViableCapital, showDecimals: false)}',
+                    _isSelectionMode && _selectedInvestorIds.isNotEmpty
+                        ? 'Wybrano ${_selectedInvestorIds.length} z ${_displayedInvestors.length} inwestorów'
+                        : '${_totalCount} inwestorów • ${CurrencyFormatter.formatCurrency(_votingManager.totalViableCapital, showDecimals: false)}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppTheme.textSecondary,
                     ),
@@ -789,10 +800,38 @@ class _PremiumInvestorAnalyticsScreenState
               ],
             ),
           ),
-          _buildRefreshButton(),
-          const SizedBox(width: 8),
-          _buildViewModeToggle(),
-          const SizedBox(width: 8),
+          if (_isSelectionMode) ...[
+            // Przyciski w trybie selekcji
+            if (_displayedInvestors.isNotEmpty)
+              TextButton.icon(
+                onPressed: _selectedInvestorIds.length == _displayedInvestors.length 
+                    ? _clearSelection 
+                    : _selectAllVisibleInvestors,
+                icon: Icon(
+                  _selectedInvestorIds.length == _displayedInvestors.length 
+                      ? Icons.deselect 
+                      : Icons.select_all,
+                  size: 20,
+                ),
+                label: Text(
+                  _selectedInvestorIds.length == _displayedInvestors.length 
+                      ? 'Usuń zaznaczenie' 
+                      : 'Zaznacz wszystko',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.secondaryGold,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
+              ),
+            const SizedBox(width: 8),
+          ] else ...[
+            // Standardowe przyciski
+            _buildRefreshButton(),
+            const SizedBox(width: 8),
+            _buildViewModeToggle(),
+            const SizedBox(width: 8),
+          ],
           _buildFilterToggleButton(),
         ],
       ),
@@ -1361,14 +1400,58 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildFloatingActionButton() {
+    if (_isSelectionMode) {
+      // Tryb wielokrotnego wyboru - pokaż liczbę wybranych i akcje
+      return ScaleTransition(
+        scale: _fabScaleAnimation,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_selectedInvestorIds.isNotEmpty) ...[
+              // Email FAB
+              FloatingActionButton(
+                heroTag: "email_fab",
+                onPressed: _showEmailDialog,
+                backgroundColor: AppTheme.secondaryGold,
+                foregroundColor: Colors.white,
+                mini: true,
+                child: const Icon(Icons.email_outlined),
+              ),
+              const SizedBox(height: 8),
+              // Export FAB
+              FloatingActionButton(
+                heroTag: "export_fab",
+                onPressed: _showExportDialog,
+                backgroundColor: AppTheme.primaryAccent,
+                foregroundColor: Colors.white,
+                mini: true,
+                child: const Icon(Icons.file_download_outlined),
+              ),
+              const SizedBox(height: 12),
+            ],
+            // Główny FAB z liczbą wybranych
+            FloatingActionButton.extended(
+              heroTag: "main_fab",
+              onPressed: _exitSelectionMode,
+              backgroundColor: Colors.grey[700],
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.close),
+              label: Text('Wybrano: ${_selectedInvestorIds.length}'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Normalny tryb - standardowy przycisk akcji
     return ScaleTransition(
       scale: _fabScaleAnimation,
       child: FloatingActionButton.extended(
         onPressed: _showActionMenu,
         backgroundColor: AppTheme.secondaryGold,
         foregroundColor: AppTheme.textOnSecondary,
-        icon: Icon(Icons.more_vert_rounded),
-        label: Text('Akcje'),
+        icon: const Icon(Icons.more_vert_rounded),
+        label: const Text('Akcje'),
       ),
     );
   }
@@ -1553,7 +1636,7 @@ class _PremiumInvestorAnalyticsScreenState
 
   Widget _buildActionSheet() {
     return Container(
-      padding: EdgeInsets.all(24),
+      padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1565,6 +1648,16 @@ class _PremiumInvestorAnalyticsScreenState
             ),
           ),
           const SizedBox(height: 20),
+          
+          // Nowa opcja wielokrotnego wyboru
+          _buildActionTile(
+            'Wybór wielu inwestorów',
+            'Email i eksport dla wybranych inwestorów',
+            Icons.checklist_rounded,
+            AppTheme.primaryAccent,
+            _enterSelectionMode,
+          ),
+          
           _buildActionTile(
             'Eksportuj emaile',
             'Skopiuj adresy email do schowka',
@@ -1912,7 +2005,12 @@ class _PremiumInvestorAnalyticsScreenState
       isTablet: _isTablet,
       isLoading: false, // Already handled at screen level
       error: null, // Already handled at screen level
-      onInvestorTap: _showInvestorDetails,
+      onInvestorTap: _isSelectionMode ? 
+          (investor) => _toggleInvestorSelection(investor.client.id) : 
+          _showInvestorDetails,
+      isSelectionMode: _isSelectionMode,
+      selectedInvestorIds: _selectedInvestorIds,
+      onInvestorSelectionToggle: _toggleInvestorSelection,
     );
   }
 
@@ -4818,6 +4916,105 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
         content: Text('📋 Dane inwestora skopiowane do schowka'),
         backgroundColor: AppTheme.successColor,
         duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // 📋 MULTI-SELECTION METHODS
+
+  void _enterSelectionMode() {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedInvestorIds.clear();
+    });
+    
+    _fabAnimationController.forward();
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('👆 Dotknij inwestorów aby ich wybrać'),
+        backgroundColor: AppTheme.primaryAccent,
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {},
+        ),
+      ),
+    );
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedInvestorIds.clear();
+    });
+  }
+
+  void _toggleInvestorSelection(String investorId) {
+    setState(() {
+      if (_selectedInvestorIds.contains(investorId)) {
+        _selectedInvestorIds.remove(investorId);
+      } else {
+        _selectedInvestorIds.add(investorId);
+      }
+    });
+  }
+
+  void _selectAllVisibleInvestors() {
+    setState(() {
+      for (final investor in _displayedInvestors) {
+        _selectedInvestorIds.add(investor.client.id);
+      }
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedInvestorIds.clear();
+    });
+  }
+
+  void _showEmailDialog() {
+    if (_selectedInvestors.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Nie wybrano żadnych inwestorów'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => InvestorEmailDialog(
+        selectedInvestors: _selectedInvestors,
+        onEmailSent: () {
+          _exitSelectionMode();
+        },
+      ),
+    );
+  }
+
+  void _showExportDialog() {
+    if (_selectedInvestors.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Nie wybrano żadnych inwestorów'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => InvestorExportDialog(
+        selectedInvestors: _selectedInvestors,
+        onExportComplete: () {
+          _exitSelectionMode();
+        },
       ),
     );
   }

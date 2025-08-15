@@ -33,6 +33,7 @@ export 'services/company_service.dart';
 export 'services/unified_product_service.dart';
 export 'services/enhanced_unified_product_service.dart';
 export 'services/deduplicated_product_service.dart';
+export 'services/optimized_product_service.dart'; // 🚀 NOWE: Zoptymalizowany serwis produktów (batch)
 export 'services/firebase_functions_data_service.dart' hide ClientsResult; // 🚀 UPDATED: Enhanced Firebase Functions integration with normalized field mapping
 export 'services/firebase_functions_products_service.dart'
     hide ProductStatistics;
@@ -47,6 +48,7 @@ export 'services/firebase_functions_analytics_service_updated.dart'
 export 'services/firebase_functions_capital_calculation_service.dart';
 export 'services/auth_service.dart';
 export 'services/email_service.dart';
+export 'services/email_and_export_service.dart'; // 🚀 NOWE: Email i eksport danych
 export 'services/user_preferences_service.dart';
 export 'services/advanced_analytics_service.dart' hide AdvancedDashboardMetrics;
 export 'services/investor_analytics_service.dart' hide InvestorAnalyticsResult;
@@ -117,6 +119,8 @@ export 'widgets/client_stats_debug_widget.dart';
 
 // Dialog widgets
 export 'widgets/dialogs/investor_edit_dialog.dart'; // ⭐ NOWE: Dialog edycji inwestora
+export 'widgets/dialogs/investor_email_dialog.dart'; // ⭐ NOWE: Dialog wysyłania maili
+export 'widgets/dialogs/investor_export_dialog.dart'; // ⭐ NOWE: Dialog eksportu danych
 
 // Investor Analytics Widgets - Professional Financial Views
 export 'widgets/investor_analytics/investor_views_container.dart';

@@ -20,6 +20,11 @@ class InvestorViewsContainer extends StatelessWidget {
   final bool isLoading;
   final String? error;
   final Function(InvestorSummary) onInvestorTap;
+  
+  // Multi-selection parameters
+  final bool isSelectionMode;
+  final Set<String> selectedInvestorIds;
+  final Function(String) onInvestorSelectionToggle;
 
   const InvestorViewsContainer({
     super.key,
@@ -31,6 +36,9 @@ class InvestorViewsContainer extends StatelessWidget {
     required this.isLoading,
     this.error,
     required this.onInvestorTap,
+    this.isSelectionMode = false,
+    this.selectedInvestorIds = const <String>{},
+    required this.onInvestorSelectionToggle,
   });
 
   @override
@@ -52,6 +60,9 @@ class InvestorViewsContainer extends StatelessWidget {
           totalViableCapital: totalViableCapital,
           isTablet: isTablet,
           onInvestorTap: onInvestorTap,
+          isSelectionMode: isSelectionMode,
+          selectedInvestorIds: selectedInvestorIds,
+          onInvestorSelectionToggle: onInvestorSelectionToggle,
         );
 
       case ViewMode.list:
@@ -62,6 +73,9 @@ class InvestorViewsContainer extends StatelessWidget {
           isTablet: isTablet,
           onInvestorTap: onInvestorTap,
           onExportInvestor: (investor) => _exportInvestor(context, investor),
+          isSelectionMode: isSelectionMode,
+          selectedInvestorIds: selectedInvestorIds,
+          onInvestorSelectionToggle: onInvestorSelectionToggle,
         );
 
       case ViewMode.table:
@@ -73,6 +87,9 @@ class InvestorViewsContainer extends StatelessWidget {
             isTablet: isTablet,
             onInvestorTap: onInvestorTap,
             onExportInvestor: (investor) => _exportInvestor(context, investor),
+            isSelectionMode: isSelectionMode,
+            selectedInvestorIds: selectedInvestorIds,
+            onInvestorSelectionToggle: onInvestorSelectionToggle,
           ),
         );
     }

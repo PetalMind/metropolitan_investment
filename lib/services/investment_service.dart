@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import '../models/investment.dart';
 import '../models/product.dart';
@@ -780,6 +781,99 @@ class InvestmentService extends BaseService {
       throw Exception('Failed to get investments near maturity: $e');
     }
   }
+
+  /// 🚀 NOWA FUNKCJA: Skaluje proporcjonalnie wszystkie inwestycje w ramach produktu
+  /// Wykorzystuje Firebase Functions dla bezpieczeństwa i atomicity transakcji
+  Future<InvestmentScalingResult> scaleProductInvestments({
+    String? productId,
+    String? productName,
+    required double newTotalAmount,
+    String? reason,
+    String? companyId,
+    String? creditorCompany,
+  }) async {
+    const String cacheKey = 'scale_product_investments';
+    
+    try {
+      // 🔍 Walidacja danych wejściowych
+      if ((productId?.isEmpty ?? true) && (productName?.isEmpty ?? true)) {
+        throw Exception('Wymagany jest productId lub productName');
+      }
+
+      if (newTotalAmount <= 0) {
+        throw Exception('Nowa kwota musi być większa od 0');
+      }
+
+      // 🔄 Przygotuj dane do wysłania do Firebase Functions
+      final functionData = {
+        if (productId?.isNotEmpty == true) 'productId': productId,
+        if (productName?.isNotEmpty == true) 'productName': productName,
+        'newTotalAmount': newTotalAmount,
+        'reason': reason ?? 'Proporcjonalne skalowanie kwoty produktu',
+        'userId': 'current_user_id', // TODO: Pobierz z AuthProvider
+        'userEmail': 'current_user@email.com', // TODO: Pobierz z AuthProvider
+        if (companyId?.isNotEmpty == true) 'companyId': companyId,
+        if (creditorCompany?.isNotEmpty == true) 'creditorCompany': creditorCompany,
+      };
+
+      logDebug('scaleProductInvestments', 'Wysyłam dane do Firebase Functions: $functionData');
+
+      // 🔥 Wywołaj Firebase Functions
+      final result = await FirebaseFunctions.instanceFor(region: 'europe-west1')
+          .httpsCallable('scaleProductInvestments')
+          .call(functionData);
+
+      logDebug('scaleProductInvestments', 'Otrzymano wynik: ${result.data}');
+
+      // 🎯 Przetwórz wynik
+      final data = result.data as Map<String, dynamic>;
+      
+      if (data['success'] == true) {
+        // ♻️ Wyczyść cache po pomyślnej operacji
+        clearCache(cacheKey);
+        _clearProductCache(productId ?? productName ?? 'unknown');
+        
+        return InvestmentScalingResult.fromJson(data);
+      } else {
+        throw Exception('Skalowanie nie powiodło się: ${data['error'] ?? 'Nieznany błąd'}');
+      }
+
+    } catch (e) {
+      logError('scaleProductInvestments', e);
+      
+      if (e.toString().contains('PERMISSION_DENIED') || e.toString().contains('unauthenticated')) {
+        throw Exception('Brak uprawnień do skalowania inwestycji. Zaloguj się ponownie.');
+      } else if (e.toString().contains('not-found')) {
+        throw Exception('Nie znaleziono inwestycji dla podanego produktu.');
+      } else if (e.toString().contains('invalid-argument')) {
+        throw Exception('Nieprawidłowe dane wejściowe: ${e.toString()}');
+      } else {
+        throw Exception('Błąd podczas skalowania inwestycji: $e');
+      }
+    }
+  }
+
+  /// Helper: Wyczyść cache związany z produktem
+  void _clearProductCache(String productIdentifier) {
+    // Lista potencjalnych kluczy cache związanych z produktem
+    final possibleKeys = [
+      'investments_$productIdentifier',
+      'product_stats_$productIdentifier', 
+      'investor_data_$productIdentifier',
+      productIdentifier.toLowerCase(),
+      'scale_product_investments',
+      'investment_stats',
+      'active_investments',
+      'recent_investments',
+    ];
+    
+    // Wyczyść wszystkie potencjalne klucze
+    for (final key in possibleKeys) {
+      clearCache(key);
+    }
+    
+    logDebug('_clearProductCache', 'Wyczyszczono cache dla produktu: $productIdentifier');
+  }
 }
 
 /// Zoptymalizowany serwis inwestycji wykorzystujący composite indexes
@@ -894,4 +988,164 @@ class OptimizedInvestmentService extends BaseService {
       throw Exception('Failed to get active investments: $e');
     }
   }
+}
+
+/// Zoptymalizowany serwis inwestycji wykorzystujący composite indexes
+class InvestmentScalingResult {
+  final bool success;
+  final InvestmentScalingSummary summary;
+  final List<InvestmentScalingDetail> details;
+  final String timestamp;
+
+  const InvestmentScalingResult({
+    required this.success,
+    required this.summary,
+    required this.details,
+    required this.timestamp,
+  });
+
+  factory InvestmentScalingResult.fromJson(Map<String, dynamic> json) {
+    return InvestmentScalingResult(
+      success: json['success'] ?? false,
+      summary: InvestmentScalingSummary.fromJson(json['summary'] ?? {}),
+      details: (json['details'] as List<dynamic>? ?? [])
+          .map((detail) => InvestmentScalingDetail.fromJson(detail))
+          .toList(),
+      timestamp: json['timestamp'] ?? DateTime.now().toIso8601String(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'success': success,
+      'summary': summary.toJson(),
+      'details': details.map((detail) => detail.toJson()).toList(),
+      'timestamp': timestamp,
+    };
+  }
+}
+
+/// 🎯 Model podsumowania skalowania
+class InvestmentScalingSummary {
+  final String? productId;
+  final String? productName;
+  final double previousTotalAmount;
+  final double newTotalAmount;
+  final double scalingFactor;
+  final int affectedInvestments;
+  final int executionTimeMs;
+
+  const InvestmentScalingSummary({
+    this.productId,
+    this.productName,
+    required this.previousTotalAmount,
+    required this.newTotalAmount,
+    required this.scalingFactor,
+    required this.affectedInvestments,
+    required this.executionTimeMs,
+  });
+
+  factory InvestmentScalingSummary.fromJson(Map<String, dynamic> json) {
+    return InvestmentScalingSummary(
+      productId: json['productId'],
+      productName: json['productName'],
+      previousTotalAmount: (json['previousTotalAmount'] ?? 0).toDouble(),
+      newTotalAmount: (json['newTotalAmount'] ?? 0).toDouble(),
+      scalingFactor: (json['scalingFactor'] ?? 1.0).toDouble(),
+      affectedInvestments: json['affectedInvestments'] ?? 0,
+      executionTimeMs: json['executionTimeMs'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'productId': productId,
+      'productName': productName,
+      'previousTotalAmount': previousTotalAmount,
+      'newTotalAmount': newTotalAmount,
+      'scalingFactor': scalingFactor,
+      'affectedInvestments': affectedInvestments,
+      'executionTimeMs': executionTimeMs,
+    };
+  }
+
+  /// Formatowane podsumowanie do wyświetlenia użytkownikowi
+  String get formattedSummary {
+    final productDisplayName = productName ?? productId ?? 'Nieznany produkt';
+    final percentChange = ((scalingFactor - 1) * 100).toStringAsFixed(1);
+    final direction = scalingFactor > 1 ? 'wzrost' : 'spadek';
+    
+    return '''
+Skalowanie produktu: $productDisplayName
+• Poprzednia kwota: ${previousTotalAmount.toStringAsFixed(2)} PLN
+• Nowa kwota: ${newTotalAmount.toStringAsFixed(2)} PLN
+• Zmiana: $percentChange% ($direction)
+• Zaktualizowano: $affectedInvestments inwestycji
+• Czas wykonania: ${executionTimeMs}ms
+'''.trim();
+  }
+}
+
+/// 🎯 Model szczegółów skalowania pojedynczej inwestycji
+class InvestmentScalingDetail {
+  final String investmentId;
+  final String? clientId;
+  final String? clientName;
+  final double oldAmount;
+  final double newAmount;
+  final double difference;
+  final double scalingFactor;
+
+  const InvestmentScalingDetail({
+    required this.investmentId,
+    this.clientId,
+    this.clientName,
+    required this.oldAmount,
+    required this.newAmount,
+    required this.difference,
+    required this.scalingFactor,
+  });
+
+  factory InvestmentScalingDetail.fromJson(Map<String, dynamic> json) {
+    return InvestmentScalingDetail(
+      investmentId: json['investmentId'] ?? '',
+      clientId: json['clientId'],
+      clientName: json['clientName'],
+      oldAmount: (json['oldAmount'] ?? 0).toDouble(),
+      newAmount: (json['newAmount'] ?? 0).toDouble(),
+      difference: (json['difference'] ?? 0).toDouble(),
+      scalingFactor: (json['scalingFactor'] ?? 1.0).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'investmentId': investmentId,
+      'clientId': clientId,
+      'clientName': clientName,
+      'oldAmount': oldAmount,
+      'newAmount': newAmount,
+      'difference': difference,
+      'scalingFactor': scalingFactor,
+    };
+  }
+
+  /// Formatowany opis zmiany
+  String get formattedChange {
+    final clientDisplayName = clientName ?? clientId ?? investmentId;
+    final sign = difference >= 0 ? '+' : '';
+    return '$clientDisplayName: ${oldAmount.toStringAsFixed(2)} → ${newAmount.toStringAsFixed(2)} PLN ($sign${difference.toStringAsFixed(2)})';
+  }
+}
+
+/// 🎯 Enum dla statusów skalowania
+enum InvestmentScalingStatus {
+  pending('Oczekujące'),
+  inProgress('W trakcie'),
+  completed('Zakończone'),
+  failed('Nieudane'),
+  cancelled('Anulowane');
+
+  const InvestmentScalingStatus(this.displayName);
+  final String displayName;
 }

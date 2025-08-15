@@ -53,6 +53,13 @@ abstract class BaseService {
       print('[$runtimeType] Błąd w $operation: $error');
     }
   }
+
+  /// Loguje informacje debug w trybie debug
+  void logDebug(String operation, String message) {
+    if (kDebugMode) {
+      print('[$runtimeType] $operation: $message');
+    }
+  }
 }
 
 /// Klasa pomocnicza dla paginacji
