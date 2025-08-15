@@ -20,6 +20,7 @@ export 'models/analytics/overview_analytics_models.dart';
 
 // Services exports
 export 'services/base_service.dart';
+export 'services/data_cache_service.dart'; // 🚀 DODANE: Serwis cache'owania danych
 export 'services/client_service.dart';
 export 'services/firebase_functions_client_service.dart' show ClientStats;
 export 'services/integrated_client_service.dart';

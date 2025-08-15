@@ -53,7 +53,18 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
   bool _hasChanges = false;
   bool _isSaving = false; // 🔄 Stan ładowania podczas zapisywania
-  bool _showDeduplicatedProducts = false; // 📦 Toggle deduplikacji produktów
+  bool _showDeduplicatedProducts =
+      true; // 📦 Toggle deduplikacji produktów - DOMYŚLNIE TRUE
+
+  // 🎯 NOWE: Kontrolery do edycji inwestycji
+  final Map<String, TextEditingController> _investmentControllers = {};
+  final Map<String, FocusNode> _investmentFocusNodes = {};
+  bool _isEditingInvestments = false;
+  Map<String, Investment> _modifiedInvestments = {};
+
+  // 🚀 NOWE: Serwisy do obsługi edycji inwestycji
+  final DataCacheService _cacheService = DataCacheService();
+  final InvestmentService _investmentService = InvestmentService();
 
   @override
   void initState() {
@@ -112,6 +123,11 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
     _fadeController.dispose();
     _tabController.dispose();
     _notesController.dispose();
+
+    // 🚀 NOWE: Dispose kontrolerów inwestycji
+    _investmentControllers.values.forEach((controller) => controller.dispose());
+    _investmentFocusNodes.values.forEach((node) => node.dispose());
+
     super.dispose();
   }
 
@@ -958,6 +974,73 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
             ],
           ),
         ),
+
+        // 🎯 NOWY: Przycisk edycji inwestycji
+        if (!_isEditingInvestments)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 16),
+            child: ElevatedButton.icon(
+              onPressed: _startEditingInvestments,
+              icon: const Icon(Icons.edit, size: 18),
+              label: const Text('Edytuj inwestycje'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+
+        // 🎯 NOWY: Przyciski akcji podczas edycji
+        if (_isEditingInvestments)
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isSaving ? null : _saveInvestmentChanges,
+                    icon: _isSaving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : const Icon(Icons.save, size: 18),
+                    label: Text(_isSaving ? 'Zapisywanie...' : 'Zapisz'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.successColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isSaving ? null : _cancelEditingInvestments,
+                    icon: const Icon(Icons.cancel, size: 18),
+                    label: const Text('Anuluj'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.errorColor,
+                      side: BorderSide(color: AppTheme.errorColor),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         Expanded(
           child: _showDeduplicatedProducts
               ? _buildDeduplicatedProductsList()
@@ -996,12 +1079,12 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
       itemCount: widget.investor.investments.length,
       itemBuilder: (context, index) {
         final investment = widget.investor.investments[index];
-        return _buildInvestmentCard(investment);
+        return _buildInvestmentCard(investment, index);
       },
     );
   }
 
-  Widget _buildInvestmentCard(Investment investment) {
+  Widget _buildInvestmentCard(Investment investment, int index) {
     // Pobierz ikonę według typu produktu
     IconData getProductIcon(Investment investment) {
       switch (investment.productType.name) {
@@ -1015,20 +1098,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
           return Icons.home;
         default:
           return Icons.account_balance_wallet;
-      }
-    }
-
-    // Pobierz kolor statusu
-    Color getStatusColor(InvestmentStatus status) {
-      switch (status) {
-        case InvestmentStatus.active:
-          return AppTheme.successColor;
-        case InvestmentStatus.inactive:
-          return AppTheme.textSecondary;
-        case InvestmentStatus.earlyRedemption:
-          return AppTheme.warningColor;
-        case InvestmentStatus.completed:
-          return AppTheme.infoColor;
       }
     }
 
@@ -1112,74 +1181,13 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
                 ],
               ),
               const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.backgroundPrimary.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Kapitał pozostały',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            CurrencyFormatter.formatCurrency(
-                              investment.remainingCapital,
-                            ),
-                            style: const TextStyle(
-                              color: AppTheme.successColor,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Status',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: getStatusColor(
-                                investment.status,
-                              ).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              investment.status.displayName,
-                              style: TextStyle(
-                                color: getStatusColor(investment.status),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+
+              // 🎯 NOWY: Sekcja edycji w trybie edycji lub wyświetlania standardowego
+              if (_isEditingInvestments)
+                _buildInvestmentEditFields(investment, index)
+              else
+                _buildInvestmentDisplayFields(investment),
+
               // Dodatkowe informacje
               const SizedBox(height: 8),
               Row(
@@ -1203,6 +1211,240 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
           ),
         ),
       ),
+    );
+  }
+
+  /// Wyświetla standardowe pola finansowe inwestycji
+  Widget _buildInvestmentDisplayFields(Investment investment) {
+    // Pobierz kolor statusu
+    Color getStatusColor(InvestmentStatus status) {
+      switch (status) {
+        case InvestmentStatus.active:
+          return AppTheme.successColor;
+        case InvestmentStatus.inactive:
+          return AppTheme.textSecondary;
+        case InvestmentStatus.earlyRedemption:
+          return AppTheme.warningColor;
+        case InvestmentStatus.completed:
+          return AppTheme.infoColor;
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundPrimary.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Kapitał pozostały',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                ),
+                Text(
+                  CurrencyFormatter.formatCurrency(investment.remainingCapital),
+                  style: const TextStyle(
+                    color: AppTheme.successColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  'Status',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: getStatusColor(investment.status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    investment.status.displayName,
+                    style: TextStyle(
+                      color: getStatusColor(investment.status),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Wyświetla edytowalne pola finansowe inwestycji
+  Widget _buildInvestmentEditFields(Investment investment, int index) {
+    final prefix = 'inv_${index}_';
+
+    // Inicjalizuj kontrolery dla tej inwestycji jeśli nie istnieją
+    _investmentControllers.putIfAbsent(
+      '${prefix}investmentAmount',
+      () => TextEditingController(
+        text: investment.investmentAmount.toStringAsFixed(2),
+      ),
+    );
+    _investmentControllers.putIfAbsent(
+      '${prefix}remainingCapital',
+      () => TextEditingController(
+        text: investment.remainingCapital.toStringAsFixed(2),
+      ),
+    );
+    _investmentControllers.putIfAbsent(
+      '${prefix}realizedCapital',
+      () => TextEditingController(
+        text: investment.realizedCapital.toStringAsFixed(2),
+      ),
+    );
+
+    _investmentFocusNodes.putIfAbsent(
+      '${prefix}investmentAmount',
+      () => FocusNode(),
+    );
+    _investmentFocusNodes.putIfAbsent(
+      '${prefix}remainingCapital',
+      () => FocusNode(),
+    );
+    _investmentFocusNodes.putIfAbsent(
+      '${prefix}realizedCapital',
+      () => FocusNode(),
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _buildCurrencyEditField(
+                  label: 'Kwota inwestycji',
+                  controller:
+                      _investmentControllers['${prefix}investmentAmount']!,
+                  focusNode:
+                      _investmentFocusNodes['${prefix}investmentAmount']!,
+                  icon: Icons.account_balance_wallet,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildCurrencyEditField(
+                  label: 'Kapitał pozostały',
+                  controller:
+                      _investmentControllers['${prefix}remainingCapital']!,
+                  focusNode:
+                      _investmentFocusNodes['${prefix}remainingCapital']!,
+                  icon: Icons.savings,
+                  color: AppTheme.successColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildCurrencyEditField(
+            label: 'Kapitał zrealizowany',
+            controller: _investmentControllers['${prefix}realizedCapital']!,
+            focusNode: _investmentFocusNodes['${prefix}realizedCapital']!,
+            icon: Icons.monetization_on,
+            color: AppTheme.infoColor,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Helper widget do edycji pól kwotowych
+  Widget _buildCurrencyEditField({
+    required String label,
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+          ],
+          style: TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: AppTheme.backgroundSecondary.withOpacity(0.7),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: color.withOpacity(0.3)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: color, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
+            suffixText: 'PLN',
+            suffixStyle: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Pole wymagane';
+            }
+            final parsedValue = double.tryParse(value);
+            if (parsedValue == null || parsedValue < 0) {
+              return 'Nieprawidłowa wartość';
+            }
+            return null;
+          },
+        ),
+      ],
     );
   }
 
@@ -2196,6 +2438,179 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         ),
       ),
     );
+  }
+
+  // 🎯 NOWE METODY EDYCJI INWESTYCJI
+
+  /// Rozpoczyna tryb edycji inwestycji
+  void _startEditingInvestments() {
+    setState(() {
+      _isEditingInvestments = true;
+    });
+    _initializeInvestmentControllers();
+  }
+
+  /// Anuluje edycję inwestycji
+  void _cancelEditingInvestments() {
+    setState(() {
+      _isEditingInvestments = false;
+      _modifiedInvestments.clear();
+    });
+    _disposeInvestmentControllers();
+  }
+
+  /// Inicjalizuje kontrolery do edycji inwestycji
+  void _initializeInvestmentControllers() {
+    _investmentControllers.clear();
+    _investmentFocusNodes.clear();
+
+    for (int i = 0; i < widget.investor.investments.length; i++) {
+      final investment = widget.investor.investments[i];
+      final prefix = 'inv_${i}_';
+
+      // Kontrolery dla różnych kwot
+      _investmentControllers['${prefix}investmentAmount'] =
+          TextEditingController(
+            text: investment.investmentAmount.toStringAsFixed(2),
+          );
+      _investmentControllers['${prefix}remainingCapital'] =
+          TextEditingController(
+            text: investment.remainingCapital.toStringAsFixed(2),
+          );
+      _investmentControllers['${prefix}realizedCapital'] =
+          TextEditingController(
+            text: investment.realizedCapital.toStringAsFixed(2),
+          );
+
+      // Focus nodes
+      _investmentFocusNodes['${prefix}investmentAmount'] = FocusNode();
+      _investmentFocusNodes['${prefix}remainingCapital'] = FocusNode();
+      _investmentFocusNodes['${prefix}realizedCapital'] = FocusNode();
+    }
+  }
+
+  /// Usuwa kontrolery edycji inwestycji
+  void _disposeInvestmentControllers() {
+    _investmentControllers.values.forEach((controller) => controller.dispose());
+    _investmentFocusNodes.values.forEach((node) => node.dispose());
+    _investmentControllers.clear();
+    _investmentFocusNodes.clear();
+  }
+
+  /// Zapisuje zmiany w inwestycjach
+  Future<void> _saveInvestmentChanges() async {
+    if (_isSaving) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      _collectModifiedInvestments();
+
+      if (_modifiedInvestments.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Brak zmian do zapisania'),
+            backgroundColor: AppTheme.warningColor,
+          ),
+        );
+        return;
+      }
+
+      // Zapisz zmiany poprzez InvestmentService
+      for (final modifiedInvestment in _modifiedInvestments.values) {
+        await _investmentService.updateInvestment(
+          modifiedInvestment.id,
+          modifiedInvestment,
+        );
+      }
+
+      // Wyczyść cache lokalny
+      _cacheService.clearCache('investor_data');
+
+      // Odśwież dane w parent widget
+      if (widget.onUpdateInvestor != null) {
+        // Pobierz zaktualizowane dane inwestora
+        final updatedInvestor = await _refreshInvestorData();
+        widget.onUpdateInvestor!(updatedInvestor);
+      }
+
+      setState(() {
+        _isEditingInvestments = false;
+        _modifiedInvestments.clear();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Zmiany w inwestycjach zostały zapisane'),
+          backgroundColor: AppTheme.successColor,
+        ),
+      );
+
+      _disposeInvestmentControllers();
+    } catch (e) {
+      print('❌ [InvestorModal] Błąd podczas zapisywania inwestycji: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Błąd podczas zapisywania: $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isSaving = false;
+      });
+    }
+  }
+
+  /// Zbiera zmodyfikowane inwestycje
+  void _collectModifiedInvestments() {
+    _modifiedInvestments.clear();
+
+    for (int i = 0; i < widget.investor.investments.length; i++) {
+      final investment = widget.investor.investments[i];
+      final prefix = 'inv_${i}_';
+
+      final newInvestmentAmount =
+          double.tryParse(
+            _investmentControllers['${prefix}investmentAmount']?.text ?? '0',
+          ) ??
+          investment.investmentAmount;
+
+      final newRemainingCapital =
+          double.tryParse(
+            _investmentControllers['${prefix}remainingCapital']?.text ?? '0',
+          ) ??
+          investment.remainingCapital;
+
+      final newRealizedCapital =
+          double.tryParse(
+            _investmentControllers['${prefix}realizedCapital']?.text ?? '0',
+          ) ??
+          investment.realizedCapital;
+
+      // Sprawdź czy są zmiany
+      if (newInvestmentAmount != investment.investmentAmount ||
+          newRemainingCapital != investment.remainingCapital ||
+          newRealizedCapital != investment.realizedCapital) {
+        final modifiedInvestment = investment.copyWith(
+          investmentAmount: newInvestmentAmount,
+          remainingCapital: newRemainingCapital,
+          realizedCapital: newRealizedCapital,
+        );
+
+        _modifiedInvestments[investment.id] = modifiedInvestment;
+      }
+    }
+  }
+
+  /// Odświeża dane inwestora po zapisaniu zmian
+  Future<InvestorSummary> _refreshInvestorData() async {
+    // TODO: Implementuj odświeżenie danych z serwera
+    // Na razie zwracamy obecny obiekt - w pełnej implementacji
+    // należy pobrać dane z serwera
+    return widget.investor;
   }
 }
 

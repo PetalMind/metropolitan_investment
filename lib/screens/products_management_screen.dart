@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../models_and_services.dart';
 import '../services/firebase_functions_products_service.dart' as fb;
+import '../services/unified_product_service.dart' as unified;
 import '../services/optimized_product_service.dart'; // 🚀 NOWY IMPORT
 import '../adapters/product_statistics_adapter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/premium_loading_widget.dart';
 import '../widgets/premium_error_widget.dart';
 import '../widgets/product_card_widget.dart';
@@ -78,7 +80,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   bool _showStatistics = true;
   ViewMode _viewMode = ViewMode.list;
   bool _showDeduplicatedView = true; // Domyślnie pokazuj deduplikowane produkty
-  bool _useOptimizedMode = true; // 🚀 NOWA FLAGA - używaj zoptymalizowanego trybu
+  bool _useOptimizedMode =
+      true; // 🚀 NOWA FLAGA - używaj zoptymalizowanego trybu
 
   @override
   void initState() {
@@ -106,15 +109,21 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       print('📊 [ProductsManagementScreen] DEBUG - Załadowano produkty:');
       for (final product in _allProducts.take(5)) {
         print('📊 [ProductsManagementScreen] - ${product.id}: ${product.name}');
-        print('📊 [ProductsManagementScreen]   - Typ: ${product.productType} (${product.productType.displayName})');
-        print('📊 [ProductsManagementScreen]   - Collection: ${product.productType.collectionName}');
+        print(
+          '📊 [ProductsManagementScreen]   - Typ: ${product.productType} (${product.productType.displayName})',
+        );
+        print(
+          '📊 [ProductsManagementScreen]   - Collection: ${product.productType.collectionName}',
+        );
         print(
           '📊 [ProductsManagementScreen]   originalProduct: ${product.originalProduct?.runtimeType}',
         );
         if (product.originalProduct is Investment) {
           final inv = product.originalProduct as Investment;
           print('📊 [ProductsManagementScreen]   investmentId: ${inv.id}');
-          print('📊 [ProductsManagementScreen]   - Original Investment Type: ${inv.productType} (${inv.productType.runtimeType})');
+          print(
+            '📊 [ProductsManagementScreen]   - Original Investment Type: ${inv.productType} (${inv.productType.runtimeType})',
+          );
         }
       }
     }
@@ -134,6 +143,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         widget.initialSearchClientName ??
         state.uri.queryParameters['clientName'];
 
+    // 🎯 NOWY: Obsługa parametru investmentId z URL
+    final investmentIdFromUrl = state.uri.queryParameters['investmentId'];
+
     print('🔍 [ProductsManagementScreen] Parametry z URL/Widget:');
     print(
       '🔍 [ProductsManagementScreen] highlightedProductId: ${widget.highlightedProductId}',
@@ -141,10 +153,22 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     print(
       '🔍 [ProductsManagementScreen] highlightedInvestmentId: ${widget.highlightedInvestmentId}',
     );
+    print(
+      '🔍 [ProductsManagementScreen] investmentId z URL: $investmentIdFromUrl',
+    );
     print('🔍 [ProductsManagementScreen] productName: $productName');
     print('🔍 [ProductsManagementScreen] productType: $productType');
     print('🔍 [ProductsManagementScreen] clientId: $clientId');
     print('🔍 [ProductsManagementScreen] clientName: $clientName');
+
+    // 🎯 PRIORYTET: Jeśli mamy investmentId z URL, użyj go
+    if (investmentIdFromUrl != null && investmentIdFromUrl.isNotEmpty) {
+      print(
+        '🎯 [ProductsManagementScreen] Znaleziono investmentId z URL, szukam produktu...',
+      );
+      _findAndShowProductForInvestment(investmentIdFromUrl);
+      return;
+    }
 
     // Jeśli mamy konkretne ID produktu lub inwestycji, wyróżnij go
     if (widget.highlightedProductId != null ||
@@ -184,6 +208,202 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       //   );
       // });
       // _applyFiltersAndSearch();
+    }
+  }
+
+  /// 🎯 NOWA METODA: Znajdź i pokaż produkt dla konkretnej inwestycji
+  Future<void> _findAndShowProductForInvestment(String investmentId) async {
+    print(
+      '🔍 [ProductsManagementScreen] Szukam produktu dla inwestycji: $investmentId',
+    );
+
+    // Poczekaj aż dane zostaną załadowane
+    if (_isLoading) {
+      await Future.doWhile(() async {
+        await Future.delayed(const Duration(milliseconds: 100));
+        return _isLoading;
+      });
+    }
+
+    // 🆕 KROK 1: Znajdź samą inwestycję w Firebase, aby uzyskać informacje o produkcie
+    try {
+      print('🔍 [ProductsManagementScreen] Wyszukuję inwestycję w Firebase...');
+      final investmentDoc = await FirebaseFirestore.instance
+          .collection('investments')
+          .doc(investmentId)
+          .get();
+
+      if (investmentDoc.exists) {
+        final investmentData = investmentDoc.data()!;
+        final productName = investmentData['productName'] ?? '';
+        final companyId = investmentData['companyId'] ?? '';
+        final productType = investmentData['productType'] ?? '';
+
+        print('🔍 [ProductsManagementScreen] Znaleziono inwestycję:');
+        print('  - Product Name: $productName');
+        print('  - Company ID: $companyId');
+        print('  - Product Type: $productType');
+        print('  - Investment ID: $investmentId');
+
+        // KROK 2: Szukaj produktu na podstawie nazwy produktu i firmy
+        bool foundProduct = false;
+
+        // Szukaj w deduplikowanych produktach
+        if (_deduplicatedProducts.isNotEmpty) {
+          for (final product in _deduplicatedProducts) {
+            bool nameMatches =
+                product.name.trim().toLowerCase() ==
+                productName.trim().toLowerCase();
+            bool companyMatches =
+                product.companyId == companyId ||
+                product.companyName == companyId;
+
+            if (nameMatches && companyMatches) {
+              print(
+                '✅ [ProductsManagementScreen] Znaleziono deduplikowany produkt: ${product.name}',
+              );
+
+              _searchController.text = product.name;
+              _applyFiltersAndSearch();
+
+              Future.delayed(const Duration(milliseconds: 500), () {
+                _showDeduplicatedProductDetails(product);
+              });
+              foundProduct = true;
+              return;
+            }
+          }
+        }
+
+        // Szukaj w zoptymalizowanych produktach
+        if (_useOptimizedMode &&
+            _optimizedProducts.isNotEmpty &&
+            !foundProduct) {
+          for (final product in _optimizedProducts) {
+            bool nameMatches =
+                product.name.trim().toLowerCase() ==
+                productName.trim().toLowerCase();
+            bool companyMatches =
+                product.companyId == companyId ||
+                product.companyName == companyId;
+
+            if (nameMatches && companyMatches) {
+              print(
+                '✅ [ProductsManagementScreen] Znaleziono zoptymalizowany produkt: ${product.name}',
+              );
+
+              _searchController.text = product.name;
+              _applyFiltersAndSearch();
+
+              Future.delayed(const Duration(milliseconds: 500), () {
+                _showOptimizedProductDetails(product, investmentId);
+              });
+              foundProduct = true;
+              return;
+            }
+          }
+        }
+
+        // Szukaj w standardowych produktach
+        if (!foundProduct) {
+          for (final product in _allProducts) {
+            bool nameMatches =
+                product.name.trim().toLowerCase() ==
+                productName.trim().toLowerCase();
+            bool companyMatches =
+                (product.companyId != null && product.companyId == companyId) ||
+                (product.companyName != null &&
+                    product.companyName == companyId);
+
+            if (nameMatches && companyMatches) {
+              print(
+                '✅ [ProductsManagementScreen] Znaleziono standardowy produkt: ${product.name}',
+              );
+
+              _searchController.text = product.name;
+              _applyFiltersAndSearch();
+
+              Future.delayed(const Duration(milliseconds: 500), () {
+                _showProductDetails(product);
+              });
+              foundProduct = true;
+              return;
+            }
+          }
+        }
+
+        if (!foundProduct) {
+          print(
+            '❌ [ProductsManagementScreen] Nie znaleziono produktu dla inwestycji: $investmentId, chociaż w firebase jest prawidłowy zapis w \'investments\'',
+          );
+          print(
+            '📊 [ProductsManagementScreen] Nazwa produktu: "$productName", Firma: "$companyId"',
+          );
+          print('📊 [ProductsManagementScreen] Dostępne produkty:');
+
+          if (_deduplicatedProducts.isNotEmpty) {
+            print('  Deduplikowane (${_deduplicatedProducts.length}):');
+            for (int i = 0; i < 10 && i < _deduplicatedProducts.length; i++) {
+              final p = _deduplicatedProducts[i];
+              print(
+                '    - "${p.name}" | "${p.companyId}" | "${p.companyName}"',
+              );
+            }
+          }
+
+          if (_optimizedProducts.isNotEmpty) {
+            print('  Zoptymalizowane (${_optimizedProducts.length}):');
+            for (int i = 0; i < 10 && i < _optimizedProducts.length; i++) {
+              final p = _optimizedProducts[i];
+              print(
+                '    - "${p.name}" | "${p.companyId}" | "${p.companyName}"',
+              );
+            }
+          }
+
+          // Pokazuj komunikat o nieznalezieniu
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Produkt "$productName" nie został znaleziony w załadowanych danych',
+                ),
+                backgroundColor: Colors.orange,
+                action: SnackBarAction(
+                  label: 'Odśwież',
+                  onPressed: () => _loadInitialData(),
+                ),
+              ),
+            );
+          }
+        }
+      } else {
+        print(
+          '❌ [ProductsManagementScreen] Inwestycja $investmentId nie istnieje w Firebase',
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Inwestycja $investmentId nie została znaleziona'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print(
+        '❌ [ProductsManagementScreen] Błąd podczas wyszukiwania inwestycji: $e',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd podczas wyszukiwania: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -400,12 +620,11 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       } else {
         await _loadLegacyData();
       }
-
     } catch (e) {
       if (kDebugMode) {
         print('❌ [ProductsManagementScreen] Błąd podczas ładowania: $e');
       }
-      
+
       // Fallback: Spróbuj legacy mode jeśli optimized nie działa
       if (_useOptimizedMode) {
         if (kDebugMode) {
@@ -444,10 +663,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     final stopwatch = Stopwatch()..start();
 
     // Jedno wywołanie dla wszystkich produktów
-    final optimizedResult = await _optimizedProductService.getAllProductsOptimized(
-      forceRefresh: false,
-      includeStatistics: true,
-    );
+    final optimizedResult = await _optimizedProductService
+        .getAllProductsOptimized(forceRefresh: false, includeStatistics: true);
 
     stopwatch.stop();
 
@@ -465,7 +682,11 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
 
         // Utwórz statystyki z OptimizedProductsResult
         if (optimizedResult.statistics != null) {
-          _statistics = _convertGlobalStatsToFBStats(optimizedResult.statistics!);
+          // Konwertuj GlobalProductStatistics na unified.ProductStatistics
+          // a potem na fb.ProductStatistics przez adapter
+          _statistics = _convertGlobalStatsToFBStatsViAdapter(
+            optimizedResult.statistics!,
+          );
         }
 
         _isLoading = false;
@@ -475,11 +696,14 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       _startAnimations();
 
       if (kDebugMode) {
-        print('✅ [ProductsManagementScreen] OptimizedProductService: ${optimizedResult.products.length} produktów w ${stopwatch.elapsedMilliseconds}ms (cache: ${optimizedResult.fromCache})');
+        print(
+          '✅ [ProductsManagementScreen] OptimizedProductService: ${optimizedResult.products.length} produktów w ${stopwatch.elapsedMilliseconds}ms (cache: ${optimizedResult.fromCache})',
+        );
       }
 
       // Sprawdź czy trzeba wyróżnić konkretny produkt
-      if (widget.highlightedProductId != null || widget.highlightedInvestmentId != null) {
+      if (widget.highlightedProductId != null ||
+          widget.highlightedInvestmentId != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _highlightSpecificProduct();
@@ -497,13 +721,17 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
 
     // TEST: Sprawdź połączenie z Firebase Functions
     if (kDebugMode) {
-      print('🔄 [ProductsManagementScreen] Testowanie Firebase Functions (z fallback)...');
+      print(
+        '🔄 [ProductsManagementScreen] Testowanie Firebase Functions (z fallback)...',
+      );
       try {
         await _productService.testDirectFirestoreAccess();
         await _productService.testConnection();
       } catch (e) {
         if (kDebugMode) {
-          print('❌ [ProductsManagementScreen] Test połączenia nieudany (będzie używany fallback): $e');
+          print(
+            '❌ [ProductsManagementScreen] Test połączenia nieudany (będzie używany fallback): $e',
+          );
         }
       }
     }
@@ -517,8 +745,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       ),
       _showDeduplicatedView
           ? _deduplicatedProductService.getDeduplicatedProductStatistics().then(
-                (stats) => ProductStatisticsAdapter.adaptFromUnifiedToFB(stats),
-              )
+              (stats) => ProductStatisticsAdapter.adaptFromUnifiedToFB(stats),
+            )
           : _productService.getProductStatistics(),
       _deduplicatedProductService.getAllUniqueProducts(),
     ]);
@@ -545,7 +773,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       _debugProductsLoaded();
 
       // Sprawdź czy trzeba wyróżnić konkretny produkt
-      if (widget.highlightedProductId != null || widget.highlightedInvestmentId != null) {
+      if (widget.highlightedProductId != null ||
+          widget.highlightedInvestmentId != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _highlightSpecificProduct();
@@ -554,7 +783,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       }
 
       if (kDebugMode) {
-        print('📊 [ProductsManagementScreen] Legacy: Załadowano ${_allProducts.length} produktów, cache używany: ${_metadata?.cacheUsed ?? false}');
+        print(
+          '📊 [ProductsManagementScreen] Legacy: Załadowano ${_allProducts.length} produktów, cache używany: ${_metadata?.cacheUsed ?? false}',
+        );
       }
     }
   }
@@ -565,14 +796,18 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
 
     try {
       fb.ProductStatistics newStats;
-      
+
       if (_useOptimizedMode && _optimizedResult?.statistics != null) {
         // Użyj statystyk z OptimizedProductsResult
-        newStats = _convertGlobalStatsToFBStats(_optimizedResult!.statistics!);
+        newStats = _convertGlobalStatsToFBStatsViAdapter(
+          _optimizedResult!.statistics!,
+        );
       } else if (_showDeduplicatedView) {
         newStats = await _deduplicatedProductService
             .getDeduplicatedProductStatistics()
-            .then((stats) => ProductStatisticsAdapter.adaptFromUnifiedToFB(stats));
+            .then(
+              (stats) => ProductStatisticsAdapter.adaptFromUnifiedToFB(stats),
+            );
       } else {
         newStats = await _productService.getProductStatistics();
       }
@@ -590,7 +825,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   }
 
   /// 🚀 NOWA METODA: Konwertuje OptimizedProduct na DeduplicatedProduct
-  DeduplicatedProduct _convertOptimizedToDeduplicatedProduct(OptimizedProduct opt) {
+  DeduplicatedProduct _convertOptimizedToDeduplicatedProduct(
+    OptimizedProduct opt,
+  ) {
     return DeduplicatedProduct(
       id: opt.id,
       name: opt.name,
@@ -608,27 +845,78 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       status: opt.status,
       interestRate: opt.interestRate,
       maturityDate: null, // OptimizedProduct może nie mieć maturityDate
-      originalInvestmentIds: [], // OptimizedProduct nie przechowuje tej informacji
+      originalInvestmentIds:
+          [], // OptimizedProduct nie przechowuje tej informacji
       metadata: opt.metadata,
     );
   }
 
-  /// 🚀 NOWA METODA: Konwertuje GlobalProductStatistics na fb.ProductStatistics
-  fb.ProductStatistics _convertGlobalStatsToFBStats(GlobalProductStatistics global) {
-    return fb.ProductStatistics(
+  /// 🚀 NOWA METODA: Konwertuje GlobalProductStatistics na fb.ProductStatistics przez adapter
+  fb.ProductStatistics _convertGlobalStatsToFBStatsViAdapter(
+    GlobalProductStatistics global,
+  ) {
+    // Najpierw konwertuj GlobalProductStatistics na unified.ProductStatistics
+    final unifiedStats = unified.ProductStatistics(
       totalProducts: global.totalProducts,
+      activeProducts:
+          global.totalProducts, // Aproximacja - nie mamy tej informacji
+      inactiveProducts: 0, // Aproximacja - nie mamy tej informacji
+      totalInvestmentAmount:
+          global.totalValue, // Używamy totalValue jako aproximacja
       totalValue: global.totalValue,
-      totalRemainingCapital: global.totalRemainingCapital,
+      averageInvestmentAmount: global.averageValuePerProduct, // Aproximacja
       averageValue: global.averageValuePerProduct,
-      totalInvestments: global.totalProducts, // Aproximacja
-      uniqueInvestors: global.totalInvestors,
-      averageInvestorsPerProduct: global.averageInvestorsPerProduct,
-      metadata: {
-        'source': 'OptimizedProductService',
-        'generatedAt': DateTime.now().toIso8601String(),
-        'productTypeDistribution': global.productTypeDistribution,
-      },
+      typeDistribution: _convertTypeDistribution(
+        global.productTypeDistribution,
+      ),
+      statusDistribution: const {
+        ProductStatus.active: 1,
+      }, // Domyślne - nie mamy tej informacji
+      mostValuableType:
+          UnifiedProductType.bonds, // Domyślne - nie mamy tej informacji
     );
+
+    // Potem użyj adaptera do konwersji na fb.ProductStatistics
+    return ProductStatisticsAdapter.adaptFromUnifiedToFB(unifiedStats);
+  }
+
+  /// Konwertuje Map<String, int> na Map<UnifiedProductType, int>
+  Map<UnifiedProductType, int> _convertTypeDistribution(
+    Map<String, int> typeDistribution,
+  ) {
+    final Map<UnifiedProductType, int> result = {};
+
+    for (final entry in typeDistribution.entries) {
+      final unifiedType = _mapStringToUnifiedProductType(entry.key);
+      if (unifiedType != null) {
+        result[unifiedType] = entry.value;
+      }
+    }
+
+    return result;
+  }
+
+  /// Mapuje string na UnifiedProductType
+  UnifiedProductType? _mapStringToUnifiedProductType(String type) {
+    switch (type.toLowerCase()) {
+      case 'bonds':
+      case 'obligacje':
+        return UnifiedProductType.bonds;
+      case 'shares':
+      case 'akcje':
+        return UnifiedProductType.shares;
+      case 'loans':
+      case 'pozyczki':
+        return UnifiedProductType.loans;
+      case 'apartments':
+      case 'mieszkania':
+        return UnifiedProductType.apartments;
+      case 'other':
+      case 'inne':
+        return UnifiedProductType.other;
+      default:
+        return UnifiedProductType.bonds; // Domyślne
+    }
   }
 
   void _startAnimations() {
@@ -662,7 +950,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       }
 
       if (kDebugMode) {
-        print('🔄 [ProductsManagementScreen] Dane odświeżone (mode: ${_useOptimizedMode ? "optimized" : "legacy"})');
+        print(
+          '🔄 [ProductsManagementScreen] Dane odświeżone (mode: ${_useOptimizedMode ? "optimized" : "legacy"})',
+        );
       }
     } finally {
       if (mounted) {
@@ -675,9 +965,11 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
 
   void _applyFiltersAndSearch() {
     if (kDebugMode) {
-      print('🔄 [ProductsManagement] _applyFiltersAndSearch wywołane: showDeduplicated=$_showDeduplicatedView, useOptimized=$_useOptimizedMode');
+      print(
+        '🔄 [ProductsManagement] _applyFiltersAndSearch wywołane: showDeduplicated=$_showDeduplicatedView, useOptimized=$_useOptimizedMode',
+      );
     }
-    
+
     if (_useOptimizedMode) {
       _applyFiltersAndSearchForOptimizedProducts();
     } else if (_showDeduplicatedView) {
@@ -696,7 +988,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     if (searchText.isNotEmpty) {
       final searchLower = searchText.toLowerCase();
       if (kDebugMode) {
-        print('🔍 [ProductsManagementScreen] Wyszukiwanie zoptymalizowanych produktów: "$searchLower"');
+        print(
+          '🔍 [ProductsManagementScreen] Wyszukiwanie zoptymalizowanych produktów: "$searchLower"',
+        );
       }
 
       filtered = filtered.where((product) {
@@ -706,62 +1000,83 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       }).toList();
 
       if (kDebugMode) {
-        print('🔍 [ProductsManagementScreen] Znaleziono ${filtered.length} z ${_optimizedProducts.length} zoptymalizowanych produktów');
+        print(
+          '🔍 [ProductsManagementScreen] Znaleziono ${filtered.length} z ${_optimizedProducts.length} zoptymalizowanych produktów',
+        );
       }
     }
 
     // Aplikuj filtry podobnie jak dla deduplikowanych produktów
     if (kDebugMode) {
-      print('🔧 [ProductsManagement] Aplikowanie filtrów do zoptymalizowanych produktów...');
+      print(
+        '🔧 [ProductsManagement] Aplikowanie filtrów do zoptymalizowanych produktów...',
+      );
     }
-    
-    if (_filterCriteria.productTypes != null && _filterCriteria.productTypes!.isNotEmpty) {
+
+    if (_filterCriteria.productTypes != null &&
+        _filterCriteria.productTypes!.isNotEmpty) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
         return _filterCriteria.productTypes!.contains(product.productType);
       }).toList();
       if (kDebugMode) {
-        print('🔧 [ProductsManagement] Filtr typów: $beforeCount → ${filtered.length}');
+        print(
+          '🔧 [ProductsManagement] Filtr typów: $beforeCount → ${filtered.length}',
+        );
       }
     }
-    
-    if (_filterCriteria.statuses != null && _filterCriteria.statuses!.isNotEmpty) {
+
+    if (_filterCriteria.statuses != null &&
+        _filterCriteria.statuses!.isNotEmpty) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
         return _filterCriteria.statuses!.contains(product.status);
       }).toList();
       if (kDebugMode) {
-        print('🔧 [ProductsManagement] Filtr statusów: $beforeCount → ${filtered.length}');
+        print(
+          '🔧 [ProductsManagement] Filtr statusów: $beforeCount → ${filtered.length}',
+        );
       }
     }
-    
-    if (_filterCriteria.companyName != null && _filterCriteria.companyName!.isNotEmpty) {
+
+    if (_filterCriteria.companyName != null &&
+        _filterCriteria.companyName!.isNotEmpty) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
-        return product.companyName.toLowerCase().contains(_filterCriteria.companyName!.toLowerCase());
+        return product.companyName.toLowerCase().contains(
+          _filterCriteria.companyName!.toLowerCase(),
+        );
       }).toList();
       if (kDebugMode) {
-        print('🔧 [ProductsManagement] Filtr firmy: $beforeCount → ${filtered.length}');
+        print(
+          '🔧 [ProductsManagement] Filtr firmy: $beforeCount → ${filtered.length}',
+        );
       }
     }
-    
+
     if (_filterCriteria.minInvestmentAmount != null) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
-        return product.averageInvestment >= _filterCriteria.minInvestmentAmount!;
+        return product.averageInvestment >=
+            _filterCriteria.minInvestmentAmount!;
       }).toList();
       if (kDebugMode) {
-        print('🔧 [ProductsManagement] Filtr min kwoty: $beforeCount → ${filtered.length}');
+        print(
+          '🔧 [ProductsManagement] Filtr min kwoty: $beforeCount → ${filtered.length}',
+        );
       }
     }
-    
+
     if (_filterCriteria.maxInvestmentAmount != null) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
-        return product.averageInvestment <= _filterCriteria.maxInvestmentAmount!;
+        return product.averageInvestment <=
+            _filterCriteria.maxInvestmentAmount!;
       }).toList();
       if (kDebugMode) {
-        print('🔧 [ProductsManagement] Filtr max kwoty: $beforeCount → ${filtered.length}');
+        print(
+          '🔧 [ProductsManagement] Filtr max kwoty: $beforeCount → ${filtered.length}',
+        );
       }
     }
 
@@ -772,10 +1087,12 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return rate >= _filterCriteria.minInterestRate!;
       }).toList();
       if (kDebugMode) {
-        print('🔧 [ProductsManagement] Filtr min oprocentowania: $beforeCount → ${filtered.length}');
+        print(
+          '🔧 [ProductsManagement] Filtr min oprocentowania: $beforeCount → ${filtered.length}',
+        );
       }
     }
-    
+
     if (_filterCriteria.maxInterestRate != null) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
@@ -783,34 +1100,50 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return rate <= _filterCriteria.maxInterestRate!;
       }).toList();
       if (kDebugMode) {
-        print('🔧 [ProductsManagement] Filtr max oprocentowania: $beforeCount → ${filtered.length}');
+        print(
+          '🔧 [ProductsManagement] Filtr max oprocentowania: $beforeCount → ${filtered.length}',
+        );
       }
     }
 
     if (_filterCriteria.createdAfter != null) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
-        return product.earliestInvestmentDate.isAfter(_filterCriteria.createdAfter!) || 
-               product.earliestInvestmentDate.isAtSameMomentAs(_filterCriteria.createdAfter!);
+        return product.earliestInvestmentDate.isAfter(
+              _filterCriteria.createdAfter!,
+            ) ||
+            product.earliestInvestmentDate.isAtSameMomentAs(
+              _filterCriteria.createdAfter!,
+            );
       }).toList();
       if (kDebugMode) {
-        print('🔧 [ProductsManagement] Filtr daty początkowej: $beforeCount → ${filtered.length}');
+        print(
+          '🔧 [ProductsManagement] Filtr daty początkowej: $beforeCount → ${filtered.length}',
+        );
       }
     }
-    
+
     if (_filterCriteria.createdBefore != null) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
-        return product.latestInvestmentDate.isBefore(_filterCriteria.createdBefore!) || 
-               product.latestInvestmentDate.isAtSameMomentAs(_filterCriteria.createdBefore!);
+        return product.latestInvestmentDate.isBefore(
+              _filterCriteria.createdBefore!,
+            ) ||
+            product.latestInvestmentDate.isAtSameMomentAs(
+              _filterCriteria.createdBefore!,
+            );
       }).toList();
       if (kDebugMode) {
-        print('🔧 [ProductsManagement] Filtr daty końcowej: $beforeCount → ${filtered.length}');
+        print(
+          '🔧 [ProductsManagement] Filtr daty końcowej: $beforeCount → ${filtered.length}',
+        );
       }
     }
-    
+
     if (kDebugMode) {
-      print('🔧 [ProductsManagement] Filtry zastosowane (optimized): ${_optimizedProducts.length} → ${filtered.length}');
+      print(
+        '🔧 [ProductsManagement] Filtry zastosowane (optimized): ${_optimizedProducts.length} → ${filtered.length}',
+      );
     }
 
     // Sortowanie zoptymalizowanych produktów
@@ -823,18 +1156,22 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           .map((opt) => _convertOptimizedToDeduplicatedProduct(opt))
           .toList();
     });
-    
+
     if (kDebugMode) {
-      print('🔄 [ProductsManagement] Sortowanie zoptymalizowanych produktów zakończone, znaleziono: ${_filteredOptimizedProducts.length}');
+      print(
+        '🔄 [ProductsManagement] Sortowanie zoptymalizowanych produktów zakończone, znaleziono: ${_filteredOptimizedProducts.length}',
+      );
     }
   }
 
   /// 🚀 NOWA METODA: Sortowanie zoptymalizowanych produktów
   void _sortOptimizedProducts(List<OptimizedProduct> products) {
     if (kDebugMode) {
-      print('🔄 [ProductsManagement] Sortowanie ${products.length} zoptymalizowanych produktów po: ${_sortField.displayName} (${_sortDirection.displayName})');
+      print(
+        '🔄 [ProductsManagement] Sortowanie ${products.length} zoptymalizowanych produktów po: ${_sortField.displayName} (${_sortDirection.displayName})',
+      );
     }
-    
+
     products.sort((a, b) {
       int comparison;
 
@@ -843,7 +1180,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           comparison = a.name.compareTo(b.name);
           break;
         case ProductSortField.type:
-          comparison = a.productType.collectionName.compareTo(b.productType.collectionName);
+          comparison = a.productType.collectionName.compareTo(
+            b.productType.collectionName,
+          );
           break;
         case ProductSortField.investmentAmount:
           comparison = a.averageInvestment.compareTo(b.averageInvestment);
@@ -852,7 +1191,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           comparison = a.totalValue.compareTo(b.totalValue);
           break;
         case ProductSortField.createdAt:
-          comparison = a.earliestInvestmentDate.compareTo(b.earliestInvestmentDate);
+          comparison = a.earliestInvestmentDate.compareTo(
+            b.earliestInvestmentDate,
+          );
           break;
         case ProductSortField.uploadedAt:
           comparison = a.latestInvestmentDate.compareTo(b.latestInvestmentDate);
@@ -868,11 +1209,15 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           break;
       }
 
-      return _sortDirection == SortDirection.ascending ? comparison : -comparison;
+      return _sortDirection == SortDirection.ascending
+          ? comparison
+          : -comparison;
     });
-    
+
     if (kDebugMode) {
-      print('🔄 [ProductsManagement] Sortowanie zoptymalizowanych produktów zakończone');
+      print(
+        '🔄 [ProductsManagement] Sortowanie zoptymalizowanych produktów zakończone',
+      );
     }
   }
 
@@ -1004,61 +1349,94 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     }
 
     // Aplikuj filtry z ProductFilterCriteria
-    print('🔧 [ProductsManagement] Aplikowanie filtrów do deduplikowanych produktów...');
-    print('🔧 [ProductsManagement] Filtry - typy: ${_filterCriteria.productTypes?.map((t) => t.displayName).join(", ")}');
-    print('🔧 [ProductsManagement] Filtry - statusy: ${_filterCriteria.statuses?.map((s) => s.displayName).join(", ")}');
-    print('🔧 [ProductsManagement] Filtry - firma: "${_filterCriteria.companyName}"');
-    print('🔧 [ProductsManagement] Filtry - kwoty: ${_filterCriteria.minInvestmentAmount}-${_filterCriteria.maxInvestmentAmount}');
-    
-    if (_filterCriteria.productTypes != null && _filterCriteria.productTypes!.isNotEmpty) {
+    print(
+      '🔧 [ProductsManagement] Aplikowanie filtrów do deduplikowanych produktów...',
+    );
+    print(
+      '🔧 [ProductsManagement] Filtry - typy: ${_filterCriteria.productTypes?.map((t) => t.displayName).join(", ")}',
+    );
+    print(
+      '🔧 [ProductsManagement] Filtry - statusy: ${_filterCriteria.statuses?.map((s) => s.displayName).join(", ")}',
+    );
+    print(
+      '🔧 [ProductsManagement] Filtry - firma: "${_filterCriteria.companyName}"',
+    );
+    print(
+      '🔧 [ProductsManagement] Filtry - kwoty: ${_filterCriteria.minInvestmentAmount}-${_filterCriteria.maxInvestmentAmount}',
+    );
+
+    if (_filterCriteria.productTypes != null &&
+        _filterCriteria.productTypes!.isNotEmpty) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
         // Porównuj bezpośrednio UnifiedProductType z UnifiedProductType
-        final matches = _filterCriteria.productTypes!.contains(product.productType);
+        final matches = _filterCriteria.productTypes!.contains(
+          product.productType,
+        );
         if (!matches) {
-          print('🔧 [ProductsManagement] Filtrowanie - odrzucam "${product.name}" (${product.productType.displayName}) - nie pasuje do ${_filterCriteria.productTypes!.map((t) => t.displayName).join(", ")}');
+          print(
+            '🔧 [ProductsManagement] Filtrowanie - odrzucam "${product.name}" (${product.productType.displayName}) - nie pasuje do ${_filterCriteria.productTypes!.map((t) => t.displayName).join(", ")}',
+          );
         } else {
-          print('🔧 [ProductsManagement] Filtrowanie - akceptuję "${product.name}" (${product.productType.displayName})');
+          print(
+            '🔧 [ProductsManagement] Filtrowanie - akceptuję "${product.name}" (${product.productType.displayName})',
+          );
         }
         return matches;
       }).toList();
-      print('🔧 [ProductsManagement] Filtr typów: ${beforeCount} → ${filtered.length}');
+      print(
+        '🔧 [ProductsManagement] Filtr typów: ${beforeCount} → ${filtered.length}',
+      );
     }
-    
-    if (_filterCriteria.statuses != null && _filterCriteria.statuses!.isNotEmpty) {
+
+    if (_filterCriteria.statuses != null &&
+        _filterCriteria.statuses!.isNotEmpty) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
         final matches = _filterCriteria.statuses!.contains(product.status);
         return matches;
       }).toList();
-      print('🔧 [ProductsManagement] Filtr statusów: ${beforeCount} → ${filtered.length}');
+      print(
+        '🔧 [ProductsManagement] Filtr statusów: ${beforeCount} → ${filtered.length}',
+      );
     }
-    
-    if (_filterCriteria.companyName != null && _filterCriteria.companyName!.isNotEmpty) {
+
+    if (_filterCriteria.companyName != null &&
+        _filterCriteria.companyName!.isNotEmpty) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
-        final matches = product.companyName.toLowerCase().contains(_filterCriteria.companyName!.toLowerCase());
+        final matches = product.companyName.toLowerCase().contains(
+          _filterCriteria.companyName!.toLowerCase(),
+        );
         return matches;
       }).toList();
-      print('🔧 [ProductsManagement] Filtr firmy: ${beforeCount} → ${filtered.length}');
+      print(
+        '🔧 [ProductsManagement] Filtr firmy: ${beforeCount} → ${filtered.length}',
+      );
     }
-    
+
     if (_filterCriteria.minInvestmentAmount != null) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
-        final matches = product.averageInvestment >= _filterCriteria.minInvestmentAmount!;
+        final matches =
+            product.averageInvestment >= _filterCriteria.minInvestmentAmount!;
         return matches;
       }).toList();
-      print('🔧 [ProductsManagement] Filtr min kwoty: ${beforeCount} → ${filtered.length}');
+      print(
+        '🔧 [ProductsManagement] Filtr min kwoty: ${beforeCount} → ${filtered.length}',
+      );
     }
-    
+
     if (_filterCriteria.maxInvestmentAmount != null) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
-        final matches = product.averageInvestment <= _filterCriteria.maxInvestmentAmount!;
+        final matches =
+            product.averageInvestment <= _filterCriteria.maxInvestmentAmount!;
         return matches;
       }).toList();
-      print('🔧 [ProductsManagement] Filtr max kwoty: ${beforeCount} → ${filtered.length}');
+      print(
+        '🔧 [ProductsManagement] Filtr max kwoty: ${beforeCount} → ${filtered.length}',
+      );
     }
 
     if (_filterCriteria.minInterestRate != null) {
@@ -1068,9 +1446,11 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         final matches = rate >= _filterCriteria.minInterestRate!;
         return matches;
       }).toList();
-      print('🔧 [ProductsManagement] Filtr min oprocentowania: ${beforeCount} → ${filtered.length}');
+      print(
+        '🔧 [ProductsManagement] Filtr min oprocentowania: ${beforeCount} → ${filtered.length}',
+      );
     }
-    
+
     if (_filterCriteria.maxInterestRate != null) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
@@ -1078,42 +1458,64 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         final matches = rate <= _filterCriteria.maxInterestRate!;
         return matches;
       }).toList();
-      print('🔧 [ProductsManagement] Filtr max oprocentowania: ${beforeCount} → ${filtered.length}');
+      print(
+        '🔧 [ProductsManagement] Filtr max oprocentowania: ${beforeCount} → ${filtered.length}',
+      );
     }
 
     if (_filterCriteria.createdAfter != null) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
-        final matches = product.earliestInvestmentDate.isAfter(_filterCriteria.createdAfter!) || 
-                       product.earliestInvestmentDate.isAtSameMomentAs(_filterCriteria.createdAfter!);
+        final matches =
+            product.earliestInvestmentDate.isAfter(
+              _filterCriteria.createdAfter!,
+            ) ||
+            product.earliestInvestmentDate.isAtSameMomentAs(
+              _filterCriteria.createdAfter!,
+            );
         return matches;
       }).toList();
-      print('🔧 [ProductsManagement] Filtr daty początkowej: ${beforeCount} → ${filtered.length}');
+      print(
+        '🔧 [ProductsManagement] Filtr daty początkowej: ${beforeCount} → ${filtered.length}',
+      );
     }
-    
+
     if (_filterCriteria.createdBefore != null) {
       final beforeCount = filtered.length;
       filtered = filtered.where((product) {
-        final matches = product.latestInvestmentDate.isBefore(_filterCriteria.createdBefore!) || 
-                       product.latestInvestmentDate.isAtSameMomentAs(_filterCriteria.createdBefore!);
+        final matches =
+            product.latestInvestmentDate.isBefore(
+              _filterCriteria.createdBefore!,
+            ) ||
+            product.latestInvestmentDate.isAtSameMomentAs(
+              _filterCriteria.createdBefore!,
+            );
         return matches;
       }).toList();
-      print('🔧 [ProductsManagement] Filtr daty końcowej: ${beforeCount} → ${filtered.length}');
+      print(
+        '🔧 [ProductsManagement] Filtr daty końcowej: ${beforeCount} → ${filtered.length}',
+      );
     }
-    
-    print('🔧 [ProductsManagement] Filtry zastosowane: ${_deduplicatedProducts.length} → ${filtered.length}');
 
-    print('🔄 [ProductsManagement] Sortowanie ${filtered.length} deduplikowanych produktów po: ${_sortField.displayName} (${_sortDirection.displayName})');
-    
+    print(
+      '🔧 [ProductsManagement] Filtry zastosowane: ${_deduplicatedProducts.length} → ${filtered.length}',
+    );
+
+    print(
+      '🔄 [ProductsManagement] Sortowanie ${filtered.length} deduplikowanych produktów po: ${_sortField.displayName} (${_sortDirection.displayName})',
+    );
+
     // Debug: wypisz pierwsze 3 produkty przed sortowaniem
     if (filtered.length > 0) {
       print('🔧 [ProductsManagement] PRZED sortowaniem:');
       for (int i = 0; i < filtered.length && i < 3; i++) {
         final product = filtered[i];
-        print('🔧 [ProductsManagement]   ${i+1}. ${product.name} - ${product.productType.displayName} (${product.productType.collectionName})');
+        print(
+          '🔧 [ProductsManagement]   ${i + 1}. ${product.name} - ${product.productType.displayName} (${product.productType.collectionName})',
+        );
       }
     }
-    
+
     // Sortowanie deduplikowanych produktów
     filtered.sort((a, b) {
       int comparison;
@@ -1158,24 +1560,30 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       int result = _sortDirection == SortDirection.ascending
           ? comparison
           : -comparison;
-      
+
       if (_sortField == ProductSortField.type) {
-        print('🔧 [ProductsManagement] Porównywanie DEDUPLIKOWANE "${a.name}" (${a.productType.collectionName}/${a.productType.displayName}) vs "${b.name}" (${b.productType.collectionName}/${b.productType.displayName}) = $comparison (result: $result)');
+        print(
+          '🔧 [ProductsManagement] Porównywanie DEDUPLIKOWANE "${a.name}" (${a.productType.collectionName}/${a.productType.displayName}) vs "${b.name}" (${b.productType.collectionName}/${b.productType.displayName}) = $comparison (result: $result)',
+        );
       }
-      
+
       return result;
     });
 
     setState(() {
       _filteredDeduplicatedProducts = filtered;
     });
-    
-    print('🔄 [ProductsManagement] Sortowanie deduplikowanych produktów zakończone, znaleziono: ${_filteredDeduplicatedProducts.length}');
+
+    print(
+      '🔄 [ProductsManagement] Sortowanie deduplikowanych produktów zakończone, znaleziono: ${_filteredDeduplicatedProducts.length}',
+    );
   }
 
   void _sortProducts(List<UnifiedProduct> products) {
-    print('🔄 [ProductsManagement] Sortowanie ${products.length} zwykłych produktów po: ${_sortField.displayName} (${_sortDirection.displayName})');
-    
+    print(
+      '🔄 [ProductsManagement] Sortowanie ${products.length} zwykłych produktów po: ${_sortField.displayName} (${_sortDirection.displayName})',
+    );
+
     products.sort((a, b) {
       int comparison;
 
@@ -1215,37 +1623,53 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       int result = _sortDirection == SortDirection.ascending
           ? comparison
           : -comparison;
-      
+
       if (_sortField == ProductSortField.type) {
-        print('🔧 [ProductsManagement] Porównywanie ZWYKLE "${a.name}" (${a.productType.collectionName}/${a.productType.displayName}) vs "${b.name}" (${b.productType.collectionName}/${b.productType.displayName}) = $comparison (result: $result)');
+        print(
+          '🔧 [ProductsManagement] Porównywanie ZWYKLE "${a.name}" (${a.productType.collectionName}/${a.productType.displayName}) vs "${b.name}" (${b.productType.collectionName}/${b.productType.displayName}) = $comparison (result: $result)',
+        );
       }
-      
+
       return result;
     });
-    
+
     print('🔄 [ProductsManagement] Sortowanie zakończone');
   }
 
   void _onFilterChanged(ProductFilterCriteria criteria) {
     print('🔧 [ProductsManagement] _onFilterChanged wywołane');
-    print('🔧 [ProductsManagement] Nowe kryteria: productTypes=${criteria.productTypes?.map((t) => t.displayName).join(", ")}, statuses=${criteria.statuses?.map((s) => s.displayName).join(", ")}');
-    print('🔧 [ProductsManagement] Firma: "${criteria.companyName}", kwoty: ${criteria.minInvestmentAmount}-${criteria.maxInvestmentAmount}');
-    print('🔧 [ProductsManagement] Poprzednie kryteria: productTypes=${_filterCriteria?.productTypes?.map((t) => t.displayName).join(", ")}, statuses=${_filterCriteria?.statuses?.map((s) => s.displayName).join(", ")}');
+    print(
+      '🔧 [ProductsManagement] Nowe kryteria: productTypes=${criteria.productTypes?.map((t) => t.displayName).join(", ")}, statuses=${criteria.statuses?.map((s) => s.displayName).join(", ")}',
+    );
+    print(
+      '🔧 [ProductsManagement] Firma: "${criteria.companyName}", kwoty: ${criteria.minInvestmentAmount}-${criteria.maxInvestmentAmount}',
+    );
+    print(
+      '🔧 [ProductsManagement] Poprzednie kryteria: productTypes=${_filterCriteria.productTypes?.map((t) => t.displayName).join(", ")}, statuses=${_filterCriteria.statuses?.map((s) => s.displayName).join(", ")}',
+    );
     setState(() {
       _filterCriteria = criteria;
     });
-    print('🔧 [ProductsManagement] setState zakończone, wywołuję _applyFiltersAndSearch');
+    print(
+      '🔧 [ProductsManagement] setState zakończone, wywołuję _applyFiltersAndSearch',
+    );
     _applyFiltersAndSearch();
   }
 
   void _onSortChanged(ProductSortField field, SortDirection direction) {
-    print('🔄 [ProductsManagement] Sortowanie zmienione na: ${field.displayName} (${direction.displayName})');
-    print('🔄 [ProductsManagement] Poprzednie sortowanie: ${_sortField.displayName} (${_sortDirection.displayName})');
+    print(
+      '🔄 [ProductsManagement] Sortowanie zmienione na: ${field.displayName} (${direction.displayName})',
+    );
+    print(
+      '🔄 [ProductsManagement] Poprzednie sortowanie: ${_sortField.displayName} (${_sortDirection.displayName})',
+    );
     setState(() {
       _sortField = field;
       _sortDirection = direction;
     });
-    print('🔄 [ProductsManagement] setState zakończone, wywołuję _applyFiltersAndSearch');
+    print(
+      '🔄 [ProductsManagement] setState zakończone, wywołuję _applyFiltersAndSearch',
+    );
     _applyFiltersAndSearch();
   }
 
@@ -1352,7 +1776,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
               _useOptimizedMode = !_useOptimizedMode;
             });
             HapticFeedback.lightImpact();
-            
+
             // Odśwież dane w nowym trybie
             await _loadInitialData();
           },
@@ -1547,7 +1971,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     return SliverPadding(
       padding: const EdgeInsets.all(16),
       sliver: SliverList(
-        key: ValueKey('deduplicated_list_${_sortField.name}_${_sortDirection.name}'),
+        key: ValueKey(
+          'deduplicated_list_${_sortField.name}_${_sortDirection.name}',
+        ),
         delegate: SliverChildBuilderDelegate((context, index) {
           final product = _filteredDeduplicatedProducts[index];
           return FadeTransition(
@@ -1930,8 +2356,10 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       additionalInfo: {
         'isDeduplicated': true,
         'totalInvestments': deduped.totalInvestments,
-        'uniqueInvestors': deduped.investorCount, // ⭐ ZMIENIONE: używa nowego getter
-        'totalInvestors': deduped.investorCount, // ⭐ NOWE: dodatkowe pole dla kompatybilności
+        'uniqueInvestors':
+            deduped.investorCount, // ⭐ ZMIENIONE: używa nowego getter
+        'totalInvestors':
+            deduped.investorCount, // ⭐ NOWE: dodatkowe pole dla kompatybilności
         'averageInvestment': deduped.averageInvestment,
         'duplicationRatio': deduped.duplicationRatio,
         'hasDuplicates': deduped.hasDuplicates,
@@ -1965,6 +2393,60 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return EnhancedProductDetailsDialog(
           product: product,
           onShowInvestors: () => _showProductInvestors(product),
+        );
+      },
+    );
+  }
+
+  /// 🎯 NOWA METODA: Pokaż szczegóły zoptymalizowanego produktu
+  void _showOptimizedProductDetails(
+    OptimizedProduct product,
+    String? highlightInvestmentId,
+  ) {
+    print(
+      '🔍 [ProductsManagement] Pokazywanie szczegółów zoptymalizowanego produktu:',
+    );
+    print('  - Nazwa: "${product.name}"');
+    print('  - Typ: ${product.productType.displayName}');
+    print('  - ID: ${product.id}');
+    print('  - Highlight Investment ID: $highlightInvestmentId');
+
+    // Konwertuj OptimizedProduct na UnifiedProduct dla kompatybilności
+    final unifiedProduct = UnifiedProduct(
+      id: product.id,
+      name: product.name,
+      productType: product.productType,
+      investmentAmount: product.totalValue,
+      remainingCapital: product.totalRemainingCapital,
+      createdAt: product.earliestInvestmentDate,
+      uploadedAt: product.latestInvestmentDate,
+      sourceFile: 'Zoptymalizowany produkt',
+      status: product.status,
+      companyName: product.companyName,
+      companyId: product.companyId,
+      interestRate: product.interestRate > 0 ? product.interestRate : null,
+      currency: 'PLN',
+      additionalInfo: {
+        'isOptimized': true,
+        'totalInvestments': product.totalInvestments,
+        'uniqueInvestors': product.uniqueInvestors,
+        'actualInvestorCount': product.actualInvestorCount,
+        'averageInvestment': product.averageInvestment,
+        'highlightInvestmentId': highlightInvestmentId,
+        ...product.metadata,
+      },
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        print(
+          '🎯 [ProductsManagement] Builder zoptymalizowanego dialogu wywołany',
+        );
+        return EnhancedProductDetailsDialog(
+          product: unifiedProduct,
+          onShowInvestors: () => _showProductInvestors(unifiedProduct),
         );
       },
     );

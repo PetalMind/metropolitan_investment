@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../models_and_services.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/currency_formatter.dart';
@@ -27,6 +28,10 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
   String _selectedColor = '#FFFFFF';
   List<String> _selectedUnviableInvestments = [];
   bool _isLoading = false;
+
+  // 🆕 Stan deduplikacji i edycji
+  bool _showDeduplicatedProducts = true; // Domyślnie deduplikacja
+  bool _isEditMode = false; // Stan edycji inwestycji
 
   // Services
   final UnifiedVotingStatusService _votingService =
@@ -195,6 +200,61 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
                       ],
                     ),
                   ),
+
+                  // 🆕 Switch deduplikacji
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Deduplikacja',
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Switch(
+                        value: _showDeduplicatedProducts,
+                        onChanged: (value) {
+                          setState(() {
+                            _showDeduplicatedProducts = value;
+                          });
+                        },
+                        activeColor: AppTheme.secondaryGold,
+                        inactiveThumbColor: AppTheme.textTertiary,
+                        inactiveTrackColor: AppTheme.backgroundSecondary,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+
+                  // 🆕 Przycisk edycji inwestycji
+                  IconButton(
+                    onPressed: () => setState(() {
+                      _isEditMode = !_isEditMode;
+                    }),
+                    icon: Icon(
+                      _isEditMode ? Icons.edit_off : Icons.edit,
+                      color: _isEditMode
+                          ? AppTheme.warningColor
+                          : AppTheme.textSecondary,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: _isEditMode
+                          ? AppTheme.warningColor.withOpacity(0.1)
+                          : AppTheme.backgroundSecondary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    tooltip: _isEditMode
+                        ? 'Wyłącz edycję'
+                        : 'Włącz edycję inwestycji',
+                  ),
+                  const SizedBox(width: 8),
+
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(
@@ -469,6 +529,95 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
   }
 
   Widget _buildInvestmentsSection() {
+    // 🔄 Przygotuj deduplikowane produkty
+    final deduplicatedProducts = <String, DeduplicatedProduct>{};
+
+    if (_showDeduplicatedProducts) {
+      for (final investment in widget.investor.investments) {
+        final productKey = investment.productName.trim().toLowerCase();
+
+        if (deduplicatedProducts.containsKey(productKey)) {
+          // Dodaj inwestycję do istniejącego produktu
+          final existing = deduplicatedProducts[productKey]!;
+          deduplicatedProducts[productKey] = DeduplicatedProduct(
+            id: existing.id,
+            name: existing.name,
+            productType: existing.productType,
+            companyId: existing.companyId,
+            companyName: existing.companyName,
+            totalValue: existing.totalValue + investment.investmentAmount,
+            totalRemainingCapital:
+                existing.totalRemainingCapital + investment.remainingCapital,
+            totalInvestments: existing.totalInvestments + 1,
+            uniqueInvestors: existing.uniqueInvestors,
+            actualInvestorCount: existing.actualInvestorCount,
+            averageInvestment: 0, // Będzie przeliczone
+            earliestInvestmentDate: existing.earliestInvestmentDate,
+            latestInvestmentDate: existing.latestInvestmentDate,
+            status: existing.status,
+            interestRate: existing.interestRate,
+            maturityDate: existing.maturityDate,
+            originalInvestmentIds: [
+              ...existing.originalInvestmentIds,
+              investment.id,
+            ],
+            metadata: existing.metadata,
+          );
+        } else {
+          // Utwórz nowy produkt deduplikowany
+          deduplicatedProducts[productKey] = DeduplicatedProduct(
+            id: investment.id,
+            name: investment.productName,
+            productType: _mapInvestmentTypeToUnified(
+              investment.productType.name,
+            ),
+            companyId: investment.companyId,
+            companyName: investment.creditorCompany,
+            totalValue: investment.investmentAmount,
+            totalRemainingCapital: investment.remainingCapital,
+            totalInvestments: 1,
+            uniqueInvestors: 1,
+            actualInvestorCount: 1,
+            averageInvestment: investment.investmentAmount,
+            earliestInvestmentDate: investment.createdAt,
+            latestInvestmentDate: investment.updatedAt,
+            status: _mapInvestmentStatusToProduct(investment.status),
+            interestRate: null, // Investment nie ma interestRate
+            maturityDate: null, // Investment nie ma maturityDate
+            originalInvestmentIds: [investment.id],
+            metadata: {},
+          );
+        }
+      }
+
+      // Przelicz średnią inwestycję
+      for (final key in deduplicatedProducts.keys) {
+        final product = deduplicatedProducts[key]!;
+        deduplicatedProducts[key] = DeduplicatedProduct(
+          id: product.id,
+          name: product.name,
+          productType: product.productType,
+          companyId: product.companyId,
+          companyName: product.companyName,
+          totalValue: product.totalValue,
+          totalRemainingCapital: product.totalRemainingCapital,
+          totalInvestments: product.totalInvestments,
+          uniqueInvestors: product.uniqueInvestors,
+          actualInvestorCount: product.actualInvestorCount,
+          averageInvestment: product.totalInvestments > 0
+              ? product.totalValue / product.totalInvestments
+              : 0,
+          earliestInvestmentDate: product.earliestInvestmentDate,
+          latestInvestmentDate: product.latestInvestmentDate,
+          status: product.status,
+          interestRate: product.interestRate,
+          maturityDate: product.maturityDate,
+          originalInvestmentIds: product.originalInvestmentIds,
+          metadata: product.metadata,
+        );
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -481,12 +630,35 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
             ),
             const SizedBox(width: 8),
             Text(
-              'Inwestycje (${widget.investor.investments.length})',
+              _showDeduplicatedProducts
+                  ? 'Produkty (${deduplicatedProducts.length} deduplikowanych)'
+                  : 'Inwestycje (${widget.investor.investments.length})',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textPrimary,
               ),
             ),
+            const Spacer(),
+            if (_showDeduplicatedProducts)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.secondaryGold.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.secondaryGold.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  'Deduplikacja',
+                  style: TextStyle(
+                    color: AppTheme.secondaryGold,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
           ],
         ),
         const SizedBox(height: 12),
@@ -501,78 +673,237 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
               width: 1,
             ),
           ),
-          child: widget.investor.investments.isEmpty
-              ? const Center(
-                  child: Text(
-                    'Brak inwestycji',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
+          child: _showDeduplicatedProducts
+              ? _buildDeduplicatedProductsList(
+                  deduplicatedProducts.values.toList(),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: widget.investor.investments.length,
-                  itemBuilder: (context, index) {
-                    final investment = widget.investor.investments[index];
-                    final isUnviable = _selectedUnviableInvestments.contains(
-                      investment.id,
-                    );
-
-                    return Card(
-                      color: AppTheme.surfaceCard,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      child: CheckboxListTile(
-                        title: Text(
-                          investment.productName,
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        subtitle: Text(
-                          '${CurrencyFormatter.formatCurrency(investment.remainingCapital, showDecimals: false)} - ${investment.creditorCompany}',
-                          style: const TextStyle(color: AppTheme.textSecondary),
-                        ),
-                        value: isUnviable,
-                        onChanged: (value) {
-                          setState(() {
-                            if (value == true) {
-                              _selectedUnviableInvestments.add(investment.id);
-                            } else {
-                              _selectedUnviableInvestments.remove(
-                                investment.id,
-                              );
-                            }
-                          });
-                        },
-                        secondary: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color:
-                                (isUnviable
-                                        ? AppTheme.warningColor
-                                        : AppTheme.successColor)
-                                    .withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            isUnviable ? Icons.warning : Icons.check_circle,
-                            color: isUnviable
-                                ? AppTheme.warningColor
-                                : AppTheme.successColor,
-                            size: 20,
-                          ),
-                        ),
-                        activeColor: AppTheme.warningColor,
-                        checkColor: Colors.white,
-                      ),
-                    );
-                  },
-                ),
+              : _buildRegularInvestmentsList(),
         ),
       ],
     );
+  }
+
+  // 🔄 Pomocnicze metody mapowania
+  UnifiedProductType _mapInvestmentTypeToUnified(String investmentType) {
+    switch (investmentType.toLowerCase()) {
+      case 'bonds':
+      case 'obligacje':
+        return UnifiedProductType.bonds;
+      case 'shares':
+      case 'udziały':
+      case 'akcje':
+        return UnifiedProductType.shares;
+      case 'loans':
+      case 'pożyczki':
+        return UnifiedProductType.loans;
+      case 'apartments':
+      case 'apartamenty':
+        return UnifiedProductType.apartments;
+      default:
+        return UnifiedProductType.bonds;
+    }
+  }
+
+  ProductStatus _mapInvestmentStatusToProduct(
+    InvestmentStatus investmentStatus,
+  ) {
+    switch (investmentStatus) {
+      case InvestmentStatus.active:
+        return ProductStatus.active;
+      case InvestmentStatus.inactive:
+        return ProductStatus.inactive;
+      case InvestmentStatus.earlyRedemption:
+      case InvestmentStatus.completed:
+        return ProductStatus.pending;
+    }
+  }
+
+  Widget _buildDeduplicatedProductsList(List<DeduplicatedProduct> products) {
+    if (products.isEmpty) {
+      return const Center(
+        child: Text(
+          'Brak produktów deduplikowanych',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(8),
+      itemCount: products.length,
+      itemBuilder: (context, index) {
+        final product = products[index];
+        return Card(
+          color: AppTheme.surfaceCard,
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          child: ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: product.productType.color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                _getProductTypeIcon(product.productType),
+                color: product.productType.color,
+                size: 20,
+              ),
+            ),
+            title: Text(
+              product.name,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${CurrencyFormatter.formatCurrency(product.totalRemainingCapital, showDecimals: false)} - ${product.companyName}',
+                  style: const TextStyle(color: AppTheme.textSecondary),
+                ),
+                if (product.totalInvestments > 1)
+                  Text(
+                    '${product.totalInvestments} inwestycji',
+                    style: TextStyle(
+                      color: AppTheme.secondaryGold,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+            trailing: Icon(
+              Icons.arrow_forward_ios,
+              color: AppTheme.textTertiary,
+              size: 16,
+            ),
+            onTap: () => _navigateToProductDetails(product),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRegularInvestmentsList() {
+    if (widget.investor.investments.isEmpty) {
+      return const Center(
+        child: Text(
+          'Brak inwestycji',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(8),
+      itemCount: widget.investor.investments.length,
+      itemBuilder: (context, index) {
+        final investment = widget.investor.investments[index];
+        final isUnviable = _selectedUnviableInvestments.contains(investment.id);
+
+        return Card(
+          color: AppTheme.surfaceCard,
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          child: InkWell(
+            onTap: () => _navigateToProductDetails(investment),
+            child: CheckboxListTile(
+              title: Text(
+                investment.productName,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              subtitle: Text(
+                '${CurrencyFormatter.formatCurrency(investment.remainingCapital, showDecimals: false)} - ${investment.creditorCompany}',
+                style: const TextStyle(color: AppTheme.textSecondary),
+              ),
+              value: isUnviable,
+              onChanged: (value) {
+                setState(() {
+                  if (value == true) {
+                    _selectedUnviableInvestments.add(investment.id);
+                  } else {
+                    _selectedUnviableInvestments.remove(investment.id);
+                  }
+                });
+              },
+              secondary: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color:
+                      (isUnviable
+                              ? AppTheme.warningColor
+                              : AppTheme.successColor)
+                          .withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  isUnviable ? Icons.warning : Icons.check_circle,
+                  color: isUnviable
+                      ? AppTheme.warningColor
+                      : AppTheme.successColor,
+                  size: 20,
+                ),
+              ),
+              activeColor: AppTheme.warningColor,
+              checkColor: Colors.white,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  IconData _getProductTypeIcon(UnifiedProductType type) {
+    switch (type) {
+      case UnifiedProductType.bonds:
+        return Icons.account_balance;
+      case UnifiedProductType.shares:
+        return Icons.trending_up;
+      case UnifiedProductType.loans:
+        return Icons.handshake;
+      case UnifiedProductType.apartments:
+        return Icons.home;
+      case UnifiedProductType.other:
+        return Icons.category;
+    }
+  }
+
+  // 🎯 Nawigacja do produktów
+  void _navigateToProductDetails(dynamic productOrInvestment) {
+    // Implementacja nawigacji - podobna do premium_investor_analytics_screen.dart
+    print(
+      '🎯 [InvestorDetailsDialog] Nawigacja do produktu: $productOrInvestment',
+    );
+
+    String? investmentId;
+
+    if (productOrInvestment is DeduplicatedProduct) {
+      investmentId = productOrInvestment.originalInvestmentIds.first;
+    } else if (productOrInvestment is Investment) {
+      investmentId = productOrInvestment.id;
+    } else {
+      print('❌ [InvestorDetailsDialog] Nieznany typ produktu');
+      return;
+    }
+
+    print(
+      '🎯 [InvestorDetailsDialog] Przechodzę do /products z investmentId: $investmentId',
+    );
+
+    // Używamy go_router do nawigacji - najpierw zamknij dialog
+    Navigator.of(context).pop();
+
+    // Następnie nawiguj
+    context.go('/products?investmentId=$investmentId');
   }
 }
