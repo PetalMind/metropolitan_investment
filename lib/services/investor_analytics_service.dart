@@ -10,6 +10,10 @@ class InvestorAnalyticsService extends BaseService {
   final FirebaseFunctionsAnalyticsService _functionsService =
       FirebaseFunctionsAnalyticsService();
 
+  // 🚀 INTEGRACJA: Centralny serwis produktów dla lepszej wydajności
+  final ProductManagementService _productManagementService =
+      ProductManagementService();
+
   // Cache dla inwestorów z czasem wygaśnięcia
   Map<String, List<InvestorSummary>>? _investorsCache;
   DateTime? _cacheTimestamp;
@@ -679,7 +683,6 @@ class InvestorAnalyticsService extends BaseService {
       additionalInfo: {
         ...data.map((key, value) => MapEntry(key, value)),
 
-    
         if (data['accruedInterest'] != null)
           'narosle_odsetki': data['accruedInterest'],
         if (data['interestRate'] != null)
@@ -994,6 +997,13 @@ class InvestorAnalyticsService extends BaseService {
     print(
       '🗑️ [InvestorAnalyticsService] Publiczne czyszczenie cache analityk',
     );
+
+    // 🚀 INTEGRACJA: Wyczyść cache ProductManagementService
+    _productManagementService.clearAllCache().catchError((e) {
+      print(
+        '⚠️ [InvestorAnalyticsService] Nie udało się wyczyścić cache ProductManagementService: $e',
+      );
+    });
 
     // Asynchronicznie wyczyść także cache Firebase Functions
     _functionsService.clearServerCache().catchError((e) {

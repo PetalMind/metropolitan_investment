@@ -36,6 +36,11 @@ export 'services/unified_product_service.dart';
 export 'services/enhanced_unified_product_service.dart';
 export 'services/deduplicated_product_service.dart';
 export 'services/optimized_product_service.dart'; // 🚀 NOWE: Zoptymalizowany serwis produktów (batch)
+export 'services/product_management_service.dart'
+    hide
+        ProductTypeStats,
+        ProductDetails; // 🚀 CENTRALNY: Unified service zarządzający produktami
+export 'services/cache_management_service.dart'; // 🚀 CENTRALNY: Zarządzanie cache wszystkich serwisów
 export 'services/firebase_functions_data_service.dart'
     hide
         ClientsResult; // 🚀 UPDATED: Enhanced Firebase Functions integration with normalized field mapping
@@ -148,6 +153,7 @@ export 'theme/app_theme.dart';
 // Utils exports
 export 'utils/currency_formatter.dart';
 export 'utils/currency_input_formatter.dart'; // 🚀 NOWE: Formatter dla pól walutowych
+export 'utils/cache_helper.dart'; // 🚀 HELPER: Łatwe zarządzanie cache w UI
 export 'utils/voting_analysis_manager.dart';
 export 'utils/investor_sort_filter_manager.dart';
 export 'utils/pagination_manager.dart';

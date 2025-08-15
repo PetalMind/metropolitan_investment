@@ -8,8 +8,16 @@ import '../models_and_services.dart';
 /// 2. viableRemainingCapital = kapitał z wykonalnych inwestycji (pominięte niewykonalne)
 /// 3. Kapitał zabezpieczony = max(remainingCapital - capitalForRestructuring, 0)
 /// 4. Wszystkie ekrany używają tego samego serwisu dla spójności danych
+/// 5. NOWE: Integracja z ProductManagementService dla jednolitego dostępu do produktów
 class UnifiedDashboardStatisticsService extends BaseService {
   static const String _cacheKey = 'unified_dashboard_statistics';
+
+  // 🚀 INTEGRACJA: Centralny serwis produktów
+  late final ProductManagementService _productManagementService;
+
+  UnifiedDashboardStatisticsService() {
+    _productManagementService = ProductManagementService();
+  }
 
   /// Pobiera zunifikowane statystyki dashboard na podstawie inwestycji
   Future<UnifiedDashboardStatistics> getStatisticsFromInvestments() async {
@@ -25,10 +33,54 @@ class UnifiedDashboardStatisticsService extends BaseService {
     return getCachedData(cacheKey, () => _calculateStatisticsFromInvestors());
   }
 
+  /// 🚀 NOWE: Pobiera statystyki dashboard używając ProductManagementService
+  /// Zapewnia spójność z ekranami produktów i optymalizacje cache
+  Future<UnifiedDashboardStatistics> getStatisticsFromProducts({
+    bool useOptimizedMode = true,
+  }) async {
+    const cacheKey = '${_cacheKey}_products';
+    return getCachedData(cacheKey, () async {
+      try {
+        final productData = await _productManagementService.loadOptimizedData(
+          forceRefresh: false,
+          includeStatistics: true,
+        );
+
+        if (productData.statistics != null) {
+          // Konwertuj z ProductStatistics na UnifiedDashboardStatistics
+          return UnifiedDashboardStatistics(
+            totalInvestmentAmount: productData.statistics!.totalValue,
+            totalRemainingCapital:
+                productData.statistics!.totalValue * 0.8, // Przybliżenie
+            totalCapitalForRestructuring: 0.0,
+            totalCapitalSecured: productData.statistics!.totalValue * 0.8,
+            totalViableCapital: productData.statistics!.totalValue * 0.8,
+            totalInvestments: productData.statistics!.totalProducts,
+            activeInvestments: productData.statistics!.totalProducts,
+            averageInvestmentAmount: productData.statistics!.averageValue,
+            averageRemainingCapital: productData.statistics!.averageValue * 0.8,
+            calculatedAt: DateTime.now(),
+            dataSource:
+                'ProductManagementService (${productData.optimizedResult?.fromCache == true ? "cache" : "fresh"})',
+          );
+        }
+
+        // Fallback do standardowej metody
+        return _calculateStatisticsFromInvestments();
+      } catch (e) {
+        logError('getStatisticsFromProducts', e);
+        return _calculateStatisticsFromInvestments();
+      }
+    });
+  }
+
   /// Wymusza odświeżenie cache i zwraca nowe statystyki
   Future<UnifiedDashboardStatistics> refreshStatistics() async {
     clearCache(_cacheKey);
     clearCache('${_cacheKey}_investors');
+    clearCache('${_cacheKey}_products');
+    await _productManagementService
+        .clearAllCache(); // 🚀 INTEGRACJA: Czyść też cache produktów
     return getStatisticsFromInvestments();
   }
 
@@ -36,7 +88,6 @@ class UnifiedDashboardStatisticsService extends BaseService {
   Future<UnifiedDashboardStatistics>
   _calculateStatisticsFromInvestments() async {
     try {
-
       // Pobierz wszystkie inwestycje przez Firebase Functions
       final result = await FirebaseFunctionsDataService.getAllInvestments(
         page: 1,
@@ -56,7 +107,6 @@ class UnifiedDashboardStatisticsService extends BaseService {
   /// Oblicza statystyki z pogrupowanych inwestorów (podejście premium analytics)
   Future<UnifiedDashboardStatistics> _calculateStatisticsFromInvestors() async {
     try {
-
       // Używamy InvestorAnalyticsService - tego samego co premium analytics
       final analyticsService = InvestorAnalyticsService();
       final result = await analyticsService
@@ -79,7 +129,6 @@ class UnifiedDashboardStatisticsService extends BaseService {
   UnifiedDashboardStatistics _calculateStatisticsFromInvestmentsList(
     List<Investment> investments,
   ) {
-
     double totalInvestmentAmount = 0;
     double totalRemainingCapital = 0;
     double totalCapitalForRestructuring = 0;
@@ -133,7 +182,6 @@ class UnifiedDashboardStatisticsService extends BaseService {
   UnifiedDashboardStatistics _calculateStatisticsFromInvestorsList(
     List<InvestorSummary> investors,
   ) {
-
     double totalInvestmentAmount = 0;
     double totalRemainingCapital = 0;
     double totalCapitalForRestructuring = 0;

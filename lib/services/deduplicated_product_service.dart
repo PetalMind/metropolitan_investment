@@ -14,9 +14,9 @@ import 'base_service.dart';
 /// zwraca unikalne produkty z agregowanymi statystykami.
 class DeduplicatedProductService extends BaseService {
   static const String _cacheKeyPrefix =
-      'deduped_products_v2_'; // ⭐ ZMIENIONE: nowa wersja cache
+      'deduped_products_v3_'; // ⭐ NOWA WERSJA: używa prawdziwych ID
   static const String _cacheKeyAll =
-      'deduped_products_all_v2'; // ⭐ ZMIENIONE: nowa wersja cache
+      'deduped_products_all_v3'; // ⭐ NOWA WERSJA: używa prawdziwych ID
 
   // ⭐ NOWE: Serwis do zsynchronizowanego liczenia inwestorów
   final FirebaseFunctionsProductInvestorsService _investorsService =
@@ -378,6 +378,16 @@ class DeduplicatedProductService extends BaseService {
           firstInvestment['nazwa_produktu'] ??
           'Nieznany Produkt';
 
+      // ⭐ DEBUG: sprawdźmy co mamy w firstInvestment
+      print('🔧 [DeduplicatedProduct] Tworzenie produktu dla: $productName');
+      print(
+        '🔧 [DeduplicatedProduct] firstInvestment[id]: ${firstInvestment['id']}',
+      );
+      print('🔧 [DeduplicatedProduct] productKey: $productKey');
+      print(
+        '🔧 [DeduplicatedProduct] hash fallback: ${productKey.hashCode.abs().toString()}',
+      );
+
       final productType = _mapProductType(
         firstInvestment['productType'] ?? firstInvestment['typ_produktu'],
       );
@@ -435,7 +445,9 @@ class DeduplicatedProductService extends BaseService {
     return DeduplicatedProduct(
       id:
           firstInvestment['id'] ??
-          productKey.hashCode.abs().toString(), // ⭐ UŻYWAMY PRAWDZIWEGO ID
+          productKey.hashCode
+              .abs()
+              .toString(), // ⭐ FALLBACK: hash tylko jeśli brak ID
       name:
           firstInvestment['productName'] ??
           firstInvestment['projectName'] ??

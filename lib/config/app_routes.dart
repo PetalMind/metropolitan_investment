@@ -7,7 +7,7 @@ import '../screens/calendar_screen_enhanced.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
 import '../screens/enhanced_clients_screen.dart';
-import '../screens/products_management_screen.dart';
+import '../screens/products_management_screen.dart'; // ✅ POWRÓT: Do oryginalnego ekranu z nowymi serwisami
 import '../screens/employees_screen.dart';
 import '../screens/analytics_screen_refactored.dart';
 import '../screens/product_dashboard_screen.dart';
@@ -334,24 +334,12 @@ class AppRouter {
           GoRoute(
             path: AppRoutes.products,
             pageBuilder: (context, state) {
-              final productId = state.uri.queryParameters['productId'];
-              final investmentId = state.uri.queryParameters['investmentId'];
-              final productName = state.uri.queryParameters['productName'];
-              final productType = state.uri.queryParameters['productType'];
-              final clientId = state.uri.queryParameters['clientId'];
-              final clientName = state.uri.queryParameters['clientName'];
-
+              // 🚀 NOWY REFACTORED SCREEN z ProductManagementService
+              // Uwaga: Nowy ekran nie wymaga tych parametrów (ma własne wyszukiwanie)
               return _buildPageWithTransition(
                 context,
                 state,
-                ProductsManagementScreen(
-                  highlightedProductId: productId,
-                  highlightedInvestmentId: investmentId,
-                  initialSearchProductName: productName,
-                  initialSearchProductType: productType,
-                  initialSearchClientId: clientId,
-                  initialSearchClientName: clientName,
-                ),
+                const ProductsManagementScreen(),
               );
             },
             routes: [

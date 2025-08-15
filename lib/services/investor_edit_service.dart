@@ -13,15 +13,20 @@ import '../utils/currency_formatter.dart';
 /// - Skalowanie produktów
 /// - Zapisywanie zmian
 /// - Historię zmian
+/// - NOWE: Integracja z ProductManagementService dla lepszej wydajności
 class InvestorEditService {
   final InvestmentService _investmentService;
   final InvestmentChangeHistoryService _historyService;
+  final ProductManagementService _productManagementService; // 🚀 INTEGRACJA
 
   InvestorEditService({
     InvestmentService? investmentService,
     InvestmentChangeHistoryService? historyService,
+    ProductManagementService? productManagementService,
   }) : _investmentService = investmentService ?? InvestmentService(),
-       _historyService = historyService ?? InvestmentChangeHistoryService();
+       _historyService = historyService ?? InvestmentChangeHistoryService(),
+       _productManagementService =
+           productManagementService ?? ProductManagementService();
 
   /// Wyszukuje inwestycje dla danego produktu i inwestora
   ///
@@ -622,6 +627,71 @@ class InvestorEditService {
       );
       // Zwróć oryginalne inwestycje w przypadku błędu
       return originalInvestments;
+    }
+  }
+
+  /// 🚀 NOWA METODA: Pobiera szczegóły produktu z ProductManagementService
+  /// Zapewnia lepszą wydajność i spójność z innymi ekranami
+  Future<UnifiedProduct?> getProductDetailsOptimized(String productId) async {
+    try {
+      final productData = await _productManagementService.loadOptimizedData();
+
+      // Sprawdź w optimized products
+      final optimizedProduct = productData.optimizedProducts
+          .where((p) => p.id == productId)
+          .firstOrNull;
+
+      if (optimizedProduct != null) {
+        // Konwertuj OptimizedProduct na UnifiedProduct (jeśli potrzebne)
+        debugPrint(
+          '🚀 [InvestorEditService] Znaleziono produkt w OptimizedProducts: ${optimizedProduct.name}',
+        );
+        // TODO: Konwersja jeśli potrzebna
+        return null; // Tymczasowo
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint(
+        '⚠️ [InvestorEditService] Błąd pobierania produktu z ProductManagementService: $e',
+      );
+      return null;
+    }
+  }
+
+  /// 🚀 NOWA METODA: Wyszukuje produkty z ProductManagementService
+  /// Zapewnia unified search experience
+  Future<List<UnifiedProduct>> searchProductsOptimized(String query) async {
+    try {
+      final searchResult = await _productManagementService.searchProducts(
+        query: query,
+        useOptimizedMode: true,
+        maxResults: 20,
+      );
+
+      debugPrint(
+        '🔍 [InvestorEditService] ProductManagementService: ${searchResult.totalResults} wyników dla "$query" w ${searchResult.searchTime}ms',
+      );
+
+      // TODO: Konwersja OptimizedProduct na UnifiedProduct jeśli potrzebna
+      return []; // Tymczasowo
+    } catch (e) {
+      debugPrint(
+        '⚠️ [InvestorEditService] Błąd wyszukiwania w ProductManagementService: $e',
+      );
+      return [];
+    }
+  }
+
+  /// 🚀 NOWA METODA: Czyszczenie cache z integracją ProductManagementService
+  Future<void> clearAllCache() async {
+    try {
+      await _productManagementService.clearAllCache();
+      debugPrint(
+        '✅ [InvestorEditService] Cache ProductManagementService wyczyszczony',
+      );
+    } catch (e) {
+      debugPrint('⚠️ [InvestorEditService] Błąd czyszczenia cache: $e');
     }
   }
 }

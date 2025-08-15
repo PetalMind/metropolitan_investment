@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import '../models/investor_summary.dart';
 import 'unified_statistics_service.dart';
+import '../models_and_services.dart'; // 🚀 IMPORT: Dostęp do ProductManagementService
 
 class ServerSideStatisticsService {
   static final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
@@ -9,6 +10,10 @@ class ServerSideStatisticsService {
 
   // 🔧 PRZEŁĄCZNIK ROZWOJOWY - ustaw na false aby wyłączyć Firebase Functions
   static const bool USE_FIREBASE_FUNCTIONS = false;
+
+  // 🚀 INTEGRACJA: Centralny serwis produktów do poprawy wydajności
+  static final ProductManagementService _productManagementService =
+      ProductManagementService();
 
   /// Oblicza zunifikowane statystyki produktu PO STRONIE SERWERA
   static Future<UnifiedProductStatistics> calculateProductStatistics(
@@ -311,5 +316,48 @@ class ServerSideStatisticsService {
       return '${(amount / 1000).toStringAsFixed(0)}k PLN';
     }
     return '${amount.toStringAsFixed(0)} PLN';
+  }
+
+  /// 🚀 NOWA METODA: Pobiera statystyki produktu z ProductManagementService
+  /// Zapewnia spójność z pozostałymi ekranami i lepszą wydajność
+  static Future<UnifiedProductStatistics?> getProductStatisticsOptimized(
+    String productId,
+    String productName,
+  ) async {
+    try {
+      final productDetails = await _productManagementService.getProductDetails(
+        productId,
+      );
+
+      if (productDetails?.investors != null) {
+        print(
+          '🚀 [ServerSideStatisticsService] Używam ProductManagementService dla produktu: $productName (${productDetails!.investors.length} inwestorów)',
+        );
+
+        return _calculateFallbackStatistics(
+          productDetails.investors,
+          productName,
+        );
+      }
+
+      return null;
+    } catch (e) {
+      print(
+        '⚠️ [ServerSideStatisticsService] Błąd ProductManagementService dla $productName: $e',
+      );
+      return null;
+    }
+  }
+
+  /// 🚀 NOWA METODA: Centralne czyszczenie cache z integracją ProductManagementService
+  static Future<void> clearAllCache() async {
+    try {
+      await _productManagementService.clearAllCache();
+      print(
+        '✅ [ServerSideStatisticsService] Cache ProductManagementService wyczyszczony',
+      );
+    } catch (e) {
+      print('⚠️ [ServerSideStatisticsService] Błąd czyszczenia cache: $e');
+    }
   }
 }

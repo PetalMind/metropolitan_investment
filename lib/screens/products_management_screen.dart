@@ -7,6 +7,8 @@ import '../models_and_services.dart';
 import '../services/firebase_functions_products_service.dart' as fb;
 import '../services/unified_product_service.dart' as unified;
 import '../services/optimized_product_service.dart'; // 🚀 NOWY IMPORT
+import '../services/product_management_service.dart'; // 🚀 NOWY: Centralny serwis zarządzania
+import '../services/cache_management_service.dart'; // 🚀 NOWY: Zarządzanie cache
 import '../adapters/product_statistics_adapter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/premium_loading_widget.dart';
@@ -51,6 +53,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   late final FirebaseFunctionsProductInvestorsService _productInvestorsService;
   late final DeduplicatedProductService _deduplicatedProductService;
   late final OptimizedProductService _optimizedProductService; // 🚀 NOWY SERWIS
+  late final ProductManagementService _productManagementService; // 🚀 NOWY: Centralny serwis
+  late final CacheManagementService _cacheManagementService; // 🚀 NOWY: Zarządzanie cache
   late final AnimationController _fadeController;
   late final AnimationController _slideController;
   late final Animation<double> _fadeAnimation;
@@ -83,6 +87,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   bool _showDeduplicatedView = true; // Domyślnie pokazuj deduplikowane produkty
   bool _useOptimizedMode =
       true; // 🚀 NOWA FLAGA - używaj zoptymalizowanego trybu
+  bool _useProductManagementService = false; // 🚀 NOWA FLAGA - używaj centralnego serwisu
 
   // Email functionality
   bool _isSelectionMode = false;
@@ -586,6 +591,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     _productInvestorsService = FirebaseFunctionsProductInvestorsService();
     _deduplicatedProductService = DeduplicatedProductService();
     _optimizedProductService = OptimizedProductService(); // 🚀 NOWY SERWIS
+    _productManagementService = ProductManagementService(); // 🚀 NOWY: Centralny serwis
+    _cacheManagementService = CacheManagementService(); // 🚀 NOWY: Zarządzanie cache
   }
 
   void _initializeAnimations() {
@@ -626,8 +633,10 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         print('🔄 [ProductsManagementScreen] Rozpoczynam ładowanie danych...');
       }
 
-      // 🚀 NOWE: Używaj zoptymalizowanego serwisu jako głównego
-      if (_useOptimizedMode) {
+      // 🚀 NOWE: Tryb wyboru serwisu
+      if (_useProductManagementService) {
+        await _loadDataWithProductManagementService();
+      } else if (_useOptimizedMode) {
         await _loadOptimizedData();
       } else {
         await _loadLegacyData();
@@ -725,7 +734,86 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     }
   }
 
-  /// 🔄 LEGACY METODA: Stare ładowanie dla fallback
+  /// � NOWA METODA: Ładowanie danych przez ProductManagementService
+  Future<void> _loadDataWithProductManagementService() async {
+    if (kDebugMode) {
+      print('🎯 [ProductsManagementScreen] Używam ProductManagementService...');
+    }
+
+    final stopwatch = Stopwatch()..start();
+
+    try {
+      // Używaj centralnego serwisu zarządzania produktami
+      final productData = await _productManagementService.loadProductsData(
+        useOptimizedMode: _useOptimizedMode,
+        sortField: _sortField,
+        sortDirection: _sortDirection,
+        showDeduplicatedView: _showDeduplicatedView,
+      );
+
+      stopwatch.stop();
+
+      if (mounted) {
+        setState(() {
+          _allProducts = productData.allProducts;
+          _optimizedProducts = productData.optimizedProducts;
+          _deduplicatedProducts = productData.deduplicatedProducts;
+
+          // Filtrowane kopie
+          _filteredProducts = List.from(_allProducts);
+          _filteredOptimizedProducts = List.from(_optimizedProducts);
+          _filteredDeduplicatedProducts = List.from(_deduplicatedProducts);
+
+          // Statystyki
+          if (productData.statistics != null) {
+            _statistics = productData.statistics;
+          }
+
+          // Metadane
+          if (productData.metadata != null) {
+            _metadata = productData.metadata;
+          }
+
+          // Zoptymalizowane wyniki
+          _optimizedResult = productData.optimizedResult;
+
+          _isLoading = false;
+        });
+
+        _applyFiltersAndSearch();
+        _startAnimations();
+
+        if (kDebugMode) {
+          print(
+            '✅ [ProductsManagementScreen] ProductManagementService: ${productData.allProducts.length} produktów w ${stopwatch.elapsedMilliseconds}ms',
+          );
+        }
+
+        // Sprawdź czy trzeba wyróżnić konkretny produkt
+        if (widget.highlightedProductId != null ||
+            widget.highlightedInvestmentId != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _handleRouteParameters();
+            }
+          });
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [ProductsManagementScreen] Błąd ProductManagementService: $e');
+      }
+      
+      if (mounted) {
+        setState(() {
+          _error = 'Błąd ładowania danych: $e';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  /// �🔄 LEGACY METODA: Stare ładowanie dla fallback
   Future<void> _loadLegacyData() async {
     if (kDebugMode) {
       print('🔄 [ProductsManagementScreen] Używam legacy loading...');
@@ -951,7 +1039,11 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     HapticFeedback.mediumImpact();
 
     try {
-      if (_useOptimizedMode) {
+      if (_useProductManagementService) {
+        // 🚀 NOWE: Odśwież przez ProductManagementService
+        await _productManagementService.refreshCache();
+        await _loadDataWithProductManagementService();
+      } else if (_useOptimizedMode) {
         // 🚀 NOWE: Odśwież cache w OptimizedProductService
         await _optimizedProductService.refreshProducts();
         await _loadOptimizedData();
@@ -1832,6 +1924,25 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
               ? 'Przełącz na tryb legacy'
               : 'Przełącz na tryb zoptymalizowany',
         ),
+        // 🚀 NOWY: Przełącznik ProductManagementService
+        IconButton(
+          icon: Icon(
+            _useProductManagementService ? Icons.hub : Icons.merge_type,
+            color: _useProductManagementService ? AppTheme.primaryColor : AppTheme.secondaryGold,
+          ),
+          onPressed: () async {
+            setState(() {
+              _useProductManagementService = !_useProductManagementService;
+            });
+            HapticFeedback.lightImpact();
+
+            // Odśwież dane w nowym trybie
+            await _loadInitialData();
+          },
+          tooltip: _useProductManagementService
+              ? 'Wyłącz ProductManagementService'
+              : 'Włącz ProductManagementService (centralny serwis)',
+        ),
         // Przełącznik deduplikacji
         IconButton(
           icon: Icon(
@@ -1881,6 +1992,69 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           onPressed: _isRefreshing ? null : _refreshData,
           tooltip: 'Odśwież dane',
         ),
+        // 🚀 NOWY: Globalne zarządzanie cache
+        if (_useProductManagementService)
+          PopupMenuButton<String>(
+            icon: Icon(
+              Icons.storage,
+              color: AppTheme.primaryColor,
+            ),
+            tooltip: 'Zarządzanie cache',
+            onSelected: (String value) async {
+              switch (value) {
+                case 'clear_all':
+                  await _cacheManagementService.clearAllCaches();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Cache wyczyszczony')),
+                  );
+                  break;
+                case 'smart_refresh':
+                  await _cacheManagementService.smartRefresh();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Smart refresh wykonany')),
+                  );
+                  break;
+                case 'preload':
+                  await _cacheManagementService.preloadCache();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Cache przeładowany')),
+                  );
+                  break;
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'clear_all',
+                child: Row(
+                  children: [
+                    Icon(Icons.clear_all),
+                    SizedBox(width: 8),
+                    Text('Wyczyść wszystkie cache'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'smart_refresh',
+                child: Row(
+                  children: [
+                    Icon(Icons.auto_fix_high),
+                    SizedBox(width: 8),
+                    Text('Smart refresh'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'preload',
+                child: Row(
+                  children: [
+                    Icon(Icons.download),
+                    SizedBox(width: 8),
+                    Text('Przeładuj cache'),
+                  ],
+                ),
+              ),
+            ],
+          ),
       ],
     );
   }
