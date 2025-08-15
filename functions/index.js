@@ -18,6 +18,7 @@ const debugService = require("./services/debug-service");
 const capitalCalculationService = require("./services/capital-calculation-service");
 const productInvestorsService = require("./product-investors-optimization");
 const productStatisticsService = require("./services/product-statistics-service");
+const getAllInvestmentsService = require("./services/getAllInvestments-service"); // 🚀 DODANE: Serwis pobierania inwestycji
 
 // Import nowych analityk - tylko funkcje pomocnicze
 const employeesAnalytics = require('./analytics/employees_analytics');
@@ -86,7 +87,7 @@ async function calculateRiskAnalytics(timeRangeMonths) {
     // Pobierz dane
     let investmentsQuery = db.collection('investments');
     if (startDate) {
-      investmentsQuery = investmentsQuery.where('data_utworzenia', '>=', startDate);
+      investmentsQuery = investmentsQuery.where('createdAt', '>=', startDate);
     }
 
     const investmentsSnapshot = await investmentsQuery.get();
@@ -95,8 +96,8 @@ async function calculateRiskAnalytics(timeRangeMonths) {
       ...doc.data()
     }));
 
-    // Podstawowe metryki ryzyka
-    const values = investments.map(inv => parseFloat(inv.kwota_inwestycji) || 0);
+    // Basic risk metrics
+    const values = investments.map(inv => parseFloat(inv.investmentAmount) || 0);
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
     const volatility = Math.sqrt(variance) / mean * 100;
@@ -159,6 +160,9 @@ module.exports = {
 
   // Funkcje debug
   ...debugService,
+
+  // Funkcje pobierania inwestycji - 🚀 NOWE
+  ...getAllInvestmentsService,
 
   // Funkcje obliczania kapitału zabezpieczonego nieruchomością
   ...capitalCalculationService,

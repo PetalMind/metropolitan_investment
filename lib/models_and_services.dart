@@ -2,7 +2,7 @@
 export 'models/client.dart';
 export 'models/client_note.dart';
 export 'models/employee.dart';
-export 'models/investment.dart';
+export 'models/investment.dart'; // 🚀 UPDATED: Enhanced with normalized JSON field mapping (productId, capitalSecuredByRealEstate, capitalForRestructuring)
 export 'models/product.dart';
 export 'models/company.dart';
 export 'models/bond.dart';
@@ -27,13 +27,13 @@ export 'services/client_notes_service.dart';
 export 'services/client_id_mapping_service.dart';
 export 'services/enhanced_client_id_mapping_service.dart';
 export 'services/employee_service.dart';
-export 'services/investment_service.dart';
+export 'services/investment_service.dart'; // 🚀 UPDATED: Enhanced support for normalized JSON data import with logical IDs
 export 'services/product_service.dart';
 export 'services/company_service.dart';
 export 'services/unified_product_service.dart';
 export 'services/enhanced_unified_product_service.dart';
 export 'services/deduplicated_product_service.dart';
-export 'services/firebase_functions_data_service.dart' hide ClientsResult;
+export 'services/firebase_functions_data_service.dart' hide ClientsResult; // 🚀 UPDATED: Enhanced Firebase Functions integration with normalized field mapping
 export 'services/firebase_functions_products_service.dart'
     hide ProductStatistics;
 export 'services/firebase_functions_product_investors_service.dart';
@@ -55,10 +55,18 @@ export 'services/standard_product_investors_service.dart';
 // 🚀 OPTIMIZED SERVICES - Migracja na optymalne obliczenia
 // Te serwisy teraz używają InvestorSummary.withoutCalculations() + calculateSecuredCapitalForAll()
 // zamiast obliczeń dla każdego klienta osobno w InvestorSummary.fromInvestments()
+// 
+// ⭐ NOWA ARCHITEKTURA DANYCH (Styczeń 2025):
+// - Unified investments collection z logicznymi ID (bond_0001, loan_0005, etc.)
+// - Enhanced field mapping: English property names ↔ Polish Firebase field names
+// - Normalized JSON import support with apartment ID generation
+// - Backward compatibility with legacy field names maintained
+// 
 // Korzyści:
 // - Obliczenia wykonują się TYLKO RAZ na końcu dla wszystkich zsumowanych kwot
 // - Eliminuje redundantne obliczenia capitalSecuredByRealEstate dla każdego inwestora
 // - Lepsze zgodność z wzorem: capitalSecured = sum(remainingCapital) - sum(capitalForRestructuring)
+// - Jednolita kolekcja investments zamiast oddzielnych kolekcji bonds/loans/shares/apartments
 
 // New voting and analytics services - UNIFIED VERSION
 export 'services/unified_voting_status_service.dart';
@@ -84,7 +92,10 @@ export 'services/investment_change_history_service.dart'; // 🚀 NOWE: Historia
 // export 'services/enhanced_voting_status_service.dart' hide VotingStatusUpdateResult, VotingStatusStatistics;
 // export 'services/unified_voting_service.dart';
 
-// Legacy services (deprecated)
+// Legacy services (deprecated - will be replaced by unified investments collection)
+// These services work with separate collections: bonds, loans, shares, apartments
+// 🎯 MIGRATION NOTE: Data is being consolidated into 'investments' collection
+// with logical IDs like bond_0001, loan_0005, share_0123, apartment_0045
 export 'services/bond_service.dart';
 export 'services/loan_service.dart';
 export 'services/share_service.dart';

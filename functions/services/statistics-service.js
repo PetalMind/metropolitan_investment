@@ -1,9 +1,9 @@
 /**
  * Statistics Service
- * Generuje statystyki produktów TYLKO na podstawie danych z kolekcji 'investments'
+ * Generates product statistics ONLY based on data from 'investments' collection
  * 
- * UWAGA: Stare kolekcje (bonds, shares, loans, apartments, products) są deprecated
- * Wszystkie dane produktów znajdują się teraz w kolekcji 'investments'
+ * NOTE: Old collections (bonds, shares, loans, apartments, products) are deprecated
+ * All product data is now in the 'investments' collection
  */
 
 const { onCall } = require("firebase-functions/v2/https");
@@ -19,7 +19,7 @@ const {
 } = require("../utils/data-mapping");
 
 /**
- * Konwertuje dokument do formatu potrzebnego dla analizy statystycznej
+ * Converts document to format needed for statistical analysis
  */
 function convertDocumentForAnalysis(id, data) {
   const productType = mapProductType(data.productType);
@@ -42,22 +42,22 @@ function convertDocumentForAnalysis(id, data) {
 }
 
 /**
- * Zwraca nazwę wyświetlaną dla typu produktu
+ * Returns display name for product type
  */
 function getProductTypeName(productType) {
   const typeNames = {
-    apartments: 'Apartamenty',
-    bonds: 'Obligacje',
-    shares: 'Udziały',
-    loans: 'Pożyczki',
-    other: 'Inne',
+    apartments: 'Apartments',
+    bonds: 'Bonds',
+    shares: 'Shares',
+    loans: 'Loans',
+    other: 'Other',
   };
 
-  return typeNames[productType] || 'Nieznany';
+  return typeNames[productType] || 'Unknown';
 }
 
 /**
- * Próbuje wyciągnąć oprocentowanie z różnych pól
+ * Tries to extract interest rate from various fields
  */
 function extractInterestRate(data) {
   const possibleFields = [
@@ -78,7 +78,7 @@ function extractInterestRate(data) {
 }
 
 /**
- * Generuje statystyki produktów
+ * Generates product statistics
  */
 const getUnifiedProductStatistics = onCall({
   memory: "1GiB",
@@ -86,26 +86,26 @@ const getUnifiedProductStatistics = onCall({
   cors: true,
 }, async (request) => {
   const data = request.data || {};
-  console.log("📊 [Product Statistics] Rozpoczynam analizę statystyk produktów...");
+  console.log("📊 [Product Statistics] Starting product statistics analysis...");
 
   try {
     const { forceRefresh = false } = data;
 
-    // 💾 Sprawdź cache
+    // 💾 Check cache
     const cacheKey = "unified_product_statistics";
     if (!forceRefresh) {
       const cached = await getCachedResult(cacheKey);
       if (cached) {
-        console.log("⚡ [Product Statistics] Zwracam z cache");
+        console.log("⚡ [Product Statistics] Returning from cache");
         return cached;
       }
     }
 
-    // Pobierz dane bezpośrednio z kolekcji 'investments'
-    console.log("📊 [Product Statistics] Pobieranie danych z kolekcji 'investments'...");
+    // Get data directly from 'investments' collection
+    console.log("📊 [Product Statistics] Fetching data from 'investments' collection...");
     const investmentsSnapshot = await db.collection("investments").get();
 
-    console.log(`📊 [Product Statistics] Pobrano ${investmentsSnapshot.size} dokumentów`);
+    console.log(`📊 [Product Statistics] Retrieved ${investmentsSnapshot.size} documents`);
 
     if (investmentsSnapshot.size === 0) {
       const emptyStats = {
@@ -143,7 +143,7 @@ const getUnifiedProductStatistics = onCall({
       return emptyStats;
     }
 
-    // Konwertuj dokumenty na produkty dla analizy
+    // Convert documents to products for analysis
     const products = [];
     investmentsSnapshot.docs.forEach(doc => {
       try {
@@ -151,7 +151,7 @@ const getUnifiedProductStatistics = onCall({
         const product = convertDocumentForAnalysis(doc.id, data);
         products.push(product);
       } catch (error) {
-        console.warn(`⚠️ [Product Statistics] Błąd konwersji dokumentu ${doc.id}:`, error);
+        console.warn(`⚠️ [Product Statistics] Document conversion error ${doc.id}:`, error);
       }
     });
 
@@ -303,34 +303,34 @@ const getUnifiedProductStatistics = onCall({
       cacheUsed: false,
     };
 
-    // 💾 Cache wyników na 5 minut
+    // 💾 Cache results for 5 minutes
     await setCachedResult(cacheKey, result, 300);
 
-    console.log(`✅ [Product Statistics] Wygenerowano statystyki dla ${totalProducts} produktów`);
+    console.log(`✅ [Product Statistics] Generated statistics for ${totalProducts} products`);
     return result;
 
   } catch (error) {
-    console.error("❌ [Product Statistics] Błąd:", error);
+    console.error("❌ [Product Statistics] Error:", error);
     throw new HttpsError(
       "internal",
-      "Nie udało się wygenerować statystyk produktów",
+      "Failed to generate product statistics",
       error.message,
     );
   }
 });
 
 /**
- * Zwraca nazwę wyświetlaną dla statusu
+ * Returns display name for status
  */
 function getStatusDisplayName(status) {
   const statusNames = {
-    active: 'Aktywny',
-    inactive: 'Nieaktywny',
-    pending: 'Oczekujący',
-    suspended: 'Zawieszony',
+    active: 'Active',
+    inactive: 'Inactive',
+    pending: 'Pending',
+    suspended: 'Suspended',
   };
 
-  return statusNames[status] || 'Nieznany';
+  return statusNames[status] || 'Unknown';
 }
 
 module.exports = {

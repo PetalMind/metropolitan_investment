@@ -39,8 +39,9 @@ exports.getProductInvestorsOptimized = onCall({
       throw new HttpsError('invalid-argument', 'Wymagana nazwa produktu, ID produktu lub typ produktu');
     }
 
-    // 💾 Cache Key
-    const cacheKey = `product_investors_${productId || productName || productType}_${searchStrategy}`;
+    // 💾 Cache Key - dodaj timestamp przy forceRefresh żeby unikać konfliktu
+    const baseKey = `product_investors_${productId || productName || productType}_${searchStrategy}`;
+    const cacheKey = forceRefresh ? `${baseKey}_fresh_${Date.now()}` : baseKey;
 
     if (!forceRefresh) {
       const cached = await getCachedResult(cacheKey);
@@ -392,8 +393,9 @@ exports.getProductInvestorsOptimized = onCall({
  * Wyciąga ID produktu z inwestycji (mapowanie na rzeczywiste pola Firestore)
  */
 function getInvestmentProductId(investment) {
-  // Użyj dokładnych nazw pól z Firestore dla ID produktu
+  // 🚀 ENHANCED: Obsługa znormalizowanych pól z JSON importu
   return investment.productId ||       // Główne pole ID produktu w Firestore
+    investment.id ||                   // 🚀 ENHANCED: Logiczne ID (apartment_0001, bond_0002, etc.)
     investment.product_id ||           // Alternatywna nazwa
     investment.id_produktu ||          // Polskie pole z ID
     investment.ID_Produktu ||          // Legacy polskie pole z dużymi literami
@@ -404,8 +406,9 @@ function getInvestmentProductId(investment) {
  * Wyciąga nazwę produktu z inwestycji (mapowanie na rzeczywiste pola Firestore)
  */
 function getInvestmentProductName(investment) {
-  // Użyj dokładnych nazw pól z Firestore (angielskie nazwy)
+  // 🚀 ENHANCED: Obsługa znormalizowanych pól z JSON importu
   return investment.productName ||   // Główne pole w Firestore
+    investment.projectName ||        // 🚀 ENHANCED: Pole z apartamentów (apartamenty używają projectName)
     investment.name ||               // Ogólny backup
     investment.Produkt_nazwa ||      // Legacy polskie pole (może być w starych danych)
     investment.nazwa_obligacji ||    // Legacy dla obligacji
@@ -431,14 +434,18 @@ function getInvestmentProductType(investment) {
 function extractClientIdentifiers(investment) {
   const identifiers = [];
 
-  // Główne pola ID klienta zgodne z Firestore (angielskie nazwy)
+  // 🚀 ENHANCED: Obsługa znormalizowanych pól z JSON importu
   if (investment.clientId) identifiers.push(investment.clientId.toString());
   if (investment.client_id) identifiers.push(investment.client_id.toString());
   if (investment.ID_Klient) identifiers.push(investment.ID_Klient.toString()); // Legacy
   if (investment.id_klient) identifiers.push(investment.id_klient.toString()); // Legacy
   if (investment.klient_id) identifiers.push(investment.klient_id.toString()); // Legacy
 
-  return identifiers.filter(id => id && id !== 'undefined' && id !== 'NULL');
+  // 🚀 ENHANCED: Dodatkowe pola z znormalizowanych danych
+  if (investment.saleId) identifiers.push(investment.saleId.toString());       // 🚀 ENHANCED: ID sprzedaży z apartamentów
+  if (investment.excel_id) identifiers.push(investment.excel_id.toString());   // 🚀 ENHANCED: Excel ID
+
+  return identifiers.filter(id => id && id !== 'undefined' && id !== 'NULL' && id !== 'null');
 }
 
 /**
@@ -614,19 +621,32 @@ function createProductInvestorSummary(client, investments) {
       investmentAmount: amount,
       remainingCapital: remainingCapital,
       realizedCapital: realizedCapital,
+      // 🚀 ENHANCED: Dodatkowe pola finansowe z znormalizowanych danych
+      capitalForRestructuring: safeToDouble(investment.capitalForRestructuring || 0),
+      capitalSecuredByRealEstate: safeToDouble(investment.capitalSecuredByRealEstate || 0),
+      transferToOtherProduct: safeToDouble(investment.transferToOtherProduct || 0),
       // Odsetki
       remainingInterest: remainingInterest,
       realizedInterest: realizedInterest,
-      // Produkt info
+      // 🚀 ENHANCED: Produkt info z obsługą projectName
       productName: getInvestmentProductName(investment),
       productType: getInvestmentProductType(investment),
+      productId: getInvestmentProductId(investment), // 🚀 ENHANCED: Dodane productId
+      projectName: investment.projectName || '', // 🚀 ENHANCED: Dedykowane pole dla apartamentów
       status: status,
-      // Daty (konwersja stringów na daty)
-      dataEmisji: convertFirestoreDate(investment.data_emisji),
-      dataWykupu: convertFirestoreDate(investment.data_wykupu),
-      dataPodpisania: convertFirestoreDate(investment.Data_podpisania),
-      dataWejscia: convertFirestoreDate(investment.Data_wejscia_do_inwestycji),
-      // Metadane
+      // 🚀 ENHANCED: Daty z obsługą znormalizowanych pól
+      signedDate: convertFirestoreDate(investment.signedDate || investment.Data_podpisania),
+      investmentEntryDate: convertFirestoreDate(investment.investmentEntryDate || investment.dataWejscia),
+      issueDate: convertFirestoreDate(investment.issueDate || investment.data_emisji),
+      redemptionDate: convertFirestoreDate(investment.redemptionDate || investment.data_wykupu),
+      // 🚀 ENHANCED: Metadane z nowych pól
+      saleId: investment.saleId || investment.ID_Sprzedaz, // 🚀 ENHANCED: ID sprzedaży
+      advisor: investment.advisor || investment['Opiekun z MISA'], // 🚀 ENHANCED: Doradca
+      branch: investment.branch || investment.Oddzial || investment.oddzial, // 🚀 ENHANCED: Oddział
+      creditorCompany: investment.creditorCompany || '', // 🚀 ENHANCED: Firma wierzyciel
+      companyId: investment.companyId || '', // 🚀 ENHANCED: ID spółki
+      marketEntry: investment.marketEntry || '', // 🚀 ENHANCED: Wejście na rynek
+      // Legacy metadane
       idSprzedaz: investment.ID_Sprzedaz,
       oddzial: investment.Oddzial,
       opiekunMisa: investment['Opiekun z MISA'],

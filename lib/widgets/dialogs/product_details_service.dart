@@ -9,26 +9,34 @@ class ProductDetailsService {
       FirebaseFunctionsProductInvestorsService();
 
   /// Pobiera inwestorów dla danego produktu używając zoptymalizowanej Firebase Function
+  /// ⭐ ZSYNCHRONIZOWANE: Używa tej samej logiki co DeduplicatedProductService
   Future<List<InvestorSummary>> getInvestorsForProduct(
     UnifiedProduct product,
   ) async {
     try {
-      print('� [ProductDetailsService] Używam zoptymalizowanego serwisu...');
+      print('🔄 [ProductDetailsService] Używam zoptymalizowanego serwisu...');
       print('  - Nazwa: "${product.name}"');
       print('  - Typ: ${product.productType.displayName}');
+      print('  - ID: ${product.id}');
 
-      // Używamy zoptymalizowanej Firebase Function
+      // ⭐ ZSYNCHRONIZOWANE: Używamy tej samej strategii co DeduplicatedProductService
       final result = await _investorsService.getProductInvestors(
         productId: product.id,
         productName: product.name,
         productType: product.productType.name.toLowerCase(),
-        searchStrategy: 'comprehensive',
+        searchStrategy: 'comprehensive', // Ta sama strategia
       );
       final investors = result.investors;
 
       print(
-        '✅ [ProductDetailsService] Załadowano ${investors.length} inwestorów (zoptymalizowane)',
+        '✅ [ProductDetailsService] Załadowano ${investors.length} inwestorów (zsynchronizowane z DeduplicatedProductService)',
       );
+      print('📊 [ProductDetailsService] Statystyki Firebase Functions:');
+      print('   - totalCount: ${result.totalCount}');
+      print('   - totalCapital: ${result.statistics.totalCapital.toStringAsFixed(2)}');
+      print('   - searchStrategy: ${result.searchStrategy}');
+      print('   - executionTime: ${result.executionTime}ms');
+      print('   - fromCache: ${result.fromCache}');
 
       return investors;
     } catch (e) {

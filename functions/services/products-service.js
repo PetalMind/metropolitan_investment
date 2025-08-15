@@ -20,76 +20,156 @@ const {
 
 /**
  * Konwertuje dokument z kolekcji 'investments' na UnifiedProduct
+ * UPDATED: Enhanced field mapping for normalized JSON import data
  */
 function convertInvestmentToUnifiedProduct(doc) {
   const data = doc.data();
   const id = doc.id;
 
-  // Mapuj podstawowe pola
-  const productType = mapProductType(data.productType);
-  const status = mapProductStatus(data.status || data.productStatus);
+  // Enhanced product type mapping
+  const productType = mapProductType(data.productType || data.Typ_produktu || data.typ_produktu);
+  const status = mapProductStatus(data.status || data.productStatus || data.Status_produktu);
 
   return {
-    id: id,
-    name: safeToString(data.productName || data.projectName || `Produkt ${id}`),
+    // 🚀 ENHANCED: Support logical IDs from normalized import
+    id: data.id || id, // Prefer logical ID (bond_0001, apartment_0045) over UUID
+
+    // Product identification - enhanced field mapping
+    name: safeToString(
+      data.productName ||
+      data.projectName ||
+      data.Produkt_nazwa ||
+      data.nazwa_produktu ||
+      `${getProductTypeName(productType)} ${data.id || id}`
+    ),
     productType: productType,
     productTypeName: getProductTypeName(productType),
-    investmentAmount: safeToDouble(data.investmentAmount || data.paidAmount),
+
+    // Financial information - support Polish field names and comma formatting
+    investmentAmount: safeToDouble(
+      data.investmentAmount ||
+      data.paidAmount ||
+      data.paymentAmount ||
+      data.kwota_inwestycji ||
+      data.Kwota_inwestycji
+    ),
     totalValue: calculateTotalValue(data),
-    createdAt: parseDate(data.createdAt) || parseDate(data.signingDate) || new Date().toISOString(),
+
+    // Date fields - enhanced date parsing
+    createdAt: parseDate(
+      data.createdAt ||
+      data.signingDate ||
+      data.signedDate ||
+      data.Data_podpisania ||
+      data.data_podpisania
+    ) || new Date().toISOString(),
     uploadedAt: parseDate(data.uploadedAt) || new Date().toISOString(),
+
+    // Source and status
     sourceFile: safeToString(data.sourceFile || 'investments_collection'),
     status: status,
-    isActive: status === 'active',
+    isActive: status === 'active' || status === 'Aktywny',
 
-    // Informacje o firmie/kliencie
-    companyName: safeToString(data.companyId || data.creditorCompany),
-    companyId: safeToString(data.companyId),
-    clientId: safeToString(data.clientId),
-    clientName: safeToString(data.clientName),
+    // Company/Client information - enhanced field mapping
+    companyName: safeToString(
+      data.companyId ||
+      data.creditorCompany ||
+      data.ID_Spolka ||
+      data.spolka_id
+    ),
+    companyId: safeToString(data.companyId || data.ID_Spolka),
+    clientId: safeToString(data.clientId || data.ID_Klient || data.id_klient),
+    clientName: safeToString(
+      data.clientName ||
+      data.Klient ||
+      data.klient
+    ),
 
-    // Szczegóły finansowe
-    realizedCapital: safeToDouble(data.realizedCapital),
-    remainingCapital: safeToDouble(data.remainingCapital || data.realEstateSecuredCapital),
+    // Financial details - enhanced field mapping
+    realizedCapital: safeToDouble(
+      data.realizedCapital ||
+      data.kapital_zrealizowany ||
+      data['Kapital zrealizowany']
+    ),
+    remainingCapital: safeToDouble(
+      data.remainingCapital ||
+      data.kapital_pozostaly ||
+      data['Kapital Pozostaly'] ||
+      data.realEstateSecuredCapital
+    ),
     currency: 'PLN',
 
-    // Daty
-    deliveryDate: parseDate(data.deliveryDate),
-    redemptionDate: parseDate(data.redemptionDate),
-    signingDate: parseDate(data.signingDate),
+    // Enhanced date fields
+    deliveryDate: parseDate(data.deliveryDate || data.data_dostawy),
+    redemptionDate: parseDate(
+      data.redemptionDate ||
+      data.data_wykupu ||
+      data.redemptionDate
+    ),
+    signedDate: parseDate(
+      data.signingDate ||
+      data.signedDate ||
+      data.Data_podpisania ||
+      data.data_podpisania
+    ),
 
-    // Dodatkowe informacje zależne od typu
+    // Type-specific fields based on normalized data structure
     ...getTypeSpecificFields(productType, data),
 
-    // Metadane
+    // Enhanced metadata with debug information
     additionalInfo: {
       ...data,
       originalCollection: 'investments',
-      migrationSource: data.migrationSource,
-      dataVersion: data.dataVersion,
+      migrationSource: data.migrationSource || 'normalized_json_import',
+      dataVersion: data.dataVersion || '2025.01',
+      logicalId: data.id, // Store logical ID for reference
+      hasLogicalId: !!data.id,
     }
   };
 }
 
 /**
  * Oblicza całkowitą wartość produktu
+ * UPDATED: Enhanced calculation for normalized JSON data
  */
 function calculateTotalValue(data) {
-  const investmentAmount = safeToDouble(data.investmentAmount || data.paidAmount);
-  const remainingCapital = safeToDouble(data.remainingCapital || data.realEstateSecuredCapital);
-  const realizedCapital = safeToDouble(data.realizedCapital);
+  // Try different investment amount fields from normalized data
+  const investmentAmount = safeToDouble(
+    data.investmentAmount ||
+    data.paidAmount ||
+    data.paymentAmount ||
+    data.kwota_inwestycji ||
+    data.Kwota_inwestycji
+  );
 
-  // Jeśli mamy pozostały kapitał, użyj go
-  if (remainingCapital > 0) {
+  // Try different remaining capital fields
+  const remainingCapital = safeToDouble(
+    data.remainingCapital ||
+    data.kapital_pozostaly ||
+    data['Kapital Pozostaly'] ||
+    data.realEstateSecuredCapital
+  );
+
+  // Try realized capital fields
+  const realizedCapital = safeToDouble(
+    data.realizedCapital ||
+    data.kapital_zrealizowany ||
+    data['Kapital zrealizowany']
+  );
+
+  // Calculation priority:
+  // 1. If we have remaining + realized capital, use that
+  if (remainingCapital > 0 || realizedCapital > 0) {
     return remainingCapital + realizedCapital;
   }
 
-  // W przeciwnym razie użyj kwoty inwestycji
+  // 2. Otherwise use investment amount
   return investmentAmount;
 }
 
 /**
  * Zwraca nazwę wyświetlaną dla typu produktu
+ * UPDATED: Enhanced product type names for normalized data
  */
 function getProductTypeName(productType) {
   const typeNames = {
@@ -98,9 +178,14 @@ function getProductTypeName(productType) {
     shares: 'Udziały',
     loans: 'Pożyczki',
     other: 'Inne',
+    // Additional mappings for legacy data
+    'apartamenty': 'Apartamenty',
+    'obligacje': 'Obligacje',
+    'udziały': 'Udziały',
+    'pożyczki': 'Pożyczki',
   };
 
-  return typeNames[productType] || 'Nieznany';
+  return typeNames[productType?.toLowerCase()] || 'Nieznany';
 }
 
 /**

@@ -14,10 +14,14 @@ const cacheTimestamps = new Map();
 async function getCachedResult(key) {
   const timestamp = cacheTimestamps.get(key);
   if (!timestamp || Date.now() - timestamp > 300000) { // 5 minut
+    console.log(`🗂️ [Cache] MISS - key: ${key.substring(0, 50)}... (expired or not found)`);
     cache.delete(key);
     cacheTimestamps.delete(key);
     return null;
   }
+
+  const ageSeconds = Math.floor((Date.now() - timestamp) / 1000);
+  console.log(`💾 [Cache] HIT - key: ${key.substring(0, 50)}... (age: ${ageSeconds}s)`);
   return cache.get(key);
 }
 
@@ -28,11 +32,13 @@ async function getCachedResult(key) {
  * @param {number} ttlSeconds - Czas życia w sekundach (domyślnie 300s = 5min)
  */
 async function setCachedResult(key, data, ttlSeconds = 300) {
+  console.log(`💿 [Cache] SET - key: ${key.substring(0, 50)}... (TTL: ${ttlSeconds}s)`);
   cache.set(key, data);
   cacheTimestamps.set(key, Date.now());
 
   // Automatyczne czyszczenie cache
   setTimeout(() => {
+    console.log(`🗑️ [Cache] EXPIRED - key: ${key.substring(0, 50)}...`);
     cache.delete(key);
     cacheTimestamps.delete(key);
   }, ttlSeconds * 1000);

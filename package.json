@@ -24,7 +24,15 @@
     "test-firebase": "node test_firebase_connection.js",
     "upload-all": "node upload_to_firebase.js",
     "upload-from-json": "node upload_clients_from_normalized_json.js",
-    "verify-json-data": "node upload_clients_from_normalized_json.js --verify"
+    "verify-json-data": "node upload_clients_from_normalized_json.js --verify",
+    "upload-investments": "node upload_normalized_investments_to_firebase.js",
+    "backup-investments": "node backup_investments.js",
+    "validate-investments": "node validate_investment_data.js",
+    "add-apartment-ids": "node add_apartment_ids.js",
+    "check-apartment-ids": "node check_apartment_ids.js",
+    "import-investments:test": "./upload_investments.sh test",
+    "import-investments:full": "./upload_investments.sh full",
+    "import-investments:complete": "./run_full_import.sh"
   },
   "dependencies": {
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",

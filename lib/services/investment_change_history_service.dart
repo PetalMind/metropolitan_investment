@@ -22,25 +22,30 @@ class InvestmentChangeHistoryService extends BaseService {
   }) async {
     try {
       final user = _auth.currentUser;
-      if (user == null) {
-        logError(
-          'recordChange',
-          'Brak zalogowanego użytkownika - nie można zapisać historii zmian',
-        );
-        return;
-      }
+      
+      // 🚀 ENHANCED: Bardziej odporna obsługa braku użytkownika
+      final String userId = user?.uid ?? 'system';
+      final String userEmail = user?.email ?? 'system@metropolitan-investment.com';
+      final String userName = user?.displayName ?? user?.email ?? 'System';
+
+      print('📝 [InvestmentChangeHistory] Zapisywanie historii zmian...');
+      print('   - Investment ID: $investmentId');
+      print('   - User ID: $userId');
+      print('   - User Email: $userEmail');
+      print('   - Change Type: ${changeType.value}');
 
       // Sprawdź czy faktycznie są jakieś zmiany
       final hasChanges = _hasAnyChanges(oldValues, newValues);
       if (!hasChanges) {
+        print('   - Brak zmian do zapisania');
         return;
       }
 
       final changeHistory = InvestmentChangeHistory.fromChanges(
         investmentId: investmentId,
-        userId: user.uid,
-        userEmail: user.email ?? 'Nieznany email',
-        userName: user.displayName ?? user.email ?? 'Nieznany użytkownik',
+        userId: userId,
+        userEmail: userEmail,
+        userName: userName,
         oldValues: oldValues,
         newValues: newValues,
         changeType: changeType.value,
@@ -52,8 +57,12 @@ class InvestmentChangeHistoryService extends BaseService {
           .collection(_collectionName)
           .add(changeHistory.toFirestore());
 
+      print('✅ [InvestmentChangeHistory] Historia zmian zapisana pomyślnie');
+
     } catch (e) {
+      print('❌ [InvestmentChangeHistory] Błąd podczas zapisywania historii: $e');
       logError('recordChange', 'Błąd podczas zapisywania historii zmian: $e');
+      // Nie rzucamy błędu - historia zmian jest opcjonalna
     }
   }
 
@@ -200,13 +209,14 @@ class InvestmentChangeHistoryService extends BaseService {
       final batch = _firestore.batch();
       final user = _auth.currentUser;
 
-      if (user == null) {
-        logError(
-          'recordBulkChanges',
-          'Brak zalogowanego użytkownika - nie można zapisać historii zmian',
-        );
-        return;
-      }
+      // 🚀 ENHANCED: Bardziej odporna obsługa braku użytkownika
+      final String userId = user?.uid ?? 'system';
+      final String userEmail = user?.email ?? 'system@metropolitan-investment.com';
+      final String userName = user?.displayName ?? user?.email ?? 'System';
+
+      print('📝 [InvestmentChangeHistory] Zapisywanie historii zmian (bulk)...');
+      print('   - Liczba inwestycji: ${oldInvestments.length}');
+      print('   - User ID: $userId');
 
       int changesCount = 0;
 
@@ -224,9 +234,9 @@ class InvestmentChangeHistoryService extends BaseService {
         if (_hasAnyChanges(oldValues, newValues)) {
           final changeHistory = InvestmentChangeHistory.fromChanges(
             investmentId: newInvestment.id,
-            userId: user.uid,
-            userEmail: user.email ?? 'Nieznany email',
-            userName: user.displayName ?? user.email ?? 'Nieznany użytkownik',
+            userId: userId,
+            userEmail: userEmail,
+            userName: userName,
             oldValues: oldValues,
             newValues: newValues,
             changeType: InvestmentChangeType.bulkUpdate.value,
@@ -242,12 +252,17 @@ class InvestmentChangeHistoryService extends BaseService {
 
       if (changesCount > 0) {
         await batch.commit();
+        print('✅ [InvestmentChangeHistory] Zapisano $changesCount zmian (bulk)');
+      } else {
+        print('   - Brak zmian do zapisania (bulk)');
       }
     } catch (e) {
+      print('❌ [InvestmentChangeHistory] Błąd podczas zapisywania historii (bulk): $e');
       logError(
         'recordBulkChanges',
         'Błąd podczas zapisywania historii zmian masowych: $e',
       );
+      // Nie rzucamy błędu - historia zmian jest opcjonalna
     }
   }
 

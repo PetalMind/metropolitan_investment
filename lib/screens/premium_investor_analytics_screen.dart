@@ -75,10 +75,11 @@ class _PremiumInvestorAnalyticsScreenState
   Map<VotingStatus, double> _votingDistribution = {};
   Map<VotingStatus, int> _votingCounts = {};
 
-  //  LOADING STATES
+  // 🔄 DATA REFRESH STATE
   bool _isLoading = true;
   bool _isLoadingMore = false;
   bool _isRefreshing = false;
+  bool _dataWasUpdated = false; // 📍 Flaga czy dane były rzeczywiście zmieniane
   String? _error;
   UnifiedDashboardStatistics?
   _dashboardStatistics; // 🚀 NOWE: Zunifikowane statystyki
@@ -335,8 +336,18 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   /// Odświeża dane po aktualizacji inwestora z wymuszeniem przeładowania z serwera
+  /// ZACHOWUJE pozycję scroll aby użytkownik pozostał w tym samym miejscu na liście
   Future<void> _refreshDataAfterUpdate() async {
     if (!mounted) return;
+
+    print('📍 [Analytics] Rozpoczynam odświeżanie danych po aktualizacji inwestora');
+
+    // 📍 ZACHOWAJ obecną pozycję scroll przed odświeżeniem
+    final currentScrollOffset = _scrollController.hasClients 
+        ? _scrollController.offset 
+        : 0.0;
+
+    print('📍 [Analytics] Zachowuję pozycję scroll: ${currentScrollOffset.toStringAsFixed(1)}px');
 
     setState(() {
       _isLoading = true;
@@ -363,6 +374,18 @@ class _PremiumInvestorAnalyticsScreenState
         _processAnalyticsResult(result);
         _calculateMajorityAnalysis();
         _calculateVotingAnalysis();
+
+        // 📍 PRZYWRÓĆ pozycję scroll po odświeżeniu danych
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients && currentScrollOffset > 0) {
+            print('📍 [Analytics] Przywracam pozycję scroll: ${currentScrollOffset.toStringAsFixed(1)}px');
+            _scrollController.animateTo(
+              currentScrollOffset,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        });
 
         // Pokaż komunikat o pomyślnym odświeżeniu
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3016,6 +3039,9 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   void _showInvestorDetails(InvestorSummary investor) {
+    // 📍 Resetuj flagę przed otwarciem modalu
+    _dataWasUpdated = false;
+    
     InvestorDetailsModalHelper.show(
       context: context,
       investor: investor,
@@ -3027,10 +3053,19 @@ class _PremiumInvestorAnalyticsScreenState
         // Funkcjonalność przeniesiona do wnętrza modalu - przycisk automatycznie przełączy na zakładkę
       },
       onUpdateInvestor: (updatedInvestor) {
-        // Odśwież dane po aktualizacji z wymuszeniem przeładowania z serwera
+        // 📍 Oznacz że dane zostały zaktualizowane
+        _dataWasUpdated = true;
+        // 📍 Odśwież dane po aktualizacji z wymuszeniem przeładowania z serwera
+        // TYLKO gdy rzeczywiście były zapisane zmiany w danych inwestora
+        // Pozycja scroll zostanie automatycznie zachowana i przywrócona
         _refreshDataAfterUpdate();
       },
-    );
+    ).then((_) {
+      // 📍 Po zamknięciu modalu - sprawdź czy potrzebne jest odświeżenie
+      if (!_dataWasUpdated) {
+        print('📍 [Analytics] Modal zamknięty bez zmian - nie odświeżam danych');
+      }
+    });
   }
 
   // ignore: unused_element

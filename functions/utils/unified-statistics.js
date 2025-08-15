@@ -20,123 +20,131 @@ const STATISTICS_CONFIG = {
   },
 
   FIELD_MAPPING: {
-    // Kapitał pozostały - główne pole do obliczeń
+    // Remaining capital - main field for calculations
     remainingCapital: [
       'remainingCapital',           // Standard Firebase Functions
-      'kapital_pozostaly',          // Polski format
-      'Kapital Pozostaly',          // Excel import format
-      'Kapital zrealizowany'        // Alternatywna nazwa
+      'kapital_pozostaly',          // Polish format (legacy)
+      'Kapital Pozostaly',          // Excel import format (legacy)
     ],
 
-    // Odsetki pozostałe
+    // Remaining interest
     remainingInterest: [
       'remainingInterest',          // Standard Firebase Functions
-      'odsetki_pozostale',          // Polski format
-      'remainingInterest'           // Firestore field
+      'odsetki_pozostale',          // Polish format (legacy)
     ],
 
-    // Kwota inwestycji
+    // Investment amount - ENHANCED for normalized JSON import
     investmentAmount: [
-      'investmentAmount',           // Firestore field (CONFIRMED)
-      'kwota_inwestycji',           // Polski format
-      'Kwota_inwestycji',           // Excel format
-      'paymentAmount'               // Alternative field (CONFIRMED)
+      'investmentAmount',           // Firestore field (PRIORITY)
+      'kwota_inwestycji',           // Polish format (legacy)
+      'Kwota_inwestycji',           // Excel format (legacy)
+      'paidAmount'                  // Additional field from normalized import
     ],
 
-    // Status produktu
+    // Product status - ENHANCED for normalized JSON import
     productStatus: [
-      'productStatus',              // Firestore field (CONFIRMED)
-      'status_produktu',            // Polski format
-      'Status_produktu'             // Excel format
+      'productStatus',              // Firestore field (PRIORITY)
+      'status_produktu',            // Polish format (legacy)
+      'Status_produktu',            // Excel format (legacy)
+      'status'                      // Generic status field
     ],
 
-    // Nazwa klienta
+    // Client name
     clientName: [
-      'clientName',                 // Firestore field (CONFIRMED)
-      'klient',                     // Polski format
-      'Klient'                      // Excel format
+      'clientName',                 // Firestore field (PRIORITY)
+      'klient',                     // Polish format (legacy)
+      'Klient'                      // Excel format (legacy)
     ],
 
-    // ID klienta
+    // Client ID
     clientId: [
-      'clientId',                   // Firestore field (CONFIRMED)
-      'ID_Klient',                  // Excel format
-      'klient_id'                   // Alternative format
+      'clientId',                   // Firestore field (PRIORITY)
+      'ID_Klient',                  // Excel format (legacy)
+      'klient_id'                   // Alternative format (legacy)
     ],
 
-    // Kapitał do restrukturyzacji (CONFIRMED in Firestore)
+    // Capital for restructuring
     capitalForRestructuring: [
-      'capitalForRestructuring',    // Firestore field (CONFIRMED)
-      'kapital_do_restrukturyzacji', // Polski format
-      'Kapitał do restrukturyzacji' // Excel format
+      'capitalForRestructuring',    // Firestore field (PRIORITY)
+      'kapital_do_restrukturyzacji', // Polish format (legacy)
+      'Kapitał do restrukturyzacji' // Excel format (legacy)
     ],
 
-    // Kapitał zabezpieczony nieruchomością (CONFIRMED in Firestore)
+    // Capital secured by real estate
     capitalSecuredByRealEstate: [
-      'capitalSecuredByRealEstate', // Firestore field (CONFIRMED)
-      'kapital_zabezpieczony_nieruchomoscia', // Polski format
-      'Kapitał zabezpieczony nieruchomością'  // Excel format
+      'capitalSecuredByRealEstate', // Firestore field (PRIORITY)
+      'kapital_zabezpieczony_nieruchomoscia', // Polish format (legacy)
+      'Kapitał zabezpieczony nieruchomością'  // Excel format (legacy)
     ],
 
-    // Dodatkowe pola z rzeczywistych danych Firestore
+    // Product name
     productName: [
-      'productName',                // Firestore field (CONFIRMED)
-      'nazwa_produktu',             // Polski format
-      'Produkt_nazwa'               // Excel format
+      'productName',                // Firestore field (PRIORITY)
+      'nazwa_produktu',             // Polish format (legacy)
+      'Produkt_nazwa'               // Excel format (legacy)
     ],
 
+    // Product type
     productType: [
-      'productType',                // Firestore field (CONFIRMED)
-      'typ_produktu',               // Polski format
-      'Typ_produktu'                // Excel format
+      'productType',                // Firestore field (PRIORITY)
+      'typ_produktu',               // Polish format (legacy)
+      'Typ_produktu'                // Excel format (legacy)
     ],
 
+    // Company ID
     companyId: [
-      'companyId',                  // Firestore field (CONFIRMED)
-      'ID_Spolka',                  // Excel format
-      'spolka_id'                   // Alternative format
+      'companyId',                  // Firestore field (PRIORITY)
+      'ID_Spolka',                  // Excel format (legacy)
+      'spolka_id'                   // Alternative format (legacy)
     ],
 
-    signedDate: [
-      'signedDate',                 // Firestore field (CONFIRMED)
-      'data_podpisania',            // Polski format
-      'Data_podpisania'             // Excel format
+    // Signing date
+    signingDate: [
+      'signingDate',                // Firestore field (PRIORITY)
+      'data_podpisania',            // Polish format (legacy)
+      'Data_podpisania'             // Excel format (legacy)
     ],
 
+    // Realized capital
     realizedCapital: [
-      'realizedCapital',            // Firestore field (CONFIRMED)
-      'kapital_zrealizowany',       // Polski format
-      'Kapital zrealizowany'        // Excel format
+      'realizedCapital',            // Firestore field (PRIORITY)
+      'kapital_zrealizowany',       // Polish format (legacy)
+      'Kapital zrealizowany'        // Excel format (legacy)
     ],
 
+    // Realized interest
     realizedInterest: [
-      'realizedInterest',           // Firestore field (CONFIRMED)
-      'odsetki_zrealizowane',       // Polski format
-      'Odsetki zrealizowane'        // Excel format
+      'realizedInterest',           // Firestore field (PRIORITY)
+      'odsetki_zrealizowane',       // Polish format (legacy)
+      'Odsetki zrealizowane'        // Excel format (legacy)
     ],
 
+    // Transfer to other product
     transferToOtherProduct: [
-      'transferToOtherProduct',     // Firestore field (CONFIRMED)
-      'przekaz_na_inny_produkt',    // Polski format
-      'Przekaz na inny produkt'     // Excel format
+      'transferToOtherProduct',     // Firestore field (PRIORITY)
+      'przekaz_na_inny_produkt',    // Polish format (legacy)
+      'Przekaz na inny produkt'     // Excel format (legacy)
     ],
 
+    // Advisor
     advisor: [
-      'advisor',                    // Firestore field (CONFIRMED)
-      'opiekun',                    // Polski format
-      'Opiekun z MISA'              // Excel format
+      'advisor',                    // Firestore field (PRIORITY)
+      'opiekun',                    // Polish format (legacy)
+      'Opiekun z MISA'              // Excel format (legacy)
     ],
 
+    // Branch
     branch: [
-      'branch',                     // Firestore field (CONFIRMED)
-      'oddzial',                    // Polski format
-      'Oddzial'                     // Excel format
+      'branch',                     // Firestore field (PRIORITY)
+      'oddzial',                    // Polish format (legacy)
+      'Oddzial'                     // Excel format (legacy)
     ],
 
-    salesId: [
-      'salesId',                    // Firestore field (CONFIRMED)
-      'ID_Sprzedaz',                // Excel format
-      'sprzedaz_id'                 // Alternative format
+    // Sale ID
+    saleId: [
+      'saleId',                     // Firestore field (PRIORITY)
+      'ID_Sprzedaz',                // Excel format (legacy)
+      'sprzedaz_id'                 // Alternative format (legacy)
     ]
   }
 };

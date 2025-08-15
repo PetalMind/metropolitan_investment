@@ -20,11 +20,11 @@ setGlobalOptions({
 /**
  * 🎛️ FIREBASE FUNCTIONS - PREMIUM ANALYTICS FILTERING
  *
- * Rozszerzone funkcje filtrowania dla Premium Analytics Dashboard
- * z zaawansowanymi algorytmami sortowania i grupowania
+ * Extended filtering functions for Premium Analytics Dashboard
+ * with advanced sorting and grouping algorithms
  */
 
-// 🔍 ZAAWANSOWANE FILTROWANIE INWESTORÓW
+// 🔍 ADVANCED INVESTOR FILTERING
 exports.getFilteredInvestorAnalytics = onCall({
   memory: "2GiB",
   timeoutSeconds: 540,
@@ -32,7 +32,7 @@ exports.getFilteredInvestorAnalytics = onCall({
   const data = request.data || {};
   const startTime = Date.now();
   console.log(
-    "🎛️ [Premium Filter] Rozpoczynam zaawansowane filtrowanie...",
+    "🎛️ [Premium Filter] Starting advanced filtering...",
     data,
   );
 

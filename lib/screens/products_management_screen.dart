@@ -1438,7 +1438,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                   Expanded(
                     child: _buildStatColumn(
                       'Inwestorów',
-                      '${product.uniqueInvestors}',
+                      '${product.investorCount}', // ⭐ ZMIENIONE: używa nowego getter
                       Icons.people,
                     ),
                   ),
@@ -1472,7 +1472,10 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Duplikacja: ${(product.duplicationRatio * 100).toStringAsFixed(1)}% (${product.totalInvestments - product.uniqueInvestors} duplikatów)',
+                          'Liczenie inwestorów:\n'
+                          '• Rzeczywista liczba (Firebase): ${product.actualInvestorCount}\n'
+                          '• Lokalna deduplikacja: ${product.uniqueInvestors}\n'
+                          '• Duplikacja: ${(product.duplicationRatio * 100).toStringAsFixed(1)}% (${product.totalInvestments - product.uniqueInvestors} duplikatów)',
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
                                 color: AppTheme.warningColor,
@@ -1567,7 +1570,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       additionalInfo: {
         'isDeduplicated': true,
         'totalInvestments': deduped.totalInvestments,
-        'uniqueInvestors': deduped.uniqueInvestors,
+        'uniqueInvestors': deduped.investorCount, // ⭐ ZMIENIONE: używa nowego getter
+        'totalInvestors': deduped.investorCount, // ⭐ NOWE: dodatkowe pole dla kompatybilności
         'averageInvestment': deduped.averageInvestment,
         'duplicationRatio': deduped.duplicationRatio,
         'hasDuplicates': deduped.hasDuplicates,

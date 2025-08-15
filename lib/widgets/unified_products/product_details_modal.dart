@@ -76,7 +76,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     (sum, investor) => sum + investor.capitalSecuredByRealEstate,
   );
 
-  Future<void> _loadInvestors() async {
+  Future<void> _loadInvestors({bool forceRefresh = false}) async {
     if (_isLoadingInvestors) return;
 
     setState(() {
@@ -90,6 +90,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         productName: widget.product.name,
         productType: widget.product.productType.name.toLowerCase(),
         searchStrategy: 'comprehensive',
+        forceRefresh: forceRefresh, // 🚀 ENHANCED: Wymuszenie odświeżenia po zapisie zmian
       );
       final investors = result.investors;
 
@@ -444,7 +445,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       investors: _investors,
       isLoading: _isLoadingInvestors,
       error: _investorsError,
-      onRefresh: _loadInvestors,
+      onRefresh: () => _loadInvestors(forceRefresh: true), // 🚀 ENHANCED: Wymusz odświeżenie po zapisie
     );
   }
 

@@ -4,6 +4,7 @@ import '../models/unified_product.dart';
 import '../models/investment.dart';
 import '../models/product.dart'; // Import dla ProductType
 import '../services/unified_product_service.dart';
+import '../services/firebase_functions_product_investors_service.dart'; // ⭐ NOWE
 import 'base_service.dart';
 
 /// Serwis deduplikacji produktów z kolekcji investments
@@ -12,8 +13,12 @@ import 'base_service.dart';
 /// co tworzy duplikaty. Ten serwis grupuje inwestycje według produktów i
 /// zwraca unikalne produkty z agregowanymi statystykami.
 class DeduplicatedProductService extends BaseService {
-  static const String _cacheKeyPrefix = 'deduped_products_';
-  static const String _cacheKeyAll = 'deduped_products_all';
+  static const String _cacheKeyPrefix = 'deduped_products_v2_'; // ⭐ ZMIENIONE: nowa wersja cache
+  static const String _cacheKeyAll = 'deduped_products_all_v2'; // ⭐ ZMIENIONE: nowa wersja cache
+  
+  // ⭐ NOWE: Serwis do zsynchronizowanego liczenia inwestorów
+  final FirebaseFunctionsProductInvestorsService _investorsService = 
+      FirebaseFunctionsProductInvestorsService();
 
   /// Pobiera wszystkie unikalne produkty (deduplikowane)
   Future<List<DeduplicatedProduct>> getAllUniqueProducts() async {
@@ -251,20 +256,44 @@ class DeduplicatedProductService extends BaseService {
         );
       }
 
-      // Konwertuj grupy na deduplikowane produkty
+      // ⭐ NOWE: Konwertuj grupy na deduplikowane produkty (asynchronicznie)
       final List<DeduplicatedProduct> uniqueProducts = [];
 
-      for (final entry in groupedInvestments.entries) {
-        final productKey = entry.key;
-        final investments = entry.value;
+      // Przetwarzanie w partiach żeby nie przeciążyć Firebase Functions
+      final entries = groupedInvestments.entries.toList();
+      const batchSize = 10; // Przetwarzaj 10 produktów jednocześnie
 
-        try {
-          final product = _createDeduplicatedProduct(productKey, investments);
-          uniqueProducts.add(product);
-        } catch (e) {
-          logError('_createDeduplicatedProduct for key: $productKey', e);
+      for (int i = 0; i < entries.length; i += batchSize) {
+        final batch = entries.skip(i).take(batchSize);
+        
+        final batchResults = await Future.wait(
+          batch.map((entry) async {
+            final productKey = entry.key;
+            final investments = entry.value;
+
+            try {
+              return await _createDeduplicatedProduct(productKey, investments);
+            } catch (e) {
+              logError('_createDeduplicatedProduct for key: $productKey', e);
+              return null;
+            }
+          }),
+        );
+
+        // Dodaj tylko poprawnie przetworzone produkty
+        for (final product in batchResults) {
+          if (product != null) {
+            uniqueProducts.add(product);
+          }
+        }
+
+        // Krótka przerwa między partiami
+        if (i + batchSize < entries.length) {
+          await Future.delayed(const Duration(milliseconds: 100));
         }
       }
+
+      print('🎯 [DeduplicatedProductService] Przetworzono ${uniqueProducts.length} produktów z Firebase Functions');
 
       // Sortuj według łącznej wartości inwestycji (malejąco)
       uniqueProducts.sort((a, b) => b.totalValue.compareTo(a.totalValue));
@@ -302,10 +331,11 @@ class DeduplicatedProductService extends BaseService {
   }
 
   /// Tworzy deduplikowany produkt z grupy inwestycji
-  DeduplicatedProduct _createDeduplicatedProduct(
+  /// ⭐ NOWE: Używa Firebase Functions do zsynchronizowanego liczenia inwestorów
+  Future<DeduplicatedProduct> _createDeduplicatedProduct(
     String productKey,
     List<Map<String, dynamic>> investments,
-  ) {
+  ) async {
     if (investments.isEmpty) {
       throw ArgumentError('Lista inwestycji nie może być pusta');
     }
@@ -334,6 +364,41 @@ class DeduplicatedProductService extends BaseService {
     }
 
     final uniqueInvestorsCount = uniqueClientIds.length;
+    
+    // ⭐ NOWE: Używaj Firebase Functions do precyzyjnego liczenia inwestorów
+    int actualInvestorCount = 0;
+    try {
+      final productName = firstInvestment['productName'] ??
+          firstInvestment['projectName'] ??
+          firstInvestment['nazwa_produktu'] ??
+          'Nieznany Produkt';
+      
+      final productType = _mapProductType(
+        firstInvestment['productType'] ?? firstInvestment['typ_produktu'],
+      );
+
+      print('🔄 [DeduplicatedProduct] Pobieranie rzeczywistej liczby inwestorów dla: $productName');
+      
+      final result = await _investorsService.getProductInvestors(
+        productId: productKey.hashCode.abs().toString(),
+        productName: productName,
+        productType: productType.name.toLowerCase(),
+        searchStrategy: 'comprehensive',
+      );
+      
+      actualInvestorCount = result.totalCount;
+      
+      print('✅ [DeduplicatedProduct] ${productName}:');
+      print('   - Lokalne liczenie: ${uniqueInvestorsCount}');
+      print('   - Firebase Functions: ${actualInvestorCount}');
+      print('   - Różnica: ${actualInvestorCount - uniqueInvestorsCount}');
+      print('   - Strategia: ${result.searchStrategy}');
+      print('   - Z cache: ${result.fromCache}');
+    } catch (e) {
+      print('⚠️ [DeduplicatedProduct] Błąd Firebase Functions dla $productKey: $e');
+      // Fallback: użyj lokalne liczenie
+      actualInvestorCount = uniqueInvestorsCount;
+    }
 
     // Znajdź najwcześniejszą i najnowszą datę
     DateTime? earliestDate;
@@ -379,6 +444,7 @@ class DeduplicatedProductService extends BaseService {
       totalRemainingCapital: totalRemainingCapital,
       totalInvestments: totalInvestors,
       uniqueInvestors: uniqueInvestorsCount,
+      actualInvestorCount: actualInvestorCount, // ⭐ NOWE
       averageInvestment: totalValue / totalInvestors,
       earliestInvestmentDate: earliestDate ?? DateTime.now(),
       latestInvestmentDate: latestDate ?? DateTime.now(),
@@ -396,6 +462,8 @@ class DeduplicatedProductService extends BaseService {
             .take(3)
             .map((inv) => inv['id'])
             .toList(),
+        'actualInvestorCount': actualInvestorCount, // ⭐ NOWE
+        'uniqueInvestorsLocal': uniqueInvestorsCount,
       },
     );
   }
@@ -529,6 +597,7 @@ class DeduplicatedProduct {
   final double totalRemainingCapital;
   final int totalInvestments;
   final int uniqueInvestors;
+  final int actualInvestorCount; // ⭐ NOWE: liczba inwestorów z Firebase Functions
   final double averageInvestment;
   final DateTime earliestInvestmentDate;
   final DateTime latestInvestmentDate;
@@ -548,6 +617,7 @@ class DeduplicatedProduct {
     required this.totalRemainingCapital,
     required this.totalInvestments,
     required this.uniqueInvestors,
+    required this.actualInvestorCount,
     required this.averageInvestment,
     required this.earliestInvestmentDate,
     required this.latestInvestmentDate,
@@ -565,6 +635,9 @@ class DeduplicatedProduct {
 
   /// Czy produkt ma duplikaty
   bool get hasDuplicates => totalInvestments > uniqueInvestors;
+
+  /// ⭐ NOWE: Zwraca właściwą liczbę inwestorów (preferuje actualInvestorCount)
+  int get investorCount => actualInvestorCount > 0 ? actualInvestorCount : uniqueInvestors;
 
   /// Procent zwrotu kapitału
   double get capitalReturnPercentage {

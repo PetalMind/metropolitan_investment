@@ -48,6 +48,8 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
   // Controllers dla edytowanych wartości
   final List<TextEditingController> _remainingCapitalControllers = [];
   final List<TextEditingController> _investmentAmountControllers = [];
+  final List<TextEditingController> _capitalForRestructuringControllers = [];
+  final List<TextEditingController> _capitalSecuredByRealEstateControllers = [];
   final List<InvestmentStatus> _statusValues = [];
 
   // Kopia inwestycji do edycji
@@ -66,6 +68,12 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
       controller.dispose();
     }
     for (final controller in _investmentAmountControllers) {
+      controller.dispose();
+    }
+    for (final controller in _capitalForRestructuringControllers) {
+      controller.dispose();
+    }
+    for (final controller in _capitalSecuredByRealEstateControllers) {
       controller.dispose();
     }
     super.dispose();
@@ -239,8 +247,16 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
     for (final controller in _investmentAmountControllers) {
       controller.dispose();
     }
+    for (final controller in _capitalForRestructuringControllers) {
+      controller.dispose();
+    }
+    for (final controller in _capitalSecuredByRealEstateControllers) {
+      controller.dispose();
+    }
     _remainingCapitalControllers.clear();
     _investmentAmountControllers.clear();
+    _capitalForRestructuringControllers.clear();
+    _capitalSecuredByRealEstateControllers.clear();
     _statusValues.clear();
 
     // Utwórz controllery dla każdej inwestycji
@@ -251,15 +267,27 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
       _investmentAmountControllers.add(
         TextEditingController(text: investment.investmentAmount.toString())
       );
+      _capitalForRestructuringControllers.add(
+        TextEditingController(text: investment.capitalForRestructuring.toString())
+      );
+      _capitalSecuredByRealEstateControllers.add(
+        TextEditingController(text: investment.capitalSecuredByRealEstate.toString())
+      );
       _statusValues.add(investment.status);
     }
 
-    // Ustaw listenery do wykrywania zmian
-    for (final controller in _remainingCapitalControllers) {
-      controller.addListener(_onDataChanged);
-    }
-    for (final controller in _investmentAmountControllers) {
-      controller.addListener(_onDataChanged);
+    // Ustaw listenery do wykrywania zmian i automatycznych obliczeń
+    for (int i = 0; i < _editableInvestments.length; i++) {
+      _remainingCapitalControllers[i].addListener(_onDataChanged);
+      _investmentAmountControllers[i].addListener(() {
+        _onDataChanged();
+        _calculateAutomaticValues(i);
+      });
+      _capitalForRestructuringControllers[i].addListener(() {
+        _onDataChanged();
+        _calculateAutomaticValues(i);
+      });
+      _capitalSecuredByRealEstateControllers[i].addListener(_onDataChanged);
     }
   }
 
@@ -267,6 +295,34 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
     setState(() {
       _isChanged = true;
     });
+  }
+
+  /// Automatyczne obliczanie wartości na podstawie wprowadzonych kwot
+  void _calculateAutomaticValues(int index) {
+    final investmentAmountText = _investmentAmountControllers[index].text;
+    final capitalForRestructuringText = _capitalForRestructuringControllers[index].text;
+    
+    final investmentAmount = double.tryParse(investmentAmountText) ?? 0.0;
+    final capitalForRestructuring = double.tryParse(capitalForRestructuringText) ?? 0.0;
+    
+    // Oblicz pozostały kapitał (kwota inwestycji minus kapitał do restrukturyzacji)
+    final calculatedRemainingCapital = investmentAmount - capitalForRestructuring;
+    
+    // Aktualizuj pole pozostałego kapitału (tylko jeśli wartość się zmieniła)
+    final currentRemainingCapital = double.tryParse(_remainingCapitalControllers[index].text) ?? 0.0;
+    if ((calculatedRemainingCapital - currentRemainingCapital).abs() > 0.01) {
+      _remainingCapitalControllers[index].text = calculatedRemainingCapital.toStringAsFixed(2);
+    }
+    
+    // Oblicz kapitał zabezpieczony nieruchomością
+    // Logika: kapitał zabezpieczony = pozostały kapitał (jeśli pozytywny)
+    final calculatedCapitalSecured = calculatedRemainingCapital > 0 ? calculatedRemainingCapital : 0.0;
+    
+    // Aktualizuj pole kapitału zabezpieczonego (tylko jeśli wartość się zmieniła)
+    final currentCapitalSecured = double.tryParse(_capitalSecuredByRealEstateControllers[index].text) ?? 0.0;
+    if ((calculatedCapitalSecured - currentCapitalSecured).abs() > 0.01) {
+      _capitalSecuredByRealEstateControllers[index].text = calculatedCapitalSecured.toStringAsFixed(2);
+    }
   }
 
   @override
@@ -411,6 +467,9 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
             _buildInvestmentsSummary(),
             const SizedBox(height: 24),
             _buildInvestmentsEditList(),
+            const SizedBox(height: 16),
+            // Informacja o automatycznych obliczeniach
+            _buildAutomaticCalculationInfo(),
           ],
         ),
       ),
@@ -451,6 +510,10 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
         .fold(0.0, (sum, inv) => sum + inv.remainingCapital);
     final totalInvestmentAmount = _editableInvestments
         .fold(0.0, (sum, inv) => sum + inv.investmentAmount);
+    final totalCapitalForRestructuring = _editableInvestments
+        .fold(0.0, (sum, inv) => sum + inv.capitalForRestructuring);
+    final totalCapitalSecured = _editableInvestments
+        .fold(0.0, (sum, inv) => sum + inv.capitalSecuredByRealEstate);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -470,6 +533,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
             ),
           ),
           const SizedBox(height: 16),
+          // Pierwszy rząd
           Row(
             children: [
               Expanded(
@@ -480,7 +544,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
                   AppThemePro.accentGold,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: _buildSummaryTile(
                   'Łączna kwota',
@@ -489,7 +553,12 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
                   AppThemePro.bondsBlue,
                 ),
               ),
-              const SizedBox(width: 16),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Drugi rząd
+          Row(
+            children: [
               Expanded(
                 child: _buildSummaryTile(
                   'Pozostały kapitał',
@@ -497,6 +566,33 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
                   Icons.trending_up,
                   AppThemePro.profitGreen,
                 ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSummaryTile(
+                  'Do restrukturyzacji',
+                  _currencyFormat.format(totalCapitalForRestructuring),
+                  Icons.build,
+                  AppThemePro.statusWarning,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Trzeci rząd
+          Row(
+            children: [
+              Expanded(
+                child: _buildSummaryTile(
+                  'Zabezpieczony',
+                  _currencyFormat.format(totalCapitalSecured),
+                  Icons.security,
+                  AppThemePro.statusSuccess,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(), // Puste miejsce dla symetrii
               ),
             ],
           ),
@@ -566,6 +662,53 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
     );
   }
 
+  Widget _buildAutomaticCalculationInfo() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.accentGold.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppThemePro.accentGold.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.calculate,
+                color: AppThemePro.accentGold,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Automatyczne obliczenia',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: AppThemePro.accentGold,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Pozostały kapitał = Kwota inwestycji - Kapitał do restrukturyzacji',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppThemePro.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Pole "Zabezpieczony nieruchomością" można edytować ręcznie',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppThemePro.textTertiary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInvestmentEditCard(int index) {
     final investment = _editableInvestments[index];
     
@@ -621,7 +764,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
             ],
           ),
           const SizedBox(height: 16),
-          // Pola edycji
+          // Pola edycji - pierwszy rząd (kwoty podstawowe)
           Row(
             children: [
               Expanded(
@@ -630,15 +773,44 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
                   controller: _investmentAmountControllers[index],
                   icon: Icons.account_balance_wallet,
                   color: AppThemePro.bondsBlue,
+                  isEditable: true,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: _buildCurrencyField(
-                  label: 'Pozostały kapitał',
+                  label: 'Kapitał do restrukturyzacji',
+                  controller: _capitalForRestructuringControllers[index],
+                  icon: Icons.build,
+                  color: AppThemePro.statusWarning,
+                  isEditable: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Drugi rząd (kwoty automatycznie obliczane)
+          Row(
+            children: [
+              Expanded(
+                child: _buildCurrencyField(
+                  label: 'Pozostały kapitał (obliczany)',
                   controller: _remainingCapitalControllers[index],
                   icon: Icons.trending_up,
                   color: AppThemePro.profitGreen,
+                  isEditable: false, // Tylko do odczytu
+                  helpText: 'Kwota inwestycji - Kapitał do restrukturyzacji',
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildCurrencyField(
+                  label: 'Zabezpieczony nieruchomością',
+                  controller: _capitalSecuredByRealEstateControllers[index],
+                  icon: Icons.security,
+                  color: AppThemePro.statusSuccess,
+                  isEditable: true,
+                  helpText: 'Może być edytowany ręcznie',
                 ),
               ),
             ],
@@ -695,24 +867,42 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
     required TextEditingController controller,
     required IconData icon,
     required Color color,
+    bool isEditable = true,
+    String? helpText,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppThemePro.textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
+        Row(
+          children: [
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppThemePro.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (helpText != null) ...[
+              const SizedBox(width: 4),
+              Tooltip(
+                message: helpText,
+                child: Icon(
+                  Icons.help_outline,
+                  size: 14,
+                  color: AppThemePro.textMuted,
+                ),
+              ),
+            ],
+          ],
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
-          keyboardType: TextInputType.number,
-          inputFormatters: [
+          keyboardType: isEditable ? TextInputType.number : null,
+          readOnly: !isEditable,
+          inputFormatters: isEditable ? [
             FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-          ],
+          ] : null,
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: color, size: 20),
             suffixText: 'zł',
@@ -726,18 +916,43 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
               borderSide: BorderSide(color: color, width: 2),
             ),
             filled: true,
-            fillColor: AppThemePro.surfaceElevated,
+            fillColor: isEditable 
+                ? AppThemePro.surfaceElevated 
+                : AppThemePro.surfaceElevated.withOpacity(0.5),
           ),
-          validator: (value) {
+          style: TextStyle(
+            color: isEditable ? AppThemePro.textPrimary : AppThemePro.textMuted,
+          ),
+          validator: isEditable ? (value) {
             if (value == null || value.isEmpty) {
               return 'To pole jest wymagane';
             }
+            
             final double? parsedValue = double.tryParse(value);
-            if (parsedValue == null || parsedValue < 0) {
-              return 'Wprowadź prawidłową kwotę';
+            
+            // 🚀 ENHANCED: Walidacja dla znormalizowanych danych z lepszymi komunikatami
+            if (parsedValue == null) {
+              return 'Niepoprawny format liczbowy (użyj kropki jako separatora dziesiętnego)';
             }
+            
+            if (parsedValue < 0) {
+              return 'Wartość nie może być ujemna';
+            }
+            
+            // 🚀 ENHANCED: Maksymalna wartość zwiększona dla nowych danych importu
+            if (parsedValue > 100000000.0) { // 100 milionów PLN zamiast domyślnego limitu
+              return 'Wartość przekracza maksymalny limit (100 mln PLN)';
+            }
+            
+            // 🚀 ENHANCED: Sprawdź precyzję - maksymalnie 2 miejsca po przecinku dla wartości finansowych
+            final String valueString = parsedValue.toStringAsFixed(2);
+            final double roundedValue = double.parse(valueString);
+            if ((parsedValue - roundedValue).abs() > 0.001) {
+              return 'Wartość może mieć maksymalnie 2 miejsca po przecinku';
+            }
+            
             return null;
-          },
+          } : null,
         ),
       ],
     );
@@ -857,19 +1072,23 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
         final originalInvestment = _editableInvestments[i];
         final newRemainingCapital = double.parse(_remainingCapitalControllers[i].text);
         final newInvestmentAmount = double.parse(_investmentAmountControllers[i].text);
+        final newCapitalForRestructuring = double.parse(_capitalForRestructuringControllers[i].text);
+        final newCapitalSecuredByRealEstate = double.parse(_capitalSecuredByRealEstateControllers[i].text);
         final newStatus = _statusValues[i];
 
         // Sprawdź czy są zmiany
         if (newRemainingCapital != originalInvestment.remainingCapital ||
             newInvestmentAmount != originalInvestment.investmentAmount ||
+            newCapitalForRestructuring != originalInvestment.capitalForRestructuring ||
+            newCapitalSecuredByRealEstate != originalInvestment.capitalSecuredByRealEstate ||
             newStatus != originalInvestment.status) {
           
-          // Utwórz zaktualizowaną inwestycję
+          // 🚀 ENHANCED: Utwórz zaktualizowaną inwestycję z obsługą wszystkich pól znormalizowanego importu
           final updatedInvestment = Investment(
             id: originalInvestment.id,
             clientId: originalInvestment.clientId,
             clientName: originalInvestment.clientName,
-            productId: originalInvestment.productId,
+            productId: originalInvestment.productId, // 🚀 ENHANCED: Obsługa productId z znormalizowanego importu
             productName: originalInvestment.productName,
             productType: originalInvestment.productType,
             creditorCompany: originalInvestment.creditorCompany,
@@ -880,23 +1099,37 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
             employeeLastName: originalInvestment.employeeLastName,
             marketType: originalInvestment.marketType,
             proposalId: originalInvestment.proposalId,
+            
+            // 🚀 ENHANCED: Zaktualizowane wartości finansowe
             investmentAmount: newInvestmentAmount,
             paidAmount: originalInvestment.paidAmount,
             remainingCapital: newRemainingCapital,
             realizedCapital: originalInvestment.realizedCapital,
             realizedInterest: originalInvestment.realizedInterest,
+            remainingInterest: originalInvestment.remainingInterest, // 🚀 ENHANCED: Dodane pole
             realizedTax: originalInvestment.realizedTax,
+            plannedTax: originalInvestment.plannedTax, // 🚀 ENHANCED: Dodane pole
             transferToOtherProduct: originalInvestment.transferToOtherProduct,
-            capitalSecuredByRealEstate: originalInvestment.capitalSecuredByRealEstate,
-            capitalForRestructuring: originalInvestment.capitalForRestructuring,
+            
+            // 🚀 ENHANCED: Pola kapitałowe z znormalizowanego importu
+            capitalSecuredByRealEstate: newCapitalSecuredByRealEstate,
+            capitalForRestructuring: newCapitalForRestructuring,
+            
+            // Daty
             signedDate: originalInvestment.signedDate,
             issueDate: originalInvestment.issueDate,
             entryDate: originalInvestment.entryDate,
             exitDate: originalInvestment.exitDate,
             redemptionDate: originalInvestment.redemptionDate,
+            
+            // 🚀 ENHANCED: Metadane z obsługą więcej pól
             createdAt: originalInvestment.createdAt,
             updatedAt: DateTime.now(), // Zaktualizuj timestamp
             status: newStatus,
+            isAllocated: originalInvestment.isAllocated, // 🚀 ENHANCED: Dodane pole
+            currency: originalInvestment.currency, // 🚀 ENHANCED: Dodane pole
+            exchangeRate: originalInvestment.exchangeRate, // 🚀 ENHANCED: Dodane pole
+            sharesCount: originalInvestment.sharesCount, // 🚀 ENHANCED: Dodane pole
             additionalInfo: originalInvestment.additionalInfo,
           );
           
@@ -912,12 +1145,21 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
         return;
       }
 
-      // Zapisz zmiany przez InvestmentService
+      debugPrint('🔧 [InvestorEditDialog] Zapisuję ${updatedInvestments.length} zaktualizowanych inwestycji');
+      debugPrint('📊 [InvestorEditDialog] Produktu: ${widget.product.name} (ID: ${widget.product.id})');
+
+      // 🚀 ENHANCED: Zapisz zmiany przez InvestmentService z lepszą obsługą błędów
       final investmentService = InvestmentService();
       for (final updatedInvestment in updatedInvestments) {
         try {
-          debugPrint('🔧 [InvestorEditDialog] Attempting to update investment: ${updatedInvestment.id}');
-          debugPrint('📊 [InvestorEditDialog] Investment fields: remainingCapital=${updatedInvestment.remainingCapital}, investmentAmount=${updatedInvestment.investmentAmount}, status=${updatedInvestment.status.displayName}');
+          debugPrint('🔧 [InvestorEditDialog] Aktualizuję inwestycję: ${updatedInvestment.id}');
+          debugPrint('📊 [InvestorEditDialog] Pola finansowe:');
+          debugPrint('   - remainingCapital: ${updatedInvestment.remainingCapital}');
+          debugPrint('   - investmentAmount: ${updatedInvestment.investmentAmount}');  
+          debugPrint('   - capitalForRestructuring: ${updatedInvestment.capitalForRestructuring}');
+          debugPrint('   - capitalSecuredByRealEstate: ${updatedInvestment.capitalSecuredByRealEstate}');
+          debugPrint('   - status: ${updatedInvestment.status.displayName}');
+          debugPrint('🔍 [InvestorEditDialog] ProductId: ${updatedInvestment.productId}, LogicalId: ${updatedInvestment.id}');
           
           await investmentService.updateInvestment(
             updatedInvestment.id,
@@ -927,21 +1169,24 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
         } catch (updateError) {
           debugPrint('❌ [InvestorEditDialog] Błąd aktualizacji inwestycji ${updatedInvestment.id}: $updateError');
           
-          // Provide more specific error messages
-          String userFriendlyError = 'Błąd podczas aktualizacji inwestycji ${updatedInvestment.id.length > 8 ? updatedInvestment.id.substring(0, 8) + '...' : updatedInvestment.id}';
+          // 🚀 ENHANCED: Lepsze komunikaty błędów dla znormalizowanych danych
+          String userFriendlyError = 'Błąd podczas aktualizacji inwestycji ${updatedInvestment.id.length > 12 ? updatedInvestment.id.substring(0, 12) + '...' : updatedInvestment.id}';
+          
           if (updateError.toString().contains('400')) {
-            userFriendlyError += ' (Błąd walidacji danych)';
+            userFriendlyError += ' (Błąd walidacji danych - sprawdź format pól)';
           } else if (updateError.toString().contains('permission')) {
-            userFriendlyError += ' (Brak uprawnień)';
+            userFriendlyError += ' (Brak uprawnień do edycji)';
           } else if (updateError.toString().contains('network')) {
-            userFriendlyError += ' (Problemy z połączeniem)';
+            userFriendlyError += ' (Problemy z połączeniem internetowym)';
           } else if (updateError.toString().contains('not-found')) {
-            userFriendlyError = 'Inwestycja ${updatedInvestment.id.length > 8 ? updatedInvestment.id.substring(0, 8) + '...' : updatedInvestment.id} została automatycznie utworzona w bazie';
-            debugPrint('🔧 [InvestorEditDialog] Auto-recovery should have handled this case');
+            userFriendlyError = 'Inwestycja ${updatedInvestment.id} nie została znaleziona - może zostać automatycznie utworzona';
+            debugPrint('🔧 [InvestorEditDialog] Investment not found, auto-recovery should handle this');
           } else if (updateError.toString().contains('Successfully created missing document')) {
             // This is actually a success after auto-recovery
             debugPrint('✅ [InvestorEditDialog] Auto-recovery successful for ${updatedInvestment.id}');
             continue; // Don't treat as error, continue with next investment
+          } else if (updateError.toString().contains('undefined')) {
+            userFriendlyError += ' (Błąd undefined values - sprawdź Firebase Functions)';
           }
           
           throw Exception(userFriendlyError);
@@ -969,22 +1214,59 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
         }
         
         if (oldInvestments.isNotEmpty) {
-          await historyService.recordBulkChanges(
-            oldInvestments: oldInvestments,
-            newInvestments: newInvestments,
-            customDescription: 'Edycja inwestycji przez InvestorEditDialog - ${widget.product.name}',
-            metadata: {
-              'source': 'investor_edit_dialog',
+          debugPrint('📝 [InvestorEditDialog] Zapisuję historię zmian dla ${oldInvestments.length} inwestycji');
+          debugPrint('🔍 [InvestorEditDialog] Metadane: productId=${widget.product.id}, clientId=${widget.investor.client.id}');
+          
+          try {
+            await historyService.recordBulkChanges(
+              oldInvestments: oldInvestments,
+              newInvestments: newInvestments,
+              customDescription: '🚀 ENHANCED: Edycja inwestycji przez InvestorEditDialog - ${widget.product.name} (znormalizowane dane JSON)',
+              metadata: {
+                'source': 'investor_edit_dialog',
+                'productId': widget.product.id,
+                'productName': widget.product.name,
+                'clientId': widget.investor.client.id,
+                'clientName': widget.investor.client.name,
+                'investmentsCount': updatedInvestments.length,
+                'platform': 'web',
+                'userAgent': 'flutter_web',
+                'dataStructure': 'normalized_json_import', // 🚀 ENHANCED: Tag for data source tracking
+                'enhancedValidation': true, // 🚀 ENHANCED: Flag for enhanced validation
+                'maxAmount': 100000000.0, // 🚀 ENHANCED: Record validation limits
+                'precisionDecimals': 2, // 🚀 ENHANCED: Record precision requirements
+                'timestamp': DateTime.now().toIso8601String(),
+              },
+            );
+            debugPrint('✅ [InvestorEditDialog] Historia zmian zapisana pomyślnie (enhanced)');
+          } catch (historyError) {
+            debugPrint('⚠️ [InvestorEditDialog] Błąd zapisu historii (nieblokujący): $historyError');
+            // Historia jest opcjonalna - nie blokujemy zapisu głównych danych
+          }
+          
+          // 🚀 ENHANCED: Debug export funkcji dla troubleshootingu
+          try {
+            final debugData = {
+              'timestamp': DateTime.now().toIso8601String(),
               'productId': widget.product.id,
               'productName': widget.product.name,
               'clientId': widget.investor.client.id,
-              'clientName': widget.investor.client.name,
-              'investmentsCount': updatedInvestments.length,
-              'platform': 'web',
-              'userAgent': 'flutter_web',
-            },
-          );
-          debugPrint('✅ [InvestorEditDialog] Historia zmian zapisana pomyślnie');
+              'changedInvestments': updatedInvestments.map((inv) => {
+                'id': inv.id,
+                'productId': inv.productId,
+                'remainingCapital': inv.remainingCapital,
+                'investmentAmount': inv.investmentAmount,
+                'capitalForRestructuring': inv.capitalForRestructuring,
+                'capitalSecuredByRealEstate': inv.capitalSecuredByRealEstate,
+                'status': inv.status.displayName,
+                'updatedAt': inv.updatedAt?.toIso8601String(),
+              }).toList(),
+              'dataStructure': 'normalized_json_import',
+            };
+            debugPrint('📊 [InvestorEditDialog] Debug export data: ${debugData.toString().substring(0, (debugData.toString().length).clamp(0, 500))}${debugData.toString().length > 500 ? '...' : ''}');
+          } catch (debugError) {
+            debugPrint('⚠️ [InvestorEditDialog] Debug export failed: $debugError');
+          }
         }
       } catch (historyError) {
         debugPrint('⚠️ [InvestorEditDialog] Błąd zapisu historii (nie blokuje operacji): $historyError');
@@ -997,9 +1279,31 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
         widget.onSaved();
       }
       
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ [InvestorEditDialog] Błąd podczas zapisywania zmian: $e');
+      debugPrint('🔍 [InvestorEditDialog] Stack trace: $stackTrace');
+      
+      // 🚀 ENHANCED: Bardziej szczegółowe komunikaty błędów dla użytkownika
+      String userMessage = 'Błąd podczas zapisywania zmian';
+      
+      if (e.toString().contains('network') || e.toString().contains('timeout')) {
+        userMessage = 'Błąd połączenia z serwerem. Sprawdź połączenie internetowe i spróbuj ponownie.';
+      } else if (e.toString().contains('permission') || e.toString().contains('forbidden')) {
+        userMessage = 'Brak uprawnień do edycji inwestycji. Skontaktuj się z administratorem.';
+      } else if (e.toString().contains('validation') || e.toString().contains('format')) {
+        userMessage = 'Błąd walidacji danych. Sprawdź czy wszystkie pola mają poprawny format.';
+      } else if (e.toString().contains('not-found')) {
+        userMessage = 'Niektóre inwestycje nie zostały znalezione. Dane mogły zostać automatycznie odtworzone.';
+      } else if (e.toString().contains('Firebase Functions')) {
+        userMessage = 'Błąd Firebase Functions. Spróbuj ponownie za chwilę lub skontaktuj się z administratorem.';
+      } else if (e.toString().contains('undefined')) {
+        userMessage = 'Błąd przetwarzania danych na serwerze (undefined values). Skontaktuj się z administratorem.';
+      } else {
+        userMessage = 'Nieoczekiwany błąd podczas zapisywania. Spróbuj ponownie lub skontaktuj się z administratorem.';
+      }
+      
       setState(() {
-        _error = 'Błąd podczas zapisywania zmian: $e';
+        _error = userMessage + '\n\nSzczegóły techniczne: ${e.toString().substring(0, (e.toString().length).clamp(0, 200))}${e.toString().length > 200 ? '...' : ''}';
         _isLoading = false;
       });
     }

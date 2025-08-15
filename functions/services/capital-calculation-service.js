@@ -1,6 +1,6 @@
 /**
  * Capital Calculation Service
- * Serwis do obliczania i zapisywania "Kapitał zabezpieczony nieruchomością" w bazie danych
+ * Service for calculating and saving "Capital secured by real estate" in database
  */
 
 const { onCall } = require("firebase-functions/v2/https");
@@ -10,10 +10,10 @@ const { safeToDouble } = require("../utils/data-mapping");
 const { getUnifiedField } = require("../utils/unified-statistics");
 
 /**
- * Aktualizuje pole "Kapitał zabezpieczony nieruchomością" dla wszystkich inwestycji
- * Oblicza: Kapitał Pozostały - Kapitał do restrukturyzacji = Kapitał zabezpieczony nieruchomością
+ * Updates "Capital secured by real estate" field for all investments
+ * Calculates: Remaining Capital - Capital for restructuring = Capital secured by real estate
  */
-// DEPRECATED: pozostawione jako stub – nie wykonuje już przeliczeń
+// DEPRECATED: left as stub – no longer performs calculations
 const updateCapitalSecuredByRealEstate = onCall({
   memory: "2GiB",
   timeoutSeconds: 540,
@@ -21,7 +21,7 @@ const updateCapitalSecuredByRealEstate = onCall({
 }, async (request) => {
   const data = request.data || {};
   const startTime = Date.now();
-  console.log("🚫 [CapitalCalculation] Funkcja zdezaktywowana – brak aktualizacji kapitału zabezpieczonego.");
+  console.log("🚫 [CapitalCalculation] Function deactivated – no capital secured updates.");
 
   try {
     return {
@@ -29,26 +29,26 @@ const updateCapitalSecuredByRealEstate = onCall({
       updated: 0,
       errors: 0,
       deprecated: true,
-      message: 'Obliczenia kapitału zabezpieczonego zostały wyłączone na backendzie',
+      message: 'Secured capital calculations have been disabled on backend',
       executionTimeMs: Date.now() - startTime,
       timestamp: new Date().toISOString()
     };
 
   } catch (error) {
-    console.error("❌ [CapitalCalculation] Błąd:", error);
+    console.error("❌ [CapitalCalculation] Error:", error);
     throw new HttpsError(
       "internal",
-      "Nie udało się zaktualizować kapitału zabezpieczonego nieruchomością",
+      "Failed to update capital secured by real estate",
       error.message
     );
   }
 });
 
 /**
- * Przetwarza pojedynczą inwestycję - oblicza i zapisuje kapitał zabezpieczony nieruchomością
- * @param {Object} investment - dokument inwestycji
- * @param {boolean} dryRun - czy tylko symulować bez zapisu do bazy
- * @returns {Object} - wynik przetwarzania
+ * Processes single investment - calculates and saves capital secured by real estate
+ * @param {Object} investment - investment document
+ * @param {boolean} dryRun - whether to only simulate without saving to database
+ * @returns {Object} - processing result
  */
 // processInvestment usunięte – logika nieaktywna
 

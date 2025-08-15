@@ -248,11 +248,35 @@ class InvestmentService extends BaseService {
       
       debugPrint('🧹 [InvestmentService] Cleaned data has ${cleanedData.length} fields (removed ${data.length - cleanedData.length} null/invalid values)');
       
-      await firestore
+      // 🎯 ZNAJDŹ DOKUMENT PO LOGICZNYM ID
+      final querySnapshot = await firestore
           .collection(_collection)
-          .doc(id)
-          .update(cleanedData);
-      debugPrint('✅ [InvestmentService] Successfully updated investment: $id');
+          .where('id', isEqualTo: id)
+          .limit(1)
+          .get();
+          
+      String? documentId;
+      if (querySnapshot.docs.isNotEmpty) {
+        documentId = querySnapshot.docs.first.id; // UUID dokumentu
+        debugPrint('✅ [InvestmentService] Found document with UUID: $documentId for logical ID: $id');
+      } else {
+        // Fallback: może id to już jest UUID
+        final doc = await firestore.collection(_collection).doc(id).get();
+        if (doc.exists) {
+          documentId = id;
+          debugPrint('✅ [InvestmentService] Using provided ID as UUID: $id');
+        }
+      }
+      
+      if (documentId != null) {
+        await firestore
+            .collection(_collection)
+            .doc(documentId)
+            .update(cleanedData);
+        debugPrint('✅ [InvestmentService] Successfully updated investment: $id (UUID: $documentId)');
+      } else {
+        throw Exception('Document not found for ID: $id');
+      }
     } catch (e) {
       debugPrint('❌ [InvestmentService] Update failed for investment $id: $e');
       
@@ -260,11 +284,12 @@ class InvestmentService extends BaseService {
       if (e.toString().contains('not-found') || e.toString().contains('No document to update')) {
         debugPrint('🔧 [InvestmentService] Document not found, attempting to create: $id');
         try {
+          // Generate a new UUID for the document, but keep the logical ID in the 'id' field
           await firestore
               .collection(_collection)
-              .doc(id)
+              .doc() // Firestore will generate UUID
               .set(investment.toFirestore());
-          debugPrint('✅ [InvestmentService] Successfully created missing document: $id');
+          debugPrint('✅ [InvestmentService] Successfully created missing document with logical ID: $id');
           return; // Exit successfully after creating
         } catch (createError) {
           debugPrint('❌ [InvestmentService] Failed to create missing document $id: $createError');
@@ -283,7 +308,32 @@ class InvestmentService extends BaseService {
   // Delete investment
   Future<void> deleteInvestment(String id) async {
     try {
-      await firestore.collection(_collection).doc(id).delete();
+      // 🎯 ZNAJDŹ DOKUMENT PO LOGICZNYM ID
+      final querySnapshot = await firestore
+          .collection(_collection)
+          .where('id', isEqualTo: id)
+          .limit(1)
+          .get();
+          
+      String? documentId;
+      if (querySnapshot.docs.isNotEmpty) {
+        documentId = querySnapshot.docs.first.id; // UUID dokumentu
+        debugPrint('✅ [InvestmentService] Found document to delete with UUID: $documentId for logical ID: $id');
+      } else {
+        // Fallback: może id to już jest UUID
+        final doc = await firestore.collection(_collection).doc(id).get();
+        if (doc.exists) {
+          documentId = id;
+          debugPrint('✅ [InvestmentService] Using provided ID as UUID for deletion: $id');
+        }
+      }
+      
+      if (documentId != null) {
+        await firestore.collection(_collection).doc(documentId).delete();
+        debugPrint('✅ [InvestmentService] Successfully deleted investment: $id (UUID: $documentId)');
+      } else {
+        throw Exception('Document not found for deletion: $id');
+      }
     } catch (e) {
       throw Exception('Błąd podczas usuwania inwestycji: $e');
     }
@@ -292,11 +342,25 @@ class InvestmentService extends BaseService {
   // Get single investment by ID - ZAKTUALIZOWANE dla danych z Excel
   Future<Investment?> getInvestment(String id) async {
     try {
+      // Najpierw spróbuj znaleźć po logicznym ID w polu 'id' dokumentu
+      final querySnapshot = await firestore
+          .collection(_collection)
+          .where('id', isEqualTo: id)
+          .limit(1)
+          .get();
+          
+      if (querySnapshot.docs.isNotEmpty) {
+        final doc = querySnapshot.docs.first;
+        return _convertExcelDataToInvestment(doc.id, doc.data());
+      }
+      
+      // Fallback: spróbuj po UUID dokumentu (dla kompatybilności wstecznej)
       final doc = await firestore.collection(_collection).doc(id).get();
       if (doc.exists) {
         final data = doc.data()!;
         return _convertExcelDataToInvestment(doc.id, data);
       }
+      
       return null;
     } catch (e) {
       throw Exception('Błąd podczas pobierania inwestycji: $e');

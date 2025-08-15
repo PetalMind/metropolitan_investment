@@ -1,10 +1,10 @@
 /**
  * Data Mapping Utilities
- * Funkcje pomocnicze do mapowania i konwersji danych
+ * Helper functions for data mapping and conversion
  */
 
 /**
- * Bezpieczna konwersja na double
+ * Safe conversion to double
  */
 function safeToDouble(value) {
   // Handle null, undefined, empty string
@@ -12,7 +12,7 @@ function safeToDouble(value) {
 
   // Handle "NULL" string literal
   if (typeof value === "string" && (value.toUpperCase() === "NULL" || value.trim() === "")) {
-    console.log(`❌ [Analytics] Nie można sparsować: "${value}" -> "${value}"`);
+    console.log(`❌ [Analytics] Cannot parse: "${value}" -> "${value}"`);
     return 0.0;
   }
 
@@ -28,23 +28,23 @@ function safeToDouble(value) {
 
     // Empty string after trim
     if (trimmed === "") {
-      console.log(`❌ [Analytics] Nie można sparsować: "${value}" -> "${value}"`);
+      console.log(`❌ [Analytics] Cannot parse: "${value}" -> "${value}"`);
       return 0.0;
     }
 
     // Handle comma-separated numbers (European format)
-    console.log(`🔍 [Analytics] Parsowanie wartości z przecinkiem: "${trimmed}"`);
+    console.log(`🔍 [Analytics] Parsing value with comma: "${trimmed}"`);
 
-    // Obsługuj polskie separatory dziesiętne i tysiące
+    // Handle Polish decimal and thousand separators
     let cleaned = trimmed
-      .replace(/\s/g, "") // usuń spacje
-      .replace(/,/g, ".") // zamień przecinki na kropki
-      .replace(/[^\d.-]/g, ""); // usuń wszystko oprócz cyfr, kropek i minusów
+      .replace(/\s/g, "") // remove spaces
+      .replace(/,/g, ".") // replace commas with dots
+      .replace(/[^\d.-]/g, ""); // remove everything except digits, dots and minus
 
     const parsed = parseFloat(cleaned);
 
     if (isNaN(parsed) || !isFinite(parsed)) {
-      console.log(`❌ [Analytics] Nie można sparsować: "${value}" -> "${value}"`);
+      console.log(`❌ [Analytics] Cannot parse: "${value}" -> "${value}"`);
       return 0.0;
     }
 
@@ -52,12 +52,12 @@ function safeToDouble(value) {
   }
 
   // Fallback for other types
-  console.log(`❌ [Analytics] Niepodporowany typ dla: "${value}"`);
+  console.log(`❌ [Analytics] Unsupported type for: "${value}"`);
   return 0.0;
 }
 
 /**
- * Bezpieczna konwersja na int
+ * Safe conversion to int
  */
 function safeToInt(value) {
   if (value === null || value === undefined || value === "") return 0;
@@ -71,7 +71,7 @@ function safeToInt(value) {
 }
 
 /**
- * Bezpieczna konwersja na string
+ * Safe conversion to string
  */
 function safeToString(value) {
   if (value === null || value === undefined) return "";
@@ -79,7 +79,7 @@ function safeToString(value) {
 }
 
 /**
- * Bezpieczna konwersja na boolean
+ * Safe conversion to boolean
  */
 function safeToBoolean(value) {
   if (typeof value === "boolean") return value;
@@ -91,52 +91,67 @@ function safeToBoolean(value) {
 }
 
 /**
- * Parsuje datę z różnych formatów
+ * Parses date from various formats
  */
 function parseDate(value) {
   if (!value) return null;
 
   try {
-    // Jeśli to już timestamp Firestore
+    // If it's already a Firestore timestamp
     if (value && typeof value.toDate === "function") {
       return value.toDate().toISOString();
     }
 
-    // Jeśli to string daty
+    // If it's a date string
     if (typeof value === "string") {
       const date = new Date(value);
       return isNaN(date.getTime()) ? null : date.toISOString();
     }
 
-    // Jeśli to Date object
+    // If it's a Date object
     if (value instanceof Date) {
       return isNaN(value.getTime()) ? null : value.toISOString();
     }
 
     return null;
   } catch (error) {
-    console.warn("Błąd parsowania daty:", value, error);
+    console.warn("Date parsing error:", value, error);
     return null;
   }
 }
 
 /**
- * Mapuje typ produktu z danych do standardowego formatu
+ * Maps product type from data to standard format
+ * UPDATED: Handle normalized data from JSON import
  */
 function mapProductType(productType) {
   if (!productType) return 'other';
 
-  const type = productType.toLowerCase();
+  const type = productType.toString().toLowerCase().trim();
 
+  // Handle normalized types from JSON
+  if (type === 'apartamenty' || type.includes('apartament')) {
+    return 'apartments';
+  }
+  if (type === 'obligacje' || type.includes('obligacj')) {
+    return 'bonds';
+  }
+  if (type === 'udziały' || type.includes('udział')) {
+    return 'shares';
+  }
+  if (type === 'pożyczki' || type.includes('pożyczk')) {
+    return 'loans';
+  }
+
+  // Handle English names
   switch (type) {
     case 'apartment':
+    case 'apartments':
     case 'mieszkanie':
-    case 'apartament':
       return 'apartments';
     case 'bond':
     case 'bonds':
     case 'obligacja':
-    case 'obligacje':
       return 'bonds';
     case 'share':
     case 'shares':
@@ -149,22 +164,39 @@ function mapProductType(productType) {
     case 'pozyczki':
       return 'loans';
     default:
+      console.log(`⚠️ [mapProductType] Unknown product type: "${productType}" -> fallback: 'other'`);
       return 'other';
   }
 }
 
 /**
- * Mapuje status produktu do standardowego formatu
+ * Maps product status to standard format
+ * UPDATED: Handle normalized statuses from JSON import
  */
 function mapProductStatus(status) {
   if (!status) return 'active';
 
-  const statusLower = status.toLowerCase();
+  const statusLower = status.toString().toLowerCase().trim();
 
-  if (statusLower.includes('aktywn') || statusLower.includes('dostępn')) {
+  // Handle Polish statuses from JSON
+  if (statusLower === 'aktywny' || statusLower.includes('aktywn')) {
     return 'active';
   }
-  if (statusLower.includes('nieaktywn') || statusLower.includes('niedostępn')) {
+  if (statusLower === 'nieaktywny' || statusLower.includes('nieaktywn')) {
+    return 'inactive';
+  }
+  if (statusLower === 'zakończony' || statusLower.includes('zakończ')) {
+    return 'completed';
+  }
+  if (statusLower === 'wykup wczesniejszy' || statusLower.includes('wykup')) {
+    return 'earlyRedemption';
+  }
+
+  // Handle English statuses
+  if (statusLower.includes('dostępn') || statusLower === 'available') {
+    return 'active';
+  }
+  if (statusLower.includes('niedostępn') || statusLower === 'unavailable') {
     return 'inactive';
   }
   if (statusLower.includes('oczeku') || statusLower.includes('pending')) {
@@ -174,7 +206,8 @@ function mapProductStatus(status) {
     return 'suspended';
   }
 
-  return 'active'; // domyślnie aktywny
+  console.log(`⚠️ [mapProductStatus] Unknown status: "${status}" -> fallback: 'active'`);
+  return 'active'; // default to active
 }
 
 module.exports = {

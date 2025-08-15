@@ -225,7 +225,7 @@ class Investment {
     }
 
     return Investment(
-      id: doc.id,
+      id: data['id']?.toString() ?? doc.id, // Użyj logicznego ID z pola 'id', fallback do UUID
       // ⭐ NOWE MAPOWANIE PÓL FIREBASE - znormalizowane nazwy mają priorytet
       clientId:
           data['clientId']?.toString() ??
@@ -383,7 +383,9 @@ class Investment {
 
   Map<String, dynamic> toFirestore() {
     return {
-      // ⭐ ZNORMALIZOWANE NAZWY (priorytet) - zgodne z nowym schematem
+      // ⭐ LOGICAL ID - saved in document (not UUID)
+      'id': id, // Logical ID like bond_0194, loan_0005
+      // ⭐ NORMALIZED NAMES (priority) - according to new schema
       'clientId': clientId,
       'clientName': clientName,
       'branch': branchCode,
@@ -394,121 +396,51 @@ class Investment {
       'saleId': proposalId,
       'productType': productType.displayName,
       'productName': productName,
-      'productId': productId, // Dodane nowe pole
+      'productId': productId, // Added new field
       'companyId': companyId,
       'shareCount': sharesCount, // Numeric value instead of string
       'investmentAmount': investmentAmount, // Numeric value
       'paidAmount': paidAmount, // Numeric value
       'realizedCapital': realizedCapital, // Numeric value
+      'realizedInterest': realizedInterest, // Numeric value
       'transferToOtherProduct': transferToOtherProduct, // Numeric value
       'remainingCapital': remainingCapital, // Numeric value
-      // 🔥 DODAJ POLA KAPITAŁÓW Z GŁÓWNEGO POZIOMU
+      'remainingInterest': remainingInterest, // Numeric value
+      'plannedTax': plannedTax, // Numeric value
+      'realizedTax': realizedTax, // Numeric value
+      // 🔥 ADD CAPITAL FIELDS FROM MAIN LEVEL
       'capitalSecuredByRealEstate': capitalSecuredByRealEstate,
       'capitalForRestructuring': capitalForRestructuring,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'uploadedAt': updatedAt.toIso8601String(),
       'sourceFile': additionalInfo['sourceFile'] ?? 'manual_entry',
+      'employeeId': employeeId,
+      'employeeFirstName': employeeFirstName,
+      'employeeLastName': employeeLastName,
+      'creditorCompany': creditorCompany,
+      'issueDate': issueDate?.toIso8601String(),
+      'redemptionDate': redemptionDate?.toIso8601String(),
+      'currency': currency,
+      'exchangeRate': exchangeRate,
+      'isAllocated': isAllocated,
+      'investmentExitDate': exitDate?.toIso8601String(),
 
-      // Zachowaj stare nazwy dla kompatybilności wstecznej (duże litery)
-      'ID_Klient': clientId,
-      'Klient': clientName,
-      'Oddzial': branchCode,
-      'Status_produktu': status.displayName,
-      'Produkt_status_wejscie': marketType.displayName,
-      'Data_podpisania': signedDate.toIso8601String(),
-      'Data_wejscia_do_inwestycji': entryDate?.toIso8601String(),
-      'ID_Sprzedaz': proposalId,
-      'Typ_produktu': productType.displayName,
-      'Produkt_nazwa': productName,
-      'ID_Spolka': companyId,
-      'Ilosc_Udzialow': sharesCount, // Numeric value
-      'Kwota_inwestycji': investmentAmount, // Numeric value
-      'Kwota_wplat': paidAmount, // Numeric value  
-      'Kapital zrealizowany': realizedCapital, // Numeric value
-      'Przekaz na inny produkt': transferToOtherProduct, // Numeric value
-      'Kapital Pozostaly': remainingCapital, // Numeric value
-
-      // Zachowaj stare nazwy dla kompatybilności wstecznej (małe litery)
-      'id_klient': clientId, // Keep as string to avoid parsing issues
-      'klient': clientName,
-      'pracownik_imie': employeeFirstName,
-      'pracownik_nazwisko': employeeLastName,
-      'oddzial': branchCode,
-      'status_produktu': status.displayName,
-      'status': status.displayName,
-      'przydzial': isAllocated ? 1 : 0,
-      'produkt_status_wejscie': marketType.displayName,
-      'data_podpisania': signedDate.toIso8601String(),
-      'data_wejscia_do_inwestycji': entryDate?.toIso8601String(),
-      'data_wyjscia_z_inwestycji': exitDate?.toIso8601String(),
-      'id_propozycja_nabycia': proposalId, // Keep as string 
-      'id_sprzedaz': proposalId, // Keep as string
-      'typ_produktu': productType.displayName,
-      'produkt_nazwa': productName,
-      'wierzyciel_spolka': creditorCompany,
-      'id_spolka': companyId,
-      'data_emisji': issueDate?.toIso8601String(),
-      'data_wykupu': redemptionDate?.toIso8601String(),
-      'ilosc_udzialow': sharesCount, // Numeric value
-      'kwota_inwestycji': investmentAmount, // Numeric value
-      'kwota_wplat': paidAmount, // Numeric value
-      'kapital_zrealizowany': realizedCapital, // Numeric value
-      'odsetki_zrealizowane': realizedInterest, // Numeric value
-      'przekaz_na_inny_produkt': transferToOtherProduct, // Numeric value
-      'kapital_pozostaly': remainingCapital, // Numeric value
-      'odsetki_pozostale': remainingInterest, // Numeric value
-      'podatek_pozostaly': plannedTax, // Numeric value
-      'podatek_zrealizowany': realizedTax, // Numeric value
-      'planowany_podatek': plannedTax, // Numeric value
-      'zrealizowany_podatek': realizedTax, // Numeric value
-      'created_at': createdAt.toIso8601String(),
-      'uploaded_at': updatedAt.toIso8601String(),
-      'source_file':
-          additionalInfo['sourceFile'] ??
-          additionalInfo['source_file'] ??
-          'manual_entry',
-
-      // Additional info z znormalizowanymi nazwami
+      // Additional info with normalized names
       'misaGuardian': additionalInfo['misaGuardian'],
-      'opiekun_z_misa':
-          additionalInfo['misaGuardian'] ?? additionalInfo['Opiekun z MISA'],
       'bondName': additionalInfo['bondName'],
-      'nazwa_obligacji':
-          additionalInfo['bondName'] ?? additionalInfo['nazwa_obligacji'],
       'interestRate': additionalInfo['interestRate'],
-      'oprocentowanie':
-          additionalInfo['interestRate'] ?? additionalInfo['oprocentowanie'],
       'issuer': additionalInfo['issuer'],
-      'emitent': additionalInfo['issuer'] ?? additionalInfo['emitent'],
       'loanNumber': additionalInfo['loanNumber'],
-      'pozyczka_numer':
-          additionalInfo['loanNumber'] ?? additionalInfo['pozyczka_numer'],
       'borrower': additionalInfo['borrower'],
-      'pozyczkobiorca':
-          additionalInfo['borrower'] ?? additionalInfo['pozyczkobiorca'],
       'collateral': additionalInfo['collateral'],
-      'zabezpieczenie':
-          additionalInfo['collateral'] ?? additionalInfo['zabezpieczenie'],
       'realEstateSecuredCapital': capitalSecuredByRealEstate, // Numeric value
-      'Kapitał zabezpieczony nieruchomością': capitalSecuredByRealEstate, // Numeric value
-      'kapital_do_restrukturyzacji': capitalForRestructuring, // Numeric value
       'repaymentDate': additionalInfo['repaymentDate'],
-      'data_splaty':
-          additionalInfo['repaymentDate'] ?? additionalInfo['data_splaty'],
       'disbursementDate': additionalInfo['disbursementDate'],
-      'data_udzielenia':
-          additionalInfo['disbursementDate'] ??
-          additionalInfo['data_udzielenia'],
       'accruedInterest': additionalInfo['accruedInterest'],
-      'odsetki_naliczone':
-          additionalInfo['accruedInterest'] ??
-          additionalInfo['odsetki_naliczone'],
 
-      // Dodatkowe pola z nowej struktury
-      'investment_type': productType.name.toLowerCase(),
-      'realizedInterest': realizedInterest,
-      'remainingInterest': remainingInterest,
+      // Additional fields from new structure
+      'investmentType': productType.name.toLowerCase(),
     };
   }
 
