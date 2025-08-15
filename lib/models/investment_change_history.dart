@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/currency_formatter.dart';
 
 /// Model dla historii zmian inwestycji
 class InvestmentChangeHistory {
@@ -137,6 +138,7 @@ class InvestmentChangeHistory {
       'marketType': 'Typ rynku',
       'productName': 'Nazwa produktu',
       'clientName': 'Nazwa klienta',
+      'totalProductAmount': 'Całkowita kwota produktu',
     };
 
     return fieldNames[fieldName] ?? fieldName;
@@ -194,7 +196,7 @@ class FieldChange {
     switch (dataType) {
       case 'currency':
         if (value is num) {
-          return '${value.toStringAsFixed(2)} PLN';
+          return CurrencyFormatter.formatCurrency(value.toDouble());
         }
         return value.toString();
       case 'date':

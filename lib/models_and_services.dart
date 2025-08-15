@@ -14,6 +14,7 @@ export 'models/investor_summary.dart'; // 🚀 NOWE: InvestorSummary.withoutCalc
 export 'models/excel_import_models.dart';
 export 'models/voting_status_change.dart';
 export 'models/investment_change_history.dart'; // 🚀 NOWE: Historia zmian inwestycji
+export 'models/investor_edit_models.dart'; // 🚀 NOWE: Modele dla edycji inwestora
 
 // Analytics models exports
 export 'models/analytics/overview_analytics_models.dart';
@@ -79,6 +80,7 @@ export 'services/server_side_statistics_service.dart'; // 🚀 SERWIS SERWEROWY 
 export 'services/unified_dashboard_statistics_service.dart'; // 🚀 NOWE: Zunifikowane statystyki dashboard
 export 'services/debug_firestore_service.dart';
 export 'services/investment_change_history_service.dart'; // 🚀 NOWE: Historia zmian inwestycji
+export 'services/investor_edit_service.dart'; // 🚀 NOWE: Serwis logiki biznesowej dla edycji inwestora
 
 // Voting status change model
 // VotingStatusChange is exported via models/voting_status_change.dart above
@@ -119,9 +121,14 @@ export 'widgets/client_stats_demo.dart';
 export 'widgets/client_stats_debug_widget.dart';
 
 // Dialog widgets
-export 'widgets/dialogs/investor_edit_dialog.dart'; // ⭐ NOWE: Dialog edycji inwestora
+export 'widgets/dialogs/investor_edit_dialog.dart'; // ⭐ NOWE: Dialog edycji inwestora (refaktoryzowany)
 export 'widgets/dialogs/investor_email_dialog.dart'; // ⭐ NOWE: Dialog wysyłania maili
 export 'widgets/dialogs/investor_export_dialog.dart'; // ⭐ NOWE: Dialog eksportu danych
+
+// Investor Edit Components - UI Components for editing investors
+export 'widgets/investor_edit/currency_controls.dart'; // 🚀 NOWE: Kontrolki walutowe
+export 'widgets/investor_edit/investments_summary.dart'; // 🚀 NOWE: Podsumowanie inwestycji
+export 'widgets/investor_edit/investment_edit_card.dart'; // 🚀 NOWE: Karta edycji inwestycji
 
 // Investor Analytics Widgets - Professional Financial Views
 export 'widgets/investor_analytics/investor_views_container.dart';
@@ -138,6 +145,7 @@ export 'theme/app_theme.dart';
 
 // Utils exports
 export 'utils/currency_formatter.dart';
+export 'utils/currency_input_formatter.dart'; // 🚀 NOWE: Formatter dla pól walutowych
 export 'utils/voting_analysis_manager.dart';
 export 'utils/investor_sort_filter_manager.dart';
 export 'utils/pagination_manager.dart';
