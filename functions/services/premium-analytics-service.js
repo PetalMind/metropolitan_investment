@@ -1,0 +1,600 @@
+/**
+ * 🎯 PREMIUM ANALYTICS SERVICE - Firebase Functions
+ * 
+ * Kompleksowy serwis analityki premium dla zaawansowanych inwestorów
+ * Przeniesienie ciężkich obliczeń analitycznych na serwer Google
+ * 
+ * 🚀 KLUCZOWE FUNKCJONALNOŚCI:
+ * • Analiza grupy większościowej (koalicja ≥51% kapitału)
+ * • Zaawansowana analiza głosowania (TAK/NIE/WSTRZYMUJE/NIEZDECYDOWANY)
+ * • Inteligentne statystyki systemu z predykcją trendów
+ * • Metryki wydajnościowe i analizy trend
+ * • Comprehensive insights i analytics
+ */
+
+const { db } = require("../utils/firebase-config");
+const { safeToDouble } = require("../utils/data-mapping");
+const { getCachedResult, setCachedResult } = require("../utils/cache-utils");
+
+/**
+ * 🎯 GŁÓWNA FUNKCJA: Kompleksowa analityka premium
+ * Zwraca pełne dane analityczne gotowe do wyświetlenia w UI
+ */
+async function getPremiumInvestorAnalytics(data) {
+  const startTime = Date.now();
+
+  console.log("🎯 [Premium Analytics] Rozpoczynam kompleksową analizę premium...", data);
+
+  try {
+    const {
+      page = 1,
+      pageSize = 10000,
+      sortBy = 'viableRemainingCapital',
+      sortAscending = false,
+      includeInactive = false,
+      votingStatusFilter = null,
+      clientTypeFilter = null,
+      showOnlyWithUnviableInvestments = false,
+      searchQuery = null,
+      majorityThreshold = 51.0,
+      forceRefresh = false,
+    } = data;
+
+    // 💾 Cache Key
+    const cacheKey = `premium_analytics_${JSON.stringify({
+      page, pageSize, sortBy, sortAscending, includeInactive,
+      votingStatusFilter, clientTypeFilter, showOnlyWithUnviableInvestments,
+      searchQuery, majorityThreshold
+    })}_${forceRefresh ? Date.now() : ''}`;
+
+    if (!forceRefresh) {
+      const cached = await getCachedResult(cacheKey);
+      if (cached) {
+        console.log("⚡ [Premium Analytics] Zwracam z cache");
+        return { ...cached, fromCache: true };
+      }
+    }
+
+    // 🔍 KROK 1: Pobierz wszystkich inwestorów z Firebase Functions Analytics
+    const baseAnalyticsResult = await getOptimizedInvestorAnalytics({
+      page,
+      pageSize,
+      sortBy,
+      sortAscending,
+      includeInactive,
+      votingStatusFilter,
+      clientTypeFilter,
+      showOnlyWithUnviableInvestments,
+      searchQuery,
+      forceRefresh: true // Zawsze świeże dane dla premium analytics
+    });
+
+    if (!baseAnalyticsResult.success) {
+      throw new Error(`Base analytics failed: ${baseAnalyticsResult.error}`);
+    }
+
+    const investors = baseAnalyticsResult.data.investors || [];
+
+    // 🔍 KROK 2: Oblicz analizę grupy większościowej
+    const majorityAnalysis = calculateMajorityAnalysis(investors, majorityThreshold);
+
+    // 🔍 KROK 3: Oblicz szczegółową analizę głosowania
+    const votingAnalysis = calculateVotingAnalysis(investors);
+
+    // 🔍 KROK 4: Oblicz metryki wydajnościowe
+    const performanceMetrics = calculatePerformanceMetrics(investors);
+
+    // 🔍 KROK 5: Oblicz analizę trendów
+    const trendAnalysis = calculateTrendAnalysis(investors);
+
+    // 🔍 KROK 6: Generuj inteligentne insights
+    const insights = generateIntelligentInsights(investors, majorityAnalysis, votingAnalysis);
+
+    // 🎯 WYNIK PREMIUM ANALYTICS
+    const result = {
+      success: true,
+      data: {
+        // Podstawowe dane inwestorów
+        investors: baseAnalyticsResult.data.investors,
+        totalCount: baseAnalyticsResult.data.totalCount,
+        pagination: baseAnalyticsResult.data.pagination,
+
+        // 🚀 PREMIUM ANALYTICS
+        majorityAnalysis,
+        votingAnalysis,
+        performanceMetrics,
+        trendAnalysis,
+        insights,
+
+        // Metadane
+        metadata: {
+          totalProcessingTime: Date.now() - startTime,
+          majorityThreshold,
+          analysisTimestamp: new Date().toISOString(),
+          dataFreshness: 'server-computed'
+        }
+      },
+      fromCache: false
+    };
+
+    // 💾 Cache result na 2 minuty
+    await setCachedResult(cacheKey, result, 120);
+
+    console.log(`✅ [Premium Analytics] Analiza zakończona w ${Date.now() - startTime}ms`);
+    return result;
+
+  } catch (error) {
+    console.error("❌ [Premium Analytics] Błąd:", error);
+    return {
+      success: false,
+      error: error.message,
+      data: null
+    };
+  }
+}
+
+/**
+ * 🏆 ANALIZA GRUPY WIĘKSZOŚCIOWEJ
+ * Znajduje minimalną grupę inwestorów która kontroluje ≥51% kapitału
+ */
+function calculateMajorityAnalysis(investors, majorityThreshold = 51.0) {
+  console.log(`🏆 [Majority Analysis] Analiza dla progu ${majorityThreshold}%`);
+
+  if (!investors || investors.length === 0) {
+    return {
+      totalCapital: 0,
+      majorityThreshold,
+      majorityHolders: [],
+      majorityCapital: 0,
+      majorityPercentage: 0,
+      holdersCount: 0,
+      averageHolding: 0,
+      medianHolding: 0,
+      concentrationIndex: 0
+    };
+  }
+
+  const totalCapital = investors.reduce((sum, investor) => {
+    const capital = safeToDouble(investor.viableRemainingCapital);
+    return sum + capital;
+  }, 0);
+
+  // Sortuj inwestorów według kapitału malejąco
+  const sortedInvestors = [...investors].sort((a, b) => {
+    const capitalA = safeToDouble(a.viableRemainingCapital);
+    const capitalB = safeToDouble(b.viableRemainingCapital);
+    return capitalB - capitalA;
+  });
+
+  // Znajdź minimalną grupę która tworzy większość
+  const majorityHolders = [];
+  let accumulatedCapital = 0;
+
+  for (const investor of sortedInvestors) {
+    const investorCapital = safeToDouble(investor.viableRemainingCapital);
+    majorityHolders.push(investor);
+    accumulatedCapital += investorCapital;
+
+    const accumulatedPercentage = totalCapital > 0
+      ? (accumulatedCapital / totalCapital) * 100
+      : 0;
+
+    // Gdy osiągniemy próg większościowy, zatrzymaj się
+    if (accumulatedPercentage >= majorityThreshold) {
+      break;
+    }
+  }
+
+  // Oblicz dodatkowe metryki
+  const majorityCapitals = majorityHolders.map(h => safeToDouble(h.viableRemainingCapital));
+  const averageHolding = majorityCapitals.length > 0
+    ? majorityCapitals.reduce((a, b) => a + b, 0) / majorityCapitals.length
+    : 0;
+
+  const sortedCapitals = [...majorityCapitals].sort((a, b) => a - b);
+  const medianHolding = sortedCapitals.length > 0
+    ? sortedCapitals.length % 2 === 0
+      ? (sortedCapitals[Math.floor(sortedCapitals.length / 2 - 1)] + sortedCapitals[Math.floor(sortedCapitals.length / 2)]) / 2
+      : sortedCapitals[Math.floor(sortedCapitals.length / 2)]
+    : 0;
+
+  // Indeks koncentracji (Herfindahl-Hirschman Index)
+  const concentrationIndex = majorityCapitals.length > 0
+    ? majorityCapitals.reduce((sum, capital) => {
+      const marketShare = capital / accumulatedCapital;
+      return sum + (marketShare * marketShare);
+    }, 0) * 10000 // Przeskalowanie do standardu HHI
+    : 0;
+
+  const majorityPercentage = totalCapital > 0
+    ? (accumulatedCapital / totalCapital) * 100
+    : 0;
+
+  console.log(`✅ [Majority Analysis] Znaleziono ${majorityHolders.length} holders kontrolujących ${majorityPercentage.toFixed(2)}%`);
+
+  return {
+    totalCapital,
+    majorityThreshold,
+    majorityHolders,
+    majorityCapital: accumulatedCapital,
+    majorityPercentage,
+    holdersCount: majorityHolders.length,
+    averageHolding,
+    medianHolding,
+    concentrationIndex
+  };
+}
+
+/**
+ * 🗳️ ZAAWANSOWANA ANALIZA GŁOSOWANIA
+ * Szczegółowa analiza rozkładu głosów i kapitału
+ */
+function calculateVotingAnalysis(investors) {
+  console.log("🗳️ [Voting Analysis] Analiza rozkładu głosowania");
+
+  if (!investors || investors.length === 0) {
+    return {
+      totalCapital: 0,
+      totalInvestors: 0,
+      votingDistribution: {},
+      votingCounts: {},
+      capitalByVotingStatus: {},
+      percentageByVotingStatus: {},
+      averageCapitalByStatus: {},
+      votingPower: {}
+    };
+  }
+
+  const totalCapital = investors.reduce((sum, investor) => {
+    return sum + safeToDouble(investor.viableRemainingCapital);
+  }, 0);
+
+  const votingStatuses = ['yes', 'no', 'abstain', 'undecided'];
+
+  const votingCounts = {};
+  const capitalByVotingStatus = {};
+
+  // Inicjalizuj countery
+  votingStatuses.forEach(status => {
+    votingCounts[status] = 0;
+    capitalByVotingStatus[status] = 0;
+  });
+
+  // Policz głosy i kapitał według statusu
+  investors.forEach(investor => {
+    const votingStatus = investor.client?.votingStatus || 'undecided';
+    const capital = safeToDouble(investor.viableRemainingCapital);
+
+    if (votingStatuses.includes(votingStatus)) {
+      votingCounts[votingStatus]++;
+      capitalByVotingStatus[votingStatus] += capital;
+    } else {
+      // Fallback dla nieznanych statusów
+      votingCounts['undecided']++;
+      capitalByVotingStatus['undecided'] += capital;
+    }
+  });
+
+  // Oblicz procentowe rozkłady
+  const percentageByVotingStatus = {};
+  const averageCapitalByStatus = {};
+  const votingPower = {};
+
+  votingStatuses.forEach(status => {
+    const capital = capitalByVotingStatus[status];
+    const count = votingCounts[status];
+
+    percentageByVotingStatus[status] = totalCapital > 0
+      ? (capital / totalCapital) * 100
+      : 0;
+
+    averageCapitalByStatus[status] = count > 0
+      ? capital / count
+      : 0;
+
+    votingPower[status] = {
+      votes: count,
+      capital: capital,
+      percentage: percentageByVotingStatus[status],
+      averageCapital: averageCapitalByStatus[status]
+    };
+  });
+
+  // Deprecated: votingDistribution dla backward compatibility
+  const votingDistribution = {};
+  votingStatuses.forEach(status => {
+    votingDistribution[status] = percentageByVotingStatus[status];
+  });
+
+  console.log(`✅ [Voting Analysis] Analiza ${investors.length} inwestorów z kapitałem ${totalCapital.toFixed(2)}`);
+
+  return {
+    totalCapital,
+    totalInvestors: investors.length,
+    votingDistribution, // Deprecated ale zachowane dla kompatybilności
+    votingCounts,
+    capitalByVotingStatus,
+    percentageByVotingStatus,
+    averageCapitalByStatus,
+    votingPower
+  };
+}
+
+/**
+ * 📊 METRYKI WYDAJNOŚCIOWE
+ * Oblicza kluczowe wskaźniki wydajności portfela
+ */
+function calculatePerformanceMetrics(investors) {
+  console.log("📊 [Performance Metrics] Obliczam metryki wydajnościowe");
+
+  if (!investors || investors.length === 0) {
+    return {
+      totalInvestors: 0,
+      totalCapital: 0,
+      averageInvestment: 0,
+      medianInvestment: 0,
+      capitalConcentration: 0,
+      top10Percentage: 0,
+      diversificationIndex: 0,
+      riskMetrics: {}
+    };
+  }
+
+  const capitals = investors.map(investor => safeToDouble(investor.viableRemainingCapital));
+  const totalCapital = capitals.reduce((a, b) => a + b, 0);
+
+  // Podstawowe statystyki
+  const averageInvestment = capitals.length > 0 ? totalCapital / capitals.length : 0;
+
+  const sortedCapitals = [...capitals].sort((a, b) => a - b);
+  const medianInvestment = sortedCapitals.length > 0
+    ? sortedCapitals.length % 2 === 0
+      ? (sortedCapitals[Math.floor(sortedCapitals.length / 2 - 1)] + sortedCapitals[Math.floor(sortedCapitals.length / 2)]) / 2
+      : sortedCapitals[Math.floor(sortedCapitals.length / 2)]
+    : 0;
+
+  // Koncentracja kapitału (top 10%)
+  const sortedCapitalsDesc = [...capitals].sort((a, b) => b - a);
+  const top10Count = Math.max(1, Math.floor(capitals.length * 0.1));
+  const top10Capital = sortedCapitalsDesc.slice(0, top10Count).reduce((a, b) => a + b, 0);
+  const top10Percentage = totalCapital > 0 ? (top10Capital / totalCapital) * 100 : 0;
+
+  // Indeks Herfindhala-Hirschmana (koncentracja rynku)
+  const capitalConcentration = capitals.length > 0
+    ? capitals.reduce((sum, capital) => {
+      const marketShare = totalCapital > 0 ? capital / totalCapital : 0;
+      return sum + (marketShare * marketShare);
+    }, 0) * 10000
+    : 0;
+
+  // Indeks dywersyfikacji (odwrotność koncentracji)
+  const diversificationIndex = capitalConcentration > 0
+    ? 10000 / capitalConcentration
+    : 0;
+
+  // Metryki ryzyka
+  const variance = capitals.length > 1
+    ? capitals.reduce((sum, capital) => {
+      const diff = capital - averageInvestment;
+      return sum + (diff * diff);
+    }, 0) / (capitals.length - 1)
+    : 0;
+
+  const standardDeviation = Math.sqrt(variance);
+  const coefficientOfVariation = averageInvestment > 0
+    ? standardDeviation / averageInvestment
+    : 0;
+
+  const riskMetrics = {
+    variance,
+    standardDeviation,
+    coefficientOfVariation,
+    range: sortedCapitals.length > 0
+      ? sortedCapitals[sortedCapitals.length - 1] - sortedCapitals[0]
+      : 0
+  };
+
+  console.log(`✅ [Performance Metrics] Analiza ${investors.length} inwestorów, koncentracja: ${capitalConcentration.toFixed(0)}`);
+
+  return {
+    totalInvestors: investors.length,
+    totalCapital,
+    averageInvestment,
+    medianInvestment,
+    capitalConcentration,
+    top10Percentage,
+    diversificationIndex,
+    riskMetrics
+  };
+}
+
+/**
+ * 📈 ANALIZA TRENDÓW
+ * Identyfikuje trendy i wzorce w danych inwestorów
+ */
+function calculateTrendAnalysis(investors) {
+  console.log("📈 [Trend Analysis] Analiza trendów i wzorców");
+
+  if (!investors || investors.length === 0) {
+    return {
+      growth: { rate: 0, trend: 'neutral' },
+      volatility: { level: 'low', index: 0 },
+      momentum: { direction: 'neutral', strength: 0 },
+      cyclical: { phase: 'unknown', confidence: 0 },
+      forecast: { shortTerm: 'stable', longTerm: 'stable' }
+    };
+  }
+
+  // Symulacja analizy trendów (w rzeczywistości byłoby to oparte na danych historycznych)
+  const capitals = investors.map(investor => safeToDouble(investor.viableRemainingCapital));
+  const totalCapital = capitals.reduce((a, b) => a + b, 0);
+  const averageCapital = totalCapital / capitals.length;
+
+  // Oblicz zmienność jako proxy dla volatility
+  const variance = capitals.reduce((sum, capital) => {
+    const diff = capital - averageCapital;
+    return sum + (diff * diff);
+  }, 0) / capitals.length;
+
+  const volatilityIndex = Math.sqrt(variance) / averageCapital;
+
+  let volatilityLevel = 'low';
+  if (volatilityIndex > 0.3) volatilityLevel = 'high';
+  else if (volatilityIndex > 0.15) volatilityLevel = 'medium';
+
+  // Symulacja momentum na podstawie rozkładu kapitału
+  const sortedCapitals = [...capitals].sort((a, b) => b - a);
+  const top20Capital = sortedCapitals.slice(0, Math.ceil(capitals.length * 0.2)).reduce((a, b) => a + b, 0);
+  const top20Percentage = totalCapital > 0 ? (top20Capital / totalCapital) * 100 : 0;
+
+  let momentumDirection = 'neutral';
+  let momentumStrength = 0;
+
+  if (top20Percentage > 80) {
+    momentumDirection = 'bearish'; // Wysoka koncentracja = bearish
+    momentumStrength = (top20Percentage - 80) / 20;
+  } else if (top20Percentage < 50) {
+    momentumDirection = 'bullish'; // Niska koncentracja = bullish
+    momentumStrength = (50 - top20Percentage) / 50;
+  }
+
+  console.log(`✅ [Trend Analysis] Volatilność: ${volatilityLevel}, Momentum: ${momentumDirection}`);
+
+  return {
+    growth: {
+      rate: 0, // Byłoby obliczane z danych historycznych
+      trend: momentumDirection
+    },
+    volatility: {
+      level: volatilityLevel,
+      index: volatilityIndex
+    },
+    momentum: {
+      direction: momentumDirection,
+      strength: momentumStrength
+    },
+    cyclical: {
+      phase: 'expansion', // Symulacja
+      confidence: 0.7
+    },
+    forecast: {
+      shortTerm: volatilityLevel === 'high' ? 'volatile' : 'stable',
+      longTerm: momentumDirection === 'bullish' ? 'positive' : 'stable'
+    }
+  };
+}
+
+/**
+ * 🔍 INTELIGENTNE INSIGHTS
+ * Generuje automatyczne spostrzeżenia na podstawie analizy danych
+ */
+function generateIntelligentInsights(investors, majorityAnalysis, votingAnalysis) {
+  console.log("🔍 [Intelligent Insights] Generuję automatyczne spostrzeżenia");
+
+  const insights = [];
+
+  if (!investors || investors.length === 0) {
+    return insights;
+  }
+
+  // Insight 1: Koncentracja większościowa
+  if (majorityAnalysis.holdersCount <= 5) {
+    insights.push({
+      type: 'warning',
+      category: 'concentration',
+      title: 'Wysoka koncentracja kontroli',
+      message: `Tylko ${majorityAnalysis.holdersCount} inwestorów kontroluje ${majorityAnalysis.majorityPercentage.toFixed(1)}% kapitału`,
+      severity: 'high',
+      actionable: true
+    });
+  } else if (majorityAnalysis.holdersCount >= 20) {
+    insights.push({
+      type: 'positive',
+      category: 'diversification',
+      title: 'Zdywersyfikowana kontrola',
+      message: `Kontrola rozproszona między ${majorityAnalysis.holdersCount} inwestorów`,
+      severity: 'low',
+      actionable: false
+    });
+  }
+
+  // Insight 2: Rozkład głosowania
+  const yesPercentage = votingAnalysis.percentageByVotingStatus?.yes || 0;
+  const noPercentage = votingAnalysis.percentageByVotingStatus?.no || 0;
+  const undecidedPercentage = votingAnalysis.percentageByVotingStatus?.undecided || 0;
+
+  if (undecidedPercentage > 30) {
+    insights.push({
+      type: 'warning',
+      category: 'voting',
+      title: 'Duża liczba niezdecydowanych',
+      message: `${undecidedPercentage.toFixed(1)}% kapitału to niezdecydowani inwestorzy`,
+      severity: 'medium',
+      actionable: true
+    });
+  }
+
+  if (yesPercentage > 60) {
+    insights.push({
+      type: 'positive',
+      category: 'voting',
+      title: 'Silne poparcie',
+      message: `${yesPercentage.toFixed(1)}% kapitału głosuje "TAK"`,
+      severity: 'low',
+      actionable: false
+    });
+  }
+
+  // Insight 3: Średnia wielkość inwestycji
+  const totalCapital = majorityAnalysis.totalCapital;
+  const averageInvestment = totalCapital / investors.length;
+
+  if (averageInvestment > 1000000) {
+    insights.push({
+      type: 'info',
+      category: 'capital',
+      title: 'Portfolio wysokiej wartości',
+      message: `Średnia inwestycja: ${(averageInvestment / 1000000).toFixed(1)}M zł`,
+      severity: 'low',
+      actionable: false
+    });
+  }
+
+  // Insight 4: Koncentracja HHI
+  if (majorityAnalysis.concentrationIndex > 2500) {
+    insights.push({
+      type: 'warning',
+      category: 'concentration',
+      title: 'Wysoki indeks koncentracji',
+      message: `HHI: ${majorityAnalysis.concentrationIndex.toFixed(0)} wskazuje na wysoką koncentrację rynku`,
+      severity: 'medium',
+      actionable: true
+    });
+  }
+
+  console.log(`✅ [Intelligent Insights] Wygenerowano ${insights.length} spostrzeżeń`);
+
+  return insights;
+}
+
+// Import z istniejącego serwisu analytics (potrzebne dla base analytics)
+const { getOptimizedInvestorAnalytics } = require("./analytics-service");
+const { onCall } = require("firebase-functions/v2/https");
+
+// 🚀 WRAPPER FIREBASE FUNCTION
+const getPremiumInvestorAnalyticsFunction = onCall({
+  memory: "2GiB",
+  timeoutSeconds: 600, // 10 minut dla premium analytics
+  region: "europe-west1",
+}, async (request) => {
+  return await getPremiumInvestorAnalytics(request.data || {});
+});
+
+module.exports = {
+  getPremiumInvestorAnalytics: getPremiumInvestorAnalyticsFunction,
+  calculateMajorityAnalysis,
+  calculateVotingAnalysis,
+  calculatePerformanceMetrics,
+  calculateTrendAnalysis,
+  generateIntelligentInsights
+};

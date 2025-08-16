@@ -40,8 +40,10 @@ class _PremiumInvestorAnalyticsScreenState
     extends State<PremiumInvestorAnalyticsScreen>
     with TickerProviderStateMixin {
   // 🎮 CORE SERVICES
+  final FirebaseFunctionsPremiumAnalyticsService _premiumAnalyticsService =
+      FirebaseFunctionsPremiumAnalyticsService(); // 🚀 NOWY: Premium Analytics Service
   final FirebaseFunctionsAnalyticsServiceUpdated _analyticsService =
-      FirebaseFunctionsAnalyticsServiceUpdated();
+      FirebaseFunctionsAnalyticsServiceUpdated(); // 🔄 FALLBACK: Stary serwis jako backup
   final ia_service.InvestorAnalyticsService _updateService =
       ia_service.InvestorAnalyticsService(); // Dla aktualizacji danych
   final VotingAnalysisManager _votingManager = VotingAnalysisManager();
@@ -68,6 +70,7 @@ class _PremiumInvestorAnalyticsScreenState
   List<InvestorSummary> _allInvestors = [];
   List<InvestorSummary> _displayedInvestors = [];
   InvestorAnalyticsResult? _currentResult;
+  PremiumAnalyticsResult? _premiumResult; // 🚀 NOWE: Premium Analytics Result
 
   // 📈 MAJORITY CONTROL ANALYSIS
   double _majorityThreshold = 51.0;
@@ -285,7 +288,81 @@ class _PremiumInvestorAnalyticsScreenState
     });
 
     try {
-      // NAJPIERW SPRÓBUJ FALLBACK SERVICE - żeby sprawdzić czy w ogóle mamy dane
+      // 🚀 PIERWSZE PODEJŚCIE: Premium Analytics Service
+      try {
+        _premiumResult = await _premiumAnalyticsService
+            .getPremiumInvestorAnalytics(
+              page: _currentPage,
+              pageSize: _pageSize,
+              sortBy: _sortBy,
+              sortAscending: _sortAscending,
+              includeInactive: _includeInactive,
+              votingStatusFilter: _selectedVotingStatus,
+              clientTypeFilter: _selectedClientType,
+              showOnlyWithUnviableInvestments: _showOnlyWithUnviableInvestments,
+              searchQuery: _searchQuery.isNotEmpty ? _searchQuery : null,
+              majorityThreshold: _majorityThreshold,
+              forceRefresh: true,
+            );
+
+        if (mounted && _premiumResult != null) {
+          // 📊 PROCESY PREMIUM ANALYTICS RESULT
+          _allInvestors = _premiumResult!.investors;
+          _displayedInvestors = List.from(_allInvestors);
+          _totalCount = _premiumResult!.totalCount;
+
+          // 🏆 USTAW DANE Z PREMIUM ANALYTICS
+          _majorityHolders = _premiumResult!.majorityAnalysis.majorityHolders;
+          _majorityThreshold =
+              _premiumResult!.majorityAnalysis.majorityThreshold;
+
+          // 🗳️ USTAW VOTING DISTRIBUTION Z PREMIUM ANALYTICS
+          _votingDistribution = {
+            VotingStatus.yes:
+                _premiumResult!.votingAnalysis.votingDistribution['yes'] ?? 0.0,
+            VotingStatus.no:
+                _premiumResult!.votingAnalysis.votingDistribution['no'] ?? 0.0,
+            VotingStatus.abstain:
+                _premiumResult!.votingAnalysis.votingDistribution['abstain'] ??
+                0.0,
+            VotingStatus.undecided:
+                _premiumResult!
+                    .votingAnalysis
+                    .votingDistribution['undecided'] ??
+                0.0,
+          };
+
+          _votingCounts = {
+            VotingStatus.yes:
+                _premiumResult!.votingAnalysis.votingCounts['yes'] ?? 0,
+            VotingStatus.no:
+                _premiumResult!.votingAnalysis.votingCounts['no'] ?? 0,
+            VotingStatus.abstain:
+                _premiumResult!.votingAnalysis.votingCounts['abstain'] ?? 0,
+            VotingStatus.undecided:
+                _premiumResult!.votingAnalysis.votingCounts['undecided'] ?? 0,
+          };
+
+          // 🎯 APPLY FILTERS AND SORT
+          _applyFiltersAndSort();
+
+          setState(() {
+            _isLoading = false;
+            _error = null;
+          });
+
+          print(
+            '✅ [Premium Analytics] Załadowano ${_allInvestors.length} inwestorów z premium analytics',
+          );
+          return; // Sukces! Nie potrzebujemy fallback
+        }
+      } catch (premiumError) {
+        print(
+          '⚠️ [Premium Analytics] Błąd premium service, używam fallback: $premiumError',
+        );
+      }
+
+      // 🔄 FALLBACK: Użyj starszego serwisu jako backup
       final fallbackService = ia_service.InvestorAnalyticsService();
       final fallbackResult = await fallbackService
           .getInvestorsSortedByRemainingCapital(
@@ -369,7 +446,93 @@ class _PremiumInvestorAnalyticsScreenState
     });
 
     try {
-      // Wymuś przeładowanie danych z serwera (pomijając cache)
+      // 🚀 PIERWSZE PODEJŚCIE: Premium Analytics Service z wymuszeniem odświeżenia
+      try {
+        _premiumResult = await _premiumAnalyticsService
+            .getPremiumInvestorAnalytics(
+              page: _currentPage,
+              pageSize: _pageSize,
+              sortBy: _sortBy,
+              sortAscending: _sortAscending,
+              includeInactive: _includeInactive,
+              votingStatusFilter: _selectedVotingStatus,
+              clientTypeFilter: _selectedClientType,
+              showOnlyWithUnviableInvestments: _showOnlyWithUnviableInvestments,
+              searchQuery: _searchQuery.isNotEmpty ? _searchQuery : null,
+              majorityThreshold: _majorityThreshold,
+              forceRefresh: true, // 🔑 WYMUSZA PRZEŁADOWANIE CACHE
+            );
+
+        if (mounted && _premiumResult != null) {
+          // 📊 PROCESY PREMIUM ANALYTICS RESULT
+          _allInvestors = _premiumResult!.investors;
+          _displayedInvestors = List.from(_allInvestors);
+          _totalCount = _premiumResult!.totalCount;
+
+          // 🏆 USTAW DANE Z PREMIUM ANALYTICS
+          _majorityHolders = _premiumResult!.majorityAnalysis.majorityHolders;
+
+          // 🗳️ USTAW VOTING DISTRIBUTION Z PREMIUM ANALYTICS
+          _votingDistribution = {
+            VotingStatus.yes:
+                _premiumResult!.votingAnalysis.votingDistribution['yes'] ?? 0.0,
+            VotingStatus.no:
+                _premiumResult!.votingAnalysis.votingDistribution['no'] ?? 0.0,
+            VotingStatus.abstain:
+                _premiumResult!.votingAnalysis.votingDistribution['abstain'] ??
+                0.0,
+            VotingStatus.undecided:
+                _premiumResult!
+                    .votingAnalysis
+                    .votingDistribution['undecided'] ??
+                0.0,
+          };
+
+          _votingCounts = {
+            VotingStatus.yes:
+                _premiumResult!.votingAnalysis.votingCounts['yes'] ?? 0,
+            VotingStatus.no:
+                _premiumResult!.votingAnalysis.votingCounts['no'] ?? 0,
+            VotingStatus.abstain:
+                _premiumResult!.votingAnalysis.votingCounts['abstain'] ?? 0,
+            VotingStatus.undecided:
+                _premiumResult!.votingAnalysis.votingCounts['undecided'] ?? 0,
+          };
+
+          // 🎯 APPLY FILTERS AND SORT
+          _applyFiltersAndSort();
+
+          // 📍 PRZYWRÓĆ pozycję scroll po odświeżeniu danych
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scrollController.hasClients && currentScrollOffset > 0) {
+              print(
+                '📍 [Analytics] Przywracam pozycję scroll: ${currentScrollOffset.toStringAsFixed(1)}px',
+              );
+              _scrollController.animateTo(
+                currentScrollOffset,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            }
+          });
+
+          setState(() {
+            _isLoading = false;
+            _error = null;
+          });
+
+          print(
+            '✅ [Premium Analytics] Odświeżono ${_allInvestors.length} inwestorów z premium analytics',
+          );
+          return; // Sukces! Nie potrzebujemy fallback
+        }
+      } catch (premiumError) {
+        print(
+          '⚠️ [Premium Analytics] Błąd refresh premium service, używam fallback: $premiumError',
+        );
+      }
+
+      // 🔄 FALLBACK: Użyj starszego serwisu z wymuszeniem odświeżenia
       final result = await _analyticsService.getOptimizedInvestorAnalytics(
         page: _currentPage,
         pageSize: _pageSize,

@@ -47,6 +47,8 @@ export 'services/firebase_functions_data_service.dart'
 export 'services/firebase_functions_products_service.dart'
     hide ProductStatistics;
 export 'services/firebase_functions_product_investors_service.dart';
+export 'services/firebase_functions_premium_analytics_service.dart'
+    hide PaginationInfo; // 🚀 NOWE: Premium Analytics Service
 export 'services/firebase_functions_advanced_analytics_service.dart';
 export 'services/firebase_functions_analytics_service_updated.dart'
     hide
@@ -59,7 +61,8 @@ export 'services/auth_service.dart';
 export 'services/email_service.dart';
 export 'services/email_and_export_service.dart'; // 🚀 NOWE: Email i eksport danych
 export 'services/user_preferences_service.dart';
-export 'services/advanced_analytics_service.dart' hide AdvancedDashboardMetrics;
+export 'services/advanced_analytics_service.dart'
+    hide AdvancedDashboardMetrics, RiskMetrics, PerformanceMetrics;
 export 'services/investor_analytics_service.dart' hide InvestorAnalyticsResult;
 export 'services/standard_product_investors_service.dart';
 

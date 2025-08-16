@@ -53,8 +53,10 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   late final FirebaseFunctionsProductInvestorsService _productInvestorsService;
   late final DeduplicatedProductService _deduplicatedProductService;
   late final OptimizedProductService _optimizedProductService; // 🚀 NOWY SERWIS
-  late final ProductManagementService _productManagementService; // 🚀 NOWY: Centralny serwis
-  late final CacheManagementService _cacheManagementService; // 🚀 NOWY: Zarządzanie cache
+  late final ProductManagementService
+  _productManagementService; // 🚀 NOWY: Centralny serwis
+  late final CacheManagementService
+  _cacheManagementService; // 🚀 NOWY: Zarządzanie cache
   late final AnimationController _fadeController;
   late final AnimationController _slideController;
   late final Animation<double> _fadeAnimation;
@@ -87,7 +89,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   bool _showDeduplicatedView = true; // Domyślnie pokazuj deduplikowane produkty
   bool _useOptimizedMode =
       true; // 🚀 NOWA FLAGA - używaj zoptymalizowanego trybu
-  bool _useProductManagementService = false; // 🚀 NOWA FLAGA - używaj centralnego serwisu
+  bool _useProductManagementService =
+      false; // 🚀 NOWA FLAGA - używaj centralnego serwisu
 
   // Email functionality
   bool _isSelectionMode = false;
@@ -591,8 +594,10 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     _productInvestorsService = FirebaseFunctionsProductInvestorsService();
     _deduplicatedProductService = DeduplicatedProductService();
     _optimizedProductService = OptimizedProductService(); // 🚀 NOWY SERWIS
-    _productManagementService = ProductManagementService(); // 🚀 NOWY: Centralny serwis
-    _cacheManagementService = CacheManagementService(); // 🚀 NOWY: Zarządzanie cache
+    _productManagementService =
+        ProductManagementService(); // 🚀 NOWY: Centralny serwis
+    _cacheManagementService =
+        CacheManagementService(); // 🚀 NOWY: Zarządzanie cache
   }
 
   void _initializeAnimations() {
@@ -803,7 +808,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       if (kDebugMode) {
         print('❌ [ProductsManagementScreen] Błąd ProductManagementService: $e');
       }
-      
+
       if (mounted) {
         setState(() {
           _error = 'Błąd ładowania danych: $e';
@@ -1928,7 +1933,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         IconButton(
           icon: Icon(
             _useProductManagementService ? Icons.hub : Icons.merge_type,
-            color: _useProductManagementService ? AppTheme.primaryColor : AppTheme.secondaryGold,
+            color: _useProductManagementService
+                ? AppTheme.primaryColor
+                : AppTheme.secondaryGold,
           ),
           onPressed: () async {
             setState(() {
@@ -1995,10 +2002,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         // 🚀 NOWY: Globalne zarządzanie cache
         if (_useProductManagementService)
           PopupMenuButton<String>(
-            icon: Icon(
-              Icons.storage,
-              color: AppTheme.primaryColor,
-            ),
+            icon: Icon(Icons.storage, color: AppTheme.primaryColor),
             tooltip: 'Zarządzanie cache',
             onSelected: (String value) async {
               switch (value) {

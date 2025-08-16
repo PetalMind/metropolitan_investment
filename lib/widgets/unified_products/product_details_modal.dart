@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:responsive_framework/responsive_framework.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/currency_formatter.dart';
@@ -31,11 +32,15 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   bool _isLoadingProduct = false;
   String? _productError;
 
+  // ⭐ CACHE dla prawdziwego productId
+  String? _realProductId;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_onTabChanged);
+    _findRealProductId(); // ⭐ NOWE: Znajdź prawdziwy productId
     _loadInvestors(); // inwestorzy
     _loadProduct(); // świeże dane produktu
   }
@@ -76,6 +81,51 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     (sum, investor) => sum + investor.capitalSecuredByRealEstate,
   );
 
+  /// ⭐ NOWA METODA: Znajdź prawdziwy productId z Firebase
+  /// Rozwiązuje problem z używaniem hashu z DeduplicatedService
+  Future<void> _findRealProductId() async {
+    try {
+      debugPrint(
+        '🔍 [ProductDetailsModal] Szukam prawdziwego productId dla: ${widget.product.name}',
+      );
+
+      // Użyj Firebase bezpośrednio do znalezienia przykładowej inwestycji
+      final firestore = FirebaseFirestore.instance;
+      final snapshot = await firestore
+          .collection('investments')
+          .where('productName', isEqualTo: widget.product.name)
+          .where('companyId', isEqualTo: widget.product.companyId)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        final doc = snapshot.docs.first;
+        final data = doc.data();
+        final productId = data['productId'] as String?;
+
+        if (productId?.isNotEmpty == true) {
+          _realProductId = productId;
+          debugPrint(
+            '✅ [ProductDetailsModal] Znaleziono prawdziwy productId: $_realProductId',
+          );
+        } else {
+          _realProductId = doc.id; // Fallback na ID dokumentu
+          debugPrint(
+            '✅ [ProductDetailsModal] Używam ID dokumentu jako productId: $_realProductId',
+          );
+        }
+      } else {
+        debugPrint(
+          '⚠️ [ProductDetailsModal] Nie znaleziono inwestycji dla produktu',
+        );
+        _realProductId = widget.product.id; // Fallback na oryginalny ID
+      }
+    } catch (e) {
+      debugPrint('❌ [ProductDetailsModal] Błąd podczas szukania productId: $e');
+      _realProductId = widget.product.id; // Fallback na oryginalny ID
+    }
+  }
+
   Future<void> _loadInvestors({bool forceRefresh = false}) async {
     if (_isLoadingInvestors) return;
 
@@ -85,12 +135,26 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     });
 
     try {
+      // ⭐ UPEWNIJ SIĘ ŻE MAMY PRAWDZIWY PRODUCTID
+      if (_realProductId == null) {
+        await _findRealProductId();
+      }
+
+      final productIdToUse = _realProductId ?? widget.product.id;
+
+      debugPrint('🔍 [ProductDetailsModal] Ładowanie inwestorów:');
+      debugPrint('  - Oryginalny product.id: ${widget.product.id}');
+      debugPrint('  - Prawdziwy productId: $_realProductId');
+      debugPrint('  - Używam productId: $productIdToUse');
+      debugPrint('  - ForceRefresh: $forceRefresh');
+
       final result = await _investorsService.getProductInvestors(
-        productId: widget.product.id,
+        productId: productIdToUse, // ⭐ UŻYWAJ PRAWDZIWEGO PRODUCTID
         productName: widget.product.name,
         productType: widget.product.productType.name.toLowerCase(),
         searchStrategy: 'comprehensive',
-        forceRefresh: forceRefresh, // 🚀 ENHANCED: Wymuszenie odświeżenia po zapisie zmian
+        forceRefresh:
+            forceRefresh, // 🚀 ENHANCED: Wymuszenie odświeżenia po zapisie zmian
       );
       final investors = result.investors;
 
@@ -445,7 +509,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       investors: _investors,
       isLoading: _isLoadingInvestors,
       error: _investorsError,
-      onRefresh: () => _loadInvestors(forceRefresh: true), // 🚀 ENHANCED: Wymusz odświeżenie po zapisie
+      onRefresh: () => _loadInvestors(
+        forceRefresh: true,
+      ), // 🚀 ENHANCED: Wymusz odświeżenie po zapisie
     );
   }
 

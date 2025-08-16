@@ -22,6 +22,7 @@ const getAllInvestmentsService = require("./services/getAllInvestments-service")
 const investmentScalingService = require("./services/investment-scaling-service"); // 🚀 DODANE: Serwis skalowania inwestycji
 const emailService = require("./services/email-service-dev"); // 🚀 DODANE: Serwis email (DEV VERSION)
 const exportService = require("./services/export-service"); // 🚀 DODANE: Serwis eksportu danych
+const premiumAnalyticsService = require("./services/premium-analytics-service"); // 🚀 DODANE: Premium Analytics Service
 
 // Import nowych analityk - tylko funkcje pomocnicze
 const employeesAnalytics = require('./analytics/employees_analytics');
@@ -175,6 +176,9 @@ module.exports = {
 
   // Funkcje eksportu danych - 🚀 NOWE
   ...exportService,
+
+  // Funkcje premium analytics - 🚀 NOWE
+  ...premiumAnalyticsService,
 
   // Funkcje batch produktów - 🚀 NOWE OPTYMALIZACJA
   ...require("./services/product-batch-service"),

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models_and_services.dart';
 import '../models/investor_edit_models.dart';
 import '../utils/currency_formatter.dart';
@@ -76,36 +77,66 @@ class InvestorEditService {
       '🔍 [InvestorEditService] Po deduplikacji: ${uniqueInvestmentsList.length} unikalnych inwestycji',
     );
 
-    // ⭐ ZAWSZE UŻYWAJ PRAWDZIWEGO ID Z FIREBASE
-    final isDeduplicated = product.additionalInfo['isDeduplicated'] == true;
+    // ⭐ ZAKTUALIZOWANA LOGIKA WYSZUKIWANIA (Sierpień 2025):
+    // Problem: DeduplicatedProductService tworzy product.id jako hash lub ID pierwszej inwestycji
+    // Rozwiązanie: Szukaj po prawdziwym productId z Firebase jako pierwszeństwo
 
-    if (isDeduplicated) {
+    // KROK 1: Szukaj po productId z Firebase (PREFEROWANE)
+    debugPrint(
+      '� [InvestorEditService] KROK 1: Szukam po productId z Firebase',
+    );
+    final productIdMatches = uniqueInvestmentsList
+        .where(
+          (investment) =>
+              investment.productId?.isNotEmpty == true &&
+              investment.productId == product.id,
+        )
+        .toList();
+
+    if (productIdMatches.isNotEmpty) {
       debugPrint(
-        '🔄 [InvestorEditService] Produkt deduplikowany - szukam po ID pierwszej inwestycji: ${product.id}',
+        '✅ [InvestorEditService] Znaleziono dopasowania po productId: ${productIdMatches.length}',
       );
-    } else {
-      debugPrint(
-        '🔄 [InvestorEditService] Produkt pojedynczy - szukam po ID: ${product.id}',
-      );
+      return productIdMatches;
     }
 
-    // Sprawdź po ID produktu (teraz używamy prawdziwego ID dla wszystkich)
+    // KROK 2: Szukaj po dokładnej nazwie + company + type (dla kompletności)
+    debugPrint(
+      '🔍 [InvestorEditService] KROK 2: Szukam po nazwie + company + type',
+    );
+    final exactMatches = uniqueInvestmentsList
+        .where(
+          (investment) =>
+              investment.productName.trim().toLowerCase() ==
+                  product.name.trim().toLowerCase() &&
+              investment.companyId.trim().toLowerCase() ==
+                  (product.companyId?.trim().toLowerCase() ?? ''),
+        )
+        .toList();
+
+    if (exactMatches.isNotEmpty) {
+      debugPrint(
+        '✅ [InvestorEditService] Znaleziono dopasowania po exact match: ${exactMatches.length}',
+      );
+      return exactMatches;
+    }
+
+    // KROK 3: Fallback - szukaj po ID inwestycji (kompatybilność z DeduplicatedProductService)
+    debugPrint(
+      '🔍 [InvestorEditService] KROK 3: Szukam po ID inwestycji (fallback)',
+    );
     if (product.id.isNotEmpty) {
-      final matchingInvestments = uniqueInvestmentsList
-          .where(
-            (investment) =>
-                investment.productId == product.id ||
-                investment.id == product.id,
-          )
+      final idMatches = uniqueInvestmentsList
+          .where((investment) => investment.id == product.id)
           .toList();
 
-      if (matchingInvestments.isNotEmpty) {
+      if (idMatches.isNotEmpty) {
         debugPrint(
-          '✅ [InvestorEditService] Znaleziono dopasowania po productId/id: ${matchingInvestments.length}',
+          '✅ [InvestorEditService] Znaleziono dopasowania po ID inwestycji: ${idMatches.length}',
         );
-        return matchingInvestments;
+        return idMatches;
       } else {
-        debugPrint('⚠️ [InvestorEditService] Brak dopasowań po productId/id');
+        debugPrint('⚠️ [InvestorEditService] Brak dopasowań po ID inwestycji');
       }
     }
 
@@ -210,6 +241,52 @@ class InvestorEditService {
     final words1 = name1.split(' ').where((w) => w.length >= 2).toSet();
     final words2 = name2.split(' ').where((w) => w.length >= 2).toSet();
     return words1.intersection(words2).isNotEmpty;
+  }
+
+  /// Znajduje przykładowe inwestycje dla produktu (do określenia prawdziwego productId)
+  ///
+  /// ⭐ NOWA METODA (Sierpień 2025):
+  /// Służy do znajdowania prawdziwego productId z Firebase zamiast używania
+  /// hashu z DeduplicatedProductService
+  Future<List<Investment>> _findSampleInvestmentsForProduct(
+    UnifiedProduct product,
+  ) async {
+    try {
+      debugPrint(
+        '🔍 [InvestorEditService] Szukam przykładowych inwestycji dla produktu: ${product.name}',
+      );
+
+      // Użyj Firebase bezpośrednio do pobrania inwestycji
+      final firestore = FirebaseFirestore.instance;
+      final snapshot = await firestore
+          .collection('investments')
+          .where('productName', isEqualTo: product.name)
+          .where('companyId', isEqualTo: product.companyId)
+          .limit(5) // Wystarczy kilka przykładów
+          .get();
+
+      final investments = snapshot.docs
+          .map((doc) => Investment.fromFirestore(doc))
+          .toList();
+
+      debugPrint(
+        '🔍 [InvestorEditService] Znaleziono ${investments.length} dopasowań dla produktu',
+      );
+
+      if (investments.isNotEmpty) {
+        final firstInvestment = investments.first;
+        debugPrint(
+          '🔍 [InvestorEditService] Pierwsza inwestycja: ${firstInvestment.id}, productId: ${firstInvestment.productId}',
+        );
+      }
+
+      return investments;
+    } catch (e) {
+      debugPrint(
+        '❌ [InvestorEditService] Błąd podczas szukania inwestycji: $e',
+      );
+      return [];
+    }
   }
 
   /// Formatuje wartość do wyświetlenia w kontrolerze z separatorami tysięcznymi
@@ -381,15 +458,38 @@ class InvestorEditService {
       );
 
       // ⭐ ZAWSZE UŻYWAJ PRAWDZIWEGO ID Z FIREBASE
-      final isDeduplicated = product.additionalInfo['isDeduplicated'] == true;
 
       debugPrint('🔄 [InvestorEditService] Strategia skalowania:');
-      debugPrint('   - Deduplikowany: $isDeduplicated');
-      debugPrint('   - ProductId: ${product.id}');
+
+      // ⭐ ZNAJDŹ PRAWDZIWY PRODUCTID Z FIREBASE (Sierpień 2025)
+      // Problem: product.id może być hashem z DeduplicatedProductService
+      // Rozwiązanie: Znajdź inwestycje tego produktu i użyj ich productId
+
+      final sampleInvestments = await _findSampleInvestmentsForProduct(product);
+      if (sampleInvestments.isEmpty) {
+        debugPrint(
+          '❌ [InvestorEditService] Nie znaleziono inwestycji dla produktu',
+        );
+        return ProductScalingResult(
+          success: false,
+          message: 'Nie znaleziono inwestycji dla tego produktu',
+          newAmount: originalTotalAmount,
+          affectedInvestments: 0,
+          scalingFactor: 1.0,
+          executionTime: '0ms',
+        );
+      }
+
+      // Użyj productId z pierwszej znalezionej inwestycji
+      final realProductId =
+          sampleInvestments.first.productId ?? sampleInvestments.first.id;
+
+      debugPrint('   - Product.id (z DeduplicatedService): ${product.id}');
+      debugPrint('   - Real ProductId (z Firebase): $realProductId');
+      debugPrint('   - Sample investments found: ${sampleInvestments.length}');
 
       final scalingResult = await _investmentService.scaleProductInvestments(
-        productId: product
-            .id, // Zawsze używamy prawdziwego ID z Firebase (np. "bond_0770")
+        productId: realProductId, // ⭐ UŻYWAMY PRAWDZIWEGO ID Z FIREBASE
         productName: product.name,
         newTotalAmount: newTotalAmount,
         reason: reason,

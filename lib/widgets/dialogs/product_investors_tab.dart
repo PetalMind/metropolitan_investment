@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
 import '../../models_and_services.dart'; // Centralized import
 import '../premium_loading_widget.dart';
@@ -1062,7 +1063,49 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
     return 'inwestycji';
   }
 
-  /// 🔢 NOWA METODA: Pobiera wszystkie inwestycje danego inwestora w tym produkcie
+  /// � NOWA METODA: Znajduje prawdziwy productId z Firebase
+  Future<String?> _findRealProductId() async {
+    try {
+      print(
+        '🔍 ProductInvestorsTab._findRealProductId() - szukam prawdziwego productId dla produktu: ${widget.product.name}',
+      );
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('investments')
+          .where('productName', isEqualTo: widget.product.name.trim())
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        final doc = snapshot.docs.first;
+        final data = doc.data();
+
+        // Sprawdź różne warianty nazw pól productId
+        String? productId =
+            data['productId'] ??
+            data['product_id'] ??
+            data['Product_ID'] ??
+            data['typ_produktu'];
+
+        if (productId != null && productId.isNotEmpty && productId != 'null') {
+          print(
+            '✅ ProductInvestorsTab._findRealProductId() - znaleziono prawdziwy productId: $productId',
+          );
+          return productId;
+        }
+      }
+
+      print(
+        '⚠️ ProductInvestorsTab._findRealProductId() - nie znaleziono prawdziwego productId, używam hash',
+      );
+      return null;
+    } catch (e) {
+      print('❌ ProductInvestorsTab._findRealProductId() - błąd: $e');
+      return null;
+    }
+  }
+
+  /// �🔢 NOWA METODA: Pobiera wszystkie inwestycje danego inwestora w tym produkcie
   List<Investment> _getProductInvestments(InvestorSummary investor) {
     // Grupa inwestycje po ID żeby wyeliminować duplikaty (podobnie jak w _getProductInvestmentCount)
     final uniqueInvestments = <String, Investment>{};
@@ -1076,7 +1119,27 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
 
     final uniqueInvestmentsList = uniqueInvestments.values.toList();
 
-    // Sprawdź po ID produktu (jeśli dostępne)
+    // 🔍 KROK 1: Sprawdź po prawdziwym productId z Firebase (priorytet)
+    final matchingByProductId = uniqueInvestmentsList
+        .where(
+          (investment) =>
+              investment.productId != null &&
+              investment.productId!.isNotEmpty &&
+              investment.productId != "null" &&
+              RegExp(r'^[a-z]+_\d+$').hasMatch(
+                investment.productId!,
+              ), // Wzorzec prawdziwego productId
+        )
+        .toList();
+
+    if (matchingByProductId.isNotEmpty) {
+      print(
+        '✅ ProductInvestorsTab._getProductInvestments() - znaleziono ${matchingByProductId.length} inwestycji po prawdziwym productId',
+      );
+      return matchingByProductId;
+    }
+
+    // 🔍 KROK 2: Sprawdź po product.id (może być hash)
     if (widget.product.id.isNotEmpty) {
       final matchingInvestments = uniqueInvestmentsList
           .where(
@@ -1089,18 +1152,26 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
           .toList();
 
       if (matchingInvestments.isNotEmpty) {
+        print(
+          '✅ ProductInvestorsTab._getProductInvestments() - znaleziono ${matchingInvestments.length} inwestycji po hash ID',
+        );
         return matchingInvestments;
       }
     }
 
-    // Fallback: sprawdź po nazwie produktu
-    return uniqueInvestmentsList
+    // 🔍 KROK 3: Fallback po nazwie produktu
+    final matchingByName = uniqueInvestmentsList
         .where(
           (investment) =>
               investment.productName.trim().toLowerCase() ==
               widget.product.name.trim().toLowerCase(),
         )
         .toList();
+
+    print(
+      '📝 ProductInvestorsTab._getProductInvestments() - znaleziono ${matchingByName.length} inwestycji po nazwie',
+    );
+    return matchingByName;
   }
 
   /// 🔢 NOWA METODA: Formatuje kwoty w kompaktowy sposób
@@ -1116,7 +1187,6 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
 
   /// Zwraca liczbę inwestycji klienta w tym konkretnym produkcie
   int _getProductInvestmentCount(InvestorSummary investor) {
-
     // Grupa inwestycje po ID żeby wyeliminować duplikaty
     final uniqueInvestments = <String, Investment>{};
 
@@ -1128,10 +1198,6 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
     }
 
     final uniqueInvestmentsList = uniqueInvestments.values.toList();
-
-    for (int i = 0; i < uniqueInvestmentsList.length; i++) {
-      final inv = uniqueInvestmentsList[i];
-    }
 
     // Sprawdź po ID produktu (uwaga na "null" jako string!)
     if (widget.product.id.isNotEmpty) {
