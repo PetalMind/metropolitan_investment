@@ -47,8 +47,10 @@ class _PremiumInvestorAnalyticsScreenState
   final ia_service.InvestorAnalyticsService _updateService =
       ia_service.InvestorAnalyticsService(); // Dla aktualizacji danych
   final VotingAnalysisManager _votingManager = VotingAnalysisManager();
-  final UnifiedDashboardStatisticsService _statisticsService =
-      UnifiedDashboardStatisticsService(); // 🚀 NOWE: Zunifikowane statystyki
+  final EmailAndExportService _emailExportService =
+      EmailAndExportService(); // 🚀 NOWY: Email i eksport
+  final InvestmentService _investmentService =
+      InvestmentService(); // 🚀 NOWY: Skalowanie inwestycji
 
   // 🎛️ UI CONTROLLERS
   final TextEditingController _searchController = TextEditingController();
@@ -86,8 +88,6 @@ class _PremiumInvestorAnalyticsScreenState
   bool _isRefreshing = false;
   bool _dataWasUpdated = false; // 📍 Flaga czy dane były rzeczywiście zmieniane
   String? _error;
-  UnifiedDashboardStatistics?
-  _dashboardStatistics; // 🚀 NOWE: Zunifikowane statystyki
 
   // 📄 PAGINATION
   int _currentPage = 1;
@@ -379,14 +379,6 @@ class _PremiumInvestorAnalyticsScreenState
       if (mounted) {
         // Konwertuj standardowy wynik do enhanced format
         final enhancedResult = _convertToEnhancedResult(fallbackResult);
-
-        // 🚀 NOWE: Załaduj zunifikowane statystyki równolegle
-        try {
-          _dashboardStatistics = await _statisticsService
-              .getStatisticsFromInvestors();
-        } catch (statsError) {
-          // Nie przerywamy działania - statystyki nie są krytyczne
-        }
 
         _processAnalyticsResult(enhancedResult);
         _calculateMajorityAnalysis();
@@ -1663,20 +1655,20 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildStatsGrid() {
-    // 🚀 NOWE: Spróbuj użyć zunifikowanych statystyk, jeśli dostępne
-    double totalViableCapital;
-    double totalCapital;
+    // � KLUCZOWE METRYKI SYSTEMU - używa danych z premium analytics
+    double totalViableCapital = 0.0;
+    double totalCapital = 0.0;
 
-    if (_dashboardStatistics != null) {
-      // Używamy zunifikowanych statystyk (preferowane)
-      totalViableCapital = _dashboardStatistics!.totalViableCapital;
-      totalCapital = _dashboardStatistics!.totalInvestmentAmount;
-
-      print('   - Viable Capital: ${totalViableCapital.toStringAsFixed(2)}');
-      print('   - Total Capital: ${totalCapital.toStringAsFixed(2)}');
-    } else {
-      // Fallback na poprzedni sposób obliczania
-      totalViableCapital = _votingManager.totalViableCapital;
+    if (_premiumResult != null) {
+      // Używamy danych z premium analytics (preferowane)
+      totalViableCapital = _premiumResult!.performanceMetrics.totalCapital;
+      totalCapital = _premiumResult!.performanceMetrics.totalCapital;
+      print(
+        '🚀 [StatsGrid] Używam Premium Analytics: Capital ${totalCapital.toStringAsFixed(2)}',
+      );
+    } else if (_currentResult != null) {
+      // Fallback na standardowe dane
+      totalViableCapital = _currentResult!.totalViableCapital;
       totalCapital = _allInvestors.fold<double>(
         0.0,
         (sum, investor) => sum + investor.totalInvestmentAmount,
@@ -1794,6 +1786,122 @@ class _PremiumInvestorAnalyticsScreenState
     }
   }
 
+  // 🚀 NOWE FUNKCJONALNOŚCI: EMAIL I EKSPORT
+
+  /// Eksportuje wybranych inwestorów do różnych formatów
+  Future<void> _exportSelectedInvestors() async {
+    if (_selectedInvestors.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Najpierw wybierz inwestorów do eksportu'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => InvestorExportDialog(
+        selectedInvestors: _selectedInvestors,
+        onExportComplete: () {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Eksport zakończony pomyślnie'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Wysyła email do wybranych inwestorów
+  Future<void> _sendEmailToSelectedInvestors() async {
+    if (_selectedInvestors.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Najpierw wybierz inwestorów do wysłania email'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => EnhancedInvestorEmailDialog(
+        selectedInvestors: _selectedInvestors,
+        onEmailSent: () {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Emaile zostały wysłane'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Skaluje kwoty inwestycji produktu proporcjonalnie
+  Future<void> _scaleProductInvestments(
+    String productId,
+    String productName,
+    double newTotalAmount,
+  ) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text('Skalowanie inwestycji...'),
+            ],
+          ),
+        ),
+      );
+
+      final result = await _investmentService.scaleProductInvestments(
+        productId: productId,
+        productName: productName,
+        newTotalAmount: newTotalAmount,
+        reason: 'Proporcjonalne skalowanie z Premium Analytics',
+      );
+
+      Navigator.of(context).pop(); // Zamknij dialog loading
+
+      if (result.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ Skalowanie zakończone: ${result.summary.affectedInvestments} inwestycji',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Odśwież dane
+        await _refreshData();
+      } else {
+        throw Exception('Skalowanie nie powiodło się');
+      }
+    } catch (e) {
+      Navigator.of(context).pop(); // Zamknij dialog loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Błąd skalowania: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _showActionMenu() {
     showModalBottomSheet(
       context: context,
@@ -1812,7 +1920,7 @@ class _PremiumInvestorAnalyticsScreenState
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Akcje',
+            'Akcje Premium Analytics',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               color: AppTheme.textPrimary,
               fontWeight: FontWeight.w600,
@@ -1820,13 +1928,52 @@ class _PremiumInvestorAnalyticsScreenState
           ),
           const SizedBox(height: 20),
 
+          // 🚀 NOWE: Eksport danych
+          _buildActionTile(
+            'Eksport danych inwestorów',
+            'Wyeksportuj wszystkich inwestorów do CSV/Excel/JSON',
+            Icons.download_rounded,
+            AppTheme.successColor,
+            () async {
+              Navigator.pop(context);
+              await _exportSelectedInvestors();
+            },
+          ),
+
+          // 🚀 NOWE: Email do inwestorów
+          _buildActionTile(
+            'Wyślij email do inwestorów',
+            'Wyślij maile do wszystkich lub wybranych inwestorów',
+            Icons.email_rounded,
+            AppTheme.primaryAccent,
+            () async {
+              Navigator.pop(context);
+              await _sendEmailToSelectedInvestors();
+            },
+          ),
+
           // Nowa opcja wielokrotnego wyboru
           _buildActionTile(
             'Wybór wielu inwestorów',
-            'Email i eksport dla wybranych inwestorów',
+            'Zaznacz inwestorów do masowych operacji',
             Icons.checklist_rounded,
-            AppTheme.primaryAccent,
-            _enterSelectionMode,
+            AppTheme.primaryColor,
+            () {
+              Navigator.pop(context);
+              _enterSelectionMode();
+            },
+          ),
+
+          // 🚀 NOWE: Analiza premium
+          _buildActionTile(
+            'Odśwież analizę premium',
+            'Wymuszenie przeładowania najnowszych danych',
+            Icons.analytics_rounded,
+            AppTheme.warningColor,
+            () async {
+              Navigator.pop(context);
+              await _refreshData();
+            },
           ),
 
           _buildActionTile(
@@ -4630,6 +4777,64 @@ class _PremiumInvestorAnalyticsScreenState
     }
 
     return points;
+  }
+
+  // 📋 MULTI-SELECTION METHODS
+
+  void _enterSelectionMode() {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedInvestorIds.clear();
+    });
+
+    _fabAnimationController.forward();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Tryb wyboru aktywny - zaznacz inwestorów'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedInvestorIds.clear();
+    });
+
+    _fabAnimationController.reverse();
+  }
+
+  void _toggleInvestorSelection(String investorId) {
+    setState(() {
+      if (_selectedInvestorIds.contains(investorId)) {
+        _selectedInvestorIds.remove(investorId);
+      } else {
+        _selectedInvestorIds.add(investorId);
+      }
+    });
+
+    // Wyjdź z trybu wyboru jeśli nic nie jest zaznaczone
+    if (_selectedInvestorIds.isEmpty) {
+      _exitSelectionMode();
+    }
+  }
+
+  void _selectAllInvestors() {
+    setState(() {
+      _selectedInvestorIds.clear();
+      _selectedInvestorIds.addAll(
+        _displayedInvestors.map((investor) => investor.client.id),
+      );
+    });
+  }
+
+  void _deselectAllInvestors() {
+    setState(() {
+      _selectedInvestorIds.clear();
+    });
+    _exitSelectionMode();
   }
 }
 

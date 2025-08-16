@@ -660,14 +660,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         ),
         const SizedBox(height: 12),
         _buildActionCard(
-          'Inwestycje',
-          Icons.account_balance_wallet,
-          AppTheme.successColor,
-          () => _showInvestmentsTab(),
-        ),
-        const SizedBox(height: 12),
-        _buildActionCard(
-          'Kontakt',
+          'Wyślij wiadomość',
           Icons.email,
           AppTheme.infoColor,
           _contactInvestor,
