@@ -130,6 +130,9 @@ export 'widgets/enhanced_client_stats_widget.dart';
 export 'widgets/client_stats_demo.dart';
 export 'widgets/client_stats_debug_widget.dart';
 
+// Common reusable widgets
+export 'widgets/common/common_widgets.dart';
+
 // Dialog widgets
 export 'widgets/dialogs/investor_edit_dialog.dart'; // ⭐ NOWE: Dialog edycji inwestora (refaktoryzowany)
 export 'widgets/dialogs/investor_email_dialog.dart'; // ⭐ NOWE: Dialog wysyłania maili

@@ -6,6 +6,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/currency_formatter.dart';
 import '../../services/firebase_functions_product_investors_service.dart'; // już w models_and_services ale lokalny import pozostawiony dla jawności
 import '../dialogs/product_investors_tab.dart';
+import '../common/common_widgets.dart';
 
 /// Modal ze szczegółami produktu z zakładkami
 class ProductDetailsModal extends StatefulWidget {
@@ -217,158 +218,22 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         decoration: AppTheme.premiumCardDecoration,
         child: Column(
           children: [
-            _buildHeader(context),
+            ProductHeader(
+              productName: widget.product.name,
+              productType: widget.product.productType.displayName,
+              companyName: widget.product.companyName,
+              isActive: widget.product.isActive,
+              status: widget.product.status.displayName,
+              productIcon: _getProductIcon(),
+              productColor: AppTheme.getProductTypeColor(
+                widget.product.productType.name,
+              ),
+              onClose: () => Navigator.of(context).pop(),
+            ),
             _buildTabBar(context),
             Expanded(child: _buildTabBarView(context, isMobile)),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    final productColor = AppTheme.getProductTypeColor(
-      widget.product.productType.name,
-    );
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            productColor.withValues(alpha: 0.1),
-            productColor.withValues(alpha: 0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Ikona produktu
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: productColor.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: productColor.withValues(alpha: 0.3),
-                width: 2,
-              ),
-            ),
-            child: Icon(_getProductIcon(), color: productColor, size: 28),
-          ),
-
-          const SizedBox(width: 16),
-
-          // Informacje główne
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: productColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: productColor.withValues(alpha: 0.4),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        widget.product.productType.displayName,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: productColor,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildStatusBadge(context),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  widget.product.name,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (widget.product.companyName != null &&
-                    widget.product.companyName!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.product.companyName!,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.textSecondary,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          // Przycisk zamknięcia
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close),
-            color: AppTheme.textSecondary,
-            tooltip: 'Zamknij',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(BuildContext context) {
-    final statusColor = widget.product.isActive
-        ? AppTheme.successColor
-        : AppTheme.errorColor;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: statusColor,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            widget.product.status.displayName,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: statusColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 10,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -515,49 +380,6 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
-  Widget _buildDetailRow(
-    String label,
-    String value,
-    IconData icon, {
-    Color? color,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: color ?? AppTheme.textSecondary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: color ?? AppTheme.textPrimary,
-                    fontSize: 13,
-                    fontWeight: color != null
-                        ? FontWeight.w600
-                        : FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildAmountsSection(BuildContext context, bool isMobile) {
     return Container(
       width: double.infinity,
@@ -588,33 +410,32 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   Widget _buildAmountsMobileLayout(BuildContext context) {
     return Column(
       children: [
-        _buildAmountCard(
-          context,
-          'Suma inwestycji',
-          CurrencyFormatter.formatCurrency(_totalInvestmentAmount),
-          Icons.trending_down,
-          AppTheme.infoPrimary,
+        AmountCard(
+          title: 'Suma inwestycji',
+          value: CurrencyFormatter.formatCurrency(_totalInvestmentAmount),
+          icon: Icons.trending_down,
+          color: AppTheme.infoPrimary,
         ),
 
         const SizedBox(height: 12),
 
-        _buildAmountCard(
-          context,
-          'Kapitał pozostały',
-          CurrencyFormatter.formatCurrency(_totalRemainingCapital),
-          Icons.account_balance_wallet,
-          AppTheme.successPrimary,
+        AmountCard(
+          title: 'Kapitał pozostały',
+          value: CurrencyFormatter.formatCurrency(_totalRemainingCapital),
+          icon: Icons.account_balance_wallet,
+          color: AppTheme.successPrimary,
           isHighlight: true,
         ),
 
         const SizedBox(height: 12),
 
-        _buildAmountCard(
-          context,
-          'Zabezpieczony nieruchomością',
-          CurrencyFormatter.formatCurrency(_totalCapitalSecuredByRealEstate),
-          Icons.home,
-          AppTheme.warningPrimary,
+        AmountCard(
+          title: 'Zabezpieczony nieruchomością',
+          value: CurrencyFormatter.formatCurrency(
+            _totalCapitalSecuredByRealEstate,
+          ),
+          icon: Icons.home,
+          color: AppTheme.warningPrimary,
         ),
       ],
     );
@@ -626,22 +447,20 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         Row(
           children: [
             Expanded(
-              child: _buildAmountCard(
-                context,
-                'Suma inwestycji',
-                CurrencyFormatter.formatCurrency(_totalInvestmentAmount),
-                Icons.trending_down,
-                AppTheme.infoPrimary,
+              child: AmountCard(
+                title: 'Suma inwestycji',
+                value: CurrencyFormatter.formatCurrency(_totalInvestmentAmount),
+                icon: Icons.trending_down,
+                color: AppTheme.infoPrimary,
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _buildAmountCard(
-                context,
-                'Kapitał pozostały',
-                CurrencyFormatter.formatCurrency(_totalRemainingCapital),
-                Icons.account_balance_wallet,
-                AppTheme.successPrimary,
+              child: AmountCard(
+                title: 'Kapitał pozostały',
+                value: CurrencyFormatter.formatCurrency(_totalRemainingCapital),
+                icon: Icons.account_balance_wallet,
+                color: AppTheme.successPrimary,
                 isHighlight: true,
               ),
             ),
@@ -650,74 +469,15 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
 
         const SizedBox(height: 16),
 
-        _buildAmountCard(
-          context,
-          'Kapitał zabezpieczony nieruchomością',
-          CurrencyFormatter.formatCurrency(_totalCapitalSecuredByRealEstate),
-          Icons.home,
-          AppTheme.warningPrimary,
+        AmountCard(
+          title: 'Kapitał zabezpieczony nieruchomością',
+          value: CurrencyFormatter.formatCurrency(
+            _totalCapitalSecuredByRealEstate,
+          ),
+          icon: Icons.home,
+          color: AppTheme.warningPrimary,
         ),
       ],
-    );
-  }
-
-  Widget _buildAmountCard(
-    BuildContext context,
-    String title,
-    String value,
-    IconData icon,
-    Color color, {
-    bool isHighlight = false,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isHighlight
-            ? color.withValues(alpha: 0.05)
-            : AppTheme.surfaceCard.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isHighlight
-              ? color.withValues(alpha: 0.2)
-              : AppTheme.borderSecondary,
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: isHighlight ? color : AppTheme.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -815,37 +575,45 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       children: [
         if (widget.product.realizedCapital != null &&
             widget.product.realizedCapital! > 0)
-          _buildDetailRow(
-            'Zrealizowany kapitał',
-            CurrencyFormatter.formatCurrency(widget.product.realizedCapital!),
-            Icons.check_circle,
+          DetailRow(
+            label: 'Zrealizowany kapitał',
+            value: CurrencyFormatter.formatCurrency(
+              widget.product.realizedCapital!,
+            ),
+            icon: Icons.check_circle,
             color: AppTheme.successColor,
           ),
 
         if (widget.product.remainingCapital != null &&
             widget.product.remainingCapital! > 0)
-          _buildDetailRow(
-            'Pozostały kapitał',
-            CurrencyFormatter.formatCurrency(widget.product.remainingCapital!),
-            Icons.account_balance_wallet,
+          DetailRow(
+            label: 'Pozostały kapitał',
+            value: CurrencyFormatter.formatCurrency(
+              widget.product.remainingCapital!,
+            ),
+            icon: Icons.account_balance_wallet,
             color: AppTheme.primaryAccent,
           ),
 
         if (widget.product.realizedInterest != null &&
             widget.product.realizedInterest! > 0)
-          _buildDetailRow(
-            'Zrealizowane odsetki',
-            CurrencyFormatter.formatCurrency(widget.product.realizedInterest!),
-            Icons.trending_up,
+          DetailRow(
+            label: 'Zrealizowane odsetki',
+            value: CurrencyFormatter.formatCurrency(
+              widget.product.realizedInterest!,
+            ),
+            icon: Icons.trending_up,
             color: AppTheme.successColor,
           ),
 
         if (widget.product.remainingInterest != null &&
             widget.product.remainingInterest! > 0)
-          _buildDetailRow(
-            'Pozostałe odsetki',
-            CurrencyFormatter.formatCurrency(widget.product.remainingInterest!),
-            Icons.schedule,
+          DetailRow(
+            label: 'Pozostałe odsetki',
+            value: CurrencyFormatter.formatCurrency(
+              widget.product.remainingInterest!,
+            ),
+            icon: Icons.schedule,
             color: AppTheme.warningColor,
           ),
       ],
@@ -859,10 +627,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     if (widget.product.realizedCapital != null &&
         widget.product.realizedCapital! > 0) {
       leftDetails.add(
-        _buildDetailRow(
-          'Zrealizowany kapitał',
-          CurrencyFormatter.formatCurrency(widget.product.realizedCapital!),
-          Icons.check_circle,
+        DetailRow(
+          label: 'Zrealizowany kapitał',
+          value: CurrencyFormatter.formatCurrency(
+            widget.product.realizedCapital!,
+          ),
+          icon: Icons.check_circle,
           color: AppTheme.successColor,
         ),
       );
@@ -871,10 +641,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     if (widget.product.remainingCapital != null &&
         widget.product.remainingCapital! > 0) {
       rightDetails.add(
-        _buildDetailRow(
-          'Pozostały kapitał',
-          CurrencyFormatter.formatCurrency(widget.product.remainingCapital!),
-          Icons.account_balance_wallet,
+        DetailRow(
+          label: 'Pozostały kapitał',
+          value: CurrencyFormatter.formatCurrency(
+            widget.product.remainingCapital!,
+          ),
+          icon: Icons.account_balance_wallet,
           color: AppTheme.primaryAccent,
         ),
       );
@@ -883,10 +655,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     if (widget.product.realizedInterest != null &&
         widget.product.realizedInterest! > 0) {
       leftDetails.add(
-        _buildDetailRow(
-          'Zrealizowane odsetki',
-          CurrencyFormatter.formatCurrency(widget.product.realizedInterest!),
-          Icons.trending_up,
+        DetailRow(
+          label: 'Zrealizowane odsetki',
+          value: CurrencyFormatter.formatCurrency(
+            widget.product.realizedInterest!,
+          ),
+          icon: Icons.trending_up,
           color: AppTheme.successColor,
         ),
       );
@@ -895,10 +669,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     if (widget.product.remainingInterest != null &&
         widget.product.remainingInterest! > 0) {
       rightDetails.add(
-        _buildDetailRow(
-          'Pozostałe odsetki',
-          CurrencyFormatter.formatCurrency(widget.product.remainingInterest!),
-          Icons.schedule,
+        DetailRow(
+          label: 'Pozostałe odsetki',
+          value: CurrencyFormatter.formatCurrency(
+            widget.product.remainingInterest!,
+          ),
+          icon: Icons.schedule,
           color: AppTheme.warningColor,
         ),
       );
@@ -939,19 +715,21 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
 
           if (widget.product.sharesCount != null &&
               widget.product.sharesCount! > 0)
-            _buildDetailRow(
-              'Liczba udziałów',
-              '${widget.product.sharesCount}',
-              Icons.pie_chart,
+            DetailRow(
+              label: 'Liczba udziałów',
+              value: '${widget.product.sharesCount}',
+              icon: Icons.pie_chart,
               color: AppTheme.primaryAccent,
             ),
 
           if (widget.product.pricePerShare != null &&
               widget.product.pricePerShare! > 0)
-            _buildDetailRow(
-              'Cena za udział',
-              CurrencyFormatter.formatCurrency(widget.product.pricePerShare!),
-              Icons.monetization_on,
+            DetailRow(
+              label: 'Cena za udział',
+              value: CurrencyFormatter.formatCurrency(
+                widget.product.pricePerShare!,
+              ),
+              icon: Icons.monetization_on,
               color: AppTheme.secondaryGold,
             ),
         ],
@@ -972,37 +750,17 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         spacing: 16,
         runSpacing: 8,
         children: [
-          _buildMetaChip(Icons.tag, 'ID: ${product.id}'),
-          _buildMetaChip(Icons.source, 'Źródło: ${product.sourceFile}'),
-          _buildMetaChip(
-            Icons.upload,
-            'Aktualizacja: ${product.uploadedAt.day.toString().padLeft(2, '0')}.${product.uploadedAt.month.toString().padLeft(2, '0')}.${product.uploadedAt.year}',
+          MetaChip(icon: Icons.tag, text: 'ID: ${product.id}'),
+          MetaChip(icon: Icons.source, text: 'Źródło: ${product.sourceFile}'),
+          MetaChip(
+            icon: Icons.upload,
+            text:
+                'Aktualizacja: ${product.uploadedAt.day.toString().padLeft(2, '0')}.${product.uploadedAt.month.toString().padLeft(2, '0')}.${product.uploadedAt.year}',
           ),
-          _buildMetaChip(
-            Icons.calendar_today,
-            'Utworzono: ${product.createdAt.day.toString().padLeft(2, '0')}.${product.createdAt.month.toString().padLeft(2, '0')}.${product.createdAt.year}',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetaChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.borderSecondary),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: AppTheme.textSecondary),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 11),
+          MetaChip(
+            icon: Icons.calendar_today,
+            text:
+                'Utworzono: ${product.createdAt.day.toString().padLeft(2, '0')}.${product.createdAt.month.toString().padLeft(2, '0')}.${product.createdAt.year}',
           ),
         ],
       ),
@@ -1078,71 +836,33 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
       children: [
-        _buildStatCard(
-          'Inwestorzy',
-          totalInvestors.toString(),
-          Icons.people,
-          AppTheme.primaryAccent,
+        StatCard(
+          title: 'Inwestorzy',
+          value: totalInvestors.toString(),
+          icon: Icons.people,
+          color: AppTheme.primaryAccent,
         ),
-        _buildStatCard(
-          'Suma inwestycji',
-          CurrencyFormatter.formatCurrencyShort(_totalInvestmentAmount),
-          Icons.trending_down,
-          AppTheme.infoPrimary,
+        StatCard(
+          title: 'Suma inwestycji',
+          value: CurrencyFormatter.formatCurrencyShort(_totalInvestmentAmount),
+          icon: Icons.trending_down,
+          color: AppTheme.infoPrimary,
         ),
-        _buildStatCard(
-          'Kapitał pozostały',
-          CurrencyFormatter.formatCurrencyShort(totalRemainingCapital),
-          Icons.account_balance_wallet,
-          AppTheme.successPrimary,
+        StatCard(
+          title: 'Kapitał pozostały',
+          value: CurrencyFormatter.formatCurrencyShort(totalRemainingCapital),
+          icon: Icons.account_balance_wallet,
+          color: AppTheme.successPrimary,
         ),
-        _buildStatCard(
-          'Zabezpiecz. nieru.',
-          CurrencyFormatter.formatCurrencyShort(
+        StatCard(
+          title: 'Zabezpiecz. nieru.',
+          value: CurrencyFormatter.formatCurrencyShort(
             _totalCapitalSecuredByRealEstate,
           ),
-          Icons.home,
-          AppTheme.warningPrimary,
+          icon: Icons.home,
+          color: AppTheme.warningPrimary,
         ),
       ],
-    );
-  }
-
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.backgroundSecondary,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderPrimary),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 
@@ -1180,11 +900,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           child: Row(
             children: [
               Expanded(
-                child: _buildAmountInfo(
-                  'Suma inwestycji',
-                  _totalInvestmentAmount,
-                  Icons.trending_down,
-                  AppTheme.errorPrimary,
+                child: AmountInfo(
+                  label: 'Suma inwestycji',
+                  amount: _totalInvestmentAmount,
+                  icon: Icons.trending_down,
+                  color: AppTheme.errorPrimary,
+                  formatter: CurrencyFormatter.formatCurrency,
                 ),
               ),
               Container(
@@ -1194,11 +915,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                 margin: const EdgeInsets.symmetric(horizontal: 16),
               ),
               Expanded(
-                child: _buildAmountInfo(
-                  'Kapitał pozostały',
-                  _totalRemainingCapital,
-                  Icons.account_balance_wallet,
-                  AppTheme.successPrimary,
+                child: AmountInfo(
+                  label: 'Kapitał pozostały',
+                  amount: _totalRemainingCapital,
+                  icon: Icons.account_balance_wallet,
+                  color: AppTheme.successPrimary,
+                  formatter: CurrencyFormatter.formatCurrency,
                 ),
               ),
               Container(
@@ -1208,43 +930,16 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                 margin: const EdgeInsets.symmetric(horizontal: 16),
               ),
               Expanded(
-                child: _buildAmountInfo(
-                  'Zabezpiecz. nieru.',
-                  _totalCapitalSecuredByRealEstate,
-                  Icons.home,
-                  AppTheme.warningPrimary,
+                child: AmountInfo(
+                  label: 'Zabezpiecz. nieru.',
+                  amount: _totalCapitalSecuredByRealEstate,
+                  icon: Icons.home,
+                  color: AppTheme.warningPrimary,
+                  formatter: CurrencyFormatter.formatCurrency,
                 ),
               ),
             ],
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAmountInfo(
-    String label,
-    double amount,
-    IconData icon,
-    Color color,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(height: 8),
-        Text(
-          CurrencyFormatter.formatCurrency(amount),
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
         ),
       ],
     );
@@ -1531,73 +1226,37 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
           children: [
-            _buildPerformanceCard(
-              'Zysk/Strata',
-              CurrencyFormatter.formatCurrency(profitLoss),
-              profitLoss >= 0 ? AppTheme.successPrimary : AppTheme.errorPrimary,
-              profitLoss >= 0 ? Icons.trending_up : Icons.trending_down,
-            ),
-            _buildPerformanceCard(
-              'ROI',
-              '${profitLossPercentage.toStringAsFixed(1)}%',
-              profitLossPercentage >= 0
+            PerformanceCard(
+              title: 'Zysk/Strata',
+              value: CurrencyFormatter.formatCurrency(profitLoss),
+              color: profitLoss >= 0
                   ? AppTheme.successPrimary
                   : AppTheme.errorPrimary,
-              profitLossPercentage >= 0
+              icon: profitLoss >= 0 ? Icons.trending_up : Icons.trending_down,
+            ),
+            PerformanceCard(
+              title: 'ROI',
+              value: '${profitLossPercentage.toStringAsFixed(1)}%',
+              color: profitLossPercentage >= 0
+                  ? AppTheme.successPrimary
+                  : AppTheme.errorPrimary,
+              icon: profitLossPercentage >= 0
                   ? Icons.arrow_upward
                   : Icons.arrow_downward,
             ),
-            _buildPerformanceCard(
-              'Średnia na inwestora',
-              CurrencyFormatter.formatCurrencyShort(
+            PerformanceCard(
+              title: 'Średnia na inwestora',
+              value: CurrencyFormatter.formatCurrencyShort(
                 _investors.isNotEmpty
                     ? _totalRemainingCapital / _investors.length
                     : 0,
               ),
-              AppTheme.primaryAccent,
-              Icons.person,
+              color: AppTheme.primaryAccent,
+              icon: Icons.person,
             ),
           ],
         ),
       ],
-    );
-  }
-
-  Widget _buildPerformanceCard(
-    String title,
-    String value,
-    Color color,
-    IconData icon,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.backgroundSecondary,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 
