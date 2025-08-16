@@ -100,43 +100,60 @@ class InvestmentEditCard extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          // Pola edycji w siatce
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            childAspectRatio: 0.8,
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
+          // Pola edycji w kompaktowym układzie
+          Column(
             children: [
-              CurrencyInputField(
-                label: 'Kwota inwestycji',
-                controller: investmentAmountController,
-                icon: Icons.attach_money,
-                color: AppThemePro.profitGreen,
-                onChanged: onChanged,
+              // Pierwszy rząd - Kwota inwestycji i Kapitał pozostały
+              Row(
+                children: [
+                  Expanded(
+                    child: CurrencyInputField(
+                      label: 'Kwota inwestycji',
+                      controller: investmentAmountController,
+                      icon: Icons.attach_money,
+                      color: AppThemePro.profitGreen,
+                      onChanged: onChanged,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CurrencyInputField(
+                      label: 'Kapitał pozostały',
+                      controller: remainingCapitalController,
+                      icon: Icons.account_balance,
+                      color: AppThemePro.primaryLight,
+                      isEditable: false,
+                      helpText: 'Obliczane automatycznie',
+                    ),
+                  ),
+                ],
               ),
-              CurrencyInputField(
-                label: 'Kapitał pozostały',
-                controller: remainingCapitalController,
-                icon: Icons.account_balance,
-                color: AppThemePro.primaryLight,
-                isEditable: false,
-                helpText: 'Obliczane automatycznie',
-              ),
-              CurrencyInputField(
-                label: 'Kapitał zabezpieczony',
-                controller: capitalSecuredController,
-                icon: Icons.security,
-                color: AppThemePro.statusSuccess,
-                onChanged: onChanged,
-              ),
-              CurrencyInputField(
-                label: 'Kapitał do restrukturyzacji',
-                controller: capitalForRestructuringController,
-                icon: Icons.construction,
-                color: AppThemePro.statusWarning,
-                onChanged: onChanged,
+
+              const SizedBox(height: 12),
+
+              // Drugi rząd - Kapitał zabezpieczony i Kapitał do restrukturyzacji
+              Row(
+                children: [
+                  Expanded(
+                    child: CurrencyInputField(
+                      label: 'Kapitał zabezpieczony',
+                      controller: capitalSecuredController,
+                      icon: Icons.security,
+                      color: AppThemePro.statusSuccess,
+                      onChanged: onChanged,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CurrencyInputField(
+                      label: 'Kapitał do restrukturyzacji',
+                      controller: capitalForRestructuringController,
+                      icon: Icons.construction,
+                      color: AppThemePro.statusWarning,
+                      onChanged: onChanged,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

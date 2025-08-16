@@ -352,21 +352,7 @@ class _RefactoredInvestorEditDialogState
               onChanged: _onDataChanged,
             ),
 
-            const SizedBox(height: 24),
-
-            // Podsumowanie inwestycji
-            InvestmentsSummaryWidget(
-              investments: _editableInvestments,
-              remainingCapitalControllers:
-                  _controllers.remainingCapitalControllers,
-              investmentAmountControllers:
-                  _controllers.investmentAmountControllers,
-              capitalForRestructuringControllers:
-                  _controllers.capitalForRestructuringControllers,
-              capitalSecuredControllers:
-                  _controllers.capitalSecuredByRealEstateControllers,
-            ),
-
+            
             const SizedBox(height: 24),
 
             // Lista inwestycji do edycji
