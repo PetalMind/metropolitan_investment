@@ -60,7 +60,7 @@ class _ProductsManagementScreenAdvancedState
   // 🚀 NOWE SERWISY: Używamy nowych centralnych serwisów
   late final ProductManagementService _productManagementService;
   late final CacheManagementService _cacheManagementService;
-  late final FirebaseFunctionsProductInvestorsService _productInvestorsService;
+  late final UltraPreciseProductInvestorsService _productInvestorsService;
 
   // ✅ ZACHOWANE: Te same animacje co w oryginalnym ekranie
   late final AnimationController _fadeController;
@@ -342,7 +342,7 @@ class _ProductsManagementScreenAdvancedState
   void _initializeServices() {
     _productManagementService = ProductManagementService();
     _cacheManagementService = CacheManagementService();
-    _productInvestorsService = FirebaseFunctionsProductInvestorsService();
+    _productInvestorsService = UltraPreciseProductInvestorsService();
   }
 
   /// ✅ ZACHOWANE: Te same animacje
@@ -1015,10 +1015,13 @@ class _ProductsManagementScreenAdvancedState
   /// ✅ ZACHOWANE: Wyświetlanie inwestorów (identyczne z oryginału)
   void _showProductInvestors(UnifiedProduct product) async {
     try {
-      final result = await _productInvestorsService.getProductInvestors(
+      final ultraResult = await _productInvestorsService.getProductInvestors(
         productId: product.id,
         productName: product.name,
       );
+
+      // Konwertuj ultra-precyzyjny wynik na standardowy format
+      final result = _convertUltraToStandardResult(ultraResult, product);
 
       if (result.investors.isEmpty) {
         _showEmptyInvestorsDialog(product, result);
@@ -1037,6 +1040,29 @@ class _ProductsManagementScreenAdvancedState
         ),
       );
     }
+  }
+
+  /// 🔄 ADAPTER: Konwertuje ultra-precyzyjny wynik na standardowy format
+  ProductInvestorsResult _convertUltraToStandardResult(
+    UltraPreciseProductInvestorsResult ultraResult,
+    UnifiedProduct product,
+  ) {
+    return ProductInvestorsResult(
+      investors: ultraResult.investors,
+      totalCount: ultraResult.totalCount,
+      statistics: ProductInvestorsStatistics(
+        totalCapital: ultraResult.statistics.totalCapital,
+        totalInvestments: ultraResult.statistics.totalInvestments,
+        averageCapital: ultraResult.statistics.averageCapital,
+        activeInvestors: ultraResult.totalCount,
+      ),
+      searchStrategy: '${ultraResult.searchStrategy}_ultra_precise',
+      productName: product.name,
+      productType: product.productType.name.toLowerCase(),
+      executionTime: ultraResult.executionTime,
+      fromCache: ultraResult.fromCache,
+      error: ultraResult.error,
+    );
   }
 
   /// ✅ ZACHOWANE: Dialog pustych inwestorów (identyczne z oryginału)

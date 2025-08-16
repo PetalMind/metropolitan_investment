@@ -19,6 +19,15 @@ export 'models/investor_edit_models.dart'; // 🚀 NOWE: Modele dla edycji inwes
 // Analytics models exports
 export 'models/analytics/overview_analytics_models.dart';
 
+// 🚀 CORE ARCHITECTURE - ZUNIFIKOWANA ARCHITEKTURA
+export 'core/unified_architecture.dart'; // 🌟 CENTRALNA ARCHITEKTURA DLA CAŁEJ APLIKACJI
+
+// 🔄 ADAPTERS - ZUNIFIKOWANE ADAPTERY DLA KOMPONENTÓW
+export 'adapters/products_management_adapter.dart'; // 📊 Adapter dla ProductsManagementScreen
+export 'adapters/product_details_adapter.dart'; // 🔍 Adapter dla ProductDetailsModal
+export 'adapters/investor_edit_adapter.dart'
+    hide ProductScalingResult; // ✏️ Adapter dla InvestorEditDialog
+
 // Services exports
 export 'services/base_service.dart';
 export 'services/data_cache_service.dart'; // 🚀 DODANE: Serwis cache'owania danych
@@ -47,6 +56,7 @@ export 'services/firebase_functions_data_service.dart'
 export 'services/firebase_functions_products_service.dart'
     hide ProductStatistics;
 export 'services/firebase_functions_product_investors_service.dart';
+export 'services/ultra_precise_product_investors_service.dart'; // 🚀 NOWY: Ultra-precyzyjny serwis inwestorów
 export 'services/firebase_functions_premium_analytics_service.dart'
     hide PaginationInfo; // 🚀 NOWE: Premium Analytics Service
 export 'services/firebase_functions_advanced_analytics_service.dart';

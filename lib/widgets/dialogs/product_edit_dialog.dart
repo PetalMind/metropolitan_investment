@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import '../../theme/app_theme_professional.dart';
 import '../../models_and_services.dart';
 import '../../utils/currency_formatter.dart';
@@ -37,6 +36,8 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
       InvestmentChangeHistoryService();
   final DataCacheService _cacheService = DataCacheService();
   final InvestmentService _investmentService = InvestmentService();
+  final UltraPreciseProductInvestorsService _ultraPreciseService =
+      UltraPreciseProductInvestorsService();
 
   bool _isSaving = false;
   bool _isEditMode = false;
@@ -50,6 +51,10 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
 
   // Modified investments
   Map<String, Investment> _modifiedInvestments = {};
+
+  // 🚀 NOWE: Ultra-precise product investor data
+  UltraPreciseProductInvestorsResult? _ultraPreciseResult;
+  bool _isLoadingUltraPrecise = false;
 
   @override
   void initState() {
@@ -65,6 +70,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
 
     _initializeInvestments();
     _initializeControllers();
+    _loadUltraPreciseInvestorData(); // 🚀 NOWE: Ładuj ultra-precyzyjne dane
     _fadeController.forward();
   }
 
@@ -156,9 +162,15 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
       _controllers['${prefix}realizedCapital']?.addListener(_trackChanges);
       _controllers['${prefix}realizedInterest']?.addListener(_trackChanges);
       _controllers['${prefix}remainingInterest']?.addListener(_trackChanges);
-      _controllers['${prefix}transferToOtherProduct']?.addListener(_trackChanges);
-      _controllers['${prefix}capitalForRestructuring']?.addListener(_trackChanges);
-      _controllers['${prefix}capitalSecuredByRealEstate']?.addListener(_trackChanges);
+      _controllers['${prefix}transferToOtherProduct']?.addListener(
+        _trackChanges,
+      );
+      _controllers['${prefix}capitalForRestructuring']?.addListener(
+        _trackChanges,
+      );
+      _controllers['${prefix}capitalSecuredByRealEstate']?.addListener(
+        _trackChanges,
+      );
       _controllers['${prefix}plannedTax']?.addListener(_trackChanges);
       _controllers['${prefix}realizedTax']?.addListener(_trackChanges);
     }
@@ -173,6 +185,58 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     _focusNodes.values.forEach((node) => node.dispose());
 
     super.dispose();
+  }
+
+  /// 🚀 NOWA METODA: Ładuje ultra-precyzyjne dane inwestorów dla produktu
+  Future<void> _loadUltraPreciseInvestorData() async {
+    setState(() {
+      _isLoadingUltraPrecise = true;
+    });
+
+    try {
+      print(
+        '🔍 [InvestorEditDialog] Ładowanie ultra-precyzyjnych danych dla produktu: ${widget.product.name}',
+      );
+
+      // Użyj ID produktu jeśli dostępne, inaczej nazwę
+      final productIdentifier = widget.product.id.isNotEmpty
+          ? widget.product.id
+          : widget.product.name;
+
+      final result = await _ultraPreciseService.getProductInvestors(
+        productId: productIdentifier,
+        productName: widget.product.name,
+        forceRefresh: true, // Wymuś odświeżenie dla najnowszych danych
+      );
+
+      setState(() {
+        _ultraPreciseResult = result;
+        _isLoadingUltraPrecise = false;
+      });
+
+      print(
+        '✅ [InvestorEditDialog] Ultra-precyzyjne dane załadowane: ${result.totalCount} inwestorów',
+      );
+      print('  - Strategia wyszukiwania: ${result.searchStrategy}');
+      print('  - Klucz wyszukiwania: ${result.searchKey}');
+      print('  - Czas wykonania: ${result.executionTime}ms');
+
+      // Jeśli znaleziono rozbieżności, pokaż ostrzeżenie
+      if (result.totalCount != _productInvestments.length) {
+        print('⚠️ [InvestorEditDialog] Rozbieżność w liczbie inwestorów:');
+        print('  - Lokalne dane: ${_productInvestments.length}');
+        print('  - Ultra-precyzyjne: ${result.totalCount}');
+      }
+    } catch (e) {
+      print(
+        '❌ [InvestorEditDialog] Błąd ładowania ultra-precyzyjnych danych: $e',
+      );
+
+      setState(() {
+        _ultraPreciseResult = null;
+        _isLoadingUltraPrecise = false;
+      });
+    }
   }
 
   @override
@@ -267,6 +331,11 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
               ],
             ),
           ),
+
+          // 🚀 NOWY: Wskaźnik ultra-precyzyjnych danych
+          _buildUltraPreciseIndicator(),
+
+          const SizedBox(width: 12),
 
           // Edit toggle
           Container(
@@ -442,6 +511,42 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                 color: AppThemePro.statusSuccess,
                 fontWeight: FontWeight.w600,
               ),
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          // 🚀 NOWY: Przycisk odświeżenia ultra-precyzyjnych danych
+          GestureDetector(
+            onTap: _isLoadingUltraPrecise
+                ? null
+                : () => _loadUltraPreciseInvestorData(),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppThemePro.accentGold.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppThemePro.accentGold.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: _isLoadingUltraPrecise
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppThemePro.accentGold,
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      Icons.refresh,
+                      color: AppThemePro.accentGold,
+                      size: 16,
+                    ),
             ),
           ),
         ],
@@ -1145,7 +1250,8 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
           double.tryParse(_controllers['${prefix}realizedTax']!.text) ?? 0.0;
 
       // 🔍 SPRAWDŹ CZY KTÓRAKOLWIEK WARTOŚĆ SIĘ ZMIENIŁA
-      final hasChanges = newInvestmentAmount != investment.investmentAmount ||
+      final hasChanges =
+          newInvestmentAmount != investment.investmentAmount ||
           newPaidAmount != investment.paidAmount ||
           newRemainingCapital != investment.remainingCapital ||
           newRealizedCapital != investment.realizedCapital ||
@@ -1175,13 +1281,21 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
         );
 
         _modifiedInvestments[investment.id] = modifiedInvestment;
-        print('🔍 [InvestorEditDialog] Zmodyfikowano inwestycję ${investment.id}:');
-        print('  - investmentAmount: ${investment.investmentAmount} → $newInvestmentAmount');
-        print('  - remainingCapital: ${investment.remainingCapital} → $newRemainingCapital');
+        print(
+          '🔍 [InvestorEditDialog] Zmodyfikowano inwestycję ${investment.id}:',
+        );
+        print(
+          '  - investmentAmount: ${investment.investmentAmount} → $newInvestmentAmount',
+        );
+        print(
+          '  - remainingCapital: ${investment.remainingCapital} → $newRemainingCapital',
+        );
       }
     }
 
-    print('🔍 [InvestorEditDialog] Zebrano ${_modifiedInvestments.length} zmian');
+    print(
+      '🔍 [InvestorEditDialog] Zebrano ${_modifiedInvestments.length} zmian',
+    );
   }
 
   /// 🎯 NOWA METODA: Automatycznie śledzi zmiany w polach tekstowych
@@ -1210,6 +1324,9 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
         _showSnackBar('Brak zmian do zapisania', isError: false);
         return;
       }
+
+      // 🚀 NOWA WALIDACJA: Sprawdź zgodność z ultra-precyzyjnymi danymi
+      await _validateWithUltraPreciseData();
 
       // Save to Firebase
       final firestore = FirebaseFirestore.instance;
@@ -1241,17 +1358,17 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
       // 🔍 WYCZYŚĆ WSZYSTKIE CACHE PO ZAPISIE
       try {
         print('🗑️ [InvestorEditDialog] Czyszczenie cache...');
-        
+
         // Wyczyść główny cache danych
         _cacheService.invalidateCache();
-        
+
         // Wyczyść konkretne cache związane z inwestycjami
         _cacheService.invalidateCollectionCache('investments');
-        
+
         // Wyczyść cache w BaseService
         for (final entry in _modifiedInvestments.entries) {
           final investment = entry.value;
-          
+
           // Wyczyść wszystkie możliwe klucze cache
           final cacheKeys = [
             'investment_${investment.id}',
@@ -1261,12 +1378,12 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
             'client_${investment.clientId}',
             'investor_${investment.clientId}',
           ];
-          
+
           for (final key in cacheKeys) {
             _cacheService.clearCache(key);
           }
         }
-        
+
         print('✅ [InvestorEditDialog] Cache wyczyszczony pomyślnie');
       } catch (cacheError) {
         print('⚠️ [InvestorEditDialog] Błąd czyszczenia cache: $cacheError');
@@ -1298,6 +1415,9 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
         isError: false,
       );
 
+      // 🚀 NOWE: Odśwież ultra-precyzyjne dane po zapisie
+      await _loadUltraPreciseInvestorData();
+
       // Notify parent and close
       widget.onSaved?.call();
       Navigator.of(context).pop();
@@ -1307,6 +1427,35 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
       setState(() {
         _isSaving = false;
       });
+    }
+  }
+
+  /// 🚀 NOWA METODA: Waliduje zmiany z ultra-precyzyjnymi danymi
+  Future<void> _validateWithUltraPreciseData() async {
+    try {
+      print('🔍 [InvestorEditDialog] Walidacja z ultra-precyzyjnymi danymi...');
+
+      // Odśwież ultra-precyzyjne dane przed zapisem
+      await _loadUltraPreciseInvestorData();
+
+      if (_ultraPreciseResult != null) {
+        final localCount = _productInvestments.length;
+        final ultraPreciseCount = _ultraPreciseResult!.totalCount;
+
+        if (localCount != ultraPreciseCount) {
+          print('⚠️ [InvestorEditDialog] Rozbieżność w danych przed zapisem:');
+          print('  - Lokalne: $localCount');
+          print('  - Ultra-precyzyjne: $ultraPreciseCount');
+
+          // Pokaż dialog ostrzeżenia (opcjonalnie)
+          // Można dodać dialog z pytaniem czy kontynuować
+        }
+
+        print('✅ [InvestorEditDialog] Walidacja ukończona');
+      }
+    } catch (e) {
+      print('❌ [InvestorEditDialog] Błąd walidacji ultra-precyzyjnej: $e');
+      // Nie przerywaj procesu zapisywania - walidacja jest tylko informacyjna
     }
   }
 
@@ -1538,9 +1687,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                           children: [
                             Text(
                               'Skalowanie proporcjonalne',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
+                              style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(
                                     color: AppThemePro.textPrimary,
                                     fontWeight: FontWeight.bold,
@@ -1549,12 +1696,8 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                             const SizedBox(height: 2),
                             Text(
                               widget.product.name,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: AppThemePro.textMuted,
-                                  ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppThemePro.textMuted),
                             ),
                           ],
                         ),
@@ -1563,8 +1706,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                         onPressed: () => Navigator.of(context).pop(),
                         icon: const Icon(Icons.close),
                         style: IconButton.styleFrom(
-                          backgroundColor:
-                              AppThemePro.lossRed.withOpacity(0.1),
+                          backgroundColor: AppThemePro.lossRed.withOpacity(0.1),
                           foregroundColor: AppThemePro.lossRed,
                         ),
                       ),
@@ -1594,9 +1736,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                           children: [
                             Text(
                               'Obecna suma inwestycji',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
+                              style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
                                     color: AppThemePro.textSecondary,
                                     fontWeight: FontWeight.w600,
@@ -1605,9 +1745,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                             const SizedBox(height: 8),
                             Text(
                               '${currentTotal.toStringAsFixed(2)} PLN',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
+                              style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(
                                     color: AppThemePro.textPrimary,
                                     fontWeight: FontWeight.bold,
@@ -1616,12 +1754,8 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                             const SizedBox(height: 4),
                             Text(
                               'Liczba inwestycji: ${_productInvestments.length}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: AppThemePro.textMuted,
-                                  ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppThemePro.textMuted),
                             ),
                           ],
                         ),
@@ -1635,9 +1769,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                         children: [
                           Text(
                             'Nowa suma inwestycji',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
                                   color: AppThemePro.textSecondary,
                                   fontWeight: FontWeight.w600,
@@ -1654,9 +1786,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                                 RegExp(r'^\d*\.?\d{0,2}'),
                               ),
                             ],
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
                                   color: AppThemePro.textPrimary,
                                   fontWeight: FontWeight.w500,
@@ -1669,14 +1799,10 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                                 vertical: 12,
                               ),
                               suffixText: 'PLN',
-                              suffixStyle: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
+                              suffixStyle: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(color: AppThemePro.textMuted),
                               hintText: 'Wprowadź nową sumę...',
-                              hintStyle: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
+                              hintStyle: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(color: AppThemePro.textMuted),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
@@ -1713,9 +1839,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                         children: [
                           Text(
                             'Powód skalowania',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
                                   color: AppThemePro.textSecondary,
                                   fontWeight: FontWeight.w600,
@@ -1725,9 +1849,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                           TextFormField(
                             controller: reasonController,
                             maxLines: 2,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
                                   color: AppThemePro.textPrimary,
                                   fontWeight: FontWeight.w500,
@@ -1740,9 +1862,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                                 vertical: 12,
                               ),
                               hintText: 'Opcjonalny opis powodu zmiany...',
-                              hintStyle: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
+                              hintStyle: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(color: AppThemePro.textMuted),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
@@ -1813,15 +1933,16 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: newTotalController.text.isEmpty ||
+                          onPressed:
+                              newTotalController.text.isEmpty ||
                                   (double.tryParse(newTotalController.text) ??
                                           0.0) <=
                                       0
                               ? null
                               : () => _executeProportionalScaling(
-                                    double.parse(newTotalController.text),
-                                    reasonController.text,
-                                  ),
+                                  double.parse(newTotalController.text),
+                                  reasonController.text,
+                                ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppThemePro.statusWarning,
                             foregroundColor: AppThemePro.primaryDark,
@@ -1877,9 +1998,9 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
               Text(
                 'Podgląd skalowania',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppThemePro.accentGold,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: AppThemePro.accentGold,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -1890,15 +2011,15 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
               Text(
                 'Współczynnik:',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppThemePro.textSecondary,
-                    ),
+                  color: AppThemePro.textSecondary,
+                ),
               ),
               Text(
                 '${scalingFactor.toStringAsFixed(4)}x',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppThemePro.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: AppThemePro.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -1908,15 +2029,15 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
               Text(
                 'Zmiana:',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppThemePro.textSecondary,
-                    ),
+                  color: AppThemePro.textSecondary,
+                ),
               ),
               Text(
                 '${percentChange >= 0 ? '+' : ''}${percentChange.toStringAsFixed(2)}%',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppThemePro.getPerformanceColor(percentChange),
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: AppThemePro.getPerformanceColor(percentChange),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -1926,15 +2047,15 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
               Text(
                 'Różnica:',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppThemePro.textSecondary,
-                    ),
+                  color: AppThemePro.textSecondary,
+                ),
               ),
               Text(
                 '${difference >= 0 ? '+' : ''}${difference.toStringAsFixed(2)} PLN',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppThemePro.getPerformanceColor(difference),
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: AppThemePro.getPerformanceColor(difference),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -1967,23 +2088,25 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
             mainAxisSize: MainAxisSize.min,
             children: [
               const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppThemePro.accentGold),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  AppThemePro.accentGold,
+                ),
               ),
               const SizedBox(height: 16),
               Text(
                 'Wykonuję skalowanie proporcjonalne...',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppThemePro.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: AppThemePro.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
                 'Może to potrwać kilka sekund',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppThemePro.textMuted,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppThemePro.textMuted),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -2033,9 +2156,9 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                 Text(
                   'Skalowanie zakończone!',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppThemePro.textPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    color: AppThemePro.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -2046,8 +2169,8 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                 Text(
                   result.summary.formattedSummary,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppThemePro.textSecondary,
-                      ),
+                    color: AppThemePro.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -2102,17 +2225,17 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
               Text(
                 'Błąd skalowania',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppThemePro.textPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  color: AppThemePro.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
           content: Text(
             'Nie udało się wykonać skalowania proporcjonalnego:\n\n$e',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppThemePro.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppThemePro.textSecondary),
           ),
           actions: [
             ElevatedButton(
@@ -2138,7 +2261,9 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
       await _cacheService.forceRefreshFromFirebase();
 
       // Pobierz zaktualizowane inwestycje dla tego produktu
-      final allInvestments = await _cacheService.getAllInvestments(forceRefresh: true);
+      final allInvestments = await _cacheService.getAllInvestments(
+        forceRefresh: true,
+      );
 
       // Filtruj inwestycje dla tego produktu - używając tej samej logiki co w initState
       final refreshedInvestments = allInvestments.where((investment) {
@@ -2166,7 +2291,9 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
 
       final newInvestments = uniqueInvestments.values.toList();
 
-      print('🔄 [InvestorEditDialog] Zaktualizowano ${newInvestments.length} inwestycji');
+      print(
+        '🔄 [InvestorEditDialog] Zaktualizowano ${newInvestments.length} inwestycji',
+      );
 
       // Aktualizuj dane w interfejsie
       setState(() {
@@ -2187,5 +2314,322 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     } catch (e) {
       print('❌ [InvestorEditDialog] Błąd odświeżania danych: $e');
     }
+  }
+
+  /// 🚀 NOWA METODA: Buduje wskaźnik ultra-precyzyjnych danych
+  Widget _buildUltraPreciseIndicator() {
+    if (_isLoadingUltraPrecise) {
+      return Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppThemePro.accentGold.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppThemePro.accentGold.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(AppThemePro.accentGold),
+          ),
+        ),
+      );
+    }
+
+    if (_ultraPreciseResult == null) {
+      return Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppThemePro.statusError.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppThemePro.statusError.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Icon(Icons.cloud_off, color: AppThemePro.statusError, size: 16),
+      );
+    }
+
+    // Sprawdź zgodność danych
+    final localCount = _productInvestments.length;
+    final ultraPreciseCount = _ultraPreciseResult!.totalCount;
+    final isConsistent = localCount == ultraPreciseCount;
+
+    return GestureDetector(
+      onTap: () => _showUltraPreciseDetailsDialog(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isConsistent
+              ? AppThemePro.statusSuccess.withOpacity(0.1)
+              : AppThemePro.statusWarning.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isConsistent
+                ? AppThemePro.statusSuccess.withOpacity(0.3)
+                : AppThemePro.statusWarning.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isConsistent ? Icons.verified : Icons.warning,
+              color: isConsistent
+                  ? AppThemePro.statusSuccess
+                  : AppThemePro.statusWarning,
+              size: 14,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '$ultraPreciseCount',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: isConsistent
+                    ? AppThemePro.statusSuccess
+                    : AppThemePro.statusWarning,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 🚀 NOWA METODA: Pokazuje szczegóły ultra-precyzyjnych danych
+  void _showUltraPreciseDetailsDialog() {
+    if (_ultraPreciseResult == null) return;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.7),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: 600,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppThemePro.backgroundPrimary,
+                AppThemePro.backgroundSecondary,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppThemePro.accentGold.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppThemePro.primaryDark,
+                      AppThemePro.primaryMedium,
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppThemePro.accentGold.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.analytics,
+                        color: AppThemePro.accentGold,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ultra-precyzyjne dane inwestorów',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  color: AppThemePro.textPrimary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          Text(
+                            'Wyniki wyszukiwania dla: ${widget.product.name}',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppThemePro.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(
+                        Icons.close,
+                        color: AppThemePro.textSecondary,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content
+              Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildDetailRow(
+                      'Strategia wyszukiwania',
+                      _ultraPreciseResult!.searchStrategy,
+                    ),
+                    _buildDetailRow(
+                      'Klucz wyszukiwania',
+                      _ultraPreciseResult!.searchKey,
+                    ),
+                    _buildDetailRow(
+                      'Znalezieni inwestorzy',
+                      '${_ultraPreciseResult!.totalCount}',
+                    ),
+                    _buildDetailRow(
+                      'Lokalne dane',
+                      '${_productInvestments.length}',
+                    ),
+                    _buildDetailRow(
+                      'Czas wykonania',
+                      '${_ultraPreciseResult!.executionTime}ms',
+                    ),
+                    _buildDetailRow(
+                      'Z cache',
+                      _ultraPreciseResult!.fromCache ? 'Tak' : 'Nie',
+                    ),
+
+                    if (_ultraPreciseResult!.error != null) ...[
+                      const SizedBox(height: 8),
+                      _buildDetailRow(
+                        'Błąd',
+                        _ultraPreciseResult!.error!,
+                        isError: true,
+                      ),
+                    ],
+
+                    // Status zgodności
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color:
+                            (_productInvestments.length ==
+                                _ultraPreciseResult!.totalCount)
+                            ? AppThemePro.statusSuccess.withOpacity(0.1)
+                            : AppThemePro.statusWarning.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color:
+                              (_productInvestments.length ==
+                                  _ultraPreciseResult!.totalCount)
+                              ? AppThemePro.statusSuccess.withOpacity(0.3)
+                              : AppThemePro.statusWarning.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            (_productInvestments.length ==
+                                    _ultraPreciseResult!.totalCount)
+                                ? Icons.check_circle
+                                : Icons.warning,
+                            color:
+                                (_productInvestments.length ==
+                                    _ultraPreciseResult!.totalCount)
+                                ? AppThemePro.statusSuccess
+                                : AppThemePro.statusWarning,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              (_productInvestments.length ==
+                                      _ultraPreciseResult!.totalCount)
+                                  ? 'Dane są zgodne'
+                                  : 'Wykryto rozbieżności w danych',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color:
+                                        (_productInvestments.length ==
+                                            _ultraPreciseResult!.totalCount)
+                                        ? AppThemePro.statusSuccess
+                                        : AppThemePro.statusWarning,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 🚀 NOWA METODA: Buduje wiersz szczegółów
+  Widget _buildDetailRow(String label, String value, {bool isError = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 140,
+            child: Text(
+              '$label:',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppThemePro.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: isError
+                    ? AppThemePro.statusError
+                    : AppThemePro.textPrimary,
+                fontWeight: isError ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

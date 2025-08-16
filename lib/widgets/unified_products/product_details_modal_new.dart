@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:responsive_framework/responsive_framework.dart';
-import '../../models/unified_product.dart';
-import '../../models/investor_summary.dart';
+import '../../models_and_services.dart'; // Centralna eksport wszystkich modeli i serwisów
 import '../../theme/app_theme.dart';
 import '../../utils/currency_formatter.dart';
-import '../../services/firebase_functions_product_investors_service.dart';
 import 'product_investors_list.dart';
 
 /// Modal ze szczegółami produktu z zakładkami
@@ -20,8 +18,8 @@ class ProductDetailsModal extends StatefulWidget {
 class _ProductDetailsModalState extends State<ProductDetailsModal>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final FirebaseFunctionsProductInvestorsService _investorsService =
-      FirebaseFunctionsProductInvestorsService();
+  final UltraPreciseProductInvestorsService _investorsService =
+      UltraPreciseProductInvestorsService();
 
   List<InvestorSummary> _investors = [];
   bool _isLoadingInvestors = false;
@@ -61,8 +59,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       final result = await _investorsService.getProductInvestors(
         productId: widget.product.id,
         productName: widget.product.name,
-        productType: widget.product.productType.name.toLowerCase(),
-        searchStrategy: 'comprehensive',
+        searchStrategy: 'productId',
       );
       final investors = result.investors;
 

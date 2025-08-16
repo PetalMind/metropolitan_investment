@@ -2,17 +2,17 @@
 // Funkcje dla zaawansowanej analityki dashboard
 
 const { onCall } = require("firebase-functions/v2/https");
-const { setGlobalOptions } = require("firebase-functions/v2");
+// const { setGlobalOptions } = require("firebase-functions/v2"); // Moved to index.js
 const { HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const { safeToDouble, safeToString, parseDate, mapProductType } = require("./utils/data-mapping");
 const { calculateCapitalSecuredByRealEstate } = require("./utils/unified-statistics");
 
-// Set global options for all functions
-setGlobalOptions({
-  region: "europe-west1",
-  cors: true  // Enable CORS for all functions
-});
+// Set global options for all functions - moved to index.js
+// setGlobalOptions({
+//   region: "europe-west1",
+//   cors: true  // Enable CORS for all functions
+// });
 
 /**
  * 📊 FUNKCJA: Advanced Dashboard Metrics

@@ -4,6 +4,7 @@ import '../../theme/app_theme_professional.dart';
 import '../investor_edit/currency_controls.dart';
 import '../investor_edit/investments_summary.dart';
 import '../investor_edit/investment_edit_card.dart';
+import '../investment_history_widget.dart'; // 🚀 NOWE: Widget historii zmian
 import 'investor_edit_dialog_enhancements.dart';
 
 /// 📝 Dialog edycji inwestora - Wersja refaktoryzowana
@@ -33,7 +34,8 @@ class InvestorEditDialog extends StatefulWidget {
   State<InvestorEditDialog> createState() => _InvestorEditDialogState();
 }
 
-class _InvestorEditDialogState extends State<InvestorEditDialog> {
+class _InvestorEditDialogState extends State<InvestorEditDialog>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
 
   // Services
@@ -44,17 +46,35 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
   late InvestmentEditControllers _controllers;
   late List<Investment> _editableInvestments;
 
+  // 🚀 NOWE: Kontroler zakładek
+  late TabController _tabController;
+  // ignore: unused_field
+  int _currentTabIndex = 0;
+
   @override
   void initState() {
     super.initState();
     _editService = InvestorEditService();
     _state = const InvestorEditState();
+
+    // 🚀 NOWE: Inicjalizacja TabController
+    _tabController = TabController(
+      length: 2, // Edycja + Historia
+      vsync: this,
+    );
+    _tabController.addListener(() {
+      setState(() {
+        _currentTabIndex = _tabController.index;
+      });
+    });
+
     _initializeData();
   }
 
   @override
   void dispose() {
     _controllers.dispose();
+    _tabController.dispose(); // 🚀 NOWE: Dispose TabController
     super.dispose();
   }
 
@@ -462,35 +482,281 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
           ],
         ),
       ),
-      child: Form(
-        key: _formKey,
-        child: CustomScrollView(
-          slivers: [
-            // Error notification if present
-            if (_state.error != null)
-              SliverToBoxAdapter(child: _buildPremiumErrorCard()),
+      child: Column(
+        children: [
+          // 🚀 NOWE: TabBar dla przełączania między edycją a historią
+          _buildTabBar(),
 
-            // Investments grid section
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: _buildInvestmentsSection(),
-              ),
+          // 🚀 NOWE: TabBarView z zawartością
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildEditTab(), // Zakładka edycji
+                _buildHistoryTab(), // Zakładka historii
+              ],
             ),
-            // Executive summary section
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: _buildExecutiveSummary(),
-              ),
-            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-           
-
-            // Bottom padding
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
-          ],
+  /// 🚀 NOWE: Buduje TabBar
+  Widget _buildTabBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundSecondary,
+        border: Border(
+          bottom: BorderSide(
+            color: AppThemePro.accentGold.withOpacity(0.2),
+            width: 1,
+          ),
         ),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        labelColor: AppThemePro.accentGold,
+        unselectedLabelColor: AppThemePro.textSecondary,
+        indicatorColor: AppThemePro.accentGold,
+        indicatorWeight: 3,
+        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 16,
+        ),
+        onTap: (index) {
+          setState(() {
+            _currentTabIndex = index;
+          });
+        },
+        tabs: [
+          Tab(icon: Icon(Icons.edit, size: 20), text: 'Edycja Inwestycji'),
+          Tab(icon: Icon(Icons.history, size: 20), text: 'Historia Zmian'),
+        ],
+      ),
+    );
+  }
+
+  /// 🚀 NOWE: Zakładka edycji (poprzednia zawartość)
+  Widget _buildEditTab() {
+    return Form(
+      key: _formKey,
+      child: CustomScrollView(
+        slivers: [
+          // Error notification if present
+          if (_state.error != null)
+            SliverToBoxAdapter(child: _buildPremiumErrorCard()),
+
+          // Investments grid section
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: _buildInvestmentsSection(),
+            ),
+          ),
+          // Executive summary section
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: _buildExecutiveSummary(),
+            ),
+          ),
+
+          // Bottom padding
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+        ],
+      ),
+    );
+  }
+
+  /// 🚀 NOWE: Zakładka historii zmian
+  Widget _buildHistoryTab() {
+    if (_editableInvestments.isEmpty) {
+      return Center(
+        child: Text(
+          'Brak inwestycji do wyświetlenia historii',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: AppThemePro.textSecondary),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header sekcji historii
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppThemePro.accentGold.withOpacity(0.1),
+                  AppThemePro.backgroundSecondary,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppThemePro.accentGold.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.accentGold.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.timeline,
+                    color: AppThemePro.accentGold,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Historia Zmian Inwestycji',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: AppThemePro.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Wszystkie zmiany wprowadzone w inwestycjach tego inwestora',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppThemePro.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Lista historii dla każdej inwestycji
+          Expanded(
+            child: ListView.separated(
+              itemCount: _editableInvestments.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 24),
+              itemBuilder: (context, index) {
+                final investment = _editableInvestments[index];
+                return _buildInvestmentHistorySection(investment, index);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 🚀 NOWE: Sekcja historii dla pojedynczej inwestycji
+  Widget _buildInvestmentHistorySection(Investment investment, int index) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppThemePro.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppThemePro.borderPrimary.withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header inwestycji
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppThemePro.backgroundSecondary,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+              border: Border(
+                bottom: BorderSide(
+                  color: AppThemePro.borderPrimary.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.sharesGreen.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      color: AppThemePro.sharesGreen,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        investment.productName.isNotEmpty
+                            ? investment.productName
+                            : 'Inwestycja ${index + 1}',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: AppThemePro.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Kapitał pozostały: ${_formatCurrency(investment.remainingCapital)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppThemePro.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Widget historii dla tej inwestycji
+          Container(
+            height: 300, // Ograniczona wysokość dla lepszego UX
+            child: InvestmentHistoryWidget(
+              investmentId: investment.id,
+              isCompact: true,
+              maxEntries: 10, // Pokaż maksymalnie 10 ostatnich zmian
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1166,5 +1432,10 @@ class _InvestorEditDialogState extends State<InvestorEditDialog> {
             .copyWith(error: 'Błąd podczas zapisywania zmian: ${e.toString()}');
       });
     }
+  }
+
+  /// 💰 NOWA METODA: Formatuje kwoty walutowe
+  String _formatCurrency(double amount) {
+    return CurrencyFormatter.formatCurrency(amount);
   }
 }

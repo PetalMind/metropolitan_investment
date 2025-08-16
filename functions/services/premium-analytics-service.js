@@ -12,9 +12,17 @@
  * • Comprehensive insights i analytics
  */
 
-const { db } = require("../utils/firebase-config");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { admin, db } = require("../utils/firebase-config");
 const { safeToDouble } = require("../utils/data-mapping");
 const { getCachedResult, setCachedResult } = require("../utils/cache-utils");
+const {
+  calculateUnifiedTotalValue,
+  calculateUnifiedViableCapital,
+  calculateCapitalSecuredByRealEstate,
+  getUnifiedField,
+  normalizeInvestmentDocument
+} = require("../utils/unified-statistics");
 
 /**
  * 🎯 GŁÓWNA FUNKCJA: Kompleksowa analityka premium
@@ -55,8 +63,20 @@ async function getPremiumInvestorAnalytics(data) {
       }
     }
 
-    // 🔍 KROK 1: Pobierz wszystkich inwestorów z Firebase Functions Analytics
-    const baseAnalyticsResult = await getOptimizedInvestorAnalytics({
+    // 🔍 KROK 1: Pobierz wszystkich inwestorów bezpośrednio z bazy danych
+    console.log("📋 [Premium Analytics] Pobieranie danych z bazy...");
+    const [clientsSnapshot, investmentsSnapshot] = await Promise.all([
+      db.collection("clients").limit(10000).get(),
+      db.collection("investments").limit(50000).get(),
+    ]);
+
+    const clients = clientsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const investments = investmentsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    console.log(`📊 [Premium Analytics] Dane: ${clients.length} klientów, ${investments.length} inwestycji`);
+
+    // Użyj lokalnej funkcji do przetworzenia danych inwestorów
+    const investors = await processInvestorsData(clients, investments, {
       page,
       pageSize,
       sortBy,
@@ -65,15 +85,8 @@ async function getPremiumInvestorAnalytics(data) {
       votingStatusFilter,
       clientTypeFilter,
       showOnlyWithUnviableInvestments,
-      searchQuery,
-      forceRefresh: true // Zawsze świeże dane dla premium analytics
+      searchQuery
     });
-
-    if (!baseAnalyticsResult.success) {
-      throw new Error(`Base analytics failed: ${baseAnalyticsResult.error}`);
-    }
-
-    const investors = baseAnalyticsResult.data.investors || [];
 
     // 🔍 KROK 2: Oblicz analizę grupy większościowej
     const majorityAnalysis = calculateMajorityAnalysis(investors, majorityThreshold);
@@ -95,9 +108,15 @@ async function getPremiumInvestorAnalytics(data) {
       success: true,
       data: {
         // Podstawowe dane inwestorów
-        investors: baseAnalyticsResult.data.investors,
-        totalCount: baseAnalyticsResult.data.totalCount,
-        pagination: baseAnalyticsResult.data.pagination,
+        investors: investors,
+        totalCount: investors.length,
+        pagination: {
+          currentPage: page,
+          pageSize: pageSize,
+          totalPages: Math.ceil(investors.length / pageSize),
+          hasNextPage: page * pageSize < investors.length,
+          hasPreviousPage: page > 1
+        },
 
         // 🚀 PREMIUM ANALYTICS
         majorityAnalysis,
@@ -125,17 +144,153 @@ async function getPremiumInvestorAnalytics(data) {
 
   } catch (error) {
     console.error("❌ [Premium Analytics] Błąd:", error);
-    return {
-      success: false,
-      error: error.message,
-      data: null
-    };
+    throw new HttpsError('internal', `Premium analytics failed: ${error.message}`);
   }
 }
 
 /**
+ * 🔧 FUNKCJA POMOCNICZA: Przetwarzanie danych inwestorów
+ * Lokalna implementacja logiki analytics bez wywołania Cloud Function
+ */
+async function processInvestorsData(clients, investments, filters) {
+  const {
+    page = 1,
+    pageSize = 10000,
+    sortBy = 'viableRemainingCapital',
+    sortAscending = false,
+    votingStatusFilter = null,
+    clientTypeFilter = null,
+    searchQuery = null
+  } = filters;
+
+  console.log("🔧 [Process Investors] Przetwarzanie danych...");
+  console.log(`📊 [Process Investors] Otrzymano ${clients.length} klientów i ${investments.length} inwestycji`);
+
+  // Grupuj inwestycje według klientów
+  const investmentsByClient = new Map();
+
+  console.log("🔍 [Process Investors] Rozpoczynam grupowanie inwestycji według klientów...");
+  investments.forEach((investment, index) => {
+    try {
+      const clientName = getUnifiedField(investment, 'clientName');
+      if (!clientName) {
+        console.log(`⚠️ [Process Investors] Brak clientName dla inwestycji ${index}: ${JSON.stringify(investment).substring(0, 100)}`);
+        return;
+      }
+
+      if (!investmentsByClient.has(clientName)) {
+        investmentsByClient.set(clientName, []);
+      }
+      investmentsByClient.get(clientName).push(investment);
+    } catch (error) {
+      console.error(`❌ [Process Investors] Błąd podczas grupowania inwestycji ${index}:`, error);
+      throw new HttpsError('internal', `Investment processing failed: ${error.message}`);
+    }
+  });
+
+  // Utwórz podsumowania inwestorów
+  const allInvestors = [];
+  clients.forEach((client) => {
+    const clientName = client.fullName;
+    const clientInvestments = investmentsByClient.get(clientName) || [];
+
+    if (clientInvestments.length === 0) return;
+
+    let totalViableCapital = 0;
+    let totalCapitalSecuredByRealEstate = 0;
+    let totalCapitalForRestructuring = 0;
+    let unifiedTotalValue = 0;
+
+    const processedInvestments = clientInvestments.map((investment) => {
+      const normalizedInvestment = normalizeInvestmentDocument(investment);
+      const viableCapital = calculateUnifiedViableCapital(investment);
+      const totalValue = calculateUnifiedTotalValue(investment);
+      const capitalSecuredByRealEstate = calculateCapitalSecuredByRealEstate(investment);
+      const capitalForRestructuring = getUnifiedField(investment, 'capitalForRestructuring');
+
+      totalViableCapital += viableCapital;
+      totalCapitalSecuredByRealEstate += capitalSecuredByRealEstate;
+      totalCapitalForRestructuring += capitalForRestructuring;
+      unifiedTotalValue += totalValue;
+
+      return {
+        ...normalizedInvestment,
+        capitalSecuredByRealEstate,
+        capitalForRestructuring,
+      };
+    });
+
+    allInvestors.push({
+      client: {
+        id: client.id,
+        name: client.fullName,
+        email: client.email || "",
+        phone: client.phone || "",
+        companyName: client.companyName || "",
+        votingStatus: client.votingStatus || "undecided",
+        type: client.type || "individual",
+        unviableInvestments: client.unviableInvestments || [],
+      },
+      investments: processedInvestments,
+      viableRemainingCapital: totalViableCapital,
+      unifiedTotalValue: unifiedTotalValue,
+      totalInvestmentAmount: processedInvestments.reduce((sum, inv) => sum + getUnifiedField(inv.originalData, 'investmentAmount'), 0),
+      capitalSecuredByRealEstate: totalCapitalSecuredByRealEstate,
+      capitalForRestructuring: totalCapitalForRestructuring,
+      investmentCount: clientInvestments.length,
+    });
+  });
+
+  // Filtrowanie
+  let filteredInvestors = allInvestors;
+
+  if (votingStatusFilter) {
+    filteredInvestors = filteredInvestors.filter(inv =>
+      inv.client.votingStatus === votingStatusFilter
+    );
+  }
+
+  if (clientTypeFilter) {
+    filteredInvestors = filteredInvestors.filter(inv =>
+      inv.client.type === clientTypeFilter
+    );
+  }
+
+  if (searchQuery) {
+    const query = searchQuery.toLowerCase();
+    filteredInvestors = filteredInvestors.filter(inv =>
+      inv.client.name.toLowerCase().includes(query) ||
+      (inv.client.companyName && inv.client.companyName.toLowerCase().includes(query))
+    );
+  }
+
+  // Sortowanie
+  filteredInvestors.sort((a, b) => {
+    let valueA = a[sortBy] || (a.client && a.client[sortBy]) || 0;
+    let valueB = b[sortBy] || (b.client && b.client[sortBy]) || 0;
+
+    if (typeof valueA === 'string' && typeof valueB === 'string') {
+      valueA = valueA.toLowerCase();
+      valueB = valueB.toLowerCase();
+    }
+
+    const comparison = valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+    return sortAscending ? comparison : -comparison;
+  });
+
+  // Paginacja
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, filteredInvestors.length);
+  const paginatedInvestors = filteredInvestors.slice(startIndex, endIndex);
+
+  console.log(`✅ [Process Investors] Przetworzono ${paginatedInvestors.length}/${filteredInvestors.length} inwestorów`);
+
+  return paginatedInvestors;
+}
+
+/**
  * 🏆 ANALIZA GRUPY WIĘKSZOŚCIOWEJ
- * Znajduje minimalną grupę inwestorów która kontroluje ≥51% kapitału
+ * Znajduje minimalną grupę inwestorów która kontroluje ≥51 % kapitału
  */
 function calculateMajorityAnalysis(investors, majorityThreshold = 51.0) {
   console.log(`🏆 [Majority Analysis] Analiza dla progu ${majorityThreshold}%`);
@@ -576,10 +731,6 @@ function generateIntelligentInsights(investors, majorityAnalysis, votingAnalysis
 
   return insights;
 }
-
-// Import z istniejącego serwisu analytics (potrzebne dla base analytics)
-const { getOptimizedInvestorAnalytics } = require("./analytics-service");
-const { onCall } = require("firebase-functions/v2/https");
 
 // 🚀 WRAPPER FIREBASE FUNCTION
 const getPremiumInvestorAnalyticsFunction = onCall({

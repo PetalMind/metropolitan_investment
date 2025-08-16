@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../models/unified_product.dart';
-import '../../models/investor_summary.dart';
-import '../../services/firebase_functions_product_investors_service.dart';
+import '../../models_and_services.dart'; // Centralny import z ultra-precyzyjnym serwisem
 
 /// Service do obsługi logiki dialogu szczegółów produktu
 class ProductDetailsService {
-  final FirebaseFunctionsProductInvestorsService _investorsService =
-      FirebaseFunctionsProductInvestorsService();
+  final UltraPreciseProductInvestorsService _investorsService =
+      UltraPreciseProductInvestorsService();
 
   /// Pobiera inwestorów dla danego produktu używając zoptymalizowanej Firebase Function
   /// ⭐ ZSYNCHRONIZOWANE: Używa tej samej logiki co DeduplicatedProductService
@@ -26,9 +24,7 @@ class ProductDetailsService {
         productId:
             product.id, // Używamy prawdziwego ID inwestycji (np. "bond_0770")
         productName: product.name,
-        productType: product.productType.name.toLowerCase(),
-        searchStrategy:
-            'comprehensive', // Comprehensive żeby znalazło po ID lub nazwie
+        searchStrategy: 'productId', // Ultra-precyzyjne wyszukiwanie po ID
       );
 
       if (isDeduplicated) {

@@ -50,7 +50,8 @@ class ProductsManagementScreen extends StatefulWidget {
 class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     with TickerProviderStateMixin {
   late final FirebaseFunctionsProductsService _productService;
-  late final FirebaseFunctionsProductInvestorsService _productInvestorsService;
+  late final UltraPreciseProductInvestorsService
+  _ultraPreciseInvestorsService; // 🚀 NOWY: Ultra-precyzyjny serwis
   late final DeduplicatedProductService _deduplicatedProductService;
   late final OptimizedProductService _optimizedProductService; // 🚀 NOWY SERWIS
   late final ProductManagementService
@@ -591,7 +592,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
 
   void _initializeService() {
     _productService = FirebaseFunctionsProductsService();
-    _productInvestorsService = FirebaseFunctionsProductInvestorsService();
+    _ultraPreciseInvestorsService =
+        UltraPreciseProductInvestorsService(); // 🚀 NOWY: Ultra-precyzyjny serwis
     _deduplicatedProductService = DeduplicatedProductService();
     _optimizedProductService = OptimizedProductService(); // 🚀 NOWY SERWIS
     _productManagementService =
@@ -628,11 +630,15 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   }
 
   Future<void> _loadInitialData() async {
+    if (!mounted) return;
+
     try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+          _error = null;
+        });
+      }
 
       if (kDebugMode) {
         print('🔄 [ProductsManagementScreen] Rozpoczynam ładowanie danych...');
@@ -1034,11 +1040,13 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   }
 
   Future<void> _refreshData() async {
-    if (_isRefreshing) return;
+    if (_isRefreshing || !mounted) return;
 
-    setState(() {
-      _isRefreshing = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isRefreshing = true;
+      });
+    }
 
     // Dodaj efekt wibracji dla lepszego UX
     HapticFeedback.mediumImpact();
@@ -2714,12 +2722,17 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   }
 
   /// Pokazuje inwestorów dla danego produktu
+  /// 🚀 ZAKTUALIZOWANE: Używa ultra-precyzyjnego serwisu
   void _showProductInvestors(UnifiedProduct product) async {
     try {
       // Zamknij dialog szczegółów produktu
-      Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
 
-      // Pokaż loading dialog
+      // Pokaż loading dialog tylko jeśli widget jest still mounted
+      if (!mounted) return;
+
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -2727,10 +2740,357 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             const PremiumLoadingWidget(message: 'Wyszukiwanie inwestorów...'),
       );
 
-      final result = await _productInvestorsService.getProductInvestors(
+      // 🚀 UŻYJ ULTRA-PRECYZYJNEGO SERWISU z productId jeśli dostępne
+      late UltraPreciseProductInvestorsResult ultraResult;
+
+      // Sprawdź czy produkt ma zunifikowane ID
+      final productId = product.id;
+      if (productId.contains('_') &&
+          (productId.startsWith('apartment_') ||
+              productId.startsWith('bond_') ||
+              productId.startsWith('loan_') ||
+              productId.startsWith('share_'))) {
+        if (kDebugMode) {
+          print(
+            '🎯 [ProductsManagement] Używam ultra-precyzyjnego serwisu z productId: $productId',
+          );
+        }
+        ultraResult = await _ultraPreciseInvestorsService.getByProductId(
+          productId,
+        );
+      } else {
+        if (kDebugMode) {
+          print(
+            '🎯 [ProductsManagement] Używam ultra-precyzyjnego serwisu z productName: ${product.name}',
+          );
+        }
+        ultraResult = await _ultraPreciseInvestorsService.getByProductName(
+          product.name,
+        );
+      }
+
+      // Zamknij loading dialog tylko jeśli widget jest still mounted
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Sprawdź mounted przed kolejnymi operacjami UI
+      if (!mounted) return;
+
+      if (ultraResult.isSuccess) {
+        // Pokaż wyniki z ultra-precyzyjnego serwisu
+        _showUltraPreciseInvestorsResultDialog(product, ultraResult);
+      } else if (ultraResult.isEmpty) {
+        // Pokaż dialog braku inwestorów
+        _showEmptyUltraPreciseInvestorsDialog(product, ultraResult);
+      } else {
+        // Błąd - fallback na stary serwis
+        if (kDebugMode) {
+          print(
+            '⚠️ [ProductsManagement] Ultra-precyzyjny serwis failed, fallback na stary: ${ultraResult.error}',
+          );
+        }
+        await _showProductInvestorsLegacyFallback(product);
+      }
+    } catch (e) {
+      // Zamknij loading dialog jeśli jest otwarty i widget jest mounted
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (kDebugMode) {
+        print(
+          '❌ [ProductsManagementScreen] Błąd podczas wyszukiwania inwestycji: $e',
+        );
+      }
+
+      // Fallback na stary serwis tylko jeśli widget jest mounted
+      if (mounted) {
+        await _showProductInvestorsLegacyFallback(product);
+      }
+    }
+  }
+
+  /// 🚀 NOWA METODA: Pokaż wyniki z ultra-precyzyjnego serwisu
+  void _showUltraPreciseInvestorsResultDialog(
+    UnifiedProduct product,
+    UltraPreciseProductInvestorsResult result,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.backgroundSecondary,
+        title: Row(
+          children: [
+            Icon(Icons.group, color: AppTheme.secondaryGold),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Inwestorzy produktu (${result.totalCount})',
+                style: TextStyle(color: AppTheme.textPrimary, fontSize: 18),
+              ),
+            ),
+            // 🚀 Badge ultra-precyzyjny
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.secondaryGold.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppTheme.secondaryGold.withOpacity(0.3),
+                ),
+              ),
+              child: Text(
+                'ULTRA-PRECISE',
+                style: TextStyle(
+                  color: AppTheme.secondaryGold,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.9,
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Informacje o produkcie
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.backgroundPrimary,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.surfaceCard),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '📊 ${product.name}',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _buildInfoChip('Strategia', result.searchStrategy),
+                        const SizedBox(width: 8),
+                        _buildInfoChip('Czas', '${result.executionTime}ms'),
+                        const SizedBox(width: 8),
+                        _buildInfoChip(
+                          'Cache',
+                          result.fromCache ? 'TAK' : 'NIE',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _buildInfoChip(
+                          'Kapitał',
+                          '${(result.statistics.totalCapital / 1000).toStringAsFixed(0)}K PLN',
+                        ),
+                        const SizedBox(width: 8),
+                        _buildInfoChip(
+                          'Mapowanie',
+                          '${result.mappingStats.successPercentage.toStringAsFixed(1)}%',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Lista inwestorów
+              Expanded(
+                child: ListView.builder(
+                  itemCount: result.investors.length,
+                  itemBuilder: (context, index) {
+                    final investor = result.investors[index];
+                    return Card(
+                      color: AppTheme.backgroundSecondary,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppTheme.secondaryGold.withOpacity(
+                            0.2,
+                          ),
+                          child: Text(
+                            investor.client.name.isNotEmpty
+                                ? investor.client.name[0].toUpperCase()
+                                : '?',
+                            style: TextStyle(
+                              color: AppTheme.secondaryGold,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          investor.client.name,
+                          style: TextStyle(color: AppTheme.textPrimary),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Inwestycji: ${investor.investmentCount}',
+                              style: TextStyle(color: AppTheme.textSecondary),
+                            ),
+                            Text(
+                              'Kapitał: ${(investor.totalRemainingCapital / 1000).toStringAsFixed(0)}K PLN',
+                              style: TextStyle(color: AppTheme.secondaryGold),
+                            ),
+                          ],
+                        ),
+                        trailing: investor.client.isActive
+                            ? Icon(Icons.check_circle, color: Colors.green)
+                            : Icon(Icons.warning, color: Colors.orange),
+                        onTap: () {
+                          // TODO: Pokaż szczegóły inwestora
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Zamknij',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 🚀 NOWA METODA: Pokaż dialog braku inwestorów (ultra-precyzyjny)
+  void _showEmptyUltraPreciseInvestorsDialog(
+    UnifiedProduct product,
+    UltraPreciseProductInvestorsResult result,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.backgroundSecondary,
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: AppTheme.secondaryGold),
+            const SizedBox(width: 8),
+            Text(
+              'Brak inwestorów',
+              style: TextStyle(color: AppTheme.textPrimary),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Nie znaleziono inwestorów dla produktu:',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.backgroundPrimary,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.surfaceCard),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '📊 ${product.name}',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '🔍 Strategia: ${result.searchStrategy}',
+                    style: TextStyle(color: AppTheme.textSecondary),
+                  ),
+                  Text(
+                    '⏱️ Czas wyszukiwania: ${result.executionTime}ms',
+                    style: TextStyle(color: AppTheme.textSecondary),
+                  ),
+                  Text(
+                    '🎯 Klucz wyszukiwania: ${result.searchKey}',
+                    style: TextStyle(color: AppTheme.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Zamknij',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 🔄 LEGACY FALLBACK: Używa starego serwisu w przypadku błędu
+  Future<void> _showProductInvestorsLegacyFallback(
+    UnifiedProduct product,
+  ) async {
+    try {
+      // Sprawdź mounted przed pokazaniem dialoga
+      if (!mounted) return;
+
+      // Pokaż loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) =>
+            const PremiumLoadingWidget(message: 'Fallback wyszukiwanie...'),
+      );
+
+      final ultraResult = await _ultraPreciseInvestorsService.getByProductName(
+        product.name,
+        forceRefresh: true, // Wymuś odświeżenie w fallback
+      );
+
+      // Sprawdź mounted po asynchronicznym wywołaniu
+      if (!mounted) return;
+
+      // Konwertuj na standardowy wynik
+      final result = ProductInvestorsResult(
+        investors: ultraResult.investors,
+        totalCount: ultraResult.totalCount,
+        statistics: ProductInvestorsStatistics(
+          totalCapital: ultraResult.statistics.totalCapital,
+          totalInvestments: ultraResult.statistics.totalInvestments,
+          averageCapital: ultraResult.statistics.averageCapital,
+          activeInvestors: ultraResult.totalCount,
+        ),
+        searchStrategy: 'legacy_fallback_ultra_precise',
         productName: product.name,
         productType: product.productType.name,
-        searchStrategy: 'comprehensive',
+        executionTime: ultraResult.executionTime,
+        fromCache: ultraResult.fromCache,
+        error: ultraResult.error,
       );
 
       // Zamknij loading dialog
@@ -2738,21 +3098,25 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         Navigator.of(context).pop();
       }
 
+      // Sprawdź mounted przed kolejnymi operacjami UI
+      if (!mounted) return;
+
       if (result.investors.isEmpty) {
-        if (mounted) {
-          _showEmptyInvestorsDialog(product, result);
-        }
+        _showEmptyInvestorsDialog(product, result);
       } else {
-        if (mounted) {
-          _showInvestorsResultDialog(product, result);
-        }
+        _showInvestorsResultDialog(product, result);
       }
     } catch (e) {
-      // Zamknij loading dialog jeśli jest otwarty
+      // Zamknij loading dialog jeśli jest otwarty i widget jest mounted
       if (mounted) {
         Navigator.of(context).pop();
       }
 
+      if (kDebugMode) {
+        print('❌ [ProductsManagementScreen] Błąd fallback wyszukiwania: $e');
+      }
+
+      // Pokaż snackbar tylko jeśli widget jest mounted
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2762,6 +3126,26 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         );
       }
     }
+  }
+
+  /// 🔧 HELPER: Tworzy chip z informacją
+  Widget _buildInfoChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.secondaryGold.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppTheme.secondaryGold.withOpacity(0.2)),
+      ),
+      child: Text(
+        '$label: $value',
+        style: TextStyle(
+          color: AppTheme.secondaryGold,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
   }
 
   void _showEmptyInvestorsDialog(

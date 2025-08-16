@@ -4,7 +4,7 @@ import '../models/unified_product.dart';
 import '../models/investment.dart';
 import '../models/product.dart'; // Import dla ProductType
 import '../services/unified_product_service.dart';
-import '../services/firebase_functions_product_investors_service.dart'; // ⭐ NOWE
+import '../models_and_services.dart'; // Import centralny z ultra-precyzyjnym serwisem
 import 'base_service.dart';
 
 /// Serwis deduplikacji produktów z kolekcji investments
@@ -18,9 +18,9 @@ class DeduplicatedProductService extends BaseService {
   static const String _cacheKeyAll =
       'deduped_products_all_v3'; // ⭐ NOWA WERSJA: używa prawdziwych ID
 
-  // ⭐ NOWE: Serwis do zsynchronizowanego liczenia inwestorów
-  final FirebaseFunctionsProductInvestorsService _investorsService =
-      FirebaseFunctionsProductInvestorsService();
+  // ⭐ NOWE: Ultra-precyzyjny serwis do liczenia inwestorów
+  final UltraPreciseProductInvestorsService _investorsService =
+      UltraPreciseProductInvestorsService();
 
   /// Pobiera wszystkie unikalne produkty (deduplikowane)
   Future<List<DeduplicatedProduct>> getAllUniqueProducts() async {
@@ -378,36 +378,32 @@ class DeduplicatedProductService extends BaseService {
           firstInvestment['nazwa_produktu'] ??
           'Nieznany Produkt';
 
-      // ⭐ DEBUG: sprawdźmy co mamy w firstInvestment
       print('🔧 [DeduplicatedProduct] Tworzenie produktu dla: $productName');
-      print(
-        '🔧 [DeduplicatedProduct] firstInvestment[id]: ${firstInvestment['id']}',
-      );
-      print('🔧 [DeduplicatedProduct] productKey: $productKey');
-      print(
-        '🔧 [DeduplicatedProduct] hash fallback: ${productKey.hashCode.abs().toString()}',
-      );
 
-      final productType = _mapProductType(
-        firstInvestment['productType'] ?? firstInvestment['typ_produktu'],
-      );
+      // ⭐ KLUCZOWA ZMIANA: Używaj productId z inwestycji, NIE ID dokumentu
+      final productId =
+          firstInvestment['productId'] ??
+          firstInvestment['id']; // fallback do ID dokumentu
+
+      print('🔧 [DeduplicatedProduct] productId: $productId');
+      print('🔧 [DeduplicatedProduct] productName: $productName');
 
       print(
-        '🔄 [DeduplicatedProduct] Pobieranie rzeczywistej liczby inwestorów dla: $productName',
+        '🔄 [DeduplicatedProduct] Pobieranie rzeczywistej liczby inwestorów...',
       );
 
       final result = await _investorsService.getProductInvestors(
-        productId:
-            firstInvestment['id'], // ⭐ UŻYWAMY PRAWDZIWEGO ID PIERWSZEJ INWESTYCJI
+        productId: productId?.toString(), // ⭐ UŻYWAMY RZECZYWISTEGO PRODUCT ID
         productName: productName,
-        productType: productType.name.toLowerCase(),
-        searchStrategy:
-            'comprehensive', // Używamy comprehensive żeby szukało po ID oraz nazwie
+        searchStrategy: productId != null
+            ? 'productId'
+            : 'productName', // Strategia zależna od dostępności productId
       );
 
       actualInvestorCount = result.totalCount;
 
       print('✅ [DeduplicatedProduct] ${productName}:');
+      print('   - ProductId: $productId');
       print('   - Lokalne liczenie: ${uniqueInvestorsCount}');
       print('   - Firebase Functions: ${actualInvestorCount}');
       print('   - Różnica: ${actualInvestorCount - uniqueInvestorsCount}');
@@ -442,12 +438,13 @@ class DeduplicatedProductService extends BaseService {
       }
     }
 
+    // ⭐ NOWE: ID produktu oparte na productId z pierwszej inwestycji
+    final deduplicatedId =
+        firstInvestment['productId']?.toString() ??
+        productKey.hashCode.abs().toString();
+
     return DeduplicatedProduct(
-      id:
-          firstInvestment['id'] ??
-          productKey.hashCode
-              .abs()
-              .toString(), // ⭐ FALLBACK: hash tylko jeśli brak ID
+      id: deduplicatedId, // ⭐ UŻYWAMY RZECZYWISTEGO PRODUCT ID
       name:
           firstInvestment['productName'] ??
           firstInvestment['projectName'] ??
@@ -489,6 +486,10 @@ class DeduplicatedProductService extends BaseService {
             .toList(),
         'actualInvestorCount': actualInvestorCount, // ⭐ NOWE
         'uniqueInvestorsLocal': uniqueInvestorsCount,
+        'realProductId':
+            firstInvestment['productId'], // ⭐ DODANO: rzeczywisty productId
+        'deduplicatedId':
+            deduplicatedId, // ⭐ DODANO: ID używane przez deduplikację
       },
     );
   }

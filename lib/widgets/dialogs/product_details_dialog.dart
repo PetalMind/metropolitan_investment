@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
-import '../../models/unified_product.dart';
-import '../../models/investor_summary.dart';
+import '../../models_and_services.dart'; // Centralized import
 import 'product_details_header.dart';
 import 'product_details_tabs.dart';
 import 'product_details_service.dart';
@@ -63,7 +62,6 @@ class _EnhancedProductDetailsDialogState
           _investors = investors;
           _isLoadingInvestors = false;
         });
-
       }
     } catch (e) {
       if (mounted) {

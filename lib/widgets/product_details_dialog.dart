@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import '../models/unified_product.dart';
-import '../models/investor_summary.dart';
-import '../services/firebase_functions_product_investors_service.dart';
+import '../models_and_services.dart'; // Centralny import z ultra-precyzyjnym serwisem
 import 'premium_loading_widget.dart';
 import 'premium_error_widget.dart';
 import 'dialogs/product_edit_dialog.dart';
@@ -23,8 +21,8 @@ class _EnhancedProductDetailsDialogState
     extends State<EnhancedProductDetailsDialog>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  final FirebaseFunctionsProductInvestorsService _investorsService =
-      FirebaseFunctionsProductInvestorsService();
+  final UltraPreciseProductInvestorsService _investorsService =
+      UltraPreciseProductInvestorsService();
 
   List<InvestorSummary> _investors = [];
   bool _isLoadingInvestors = true;
@@ -68,9 +66,7 @@ class _EnhancedProductDetailsDialogState
             .product
             .id, // Używamy prawdziwego ID inwestycji (np. "bond_0770")
         productName: widget.product.name,
-        productType: widget.product.productType.name.toLowerCase(),
-        searchStrategy:
-            'comprehensive', // Comprehensive żeby znalazło po ID lub nazwie
+        searchStrategy: 'productId', // Ultra-precyzyjne wyszukiwanie po ID
       );
 
       if (isDeduplicated) {

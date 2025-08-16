@@ -1,5 +1,5 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const { setGlobalOptions } = require("firebase-functions/v2");
+// const { setGlobalOptions } = require("firebase-functions/v2"); // Moved to index.js
 const admin = require("firebase-admin");
 const { safeToDouble } = require("./utils/data-mapping");
 const {
@@ -11,11 +11,11 @@ const {
   normalizeInvestmentDocument
 } = require("./utils/unified-statistics");
 
-// Set global options
-setGlobalOptions({
-  region: "europe-west1",
-  cors: true, // Enable CORS for all functions
-});
+// Set global options - moved to index.js
+// setGlobalOptions({
+//   region: "europe-west1",
+//   cors: true, // Enable CORS for all functions
+// });
 
 /**
  * 🎛️ FIREBASE FUNCTIONS - PREMIUM ANALYTICS FILTERING

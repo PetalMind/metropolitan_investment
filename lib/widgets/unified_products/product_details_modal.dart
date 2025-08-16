@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/currency_formatter.dart';
-import '../../services/firebase_functions_product_investors_service.dart'; // już w models_and_services ale lokalny import pozostawiony dla jawności
 import '../dialogs/product_investors_tab.dart';
 import '../common/common_widgets.dart';
 
@@ -19,10 +18,10 @@ class ProductDetailsModal extends StatefulWidget {
 }
 
 class _ProductDetailsModalState extends State<ProductDetailsModal>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
-  final FirebaseFunctionsProductInvestorsService _investorsService =
-      FirebaseFunctionsProductInvestorsService();
+  final UltraPreciseProductInvestorsService _investorsService =
+      UltraPreciseProductInvestorsService();
   final UnifiedProductService _productService = UnifiedProductService();
 
   List<InvestorSummary> _investors = [];
@@ -39,6 +38,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_onTabChanged);
     _findRealProductId(); // ⭐ NOWE: Znajdź prawdziwy productId
@@ -47,10 +47,32 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   }
 
   @override
+  void didUpdateWidget(ProductDetailsModal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 🚀 NOWE: Odśwież inwestorów jeśli modal został zaktualizowany
+    // (np. po powrocie z dialogu edycji)
+    if (widget.product.id != oldWidget.product.id ||
+        widget.product.name != oldWidget.product.name) {
+      _loadInvestors(forceRefresh: true);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // 🚀 NOWE: Odśwież dane gdy aplikacja wraca do foreground
+    // (przydatne gdy użytkownik wraca po edycji w innym oknie)
+    if (state == AppLifecycleState.resumed && mounted) {
+      _loadInvestors(forceRefresh: true);
+    }
   }
 
   void _onTabChanged() {
@@ -130,10 +152,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   Future<void> _loadInvestors({bool forceRefresh = false}) async {
     if (_isLoadingInvestors) return;
 
-    setState(() {
-      _isLoadingInvestors = true;
-      _investorsError = null;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoadingInvestors = true;
+        _investorsError = null;
+      });
+    }
 
     try {
       // ⭐ UPEWNIJ SIĘ ŻE MAMY PRAWDZIWY PRODUCTID
@@ -152,8 +176,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       final result = await _investorsService.getProductInvestors(
         productId: productIdToUse, // ⭐ UŻYWAJ PRAWDZIWEGO PRODUCTID
         productName: widget.product.name,
-        productType: widget.product.productType.name.toLowerCase(),
-        searchStrategy: 'comprehensive',
+        searchStrategy: 'productId',
         forceRefresh:
             forceRefresh, // 🚀 ENHANCED: Wymuszenie odświeżenia po zapisie zmian
       );
@@ -164,6 +187,21 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           _investors = investors;
           _isLoadingInvestors = false;
         });
+
+        // 🚀 NOWE: Po aktualizacji inwestorów, wymuś rebuild wszystkich widgetów
+        // które używają obliczanych wartości (_totalInvestmentAmount, etc.)
+        if (forceRefresh) {
+          debugPrint(
+            '🔄 [ProductDetailsModal] Wymuszam rebuild po odświeżeniu inwestorów',
+          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                // Dummy setState żeby wymusić rebuild wszystkich zakładek
+              });
+            }
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -374,9 +412,17 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       investors: _investors,
       isLoading: _isLoadingInvestors,
       error: _investorsError,
-      onRefresh: () => _loadInvestors(
-        forceRefresh: true,
-      ), // 🚀 ENHANCED: Wymusz odświeżenie po zapisie
+      onRefresh: () async {
+        // 🚀 ENHANCED: Wymusz agresywne odświeżenie i rebuild całego modal
+        await _loadInvestors(forceRefresh: true);
+
+        // Dodatkowy rebuild dla wszystkich zakładek
+        if (mounted) {
+          setState(() {
+            // Wymuszamy rebuild aby wszystkie obliczone wartości były aktualne
+          });
+        }
+      },
     );
   }
 

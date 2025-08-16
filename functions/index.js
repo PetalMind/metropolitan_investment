@@ -17,6 +17,7 @@ const clientsService = require("./services/clients-service");
 const debugService = require("./services/debug-service");
 const capitalCalculationService = require("./services/capital-calculation-service");
 const productInvestorsService = require("./product-investors-optimization");
+// const optimizedProductInvestorsService = require("./optimized-product-investors"); // 🚀 Przeniesiony na koniec dla v2 support
 const productStatisticsService = require("./services/product-statistics-service");
 const getAllInvestmentsService = require("./services/getAllInvestments-service"); // 🚀 DODANE: Serwis pobierania inwestycji
 const investmentScalingService = require("./services/investment-scaling-service"); // 🚀 DODANE: Serwis skalowania inwestycji
@@ -189,6 +190,9 @@ module.exports = {
   // Funkcje wyszukiwania inwestorów produktów - z prawidłowym CORS
   ...productInvestorsService,
 
+  // 🚀 NOWE: Ultra-precyzyjne wyszukiwanie inwestorów (dodane na końcu pliku)
+  // ...optimizedProductInvestorsService,
+
   // Import funkcji premium analytics z CORS
   ...require('./premium-analytics-filters'),
 
@@ -245,4 +249,7 @@ module.exports = {
       throw new functions.https.HttpsError('internal', `Błąd serwera: ${error.message}`);
     }
   }),
+
+  // 🚀 ULTRA-PRECYZYJNY SERWIS INWESTORÓW (V2 FUNCTION - bezpośredni export)
+  getProductInvestorsUltraPrecise: require("./optimized-product-investors").getProductInvestorsUltraPrecise,
 };

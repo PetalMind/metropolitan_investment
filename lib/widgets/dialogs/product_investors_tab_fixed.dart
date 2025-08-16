@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
 import '../../models_and_services.dart'; // Centralized import
 import '../premium_loading_widget.dart';
@@ -865,7 +864,13 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
           _showSuccessSnackBar('Zmiany zostały zapisane pomyślnie!');
         },
       ),
-    );
+    ).then((_) {
+      // 🚀 NOWE: Dodatkowe odświeżenie po zamknięciu dialogu (nawet jeśli anulowano)
+      // Zapewnia, że wartości są zawsze aktualne
+      if (mounted) {
+        widget.onRefresh();
+      }
+    });
   }
 
   void _showSuccessSnackBar(String message) {
@@ -1063,42 +1068,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
     return 'inwestycji';
   }
 
-  /// � NOWA METODA: Znajduje prawdziwy productId z Firebase
-  Future<String?> _findRealProductId() async {
-    try {
-      print('🔍 ProductInvestorsTab._findRealProductId() - szukam prawdziwego productId dla produktu: ${widget.product.name}');
-      
-      final snapshot = await FirebaseFirestore.instance
-          .collection('investments')
-          .where('productName', isEqualTo: widget.product.name.trim())
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isNotEmpty) {
-        final doc = snapshot.docs.first;
-        final data = doc.data();
-        
-        // Sprawdź różne warianty nazw pól productId
-        String? productId = data['productId'] ?? 
-                          data['product_id'] ?? 
-                          data['Product_ID'] ??
-                          data['typ_produktu'];
-        
-        if (productId != null && productId.isNotEmpty && productId != 'null') {
-          print('✅ ProductInvestorsTab._findRealProductId() - znaleziono prawdziwy productId: $productId');
-          return productId;
-        }
-      }
-      
-      print('⚠️ ProductInvestorsTab._findRealProductId() - nie znaleziono prawdziwego productId, używam hash');
-      return null;
-    } catch (e) {
-      print('❌ ProductInvestorsTab._findRealProductId() - błąd: $e');
-      return null;
-    }
-  }
-
-  /// �🔢 NOWA METODA: Pobiera wszystkie inwestycje danego inwestora w tym produkcie
+  /// 🔢 NOWA METODA: Pobiera wszystkie inwestycje danego inwestora w tym produkcie
   List<Investment> _getProductInvestments(InvestorSummary investor) {
     // Grupa inwestycje po ID żeby wyeliminować duplikaty (podobnie jak w _getProductInvestmentCount)
     final uniqueInvestments = <String, Investment>{};
@@ -1119,164 +1089,97 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
               investment.productId != null &&
               investment.productId!.isNotEmpty &&
               investment.productId != "null" &&
-              RegExp(r'^[a-z]+_\d+$').hasMatch(investment.productId!), // Wzorzec prawdziwego productId
+              RegExp(r'^[a-z]+_\d+$').hasMatch(
+                investment.productId!,
+              ), // Wzorzec prawdziwego productId
         )
         .toList();
 
     if (matchingByProductId.isNotEmpty) {
-      print('✅ ProductInvestorsTab._getProductInvestments() - znaleziono ${matchingByProductId.length} inwestycji po prawdziwym productId');
       return matchingByProductId;
     }
 
     // 🔍 KROK 2: Sprawdź po product.id (może być hash)
     if (widget.product.id.isNotEmpty) {
       final matchingInvestments = uniqueInvestmentsList
-          .where(
-            (investment) =>
-                investment.productId != null &&
-                investment.productId!.isNotEmpty &&
-                investment.productId != "null" && // Wyklucz "null" jako string
-                investment.productId == widget.product.id,
-          )
+          .where((investment) => investment.productId == widget.product.id)
           .toList();
-
       if (matchingInvestments.isNotEmpty) {
-        print('✅ ProductInvestorsTab._getProductInvestments() - znaleziono ${matchingInvestments.length} inwestycji po hash ID');
         return matchingInvestments;
       }
     }
 
-    // 🔍 KROK 3: Fallback po nazwie produktu
-    final matchingByName = uniqueInvestmentsList
-        .where(
-          (investment) =>
-              investment.productName.trim().toLowerCase() ==
-              widget.product.name.trim().toLowerCase(),
-        )
-        .toList();
-
-    print('📝 ProductInvestorsTab._getProductInvestments() - znaleziono ${matchingByName.length} inwestycji po nazwie');
-    return matchingByName;
-  }
-
-  /// 🔢 NOWA METODA: Formatuje kwoty w kompaktowy sposób
-  String _formatCompactCurrency(double amount) {
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)}M zł';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K zł';
-    } else {
-      return _service.formatCurrency(amount);
-    }
-  }
-
-  /// Zwraca liczbę inwestycji klienta w tym konkretnym produkcie
-  int _getProductInvestmentCount(InvestorSummary investor) {
-
-    // Grupa inwestycje po ID żeby wyeliminować duplikaty
-    final uniqueInvestments = <String, Investment>{};
-
-    for (final investment in investor.investments) {
-      final key = investment.id.isNotEmpty
-          ? investment.id
-          : '${investment.productName}_${investment.investmentAmount}_${investment.clientId}';
-      uniqueInvestments[key] = investment;
-    }
-
-    final uniqueInvestmentsList = uniqueInvestments.values.toList();
-
-    // Sprawdź po ID produktu (uwaga na "null" jako string!)
-    if (widget.product.id.isNotEmpty) {
-      final countById = uniqueInvestmentsList
+    // 🔍 KROK 3: Sprawdź po nazwie produktu (fallback)
+    if (widget.product.name.isNotEmpty) {
+      final matchingInvestments = uniqueInvestmentsList
           .where(
             (investment) =>
-                investment.productId != null &&
-                investment.productId!.isNotEmpty &&
-                investment.productId != "null" && // Wyklucz "null" jako string
-                investment.productId == widget.product.id,
+                investment.productName.trim().toLowerCase() ==
+                widget.product.name.trim().toLowerCase(),
           )
-          .length;
-
-      if (countById > 0) {
-        return countById;
-      }
+          .toList();
+      return matchingInvestments;
     }
 
-    // Fallback: sprawdź po nazwie produktu (na unikalnych inwestycjach)
-    final countByName = uniqueInvestmentsList
-        .where(
-          (investment) =>
-              investment.productName.trim().toLowerCase() ==
-              widget.product.name.trim().toLowerCase(),
-        )
-        .length;
-
-    return countByName;
+    return [];
   }
 
-  /// Zwraca kapitał pozostały klienta w tym konkretnym produkcie
+  /// 📊 NOWA METODA: Formatuje kwoty w sposób kompaktowy
+  String _formatCompactCurrency(double amount) {
+    if (amount >= 1000000) {
+      return '${(amount / 1000000).toStringAsFixed(1)}M';
+    } else if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(0)}k';
+    } else {
+      return amount.toStringAsFixed(0);
+    }
+  }
+
+  /// 🔢 METODA: Oblicza liczbę inwestycji danego inwestora w tym produkcie
+  int _getProductInvestmentCount(InvestorSummary investor) {
+    return _getProductInvestments(investor).length;
+  }
+
+  /// 💰 METODA: Oblicza kapitał danego inwestora w tym produkcie
   double _getProductCapital(InvestorSummary investor) {
-    // Grupa inwestycje po ID żeby wyeliminować duplikaty (podobnie jak w _getProductInvestmentCount)
-    final uniqueInvestments = <String, Investment>{};
+    final productInvestments = _getProductInvestments(investor);
+    if (productInvestments.isEmpty) return 0.0;
 
-    for (final investment in investor.investments) {
-      final key = investment.id.isNotEmpty
-          ? investment.id
-          : '${investment.productName}_${investment.investmentAmount}_${investment.clientId}';
-      uniqueInvestments[key] = investment;
-    }
-
-    final uniqueInvestmentsList = uniqueInvestments.values.toList();
-
-    // Sprawdź po ID produktu (jeśli dostępne)
-    if (widget.product.id.isNotEmpty) {
-      final matchingInvestments = uniqueInvestmentsList.where(
-        (investment) =>
-            investment.productId != null &&
-            investment.productId!.isNotEmpty &&
-            investment.productId != "null" && // Wyklucz "null" jako string
-            investment.productId == widget.product.id,
-      );
-
-      if (matchingInvestments.isNotEmpty) {
-        return matchingInvestments.fold(
-          0.0,
-          (sum, investment) => sum + investment.remainingCapital,
-        );
+    double totalCapital = 0.0;
+    for (final investment in productInvestments) {
+      // Priorytet: remainingCapital -> investmentAmount
+      if (investment.remainingCapital > 0) {
+        totalCapital += investment.remainingCapital;
+      } else if (investment.investmentAmount > 0) {
+        totalCapital += investment.investmentAmount;
       }
     }
-
-    // Fallback: sprawdź po nazwie produktu
-    return uniqueInvestmentsList
-        .where(
-          (investment) =>
-              investment.productName.trim().toLowerCase() ==
-              widget.product.name.trim().toLowerCase(),
-        )
-        .fold(0.0, (sum, investment) => sum + investment.remainingCapital);
+    return totalCapital;
   }
 
+  /// 🏛️ METODA: Pobiera kolor dla statusu głosowania
   Color _getVotingStatusColor(VotingStatus status) {
     switch (status) {
       case VotingStatus.yes:
         return AppTheme.successPrimary;
-      case VotingStatus.abstain:
-        return AppTheme.warningPrimary;
       case VotingStatus.no:
-        return AppTheme.errorPrimary;
-      case VotingStatus.undecided:
+        return AppTheme.warningPrimary;
+      case VotingStatus.abstain:
         return AppTheme.neutralPrimary;
+      case VotingStatus.undecided:
+        return AppTheme.textSecondary;
     }
   }
 
+  /// 📝 METODA: Pobiera tekst dla statusu głosowania
   String _getVotingStatusText(VotingStatus status) {
     switch (status) {
       case VotingStatus.yes:
         return 'TAK';
-      case VotingStatus.abstain:
-        return 'WSTRZYMUJE';
       case VotingStatus.no:
         return 'NIE';
+      case VotingStatus.abstain:
+        return 'WSTRZYM.';
       case VotingStatus.undecided:
         return 'NIEZDECYD.';
     }

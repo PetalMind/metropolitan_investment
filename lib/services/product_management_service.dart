@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'deduplicated_product_service.dart';
 import 'optimized_product_service.dart';
-import 'firebase_functions_product_investors_service.dart';
+import '../models_and_services.dart'; // Centralny import z ultra-precyzyjnym serwisem
 import '../models/unified_product.dart';
 import '../models/investor_summary.dart';
 import '../services/firebase_functions_products_service.dart' as fb;
@@ -397,13 +397,27 @@ class ProductManagementService {
           .firstOrNull;
 
       if (optimizedProduct != null) {
-        // Pobierz dodatkowe szczegóły z Firebase Functions
-        final investorsResult = await FirebaseFunctionsProductInvestorsService()
-            .getProductInvestors(
-              productId: productId,
-              productName: optimizedProduct.name,
-              productType: optimizedProduct.productType.name.toLowerCase(),
-            );
+        // Pobierz dodatkowe szczegóły z ultra-precyzyjnego serwisu
+        final ultraResult = await UltraPreciseProductInvestorsService()
+            .getByProductId(productId);
+
+        // Konwertuj na standardowy format
+        final investorsResult = ProductInvestorsResult(
+          investors: ultraResult.investors,
+          totalCount: ultraResult.totalCount,
+          statistics: ProductInvestorsStatistics(
+            totalCapital: ultraResult.statistics.totalCapital,
+            totalInvestments: ultraResult.statistics.totalInvestments,
+            averageCapital: ultraResult.statistics.averageCapital,
+            activeInvestors: ultraResult.totalCount,
+          ),
+          searchStrategy: 'ultra_precise_product_id',
+          productName: optimizedProduct.name,
+          productType: optimizedProduct.productType.name.toLowerCase(),
+          executionTime: ultraResult.executionTime,
+          fromCache: ultraResult.fromCache,
+          error: ultraResult.error,
+        );
 
         return ProductDetails(
           product: optimizedProduct,
@@ -427,12 +441,26 @@ class ProductManagementService {
           .firstOrNull;
 
       if (deduplicatedProduct != null) {
-        final investorsResult = await FirebaseFunctionsProductInvestorsService()
-            .getProductInvestors(
-              productId: productId,
-              productName: deduplicatedProduct.name,
-              productType: deduplicatedProduct.productType.name.toLowerCase(),
-            );
+        final ultraResult = await UltraPreciseProductInvestorsService()
+            .getByProductId(productId);
+
+        // Konwertuj na standardowy format
+        final investorsResult = ProductInvestorsResult(
+          investors: ultraResult.investors,
+          totalCount: ultraResult.totalCount,
+          statistics: ProductInvestorsStatistics(
+            totalCapital: ultraResult.statistics.totalCapital,
+            totalInvestments: ultraResult.statistics.totalInvestments,
+            averageCapital: ultraResult.statistics.averageCapital,
+            activeInvestors: ultraResult.totalCount,
+          ),
+          searchStrategy: 'ultra_precise_deduplicated',
+          productName: deduplicatedProduct.name,
+          productType: deduplicatedProduct.productType.name.toLowerCase(),
+          executionTime: ultraResult.executionTime,
+          fromCache: ultraResult.fromCache,
+          error: ultraResult.error,
+        );
 
         return ProductDetails(
           product: null,
