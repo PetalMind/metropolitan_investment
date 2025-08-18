@@ -226,40 +226,48 @@ class InvestmentService extends BaseService {
       final data = investment.toFirestore();
       debugPrint('🔍 [InvestmentService] Preparing update for investment: $id');
       debugPrint('📊 [InvestmentService] Data keys: ${data.keys.toList()}');
-      debugPrint('🔢 [InvestmentService] Numeric fields: investmentAmount=${data['investmentAmount']?.runtimeType}, remainingCapital=${data['remainingCapital']?.runtimeType}');
-      
+      debugPrint(
+        '🔢 [InvestmentService] Numeric fields: investmentAmount=${data['investmentAmount']?.runtimeType}, remainingCapital=${data['remainingCapital']?.runtimeType}',
+      );
+
       // 🛡️ Validate and clean data before sending to Firestore
       final cleanedData = <String, dynamic>{};
       for (final entry in data.entries) {
         final key = entry.key;
         final value = entry.value;
-        
+
         // Skip null values to prevent Firestore validation errors
         if (value != null) {
           // Handle potential infinity or NaN values
           if (value is double) {
             if (value.isNaN || value.isInfinite) {
-              debugPrint('⚠️ [InvestmentService] Skipping invalid double value for $key: $value');
+              debugPrint(
+                '⚠️ [InvestmentService] Skipping invalid double value for $key: $value',
+              );
               continue;
             }
           }
           cleanedData[key] = value;
         }
       }
-      
-      debugPrint('🧹 [InvestmentService] Cleaned data has ${cleanedData.length} fields (removed ${data.length - cleanedData.length} null/invalid values)');
-      
+
+      debugPrint(
+        '🧹 [InvestmentService] Cleaned data has ${cleanedData.length} fields (removed ${data.length - cleanedData.length} null/invalid values)',
+      );
+
       // 🎯 ZNAJDŹ DOKUMENT PO LOGICZNYM ID
       final querySnapshot = await firestore
           .collection(_collection)
           .where('id', isEqualTo: id)
           .limit(1)
           .get();
-          
+
       String? documentId;
       if (querySnapshot.docs.isNotEmpty) {
         documentId = querySnapshot.docs.first.id; // UUID dokumentu
-        debugPrint('✅ [InvestmentService] Found document with UUID: $documentId for logical ID: $id');
+        debugPrint(
+          '✅ [InvestmentService] Found document with UUID: $documentId for logical ID: $id',
+        );
       } else {
         // Fallback: może id to już jest UUID
         final doc = await firestore.collection(_collection).doc(id).get();
@@ -268,39 +276,54 @@ class InvestmentService extends BaseService {
           debugPrint('✅ [InvestmentService] Using provided ID as UUID: $id');
         }
       }
-      
+
       if (documentId != null) {
         await firestore
             .collection(_collection)
             .doc(documentId)
             .update(cleanedData);
-        debugPrint('✅ [InvestmentService] Successfully updated investment: $id (UUID: $documentId)');
+        debugPrint(
+          '✅ [InvestmentService] Successfully updated investment: $id (UUID: $documentId)',
+        );
       } else {
         throw Exception('Document not found for ID: $id');
       }
     } catch (e) {
       debugPrint('❌ [InvestmentService] Update failed for investment $id: $e');
-      
+
       // 🔧 Auto-recovery: If document doesn't exist, try to create it
-      if (e.toString().contains('not-found') || e.toString().contains('No document to update')) {
-        debugPrint('🔧 [InvestmentService] Document not found, attempting to create: $id');
+      if (e.toString().contains('not-found') ||
+          e.toString().contains('No document to update')) {
+        debugPrint(
+          '🔧 [InvestmentService] Document not found, attempting to create: $id',
+        );
         try {
           // Generate a new UUID for the document, but keep the logical ID in the 'id' field
           await firestore
               .collection(_collection)
               .doc() // Firestore will generate UUID
               .set(investment.toFirestore());
-          debugPrint('✅ [InvestmentService] Successfully created missing document with logical ID: $id');
+          debugPrint(
+            '✅ [InvestmentService] Successfully created missing document with logical ID: $id',
+          );
           return; // Exit successfully after creating
         } catch (createError) {
-          debugPrint('❌ [InvestmentService] Failed to create missing document $id: $createError');
-          throw Exception('Błąd podczas tworzenia brakującego dokumentu $id: $createError');
+          debugPrint(
+            '❌ [InvestmentService] Failed to create missing document $id: $createError',
+          );
+          throw Exception(
+            'Błąd podczas tworzenia brakującego dokumentu $id: $createError',
+          );
         }
       }
-      
+
       if (e.toString().contains('400')) {
-        debugPrint('🔍 [InvestmentService] Firestore 400 error - possible data validation issue');
-        debugPrint('📋 [InvestmentService] Investment data: ${investment.toFirestore()}');
+        debugPrint(
+          '🔍 [InvestmentService] Firestore 400 error - possible data validation issue',
+        );
+        debugPrint(
+          '📋 [InvestmentService] Investment data: ${investment.toFirestore()}',
+        );
       }
       throw Exception('Błąd podczas aktualizacji inwestycji: $e');
     }
@@ -315,23 +338,29 @@ class InvestmentService extends BaseService {
           .where('id', isEqualTo: id)
           .limit(1)
           .get();
-          
+
       String? documentId;
       if (querySnapshot.docs.isNotEmpty) {
         documentId = querySnapshot.docs.first.id; // UUID dokumentu
-        debugPrint('✅ [InvestmentService] Found document to delete with UUID: $documentId for logical ID: $id');
+        debugPrint(
+          '✅ [InvestmentService] Found document to delete with UUID: $documentId for logical ID: $id',
+        );
       } else {
         // Fallback: może id to już jest UUID
         final doc = await firestore.collection(_collection).doc(id).get();
         if (doc.exists) {
           documentId = id;
-          debugPrint('✅ [InvestmentService] Using provided ID as UUID for deletion: $id');
+          debugPrint(
+            '✅ [InvestmentService] Using provided ID as UUID for deletion: $id',
+          );
         }
       }
-      
+
       if (documentId != null) {
         await firestore.collection(_collection).doc(documentId).delete();
-        debugPrint('✅ [InvestmentService] Successfully deleted investment: $id (UUID: $documentId)');
+        debugPrint(
+          '✅ [InvestmentService] Successfully deleted investment: $id (UUID: $documentId)',
+        );
       } else {
         throw Exception('Document not found for deletion: $id');
       }
@@ -349,19 +378,19 @@ class InvestmentService extends BaseService {
           .where('id', isEqualTo: id)
           .limit(1)
           .get();
-          
+
       if (querySnapshot.docs.isNotEmpty) {
         final doc = querySnapshot.docs.first;
         return _convertExcelDataToInvestment(doc.id, doc.data());
       }
-      
+
       // Fallback: spróbuj po UUID dokumentu (dla kompatybilności wstecznej)
       final doc = await firestore.collection(_collection).doc(id).get();
       if (doc.exists) {
         final data = doc.data()!;
         return _convertExcelDataToInvestment(doc.id, data);
       }
-      
+
       return null;
     } catch (e) {
       throw Exception('Błąd podczas pobierania inwestycji: $e');
@@ -793,7 +822,7 @@ class InvestmentService extends BaseService {
     String? creditorCompany,
   }) async {
     const String cacheKey = 'scale_product_investments';
-    
+
     try {
       // 🔍 Walidacja danych wejściowych
       if ((productId?.isEmpty ?? true) && (productName?.isEmpty ?? true)) {
@@ -813,36 +842,44 @@ class InvestmentService extends BaseService {
         'userId': 'current_user_id', // TODO: Pobierz z AuthProvider
         'userEmail': 'current_user@email.com', // TODO: Pobierz z AuthProvider
         if (companyId?.isNotEmpty == true) 'companyId': companyId,
-        if (creditorCompany?.isNotEmpty == true) 'creditorCompany': creditorCompany,
+        if (creditorCompany?.isNotEmpty == true)
+          'creditorCompany': creditorCompany,
       };
 
-      logDebug('scaleProductInvestments', 'Wysyłam dane do Firebase Functions: $functionData');
+      logDebug(
+        'scaleProductInvestments',
+        'Wysyłam dane do Firebase Functions: $functionData',
+      );
 
       // 🔥 Wywołaj Firebase Functions
-      final result = await FirebaseFunctions.instanceFor(region: 'europe-west1')
-          .httpsCallable('scaleProductInvestments')
-          .call(functionData);
+      final result = await FirebaseFunctions.instanceFor(
+        region: 'europe-west1',
+      ).httpsCallable('scaleProductInvestments').call(functionData);
 
       logDebug('scaleProductInvestments', 'Otrzymano wynik: ${result.data}');
 
       // 🎯 Przetwórz wynik
       final data = result.data as Map<String, dynamic>;
-      
+
       if (data['success'] == true) {
         // ♻️ Wyczyść cache po pomyślnej operacji
         clearCache(cacheKey);
         _clearProductCache(productId ?? productName ?? 'unknown');
-        
+
         return InvestmentScalingResult.fromJson(data);
       } else {
-        throw Exception('Skalowanie nie powiodło się: ${data['error'] ?? 'Nieznany błąd'}');
+        throw Exception(
+          'Skalowanie nie powiodło się: ${data['error'] ?? 'Nieznany błąd'}',
+        );
       }
-
     } catch (e) {
       logError('scaleProductInvestments', e);
-      
-      if (e.toString().contains('PERMISSION_DENIED') || e.toString().contains('unauthenticated')) {
-        throw Exception('Brak uprawnień do skalowania inwestycji. Zaloguj się ponownie.');
+
+      if (e.toString().contains('PERMISSION_DENIED') ||
+          e.toString().contains('unauthenticated')) {
+        throw Exception(
+          'Brak uprawnień do skalowania inwestycji. Zaloguj się ponownie.',
+        );
       } else if (e.toString().contains('not-found')) {
         throw Exception('Nie znaleziono inwestycji dla podanego produktu.');
       } else if (e.toString().contains('invalid-argument')) {
@@ -864,7 +901,7 @@ class InvestmentService extends BaseService {
     String? creditorCompany,
   }) async {
     const String cacheKey = 'scale_remaining_capital_only';
-    
+
     try {
       // 🔍 Walidacja danych wejściowych
       if ((productId?.isEmpty ?? true) && (productName?.isEmpty ?? true)) {
@@ -872,7 +909,9 @@ class InvestmentService extends BaseService {
       }
 
       if (newTotalRemainingCapital <= 0) {
-        throw Exception('Nowa kwota kapitału pozostałego musi być większa od 0');
+        throw Exception(
+          'Nowa kwota kapitału pozostałego musi być większa od 0',
+        );
       }
 
       // 🔄 Przygotuj dane do wysłania do Firebase Functions
@@ -880,40 +919,50 @@ class InvestmentService extends BaseService {
         if (productId?.isNotEmpty == true) 'productId': productId,
         if (productName?.isNotEmpty == true) 'productName': productName,
         'newTotalRemainingCapital': newTotalRemainingCapital,
-        'reason': reason ?? 'Skalowanie kapitału pozostałego (bez zmiany sumy inwestycji)',
+        'reason':
+            reason ??
+            'Skalowanie kapitału pozostałego (bez zmiany sumy inwestycji)',
         'userId': 'current_user_id', // TODO: Pobierz z AuthProvider
         'userEmail': 'current_user@email.com', // TODO: Pobierz z AuthProvider
         if (companyId?.isNotEmpty == true) 'companyId': companyId,
-        if (creditorCompany?.isNotEmpty == true) 'creditorCompany': creditorCompany,
+        if (creditorCompany?.isNotEmpty == true)
+          'creditorCompany': creditorCompany,
       };
 
-      logDebug('scaleRemainingCapitalOnly', 'Wysyłam dane do Firebase Functions: $functionData');
+      logDebug(
+        'scaleRemainingCapitalOnly',
+        'Wysyłam dane do Firebase Functions: $functionData',
+      );
 
       // 🔥 Wywołaj Firebase Functions
-      final result = await FirebaseFunctions.instanceFor(region: 'europe-west1')
-          .httpsCallable('scaleRemainingCapitalOnly')
-          .call(functionData);
+      final result = await FirebaseFunctions.instanceFor(
+        region: 'europe-west1',
+      ).httpsCallable('scaleRemainingCapitalOnly').call(functionData);
 
       logDebug('scaleRemainingCapitalOnly', 'Otrzymano wynik: ${result.data}');
 
       // 🎯 Przetwórz wynik
       final data = result.data as Map<String, dynamic>;
-      
+
       if (data['success'] == true) {
         // ♻️ Wyczyść cache po pomyślnej operacji
         clearCache(cacheKey);
         _clearProductCache(productId ?? productName ?? 'unknown');
-        
+
         return InvestmentScalingResult.fromJson(data);
       } else {
-        throw Exception('Skalowanie kapitału pozostałego nie powiodło się: ${data['error'] ?? 'Nieznany błąd'}');
+        throw Exception(
+          'Skalowanie kapitału pozostałego nie powiodło się: ${data['error'] ?? 'Nieznany błąd'}',
+        );
       }
-
     } catch (e) {
       logError('scaleRemainingCapitalOnly', e);
-      
-      if (e.toString().contains('PERMISSION_DENIED') || e.toString().contains('unauthenticated')) {
-        throw Exception('Brak uprawnień do skalowania kapitału pozostałego. Zaloguj się ponownie.');
+
+      if (e.toString().contains('PERMISSION_DENIED') ||
+          e.toString().contains('unauthenticated')) {
+        throw Exception(
+          'Brak uprawnień do skalowania kapitału pozostałego. Zaloguj się ponownie.',
+        );
       } else if (e.toString().contains('not-found')) {
         throw Exception('Nie znaleziono inwestycji dla podanego produktu.');
       } else if (e.toString().contains('invalid-argument')) {
@@ -929,7 +978,7 @@ class InvestmentService extends BaseService {
     // Lista potencjalnych kluczy cache związanych z produktem
     final possibleKeys = [
       'investments_$productIdentifier',
-      'product_stats_$productIdentifier', 
+      'product_stats_$productIdentifier',
       'investor_data_$productIdentifier',
       productIdentifier.toLowerCase(),
       'scale_product_investments',
@@ -937,13 +986,16 @@ class InvestmentService extends BaseService {
       'active_investments',
       'recent_investments',
     ];
-    
+
     // Wyczyść wszystkie potencjalne klucze
     for (final key in possibleKeys) {
       clearCache(key);
     }
-    
-    logDebug('_clearProductCache', 'Wyczyszczono cache dla produktu: $productIdentifier');
+
+    logDebug(
+      '_clearProductCache',
+      'Wyczyszczono cache dla produktu: $productIdentifier',
+    );
   }
 }
 
@@ -1145,7 +1197,7 @@ class InvestmentScalingSummary {
     final productDisplayName = productName ?? productId ?? 'Nieznany produkt';
     final percentChange = ((scalingFactor - 1) * 100).toStringAsFixed(1);
     final direction = scalingFactor > 1 ? 'wzrost' : 'spadek';
-    
+
     return '''
 Skalowanie produktu: $productDisplayName
 • Poprzednia kwota: ${previousTotalAmount.toStringAsFixed(2)} PLN
@@ -1153,7 +1205,8 @@ Skalowanie produktu: $productDisplayName
 • Zmiana: $percentChange% ($direction)
 • Zaktualizowano: $affectedInvestments inwestycji
 • Czas wykonania: ${executionTimeMs}ms
-'''.trim();
+'''
+        .trim();
   }
 }
 

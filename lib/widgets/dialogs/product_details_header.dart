@@ -18,7 +18,8 @@ class ProductDetailsHeader extends StatefulWidget {
   final Function(bool)?
   onEditModeChanged; // ⭐ NOWE: Callback dla zmiany trybu edycji
   final Function(int)? onTabChanged; // ⭐ NOWE: Callback dla zmiany tabu
-  final Future<void> Function()? onDataChanged; // ⭐ NOWE: Callback dla odświeżenia danych po edycji kapitału
+  final Future<void> Function()?
+  onDataChanged; // ⭐ NOWE: Callback dla odświeżenia danych po edycji kapitału
 
   const ProductDetailsHeader({
     super.key,
@@ -1068,41 +1069,43 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     if (!_isEditModeEnabled) return;
 
     try {
-      debugPrint('🔍 [ProductDetailsHeader] Pobieranie inwestycji dla dialogu edycji kapitału...');
-      
+      debugPrint(
+        '🔍 [ProductDetailsHeader] Pobieranie inwestycji dla dialogu edycji kapitału...',
+      );
+
       // ⭐ POPRAWIONA LOGIKA: Pobierz inwestycje używając bardziej elastycznego filtrowania
       final allInvestorSummaries = _modalData?.investors ?? <InvestorSummary>[];
       final allInvestments = <Investment>[];
-      
+
       // Zbierz wszystkie inwestycje z investor summaries dla tego konkretnego produktu
       for (final investor in allInvestorSummaries) {
         for (final investment in investor.investments) {
           // Sprawdź czy inwestycja należy do tego produktu używając różnych kryteriów
           bool belongsToProduct = false;
-          
+
           // Sprawdź po productId
-          if (investment.productId != null && 
-              investment.productId!.isNotEmpty && 
+          if (investment.productId != null &&
+              investment.productId!.isNotEmpty &&
               investment.productId != "null") {
             if (investment.productId == widget.product.id) {
               belongsToProduct = true;
             }
           }
-          
+
           // Fallback: sprawdź po nazwie produktu
           if (!belongsToProduct) {
-            if (investment.productName.trim().toLowerCase() == 
+            if (investment.productName.trim().toLowerCase() ==
                 widget.product.name.trim().toLowerCase()) {
               belongsToProduct = true;
             }
           }
-          
+
           if (belongsToProduct) {
             allInvestments.add(investment);
           }
         }
       }
-      
+
       // Deduplikuj inwestycje po ID
       final uniqueInvestments = <String, Investment>{};
       for (final investment in allInvestments) {
@@ -1111,34 +1114,55 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             : '${investment.productName}_${investment.investmentAmount}_${investment.clientId}';
         uniqueInvestments[key] = investment;
       }
-      
+
       final investments = uniqueInvestments.values.toList();
-      
-      debugPrint('📊 [ProductDetailsHeader] Znaleziono ${investments.length} unikalnych inwestycji dla dialogu');
+
+      debugPrint(
+        '📊 [ProductDetailsHeader] Znaleziono ${investments.length} unikalnych inwestycji dla dialogu',
+      );
       if (investments.isNotEmpty) {
-        final totalInvestmentAmount = investments.fold(0.0, (sum, inv) => sum + inv.investmentAmount);
-        debugPrint('   - Suma inwestycji: ${totalInvestmentAmount.toStringAsFixed(2)}');
+        final totalInvestmentAmount = investments.fold(
+          0.0,
+          (sum, inv) => sum + inv.investmentAmount,
+        );
+        debugPrint(
+          '   - Suma inwestycji: ${totalInvestmentAmount.toStringAsFixed(2)}',
+        );
       } else {
         debugPrint('   ⚠️ Brak inwestycji - sprawdź kryteria filtrowania');
         debugPrint('   - Product ID: ${widget.product.id}');
         debugPrint('   - Product Name: ${widget.product.name}');
         debugPrint('   - Dostępni inwestorzy: ${allInvestorSummaries.length}');
-        
+
         // 🔄 FALLBACK: Użyj oryginalnej logiki jako backup
-        debugPrint('🔄 [ProductDetailsHeader] Próbuję backup: pobieranie przez InvestmentService...');
+        debugPrint(
+          '🔄 [ProductDetailsHeader] Próbuję backup: pobieranie przez InvestmentService...',
+        );
         try {
           final service = InvestmentService();
-          final allBackupInvestments = await service.getInvestmentsPaginated(limit: 1000);
+          final allBackupInvestments = await service.getInvestmentsPaginated(
+            limit: 1000,
+          );
           final backupInvestments = allBackupInvestments
-              .where((inv) => 
-                  inv.productId == widget.product.id ||
-                  inv.productName.trim().toLowerCase() == widget.product.name.trim().toLowerCase())
+              .where(
+                (inv) =>
+                    inv.productId == widget.product.id ||
+                    inv.productName.trim().toLowerCase() ==
+                        widget.product.name.trim().toLowerCase(),
+              )
               .toList();
-          
+
           if (backupInvestments.isNotEmpty) {
-            debugPrint('✅ [ProductDetailsHeader] Backup znalazł ${backupInvestments.length} inwestycji');
-            final backupTotalInvestmentAmount = backupInvestments.fold(0.0, (sum, inv) => sum + inv.investmentAmount);
-            debugPrint('   - Backup suma inwestycji: ${backupTotalInvestmentAmount.toStringAsFixed(2)}');
+            debugPrint(
+              '✅ [ProductDetailsHeader] Backup znalazł ${backupInvestments.length} inwestycji',
+            );
+            final backupTotalInvestmentAmount = backupInvestments.fold(
+              0.0,
+              (sum, inv) => sum + inv.investmentAmount,
+            );
+            debugPrint(
+              '   - Backup suma inwestycji: ${backupTotalInvestmentAmount.toStringAsFixed(2)}',
+            );
             investments.addAll(backupInvestments);
           }
         } catch (e) {
@@ -1161,7 +1185,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             // Wyczyść cache i wymuś pełne odświeżenie danych w headerze
             await _modalService.clearProductCache(widget.product.id);
             _loadServerStatisticsWithForceRefresh();
-            
+
             // ⭐ NOWE: Wywołaj callback dla pełnego odświeżenia danych w parent modal
             if (widget.onDataChanged != null) {
               await widget.onDataChanged!();

@@ -4,7 +4,7 @@ import '../../theme/app_theme_professional.dart';
 import '../investment_history_widget.dart';
 
 /// Dialog do edycji całkowitego kapitału pozostałego produktu
-/// 
+///
 /// Funkcjonalności:
 /// - Edycja kwoty całkowitego kapitału pozostałego
 /// - Historia zmian kapitału
@@ -44,17 +44,17 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
       text: widget.currentTotalCapital.toStringAsFixed(2),
     );
     _newCapital = widget.currentTotalCapital;
-    
+
     // Oblicz całkowitą sumę inwestycji (pierwotnych kwot)
     _totalInvestmentAmount = widget.investments.fold(
       0.0,
       (sum, investment) => sum + investment.investmentAmount,
     );
-    
+
     debugPrint('📊 [TotalCapitalEditDialog] Inicjalizacja:');
     debugPrint('   - Kapitał pozostały: ${widget.currentTotalCapital}');
     debugPrint('   - Suma inwestycji: $_totalInvestmentAmount');
-    
+
     // Dodaj listener do kontrolera
     _capitalController.addListener(_onCapitalChanged);
   }
@@ -73,28 +73,31 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
         .replaceAll(',', '.')
         .replaceAll('PLN', '')
         .trim();
-    
+
     debugPrint('🔍 [TotalCapitalEditDialog] Parsing text: "$text"');
-    
+
     final newValue = double.tryParse(text);
-    
+
     if (newValue != null && newValue >= 0) {
       debugPrint('✅ [TotalCapitalEditDialog] Parsed value: $newValue');
-      
+
       // 🚫 WALIDACJA: Kapitał pozostały nie może być większy niż suma inwestycji
       String? validationError;
       if (newValue > _totalInvestmentAmount) {
-        validationError = 'Kapitał pozostały (${CurrencyFormatter.formatCurrency(newValue)}) nie może być większy niż suma inwestycji (${CurrencyFormatter.formatCurrency(_totalInvestmentAmount)})';
+        validationError =
+            'Kapitał pozostały (${CurrencyFormatter.formatCurrency(newValue)}) nie może być większy niż suma inwestycji (${CurrencyFormatter.formatCurrency(_totalInvestmentAmount)})';
       }
-      
+
       setState(() {
         _newCapital = newValue;
         _validationError = validationError;
-        _hasChanges = (newValue - widget.currentTotalCapital).abs() > 0.01 && validationError == null;
-        _scalingFactor = widget.currentTotalCapital != 0 
-            ? newValue / widget.currentTotalCapital 
+        _hasChanges =
+            (newValue - widget.currentTotalCapital).abs() > 0.01 &&
+            validationError == null;
+        _scalingFactor = widget.currentTotalCapital != 0
+            ? newValue / widget.currentTotalCapital
             : 1.0;
-            
+
         debugPrint('📊 [TotalCapitalEditDialog] State updated:');
         debugPrint('   - New capital: $_newCapital');
         debugPrint('   - Validation error: $_validationError');
@@ -116,13 +119,14 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
     try {
       // ⭐ NOWA LOGIKA: Używamy scaleRemainingCapitalOnly (bez zmiany investmentAmount)
       final editService = InvestorEditService();
-      
+
       // Użyj funkcji skalowania TYLKO kapitału pozostałego z InvestorEditService
       final scalingResult = await editService.scaleRemainingCapitalOnly(
         product: widget.product,
         newTotalRemainingCapital: _newCapital,
         originalTotalRemainingCapital: widget.currentTotalCapital,
-        reason: 'Skalowanie kapitału pozostałego (bez zmiany sumy inwestycji): ${CurrencyFormatter.formatCurrency(widget.currentTotalCapital)} → ${CurrencyFormatter.formatCurrency(_newCapital)}',
+        reason:
+            'Skalowanie kapitału pozostałego (bez zmiany sumy inwestycji): ${CurrencyFormatter.formatCurrency(widget.currentTotalCapital)} → ${CurrencyFormatter.formatCurrency(_newCapital)}',
       );
 
       if (!scalingResult.success) {
@@ -132,8 +136,10 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
       // Wyczyść cache przed wywołaniem callback
       final modalService = UnifiedProductModalService();
       await modalService.clearProductCache(widget.product.id);
-      
-      debugPrint('🔄 [TotalCapitalEditDialog] Kapitał pozostały został przeskalowany (investmentAmount NIEZMIENIONY)');
+
+      debugPrint(
+        '🔄 [TotalCapitalEditDialog] Kapitał pozostały został przeskalowany (investmentAmount NIEZMIENIONY)',
+      );
 
       if (widget.onChanged != null) {
         widget.onChanged!();
@@ -143,7 +149,9 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Kapitał pozostały został zaktualizowany (${scalingResult.affectedInvestments} inwestycji). Suma inwestycji pozostała niezmieniona.'),
+            content: Text(
+              'Kapitał pozostały został zaktualizowany (${scalingResult.affectedInvestments} inwestycji). Suma inwestycji pozostała niezmieniona.',
+            ),
             backgroundColor: AppThemePro.statusSuccess,
           ),
         );
@@ -178,16 +186,13 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
         decoration: BoxDecoration(
           color: AppThemePro.backgroundSecondary,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AppThemePro.borderPrimary,
-            width: 1,
-          ),
+          border: Border.all(color: AppThemePro.borderPrimary, width: 1),
         ),
         child: Column(
           children: [
             // Header
             _buildHeader(),
-            
+
             // Content
             Expanded(
               child: DefaultTabController(
@@ -220,21 +225,18 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
                         ],
                       ),
                     ),
-                    
+
                     // Tab content
                     Expanded(
                       child: TabBarView(
-                        children: [
-                          _buildEditTab(),
-                          _buildHistoryTab(),
-                        ],
+                        children: [_buildEditTab(), _buildHistoryTab()],
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            
+
             // Footer
             _buildFooter(),
           ],
@@ -298,10 +300,7 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
           ),
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: Icon(
-              Icons.close,
-              color: AppThemePro.textSecondary,
-            ),
+            icon: Icon(Icons.close, color: AppThemePro.textSecondary),
           ),
         ],
       ),
@@ -316,19 +315,19 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
         children: [
           // Current vs New Value
           _buildCurrentVsNewSection(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Edit Field
           _buildEditField(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Scaling Preview
           if (_hasChanges && _validationError == null) _buildScalingPreview(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Warning
           _buildWarningSection(),
         ],
@@ -342,10 +341,7 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
       decoration: BoxDecoration(
         color: AppThemePro.backgroundTertiary,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppThemePro.borderSecondary,
-          width: 1,
-        ),
+        border: Border.all(color: AppThemePro.borderSecondary, width: 1),
       ),
       child: Column(
         children: [
@@ -372,15 +368,18 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
                   'Nowy kapitał pozostały',
                   _newCapital,
                   Icons.account_balance_wallet,
-                  _hasChanges && _validationError == null ? AppThemePro.accentGold : 
-                  _validationError != null ? AppThemePro.statusError : AppThemePro.textSecondary,
+                  _hasChanges && _validationError == null
+                      ? AppThemePro.accentGold
+                      : _validationError != null
+                      ? AppThemePro.statusError
+                      : AppThemePro.textSecondary,
                 ),
               ),
             ],
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Suma inwestycji - pozostaje niezmieniona
           Container(
             padding: const EdgeInsets.all(16),
@@ -394,11 +393,7 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.lock,
-                  color: AppThemePro.statusInfo,
-                  size: 20,
-                ),
+                Icon(Icons.lock, color: AppThemePro.statusInfo, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -413,11 +408,14 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        CurrencyFormatter.formatCurrency(_totalInvestmentAmount),
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AppThemePro.textPrimary,
-                          fontWeight: FontWeight.w700,
+                        CurrencyFormatter.formatCurrency(
+                          _totalInvestmentAmount,
                         ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: AppThemePro.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
                       ),
                     ],
                   ),
@@ -430,7 +428,12 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
     );
   }
 
-  Widget _buildValueCard(String title, double value, IconData icon, Color color) {
+  Widget _buildValueCard(
+    String title,
+    double value,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       children: [
         Icon(icon, color: color, size: 20),
@@ -479,13 +482,17 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
-                color: _validationError != null ? AppThemePro.statusError : AppThemePro.borderPrimary,
+                color: _validationError != null
+                    ? AppThemePro.statusError
+                    : AppThemePro.borderPrimary,
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
-                color: _validationError != null ? AppThemePro.statusError : AppThemePro.accentGold, 
+                color: _validationError != null
+                    ? AppThemePro.statusError
+                    : AppThemePro.accentGold,
                 width: 2,
               ),
             ),
@@ -495,18 +502,20 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
             ),
             prefixIcon: Icon(
               Icons.edit,
-              color: _validationError != null ? AppThemePro.statusError : AppThemePro.accentGold,
+              color: _validationError != null
+                  ? AppThemePro.statusError
+                  : AppThemePro.accentGold,
             ),
             suffixText: 'PLN',
-            suffixStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppThemePro.textSecondary,
-            ),
+            suffixStyle: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: AppThemePro.textSecondary),
             hintText: 'Wprowadź nową kwotę...',
             errorText: _validationError,
             errorMaxLines: 3,
           ),
         ),
-        
+
         // 📊 INFORMACJA O SUMIE INWESTYCJI
         if (_totalInvestmentAmount > 0) ...[
           const SizedBox(height: 12),
@@ -515,10 +524,7 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
             decoration: BoxDecoration(
               color: AppThemePro.backgroundTertiary,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: AppThemePro.borderSecondary,
-                width: 1,
-              ),
+              border: Border.all(color: AppThemePro.borderSecondary, width: 1),
             ),
             child: Row(
               children: [
@@ -567,11 +573,7 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.transform,
-                color: AppThemePro.accentGold,
-                size: 20,
-              ),
+              Icon(Icons.transform, color: AppThemePro.accentGold, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Podgląd skalowania kapitału pozostałego',
@@ -593,19 +595,19 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
           const SizedBox(height: 8),
           Text(
             'Tylko kapitał pozostały zostanie przeskalowany proporcjonalnie',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppThemePro.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppThemePro.textSecondary),
           ),
           const SizedBox(height: 8),
           Text(
             '${widget.investments.length} inwestycji zostanie zaktualizowanych',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppThemePro.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppThemePro.textSecondary),
           ),
           const SizedBox(height: 12),
-          
+
           // 🚫 WAŻNA INFORMACJA: Suma inwestycji pozostaje niezmieniona
           Container(
             padding: const EdgeInsets.all(12),
@@ -619,11 +621,7 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.lock,
-                  color: AppThemePro.statusInfo,
-                  size: 16,
-                ),
+                Icon(Icons.lock, color: AppThemePro.statusInfo, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -655,18 +653,14 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.warning,
-            color: AppThemePro.statusWarning,
-            size: 20,
-          ),
+          Icon(Icons.warning, color: AppThemePro.statusWarning, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               'Uwaga: Zmiana kapitału pozostałego wpłynie proporcjonalnie na kapitał pozostały wszystkich inwestycji w tym produkcie. Suma inwestycji (pierwotne kwoty) pozostanie niezmieniona. Operacja jest nieodwracalna.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppThemePro.textPrimary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppThemePro.textPrimary),
             ),
           ),
         ],
@@ -689,10 +683,7 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(
-            color: AppThemePro.borderPrimary,
-            width: 1,
-          ),
+          top: BorderSide(color: AppThemePro.borderPrimary, width: 1),
         ),
       ),
       child: Row(
@@ -714,9 +705,13 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
           Expanded(
             flex: 2,
             child: ElevatedButton(
-              onPressed: _hasChanges && !_isLoading && _validationError == null ? _saveChanges : null,
+              onPressed: _hasChanges && !_isLoading && _validationError == null
+                  ? _saveChanges
+                  : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: _validationError != null ? AppThemePro.statusError : AppThemePro.accentGold,
+                backgroundColor: _validationError != null
+                    ? AppThemePro.statusError
+                    : AppThemePro.accentGold,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -732,7 +727,9 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
                       ),
                     )
                   : Text(
-                      _validationError != null ? 'Błąd walidacji' : 'Zapisz zmiany',
+                      _validationError != null
+                          ? 'Błąd walidacji'
+                          : 'Zapisz zmiany',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,

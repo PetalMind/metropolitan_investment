@@ -302,24 +302,35 @@ class InvestorEditService {
   /// Parsuje wartość z kontrolera (usuwa spacje)
   double parseValueFromController(String text) {
     if (text.trim().isEmpty) {
-      debugPrint('⚠️ [InvestorEditService] parseValueFromController: empty text, returning 0.0');
+      debugPrint(
+        '⚠️ [InvestorEditService] parseValueFromController: empty text, returning 0.0',
+      );
       return 0.0;
     }
     final cleanText = text.replaceAll(' ', '').replaceAll(',', '.');
     final result = double.tryParse(cleanText) ?? 0.0;
-    debugPrint('🔍 [InvestorEditService] parseValueFromController: "$text" → $result');
+    debugPrint(
+      '🔍 [InvestorEditService] parseValueFromController: "$text" → $result',
+    );
     return result;
   }
 
   /// Parsuje wartość z kontrolera z fallback do oryginalnej wartości
-  double parseValueFromControllerWithFallback(String text, double originalValue) {
+  double parseValueFromControllerWithFallback(
+    String text,
+    double originalValue,
+  ) {
     if (text.trim().isEmpty) {
-      debugPrint('⚠️ [InvestorEditService] parseValueFromControllerWithFallback: empty text, using original value: $originalValue');
+      debugPrint(
+        '⚠️ [InvestorEditService] parseValueFromControllerWithFallback: empty text, using original value: $originalValue',
+      );
       return originalValue;
     }
     final cleanText = text.replaceAll(' ', '').replaceAll(',', '.');
     final result = double.tryParse(cleanText) ?? originalValue;
-    debugPrint('🔍 [InvestorEditService] parseValueFromControllerWithFallback: "$text" → $result (original: $originalValue)');
+    debugPrint(
+      '🔍 [InvestorEditService] parseValueFromControllerWithFallback: "$text" → $result (original: $originalValue)',
+    );
     return result;
   }
 
@@ -557,7 +568,9 @@ class InvestorEditService {
         '🎯 [InvestorEditService] Obsługuję skalowanie TYLKO kapitału pozostałego...',
       );
       debugPrint('   - Produkt: ${product.name}');
-      debugPrint('   - Nowy kapitał pozostały: ${newTotalRemainingCapital.toStringAsFixed(2)}');
+      debugPrint(
+        '   - Nowy kapitał pozostały: ${newTotalRemainingCapital.toStringAsFixed(2)}',
+      );
       debugPrint(
         '   - Poprzedni kapitał pozostały: ${originalTotalRemainingCapital.toStringAsFixed(2)}',
       );
@@ -594,7 +607,9 @@ class InvestorEditService {
         creditorCompany: product.companyName,
       );
 
-      debugPrint('✅ [InvestorEditService] Skalowanie kapitału pozostałego zakończone pomyślnie');
+      debugPrint(
+        '✅ [InvestorEditService] Skalowanie kapitału pozostałego zakończone pomyślnie',
+      );
       debugPrint('📊 Podsumowanie: ${scalingResult.summary.formattedSummary}');
 
       return ProductScalingResult(
@@ -606,7 +621,9 @@ class InvestorEditService {
         executionTime: '${scalingResult.summary.executionTimeMs}ms',
       );
     } catch (e) {
-      debugPrint('❌ [InvestorEditService] Błąd skalowania kapitału pozostałego: $e');
+      debugPrint(
+        '❌ [InvestorEditService] Błąd skalowania kapitału pozostałego: $e',
+      );
       return ProductScalingResult(
         success: false,
         message: 'Błąd skalowania kapitału pozostałego: ${e.toString()}',
@@ -642,14 +659,26 @@ class InvestorEditService {
         final original = originalInvestments[i];
 
         // DEBUG: Sprawdź wartości kontrolerów przed parsowaniem
-        debugPrint('🔍 [InvestorEditService] Raw controller values for investment ${i + 1}:');
-        debugPrint('   - investmentAmount controller: "${investmentAmountControllers[i].text}"');
-        debugPrint('   - capitalForRestructuring controller: "${capitalForRestructuringControllers[i].text}"');
-        debugPrint('   - capitalSecured controller: "${capitalSecuredControllers[i].text}"');
+        debugPrint(
+          '🔍 [InvestorEditService] Raw controller values for investment ${i + 1}:',
+        );
+        debugPrint(
+          '   - investmentAmount controller: "${investmentAmountControllers[i].text}"',
+        );
+        debugPrint(
+          '   - capitalForRestructuring controller: "${capitalForRestructuringControllers[i].text}"',
+        );
+        debugPrint(
+          '   - capitalSecured controller: "${capitalSecuredControllers[i].text}"',
+        );
         debugPrint('   - Original values from Firebase:');
         debugPrint('     * investmentAmount: ${original.investmentAmount}');
-        debugPrint('     * capitalForRestructuring: ${original.capitalForRestructuring}');
-        debugPrint('     * capitalSecuredByRealEstate: ${original.capitalSecuredByRealEstate}');
+        debugPrint(
+          '     * capitalForRestructuring: ${original.capitalForRestructuring}',
+        );
+        debugPrint(
+          '     * capitalSecuredByRealEstate: ${original.capitalSecuredByRealEstate}',
+        );
 
         // 🎯 IMPROVED: Użyj fallback parsing żeby zachować oryginalne wartości
         final investmentAmount = parseValueFromControllerWithFallback(
@@ -667,9 +696,15 @@ class InvestorEditService {
         final status = statusValues[i];
 
         debugPrint('🔍 [InvestorEditService] Parsed values with fallback:');
-        debugPrint('   - investmentAmount: $investmentAmount (original: ${original.investmentAmount})');
-        debugPrint('   - capitalForRestructuring: $capitalForRestructuring (original: ${original.capitalForRestructuring})');
-        debugPrint('   - capitalSecured: $capitalSecured (original: ${original.capitalSecuredByRealEstate})');
+        debugPrint(
+          '   - investmentAmount: $investmentAmount (original: ${original.investmentAmount})',
+        );
+        debugPrint(
+          '   - capitalForRestructuring: $capitalForRestructuring (original: ${original.capitalForRestructuring})',
+        );
+        debugPrint(
+          '   - capitalSecured: $capitalSecured (original: ${original.capitalSecuredByRealEstate})',
+        );
 
         // 🎯 SMART UPDATE - przekazuj TYLKO zmienione pola, zachowaj oryginalne wartości
         double? updateInvestmentAmount;
@@ -680,25 +715,35 @@ class InvestorEditService {
         // Przekaż wartość tylko jeśli rzeczywiście się zmieniła
         if ((investmentAmount - original.investmentAmount).abs() > 0.01) {
           updateInvestmentAmount = investmentAmount;
-          debugPrint('📝 [InvestorEditService] Change detected: investmentAmount ${original.investmentAmount} → $investmentAmount');
+          debugPrint(
+            '📝 [InvestorEditService] Change detected: investmentAmount ${original.investmentAmount} → $investmentAmount',
+          );
         }
-        if ((capitalForRestructuring - original.capitalForRestructuring).abs() > 0.01) {
+        if ((capitalForRestructuring - original.capitalForRestructuring).abs() >
+            0.01) {
           updateCapitalForRestructuring = capitalForRestructuring;
-          debugPrint('📝 [InvestorEditService] Change detected: capitalForRestructuring ${original.capitalForRestructuring} → $capitalForRestructuring');
+          debugPrint(
+            '📝 [InvestorEditService] Change detected: capitalForRestructuring ${original.capitalForRestructuring} → $capitalForRestructuring',
+          );
         }
-        if ((capitalSecured - original.capitalSecuredByRealEstate).abs() > 0.01) {
+        if ((capitalSecured - original.capitalSecuredByRealEstate).abs() >
+            0.01) {
           updateCapitalSecured = capitalSecured;
-          debugPrint('📝 [InvestorEditService] Change detected: capitalSecuredByRealEstate ${original.capitalSecuredByRealEstate} → $capitalSecured');
+          debugPrint(
+            '📝 [InvestorEditService] Change detected: capitalSecuredByRealEstate ${original.capitalSecuredByRealEstate} → $capitalSecured',
+          );
         }
         if (status != original.status) {
           updateStatus = status;
-          debugPrint('📝 [InvestorEditService] Change detected: status ${original.status} → $status');
+          debugPrint(
+            '📝 [InvestorEditService] Change detected: status ${original.status} → $status',
+          );
         }
 
         // Sprawdź czy są jakiekolwiek zmiany
-        if (updateInvestmentAmount == null && 
-            updateCapitalForRestructuring == null && 
-            updateCapitalSecured == null && 
+        if (updateInvestmentAmount == null &&
+            updateCapitalForRestructuring == null &&
+            updateCapitalSecured == null &&
             updateStatus == null) {
           debugPrint(
             'ℹ️ [InvestorEditService] Brak zmian w inwestycji: ${original.id} - wszystkie pola pozostają bez zmian',
@@ -713,10 +758,18 @@ class InvestorEditService {
         );
 
         debugPrint('🔍 [InvestorEditService] Prepared update values:');
-        debugPrint('   - investmentAmount: ${updateInvestmentAmount ?? "NOT CHANGED (${original.investmentAmount})"}');
-        debugPrint('   - capitalForRestructuring: ${updateCapitalForRestructuring ?? "NOT CHANGED (${original.capitalForRestructuring})"}');
-        debugPrint('   - capitalSecuredByRealEstate: ${updateCapitalSecured ?? "NOT CHANGED (${original.capitalSecuredByRealEstate})"}');
-        debugPrint('   - status: ${updateStatus ?? "NOT CHANGED (${original.status})"}');
+        debugPrint(
+          '   - investmentAmount: ${updateInvestmentAmount ?? "NOT CHANGED (${original.investmentAmount})"}',
+        );
+        debugPrint(
+          '   - capitalForRestructuring: ${updateCapitalForRestructuring ?? "NOT CHANGED (${original.capitalForRestructuring})"}',
+        );
+        debugPrint(
+          '   - capitalSecuredByRealEstate: ${updateCapitalSecured ?? "NOT CHANGED (${original.capitalSecuredByRealEstate})"}',
+        );
+        debugPrint(
+          '   - status: ${updateStatus ?? "NOT CHANGED (${original.status})"}',
+        );
 
         final success = await universalService.updateInvestmentFieldsSmart(
           original.id,
@@ -728,7 +781,8 @@ class InvestorEditService {
           status: updateStatus,
           editorName: 'System Edycji Inwestorów',
           editorEmail: 'system@metropolitan.pl',
-          changeReason: '$changeReason (auto calculation: capitalSecured + capitalRestructuring)',
+          changeReason:
+              '$changeReason (auto calculation: capitalSecured + capitalRestructuring)',
         );
 
         if (success) {

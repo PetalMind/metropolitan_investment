@@ -386,7 +386,7 @@ const scaleRemainingCapitalOnly = onCall(async (request) => {
       const data = doc.data();
       const investmentAmount = safeToDouble(data.investmentAmount || data.kwota_inwestycji || 0);
       const remainingCapital = safeToDouble(data.remainingCapital || data.kapital_pozostaly || 0);
-      
+
       currentTotalRemainingCapital += remainingCapital;
       totalInvestmentAmount += investmentAmount;
 
