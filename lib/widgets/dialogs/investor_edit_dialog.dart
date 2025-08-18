@@ -988,121 +988,33 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section header with modern styling
-        Container(
+        // Investments list without header
+        Padding(
           padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppThemePro.backgroundSecondary.withOpacity(0.8),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(16),
-              topRight: Radius.circular(16),
-            ),
-            border: Border.all(color: AppThemePro.borderPrimary, width: 1),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppThemePro.accentGold.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
+          child: Column(
+            children: List.generate(_editableInvestments.length, (index) {
+              return Container(
+                margin: EdgeInsets.only(
+                  bottom: index < _editableInvestments.length - 1 ? 20 : 0,
                 ),
-                child: Icon(
-                  Icons.trending_up_rounded,
-                  color: AppThemePro.accentGold,
-                  size: 18,
+                child: InvestmentEditCard(
+                  investment: _editableInvestments[index],
+                  index: index,
+                  remainingCapitalController:
+                      _controllers.remainingCapitalControllers[index],
+                  investmentAmountController:
+                      _controllers.investmentAmountControllers[index],
+                  capitalForRestructuringController:
+                      _controllers.capitalForRestructuringControllers[index],
+                  capitalSecuredController: _controllers
+                      .capitalSecuredByRealEstateControllers[index],
+                  statusValue: _controllers.statusValues[index],
+                  onStatusChanged: (status) =>
+                      _onStatusChanged(index, status),
+                  onChanged: _onDataChanged,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'INWESTYCJE DO EDYCJI',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppThemePro.textPrimary,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${_editableInvestments.length} pozycji do zarządzania',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppThemePro.textSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppThemePro.accentGold.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppThemePro.accentGold.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  '${_editableInvestments.length}',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: AppThemePro.accentGold,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Investments cards with enhanced spacing
-        Container(
-          decoration: BoxDecoration(
-            color: AppThemePro.backgroundSecondary.withOpacity(0.3),
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(16),
-              bottomRight: Radius.circular(16),
-            ),
-            border: Border(
-              left: BorderSide(color: AppThemePro.borderPrimary, width: 1),
-              right: BorderSide(color: AppThemePro.borderPrimary, width: 1),
-              bottom: BorderSide(color: AppThemePro.borderPrimary, width: 1),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: List.generate(_editableInvestments.length, (index) {
-                return Container(
-                  margin: EdgeInsets.only(
-                    bottom: index < _editableInvestments.length - 1 ? 20 : 0,
-                  ),
-                  child: InvestmentEditCard(
-                    investment: _editableInvestments[index],
-                    index: index,
-                    remainingCapitalController:
-                        _controllers.remainingCapitalControllers[index],
-                    investmentAmountController:
-                        _controllers.investmentAmountControllers[index],
-                    capitalForRestructuringController:
-                        _controllers.capitalForRestructuringControllers[index],
-                    capitalSecuredController: _controllers
-                        .capitalSecuredByRealEstateControllers[index],
-                    statusValue: _controllers.statusValues[index],
-                    onStatusChanged: (status) =>
-                        _onStatusChanged(index, status),
-                    onChanged: _onDataChanged,
-                  ),
-                );
-              }),
-            ),
+              );
+            }),
           ),
         ),
       ],

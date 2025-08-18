@@ -326,6 +326,24 @@ class _InvestmentHistoryWidgetState extends State<InvestmentHistoryWidget> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                // Pokaż główne zmiany kwot w trybie kompaktowym
+                if (entry.fieldChanges.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  ...entry.fieldChanges
+                      .where((change) => _isAmountField(change.fieldName))
+                      .take(2) // Pokaż maksymalnie 2 zmiany kwot w trybie kompaktowym
+                      .map((change) => Text(
+                            change.changeDescription,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppThemePro.accentGold,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          )),
+                ],
+                const SizedBox(height: 2),
                 Text(
                   entry.userName,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -456,17 +474,52 @@ class _InvestmentHistoryWidgetState extends State<InvestmentHistoryWidget> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ...entry.fieldChanges.map(
-                    (change) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        '• ${change.changeDescription}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppThemePro.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
+                  // Pokaż zmiany kwot na początku z wyróżnieniem
+                  ...entry.fieldChanges
+                      .where((change) => _isAmountField(change.fieldName))
+                      .map((change) => Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppThemePro.accentGold.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: AppThemePro.accentGold.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.account_balance_wallet,
+                                  size: 14,
+                                  color: AppThemePro.accentGold,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    change.changeDescription,
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppThemePro.textPrimary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )),
+                  // Pokaż pozostałe zmiany
+                  ...entry.fieldChanges
+                      .where((change) => !_isAmountField(change.fieldName))
+                      .map((change) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              '• ${change.changeDescription}',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppThemePro.textPrimary,
+                              ),
+                            ),
+                          )),
                 ],
               ),
             ),
@@ -518,5 +571,24 @@ class _InvestmentHistoryWidgetState extends State<InvestmentHistoryWidget> {
     if (count == 1) return 'wpis';
     if (count >= 2 && count <= 4) return 'wpisy';
     return 'wpisów';
+  }
+
+  /// Sprawdza czy pole jest związane z kwotą
+  bool _isAmountField(String fieldName) {
+    const amountFields = {
+      'investmentAmount',
+      'paidAmount', 
+      'remainingCapital',
+      'realizedCapital',
+      'realizedInterest',
+      'remainingInterest',
+      'capitalForRestructuring',
+      'capitalSecuredByRealEstate',
+      'plannedTax',
+      'realizedTax',
+      'totalProductAmount',
+      'transferToOtherProduct',
+    };
+    return amountFields.contains(fieldName);
   }
 }
