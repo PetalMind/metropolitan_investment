@@ -51,6 +51,13 @@ class InvestmentChangeCalculatorService {
       final changeAmount = currentValue - oldValue;
       final changePercentage = oldValue != 0 ? (changeAmount / oldValue) * 100 : 0.0;
       
+      debugPrint('📊 [InvestmentChangeCalculatorService] Calculating change for $fieldName:');
+      debugPrint('   - Current value: $currentValue');
+      debugPrint('   - Old value from history: $oldValue (raw: ${latestFieldChange.oldValue})');
+      debugPrint('   - Change amount: $changeAmount');
+      debugPrint('   - Change percentage: $changePercentage%');
+      debugPrint('   - Change date: ${latestChangeEntry?.changedAt}');
+      
       return FieldChangeInfo(
         fieldName: fieldName,
         fieldDisplayName: latestFieldChange.fieldDisplayName,

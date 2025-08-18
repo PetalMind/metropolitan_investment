@@ -485,30 +485,43 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
         _controllers.capitalForRestructuringControllers[index].text;
     final capitalSecuredText =
         _controllers.capitalSecuredByRealEstateControllers[index].text;
+    final currentRemainingCapitalText = 
+        _controllers.remainingCapitalControllers[index].text;
 
     debugPrint(
-      '🧮 [InvestorEditDialog] Raw controller values for investment ${index + 1}:',
+      '🧮 [InvestorEditDialog] ROZPOCZĘCIE OBLICZEŃ dla investment ${index + 1}:',
     );
     debugPrint('   - investmentAmount text: "$investmentAmountText"');
     debugPrint('   - capitalForRestructuring text: "$capitalForRestructuringText"');
     debugPrint('   - capitalSecured text: "$capitalSecuredText"');
+    debugPrint('   - OBECNY remainingCapital text: "$currentRemainingCapitalText"');
+    
+    // 🔍 DODATKOWE SPRAWDZENIE: Czy kontrolery mają wszystkie wartości?
+    debugPrint('🔍 [InvestorEditDialog] Sprawdzenie wszystkich kontrolerów:');
+    debugPrint('   - Kontroler capitalForRestructuring jest pusty? ${capitalForRestructuringText.trim().isEmpty}');
+    debugPrint('   - Kontroler capitalSecured jest pusty? ${capitalSecuredText.trim().isEmpty}');
 
-    final investmentAmount = _editService.parseValueFromController(
+    // 🎯 IMPROVED: Użyj fallback parsing żeby zachować oryginalne wartości gdy pole jest puste
+    final originalInvestment = _editableInvestments[index];
+    final investmentAmount = _editService.parseValueFromControllerWithFallback(
       investmentAmountText,
+      originalInvestment.investmentAmount,
     );
-    final capitalForRestructuring = _editService.parseValueFromController(
+    final capitalForRestructuring = _editService.parseValueFromControllerWithFallback(
       capitalForRestructuringText,
+      originalInvestment.capitalForRestructuring,
     );
-    final capitalSecured = _editService.parseValueFromController(
+    final capitalSecured = _editService.parseValueFromControllerWithFallback(
       capitalSecuredText,
+      originalInvestment.capitalSecuredByRealEstate,
     );
 
     debugPrint(
-      '🧮 [InvestorEditDialog] Parsed values for investment ${index + 1}:',
+      '🧮 [InvestorEditDialog] SPARSOWANE WARTOŚCI dla investment ${index + 1}:',
     );
-    debugPrint('   - investmentAmount: $investmentAmount');
-    debugPrint('   - capitalForRestructuring: $capitalForRestructuring');
-    debugPrint('   - capitalSecured: $capitalSecured');
+    debugPrint('   - investmentAmount: $investmentAmount (oryginalny: ${originalInvestment.investmentAmount})');
+    debugPrint('   - capitalForRestructuring: $capitalForRestructuring (oryginalny: ${originalInvestment.capitalForRestructuring}, tekst: "$capitalForRestructuringText")');
+    debugPrint('   - capitalSecured: $capitalSecured (oryginalny: ${originalInvestment.capitalSecuredByRealEstate}, tekst: "$capitalSecuredText")');
 
     // 🧮 AUTOMATIC CALCULATION: Kapitał pozostały = Kapitał zabezpieczony + Kapitał do restrukturyzacji
     final calculatedRemainingCapital = capitalSecured + capitalForRestructuring;

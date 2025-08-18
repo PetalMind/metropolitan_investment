@@ -250,6 +250,7 @@ class InvestmentEditCard extends StatelessWidget {
           // 🚀 NOWE: Panel szybkich obliczeń w czasie rzeczywistym
           const SizedBox(height: 16),
           _buildCalculationPreviewPanel(),
+
             width: double.infinity,
             child: TextButton.icon(
               onPressed: () {
