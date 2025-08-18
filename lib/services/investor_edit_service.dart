@@ -301,8 +301,26 @@ class InvestorEditService {
 
   /// Parsuje wartość z kontrolera (usuwa spacje)
   double parseValueFromController(String text) {
+    if (text.trim().isEmpty) {
+      debugPrint('⚠️ [InvestorEditService] parseValueFromController: empty text, returning 0.0');
+      return 0.0;
+    }
     final cleanText = text.replaceAll(' ', '').replaceAll(',', '.');
-    return double.tryParse(cleanText) ?? 0.0;
+    final result = double.tryParse(cleanText) ?? 0.0;
+    debugPrint('🔍 [InvestorEditService] parseValueFromController: "$text" → $result');
+    return result;
+  }
+
+  /// Parsuje wartość z kontrolera z fallback do oryginalnej wartości
+  double parseValueFromControllerWithFallback(String text, double originalValue) {
+    if (text.trim().isEmpty) {
+      debugPrint('⚠️ [InvestorEditService] parseValueFromControllerWithFallback: empty text, using original value: $originalValue');
+      return originalValue;
+    }
+    final cleanText = text.replaceAll(' ', '').replaceAll(',', '.');
+    final result = double.tryParse(cleanText) ?? originalValue;
+    debugPrint('🔍 [InvestorEditService] parseValueFromControllerWithFallback: "$text" → $result (original: $originalValue)');
+    return result;
   }
 
   /// Oblicza automatyczne wartości na podstawie wprowadzonych kwot
@@ -554,45 +572,67 @@ class InvestorEditService {
       for (int i = 0; i < originalInvestments.length; i++) {
         final original = originalInvestments[i];
 
-        // remainingCapital już nie jest używany - będzie automatycznie obliczony
-        final investmentAmount = parseValueFromController(
+        // DEBUG: Sprawdź wartości kontrolerów przed parsowaniem
+        debugPrint('🔍 [InvestorEditService] Raw controller values for investment ${i + 1}:');
+        debugPrint('   - investmentAmount controller: "${investmentAmountControllers[i].text}"');
+        debugPrint('   - capitalForRestructuring controller: "${capitalForRestructuringControllers[i].text}"');
+        debugPrint('   - capitalSecured controller: "${capitalSecuredControllers[i].text}"');
+        debugPrint('   - Original values from Firebase:');
+        debugPrint('     * investmentAmount: ${original.investmentAmount}');
+        debugPrint('     * capitalForRestructuring: ${original.capitalForRestructuring}');
+        debugPrint('     * capitalSecuredByRealEstate: ${original.capitalSecuredByRealEstate}');
+
+        // 🎯 IMPROVED: Użyj fallback parsing żeby zachować oryginalne wartości
+        final investmentAmount = parseValueFromControllerWithFallback(
           investmentAmountControllers[i].text,
+          original.investmentAmount,
         );
-        final capitalForRestructuring = parseValueFromController(
+        final capitalForRestructuring = parseValueFromControllerWithFallback(
           capitalForRestructuringControllers[i].text,
+          original.capitalForRestructuring,
         );
-        final capitalSecured = parseValueFromController(
+        final capitalSecured = parseValueFromControllerWithFallback(
           capitalSecuredControllers[i].text,
+          original.capitalSecuredByRealEstate,
         );
         final status = statusValues[i];
 
-        // Sprawdź czy są zmiany w polach które użytkownik może edytować
-        // UWAGA: remainingCapital nie jest sprawdzany - będzie automatycznie obliczony
-        bool hasChanges = false;
+        debugPrint('🔍 [InvestorEditService] Parsed values with fallback:');
+        debugPrint('   - investmentAmount: $investmentAmount (original: ${original.investmentAmount})');
+        debugPrint('   - capitalForRestructuring: $capitalForRestructuring (original: ${original.capitalForRestructuring})');
+        debugPrint('   - capitalSecured: $capitalSecured (original: ${original.capitalSecuredByRealEstate})');
+
+        // 🎯 SMART UPDATE - przekazuj TYLKO zmienione pola, zachowaj oryginalne wartości
+        double? updateInvestmentAmount;
+        double? updateCapitalForRestructuring;
+        double? updateCapitalSecured;
+        InvestmentStatus? updateStatus;
+
+        // Przekaż wartość tylko jeśli rzeczywiście się zmieniła
         if ((investmentAmount - original.investmentAmount).abs() > 0.01) {
-          hasChanges = true;
+          updateInvestmentAmount = investmentAmount;
           debugPrint('📝 [InvestorEditService] Change detected: investmentAmount ${original.investmentAmount} → $investmentAmount');
         }
         if ((capitalForRestructuring - original.capitalForRestructuring).abs() > 0.01) {
-          hasChanges = true;
+          updateCapitalForRestructuring = capitalForRestructuring;
           debugPrint('📝 [InvestorEditService] Change detected: capitalForRestructuring ${original.capitalForRestructuring} → $capitalForRestructuring');
         }
         if ((capitalSecured - original.capitalSecuredByRealEstate).abs() > 0.01) {
-          hasChanges = true;
+          updateCapitalSecured = capitalSecured;
           debugPrint('📝 [InvestorEditService] Change detected: capitalSecuredByRealEstate ${original.capitalSecuredByRealEstate} → $capitalSecured');
         }
         if (status != original.status) {
-          hasChanges = true;
+          updateStatus = status;
           debugPrint('📝 [InvestorEditService] Change detected: status ${original.status} → $status');
         }
-        
-        // Oblicz spodziewany remainingCapital dla logowania
-        final expectedRemainingCapital = capitalSecured + capitalForRestructuring;
-        debugPrint('🧮 [InvestorEditService] Auto-calculated remainingCapital will be: $capitalSecured + $capitalForRestructuring = $expectedRemainingCapital');
 
-        if (!hasChanges) {
+        // Sprawdź czy są jakiekolwiek zmiany
+        if (updateInvestmentAmount == null && 
+            updateCapitalForRestructuring == null && 
+            updateCapitalSecured == null && 
+            updateStatus == null) {
           debugPrint(
-            'ℹ️ [InvestorEditService] Brak zmian w inwestycji: ${original.id}',
+            'ℹ️ [InvestorEditService] Brak zmian w inwestycji: ${original.id} - wszystkie pola pozostają bez zmian',
           );
           continue;
         }
@@ -603,15 +643,20 @@ class InvestorEditService {
           '📝 [InvestorEditService] UNIVERSAL: Edytuję inwestycję ${i + 1}/${originalInvestments.length}: ${original.id}',
         );
 
-        // 🎯 SMART UPDATE - aktualizuje pola z automatycznym obliczaniem kapitału pozostałego
+        debugPrint('🔍 [InvestorEditService] Prepared update values:');
+        debugPrint('   - investmentAmount: ${updateInvestmentAmount ?? "NOT CHANGED (${original.investmentAmount})"}');
+        debugPrint('   - capitalForRestructuring: ${updateCapitalForRestructuring ?? "NOT CHANGED (${original.capitalForRestructuring})"}');
+        debugPrint('   - capitalSecuredByRealEstate: ${updateCapitalSecured ?? "NOT CHANGED (${original.capitalSecuredByRealEstate})"}');
+        debugPrint('   - status: ${updateStatus ?? "NOT CHANGED (${original.status})"}');
+
         final success = await universalService.updateInvestmentFieldsSmart(
           original.id,
-          investmentAmount: investmentAmount,
-          capitalForRestructuring: capitalForRestructuring,
-          capitalSecuredByRealEstate: capitalSecured,
+          investmentAmount: updateInvestmentAmount,
+          capitalForRestructuring: updateCapitalForRestructuring,
+          capitalSecuredByRealEstate: updateCapitalSecured,
           // remainingCapital: nie podajemy - zostanie automatycznie obliczony
           autoCalculateRemainingCapital: true,
-          status: status,
+          status: updateStatus,
           editorName: 'System Edycji Inwestorów',
           editorEmail: 'system@metropolitan.pl',
           changeReason: '$changeReason (auto calculation: capitalSecured + capitalRestructuring)',

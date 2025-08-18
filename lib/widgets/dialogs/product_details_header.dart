@@ -104,9 +104,12 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 16 : 20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -135,9 +138,9 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildCloseButton(),
-            const SizedBox(height: 8),
+            SizedBox(height: isMobile ? 6 : 8),
             _buildMainInfo(),
-            const SizedBox(height: 20),
+            SizedBox(height: isMobile ? 16 : 20),
             _buildFinancialMetrics(),
           ],
         ),
@@ -147,18 +150,11 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
 
   // --- Metryki (UJEDNOLICONE ŹRÓDŁO DANYCH) ---
   Widget _buildFinancialMetrics() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
     if (_isLoadingStatistics) {
-      return Row(
-        children: List.generate(
-          3,
-          (i) => Expanded(
-            child: Container(
-              margin: EdgeInsets.only(right: i < 2 ? 16 : 0),
-              child: _buildMetricLoadingCard(),
-            ),
-          ),
-        ),
-      );
+      return isMobile ? _buildMobileLoadingGrid() : _buildDesktopLoadingRow();
     }
 
     // ⭐ UJEDNOLICONE OBLICZENIA: Używamy zunifikowanych statystyk lub fallback lokalny
@@ -183,32 +179,91 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
       children: [
         // Etykieta źródła danych (dla przejrzystości)
         Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: EdgeInsets.only(bottom: isMobile ? 8 : 12),
           child: Row(
             children: [
               Icon(
                 Icons.info_outline,
-                size: 14,
+                size: isMobile ? 12 : 14,
                 color: Colors.white.withOpacity(0.7),
               ),
               const SizedBox(width: 4),
-              Text(
-                'Źródło: ${_unifiedStatistics != null ? "Zunifikowane statystyki" : "Obliczenia lokalne"}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withOpacity(0.7),
-                  fontSize: 12,
+              Flexible(
+                child: Text(
+                  'Źródło: ${_unifiedStatistics != null ? "Zunifikowane statystyki" : "Obliczenia lokalne"}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: isMobile ? 10 : 12,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
         ),
-        Wrap(
-          spacing: 16,
-          runSpacing: 16,
+        
+        // Responsywny layout dla metryk
+        isMobile 
+          ? _buildMobileMetricsGrid(
+              totalInvestmentAmount, 
+              totalRemainingCapital, 
+              totalCapitalSecured
+            )
+          : _buildDesktopMetricsWrap(
+              totalInvestmentAmount, 
+              totalRemainingCapital, 
+              totalCapitalSecured
+            ),
+      ],
+    );
+  }
+
+  Widget _buildMobileLoadingGrid() {
+    return Column(
+      children: [
+        // Pierwszy wiersz - dwa loading cards
+        Row(
           children: [
-            SizedBox(
-              width: 220,
-              child: _buildMetricCard(
+            Expanded(child: _buildMetricLoadingCard()),
+            const SizedBox(width: 12),
+            Expanded(child: _buildMetricLoadingCard()),
+          ],
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Drugi wiersz - jeden loading card na całą szerokość
+        _buildMetricLoadingCard(),
+      ],
+    );
+  }
+
+  Widget _buildDesktopLoadingRow() {
+    return Row(
+      children: List.generate(
+        3,
+        (i) => Expanded(
+          child: Container(
+            margin: EdgeInsets.only(right: i < 2 ? 16 : 0),
+            child: _buildMetricLoadingCard(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileMetricsGrid(
+    double totalInvestmentAmount,
+    double totalRemainingCapital,
+    double totalCapitalSecured,
+  ) {
+    return Column(
+      children: [
+        // Pierwszy wiersz - dwie karty
+        Row(
+          children: [
+            Expanded(
+              child: _buildCompactMetricCard(
                 title: 'Suma inwestycji',
                 value: CurrencyFormatter.formatCurrency(totalInvestmentAmount),
                 subtitle: 'PLN',
@@ -216,9 +271,9 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                 color: AppTheme.infoPrimary,
               ),
             ),
-            SizedBox(
-              width: 220,
-              child: _buildMetricCard(
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildCompactMetricCard(
                 title: 'Kapitał pozostały',
                 value: CurrencyFormatter.formatCurrency(totalRemainingCapital),
                 subtitle: 'PLN',
@@ -226,17 +281,61 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                 color: AppTheme.successPrimary,
               ),
             ),
-            SizedBox(
-              width: 220,
-              child: _buildMetricCard(
-                title: 'Kapitał zabezpieczony',
-                value: CurrencyFormatter.formatCurrency(totalCapitalSecured),
-                subtitle: 'PLN',
-                icon: Icons.security,
-                color: AppTheme.warningPrimary,
-              ),
-            ),
           ],
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Drugi wiersz - jedna karta na całą szerokość
+        _buildCompactMetricCard(
+          title: 'Kapitał zabezpieczony',
+          value: CurrencyFormatter.formatCurrency(totalCapitalSecured),
+          subtitle: 'PLN',
+          icon: Icons.security,
+          color: AppTheme.warningPrimary,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopMetricsWrap(
+    double totalInvestmentAmount,
+    double totalRemainingCapital,
+    double totalCapitalSecured,
+  ) {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: [
+        SizedBox(
+          width: 220,
+          child: _buildMetricCard(
+            title: 'Suma inwestycji',
+            value: CurrencyFormatter.formatCurrency(totalInvestmentAmount),
+            subtitle: 'PLN',
+            icon: Icons.trending_up,
+            color: AppTheme.infoPrimary,
+          ),
+        ),
+        SizedBox(
+          width: 220,
+          child: _buildMetricCard(
+            title: 'Kapitał pozostały',
+            value: CurrencyFormatter.formatCurrency(totalRemainingCapital),
+            subtitle: 'PLN',
+            icon: Icons.account_balance_wallet,
+            color: AppTheme.successPrimary,
+          ),
+        ),
+        SizedBox(
+          width: 220,
+          child: _buildMetricCard(
+            title: 'Kapitał zabezpieczony',
+            value: CurrencyFormatter.formatCurrency(totalCapitalSecured),
+            subtitle: 'PLN',
+            icon: Icons.security,
+            color: AppTheme.warningPrimary,
+          ),
         ),
       ],
     );
@@ -397,6 +496,123 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   }
 
   Widget _buildMainInfo() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
+    if (isMobile) {
+      return _buildMobileMainInfo();
+    } else {
+      return _buildDesktopMainInfo();
+    }
+  }
+
+  Widget _buildMobileMainInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Górny wiersz: ikona + status badge
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Ikona produktu (mniejsza na mobile)
+            TweenAnimationBuilder(
+              duration: const Duration(milliseconds: 800),
+              tween: Tween<double>(begin: 0, end: 1),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppTheme.getProductTypeColor(
+                            widget.product.productType.collectionName,
+                          ).withOpacity(0.8),
+                          AppTheme.getProductTypeColor(
+                            widget.product.productType.collectionName,
+                          ),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.getProductTypeColor(
+                            widget.product.productType.collectionName,
+                          ).withOpacity(0.4),
+                          blurRadius: 15,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      _getProductIcon(widget.product.productType),
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            // Status badge (kompaktowy)
+            _buildStatusBadge(),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        // Nazwa produktu
+        Text(
+          widget.product.name,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+            fontSize: 20,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+
+        const SizedBox(height: 8),
+
+        // Typ produktu
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 4,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Text(
+            widget.product.productType.displayName,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopMainInfo() {
     return Row(
       children: [
         // Ikona produktu z animacją
@@ -499,6 +715,8 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
 
   Widget _buildStatusBadge() {
     final color = AppTheme.getStatusColor(widget.product.status.displayName);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
 
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 600),
@@ -507,14 +725,17 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
         return Transform.scale(
           scale: value,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 12 : 16, 
+              vertical: isMobile ? 6 : 8,
+            ),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [color.withOpacity(0.8), color],
               ),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
               border: Border.all(
                 color: Colors.white.withOpacity(0.2),
                 width: 1,
@@ -522,7 +743,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
               boxShadow: [
                 BoxShadow(
                   color: color.withOpacity(0.3),
-                  blurRadius: 15,
+                  blurRadius: isMobile ? 10 : 15,
                   spreadRadius: 1,
                 ),
               ],
@@ -531,11 +752,11 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 8,
-                  height: 8,
+                  width: isMobile ? 6 : 8,
+                  height: isMobile ? 6 : 8,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(isMobile ? 3 : 4),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.white.withOpacity(0.5),
@@ -545,13 +766,14 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: isMobile ? 6 : 8),
                 Text(
                   widget.product.status.displayName,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
+                    fontSize: isMobile ? 11 : 12,
                   ),
                 ),
               ],
@@ -565,6 +787,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   /// Widget loading state dla metryk podczas ładowania z serwera
   Widget _buildMetricLoadingCard() {
     return Container(
+      height: 80, // Stała wysokość odpowiadająca compact metric card
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
@@ -579,6 +802,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
         ],
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -690,6 +914,96 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                         color: color,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Kompaktowa wersja karty metryki dla mobilnych
+  Widget _buildCompactMetricCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    return TweenAnimationBuilder(
+      duration: const Duration(milliseconds: 1000),
+      tween: Tween<double>(begin: 0, end: 1),
+      builder: (context, animValue, child) {
+        return Transform.translate(
+          offset: Offset(0, 15 * (1 - animValue)),
+          child: Opacity(
+            opacity: animValue,
+            child: Container(
+              height: 80, // Stała wysokość dla lepszego layoutu
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.2),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(icon, color: color, size: 16),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          title,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withOpacity(0.8),
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.2,
+                            fontSize: 11,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.2,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty)
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                        fontSize: 10,
                       ),
                     ),
                 ],

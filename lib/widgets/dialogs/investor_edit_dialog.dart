@@ -367,12 +367,17 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     // Ustaw listenery
     _setupListeners();
 
-    // 🧮 INITIAL CALCULATION: Oblicz kapitał pozostały dla wszystkich inwestycji na starcie
+    // 🔒 PRESERVE FIREBASE VALUES: Nie uruchamiaj automatycznych obliczeń przy inicjalizacji
+    // Wartości z Firebase są już poprawnie ustawione w kontrolerach
+    // Automatyczne obliczenia będą uruchamiane tylko gdy użytkownik zmieni pole
+    debugPrint(
+      '🔒 [InvestorEditDialog] Preserving Firebase values - no automatic calculations on init',
+    );
     for (int i = 0; i < _editableInvestments.length; i++) {
+      final investment = _editableInvestments[i];
       debugPrint(
-        '🔢 [InvestorEditDialog] Performing initial calculation for investment ${i + 1}',
+        '✅ [InvestorEditDialog] Investment ${i + 1} (${investment.id}): remainingCapital=${investment.remainingCapital}, secured=${investment.capitalSecuredByRealEstate}, restructuring=${investment.capitalForRestructuring}',
       );
-      _calculateAutomaticValues(i);
     }
 
     // Zaktualizuj stan
@@ -481,6 +486,13 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     final capitalSecuredText =
         _controllers.capitalSecuredByRealEstateControllers[index].text;
 
+    debugPrint(
+      '🧮 [InvestorEditDialog] Raw controller values for investment ${index + 1}:',
+    );
+    debugPrint('   - investmentAmount text: "$investmentAmountText"');
+    debugPrint('   - capitalForRestructuring text: "$capitalForRestructuringText"');
+    debugPrint('   - capitalSecured text: "$capitalSecuredText"');
+
     final investmentAmount = _editService.parseValueFromController(
       investmentAmountText,
     );
@@ -490,6 +502,13 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     final capitalSecured = _editService.parseValueFromController(
       capitalSecuredText,
     );
+
+    debugPrint(
+      '🧮 [InvestorEditDialog] Parsed values for investment ${index + 1}:',
+    );
+    debugPrint('   - investmentAmount: $investmentAmount');
+    debugPrint('   - capitalForRestructuring: $capitalForRestructuring');
+    debugPrint('   - capitalSecured: $capitalSecured');
 
     // 🧮 AUTOMATIC CALCULATION: Kapitał pozostały = Kapitał zabezpieczony + Kapitał do restrukturyzacji
     final calculatedRemainingCapital = capitalSecured + capitalForRestructuring;
