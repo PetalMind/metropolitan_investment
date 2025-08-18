@@ -112,7 +112,8 @@ class InvestmentEditCard extends StatelessWidget {
                       controller: investmentAmountController,
                       icon: Icons.attach_money,
                       color: AppThemePro.profitGreen,
-                      onChanged: onChanged,
+                      isEditable: false, // 🔒 ZABLOKOWANE: Kwota inwestycji nie może być edytowana
+                      helpText: 'Wartość podstawowa inwestycji',
                       originalValue: investment.investmentAmount, // 🚀 NOWE: Oryginalna wartość
                       showChangeIndicator: true, // 🚀 NOWE: Pokaż wskaźnik zmian
                     ),

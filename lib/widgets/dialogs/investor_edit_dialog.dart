@@ -842,13 +842,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
               child: _buildInvestmentsSection(),
             ),
           ),
-          // Executive summary section
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: _buildExecutiveSummary(),
-            ),
-          ),
+     
 
           // Bottom padding
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
@@ -1044,121 +1038,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildExecutiveSummary() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppThemePro.backgroundSecondary,
-            AppThemePro.backgroundSecondary.withBlue(20),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppThemePro.accentGold.withOpacity(0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppThemePro.accentGold.withOpacity(0.1),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Section header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppThemePro.accentGold.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.analytics_rounded,
-                    color: AppThemePro.accentGold,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'KONTROLA PRODUKTU',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: AppThemePro.textPrimary,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.0,
-                            ),
-                      ),
-                      Text(
-                        'Zarządzanie całkowitą wartością i skalowanie',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppThemePro.textSecondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Product total amount control with enhanced styling
-            ProductTotalAmountControl(
-              controller: _controllers.totalProductAmountController,
-              originalAmount: _state.originalTotalProductAmount,
-              isChangingAmount: _state.isChangingTotalAmount,
-              pendingChange: _state.pendingTotalAmountChange,
-              onChanged: _onDataChanged,
-            ),
-
-            const SizedBox(height: 28),
-
-            // Enhanced investments summary
-            Container(
-              decoration: BoxDecoration(
-                color: AppThemePro.backgroundTertiary.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppThemePro.borderSecondary.withOpacity(0.5),
-                  width: 1,
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: InvestmentsSummaryWidget(
-                  investments: _editableInvestments,
-                  remainingCapitalControllers:
-                      _controllers.remainingCapitalControllers,
-                  investmentAmountControllers:
-                      _controllers.investmentAmountControllers,
-                  capitalForRestructuringControllers:
-                      _controllers.capitalForRestructuringControllers,
-                  capitalSecuredControllers:
-                      _controllers.capitalSecuredByRealEstateControllers,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -258,7 +258,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       children: [
         Expanded(
           child: _buildStatCard(
-            'Suma kapitału',
+            'Suma inwestycjiI',
             _service.formatCurrency(totalInvestmentValue),
             Icons.trending_up,
             AppTheme.infoPrimary,

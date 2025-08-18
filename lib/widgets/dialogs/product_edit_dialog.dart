@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme_professional.dart';
 import '../../models_and_services.dart';
-import '../../utils/currency_formatter.dart';
 import '../investment_history_widget.dart';
 
 /// Dialog do edycji inwestycji klienta zgodny z AppThemePro
@@ -35,7 +34,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
   final InvestmentChangeHistoryService _historyService =
       InvestmentChangeHistoryService();
   final DataCacheService _cacheService = DataCacheService();
-  final InvestmentService _investmentService = InvestmentService();
   final UltraPreciseProductInvestorsService _ultraPreciseService =
       UltraPreciseProductInvestorsService();
 
@@ -155,8 +153,8 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
       _focusNodes['${prefix}plannedTax'] = FocusNode();
       _focusNodes['${prefix}realizedTax'] = FocusNode();
 
-      // 🎯 DODAJ LISTENERY DO WSZYSTKICH KONTROLERÓW - AUTOMATYCZNE ŚLEDZENIE ZMIAN
-      _controllers['${prefix}investmentAmount']?.addListener(_trackChanges);
+      // 🎯 DODAJ LISTENERY DO KONTROLERÓW EDYTOWALNYCH PÓL - AUTOMATYCZNE ŚLEDZENIE ZMIAN
+      // Uwaga: investmentAmount jest zablokowane do edycji, więc nie dodajemy listenera
       _controllers['${prefix}paidAmount']?.addListener(_trackChanges);
       _controllers['${prefix}remainingCapital']?.addListener(_trackChanges);
       _controllers['${prefix}realizedCapital']?.addListener(_trackChanges);
@@ -369,31 +367,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
           ),
 
           const SizedBox(width: 12),
-
-          // 🚀 NOWY: Przycisk skalowania proporcjonalnego
-          if (_isEditMode && _productInvestments.isNotEmpty)
-            Container(
-              decoration: BoxDecoration(
-                color: AppThemePro.statusWarning.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppThemePro.statusWarning.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: IconButton(
-                onPressed: _showProportionalScalingDialog,
-                icon: const Icon(
-                  Icons.tune,
-                  color: AppThemePro.statusWarning,
-                  size: 20,
-                ),
-                tooltip: 'Skalowanie proporcjonalne',
-              ),
-            ),
-
-          if (_isEditMode && _productInvestments.isNotEmpty)
-            const SizedBox(width: 12),
 
           // Close button
           Container(
@@ -644,7 +617,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                   label: 'Kwota inwestycji',
                   controller: _controllers['${prefix}investmentAmount']!,
                   focusNode: _focusNodes['${prefix}investmentAmount']!,
-                  enabled: _isEditMode,
+                  enabled: false, // 🔒 ZABLOKOWANE: Kwota inwestycji nie może być edytowana
                   icon: Icons.account_balance_wallet,
                   color: AppThemePro.bondsBlue,
                 ),
@@ -814,11 +787,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
             ],
           ),
 
-          if (_isEditMode) ...[
-            const SizedBox(height: 16),
-            _buildCalculatedFields(investment, prefix),
-          ],
-
           // 🔍 NOWE: Przycisk historii zmian
           if (!_isEditMode) ...[
             const SizedBox(height: 12),
@@ -916,117 +884,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
             }
             return null;
           },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCalculatedFields(Investment investment, String prefix) {
-    final investmentAmount =
-        double.tryParse(_controllers['${prefix}investmentAmount']!.text) ?? 0.0;
-
-    final remainingCapital =
-        double.tryParse(_controllers['${prefix}remainingCapital']!.text) ?? 0.0;
-
-    final capitalForRestructuring =
-        double.tryParse(
-          _controllers['${prefix}capitalForRestructuring']!.text,
-        ) ??
-        0.0;
-
-    // 🔢 OBLICZENIA ZGODNE Z MODELEM INVESTMENT
-    final totalValue =
-        remainingCapital; // Zgodnie z modelem: totalValue => remainingCapital
-    final profitLoss = remainingCapital - investmentAmount; // Zgodnie z modelem
-    final profitLossPercentage = investmentAmount > 0
-        ? (profitLoss / investmentAmount) * 100
-        : 0.0;
-
-    // Kapitał zabezpieczony = max(remainingCapital - capitalForRestructuring, 0)
-    final capitalSecured = (remainingCapital - capitalForRestructuring).clamp(
-      0.0,
-      double.infinity,
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppThemePro.backgroundTertiary.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppThemePro.borderSecondary.withOpacity(0.5),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Obliczenia automatyczne',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppThemePro.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          Wrap(
-            spacing: 16,
-            runSpacing: 8,
-            children: [
-              _buildCalculatedValue(
-                'Wartość całkowita',
-                totalValue,
-                Icons.assessment,
-                AppThemePro.neutralGray,
-              ),
-              _buildCalculatedValue(
-                'Zysk/Strata',
-                profitLoss,
-                profitLoss >= 0 ? Icons.trending_up : Icons.trending_down,
-                AppThemePro.getPerformanceColor(profitLoss),
-              ),
-              _buildCalculatedValue(
-                'Kapitał zabezpieczony',
-                capitalSecured,
-                Icons.security,
-                AppThemePro.realEstateViolet,
-              ),
-            ],
-          ),
-
-          if (profitLossPercentage != 0) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Wydajność: ${profitLossPercentage >= 0 ? '+' : ''}${profitLossPercentage.toStringAsFixed(2)}%',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppThemePro.getPerformanceColor(profitLossPercentage),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCalculatedValue(
-    String label,
-    double value,
-    IconData icon,
-    Color color,
-  ) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 6),
-        Text(
-          '$label: ${CurrencyFormatter.formatCurrency(value)}',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppThemePro.textSecondary),
         ),
       ],
     );
@@ -1298,6 +1155,59 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     );
   }
 
+  /// 🔍 NOWA METODA: Buduje szczegółowy opis zmian z konkretnymi kwotami
+  String _buildDetailedChangesDescription(List<Investment> oldInvestments, List<Investment> newInvestments) {
+    final changes = <String>[];
+    
+    for (int i = 0; i < oldInvestments.length; i++) {
+      final old = oldInvestments[i];
+      final updated = newInvestments[i];
+      final investmentChanges = <String>[];
+      
+      // Sprawdź każde pole i dodaj do opisu jeśli się zmieniło
+      if (old.paidAmount != updated.paidAmount) {
+        investmentChanges.add('Kwota wpłat: ${old.paidAmount.toStringAsFixed(2)} → ${updated.paidAmount.toStringAsFixed(2)} PLN');
+      }
+      if (old.remainingCapital != updated.remainingCapital) {
+        investmentChanges.add('Kapitał pozostały: ${old.remainingCapital.toStringAsFixed(2)} → ${updated.remainingCapital.toStringAsFixed(2)} PLN');
+      }
+      if (old.realizedCapital != updated.realizedCapital) {
+        investmentChanges.add('Kapitał zrealizowany: ${old.realizedCapital.toStringAsFixed(2)} → ${updated.realizedCapital.toStringAsFixed(2)} PLN');
+      }
+      if (old.realizedInterest != updated.realizedInterest) {
+        investmentChanges.add('Odsetki zrealizowane: ${old.realizedInterest.toStringAsFixed(2)} → ${updated.realizedInterest.toStringAsFixed(2)} PLN');
+      }
+      if (old.remainingInterest != updated.remainingInterest) {
+        investmentChanges.add('Odsetki pozostałe: ${old.remainingInterest.toStringAsFixed(2)} → ${updated.remainingInterest.toStringAsFixed(2)} PLN');
+      }
+      if (old.transferToOtherProduct != updated.transferToOtherProduct) {
+        investmentChanges.add('Transfer na inny produkt: ${old.transferToOtherProduct.toStringAsFixed(2)} → ${updated.transferToOtherProduct.toStringAsFixed(2)} PLN');
+      }
+      if (old.capitalForRestructuring != updated.capitalForRestructuring) {
+        investmentChanges.add('Kapitał do restrukturyzacji: ${old.capitalForRestructuring.toStringAsFixed(2)} → ${updated.capitalForRestructuring.toStringAsFixed(2)} PLN');
+      }
+      if (old.capitalSecuredByRealEstate != updated.capitalSecuredByRealEstate) {
+        investmentChanges.add('Kapitał zabezp. nieruchomościami: ${old.capitalSecuredByRealEstate.toStringAsFixed(2)} → ${updated.capitalSecuredByRealEstate.toStringAsFixed(2)} PLN');
+      }
+      if (old.plannedTax != updated.plannedTax) {
+        investmentChanges.add('Planowany podatek: ${old.plannedTax.toStringAsFixed(2)} → ${updated.plannedTax.toStringAsFixed(2)} PLN');
+      }
+      if (old.realizedTax != updated.realizedTax) {
+        investmentChanges.add('Zrealizowany podatek: ${old.realizedTax.toStringAsFixed(2)} → ${updated.realizedTax.toStringAsFixed(2)} PLN');
+      }
+      
+      if (investmentChanges.isNotEmpty) {
+        changes.add('Inwestycja ${old.id}: ${investmentChanges.join(', ')}');
+      }
+    }
+    
+    if (changes.isEmpty) {
+      return 'Edycja inwestycji przez dialog - produkt: ${widget.product.name} (brak zmian)';
+    }
+    
+    return 'Edycja inwestycji przez dialog - produkt: ${widget.product.name}. Zmiany: ${changes.join('; ')}';
+  }
+
   /// 🎯 NOWA METODA: Automatycznie śledzi zmiany w polach tekstowych
   void _trackChanges() {
     if (!_isEditMode) return;
@@ -1392,11 +1302,13 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
 
       // 🔍 ZAPISZ HISTORIĘ ZMIAN
       try {
+        // 🔍 NOWE: Utwórz szczegółowy opis zmian z konkretnymi kwotami
+        final changesDescription = _buildDetailedChangesDescription(oldInvestments, newInvestments);
+        
         await _historyService.recordBulkChanges(
           oldInvestments: oldInvestments,
           newInvestments: newInvestments,
-          customDescription:
-              'Edycja inwestycji przez dialog - produkt: ${widget.product.name}',
+          customDescription: changesDescription,
           metadata: {
             'source': 'investor_edit_dialog',
             'productId': widget.product.id,
@@ -1613,707 +1525,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
         ),
       ),
     );
-  }
-
-  /// 🚀 NOWA METODA: Pokazuje dialog skalowania proporcjonalnego
-  void _showProportionalScalingDialog() {
-    // Oblicz aktualną sumę inwestycji
-    final currentTotal = _productInvestments.fold<double>(
-      0.0,
-      (sum, inv) => sum + inv.investmentAmount,
-    );
-
-    final TextEditingController newTotalController = TextEditingController();
-    final TextEditingController reasonController = TextEditingController(
-      text: 'Skalowanie proporcjonalne przez dialog edycji',
-    );
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.7),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            width: 500,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppThemePro.backgroundPrimary,
-                  AppThemePro.backgroundSecondary,
-                ],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: AppThemePro.statusWarning.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: AppThemePro.borderPrimary.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppThemePro.statusWarning.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.tune,
-                          color: AppThemePro.statusWarning,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Skalowanie proporcjonalne',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(
-                                    color: AppThemePro.textPrimary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              widget.product.name,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: AppThemePro.textMuted),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close),
-                        style: IconButton.styleFrom(
-                          backgroundColor: AppThemePro.lossRed.withOpacity(0.1),
-                          foregroundColor: AppThemePro.lossRed,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Content
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Aktualna suma
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppThemePro.neutralGray.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppThemePro.borderPrimary.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Obecna suma inwestycji',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: AppThemePro.textSecondary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${currentTotal.toStringAsFixed(2)} PLN',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(
-                                    color: AppThemePro.textPrimary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Liczba inwestycji: ${_productInvestments.length}',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: AppThemePro.textMuted),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Nowa suma
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Nowa suma inwestycji',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: AppThemePro.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: newTotalController,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'^\d*\.?\d{0,2}'),
-                              ),
-                            ],
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: AppThemePro.textPrimary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: AppThemePro.surfaceInteractive,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              suffixText: 'PLN',
-                              suffixStyle: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: AppThemePro.textMuted),
-                              hintText: 'Wprowadź nową sumę...',
-                              hintStyle: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: AppThemePro.textMuted),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: AppThemePro.borderPrimary,
-                                  width: 1,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: AppThemePro.borderPrimary,
-                                  width: 1,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: AppThemePro.statusWarning,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                            onChanged: (value) => setDialogState(() {}),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Powód zmiany
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Powód skalowania',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: AppThemePro.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: reasonController,
-                            maxLines: 2,
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: AppThemePro.textPrimary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: AppThemePro.surfaceInteractive,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              hintText: 'Opcjonalny opis powodu zmiany...',
-                              hintStyle: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: AppThemePro.textMuted),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: AppThemePro.borderPrimary,
-                                  width: 1,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: AppThemePro.borderPrimary,
-                                  width: 1,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: AppThemePro.statusWarning,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      // Podgląd skalowania
-                      if (newTotalController.text.isNotEmpty)
-                        _buildScalingPreview(
-                          currentTotal,
-                          double.tryParse(newTotalController.text) ?? 0.0,
-                        ),
-                    ],
-                  ),
-                ),
-
-                // Footer
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      top: BorderSide(
-                        color: AppThemePro.borderPrimary.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppThemePro.textSecondary,
-                            side: BorderSide(
-                              color: AppThemePro.borderSecondary,
-                              width: 1,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                          ),
-                          child: const Text('Anuluj'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed:
-                              newTotalController.text.isEmpty ||
-                                  (double.tryParse(newTotalController.text) ??
-                                          0.0) <=
-                                      0
-                              ? null
-                              : () => _executeProportionalScaling(
-                                  double.parse(newTotalController.text),
-                                  reasonController.text,
-                                ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppThemePro.statusWarning,
-                            foregroundColor: AppThemePro.primaryDark,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                          ),
-                          child: const Text('Wykonaj skalowanie'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 🚀 Podgląd efektu skalowania
-  Widget _buildScalingPreview(double currentTotal, double newTotal) {
-    if (newTotal <= 0) return Container();
-
-    final scalingFactor = newTotal / currentTotal;
-    final difference = newTotal - currentTotal;
-    final percentChange = ((scalingFactor - 1) * 100);
-
-    return Container(
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppThemePro.accentGold.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppThemePro.accentGold.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.preview,
-                size: 16,
-                color: AppThemePro.accentGold,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Podgląd skalowania',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppThemePro.accentGold,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Współczynnik:',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppThemePro.textSecondary,
-                ),
-              ),
-              Text(
-                '${scalingFactor.toStringAsFixed(4)}x',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppThemePro.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Zmiana:',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppThemePro.textSecondary,
-                ),
-              ),
-              Text(
-                '${percentChange >= 0 ? '+' : ''}${percentChange.toStringAsFixed(2)}%',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppThemePro.getPerformanceColor(percentChange),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Różnica:',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppThemePro.textSecondary,
-                ),
-              ),
-              Text(
-                '${difference >= 0 ? '+' : ''}${difference.toStringAsFixed(2)} PLN',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppThemePro.getPerformanceColor(difference),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 🚀 Wykonuje skalowanie proporcjonalne
-  Future<void> _executeProportionalScaling(
-    double newTotalAmount,
-    String reason,
-  ) async {
-    Navigator.of(context).pop(); // Zamknij dialog skalowania
-
-    // Pokaż loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: AppThemePro.backgroundPrimary,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppThemePro.borderPrimary, width: 1),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  AppThemePro.accentGold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Wykonuję skalowanie proporcjonalne...',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppThemePro.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Może to potrwać kilka sekund',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppThemePro.textMuted),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    try {
-      // Wykonaj skalowanie przez Firebase Functions
-      final result = await _investmentService.scaleProductInvestments(
-        productId: widget.product.id.isNotEmpty ? widget.product.id : null,
-        productName: widget.product.name,
-        newTotalAmount: newTotalAmount,
-        reason: reason.isNotEmpty
-            ? reason
-            : 'Skalowanie proporcjonalne przez dialog edycji',
-      );
-
-      Navigator.of(context).pop(); // Zamknij loading dialog
-
-      if (result.success) {
-        // Pokaż dialog sukcesu
-        await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: AppThemePro.backgroundPrimary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: AppThemePro.statusSuccess, width: 1),
-            ),
-            title: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppThemePro.statusSuccess.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.check_circle,
-                    color: AppThemePro.statusSuccess,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Skalowanie zakończone!',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppThemePro.textPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  result.summary.formattedSummary,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppThemePro.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.statusSuccess,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-
-        // Odśwież dane - wymuś przeładowanie inwestycji
-        await _refreshInvestmentData();
-
-        // Notify parent
-        widget.onSaved?.call();
-      } else {
-        throw Exception('Skalowanie nie powiodło się');
-      }
-    } catch (e) {
-      Navigator.of(context).pop(); // Zamknij loading dialog
-
-      // Pokaż dialog błędu
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: AppThemePro.backgroundPrimary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: AppThemePro.statusError, width: 1),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppThemePro.statusError.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.error,
-                  color: AppThemePro.statusError,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Błąd skalowania',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppThemePro.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            'Nie udało się wykonać skalowania proporcjonalnego:\n\n$e',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppThemePro.textSecondary),
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppThemePro.statusError,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
-  /// 🚀 Odświeża dane inwestycji po skalowaniu
-  Future<void> _refreshInvestmentData() async {
-    try {
-      print('🔄 [InvestorEditDialog] Odświeżam dane inwestycji...');
-
-      // Wymuś odświeżenie cache
-      await _cacheService.forceRefreshFromFirebase();
-
-      // Pobierz zaktualizowane inwestycje dla tego produktu
-      final allInvestments = await _cacheService.getAllInvestments(
-        forceRefresh: true,
-      );
-
-      // Filtruj inwestycje dla tego produktu - używając tej samej logiki co w initState
-      final refreshedInvestments = allInvestments.where((investment) {
-        // Try matching by product ID first
-        if (widget.product.id.isNotEmpty &&
-            investment.productId != null &&
-            investment.productId!.isNotEmpty &&
-            investment.productId != "null") {
-          return investment.productId == widget.product.id;
-        }
-
-        // Fallback: match by product name
-        return investment.productName.trim().toLowerCase() ==
-            widget.product.name.trim().toLowerCase();
-      }).toList();
-
-      // Usuń duplikaty
-      final uniqueInvestments = <String, Investment>{};
-      for (final investment in refreshedInvestments) {
-        final key = investment.id.isNotEmpty
-            ? investment.id
-            : '${investment.productName}_${investment.investmentAmount}_${investment.clientId}';
-        uniqueInvestments[key] = investment;
-      }
-
-      final newInvestments = uniqueInvestments.values.toList();
-
-      print(
-        '🔄 [InvestorEditDialog] Zaktualizowano ${newInvestments.length} inwestycji',
-      );
-
-      // Aktualizuj dane w interfejsie
-      setState(() {
-        _productInvestments = newInvestments;
-        _modifiedInvestments.clear();
-
-        // Dispose old controllers
-        _controllers.values.forEach((controller) => controller.dispose());
-        _focusNodes.values.forEach((node) => node.dispose());
-        _controllers.clear();
-        _focusNodes.clear();
-
-        // Initialize new controllers with fresh data
-        _initializeControllers();
-      });
-
-      print('✅ [InvestorEditDialog] Dane odświeżone pomyślnie');
-    } catch (e) {
-      print('❌ [InvestorEditDialog] Błąd odświeżania danych: $e');
-    }
   }
 
   /// 🚀 NOWA METODA: Buduje wskaźnik ultra-precyzyjnych danych
