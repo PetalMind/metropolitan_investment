@@ -252,4 +252,7 @@ module.exports = {
 
   // 🚀 ULTRA-PRECYZYJNY SERWIS INWESTORÓW (V2 FUNCTION - bezpośredni export)
   getProductInvestorsUltraPrecise: require("./optimized-product-investors").getProductInvestorsUltraPrecise,
+
+  // 🚀 SERWISY SKALOWANIA INWESTYCJI
+  ...investmentScalingService, // Export wszystkich funkcji z investment-scaling-service
 };

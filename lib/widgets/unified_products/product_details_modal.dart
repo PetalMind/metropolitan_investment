@@ -253,6 +253,16 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                 investors: _investors,
                 isLoadingInvestors: _isLoadingInvestors,
                 onClose: () => Navigator.of(context).pop(),
+                onDataChanged: () async {
+                  // 🎯 NOWY: Callback do pełnego odświeżenia danych modalu po edycji kapitału
+                  debugPrint('🔄 [ProductDetailsModal] Header data changed - refreshing all data');
+                  try {
+                    await _modalService.clearAllCache();
+                    await _loadModalData(forceRefresh: true);
+                  } catch (e) {
+                    debugPrint('⚠️ [ProductDetailsModal] Error refreshing after header change: $e');
+                  }
+                },
               ),
               _buildResponsiveTabBar(context, isMobile, isTablet),
               Expanded(child: _buildTabBarView(context, isMobile, isTablet)),

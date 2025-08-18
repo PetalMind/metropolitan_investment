@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
 import '../../models_and_services.dart'; // Centralized import
 import '../premium_loading_widget.dart';
 import '../premium_error_widget.dart';
 import 'product_details_service.dart';
 import 'investor_edit_dialog.dart'; // ⭐ NOWE: Import dialogu edycji
+import '../../services/universal_investment_service.dart' as universal; // 🚀 UNIFIED DATA
 
 /// Zakładka z inwestorami produktu
 class ProductInvestorsTab extends StatefulWidget {
@@ -39,6 +39,10 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
   String _sortBy = 'capital'; // 'capital', 'name', 'investments'
   bool _sortAscending = false;
 
+  // 🚀 UNIFIED DATA: Lokalne przechowywanie świeżych danych inwestorów
+  List<InvestorSummary> _localInvestors = [];
+  bool _isRefreshingData = false;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +55,9 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
 
+    // 🚀 UNIFIED DATA: Inicjalizuj lokalne dane
+    _localInvestors = List.from(widget.investors);
+
     if (!widget.isLoading) {
       _fadeController.forward();
     }
@@ -59,6 +66,25 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
   @override
   void didUpdateWidget(ProductInvestorsTab oldWidget) {
     super.didUpdateWidget(oldWidget);
+    
+    // 🚀 UNIFIED DATA: Aktualizuj lokalne dane gdy parent przekaże nowe
+    if (widget.investors != oldWidget.investors) {
+      print('🔄 [ProductInvestorsTab] Parent investors data changed - triggering local data refresh...');
+      setState(() {
+        _localInvestors = List.from(widget.investors);
+      });
+      
+      // 🚀 AUTOMATIC REFRESH: Po zmianie danych od parent (np. po skalowaniu), automatycznie odśwież lokalne dane
+      if (!_isRefreshingData) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && !_isRefreshingData) {
+            print('🔄 [ProductInvestorsTab] Auto-triggering local data refresh after parent data change...');
+            _refreshLocalInvestorData();
+          }
+        });
+      }
+    }
+    
     if (!widget.isLoading && oldWidget.isLoading) {
       _fadeController.forward();
     }
@@ -72,7 +98,10 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.isLoading) {
+    // 🚀 UNIFIED DATA: Używaj lokalnych danych zamiast widget.investors
+    final currentInvestors = _localInvestors;
+    
+    if (widget.isLoading && !_isRefreshingData) {
       return const Center(
         child: PremiumLoadingWidget(message: 'Ładowanie inwestorów...'),
       );
@@ -85,7 +114,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       );
     }
 
-    if (widget.investors.isEmpty) {
+    if (currentInvestors.isEmpty) {
       return _buildEmptyState();
     }
 
@@ -94,16 +123,176 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       child: CustomScrollView(
         slivers: [
           // Header z podsumowaniem i kontrolkami sortowania
-          SliverToBoxAdapter(child: _buildHeader()),
+          SliverToBoxAdapter(child: _buildHeader(currentInvestors)),
 
           // Lista inwestorów jako sliver
-          _buildInvestorsSliver(),
+          _buildInvestorsSliver(currentInvestors),
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
+  /// 🚀 UNIFIED DATA: Odświeża lokalne dane inwestorów używając UniversalInvestmentService
+  Future<void> _refreshLocalInvestorData() async {
+    if (_isRefreshingData) return; // Zapobiegnij wielokrotnemu odświeżaniu
+    
+    setState(() {
+      _isRefreshingData = true;
+    });
+
+    try {
+      print('🔄 [ProductInvestorsTab] Odświeżanie lokalnych danych inwestorów...');
+      
+      // 🚀 CRITICAL: Dłuższe opóźnienie po skalowaniu produktu - Firebase potrzebuje czasu na propagację
+      await Future.delayed(const Duration(milliseconds: 2000)); // Zwiększone z 1s do 2s
+      
+      // 🚀 UNIVERSAL SERVICE: Używaj tego samego serwisu co InvestorEditService
+      final universalService = universal.UniversalInvestmentService.instance;
+      await universalService.clearAllCache(); // Force fresh data
+      
+      // 🚀 COMPREHENSIVE CACHE CLEAR: Wyczyść wszystkie możliwe cache dla lepszej spójności
+      try {
+        final modalService = UnifiedProductModalService();
+        await modalService.clearAllCache();
+        print('🧹 [ProductInvestorsTab] UnifiedProductModalService cache cleared');
+      } catch (e) {
+        print('⚠️ [ProductInvestorsTab] Could not clear modal service cache: $e');
+      }
+      
+      // Pobierz wszystkie ID inwestycji z aktualnych danych
+      final allInvestmentIds = <String>[];
+      for (final investor in _localInvestors) {
+        for (final investment in investor.investments) {
+          if (investment.id.isNotEmpty) {
+            allInvestmentIds.add(investment.id);
+          }
+        }
+      }
+      
+      if (allInvestmentIds.isEmpty) {
+        print('⚠️ [ProductInvestorsTab] Brak ID inwestycji do odświeżenia');
+        setState(() {
+          _isRefreshingData = false;
+        });
+        return;
+      }
+      
+      print('🔍 [ProductInvestorsTab] Odświeżanie ${allInvestmentIds.length} inwestycji...');
+      
+      // 🚀 AGGRESSIVE REFRESH: Pobierz świeże dane wielokrotnie jeśli potrzeba
+      List<Investment> freshInvestments = [];
+      int retryCount = 0;
+      const maxRetries = 3;
+      
+      while (freshInvestments.isEmpty && retryCount < maxRetries) {
+        if (retryCount > 0) {
+          print('🔄 [ProductInvestorsTab] Retry ${retryCount}/${maxRetries} po ${500 * retryCount}ms...');
+          await Future.delayed(Duration(milliseconds: 500 * retryCount));
+          await universalService.clearAllCache(); // Kolejne czyszczenie cache
+        }
+        
+        freshInvestments = await universalService.getInvestments(allInvestmentIds);
+        retryCount++;
+        
+        if (freshInvestments.isEmpty) {
+          print('⚠️ [ProductInvestorsTab] Próba ${retryCount}: Nie otrzymano świeżych danych');
+        }
+      }
+      
+      if (freshInvestments.isEmpty) {
+        print('❌ [ProductInvestorsTab] Nie udało się pobrać świeżych danych po $maxRetries próbach');
+        setState(() {
+          _isRefreshingData = false;
+        });
+        return;
+      }
+      
+      print('✅ [ProductInvestorsTab] Otrzymano ${freshInvestments.length} świeżych inwestycji po ${retryCount} próbach');
+      
+      // 📊 DEBUG: Pokaż szczegóły świeżych danych po skalowaniu
+      for (final inv in freshInvestments) {
+        print('💰 [ProductInvestorsTab] Fresh investment after scaling: ${inv.id}');
+        print('   - remainingCapital: ${inv.remainingCapital}');
+        print('   - investmentAmount: ${inv.investmentAmount}');
+        print('   - capitalForRestructuring: ${inv.capitalForRestructuring}');
+        print('   - capitalSecuredByRealEstate: ${inv.capitalSecuredByRealEstate}');
+        print('   - updatedAt: ${inv.updatedAt.toIso8601String()}');
+      }
+      
+      // Zaktualizuj dane inwestorów ze świeżymi inwestycjami
+      final updatedInvestors = <InvestorSummary>[];
+      
+      for (final originalInvestor in _localInvestors) {
+        // Znajdź świeże inwestycje dla tego inwestora
+        final investorFreshInvestments = freshInvestments.where((investment) {
+          // Dopasuj po clientId lub clientName
+          return investment.clientId == originalInvestor.client.id ||
+                 (investment.clientName.isNotEmpty && 
+                  investment.clientName == originalInvestor.client.name);
+        }).toList();
+        
+        if (investorFreshInvestments.isNotEmpty) {
+          // Utwórz nowy InvestorSummary ze świeżymi danymi
+          final updatedInvestor = InvestorSummary.withoutCalculations(
+            originalInvestor.client,
+            investorFreshInvestments,
+          );
+          
+          // Przelicz podsumowania
+          final calculatedInvestor = InvestorSummary.calculateSecuredCapitalForAll([updatedInvestor]).first;
+          updatedInvestors.add(calculatedInvestor);
+          
+                          print('🔄 [ProductInvestorsTab] Zaktualizowano inwestora: ${originalInvestor.client.name} (${investorFreshInvestments.length} inwestycji)');
+          
+          // 📊 DEBUG: Pokaż zmiany w kapitałach inwestora
+          final oldCapital = _getProductCapital(originalInvestor);
+          final newCapital = _getProductCapitalFromInvestments(investorFreshInvestments);
+          if ((newCapital - oldCapital).abs() > 0.01) {
+            print('💰 [ProductInvestorsTab] Capital change for ${originalInvestor.client.name}: ${oldCapital.toStringAsFixed(2)} → ${newCapital.toStringAsFixed(2)} (Δ ${(newCapital - oldCapital).toStringAsFixed(2)})');
+          }
+        } else {
+          // Zachowaj oryginalnego inwestora jeśli nie znaleziono świeżych danych
+          updatedInvestors.add(originalInvestor);
+          print('⚠️ [ProductInvestorsTab] Brak świeżych danych dla inwestora: ${originalInvestor.client.name}');
+        }
+      }
+      
+      // Aktualizuj stan z nowymi danymi
+      setState(() {
+        _localInvestors = updatedInvestors;
+        _isRefreshingData = false;
+      });
+      
+      print('✅ [ProductInvestorsTab] Odświeżenie lokalnych danych zakończone pomyślnie (${updatedInvestors.length} inwestorów)');
+      
+      // 🔔 NOTIFICATION: Pokaż dyskretny komunikat o odświeżeniu danych
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.refresh, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Text('Dane inwestorów odświeżone (${updatedInvestors.length})'),
+              ],
+            ),
+            backgroundColor: AppTheme.infoPrimary,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 100, left: 16, right: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ [ProductInvestorsTab] Błąd podczas odświeżania lokalnych danych: $e');
+      setState(() {
+        _isRefreshingData = false;
+      });
+    }
+  }
+
+  Widget _buildHeader(List<InvestorSummary> currentInvestors) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -193,8 +382,8 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
                     const SizedBox(height: 4),
                     Text(
                       widget.isEditModeEnabled
-                          ? '${widget.investors.length} ${_getInvestorText(widget.investors.length)} • Kliknij inwestora aby edytować'
-                          : '${widget.investors.length} ${_getInvestorText(widget.investors.length)}',
+                          ? '${currentInvestors.length} ${_getInvestorText(currentInvestors.length)} • Kliknij inwestora aby edytować'
+                          : '${currentInvestors.length} ${_getInvestorText(currentInvestors.length)}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppTheme.textSecondary,
                       ),
@@ -202,23 +391,37 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
                   ],
                 ),
               ),
-              // Przycisk odświeżania
+              // Przycisk odświeżania z wskaźnikiem lokalnego odświeżania
               IconButton(
-                onPressed: widget.onRefresh,
-                icon: const Icon(Icons.refresh),
+                onPressed: _isRefreshingData ? null : () {
+                  // 🚀 UNIFIED: Najpierw odśwież lokalne dane, potem parent
+                  _refreshLocalInvestorData().then((_) {
+                    widget.onRefresh();
+                  });
+                },
+                icon: _isRefreshingData 
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(AppTheme.bondsColor),
+                        ),
+                      )
+                    : const Icon(Icons.refresh),
                 style: IconButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
                   foregroundColor: AppTheme.bondsColor,
                 ),
-                tooltip: 'Odśwież listę',
+                tooltip: _isRefreshingData ? 'Odświeżanie...' : 'Odśwież listę',
               ),
             ],
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(width: 16),
 
           // Statystyki
-          _buildStatistics(),
+          _buildStatistics(currentInvestors),
 
           const SizedBox(height: 16),
 
@@ -229,23 +432,23 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
     );
   }
 
-  Widget _buildStatistics() {
+  Widget _buildStatistics(List<InvestorSummary> currentInvestors) {
     // 📊 STATYSTYKI INWESTORÓW - bardziej odpowiednie dla tej zakładki
 
     // Suma wartości wszystkich inwestycji w tym produkcie
-    final totalInvestmentValue = widget.investors.fold(
+    final totalInvestmentValue = currentInvestors.fold(
       0.0,
       (sum, investor) => sum + _getProductCapital(investor),
     );
 
     // Suma wszystkich inwestycji (liczba)
-    final totalInvestmentCount = widget.investors.fold(
+    final totalInvestmentCount = currentInvestors.fold(
       0,
       (sum, investor) => sum + _getProductInvestmentCount(investor),
     );
 
     // Liczba aktywnych inwestorów (mających inwestycje w tym produkcie)
-    final activeInvestorsCount = widget.investors
+    final activeInvestorsCount = currentInvestors
         .where((investor) => _getProductInvestmentCount(investor) > 0)
         .length;
 
@@ -258,7 +461,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       children: [
         Expanded(
           child: _buildStatCard(
-            'Suma inwestycjiI',
+            'Suma inwestycji',
             _service.formatCurrency(totalInvestmentValue),
             Icons.trending_up,
             AppTheme.infoPrimary,
@@ -394,8 +597,8 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
     );
   }
 
-  Widget _buildInvestorsSliver() {
-    final sortedInvestors = _getSortedInvestors();
+  Widget _buildInvestorsSliver(List<InvestorSummary> currentInvestors) {
+    final sortedInvestors = _getSortedInvestors(currentInvestors);
 
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
@@ -810,10 +1013,10 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
     );
   }
 
-  List<InvestorSummary> _getSortedInvestors() {
-    final investors = List<InvestorSummary>.from(widget.investors);
+  List<InvestorSummary> _getSortedInvestors(List<InvestorSummary> investors) {
+    final investorsCopy = List<InvestorSummary>.from(investors);
 
-    investors.sort((a, b) {
+    investorsCopy.sort((a, b) {
       int comparison;
       switch (_sortBy) {
         case 'name':
@@ -833,7 +1036,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       return _sortAscending ? comparison : -comparison;
     });
 
-    return investors;
+    return investorsCopy;
   }
 
   void _showInvestorDetails(InvestorSummary investor) {
@@ -859,10 +1062,19 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       builder: (context) => InvestorEditDialog(
         investor: investor,
         product: widget.product,
-        onSaved: () {
-          // Odśwież dane po zapisaniu
+        onSaved: () async {
+          print('🔄 [ProductInvestorsTab] InvestorEditDialog.onSaved() wywołane - odświeżanie danych...');
+          
+          // 🚀 UNIFIED DATA: Najpierw odśwież lokalne dane używając UniversalInvestmentService
+          await _refreshLocalInvestorData();
+          
+          // Następnie odśwież dane parent modalu
           widget.onRefresh();
-          _showSuccessSnackBar('Zmiany zostały zapisane pomyślnie!');
+          
+          // Pokaż komunikat o sukcesie z detalami
+          _showSuccessSnackBar('Zmiany zostały zapisane i dane odświeżone pomyślnie!');
+          
+          print('✅ [ProductInvestorsTab] Dane zostały odświeżone po edycji inwestora (lokalne + parent)');
         },
       ),
     );
@@ -1063,42 +1275,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
     return 'inwestycji';
   }
 
-  /// � NOWA METODA: Znajduje prawdziwy productId z Firebase
-  Future<String?> _findRealProductId() async {
-    try {
-      print('🔍 ProductInvestorsTab._findRealProductId() - szukam prawdziwego productId dla produktu: ${widget.product.name}');
-      
-      final snapshot = await FirebaseFirestore.instance
-          .collection('investments')
-          .where('productName', isEqualTo: widget.product.name.trim())
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isNotEmpty) {
-        final doc = snapshot.docs.first;
-        final data = doc.data();
-        
-        // Sprawdź różne warianty nazw pól productId
-        String? productId = data['productId'] ?? 
-                          data['product_id'] ?? 
-                          data['Product_ID'] ??
-                          data['typ_produktu'];
-        
-        if (productId != null && productId.isNotEmpty && productId != 'null') {
-          print('✅ ProductInvestorsTab._findRealProductId() - znaleziono prawdziwy productId: $productId');
-          return productId;
-        }
-      }
-      
-      print('⚠️ ProductInvestorsTab._findRealProductId() - nie znaleziono prawdziwego productId, używam hash');
-      return null;
-    } catch (e) {
-      print('❌ ProductInvestorsTab._findRealProductId() - błąd: $e');
-      return null;
-    }
-  }
-
-  /// �🔢 NOWA METODA: Pobiera wszystkie inwestycje danego inwestora w tym produkcie
+  /// 🔢 NOWA METODA: Pobiera wszystkie inwestycje danego inwestora w tym produkcie
   List<Investment> _getProductInvestments(InvestorSummary investor) {
     // Grupa inwestycje po ID żeby wyeliminować duplikaty (podobnie jak w _getProductInvestmentCount)
     final uniqueInvestments = <String, Investment>{};
@@ -1254,6 +1431,11 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
               widget.product.name.trim().toLowerCase(),
         )
         .fold(0.0, (sum, investment) => sum + investment.remainingCapital);
+  }
+
+  /// 🔢 HELPER: Oblicza kapitał z listy inwestycji (dla debug comparison)
+  double _getProductCapitalFromInvestments(List<Investment> investments) {
+    return investments.fold(0.0, (sum, investment) => sum + investment.remainingCapital);
   }
 
   Color _getVotingStatusColor(VotingStatus status) {

@@ -43,7 +43,7 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
         product: widget.product,
         forceRefresh: false,
       );
-      
+
       if (mounted) {
         setState(() {
           _modalData = modalData;
@@ -104,26 +104,28 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
   Widget build(BuildContext context) {
     // ⭐ UJEDNOLICONE DANE: Używamy danych z UnifiedProductModalService lub fallback
     var product = _modalData?.product ?? widget.product;
-    
+
     // ⭐ POPRAWA NAZWY FIRMY: Spróbuj pobrać nazwę firmy z pierwszego inwestora jeśli nie ma lub jest "Nieznana firma"
-    if (_modalData != null && 
-        _modalData!.investors.isNotEmpty && 
-        (product.companyName == null || 
-         product.companyName!.isEmpty || 
-         product.companyName == 'Nieznana firma')) {
-      
+    if (_modalData != null &&
+        _modalData!.investors.isNotEmpty &&
+        (product.companyName == null ||
+            product.companyName!.isEmpty ||
+            product.companyName == 'Nieznana firma')) {
       // Znajdź pierwszego inwestora z tą samą nazwą produktu
       final matchingInvestor = _modalData!.investors
-          .where((investor) => investor.investments
-              .any((inv) => inv.productName == product.name))
+          .where(
+            (investor) => investor.investments.any(
+              (inv) => inv.productName == product.name,
+            ),
+          )
           .firstOrNull;
-      
+
       if (matchingInvestor != null) {
         final investment = matchingInvestor.investments
             .where((inv) => inv.productName == product.name)
             .firstOrNull;
-        
-        if (investment != null && 
+
+        if (investment != null &&
             investment.creditorCompany.isNotEmpty &&
             investment.creditorCompany != 'Nieznana firma') {
           // Utwórz nowy obiekt produktu z poprawioną nazwą firmy
@@ -226,7 +228,7 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
                   ],
                 ),
               ),
-              
+
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: SlideTransition(
@@ -314,7 +316,9 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
           product.maturityDate!.toString().split(' ')[0],
         ),
       );
-    if (product.companyName != null && product.companyName!.isNotEmpty && product.companyName != 'Nieznana firma')
+    if (product.companyName != null &&
+        product.companyName!.isNotEmpty &&
+        product.companyName != 'Nieznana firma')
       children.add(_buildDetailRow('Emitent', product.companyName!));
     if (children.isEmpty) return const SizedBox.shrink();
     return _buildProductTypeContainer(
@@ -344,7 +348,9 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
           CurrencyFormatter.formatCurrency(product.pricePerShare!),
         ),
       );
-    if (product.companyName != null && product.companyName!.isNotEmpty && product.companyName != 'Nieznana firma')
+    if (product.companyName != null &&
+        product.companyName!.isNotEmpty &&
+        product.companyName != 'Nieznana firma')
       children.add(_buildDetailRow('Nazwa spółki', product.companyName!));
     children.add(
       _buildDetailRow(
@@ -483,7 +489,9 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
         CurrencyFormatter.formatCurrency(product.totalValue),
       ),
     );
-    if (product.companyName != null && product.companyName!.isNotEmpty && product.companyName != 'Nieznana firma') {
+    if (product.companyName != null &&
+        product.companyName!.isNotEmpty &&
+        product.companyName != 'Nieznana firma') {
       children.add(_buildDetailRow('Firma', product.companyName!));
     }
     if (product.currency != null) {

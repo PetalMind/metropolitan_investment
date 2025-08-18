@@ -545,6 +545,75 @@ class InvestorEditService {
     }
   }
 
+  /// 🚀 NOWA FUNKCJA: Skaluje TYLKO kapitał pozostały (bez zmiany sumy inwestycji)
+  Future<ProductScalingResult> scaleRemainingCapitalOnly({
+    required UnifiedProduct product,
+    required double newTotalRemainingCapital,
+    required double originalTotalRemainingCapital,
+    required String reason,
+  }) async {
+    try {
+      debugPrint(
+        '🎯 [InvestorEditService] Obsługuję skalowanie TYLKO kapitału pozostałego...',
+      );
+      debugPrint('   - Produkt: ${product.name}');
+      debugPrint('   - Nowy kapitał pozostały: ${newTotalRemainingCapital.toStringAsFixed(2)}');
+      debugPrint(
+        '   - Poprzedni kapitał pozostały: ${originalTotalRemainingCapital.toStringAsFixed(2)}',
+      );
+
+      // ⭐ ZNAJDŹ PRAWDZIWY PRODUCTID Z FIREBASE
+      final sampleInvestments = await _findSampleInvestmentsForProduct(product);
+      if (sampleInvestments.isEmpty) {
+        debugPrint(
+          '❌ [InvestorEditService] Nie znaleziono inwestycji dla produktu',
+        );
+        return ProductScalingResult(
+          success: false,
+          message: 'Nie znaleziono inwestycji dla tego produktu',
+          newAmount: originalTotalRemainingCapital,
+          affectedInvestments: 0,
+          scalingFactor: 1.0,
+          executionTime: '0ms',
+        );
+      }
+
+      final realProductId =
+          sampleInvestments.first.productId ?? sampleInvestments.first.id;
+
+      debugPrint('   - Product.id (z DeduplicatedService): ${product.id}');
+      debugPrint('   - Real ProductId (z Firebase): $realProductId');
+      debugPrint('   - Sample investments found: ${sampleInvestments.length}');
+
+      final scalingResult = await _investmentService.scaleRemainingCapitalOnly(
+        productId: realProductId,
+        productName: product.name,
+        newTotalRemainingCapital: newTotalRemainingCapital,
+        reason: reason,
+        companyId: product.companyId,
+        creditorCompany: product.companyName,
+      );
+
+      debugPrint('✅ [InvestorEditService] Skalowanie kapitału pozostałego zakończone pomyślnie');
+      debugPrint('📊 Podsumowanie: ${scalingResult.summary.formattedSummary}');
+
+      return ProductScalingResult(
+        success: true,
+        message: 'Skalowanie kapitału pozostałego zakończone pomyślnie',
+        newAmount: newTotalRemainingCapital,
+        affectedInvestments: scalingResult.summary.affectedInvestments,
+        scalingFactor: scalingResult.summary.scalingFactor,
+        executionTime: '${scalingResult.summary.executionTimeMs}ms',
+      );
+    } catch (e) {
+      debugPrint('❌ [InvestorEditService] Błąd skalowania kapitału pozostałego: $e');
+      return ProductScalingResult(
+        success: false,
+        message: 'Błąd skalowania kapitału pozostałego: ${e.toString()}',
+      );
+    }
+  }
+
   /// 🌟 UNIVERSAL SYSTEM: Zapisuje zmiany w inwestycjach używając UniversalInvestmentService
   ///
   /// Używa jednolitego systemu danych w całej aplikacji - ROZWIĄZUJE PROBLEM NIESPÓJNOŚCI

@@ -853,6 +853,77 @@ class InvestmentService extends BaseService {
     }
   }
 
+  /// 🚀 NOWA FUNKCJA: Skaluje TYLKO kapitał pozostały (bez zmiany investmentAmount)
+  /// Wykorzystuje nową Firebase Functions dla bezpieczeństwa i atomicity transakcji
+  Future<InvestmentScalingResult> scaleRemainingCapitalOnly({
+    String? productId,
+    String? productName,
+    required double newTotalRemainingCapital,
+    String? reason,
+    String? companyId,
+    String? creditorCompany,
+  }) async {
+    const String cacheKey = 'scale_remaining_capital_only';
+    
+    try {
+      // 🔍 Walidacja danych wejściowych
+      if ((productId?.isEmpty ?? true) && (productName?.isEmpty ?? true)) {
+        throw Exception('Wymagany jest productId lub productName');
+      }
+
+      if (newTotalRemainingCapital <= 0) {
+        throw Exception('Nowa kwota kapitału pozostałego musi być większa od 0');
+      }
+
+      // 🔄 Przygotuj dane do wysłania do Firebase Functions
+      final functionData = {
+        if (productId?.isNotEmpty == true) 'productId': productId,
+        if (productName?.isNotEmpty == true) 'productName': productName,
+        'newTotalRemainingCapital': newTotalRemainingCapital,
+        'reason': reason ?? 'Skalowanie kapitału pozostałego (bez zmiany sumy inwestycji)',
+        'userId': 'current_user_id', // TODO: Pobierz z AuthProvider
+        'userEmail': 'current_user@email.com', // TODO: Pobierz z AuthProvider
+        if (companyId?.isNotEmpty == true) 'companyId': companyId,
+        if (creditorCompany?.isNotEmpty == true) 'creditorCompany': creditorCompany,
+      };
+
+      logDebug('scaleRemainingCapitalOnly', 'Wysyłam dane do Firebase Functions: $functionData');
+
+      // 🔥 Wywołaj Firebase Functions
+      final result = await FirebaseFunctions.instanceFor(region: 'europe-west1')
+          .httpsCallable('scaleRemainingCapitalOnly')
+          .call(functionData);
+
+      logDebug('scaleRemainingCapitalOnly', 'Otrzymano wynik: ${result.data}');
+
+      // 🎯 Przetwórz wynik
+      final data = result.data as Map<String, dynamic>;
+      
+      if (data['success'] == true) {
+        // ♻️ Wyczyść cache po pomyślnej operacji
+        clearCache(cacheKey);
+        _clearProductCache(productId ?? productName ?? 'unknown');
+        
+        return InvestmentScalingResult.fromJson(data);
+      } else {
+        throw Exception('Skalowanie kapitału pozostałego nie powiodło się: ${data['error'] ?? 'Nieznany błąd'}');
+      }
+
+    } catch (e) {
+      logError('scaleRemainingCapitalOnly', e);
+      
+      if (e.toString().contains('PERMISSION_DENIED') || e.toString().contains('unauthenticated')) {
+        throw Exception('Brak uprawnień do skalowania kapitału pozostałego. Zaloguj się ponownie.');
+      } else if (e.toString().contains('not-found')) {
+        throw Exception('Nie znaleziono inwestycji dla podanego produktu.');
+      } else if (e.toString().contains('invalid-argument')) {
+        throw Exception('Nieprawidłowe dane wejściowe: ${e.toString()}');
+      } else {
+        throw Exception('Błąd podczas skalowania kapitału pozostałego: $e');
+      }
+    }
+  }
+
   /// Helper: Wyczyść cache związany z produktem
   void _clearProductCache(String productIdentifier) {
     // Lista potencjalnych kluczy cache związanych z produktem

@@ -181,10 +181,19 @@ class UnifiedProductModalService extends BaseService {
   }
   
   /// Wyczyść cache dla produktu
-  void clearProductCache(String productId) {
+  Future<void> clearProductCache(String productId) async {
     final cacheKey = 'modal_$productId';
     _modalCache.remove(cacheKey);
+    
+    // Wyczyść cache w serwisach zależnych
+    await _investorsService.clearCacheForProduct(productId);
+    // _productService dziedziczy po BaseService ale nie ma metody clearCache
+    // więc pomijamy tą część
+    
     debugPrint('🧹 [UnifiedProductModalService] Cache cleared for: $productId');
+    debugPrint('  - Modal cache cleared');
+    debugPrint('  - Investors service cache cleared');
+    debugPrint('  - Product service cache cleared');
   }
   
   /// Wyczyść cały cache

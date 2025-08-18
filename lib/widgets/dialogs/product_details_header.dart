@@ -4,6 +4,7 @@ import '../../models/unified_product.dart';
 import '../../models/investor_summary.dart';
 import '../../models_and_services.dart';
 import '../../utils/currency_formatter.dart';
+import 'total_capital_edit_dialog.dart';
 
 // ⭐ UJEDNOLICONY WZORZEC: Używamy UnifiedDashboardStatisticsService
 // zamiast ProductDetailsService + ServerSideStatisticsService
@@ -17,6 +18,7 @@ class ProductDetailsHeader extends StatefulWidget {
   final Function(bool)?
   onEditModeChanged; // ⭐ NOWE: Callback dla zmiany trybu edycji
   final Function(int)? onTabChanged; // ⭐ NOWE: Callback dla zmiany tabu
+  final Future<void> Function()? onDataChanged; // ⭐ NOWE: Callback dla odświeżenia danych po edycji kapitału
 
   const ProductDetailsHeader({
     super.key,
@@ -27,6 +29,7 @@ class ProductDetailsHeader extends StatefulWidget {
     this.onShowInvestors,
     this.onEditModeChanged, // ⭐ NOWE: Callback dla zmiany trybu edycji
     this.onTabChanged, // ⭐ NOWE: Callback dla zmiany tabu
+    this.onDataChanged, // ⭐ NOWE: Callback dla odświeżenia danych po edycji kapitału
   });
   @override
   State<ProductDetailsHeader> createState() => _ProductDetailsHeaderState();
@@ -60,16 +63,30 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   }
 
   Future<void> _loadServerStatistics() async {
+    await _loadServerStatisticsInternal(forceRefresh: false);
+  }
+
+  Future<void> _loadServerStatisticsWithForceRefresh() async {
+    await _loadServerStatisticsInternal(forceRefresh: true);
+  }
+
+  Future<void> _loadServerStatisticsInternal({
+    required bool forceRefresh,
+  }) async {
     if (widget.isLoadingInvestors || widget.investors.isEmpty) return;
     if (widget.product.name.trim().isEmpty) return;
 
     setState(() => _isLoadingStatistics = true);
 
     try {
+      debugPrint(
+        '🔄 [ProductDetailsHeader] Loading statistics (forceRefresh: $forceRefresh)',
+      );
+
       // ⭐ UJEDNOLICONE OBLICZENIA: Używamy zunifikowanego serwisu modal produktu
       final modalData = await _modalService.getProductModalData(
         product: widget.product,
-        forceRefresh: false,
+        forceRefresh: forceRefresh,
       );
 
       if (!mounted) return;
@@ -78,6 +95,8 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
         _modalData = modalData;
         _isLoadingStatistics = false;
       });
+
+      debugPrint('✅ [ProductDetailsHeader] Statistics refreshed successfully');
     } catch (error) {
       if (!mounted) return;
       setState(() => _isLoadingStatistics = false);
@@ -170,7 +189,8 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
       // Zunifikowane statystyki z serwisu modal
       totalInvestmentAmount = _modalData!.statistics.totalInvestmentAmount;
       totalRemainingCapital = _modalData!.statistics.totalRemainingCapital;
-      totalCapitalSecured = _modalData!.statistics.totalCapitalSecuredByRealEstate;
+      totalCapitalSecured =
+          _modalData!.statistics.totalCapitalSecuredByRealEstate;
     } else {
       // Fallback: Obliczenia lokalne według wzoru z product_details_modal.dart
       totalInvestmentAmount = _computeTotalInvestmentAmount();
@@ -283,6 +303,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                 subtitle: 'PLN',
                 icon: Icons.account_balance_wallet,
                 color: AppTheme.successPrimary,
+                onTap: _isEditModeEnabled ? _openTotalCapitalEditDialog : null,
               ),
             ),
           ],
@@ -329,6 +350,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             subtitle: 'PLN',
             icon: Icons.account_balance_wallet,
             color: AppTheme.successPrimary,
+            onTap: _isEditModeEnabled ? _openTotalCapitalEditDialog : null,
           ),
         ),
         SizedBox(
@@ -853,7 +875,12 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     required String subtitle,
     required IconData icon,
     required Color color,
+    VoidCallback? onTap,
   }) {
+    // Sprawdź czy to karta "Kapitał pozostały" w trybie edycji
+    final isCapitalRemaining = title == 'Kapitał pozostały';
+    final showGoldBorder =
+        isCapitalRemaining && _isEditModeEnabled && onTap != null;
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 1000),
       tween: Tween<double>(begin: 0, end: 1),
@@ -862,59 +889,68 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
           offset: Offset(0, 20 * (1 - animValue)),
           child: Opacity(
             opacity: animValue,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: showGoldBorder
+                        ? AppTheme.secondaryGold
+                        : Colors.white.withOpacity(0.2),
+                    width: showGoldBorder ? 2 : 1,
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(icon, color: color, size: 18),
-                      const SizedBox(width: 6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: showGoldBorder
+                          ? AppTheme.secondaryGold.withOpacity(0.3)
+                          : Colors.black.withOpacity(0.1),
+                      blurRadius: showGoldBorder ? 15 : 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(icon, color: color, size: 18),
+                        const SizedBox(width: 6),
+                        Text(
+                          title,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Colors.white.withOpacity(0.8),
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.3,
+                              ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      value,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    if (subtitle.isNotEmpty)
                       Text(
-                        title,
+                        subtitle,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white.withOpacity(0.8),
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.3,
+                          color: color,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    value,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  if (subtitle.isNotEmpty)
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -930,7 +966,12 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     required String subtitle,
     required IconData icon,
     required Color color,
+    VoidCallback? onTap,
   }) {
+    // Sprawdź czy to karta "Kapitał pozostały" w trybie edycji
+    final isCapitalRemaining = title == 'Kapitał pozostały';
+    final showGoldBorder =
+        isCapitalRemaining && _isEditModeEnabled && onTap != null;
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 1000),
       tween: Tween<double>(begin: 0, end: 1),
@@ -939,79 +980,215 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
           offset: Offset(0, 15 * (1 - animValue)),
           child: Opacity(
             opacity: animValue,
-            child: Container(
-              height: 80, // Stała wysokość dla lepszego layoutu
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                height: 80, // Stała wysokość dla lepszego layoutu
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: showGoldBorder
+                        ? AppTheme.secondaryGold
+                        : Colors.white.withOpacity(0.2),
+                    width: showGoldBorder ? 2 : 1,
                   ),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(icon, color: color, size: 16),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          title,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: Colors.white.withOpacity(0.8),
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.2,
-                                fontSize: 11,
-                              ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                  boxShadow: [
+                    BoxShadow(
+                      color: showGoldBorder
+                          ? AppTheme.secondaryGold.withOpacity(0.3)
+                          : Colors.black.withOpacity(0.1),
+                      blurRadius: showGoldBorder ? 12 : 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(icon, color: color, size: 16),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Colors.white.withOpacity(0.8),
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.2,
+                                  fontSize: 11,
+                                ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        value,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.2,
+                          fontSize: 14,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      value,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.2,
-                        fontSize: 14,
-                      ),
                     ),
-                  ),
-                  if (subtitle.isNotEmpty)
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
-                        fontSize: 10,
+                    if (subtitle.isNotEmpty)
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                          fontSize: 10,
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         );
       },
     );
+  }
+
+  /// Otwiera dialog edycji całkowitego kapitału pozostałego
+  void _openTotalCapitalEditDialog() async {
+    if (!_isEditModeEnabled) return;
+
+    try {
+      debugPrint('🔍 [ProductDetailsHeader] Pobieranie inwestycji dla dialogu edycji kapitału...');
+      
+      // ⭐ POPRAWIONA LOGIKA: Pobierz inwestycje używając bardziej elastycznego filtrowania
+      final allInvestorSummaries = _modalData?.investors ?? <InvestorSummary>[];
+      final allInvestments = <Investment>[];
+      
+      // Zbierz wszystkie inwestycje z investor summaries dla tego konkretnego produktu
+      for (final investor in allInvestorSummaries) {
+        for (final investment in investor.investments) {
+          // Sprawdź czy inwestycja należy do tego produktu używając różnych kryteriów
+          bool belongsToProduct = false;
+          
+          // Sprawdź po productId
+          if (investment.productId != null && 
+              investment.productId!.isNotEmpty && 
+              investment.productId != "null") {
+            if (investment.productId == widget.product.id) {
+              belongsToProduct = true;
+            }
+          }
+          
+          // Fallback: sprawdź po nazwie produktu
+          if (!belongsToProduct) {
+            if (investment.productName.trim().toLowerCase() == 
+                widget.product.name.trim().toLowerCase()) {
+              belongsToProduct = true;
+            }
+          }
+          
+          if (belongsToProduct) {
+            allInvestments.add(investment);
+          }
+        }
+      }
+      
+      // Deduplikuj inwestycje po ID
+      final uniqueInvestments = <String, Investment>{};
+      for (final investment in allInvestments) {
+        final key = investment.id.isNotEmpty
+            ? investment.id
+            : '${investment.productName}_${investment.investmentAmount}_${investment.clientId}';
+        uniqueInvestments[key] = investment;
+      }
+      
+      final investments = uniqueInvestments.values.toList();
+      
+      debugPrint('📊 [ProductDetailsHeader] Znaleziono ${investments.length} unikalnych inwestycji dla dialogu');
+      if (investments.isNotEmpty) {
+        final totalInvestmentAmount = investments.fold(0.0, (sum, inv) => sum + inv.investmentAmount);
+        debugPrint('   - Suma inwestycji: ${totalInvestmentAmount.toStringAsFixed(2)}');
+      } else {
+        debugPrint('   ⚠️ Brak inwestycji - sprawdź kryteria filtrowania');
+        debugPrint('   - Product ID: ${widget.product.id}');
+        debugPrint('   - Product Name: ${widget.product.name}');
+        debugPrint('   - Dostępni inwestorzy: ${allInvestorSummaries.length}');
+        
+        // 🔄 FALLBACK: Użyj oryginalnej logiki jako backup
+        debugPrint('🔄 [ProductDetailsHeader] Próbuję backup: pobieranie przez InvestmentService...');
+        try {
+          final service = InvestmentService();
+          final allBackupInvestments = await service.getInvestmentsPaginated(limit: 1000);
+          final backupInvestments = allBackupInvestments
+              .where((inv) => 
+                  inv.productId == widget.product.id ||
+                  inv.productName.trim().toLowerCase() == widget.product.name.trim().toLowerCase())
+              .toList();
+          
+          if (backupInvestments.isNotEmpty) {
+            debugPrint('✅ [ProductDetailsHeader] Backup znalazł ${backupInvestments.length} inwestycji');
+            final backupTotalInvestmentAmount = backupInvestments.fold(0.0, (sum, inv) => sum + inv.investmentAmount);
+            debugPrint('   - Backup suma inwestycji: ${backupTotalInvestmentAmount.toStringAsFixed(2)}');
+            investments.addAll(backupInvestments);
+          }
+        } catch (e) {
+          debugPrint('❌ [ProductDetailsHeader] Backup failed: $e');
+        }
+      }
+
+      if (!mounted) return;
+
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => TotalCapitalEditDialog(
+          product: widget.product,
+          currentTotalCapital:
+              _modalData?.statistics.totalRemainingCapital ??
+              _computeTotalRemainingCapital(),
+          investments: investments,
+          onChanged: () async {
+            // Wyczyść cache i wymuś pełne odświeżenie danych w headerze
+            await _modalService.clearProductCache(widget.product.id);
+            _loadServerStatisticsWithForceRefresh();
+            
+            // ⭐ NOWE: Wywołaj callback dla pełnego odświeżenia danych w parent modal
+            if (widget.onDataChanged != null) {
+              await widget.onDataChanged!();
+            }
+          },
+        ),
+      );
+
+      if (result == true) {
+        // Dialog został zamknięty z zapisaniem zmian
+        debugPrint(
+          '✅ [ProductDetailsHeader] Total capital updated successfully',
+        );
+      }
+    } catch (e) {
+      debugPrint(
+        '❌ [ProductDetailsHeader] Error opening total capital edit dialog: $e',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd podczas otwierania dialogu: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // ⭐ POMOCNICZA METODA: Ikona produktu (wzór z product_details_modal.dart)

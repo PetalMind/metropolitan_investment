@@ -131,6 +131,15 @@ class _EnhancedProductDetailsDialogState
                 // ⭐ NOWE: Przełącz na wybrany tab
                 _tabController.animateTo(tabIndex);
               },
+              onDataChanged: () async {
+                // 🚀 UNIFIED DATA: Po skalowaniu przez TotalCapitalEditDialog, odśwież wszystkie dane
+                print('🔄 [ProductDetailsDialog] onDataChanged wywołane - odświeżanie wszystkich danych po skalowaniu...');
+                
+                // Odśwież inwestorów w głównym dialogu
+                await _loadInvestors();
+                
+                print('✅ [ProductDetailsDialog] Wszystkie dane odświeżone po skalowaniu produktu');
+              },
             ),
 
             // Tab Content
