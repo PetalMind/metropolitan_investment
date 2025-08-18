@@ -38,26 +38,32 @@ class _InvestmentHistoryWidgetState extends State<InvestmentHistoryWidget> {
 
   Future<void> _loadHistory() async {
     try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+          _error = null;
+        });
+      }
 
       final history = await _historyService.getInvestmentHistory(
         widget.investmentId,
       );
 
-      setState(() {
-        _history = widget.maxEntries != null
-            ? history.take(widget.maxEntries!).toList()
-            : history;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _history = widget.maxEntries != null
+              ? history.take(widget.maxEntries!).toList()
+              : history;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Błąd podczas ładowania historii: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Błąd podczas ładowania historii: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -115,7 +121,11 @@ class _InvestmentHistoryWidgetState extends State<InvestmentHistoryWidget> {
           ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: _loadHistory,
+            onPressed: () {
+              if (mounted) {
+                _loadHistory();
+              }
+            },
             child: const Text('Spróbuj ponownie'),
           ),
         ],

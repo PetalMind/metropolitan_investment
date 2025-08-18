@@ -1,9 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models_and_services.dart';
-import '../models/investor_edit_models.dart';
-import '../utils/currency_formatter.dart';
+import 'universal_investment_service.dart' as universal;
 
 /// Serwis obsługujący logikę biznesową edycji inwestora
 ///
@@ -362,16 +360,28 @@ class InvestorEditService {
         );
       }
 
-      // Sprawdź zgodność sum
+      // Sprawdź zgodność sum - teraz sprawdzamy czy kapitał pozostały = suma składników
       final calculatedRemainingCapital = calculateRemainingCapital(
         capitalSecured,
         capitalForRestructuring,
       );
+
+      if ((calculatedRemainingCapital - remainingCapital).abs() > 0.01) {
+        warnings.add(
+          'Niezgodność obliczeń w inwestycji ${i + 1}: '
+          'kapitał pozostały (${remainingCapital.toStringAsFixed(2)}) '
+          'powinien równać się sumie kapitału zabezpieczonego (${capitalSecured.toStringAsFixed(2)}) '
+          'i kapitału do restrukturyzacji (${capitalForRestructuring.toStringAsFixed(2)}) = ${calculatedRemainingCapital.toStringAsFixed(2)}',
+        );
+      }
+
+      // 📊 DODATKOWA INFORMACJA: Sprawdź zgodność z kwotą inwestycji
       if ((calculatedRemainingCapital - investmentAmount).abs() > 0.01) {
         warnings.add(
-          'Niezgodność sum w inwestycji ${i + 1}: '
-          'kwota inwestycji (${investmentAmount.toStringAsFixed(2)}) '
-          'różni się od kapitału pozostałego (${calculatedRemainingCapital.toStringAsFixed(2)})',
+          'Uwaga dla inwestycji ${i + 1}: '
+          'suma kapitałów (${calculatedRemainingCapital.toStringAsFixed(2)}) '
+          'różni się od kwoty inwestycji (${investmentAmount.toStringAsFixed(2)}) '
+          'o ${(calculatedRemainingCapital - investmentAmount).abs().toStringAsFixed(2)}',
         );
       }
     }
@@ -517,7 +527,9 @@ class InvestorEditService {
     }
   }
 
-  /// Zapisuje zmiany w inwestycjach
+  /// 🌟 UNIVERSAL SYSTEM: Zapisuje zmiany w inwestycjach używając UniversalInvestmentService
+  ///
+  /// Używa jednolitego systemu danych w całej aplikacji - ROZWIĄZUJE PROBLEM NIESPÓJNOŚCI
   Future<bool> saveInvestmentChanges({
     required List<Investment> originalInvestments,
     required List<TextEditingController> remainingCapitalControllers,
@@ -528,11 +540,17 @@ class InvestorEditService {
     required String changeReason,
   }) async {
     try {
-      debugPrint('💾 [InvestorEditService] Zapisuję zmiany w inwestycjach...');
+      debugPrint(
+        '🌟 [InvestorEditService] UNIVERSAL SYSTEM: Zapisuję zmiany w inwestycjach...',
+      );
 
-      // Przygotuj listę zmian do zapisania
-      final List<Investment> updatedInvestments = [];
+      // Użyj uniwersalnego serwisu - JEDEN SYSTEM DANYCH DLA CAŁEJ APLIKACJI
+      final universalService = universal.UniversalInvestmentService.instance;
 
+      int successCount = 0;
+      int totalChanges = 0;
+
+      // Przetwórz każdą inwestycję osobno używając partial update
       for (int i = 0; i < originalInvestments.length; i++) {
         final original = originalInvestments[i];
 
@@ -550,180 +568,105 @@ class InvestorEditService {
         );
         final status = statusValues[i];
 
-        // Sprawdź czy dane się zmieniły
+        // Sprawdź czy są zmiany
         bool hasChanges = false;
-        final Map<String, dynamic> oldValues = {};
-        final Map<String, dynamic> newValues = {};
-
-        if ((remainingCapital - original.remainingCapital).abs() > 0.01) {
+        if ((remainingCapital - original.remainingCapital).abs() > 0.01)
           hasChanges = true;
-          oldValues['remainingCapital'] = original.remainingCapital;
-          newValues['remainingCapital'] = remainingCapital;
-        }
-
-        if ((investmentAmount - original.investmentAmount).abs() > 0.01) {
+        if ((investmentAmount - original.investmentAmount).abs() > 0.01)
           hasChanges = true;
-          oldValues['investmentAmount'] = original.investmentAmount;
-          newValues['investmentAmount'] = investmentAmount;
-        }
-
         if ((capitalForRestructuring - original.capitalForRestructuring).abs() >
-            0.01) {
+            0.01)
           hasChanges = true;
-          oldValues['capitalForRestructuring'] =
-              original.capitalForRestructuring;
-          newValues['capitalForRestructuring'] = capitalForRestructuring;
-        }
-
-        if ((capitalSecured - original.capitalSecuredByRealEstate).abs() >
-            0.01) {
+        if ((capitalSecured - original.capitalSecuredByRealEstate).abs() > 0.01)
           hasChanges = true;
-          oldValues['capitalSecuredByRealEstate'] =
-              original.capitalSecuredByRealEstate;
-          newValues['capitalSecuredByRealEstate'] = capitalSecured;
-        }
+        if (status != original.status) hasChanges = true;
 
-        if (status != original.status) {
-          hasChanges = true;
-          oldValues['status'] = original.status.toString();
-          newValues['status'] = status.toString();
-        }
-
-        if (hasChanges) {
-          // Utwórz zaktualizowaną inwestycję
-          final updatedInvestment = Investment(
-            id: original.id,
-            clientId: original.clientId,
-            clientName: original.clientName,
-            employeeId: original.employeeId,
-            employeeFirstName: original.employeeFirstName,
-            employeeLastName: original.employeeLastName,
-            branchCode: original.branchCode,
-            status: status,
-            isAllocated: original.isAllocated,
-            marketType: original.marketType,
-            signedDate: original.signedDate,
-            entryDate: original.entryDate,
-            exitDate: original.exitDate,
-            proposalId: original.proposalId,
-            productType: original.productType,
-            productName: original.productName,
-            productId: original.productId,
-            creditorCompany: original.creditorCompany,
-            companyId: original.companyId,
-            issueDate: original.issueDate,
-            redemptionDate: original.redemptionDate,
-            sharesCount: original.sharesCount,
-            investmentAmount: investmentAmount,
-            paidAmount: original.paidAmount,
-            realizedCapital: original.realizedCapital,
-            realizedInterest: original.realizedInterest,
-            transferToOtherProduct: original.transferToOtherProduct,
-            remainingCapital: remainingCapital,
-            remainingInterest: original.remainingInterest,
-            plannedTax: original.plannedTax,
-            realizedTax: original.realizedTax,
-            currency: original.currency,
-            exchangeRate: original.exchangeRate,
-            createdAt: original.createdAt,
-            updatedAt: DateTime.now(),
-            capitalSecuredByRealEstate: capitalSecured,
-            capitalForRestructuring: capitalForRestructuring,
-            additionalInfo: original.additionalInfo,
-          );
-
-          updatedInvestments.add(updatedInvestment);
-
-          // Zapisz do historii
-          try {
-            await _historyService.recordChange(
-              investmentId: original.id,
-              oldValues: oldValues,
-              newValues: newValues,
-              changeType: InvestmentChangeType.bulkUpdate,
-              customDescription: changeReason,
-            );
-          } catch (historyError) {
-            debugPrint(
-              '⚠️ [InvestorEditService] Błąd zapisywania historii: $historyError',
-            );
-          }
-        }
-      }
-
-      if (updatedInvestments.isEmpty) {
-        debugPrint('ℹ️ [InvestorEditService] Brak zmian do zapisania');
-        return true;
-      }
-
-      debugPrint(
-        '💾 [InvestorEditService] Zapisuję ${updatedInvestments.length} zmian...',
-      );
-
-      // Zapisz zmiany przez InvestmentService
-      for (final updatedInvestment in updatedInvestments) {
-        try {
-          await _investmentService.updateInvestment(
-            updatedInvestment.id,
-            updatedInvestment,
-          );
+        if (!hasChanges) {
           debugPrint(
-            '✅ [InvestorEditService] Zapisano inwestycję: ${updatedInvestment.id}',
+            'ℹ️ [InvestorEditService] Brak zmian w inwestycji: ${original.id}',
           );
-        } catch (e) {
+          continue;
+        }
+
+        totalChanges++;
+
+        debugPrint(
+          '📝 [InvestorEditService] UNIVERSAL: Edytuję inwestycję ${i + 1}/${originalInvestments.length}: ${original.id}',
+        );
+
+        // 🎯 PARTIAL UPDATE - aktualizuje tylko zmienione pola, inne pozostają bez zmian
+        final success = await universalService.updateInvestmentFields(
+          original.id,
+          remainingCapital: remainingCapital,
+          investmentAmount: investmentAmount,
+          capitalForRestructuring: capitalForRestructuring,
+          capitalSecuredByRealEstate: capitalSecured,
+          status: status,
+          editorName: 'System Edycji Inwestorów',
+          editorEmail: 'system@metropolitan.pl',
+          changeReason: changeReason,
+        );
+
+        if (success) {
+          successCount++;
           debugPrint(
-            '❌ [InvestorEditService] Błąd zapisywania inwestycji ${updatedInvestment.id}: $e',
+            '✅ [InvestorEditService] UNIVERSAL: Pomyślnie edytowano: ${original.id}',
           );
-          return false;
+        } else {
+          debugPrint(
+            '❌ [InvestorEditService] UNIVERSAL: Błąd edycji ${original.id}',
+          );
+          // Kontynuuj z pozostałymi inwestycjami
         }
       }
 
       debugPrint(
-        '✅ [InvestorEditService] Wszystkie zmiany zostały zapisane pomyślnie',
+        '📊 [InvestorEditService] UNIVERSAL PODSUMOWANIE: $successCount/$totalChanges zmian zapisanych pomyślnie',
       );
-      return true;
+
+      // Wyczyść cache uniwersalnego serwisu
+      try {
+        await universalService.clearAllCache();
+        await _productManagementService.clearAllCache();
+        debugPrint('✅ [InvestorEditService] UNIVERSAL: Cache wyczyszczony');
+      } catch (e) {
+        debugPrint('⚠️ [InvestorEditService] Błąd czyszczenia cache: $e');
+      }
+
+      // Zwróć sukces jeśli udało się zapisać wszystkie zmiany
+      return successCount == totalChanges;
     } catch (e) {
-      debugPrint('❌ [InvestorEditService] Błąd podczas zapisywania zmian: $e');
+      debugPrint('💥 [InvestorEditService] UNIVERSAL: Krytyczny błąd: $e');
       return false;
     }
   }
 
-  /// Ponownie ładuje dane inwestycji z backend po skalowaniu
+  /// UNIVERSAL: Ponownie ładuje dane inwestycji używając UniversalInvestmentService po skalowaniu
   Future<List<Investment>> reloadInvestmentsAfterScaling(
     List<Investment> originalInvestments,
   ) async {
     try {
       debugPrint(
-        '🔄 [InvestorEditService] Ponowne ładowanie danych po skalowaniu...',
+        '🔄 [InvestorEditService] UNIVERSAL: Ponowne ładowanie danych po skalowaniu...',
       );
 
-      final updatedInvestments = <Investment>[];
+      // Użyj uniwersalnego serwisu dla spójnych danych
+      final universalService = universal.UniversalInvestmentService.instance;
+      final investmentIds = originalInvestments.map((inv) => inv.id).toList();
 
-      for (final originalInvestment in originalInvestments) {
-        // Pobierz zaktualizowane dane z Firebase
-        final updatedInvestment = await _investmentService.getInvestment(
-          originalInvestment.id,
-        );
+      final updatedInvestments = await universalService.getInvestments(
+        investmentIds,
+      );
 
-        if (updatedInvestment != null) {
-          updatedInvestments.add(updatedInvestment);
-          debugPrint(
-            '✅ [InvestorEditService] Zaktualizowano inwestycję: ${originalInvestment.id}',
-          );
-        } else {
-          debugPrint(
-            '⚠️ [InvestorEditService] Nie znaleziono zaktualizowanych danych dla inwestycji: ${originalInvestment.id}',
-          );
-          // Zachowaj oryginalną inwestycję jeśli nie udało się załadować nowych danych
-          updatedInvestments.add(originalInvestment);
-        }
-      }
-
-      debugPrint('✅ [InvestorEditService] Ponowne ładowanie zakończone');
-      return updatedInvestments;
+      debugPrint(
+        '✅ [InvestorEditService] UNIVERSAL: Ponowne ładowanie zakończone - ${updatedInvestments.length} inwestycji',
+      );
+      return updatedInvestments.isNotEmpty
+          ? updatedInvestments
+          : originalInvestments;
     } catch (e) {
       debugPrint(
-        '❌ [InvestorEditService] Błąd podczas ponownego ładowania: $e',
+        '❌ [InvestorEditService] UNIVERSAL: Błąd podczas ponownego ładowania: $e',
       );
       // Zwróć oryginalne inwestycje w przypadku błędu
       return originalInvestments;
@@ -792,6 +735,178 @@ class InvestorEditService {
       );
     } catch (e) {
       debugPrint('⚠️ [InvestorEditService] Błąd czyszczenia cache: $e');
+    }
+  }
+
+  /// 🧹 UNIFIED: Clears all relevant caches to ensure data consistency
+  Future<void> clearInvestmentCache() async {
+    try {
+      // Clear product management cache
+      await _productManagementService.clearAllCache();
+
+      // 🎯 RÓWNIEŻ wyczyść cache głównych serwisów używanych przez widok produktów
+      try {
+        // UltraPreciseProductInvestorsService używa Firebase Functions które mają własny cache
+        // więc musimy wymusić forceRefresh w następnych wywołaniach
+
+        final modalService = UnifiedProductModalService();
+        await modalService.clearAllCache();
+
+        debugPrint('✅ [InvestorEditService] UNIFIED: All caches cleared');
+      } catch (e) {
+        debugPrint(
+          '⚠️ [InvestorEditService] Warning: Could not clear some caches: $e',
+        );
+      }
+
+      debugPrint('✅ [InvestorEditService] Investment cache cleared');
+    } catch (e) {
+      debugPrint(
+        '⚠️ [InvestorEditService] Error clearing investment cache: $e',
+      );
+    }
+  }
+
+  /// 🔄 UNIFIED: Refreshes investor data using the same data sources as product views
+  Future<InvestorSummary> refreshInvestorData(
+    InvestorSummary originalInvestor,
+  ) async {
+    try {
+      debugPrint(
+        '🔄 [InvestorEditService] UNIFIED: Refreshing investor data for: ${originalInvestor.client.name}',
+      );
+      debugPrint(
+        '🔄 [InvestorEditService] Original client ID: "${originalInvestor.client.id}"',
+      );
+      debugPrint(
+        '🔄 [InvestorEditService] Original investments: ${originalInvestor.investments.length}',
+      );
+
+      // 🎯 STRATEGIA: Pobierz świeże dane dla konkretnych inwestycji zamiast szukania po clientId
+      final allFreshInvestments = await _getFreshInvestmentsByIds(
+        originalInvestor.investments.map((inv) => inv.id).toList(),
+      );
+
+      if (allFreshInvestments.isEmpty) {
+        debugPrint(
+          '⚠️ [InvestorEditService] No fresh investments found for client: ${originalInvestor.client.id}',
+        );
+        return originalInvestor;
+      }
+
+      debugPrint(
+        '✅ [InvestorEditService] Found ${allFreshInvestments.length} fresh investments',
+      );
+
+      // 🔧 POPRAW DANE KLIENTA w świeżych inwestycjach jeśli są puste/niepoprawne
+      final correctedInvestments = allFreshInvestments.map((inv) {
+        // Jeśli inwestycja ma puste clientId/clientName, użyj danych z oryginalnego klienta
+        String correctedClientId = inv.clientId;
+        String correctedClientName = inv.clientName;
+
+        if (inv.clientId.isEmpty || inv.clientId.startsWith('unknown_')) {
+          // Spróbuj użyć prawdziwego ID klienta z oryginalnego inwestora
+          if (originalInvestor.client.id.isNotEmpty &&
+              !originalInvestor.client.id.startsWith('unknown_')) {
+            correctedClientId = originalInvestor.client.id;
+          }
+        }
+
+        if (inv.clientName.isEmpty || inv.clientName == 'Nieznany klient') {
+          if (originalInvestor.client.name.isNotEmpty &&
+              originalInvestor.client.name != 'Nieznany klient') {
+            correctedClientName = originalInvestor.client.name;
+          }
+        }
+
+        if (correctedClientId != inv.clientId ||
+            correctedClientName != inv.clientName) {
+          debugPrint(
+            '🔧 [InvestorEditService] Correcting client data for investment ${inv.id}:',
+          );
+          debugPrint('   - clientId: "${inv.clientId}" → "$correctedClientId"');
+          debugPrint(
+            '   - clientName: "${inv.clientName}" → "$correctedClientName"',
+          );
+
+          return inv.copyWith(
+            clientId: correctedClientId,
+            clientName: correctedClientName,
+          );
+        }
+
+        return inv;
+      }).toList();
+
+      // Utwórz nowy InvestorSummary ze świeżymi danymi
+      final refreshedInvestor = InvestorSummary.withoutCalculations(
+        originalInvestor.client,
+        correctedInvestments,
+      );
+
+      // Przelicz podsumowania
+      final calculatedInvestor = InvestorSummary.calculateSecuredCapitalForAll([
+        refreshedInvestor,
+      ]).first;
+
+      debugPrint(
+        '🔄 [InvestorEditService] UNIFIED: Investor data refreshed successfully',
+      );
+      debugPrint('   - Fresh investments: ${allFreshInvestments.length}');
+      debugPrint(
+        '   - Total remaining capital: ${calculatedInvestor.totalRemainingCapital}',
+      );
+
+      return calculatedInvestor;
+    } catch (e) {
+      debugPrint('⚠️ [InvestorEditService] Error refreshing investor data: $e');
+      return originalInvestor;
+    }
+  }
+
+  /// 🎯 UNIVERSAL: Pobiera świeże inwestycje po ID używając UniversalInvestmentService
+  Future<List<Investment>> _getFreshInvestmentsByIds(
+    List<String> investmentIds,
+  ) async {
+    try {
+      debugPrint(
+        '🔍 [InvestorEditService] UNIVERSAL: Fetching fresh investments by IDs: $investmentIds',
+      );
+
+      // 🚀 FORCE FRESH FETCH: Clear cache first to ensure absolutely fresh data
+      final universalService = universal.UniversalInvestmentService.instance;
+      await universalService.clearAllCache();
+
+      final investments = await universalService.getInvestments(investmentIds);
+
+      debugPrint(
+        '✅ [InvestorEditService] UNIVERSAL: Fetched ${investments.length} fresh investments',
+      );
+
+      // 📊 Debug: pokaż szczegóły świeżych inwestycji
+      for (final inv in investments) {
+        debugPrint('📊 [InvestorEditService] Fresh investment: ${inv.id}');
+        debugPrint('   - clientId: "${inv.clientId}"');
+        debugPrint('   - clientName: "${inv.clientName}"');
+        debugPrint('   - productId: ${inv.productId}');
+        debugPrint('   - productName: ${inv.productName}');
+        debugPrint('   - remainingCapital: ${inv.remainingCapital}');
+        debugPrint('   - investmentAmount: ${inv.investmentAmount}');
+        debugPrint(
+          '   - capitalForRestructuring: ${inv.capitalForRestructuring}',
+        );
+        debugPrint(
+          '   - capitalSecuredByRealEstate: ${inv.capitalSecuredByRealEstate}',
+        );
+        debugPrint('   - updatedAt: ${inv.updatedAt.toIso8601String()}');
+      }
+
+      return investments;
+    } catch (e) {
+      debugPrint(
+        '❌ [InvestorEditService] UNIVERSAL: Error fetching fresh investments: $e',
+      );
+      return [];
     }
   }
 }

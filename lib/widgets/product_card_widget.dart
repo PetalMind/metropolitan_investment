@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../models/unified_product.dart';
 import '../screens/products_management_screen.dart';
+import 'common/investor_count_widget.dart';
+import 'common/synchronized_product_values_widget.dart'; // 🚀 NOWY IMPORT
 
 /// Widget do wyświetlania karty produktu zgodny z motywem aplikacji
 class ProductCardWidget extends StatefulWidget {
@@ -362,59 +364,122 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildFinancialRow(
-          'Inwestycja',
-          '${widget.product.investmentAmount.toStringAsFixed(0)} PLN',
-          AppTheme.textSecondary,
+        _buildInvestorCountRow(),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Inwestycja',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
+            ),
+            SynchronizedProductValuesWidget(
+              product: widget.product,
+              valueType: 'totalInvestmentAmount',
+              textStyle: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+              valueColor: AppTheme.textSecondary,
+            ),
+          ],
         ),
         const SizedBox(height: 4),
-        _buildFinancialRow(
-          'Wartość',
-          '${widget.product.totalValue.toStringAsFixed(0)} PLN',
-          AppTheme.secondaryGold,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Wartość',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
+            ),
+            SynchronizedProductValuesWidget(
+              product: widget.product,
+              valueType: 'totalRemainingCapital',
+              textStyle: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+              valueColor: AppTheme.secondaryGold,
+            ),
+          ],
         ),
       ],
     );
   }
 
   Widget _buildFinancialInfoHorizontal() {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _buildFinancialColumn(
-            'Inwestycja',
-            '${widget.product.investmentAmount.toStringAsFixed(0)} PLN',
-            AppTheme.textSecondary,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _buildFinancialColumn(
+                'Inwestorzy',
+                '',
+                AppTheme.primaryAccent,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Inwestycja',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                  SynchronizedProductValuesWidget(
+                    product: widget.product,
+                    valueType: 'totalInvestmentAmount',
+                    textStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    valueColor: AppTheme.textSecondary,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildFinancialColumn(
-            'Wartość',
-            '${widget.product.totalValue.toStringAsFixed(0)} PLN',
-            AppTheme.secondaryGold,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFinancialRow(String label, String value, Color color) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
-        ),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: color,
-            fontWeight: FontWeight.bold,
-          ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: InvestorCountWidget(
+                product: widget.product,
+                textStyle: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+                color: AppTheme.primaryAccent,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Wartość',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                  SynchronizedProductValuesWidget(
+                    product: widget.product,
+                    valueType: 'totalRemainingCapital',
+                    textStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    valueColor: AppTheme.secondaryGold,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -436,6 +501,27 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
             color: color,
             fontWeight: FontWeight.bold,
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInvestorCountRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'Inwestorzy',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
+        ),
+        InvestorCountWidget(
+          product: widget.product,
+          textStyle: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+          color: AppTheme.primaryAccent,
         ),
       ],
     );

@@ -57,6 +57,8 @@ export 'services/firebase_functions_products_service.dart'
     hide ProductStatistics;
 export 'services/firebase_functions_product_investors_service.dart';
 export 'services/ultra_precise_product_investors_service.dart'; // 🚀 NOWY: Ultra-precyzyjny serwis inwestorów
+export 'services/unified_investor_count_service.dart'; // 🎯 UJEDNOLICONY: Centralizacja pobierania liczby inwestorów
+export 'services/unified_product_modal_service.dart'; // 🎯 NOWY: Centralny serwis dla modalów produktu
 export 'services/firebase_functions_premium_analytics_service.dart'
     hide PaginationInfo; // 🚀 NOWE: Premium Analytics Service
 export 'services/firebase_functions_advanced_analytics_service.dart';

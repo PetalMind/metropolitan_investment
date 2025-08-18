@@ -9,6 +9,7 @@ import 'firebase_options.dart';
 import 'theme/app_theme_professional.dart';
 import 'providers/auth_provider.dart';
 import 'config/app_routes.dart';
+import 'services/calendar_notification_service.dart'; // 🚀 NOWE
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,9 @@ Future<void> main() async {
 
     // Setup Firebase Functions region
     FirebaseFunctions.instanceFor(region: 'europe-west1');
+
+    // 🚀 NOWE: Inicjalizuj system powiadomień kalendarza
+    await CalendarNotificationService().initialize();
   } catch (e) {
     // Silent fail for production
   }

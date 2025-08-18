@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../models/calendar/calendar_event.dart';
 import '../services/calendar_service.dart';
+import '../services/calendar_notification_service.dart'; // 🚀 NOWE
 import '../widgets/calendar/enhanced_calendar_event_dialog.dart';
 import '../theme/app_theme_professional.dart';
 
@@ -21,6 +22,8 @@ class CalendarScreenEnhanced extends StatefulWidget {
 class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     with TickerProviderStateMixin {
   final CalendarService _calendarService = CalendarService();
+  final CalendarNotificationService _notificationService =
+      CalendarNotificationService(); // 🚀 NOWE
 
   // Data
   List<CalendarEvent> _events = [];
@@ -40,7 +43,6 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
   late AnimationController _microInteractionController;
   late AnimationController _bounceController;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _slideAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<Offset> _weekSlideAnimation;
   late Animation<double> _bounceAnimation;
@@ -77,10 +79,6 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-
-    _slideAnimation = Tween<double>(begin: -50.0, end: 0.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
     );
 
     _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
@@ -180,9 +178,10 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     _weekNavigationController.reset();
     _weekNavigationController.forward();
 
-    // Mikrointerakcja z vibracją
+    // Mikrointerakcja z vibracją i bounce dla odpowiedniej strzałki
     _triggerMicroInteraction();
     _triggerHapticFeedback();
+    _triggerBounce(); // 🚀 NOWE: Animacja strzałki
 
     setState(() {
       _selectedWeekStart = _selectedWeekStart.add(
@@ -222,6 +221,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
       event: event,
       onEventChanged: (updatedEvent) {
         _loadEvents(); // Refresh calendar after changes
+        _notificationService.forceRefresh(); // 🚀 NOWE: Odśwież powiadomienia
       },
     );
   }
@@ -233,6 +233,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
       initialDate: initialDate ?? DateTime.now(),
       onEventChanged: (newEvent) {
         _loadEvents(); // Refresh calendar after adding
+        _notificationService.forceRefresh(); // 🚀 NOWE: Odśwież powiadomienia
       },
     );
   }
@@ -250,11 +251,33 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppThemePro.backgroundPrimary,
-      body: Column(
-        children: [
-          _buildProfessionalHeader(),
-          Expanded(child: _buildBody()),
-        ],
+      body: Focus(
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          // 🚀 NOWE: Obsługa klawiszy strzałek dla nawigacji
+          if (event is KeyDownEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+                event.logicalKey == LogicalKeyboardKey.keyA) {
+              _navigateWeek(-1);
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowRight ||
+                event.logicalKey == LogicalKeyboardKey.keyD) {
+              _navigateWeek(1);
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.keyT ||
+                event.logicalKey == LogicalKeyboardKey.home) {
+              _goToToday();
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Column(
+          children: [
+            _buildProfessionalHeader(),
+            Expanded(child: _buildBody()),
+          ],
+        ),
       ),
       floatingActionButton: _buildEnhancedFAB(),
     );
@@ -262,7 +285,10 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
 
   Widget _buildProfessionalHeader() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 16,
+      ), // 🚀 Zmniejszono padding
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -275,9 +301,9 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.2), // 🚀 Zmniejszono shadow
+            blurRadius: 12, // 🚀 Zmniejszono blur
+            offset: const Offset(0, 4), // 🚀 Zmniejszono offset
           ),
         ],
       ),
@@ -286,21 +312,27 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
           AnimatedBuilder(
             animation: _bounceAnimation,
             builder: (context, child) {
-              return Transform.scale(
-                scale: _bounceAnimation.value,
-                child: Icon(
-                  Icons.calendar_today,
-                  color: AppThemePro.accentGold,
-                  size: 28,
+              return Tooltip(
+                message:
+                    'Skróty klawiszowe:\n← → A D - Nawigacja tygodniowa\nT Home - Dzisiaj',
+                textStyle: TextStyle(fontSize: 12),
+                child: Transform.scale(
+                  scale: _bounceAnimation.value,
+                  child: Icon(
+                    Icons.calendar_today,
+                    color: AppThemePro.accentGold,
+                    size: 24, // 🚀 Zmniejszono rozmiar ikony
+                  ),
                 ),
               );
             },
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12), // 🚀 Zmniejszono odstęp
           Expanded(
             child: Text(
-              'Kalendarz Professional',
-              style: Theme.of(context).textTheme.displayMedium?.copyWith(
+              'Kalendarz',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                // 🚀 Zmniejszono rozmiar tekstu
                 color: AppThemePro.textPrimary,
                 fontWeight: FontWeight.bold,
               ),
@@ -392,17 +424,225 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
       return _buildErrorState();
     }
 
-    if (_events.isEmpty) {
-      return _buildEmptyState();
-    }
-
+    // 🚀 ZMIANA: Zawsze pokazuj kalendarz, nawet gdy brak wydarzeń
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 🚀 NOWE: Responsywny layout bazujący na szerokości ekranu
+          final isMobile = constraints.maxWidth < 600;
+          final isTablet =
+              constraints.maxWidth >= 600 && constraints.maxWidth < 1024;
+
+          return Column(
+            children: [
+              _buildWeekNavigation(),
+              if (!isMobile) // 🚀 Na mobile ukryj panel filtrów domyślnie
+                _buildEnhancedFilterPanel(),
+              if (isMobile) // 🚀 Na mobile dodaj kompaktowy przycisk filtrów
+                _buildMobileFilterButton(),
+              Expanded(
+                child: Row(
+                  children: [
+                    // 🚀 NOWE: Lewa strzałka nawigacji - DUŻA I WIDOCZNA
+                    _buildMainNavigationArrow(
+                      onTap: () => _navigateWeek(-1),
+                      icon: Icons.chevron_left,
+                      tooltip: 'Poprzedni tydzień',
+                      isLeft: true,
+                      isMobile: isMobile,
+                    ),
+
+                    // Główny obszar kalendarza
+                    Expanded(
+                      child: _buildResponsiveWeeklyCalendar(
+                        isMobile: isMobile,
+                        isTablet: isTablet,
+                      ),
+                    ),
+
+                    // 🚀 NOWE: Prawa strzałka nawigacji - DUŻA I WIDOCZNA
+                    _buildMainNavigationArrow(
+                      onTap: () => _navigateWeek(1),
+                      icon: Icons.chevron_right,
+                      tooltip: 'Następny tydzień',
+                      isLeft: false,
+                      isMobile: isMobile,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// 🚀 NOWE: Kompaktowy przycisk filtrów dla mobile
+  Widget _buildMobileFilterButton() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
         children: [
-          _buildWeekNavigation(),
-          _buildEnhancedFilterPanel(),
-          Expanded(child: _buildProfessionalWeeklyCalendar()),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () {
+                _showMobileFilterDialog();
+              },
+              icon: Icon(Icons.filter_list, size: 16),
+              label: Text('Filtry', style: TextStyle(fontSize: 12)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppThemePro.surfaceInteractive,
+                foregroundColor: AppThemePro.textPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: AppThemePro.borderPrimary),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 🚀 NOWE: Dialog filtrów dla mobile
+  void _showMobileFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: AppThemePro.premiumCardDecoration,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.filter_list, color: AppThemePro.accentGold),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Filtry kalendarza',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppThemePro.textPrimary,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.close, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildProfessionalSearchField(),
+              const SizedBox(height: 12),
+              _buildCategoryFilter(),
+              const SizedBox(height: 12),
+              _buildStatusFilter(),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppThemePro.accentGold,
+                    foregroundColor: AppThemePro.primaryDark,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Zastosuj filtry'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 🚀 NOWE: Responsywny kalendarz tygodniowy z obsługą gestów swipe
+  Widget _buildResponsiveWeeklyCalendar({
+    required bool isMobile,
+    required bool isTablet,
+  }) {
+    return GestureDetector(
+      // 🚀 NOWE: Obsługa gestów swipe dla nawigacji na mobile
+      onPanEnd: isMobile
+          ? (details) {
+              // Sprawdź kierunek i prędkość swipe
+              if (details.velocity.pixelsPerSecond.dx.abs() > 300) {
+                if (details.velocity.pixelsPerSecond.dx > 0) {
+                  // Swipe w prawo - poprzedni tydzień
+                  _navigateWeek(-1);
+                } else {
+                  // Swipe w lewo - następny tydzień
+                  _navigateWeek(1);
+                }
+              }
+            }
+          : null,
+      child: Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: isMobile ? 4 : 8, // 🚀 Mniejsze marginesy na mobile
+        ),
+        decoration: AppThemePro.premiumCardDecoration,
+        child: Column(
+          children: [
+            _buildGoldenDaysHeader(),
+            Expanded(
+              child: _buildResponsiveDaysGrid(
+                isMobile: isMobile,
+                isTablet: isTablet,
+              ),
+            ),
+            // 🚀 NOWE: Wskaźnik swipe dla mobile
+            if (isMobile) _buildSwipeIndicator(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 🚀 NOWE: Wskaźnik swipe dla mobile
+  Widget _buildSwipeIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Lewa strzałka
+          Icon(
+            Icons.keyboard_arrow_left,
+            size: 16,
+            color: AppThemePro.accentGold.withValues(alpha: 0.6),
+          ),
+          const SizedBox(width: 8),
+
+          // Tekst wskazówki
+          Text(
+            'Przeciągnij aby przełączyć tydzień',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppThemePro.textSecondary.withValues(alpha: 0.7),
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.3,
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // Prawa strzałka
+          Icon(
+            Icons.keyboard_arrow_right,
+            size: 16,
+            color: AppThemePro.accentGold.withValues(alpha: 0.6),
+          ),
         ],
       ),
     );
@@ -479,57 +719,6 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.all(24),
-        padding: const EdgeInsets.all(32),
-        decoration: AppThemePro.premiumCardDecoration,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.event_available,
-              size: 80,
-              color: AppThemePro.textTertiary,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Brak wydarzeń',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: AppThemePro.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Dodaj pierwsze przypomnienie, aby rozpocząć planowanie',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge?.copyWith(color: AppThemePro.textTertiary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: _showAddEventDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Dodaj przypomnienie'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppThemePro.accentGold,
-                foregroundColor: AppThemePro.primaryDark,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                elevation: 4,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildWeekNavigation() {
     final weekStart = DateFormat('d MMM', 'pl').format(_selectedWeekStart);
     final weekEnd = DateFormat(
@@ -540,65 +729,80 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     return SlideTransition(
       position: _weekSlideAnimation,
       child: Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        margin: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ), // 🚀 Zmniejszono marginesy
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ), // 🚀 Zmniejszono padding
         decoration: AppThemePro.premiumCardDecoration,
         child: Row(
           children: [
-            ScaleTransition(
-              scale: _scaleAnimation,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppThemePro.surfaceInteractive,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppThemePro.accentGold.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: IconButton(
-                  onPressed: () => _navigateWeek(-1),
-                  icon: Icon(
-                    Icons.chevron_left,
-                    color: AppThemePro.accentGold,
-                    size: 24,
-                  ),
-                  tooltip: 'Poprzedni tydzień',
-                ),
-              ),
+            // 🚀 NOWE: Kompaktowy przycisk <
+            _buildCompactNavButton(
+              onTap: () => _navigateWeek(-1),
+              icon: '<',
+              tooltip: 'Poprzedni tydzień',
             ),
+
+            const SizedBox(width: 12),
+
+            // Główny obszar z datą i szybkimi przyciskami
             Expanded(
-              child: Text(
-                '$weekStart - $weekEnd',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppThemePro.textPrimary,
-                  letterSpacing: 0.5,
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Data tygodnia
+                  Text(
+                    '$weekStart - $weekEnd',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppThemePro.textPrimary,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Kompaktowe przyciski szybkiej nawigacji
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildQuickNavigationButton(
+                        label: 'Poprz.',
+                        onTap: () => _navigateWeek(-4),
+                        icon: Icons.skip_previous,
+                        compact: true,
+                      ),
+                      _buildQuickNavigationButton(
+                        label: 'Dziś',
+                        onTap: _goToToday,
+                        icon: Icons.today,
+                        isPrimary: true,
+                        compact: true,
+                      ),
+                      _buildQuickNavigationButton(
+                        label: 'Nast.',
+                        onTap: () => _navigateWeek(4),
+                        icon: Icons.skip_next,
+                        compact: true,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            ScaleTransition(
-              scale: _scaleAnimation,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppThemePro.surfaceInteractive,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppThemePro.accentGold.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: IconButton(
-                  onPressed: () => _navigateWeek(1),
-                  icon: Icon(
-                    Icons.chevron_right,
-                    color: AppThemePro.accentGold,
-                    size: 24,
-                  ),
-                  tooltip: 'Następny tydzień',
-                ),
-              ),
+
+            const SizedBox(width: 12),
+
+            // 🚀 NOWE: Kompaktowy przycisk >
+            _buildCompactNavButton(
+              onTap: () => _navigateWeek(1),
+              icon: '>',
+              tooltip: 'Następny tydzień',
             ),
           ],
         ),
@@ -606,19 +810,294 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     );
   }
 
+  /// 🚀 NOWE: Kompaktowy przycisk nawigacji z < > - ZŁOTE STRZAŁKI
+  Widget _buildCompactNavButton({
+    required VoidCallback onTap,
+    required String icon,
+    required String tooltip,
+  }) {
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: GestureDetector(
+        onTap: () {
+          onTap();
+          _triggerMicroInteraction();
+          _triggerHapticFeedback();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppThemePro.accentGold.withValues(alpha: 0.15),
+                AppThemePro.accentGoldMuted.withValues(alpha: 0.1),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppThemePro.accentGold, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: AppThemePro.accentGold.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+              BoxShadow(
+                color: AppThemePro.accentGold.withValues(alpha: 0.1),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              icon,
+              style: TextStyle(
+                fontSize: 22, // 🚀 Zwiększono rozmiar
+                fontWeight: FontWeight.w900, // 🚀 Pogrubiono
+                color: AppThemePro.accentGold,
+                shadows: [
+                  Shadow(
+                    color: AppThemePro.accentGold.withValues(alpha: 0.5),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 🚀 NOWE: Widget dla szybkiej nawigacji
+  Widget _buildQuickNavigationButton({
+    required String label,
+    required VoidCallback onTap,
+    required IconData icon,
+    bool isPrimary = false,
+    bool compact = false, // 🚀 NOWE: Tryb kompaktowy
+  }) {
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: GestureDetector(
+        onTap: () {
+          onTap();
+          _triggerMicroInteraction();
+        },
+        child: Container(
+          padding: compact
+              ? const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ) // 🚀 Kompaktowy padding
+              : const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isPrimary
+                ? AppThemePro.accentGold.withValues(alpha: 0.2)
+                : AppThemePro.surfaceInteractive,
+            borderRadius: BorderRadius.circular(
+              compact ? 6 : 8,
+            ), // 🚀 Mniejszy radius
+            border: Border.all(
+              color: isPrimary
+                  ? AppThemePro.accentGold
+                  : AppThemePro.borderPrimary,
+              width: isPrimary ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: compact
+                    ? 12
+                    : 14, // 🚀 Mniejsza ikona w trybie kompaktowym
+                color: isPrimary
+                    ? AppThemePro.accentGold
+                    : AppThemePro.textSecondary,
+              ),
+              SizedBox(width: compact ? 3 : 4), // 🚀 Mniejszy odstęp
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: compact ? 10 : 11, // 🚀 Mniejszy tekst
+                  fontWeight: isPrimary ? FontWeight.w600 : FontWeight.w500,
+                  color: isPrimary
+                      ? AppThemePro.accentGold
+                      : AppThemePro.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 🚀 NOWE: Duże strzałki nawigacji po bokach głównego widoku
+  Widget _buildMainNavigationArrow({
+    required VoidCallback onTap,
+    required IconData icon,
+    required String tooltip,
+    required bool isLeft,
+    bool isMobile = false,
+  }) {
+    // 🚀 NOWE: Responsywne rozmiary dla mobile
+    final arrowSize = isMobile ? 40.0 : 52.0;
+    final iconSize = isMobile ? 22.0 : 28.0;
+    final containerWidth = isMobile ? 48.0 : 60.0;
+    final horizontalMargin = isMobile ? 4.0 : 8.0;
+
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) {
+        return Container(
+          width: containerWidth,
+          margin: EdgeInsets.symmetric(
+            horizontal: horizontalMargin,
+            vertical: 16,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Główna strzałka
+              GestureDetector(
+                onTap: () {
+                  onTap();
+                  _triggerMicroInteraction();
+                  _triggerHapticFeedback();
+                  _triggerBounce();
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width: arrowSize,
+                  height: arrowSize,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: isLeft
+                          ? Alignment.centerLeft
+                          : Alignment.centerRight,
+                      end: isLeft
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      colors: [
+                        AppThemePro.accentGold.withValues(alpha: 0.2),
+                        AppThemePro.accentGoldMuted.withValues(alpha: 0.15),
+                        AppThemePro.accentGold.withValues(alpha: 0.1),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
+                    border: Border.all(
+                      color: AppThemePro.accentGold.withValues(alpha: 0.6),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppThemePro.accentGold.withValues(alpha: 0.25),
+                        blurRadius: isMobile ? 8 : 12,
+                        offset: const Offset(0, 4),
+                        spreadRadius: 1,
+                      ),
+                      BoxShadow(
+                        color: AppThemePro.accentGold.withValues(alpha: 0.1),
+                        blurRadius: isMobile ? 16 : 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: ScaleTransition(
+                    scale: _bounceAnimation,
+                    child: Icon(
+                      icon,
+                      size: iconSize,
+                      color: AppThemePro.accentGold,
+                      shadows: [
+                        Shadow(
+                          color: AppThemePro.accentGold.withValues(alpha: 0.6),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              if (!isMobile) ...[
+                const SizedBox(height: 12),
+
+                // Tooltip pod strzałką (tylko na desktop)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.surfaceCard.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: AppThemePro.accentGold.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    isLeft ? 'Poprz.' : 'Nast.',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: AppThemePro.textSecondary,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // Dodatkowe wskaźniki nawigacji (mniejsze kropki - tylko na desktop)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(3, (index) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 1),
+                      width: 3,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: AppThemePro.accentGold.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(1.5),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildEnhancedFilterPanel() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 4,
+      ), // 🚀 Zmniejszono margines
+      padding: const EdgeInsets.all(12), // 🚀 Zmniejszono padding
       decoration: AppThemePro.premiumCardDecoration,
       child: Column(
         children: [
           _buildProfessionalSearchField(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8), // 🚀 Zmniejszono odstęp
           Row(
             children: [
               Expanded(child: _buildCategoryFilter()),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12), // 🚀 Zmniejszono odstęp
               Expanded(child: _buildStatusFilter()),
             ],
           ),
@@ -736,16 +1215,142 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     );
   }
 
-  Widget _buildProfessionalWeeklyCalendar() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: AppThemePro.premiumCardDecoration,
-      child: Column(
-        children: [
-          _buildGoldenDaysHeader(),
-          Expanded(child: _buildDaysGrid()),
-        ],
-      ),
+  /// 🚀 NOWE: Responsywna siatka dni
+  Widget _buildResponsiveDaysGrid({
+    required bool isMobile,
+    required bool isTablet,
+  }) {
+    return Row(
+      children: List.generate(7, (index) {
+        final day = _selectedWeekStart.add(Duration(days: index));
+        final dayEvents = _getEventsForDay(day);
+        final isToday = _isSameDay(day, DateTime.now());
+        final hasNotifications = dayEvents.length > 2;
+
+        return Expanded(
+          child: GestureDetector(
+            onTap: () {
+              _showAddEventDialog(initialDate: day);
+              _triggerMicroInteraction();
+            },
+            child: Container(
+              height: isMobile
+                  ? MediaQuery.of(context).size.height *
+                        0.35 // 🚀 Mniejsza wysokość na mobile
+                  : double.infinity,
+              margin: const EdgeInsets.all(1),
+              decoration: BoxDecoration(
+                color: isToday
+                    ? AppThemePro.accentGold.withValues(alpha: 0.1)
+                    : AppThemePro.surfaceCard,
+                border: Border.all(
+                  color: isToday
+                      ? AppThemePro.accentGold.withValues(alpha: 0.3)
+                      : AppThemePro.borderSecondary,
+                  width: isToday ? 2 : 0.5,
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(
+                      isMobile ? 4 : 8,
+                    ), // 🚀 Mniejszy padding na mobile
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          day.day.toString(),
+                          style: TextStyle(
+                            fontWeight: isToday
+                                ? FontWeight.bold
+                                : FontWeight.w600,
+                            color: isToday
+                                ? AppThemePro.accentGold
+                                : AppThemePro.textPrimary,
+                            fontSize: isMobile
+                                ? 14
+                                : 16, // 🚀 Mniejszy tekst na mobile
+                          ),
+                        ),
+                        if (hasNotifications) ...[
+                          const SizedBox(width: 4),
+                          _buildNotificationBadge(
+                            dayEvents.length,
+                            compact: isMobile, // 🚀 Kompaktowy badge na mobile
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: dayEvents.isEmpty
+                        ? // 🚀 NOWE: Wskazówka dla pustych dni
+                          Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_circle_outline,
+                                  size: isMobile ? 20 : 24,
+                                  color: AppThemePro.textTertiary.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                                if (!isMobile) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Dodaj\nevent',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: AppThemePro.textTertiary
+                                          .withValues(alpha: 0.7),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isMobile
+                                  ? 2
+                                  : 4, // 🚀 Mniejszy padding na mobile
+                            ),
+                            itemCount: isMobile
+                                ? (dayEvents.length > 3
+                                      ? 3
+                                      : dayEvents
+                                            .length) // 🚀 Maksymalnie 3 wydarzenia na mobile
+                                : dayEvents.length,
+                            itemBuilder: (context, eventIndex) {
+                              if (isMobile &&
+                                  eventIndex == 2 &&
+                                  dayEvents.length > 3) {
+                                // 🚀 Pokaż "więcej..." na mobile
+                                return _buildMoreEventsIndicator(
+                                  dayEvents.length - 2,
+                                );
+                              }
+
+                              final event = dayEvents[eventIndex];
+                              return _buildEnhancedEventTile(
+                                event,
+                                compact:
+                                    isMobile, // 🚀 Kompaktowy widok na mobile
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }),
     );
   }
 
@@ -790,92 +1395,22 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     );
   }
 
-  Widget _buildDaysGrid() {
-    return Row(
-      children: List.generate(7, (index) {
-        final day = _selectedWeekStart.add(Duration(days: index));
-        final dayEvents = _getEventsForDay(day);
-        final isToday = _isSameDay(day, DateTime.now());
-        final hasNotifications = dayEvents.length > 2;
-
-        return Expanded(
-          child: GestureDetector(
-            onTap: () {
-              _showAddEventDialog(initialDate: day);
-              _triggerMicroInteraction();
-            },
-            child: Container(
-              height: double.infinity,
-              margin: const EdgeInsets.all(1),
-              decoration: BoxDecoration(
-                color: isToday
-                    ? AppThemePro.accentGold.withOpacity(0.1)
-                    : AppThemePro.surfaceCard,
-                border: Border.all(
-                  color: isToday
-                      ? AppThemePro.accentGold.withOpacity(0.3)
-                      : AppThemePro.borderSecondary,
-                  width: isToday ? 2 : 0.5,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          day.day.toString(),
-                          style: TextStyle(
-                            fontWeight: isToday
-                                ? FontWeight.bold
-                                : FontWeight.w600,
-                            color: isToday
-                                ? AppThemePro.accentGold
-                                : AppThemePro.textPrimary,
-                            fontSize: 16,
-                          ),
-                        ),
-                        if (hasNotifications) ...[
-                          const SizedBox(width: 4),
-                          _buildNotificationBadge(dayEvents.length),
-                        ],
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: dayEvents.length,
-                      itemBuilder: (context, eventIndex) {
-                        final event = dayEvents[eventIndex];
-                        return _buildEnhancedEventTile(event);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-
-  Widget _buildNotificationBadge(int count) {
+  Widget _buildNotificationBadge(int count, {bool compact = false}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 4 : 6,
+        vertical: compact ? 1 : 2,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [AppThemePro.accentGold, AppThemePro.accentGoldMuted],
         ),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(compact ? 8 : 10),
         boxShadow: [
           BoxShadow(
-            color: AppThemePro.accentGold.withOpacity(0.4),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: AppThemePro.accentGold.withValues(alpha: 0.4),
+            blurRadius: compact ? 2 : 4,
+            offset: Offset(0, compact ? 1 : 2),
           ),
         ],
       ),
@@ -883,14 +1418,41 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
         count.toString(),
         style: TextStyle(
           color: AppThemePro.primaryDark,
-          fontSize: 10,
+          fontSize: compact ? 8 : 10,
           fontWeight: FontWeight.bold,
         ),
       ),
     );
   }
 
-  Widget _buildEnhancedEventTile(CalendarEvent event) {
+  /// 🚀 NOWE: Wskaźnik więcej wydarzeń dla mobile
+  Widget _buildMoreEventsIndicator(int remainingCount) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppThemePro.textSecondary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: AppThemePro.textSecondary.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          '+$remainingCount więcej',
+          style: TextStyle(
+            color: AppThemePro.textSecondary,
+            fontSize: 9,
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEnhancedEventTile(CalendarEvent event, {bool compact = false}) {
     final color = _getEventColor(event);
 
     return GestureDetector(
@@ -899,20 +1461,23 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
         _triggerMicroInteraction();
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        padding: const EdgeInsets.all(8),
+        margin: EdgeInsets.symmetric(
+          horizontal: compact ? 2 : 4,
+          vertical: compact ? 1 : 2,
+        ),
+        padding: EdgeInsets.all(compact ? 4 : 8),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [color, color.withOpacity(0.8)],
+            colors: [color, color.withValues(alpha: 0.8)],
           ),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(compact ? 6 : 8),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.3),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: color.withValues(alpha: 0.3),
+              blurRadius: compact ? 2 : 4,
+              offset: Offset(0, compact ? 1 : 2),
             ),
           ],
         ),
@@ -922,32 +1487,37 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
           children: [
             if (!event.isAllDay)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 4 : 6,
+                  vertical: compact ? 1 : 2,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(4),
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(compact ? 3 : 4),
                 ),
                 child: Text(
                   DateFormat('HH:mm').format(event.startDate),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 10,
+                    fontSize: compact ? 8 : 10,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-            if (!event.isAllDay) const SizedBox(height: 4),
+            if (!event.isAllDay) SizedBox(height: compact ? 2 : 4),
             Text(
               event.title,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 12,
+                fontSize: compact ? 10 : 12,
                 fontWeight: FontWeight.w600,
               ),
-              maxLines: 2,
+              maxLines: compact ? 1 : 2,
               overflow: TextOverflow.ellipsis,
             ),
-            if (event.location != null && event.location!.isNotEmpty) ...[
+            if (!compact &&
+                event.location != null &&
+                event.location!.isNotEmpty) ...[
               const SizedBox(height: 2),
               Row(
                 children: [

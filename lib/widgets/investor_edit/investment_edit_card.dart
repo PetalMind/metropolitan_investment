@@ -113,6 +113,8 @@ class InvestmentEditCard extends StatelessWidget {
                       icon: Icons.attach_money,
                       color: AppThemePro.profitGreen,
                       onChanged: onChanged,
+                      originalValue: investment.investmentAmount, // 🚀 NOWE: Oryginalna wartość
+                      showChangeIndicator: true, // 🚀 NOWE: Pokaż wskaźnik zmian
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -124,6 +126,9 @@ class InvestmentEditCard extends StatelessWidget {
                       color: AppThemePro.primaryLight,
                       isEditable: false,
                       helpText: 'Obliczane automatycznie',
+                      calculationFormula: 'Zabezpieczony + Restrukturyzacja', // 🚀 NOWE: Wzór
+                      originalValue: investment.remainingCapital, // 🚀 NOWE: Oryginalna wartość
+                      showChangeIndicator: true, // 🚀 NOWE: Pokaż wskaźnik zmian
                     ),
                   ),
                 ],
@@ -141,6 +146,9 @@ class InvestmentEditCard extends StatelessWidget {
                       icon: Icons.security,
                       color: AppThemePro.statusSuccess,
                       onChanged: onChanged,
+                      originalValue: investment.capitalSecuredByRealEstate, // 🚀 NOWE: Oryginalna wartość
+                      showChangeIndicator: true, // 🚀 NOWE: Pokaż wskaźnik zmian
+                      helpText: 'Kapitał zabezpieczony nieruchomością', // 🚀 NOWE: Lepszy opis
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -151,6 +159,9 @@ class InvestmentEditCard extends StatelessWidget {
                       icon: Icons.construction,
                       color: AppThemePro.statusWarning,
                       onChanged: onChanged,
+                      originalValue: investment.capitalForRestructuring, // 🚀 NOWE: Oryginalna wartość
+                      showChangeIndicator: true, // 🚀 NOWE: Pokaż wskaźnik zmian
+                      helpText: 'Kapitał przeznaczony na restrukturyzację', // 🚀 NOWE: Lepszy opis
                     ),
                   ),
                 ],
@@ -231,16 +242,21 @@ class InvestmentEditCard extends StatelessWidget {
             ],
           ),
 
-          // Historia zmian (opcjonalne - można dodać później)
+          // 🚀 NOWE: Panel szybkich obliczeń w czasie rzeczywistym
+          const SizedBox(height: 16),
+          _buildCalculationPreviewPanel(),
+
+          // Historia zmian
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: TextButton.icon(
               onPressed: () {
-                // TODO: Implementuj pokazywanie historii
+                // Implementacja historii już istnieje w parent dialog
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Historia zmian - funkcja w przygotowaniu'),
+                    content: Text('Historia zmian dostępna w zakładce "Historia Zmian"'),
+                    backgroundColor: Colors.blue,
                   ),
                 );
               },
@@ -250,7 +266,7 @@ class InvestmentEditCard extends StatelessWidget {
                 color: AppThemePro.textSecondary,
               ),
               label: Text(
-                'Historia zmian',
+                'Zobacz historię zmian',
                 style: TextStyle(
                   fontSize: 13,
                   color: AppThemePro.textSecondary,
@@ -264,6 +280,134 @@ class InvestmentEditCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// 🚀 NOWE: Panel podglądu obliczeń w czasie rzeczywistym
+  Widget _buildCalculationPreviewPanel() {
+    // Parsuj aktualne wartości z kontrolerów
+    final double currentCapitalSecured = _parseControllerValue(capitalSecuredController.text);
+    final double currentCapitalForRestructuring = _parseControllerValue(capitalForRestructuringController.text);
+    final double currentInvestmentAmount = _parseControllerValue(investmentAmountController.text);
+    
+    // Oblicz kapitał pozostały według wzoru
+    final double calculatedRemainingCapital = currentCapitalSecured + currentCapitalForRestructuring;
+    
+    // Sprawdź czy wartości się zgadzają
+    final double currentRemainingCapital = _parseControllerValue(remainingCapitalController.text);
+    final bool isBalanced = (calculatedRemainingCapital - currentRemainingCapital).abs() < 0.01;
+    final bool matchesInvestmentAmount = (calculatedRemainingCapital - currentInvestmentAmount).abs() < 0.01;
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppThemePro.accentGold.withValues(alpha: 0.05),
+            AppThemePro.accentGold.withValues(alpha: 0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppThemePro.accentGold.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Icon(
+                Icons.calculate_outlined,
+                size: 16,
+                color: AppThemePro.accentGold,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Podgląd obliczeń na żywo',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppThemePro.accentGold,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Wzór obliczenia
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppThemePro.backgroundSecondary,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: AppThemePro.borderPrimary,
+                width: 1,
+              ),
+            ),
+            child: Text(
+              '${currentCapitalSecured.toStringAsFixed(0)} PLN + ${currentCapitalForRestructuring.toStringAsFixed(0)} PLN = ${calculatedRemainingCapital.toStringAsFixed(0)} PLN',
+              style: TextStyle(
+                fontSize: 11,
+                fontFamily: 'monospace',
+                color: AppThemePro.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 6),
+          
+          // Status zgodności
+          Row(
+            children: [
+              Icon(
+                isBalanced ? Icons.check_circle : Icons.warning,
+                size: 14,
+                color: isBalanced ? AppThemePro.statusSuccess : AppThemePro.statusWarning,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isBalanced ? 'Wartości się zgadzają' : 'Niezgodność wartości',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isBalanced ? AppThemePro.statusSuccess : AppThemePro.statusWarning,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (!matchesInvestmentAmount && isBalanced) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.info_outline,
+                  size: 12,
+                  color: AppThemePro.statusInfo,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  'Różni się od kwoty inwestycji',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppThemePro.statusInfo,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Helper do parsowania wartości z kontrolera
+  double _parseControllerValue(String text) {
+    final cleanText = text.replaceAll(' ', '').replaceAll(',', '.');
+    return double.tryParse(cleanText) ?? 0.0;
   }
 
   Color _getStatusColor(InvestmentStatus status) {

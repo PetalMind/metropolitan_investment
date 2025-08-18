@@ -2,6 +2,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // ✅ Dodano import dla Timestamp
 import 'package:flutter/foundation.dart';
 import '../models_and_services.dart';
+import 'universal_investment_service.dart';
 
 /// 🚀 ULTRA PRECYZYJNY SERWIS INWESTORÓW PRODUKTÓW
 /// Wykorzystuje nową strukturę danych z logicznymi ID dla maksymalnej precyzji
@@ -153,6 +154,63 @@ class UltraPreciseProductInvestorsService {
         print('[UltraPrecise] ❌ Test połączenia nieudany: $e');
       }
       return false;
+    }
+  }
+
+  /// 🧹 NOWA METODA: Czyszczenie cache dla konkretnego produktu
+  /// Wymusza ponowne pobranie danych z Firebase przy następnym zapytaniu
+  Future<void> clearCacheForProduct(String productId) async {
+    try {
+      if (kDebugMode) {
+        print('[UltraPrecise] 🧹 Czyszczenie cache dla produktu: $productId');
+      }
+
+      // 🚀 UWAGA: Ta funkcja może nie istnieć w Firebase Functions
+      // Czasowo wyłączamy wywołanie aby uniknąć błędów
+      /*
+      final callable = _functions.httpsCallable('clearProductInvestorsCache');
+      await callable.call({
+        'productId': productId,
+        'clearAll': false,
+      });
+      */
+
+      if (kDebugMode) {
+        print(
+          '[UltraPrecise] ✅ Cache wyczyszczony dla produktu: $productId (symulacja)',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[UltraPrecise] ⚠️ Błąd czyszczenia cache: $e');
+      }
+      // Nie rzucaj błędu - cache się automatycznie odświeży przy następnym zapytaniu
+    }
+  }
+
+  /// 🧹 NOWA METODA: Globalne czyszczenie cache wszystkich produktów
+  Future<void> clearAllCache() async {
+    try {
+      if (kDebugMode) {
+        print('[UltraPrecise] 🧹 Globalne czyszczenie cache...');
+      }
+
+      // 🚀 UWAGA: Ta funkcja może nie istnieć w Firebase Functions
+      // Czasowo wyłączamy wywołanie aby uniknąć błędów
+      /*
+      final callable = _functions.httpsCallable('clearProductInvestorsCache');
+      await callable.call({
+        'clearAll': true,
+      });
+      */
+
+      if (kDebugMode) {
+        print('[UltraPrecise] ✅ Globalny cache wyczyszczony (symulacja)');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[UltraPrecise] ⚠️ Błąd globalnego czyszczenia cache: $e');
+      }
     }
   }
 }

@@ -122,6 +122,9 @@ class UnifiedProduct implements IUnifiedProduct {
   final String? companyName;
   final String? companyId;
   final String? currency;
+  
+  // Liczba inwestorów dla tego produktu
+  final int? investorCount;
 
   // Przechowywanie oryginalnego obiektu dla szczegółowych operacji
   final dynamic originalProduct;
@@ -150,6 +153,7 @@ class UnifiedProduct implements IUnifiedProduct {
     this.companyName,
     this.companyId,
     this.currency,
+    this.investorCount,
     this.originalProduct,
   });
 

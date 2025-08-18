@@ -9,6 +9,7 @@ import '../services/unified_product_service.dart' as unified;
 import '../services/optimized_product_service.dart'; // 🚀 NOWY IMPORT
 import '../services/product_management_service.dart'; // 🚀 NOWY: Centralny serwis zarządzania
 import '../services/cache_management_service.dart'; // 🚀 NOWY: Zarządzanie cache
+import '../services/unified_investor_count_service.dart'; // 🚀 NOWY: Serwis liczby inwestorów
 import '../adapters/product_statistics_adapter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/premium_loading_widget.dart';
@@ -18,6 +19,7 @@ import '../widgets/product_stats_widget.dart';
 import '../widgets/product_filter_widget.dart';
 import '../widgets/dialogs/product_details_dialog.dart';
 import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
+import '../widgets/common/synchronized_product_values_widget.dart'; // 🚀 NOWY: Zsynchronizowane wartości
 
 /// Ekran zarządzania produktami pobieranymi z kolekcji 'investments'
 /// Wykorzystuje FirebaseFunctionsProductsService do server-side przetwarzania danych
@@ -644,6 +646,19 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         print('🔄 [ProductsManagementScreen] Rozpoczynam ładowanie danych...');
       }
 
+      // 🚀 NOWE: Wyczyść cache liczby inwestorów przed załadowaniem danych
+      try {
+        final investorCountService = UnifiedInvestorCountService();
+        investorCountService.clearAllCache();
+        debugPrint(
+          '✅ [ProductsManagement] Cache liczby inwestorów wyczyszczony przy starcie',
+        );
+      } catch (e) {
+        debugPrint(
+          '⚠️ [ProductsManagement] Błąd czyszczenia cache przy starcie: $e',
+        );
+      }
+
       // 🚀 NOWE: Tryb wyboru serwisu
       if (_useProductManagementService) {
         await _loadDataWithProductManagementService();
@@ -1052,6 +1067,17 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     HapticFeedback.mediumImpact();
 
     try {
+      // 🚀 NOWE: Wyczyść cache liczby inwestorów przy każdym odświeżaniu
+      try {
+        final investorCountService = UnifiedInvestorCountService();
+        investorCountService.clearAllCache();
+        debugPrint(
+          '✅ [ProductsManagement] Cache liczby inwestorów wyczyszczony przy odświeżaniu',
+        );
+      } catch (e) {
+        debugPrint('⚠️ [ProductsManagement] Błąd czyszczenia cache: $e');
+      }
+
       if (_useProductManagementService) {
         // 🚀 NOWE: Odśwież przez ProductManagementService
         await _productManagementService.refreshCache();
@@ -1918,46 +1944,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             tooltip: 'Wybierz produkty do email',
           ),
         ],
-        // 🚀 NOWY: Przełącznik trybu optymalizacji
-        IconButton(
-          icon: Icon(
-            _useOptimizedMode ? Icons.rocket_launch : Icons.speed,
-            color: AppTheme.secondaryGold,
-          ),
-          onPressed: () async {
-            setState(() {
-              _useOptimizedMode = !_useOptimizedMode;
-            });
-            HapticFeedback.lightImpact();
 
-            // Odśwież dane w nowym trybie
-            await _loadInitialData();
-          },
-          tooltip: _useOptimizedMode
-              ? 'Przełącz na tryb legacy'
-              : 'Przełącz na tryb zoptymalizowany',
-        ),
-        // 🚀 NOWY: Przełącznik ProductManagementService
-        IconButton(
-          icon: Icon(
-            _useProductManagementService ? Icons.hub : Icons.merge_type,
-            color: _useProductManagementService
-                ? AppTheme.primaryColor
-                : AppTheme.secondaryGold,
-          ),
-          onPressed: () async {
-            setState(() {
-              _useProductManagementService = !_useProductManagementService;
-            });
-            HapticFeedback.lightImpact();
-
-            // Odśwież dane w nowym trybie
-            await _loadInitialData();
-          },
-          tooltip: _useProductManagementService
-              ? 'Wyłącz ProductManagementService'
-              : 'Włącz ProductManagementService (centralny serwis)',
-        ),
         // Przełącznik deduplikacji
         IconButton(
           icon: Icon(
@@ -1970,6 +1957,17 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
               _applyFiltersAndSearch();
             });
             HapticFeedback.lightImpact();
+
+            // 🚀 NOWE: Wyczyść cache liczby inwestorów po przełączeniu trybu
+            try {
+              final investorCountService = UnifiedInvestorCountService();
+              investorCountService.clearAllCache();
+              debugPrint(
+                '✅ [ProductsManagement] Cache liczby inwestorów wyczyszczony',
+              );
+            } catch (e) {
+              debugPrint('⚠️ [ProductsManagement] Błąd czyszczenia cache: $e');
+            }
 
             // Odśwież statystyki po przełączeniu trybu
             await _refreshStatistics();
@@ -2484,23 +2482,25 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
               Row(
                 children: [
                   Expanded(
-                    child: _buildStatColumn(
+                    child: _buildStatColumnWithSyncWidget(
                       'Łączna wartość',
-                      '${(product.totalValue / 1000000).toStringAsFixed(1)}M PLN',
+                      product,
+                      'totalRemainingCapitalShort',
                       Icons.account_balance_wallet,
                     ),
                   ),
                   Expanded(
                     child: _buildStatColumn(
                       'Inwestorów',
-                      '${product.investorCount}', // ⭐ ZMIENIONE: używa nowego getter
+                      '${product.investorCount}', // ⭐ Używa getter z DeduplicatedProduct
                       Icons.people,
                     ),
                   ),
                   Expanded(
-                    child: _buildStatColumn(
+                    child: _buildStatColumnWithSyncWidget(
                       'Pozostały kapitał',
-                      '${(product.totalRemainingCapital / 1000000).toStringAsFixed(1)}M PLN',
+                      product,
+                      'totalRemainingCapitalShort',
                       Icons.trending_up,
                     ),
                   ),
@@ -2561,6 +2561,42 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             color: AppTheme.textPrimary,
           ),
           textAlign: TextAlign.center,
+        ),
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppTheme.textSecondary),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  /// 🚀 NOWY: Widget statystyk z zsynchronizowanymi wartościami z modalu
+  Widget _buildStatColumnWithSyncWidget(
+    String label,
+    DeduplicatedProduct product,
+    String valueType,
+    IconData icon,
+  ) {
+    // Konwertuj DeduplicatedProduct na UnifiedProduct dla kompatybilności
+    final unifiedProduct = _convertDeduplicatedToUnified(product);
+
+    return Column(
+      children: [
+        Icon(icon, color: AppTheme.secondaryGold, size: 20),
+        const SizedBox(height: 4),
+        SynchronizedProductValuesWidget(
+          product: unifiedProduct,
+          valueType: valueType,
+          textStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary,
+          ),
+          valueColor: AppTheme.textPrimary,
         ),
         Text(
           label,

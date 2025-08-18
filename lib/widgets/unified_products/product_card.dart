@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/unified_product.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/currency_formatter.dart';
+import '../common/investor_count_widget.dart';
 
 /// Karta produktu w widoku siatki
 class ProductCard extends StatelessWidget {
@@ -148,6 +149,30 @@ class ProductCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Liczba inwestorów
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Inwestorzy:',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppTheme.textTertiary,
+                fontSize: 11,
+              ),
+            ),
+            InvestorCountWidget(
+              product: product,
+              textStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppTheme.primaryAccent,
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
+              ),
+              color: AppTheme.primaryAccent,
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        
         if (product.investmentAmount > 0) ...[
           _buildAmountRow(
             context,

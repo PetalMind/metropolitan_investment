@@ -402,6 +402,27 @@ class DeduplicatedProductService extends BaseService {
 
       actualInvestorCount = result.totalCount;
 
+      // 🚀 NOWE: Oblicz kwoty na podstawie rzeczywistych danych inwestorów
+      if (result.investors.isNotEmpty) {
+        double realTotalInvestmentAmount = 0.0;
+        double realTotalRemainingCapital = 0.0;
+
+        for (final investor in result.investors) {
+          realTotalInvestmentAmount += investor.totalInvestmentAmount;
+          realTotalRemainingCapital += investor.totalRemainingCapital;
+        }
+
+        // Zastąp lokalne obliczenia rzeczywistymi danymi
+        totalValue = realTotalInvestmentAmount;
+        totalRemainingCapital = realTotalRemainingCapital;
+
+        print('💰 [DeduplicatedProduct] Kwoty finansowe zsynchronizowane:');
+        print('   - Lokalna suma inwestycji: ${totalValue}');
+        print('   - Rzeczywista suma: ${realTotalInvestmentAmount}');
+        print('   - Lokalny kapitał pozostały: ${totalRemainingCapital}');
+        print('   - Rzeczywisty kapitał: ${realTotalRemainingCapital}');
+      }
+
       print('✅ [DeduplicatedProduct] ${productName}:');
       print('   - ProductId: $productId');
       print('   - Lokalne liczenie: ${uniqueInvestorsCount}');

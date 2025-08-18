@@ -43,7 +43,8 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
 
   // Services
   final AuthService _authService = AuthService();
-  final OptimizedProductService _optimizedProductService = OptimizedProductService(); // 🚀 NOWY
+  final OptimizedProductService _optimizedProductService =
+      OptimizedProductService(); // 🚀 NOWY
   final UnifiedDashboardStatisticsService _statisticsService =
       UnifiedDashboardStatisticsService();
 
@@ -57,14 +58,17 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   List<OptimizedProduct> _filteredOptimizedProducts = []; // 🚀 NOWY TYP
   Investment? _selectedInvestment;
   Set<String> _selectedProductIds = {};
-  bool _showOptimizedView = true; // 🚀 NOWA FLAGA - domyślnie zoptymalizowany widok
-  OptimizedProductsResult? _optimizedResult; // 🚀 NOWE: Kompletny wynik z serwera
+  bool _showOptimizedView =
+      true; // 🚀 NOWA FLAGA - domyślnie zoptymalizowany widok
+  OptimizedProductsResult?
+  _optimizedResult; // 🚀 NOWE: Kompletny wynik z serwera
   UnifiedDashboardStatistics?
   _dashboardStatistics; // 🚀 NOWE: Zunifikowane statystyki
 
   // 🚀 COMPATIBILITY: Dodaj aliasy dla kompatybilności wstecznej
   List<OptimizedProduct> get _deduplicatedProducts => _optimizedProducts;
-  List<OptimizedProduct> get _filteredDeduplicatedProducts => _filteredOptimizedProducts;
+  List<OptimizedProduct> get _filteredDeduplicatedProducts =>
+      _filteredOptimizedProducts;
   bool get _showDeduplicatedView => _showOptimizedView;
 
   // Filtering and sorting state
@@ -133,31 +137,53 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       }
 
       // 🚀 NOWE: Używaj zoptymalizowanego serwisu - JEDNO WYWOŁANIE zamiast setek
-      final optimizedResult = await _optimizedProductService.getAllProductsOptimized(
-        forceRefresh: true,
-        includeStatistics: true,
-      );
+      final optimizedResult = await _optimizedProductService
+          .getAllProductsOptimized(forceRefresh: true, includeStatistics: true);
 
       _optimizedProducts = optimizedResult.products;
       _optimizedResult = optimizedResult;
 
       // 🚀 OPTYMALIZACJA: Nie rób dodatkowego wywołania getAllInvestments - użyj danych z OptimizedProductService
       if (kDebugMode) {
-        print('🚀 [ProductDashboardWidget] Używam danych z OptimizedProductService - brak dodatkowych wywołań!');
-        print('🚀 [ProductDashboardWidget] Produkty: ${optimizedResult.products.length}');
+        print(
+          '🚀 [ProductDashboardWidget] Używam danych z OptimizedProductService - brak dodatkowych wywołań!',
+        );
+        print(
+          '🚀 [ProductDashboardWidget] Produkty: ${optimizedResult.products.length}',
+        );
       }
 
       // 🚀 NOWE: Używaj OptimizedProduct bezpośrednio, nie konwertuj na Investment
       // Investment jest zbyt różne od OptimizedProduct - zostaw puste i użyj _optimizedProducts
-      _investments = []; // Puste - używamy _optimizedProducts zamiast _investments
+      _investments =
+          []; // Puste - używamy _optimizedProducts zamiast _investments
 
       if (kDebugMode) {
-        print('🚀 [ProductDashboardWidget] Używam ${_optimizedProducts.length} OptimizedProducts bezpośrednio');
+        print(
+          '🚀 [ProductDashboardWidget] Używam ${_optimizedProducts.length} OptimizedProducts bezpośrednio',
+        );
       }
 
-      // Load dashboard statistics (jeśli nie ma w optimizedResult)
-      if (optimizedResult.statistics == null) {
-        _dashboardStatistics = await _statisticsService.getStatisticsFromInvestors();
+      // Load dashboard statistics
+      if (optimizedResult.statistics != null) {
+        // 🚀 FIXED: Konwertuj GlobalProductStatistics na UnifiedDashboardStatistics
+        _dashboardStatistics = _convertGlobalStatsToUnified(
+          optimizedResult.statistics!,
+        );
+        if (kDebugMode) {
+          print(
+            '🎯 [ProductDashboardWidget] Używam statystyk z OptimizedProductService',
+          );
+        }
+      } else {
+        // Fallback na serwis inwestorów
+        _dashboardStatistics = await _statisticsService
+            .getStatisticsFromInvestors();
+        if (kDebugMode) {
+          print(
+            '🔄 [ProductDashboardWidget] Fallback na UnifiedDashboardStatisticsService',
+          );
+        }
       }
 
       // Apply filtering and sorting
@@ -169,7 +195,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
             .where((inv) => inv.id == widget.selectedProductId)
             .firstOrNull;
       }
-      _selectedInvestment ??= _investments.isNotEmpty ? _investments.first : null;
+      _selectedInvestment ??= _investments.isNotEmpty
+          ? _investments.first
+          : null;
 
       if (mounted) {
         setState(() {
@@ -185,9 +213,24 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       _scaleController.forward();
 
       if (kDebugMode) {
-        print('✅ [ProductDashboard] Załadowano ${_optimizedProducts.length} produktów w ${optimizedResult.executionTime}ms (cache: ${optimizedResult.fromCache})');
+        print(
+          '✅ [ProductDashboard] Załadowano ${_optimizedProducts.length} produktów w ${optimizedResult.executionTime}ms (cache: ${optimizedResult.fromCache})',
+        );
+        print(
+          '📊 [ProductDashboard] Statystyki dostępne: ${_dashboardStatistics != null}',
+        );
+        if (_dashboardStatistics != null) {
+          print(
+            '💰 [ProductDashboard] Źródło statystyk: ${_dashboardStatistics!.dataSource}',
+          );
+          print(
+            '💰 [ProductDashboard] Total Investment Amount: ${_dashboardStatistics!.totalInvestmentAmount}',
+          );
+          print(
+            '💰 [ProductDashboard] Total Remaining Capital: ${_dashboardStatistics!.totalRemainingCapital}',
+          );
+        }
       }
-
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -626,7 +669,8 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
               value: _showDeduplicatedView,
               onChanged: (value) {
                 setState(() {
-                  _showOptimizedView = value; // 🚀 FIXED: Używaj rzeczywistej zmiennej
+                  _showOptimizedView =
+                      value; // 🚀 FIXED: Używaj rzeczywistej zmiennej
                   // Wyczyść wybrane produkty przy przełączaniu trybu
                   _selectedProductIds.clear();
                 });
@@ -2628,6 +2672,37 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
           text: '—',
         );
     }
+  }
+
+  /// 🚀 FIXED: Konwertuje GlobalProductStatistics na UnifiedDashboardStatistics
+  UnifiedDashboardStatistics _convertGlobalStatsToUnified(
+    GlobalProductStatistics globalStats,
+  ) {
+    // Szacuj kapitał do restrukturyzacji jako 5% całkowitej wartości (benchmark)
+    final estimatedCapitalForRestructuring = globalStats.totalValue * 0.05;
+
+    // Szacuj kapitał zabezpieczony jako pozostały kapitał minus do restrukturyzacji
+    final estimatedCapitalSecured =
+        (globalStats.totalRemainingCapital - estimatedCapitalForRestructuring)
+            .clamp(0.0, double.infinity);
+
+    return UnifiedDashboardStatistics(
+      totalInvestmentAmount: globalStats.totalValue,
+      totalRemainingCapital: globalStats.totalRemainingCapital,
+      totalCapitalSecured: estimatedCapitalSecured.toDouble(),
+      totalCapitalForRestructuring: estimatedCapitalForRestructuring,
+      totalViableCapital:
+          globalStats.totalRemainingCapital, // Całość jako viable
+      totalInvestments: globalStats.totalProducts,
+      activeInvestments:
+          globalStats.totalProducts, // Szacuj wszystkie jako aktywne
+      averageInvestmentAmount: globalStats.averageValuePerProduct,
+      averageRemainingCapital: globalStats.totalProducts > 0
+          ? globalStats.totalRemainingCapital / globalStats.totalProducts
+          : 0,
+      dataSource: 'OptimizedProductService (converted)',
+      calculatedAt: DateTime.now(),
+    );
   }
 }
 

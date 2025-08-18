@@ -6,7 +6,9 @@ import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../config/app_routes.dart';
 import '../services/notification_service.dart';
+import '../services/calendar_notification_service.dart'; // 🚀 NOWE
 import 'notification_badge.dart';
+import 'enhanced_navigation_badge.dart'; // 🚀 NOWE
 
 /// Główny layout aplikacji z nawigacją boczną i badge'ami powiadomień
 class MainLayout extends StatefulWidget {
@@ -89,24 +91,17 @@ class _MainLayoutState extends State<MainLayout> {
           leading: _buildRailHeader(),
           trailing: _buildRailTrailing(),
           destinations: MainNavigationItems.items.map((item) {
-            // Badge tylko dla kalendarza
-            final notificationCount = item.route == '/calendar'
-                ? notificationService.getNotificationsForRoute(item.route)
-                : 0;
-
             return NavigationRailDestination(
-              icon: item.route == '/calendar'
-                  ? NotificationBadge(
-                      count: notificationCount,
-                      child: Icon(item.icon),
-                    )
-                  : Icon(item.icon),
-              selectedIcon: item.route == '/calendar'
-                  ? NotificationBadge(
-                      count: notificationCount,
-                      child: Icon(item.selectedIcon ?? item.icon),
-                    )
-                  : Icon(item.selectedIcon ?? item.icon),
+              icon: NavigationBadgeFactory.wrapWithBadge(
+                route: item.route,
+                animated: true, // 🚀 NOWE: Włącz animowane badge'y
+                child: Icon(item.icon),
+              ),
+              selectedIcon: NavigationBadgeFactory.wrapWithBadge(
+                route: item.route,
+                animated: true, // 🚀 NOWE: Włącz animowane badge'y
+                child: Icon(item.selectedIcon ?? item.icon),
+              ),
               label: Text(item.label),
             );
           }).toList(),
@@ -285,31 +280,20 @@ class _MainLayoutState extends State<MainLayout> {
               padding: EdgeInsets.zero,
               children: MainNavigationItems.items.map((item) {
                 final isSelected = currentLocation.startsWith(item.route);
-                final notificationCount = item.route == '/calendar'
-                    ? notificationService.getNotificationsForRoute(item.route)
-                    : 0;
 
                 return ListTile(
-                  leading: item.route == '/calendar' && notificationCount > 0
-                      ? NotificationBadge(
-                          count: notificationCount,
-                          child: Icon(
-                            isSelected
-                                ? (item.selectedIcon ?? item.icon)
-                                : item.icon,
-                            color: isSelected
-                                ? AppTheme.secondaryGold
-                                : AppTheme.textTertiary,
-                          ),
-                        )
-                      : Icon(
-                          isSelected
-                              ? (item.selectedIcon ?? item.icon)
-                              : item.icon,
-                          color: isSelected
-                              ? AppTheme.secondaryGold
-                              : AppTheme.textTertiary,
-                        ),
+                  leading: NavigationBadgeFactory.wrapWithBadge(
+                    route: item.route,
+                    animated: true, // 🚀 NOWE: Animowane badge'y w mobile drawer
+                    child: Icon(
+                      isSelected
+                          ? (item.selectedIcon ?? item.icon)
+                          : item.icon,
+                      color: isSelected
+                          ? AppTheme.secondaryGold
+                          : AppTheme.textTertiary,
+                    ),
+                  ),
                   title: Text(
                     item.label,
                     style: TextStyle(

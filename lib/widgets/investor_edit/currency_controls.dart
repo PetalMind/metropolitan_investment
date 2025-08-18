@@ -9,6 +9,7 @@ import '../../theme/app_theme_professional.dart';
 /// - Walidację wartości
 /// - Spójny wygląd zgodny z AppThemePro
 /// - Obsługę tekstu pomocy
+/// - 🚀 NOWE: Wizualne wskaźniki zmian i automatyczne przeliczanie
 class CurrencyInputField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
@@ -18,6 +19,9 @@ class CurrencyInputField extends StatelessWidget {
   final String? helpText;
   final String? Function(String?)? validator;
   final VoidCallback? onChanged;
+  final double? originalValue; // 🚀 NOWE: Oryginalna wartość do porównania
+  final String? calculationFormula; // 🚀 NOWE: Wzór obliczenia (np. "Zabezpieczony + Restrukturyzacja")
+  final bool showChangeIndicator; // 🚀 NOWE: Czy pokazywać wskaźnik zmian
 
   const CurrencyInputField({
     super.key,
@@ -29,10 +33,25 @@ class CurrencyInputField extends StatelessWidget {
     this.helpText,
     this.validator,
     this.onChanged,
+    this.originalValue, // 🚀 NOWE: Oryginalna wartość do porównania
+    this.calculationFormula, // 🚀 NOWE: Wzór obliczenia
+    this.showChangeIndicator = false, // 🚀 NOWE: Wskaźnik zmian
   });
 
   @override
   Widget build(BuildContext context) {
+    // 🧮 OBLICZ RÓŻNICĘ jeśli mamy originalValue
+    double? currentValue;
+    double? change;
+    double? changePercentage;
+    
+    if (originalValue != null) {
+      final text = controller.text.replaceAll(' ', '').replaceAll(',', '.');
+      currentValue = double.tryParse(text) ?? 0.0;
+      change = currentValue - originalValue!;
+      changePercentage = originalValue! != 0 ? (change / originalValue!) * 100 : 0.0;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -47,6 +66,40 @@ class CurrencyInputField extends StatelessWidget {
                 color: AppThemePro.textPrimary,
               ),
             ),
+            // 🚀 NOWE: Wskaźnik zmian
+            if (showChangeIndicator && change != null && change.abs() > 0.01) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: (change > 0 ? AppThemePro.profitGreen : AppThemePro.lossRed).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: (change > 0 ? AppThemePro.profitGreen : AppThemePro.lossRed).withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      change > 0 ? Icons.trending_up : Icons.trending_down,
+                      size: 12,
+                      color: change > 0 ? AppThemePro.profitGreen : AppThemePro.lossRed,
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      '${changePercentage!.toStringAsFixed(1)}%',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: change > 0 ? AppThemePro.profitGreen : AppThemePro.lossRed,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
         const SizedBox(height: 8),
@@ -110,6 +163,40 @@ class CurrencyInputField extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppThemePro.textSecondary,
               fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+        // 🚀 NOWE: Wzór obliczenia
+        if (calculationFormula != null) ...[
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppThemePro.accentGold.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: AppThemePro.accentGold.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.calculate,
+                  size: 12,
+                  color: AppThemePro.accentGold,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  calculationFormula!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppThemePro.accentGold,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:responsive_framework/responsive_framework.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models_and_services.dart';
-import '../../theme/app_theme.dart';
-import '../../utils/currency_formatter.dart';
 import '../dialogs/product_investors_tab.dart';
-import '../common/common_widgets.dart';
+import '../dialogs/product_details_header.dart';
 
 /// Modal ze szczegółami produktu z zakładkami
+///
+/// 🚀 FUNKCJE ODŚWIEŻANIA PO EDYCJI INWESTYCJI:
+/// - Automatyczne odświeżanie przez didUpdateWidget() gdy modal się zaktualizuje
+/// - Odświeżanie przez didChangeAppLifecycleState() gdy aplikacja wraca do foreground
+/// - Callback onRefresh() w ProductInvestorsTab wywołuje pełne odświeżanie danych
+/// - refreshAfterInvestmentEdit() umożliwia zewnętrzne triggowanie odświeżenia
+/// - Podwójne odświeżenie z opóźnieniem dla pewności aktualności danych
+///
+/// Przepływ po edycji inwestycji:
+/// 1. Użytkownik edytuje inwestycję w InvestorEditDialog
+/// 2. Po zapisie InvestorEditDialog wywołuje onSaved()
+/// 3. ProductInvestorsTab otrzymuje onSaved() i wywołuje widget.onRefresh()
+/// 4. ProductDetailsModal odświeża _loadInvestors(forceRefresh: true) i _loadProduct()
+/// 5. Dodatkowo po 500ms następuje dodatkowe odświeżenie dla pewności
 class ProductDetailsModal extends StatefulWidget {
   final UnifiedProduct product;
 
@@ -20,20 +31,17 @@ class ProductDetailsModal extends StatefulWidget {
 class _ProductDetailsModalState extends State<ProductDetailsModal>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
-  final UltraPreciseProductInvestorsService _investorsService =
-      UltraPreciseProductInvestorsService();
-  final UnifiedProductService _productService = UnifiedProductService();
 
-  List<InvestorSummary> _investors = [];
-  bool _isLoadingInvestors = false;
-  String? _investorsError;
+  // 🎯 NOWY: Jeden centralny serwis zamiast trzech
+  final UnifiedProductModalService _modalService = UnifiedProductModalService();
 
-  UnifiedProduct? _freshProduct;
-  bool _isLoadingProduct = false;
-  String? _productError;
+  // 🎯 NOWY: Centralne dane modalu
+  ProductModalData? _modalData;
+  bool _isLoadingModalData = false;
+  String? _modalError;
 
-  // ⭐ CACHE dla prawdziwego productId
-  String? _realProductId;
+  // 🚀 NOWA OCHRONA: Flaga przeciw rekurencyjnemu odświeżaniu
+  bool _isRefreshing = false;
 
   @override
   void initState() {
@@ -41,19 +49,20 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_onTabChanged);
-    _findRealProductId(); // ⭐ NOWE: Znajdź prawdziwy productId
-    _loadInvestors(); // inwestorzy
-    _loadProduct(); // świeże dane produktu
+    _loadModalData(); // 🎯 NOWY: Jedyne wywołanie ładowania danych
   }
 
   @override
   void didUpdateWidget(ProductDetailsModal oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 🚀 NOWE: Odśwież inwestorów jeśli modal został zaktualizowany
-    // (np. po powrocie z dialogu edycji)
-    if (widget.product.id != oldWidget.product.id ||
-        widget.product.name != oldWidget.product.name) {
-      _loadInvestors(forceRefresh: true);
+    // 🎯 NOWY: Odśwież dane modalu jeśli produkt się zmienił
+    if ((widget.product.id != oldWidget.product.id ||
+            widget.product.name != oldWidget.product.name) &&
+        !_isRefreshing) {
+      debugPrint(
+        '🔄 [ProductDetailsModal] didUpdateWidget - odświeżanie danych',
+      );
+      _loadModalData(forceRefresh: true);
     }
   }
 
@@ -68,314 +77,410 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // 🚀 NOWE: Odśwież dane gdy aplikacja wraca do foreground
-    // (przydatne gdy użytkownik wraca po edycji w innym oknie)
+    // 🎯 NOWY: Odśwież dane modalu gdy aplikacja wraca do foreground
     if (state == AppLifecycleState.resumed && mounted) {
-      _loadInvestors(forceRefresh: true);
+      _loadModalData(forceRefresh: true);
     }
   }
 
   void _onTabChanged() {
-    if (_tabController.index == 1 &&
-        _investors.isEmpty &&
-        !_isLoadingInvestors) {
-      _loadInvestors();
-    }
-    if (_tabController.index == 3 &&
-        _freshProduct == null &&
-        !_isLoadingProduct) {
-      _loadProduct();
+    // 🎯 NOWY: Sprawdź czy mamy dane modalu, jeśli nie - załaduj
+    if (_modalData == null && !_isLoadingModalData) {
+      _loadModalData();
     }
   }
 
-  // ⭐ POMOCNICZE METODY DO OBLICZANIA SUM Z INWESTORÓW
-  double get _totalInvestmentAmount => _investors.fold<double>(
-    0.0,
-    (sum, investor) => sum + investor.totalInvestmentAmount,
-  );
-
-  double get _totalRemainingCapital => _investors.fold<double>(
-    0.0,
-    (sum, investor) => sum + investor.totalRemainingCapital,
-  );
-
-  double get _totalCapitalSecuredByRealEstate => _investors.fold<double>(
-    0.0,
-    (sum, investor) => sum + investor.capitalSecuredByRealEstate,
-  );
-
-  /// ⭐ NOWA METODA: Znajdź prawdziwy productId z Firebase
-  /// Rozwiązuje problem z używaniem hashu z DeduplicatedService
-  Future<void> _findRealProductId() async {
-    try {
-      debugPrint(
-        '🔍 [ProductDetailsModal] Szukam prawdziwego productId dla: ${widget.product.name}',
+  // 🎯 NOWY: Pomocnicze gettery z centralnych danych
+  List<InvestorSummary> get _investors => _modalData?.investors ?? [];
+  UnifiedProduct get _freshProduct => _modalData?.product ?? widget.product;
+  ProductModalStatistics get _statistics =>
+      _modalData?.statistics ??
+      ProductModalStatistics(
+        totalInvestmentAmount: 0.0,
+        totalRemainingCapital: 0.0,
+        totalCapitalSecuredByRealEstate: 0.0,
+        profitLoss: 0.0,
+        profitLossPercentage: 0.0,
+        totalInvestors: 0,
+        activeInvestors: 0,
+        inactiveInvestors: 0,
+        averageCapitalPerInvestor: 0.0,
       );
 
-      // Użyj Firebase bezpośrednio do znalezienia przykładowej inwestycji
-      final firestore = FirebaseFirestore.instance;
-      final snapshot = await firestore
-          .collection('investments')
-          .where('productName', isEqualTo: widget.product.name)
-          .where('companyId', isEqualTo: widget.product.companyId)
-          .limit(1)
-          .get();
+  // 🎯 NOWY: Gettery kompatybilne z poprzednim kodem
+  double get _totalInvestmentAmount => _statistics.totalInvestmentAmount;
+  double get _totalRemainingCapital => _statistics.totalRemainingCapital;
+  double get _totalCapitalSecuredByRealEstate =>
+      _statistics.totalCapitalSecuredByRealEstate;
+  bool get _isLoadingInvestors => _isLoadingModalData;
+  String? get _investorsError => _modalError;
 
-      if (snapshot.docs.isNotEmpty) {
-        final doc = snapshot.docs.first;
-        final data = doc.data();
-        final productId = data['productId'] as String?;
-
-        if (productId?.isNotEmpty == true) {
-          _realProductId = productId;
-          debugPrint(
-            '✅ [ProductDetailsModal] Znaleziono prawdziwy productId: $_realProductId',
-          );
-        } else {
-          _realProductId = doc.id; // Fallback na ID dokumentu
-          debugPrint(
-            '✅ [ProductDetailsModal] Używam ID dokumentu jako productId: $_realProductId',
-          );
-        }
-      } else {
-        debugPrint(
-          '⚠️ [ProductDetailsModal] Nie znaleziono inwestycji dla produktu',
-        );
-        _realProductId = widget.product.id; // Fallback na oryginalny ID
-      }
-    } catch (e) {
-      debugPrint('❌ [ProductDetailsModal] Błąd podczas szukania productId: $e');
-      _realProductId = widget.product.id; // Fallback na oryginalny ID
+  /// ⭐ NOWA METODA: Publiczna metoda do odświeżania danych po edycji inwestycji
+  /// Może być wywołana przez dialog edycji inwestora po zakończeniu edycji
+  /// 🎯 NOWA METODA: Ładowanie centralnych danych modalu
+  Future<void> _loadModalData({bool forceRefresh = false}) async {
+    if (_isLoadingModalData) {
+      debugPrint(
+        '⚠️ [ProductDetailsModal] _loadModalData już w toku - pomijam',
+      );
+      return;
     }
-  }
-
-  Future<void> _loadInvestors({bool forceRefresh = false}) async {
-    if (_isLoadingInvestors) return;
 
     if (mounted) {
       setState(() {
-        _isLoadingInvestors = true;
-        _investorsError = null;
+        _isLoadingModalData = true;
+        _modalError = null;
       });
     }
 
     try {
-      // ⭐ UPEWNIJ SIĘ ŻE MAMY PRAWDZIWY PRODUCTID
-      if (_realProductId == null) {
-        await _findRealProductId();
-      }
+      debugPrint('🎯 [ProductDetailsModal] Ładowanie danych modalu...');
 
-      final productIdToUse = _realProductId ?? widget.product.id;
-
-      debugPrint('🔍 [ProductDetailsModal] Ładowanie inwestorów:');
-      debugPrint('  - Oryginalny product.id: ${widget.product.id}');
-      debugPrint('  - Prawdziwy productId: $_realProductId');
-      debugPrint('  - Używam productId: $productIdToUse');
-      debugPrint('  - ForceRefresh: $forceRefresh');
-
-      final result = await _investorsService.getProductInvestors(
-        productId: productIdToUse, // ⭐ UŻYWAJ PRAWDZIWEGO PRODUCTID
-        productName: widget.product.name,
-        searchStrategy: 'productId',
-        forceRefresh:
-            forceRefresh, // 🚀 ENHANCED: Wymuszenie odświeżenia po zapisie zmian
+      final modalData = await _modalService.getProductModalData(
+        product: widget.product,
+        forceRefresh: forceRefresh,
       );
-      final investors = result.investors;
 
       if (mounted) {
         setState(() {
-          _investors = investors;
-          _isLoadingInvestors = false;
+          _modalData = modalData;
+          _isLoadingModalData = false;
         });
 
-        // 🚀 NOWE: Po aktualizacji inwestorów, wymuś rebuild wszystkich widgetów
-        // które używają obliczanych wartości (_totalInvestmentAmount, etc.)
-        if (forceRefresh) {
-          debugPrint(
-            '🔄 [ProductDetailsModal] Wymuszam rebuild po odświeżeniu inwestorów',
-          );
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                // Dummy setState żeby wymusić rebuild wszystkich zakładek
-              });
-            }
-          });
-        }
+        debugPrint('✅ [ProductDetailsModal] Dane modalu załadowane:');
+        debugPrint('  - Inwestorzy: ${modalData.investors.length}');
+        debugPrint(
+          '  - Suma inwestycji: ${modalData.statistics.totalInvestmentAmount}',
+        );
+        debugPrint('  - Execution time: ${modalData.executionTime}ms');
       }
     } catch (e) {
+      debugPrint('❌ [ProductDetailsModal] Błąd ładowania danych modalu: $e');
       if (mounted) {
         setState(() {
-          _investorsError = e.toString();
-          _isLoadingInvestors = false;
+          _modalError = e.toString();
+          _isLoadingModalData = false;
         });
       }
     }
   }
 
-  Future<void> _loadProduct() async {
-    if (_isLoadingProduct) return;
-    setState(() {
-      _isLoadingProduct = true;
-      _productError = null;
-    });
-    try {
-      final loaded = await _productService.getProductById(widget.product.id);
-      if (mounted) {
-        setState(() {
-          _freshProduct = loaded ?? widget.product; // brak placeholderów
-          _isLoadingProduct = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _productError = e.toString();
-          _freshProduct = widget.product; // fallback
-          _isLoadingProduct = false;
-        });
-      }
+  void refreshAfterInvestmentEdit() {
+    if (mounted && !_isRefreshing) {
+      _isRefreshing = true;
+      debugPrint(
+        '🔄 [ProductDetailsModal] Odświeżanie danych po edycji inwestycji',
+      );
+
+      // 🎯 NOWY: Użyj nowego serwisu do odświeżenia
+      _modalService
+          .refreshAfterEdit(product: widget.product)
+          .then((modalData) {
+            if (mounted) {
+              setState(() {
+                _modalData = modalData;
+                _isRefreshing = false;
+              });
+            }
+            debugPrint('✅ [ProductDetailsModal] Dane odświeżone po edycji');
+          })
+          .catchError((e) {
+            debugPrint('❌ [ProductDetailsModal] Błąd odświeżania: $e');
+            if (mounted) {
+              setState(() {
+                _isRefreshing = false;
+              });
+            }
+          });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
     final isMobile = ResponsiveBreakpoints.of(context).isMobile;
+    final isTablet = ResponsiveBreakpoints.of(context).isTablet;
+
+    // 📱 RESPONSIVE: Dostosuj wymiary do rozmiaru ekranu
+    final horizontalPadding = isMobile ? 8.0 : (isTablet ? 24.0 : 32.0);
+    final verticalPadding = isMobile ? 16.0 : (isTablet ? 24.0 : 32.0);
+    final maxWidth = isMobile
+        ? screenSize.width * 0.95
+        : (isTablet ? 600.0 : 900.0);
+    final maxHeight = isMobile
+        ? screenSize.height * 0.95
+        : screenSize.height * 0.9;
 
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 16 : 32,
-        vertical: isMobile ? 24 : 32,
+        horizontal: horizontalPadding,
+        vertical: verticalPadding,
       ),
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: isMobile ? double.infinity : 700,
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
+          maxWidth: maxWidth,
+          maxHeight: maxHeight,
+          minWidth: isMobile ? 300 : 500,
+          minHeight: isMobile ? 400 : 600,
         ),
-        decoration: AppTheme.premiumCardDecoration,
-        child: Column(
-          children: [
-            ProductHeader(
-              productName: widget.product.name,
-              productType: widget.product.productType.displayName,
-              companyName: widget.product.companyName,
-              isActive: widget.product.isActive,
-              status: widget.product.status.displayName,
-              productIcon: _getProductIcon(),
-              productColor: AppTheme.getProductTypeColor(
-                widget.product.productType.name,
-              ),
-              onClose: () => Navigator.of(context).pop(),
+        decoration: BoxDecoration(
+          color: AppTheme.backgroundPrimary,
+          borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
+          border: Border.all(
+            color: AppTheme.borderPrimary.withOpacity(0.3),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: isMobile ? 20 : 40,
+              offset: const Offset(0, 8),
             ),
-            _buildTabBar(context),
-            Expanded(child: _buildTabBarView(context, isMobile)),
+            BoxShadow(
+              color: AppTheme.primaryAccent.withOpacity(0.05),
+              blurRadius: isMobile ? 10 : 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
+          child: Column(
+            children: [
+              ProductDetailsHeader(
+                product: widget.product,
+                investors: _investors,
+                isLoadingInvestors: _isLoadingInvestors,
+                onClose: () => Navigator.of(context).pop(),
+              ),
+              _buildResponsiveTabBar(context, isMobile, isTablet),
+              Expanded(child: _buildTabBarView(context, isMobile, isTablet)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 📱 RESPONSIVE: Responsywny TabBar z lepszym designem
+  Widget _buildResponsiveTabBar(
+    BuildContext context,
+    bool isMobile,
+    bool isTablet,
+  ) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundSecondary,
+        border: Border(
+          bottom: BorderSide(
+            color: AppTheme.borderSecondary.withOpacity(0.5),
+            width: 1,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: TabBar(
+          controller: _tabController,
+          // 🎨 IMPROVED STYLING
+          indicatorColor: AppTheme.primaryAccent,
+          indicatorWeight: 3,
+          indicatorSize: TabBarIndicatorSize.tab,
+          labelColor: AppTheme.primaryAccent,
+          unselectedLabelColor: AppTheme.textSecondary,
+          dividerColor: Colors.transparent,
+          overlayColor: MaterialStateProperty.all(
+            AppTheme.primaryAccent.withOpacity(0.1),
+          ),
+          // 📱 RESPONSIVE TEXT STYLES
+          labelStyle: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: isMobile ? 12 : (isTablet ? 14 : 15),
+            letterSpacing: 0.5,
+          ),
+          unselectedLabelStyle: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: isMobile ? 12 : (isTablet ? 14 : 15),
+            letterSpacing: 0.3,
+          ),
+          // 📱 RESPONSIVE PADDING
+          labelPadding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 8 : (isTablet ? 12 : 16),
+            vertical: isMobile ? 8 : 12,
+          ),
+          tabs: [
+            _buildResponsiveTab(
+              context,
+              'Przegląd',
+              Icons.dashboard_outlined,
+              isMobile,
+              isTablet,
+            ),
+            _buildResponsiveTab(
+              context,
+              'Inwestorzy',
+              Icons.people_outline,
+              isMobile,
+              isTablet,
+            ),
+            _buildResponsiveTab(
+              context,
+              isMobile ? 'Analiza' : 'Analityka',
+              Icons.analytics_outlined,
+              isMobile,
+              isTablet,
+            ),
+            _buildResponsiveTab(
+              context,
+              'Szczegóły',
+              Icons.info_outline,
+              isMobile,
+              isTablet,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTabBar(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppTheme.borderSecondary, width: 1),
+  /// 📱 RESPONSIVE: Responsywna zakładka z ikonami
+  Widget _buildResponsiveTab(
+    BuildContext context,
+    String text,
+    IconData icon,
+    bool isMobile,
+    bool isTablet,
+  ) {
+    if (isMobile) {
+      // 📱 MOBILE: Tylko ikony lub bardzo krótki tekst
+      return Tab(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20),
+            if (text.length <= 7) // Tylko krótkie teksty na mobile
+              Text(
+                text,
+                style: const TextStyle(fontSize: 10),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
         ),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicatorColor: AppTheme.primaryAccent,
-        labelColor: AppTheme.primaryAccent,
-        unselectedLabelColor: AppTheme.textSecondary,
-        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        unselectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
+      );
+    } else {
+      // 💻 DESKTOP/TABLET: Ikona + pełny tekst
+      return Tab(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: isTablet ? 18 : 20),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ],
         ),
-        tabs: const [
-          Tab(text: 'Przegląd', icon: Icon(Icons.dashboard_outlined, size: 20)),
-          Tab(text: 'Inwestorzy', icon: Icon(Icons.people_outline, size: 20)),
-          Tab(
-            text: 'Analityka',
-            icon: Icon(Icons.analytics_outlined, size: 20),
-          ),
-          Tab(text: 'Szczegóły', icon: Icon(Icons.info_outline, size: 20)),
-        ],
-      ),
-    );
+      );
+    }
   }
 
-  Widget _buildTabBarView(BuildContext context, bool isMobile) {
+  Widget _buildTabBarView(BuildContext context, bool isMobile, bool isTablet) {
     return TabBarView(
       controller: _tabController,
       children: [
         // Zakładka przeglądu
-        _buildOverviewTab(context, isMobile),
+        _buildOverviewTab(context, isMobile, isTablet),
 
         // Zakładka inwestorów
-        _buildInvestorsTab(context),
+        _buildInvestorsTab(context, isMobile, isTablet),
 
         // Zakładka analityki
-        _buildAnalyticsTab(context, isMobile),
+        _buildAnalyticsTab(context, isMobile, isTablet),
 
         // Zakładka szczegółów
-        _buildDetailsTab(context, isMobile),
+        _buildDetailsTab(context, isMobile, isTablet),
       ],
     );
   }
 
-  Widget _buildDetailsTab(BuildContext context, bool isMobile) {
-    final product = _freshProduct ?? widget.product;
+  Widget _buildDetailsTab(BuildContext context, bool isMobile, bool isTablet) {
+    final product = _freshProduct;
+    final horizontalPadding = isMobile ? 12.0 : (isTablet ? 16.0 : 20.0);
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(horizontalPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_isLoadingProduct)
+          if (_isLoadingModalData)
             Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Column(
                   children: [
-                    const CircularProgressIndicator(),
+                    SizedBox(
+                      width: isMobile ? 32 : 40,
+                      height: isMobile ? 32 : 40,
+                      child: const CircularProgressIndicator(),
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       'Ładowanie aktualnych danych produktu…',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontSize: isMobile ? 12 : 14,
+                      ),
                     ),
                   ],
                 ),
               ),
             )
-          else if (_productError != null)
+          else if (_modalError != null)
             Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Column(
                   children: [
-                    Icon(Icons.error_outline, color: AppTheme.errorColor),
+                    Icon(
+                      Icons.error_outline,
+                      color: AppTheme.errorColor,
+                      size: isMobile ? 32 : 40,
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       'Błąd pobierania danych produktu',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppTheme.errorColor,
+                        fontSize: isMobile ? 14 : 16,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _productError!,
+                      _modalError!,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppTheme.textTertiary,
+                        fontSize: isMobile ? 12 : 14,
                       ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
                     FilledButton.icon(
-                      onPressed: _loadProduct,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Ponów próbę'),
+                      onPressed: () => _loadModalData(forceRefresh: true),
+                      icon: Icon(Icons.refresh, size: isMobile ? 16 : 18),
+                      label: Text(
+                        'Ponów próbę',
+                        style: TextStyle(fontSize: isMobile ? 12 : 14),
+                      ),
                     ),
                   ],
                 ),
@@ -383,54 +488,87 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
             ),
 
           // Sekcja kwot
-          _buildAmountsSection(context, isMobile),
+          _buildAmountsSection(context, isMobile, isTablet),
 
           const SizedBox(height: 24),
 
           // Sekcja szczegółów
-          _buildDetailsSection(context, isMobile),
+          _buildDetailsSection(context, isMobile, isTablet),
 
           if (product.productType == UnifiedProductType.bonds) ...[
             const SizedBox(height: 24),
-            _buildBondsSpecificSection(context, isMobile),
+            _buildBondsSpecificSection(context, isMobile, isTablet),
           ],
 
           if (product.productType == UnifiedProductType.shares) ...[
             const SizedBox(height: 24),
-            _buildSharesSpecificSection(context, isMobile),
+            _buildSharesSpecificSection(context, isMobile, isTablet),
           ],
           const SizedBox(height: 24),
-          _buildSourceInfoBar(product),
+          _buildSourceInfoBar(product, isMobile, isTablet),
         ],
       ),
     );
   }
 
-  Widget _buildInvestorsTab(BuildContext context) {
+  Widget _buildInvestorsTab(
+    BuildContext context,
+    bool isMobile,
+    bool isTablet,
+  ) {
     return ProductInvestorsTab(
       product: widget.product,
       investors: _investors,
       isLoading: _isLoadingInvestors,
       error: _investorsError,
       onRefresh: () async {
-        // 🚀 ENHANCED: Wymusz agresywne odświeżenie i rebuild całego modal
-        await _loadInvestors(forceRefresh: true);
+        // 🎯 NOWY: Odśwież dane modalu
+        debugPrint(
+          '🔄 [ProductDetailsModal] onRefresh wywołany - odświeżanie danych',
+        );
 
-        // Dodatkowy rebuild dla wszystkich zakładek
-        if (mounted) {
-          setState(() {
-            // Wymuszamy rebuild aby wszystkie obliczone wartości były aktualne
-          });
+        try {
+          await _modalService.clearAllCache();
+          debugPrint('✅ [ProductDetailsModal] Cache wyczyszczony');
+        } catch (e) {
+          debugPrint('⚠️ [ProductDetailsModal] Błąd czyszczenia cache: $e');
         }
+
+        await _loadModalData(forceRefresh: true);
+        debugPrint('✅ [ProductDetailsModal] onRefresh ukończony');
       },
     );
   }
 
-  Widget _buildAmountsSection(BuildContext context, bool isMobile) {
+  Widget _buildAmountsSection(
+    BuildContext context,
+    bool isMobile,
+    bool isTablet,
+  ) {
+    final horizontalPadding = isMobile ? 12.0 : (isTablet ? 16.0 : 20.0);
+    final verticalPadding = isMobile ? 16.0 : 20.0;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: AppTheme.elevatedSurfaceDecoration,
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: verticalPadding,
+      ),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundSecondary.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
+        border: Border.all(
+          color: AppTheme.borderPrimary.withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -439,15 +577,16 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: AppTheme.textPrimary,
               fontWeight: FontWeight.w700,
+              fontSize: isMobile ? 16 : (isTablet ? 18 : 20),
             ),
           ),
 
-          const SizedBox(height: 16),
+          SizedBox(height: isMobile ? 12 : 16),
 
           if (isMobile)
             _buildAmountsMobileLayout(context)
           else
-            _buildAmountsDesktopLayout(context),
+            _buildAmountsDesktopLayout(context, isTablet),
         ],
       ),
     );
@@ -487,7 +626,12 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
-  Widget _buildAmountsDesktopLayout(BuildContext context) {
+  Widget _buildAmountsDesktopLayout(BuildContext context, bool isTablet) {
+    final cardSpacing = isTablet ? 12.0 : 16.0;
+    final cardPadding = isTablet
+        ? const EdgeInsets.all(12)
+        : const EdgeInsets.all(16);
+
     return Column(
       children: [
         Row(
@@ -498,9 +642,10 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                 value: CurrencyFormatter.formatCurrency(_totalInvestmentAmount),
                 icon: Icons.trending_down,
                 color: AppTheme.infoPrimary,
+                padding: cardPadding,
               ),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: cardSpacing),
             Expanded(
               child: AmountCard(
                 title: 'Kapitał pozostały',
@@ -508,12 +653,13 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                 icon: Icons.account_balance_wallet,
                 color: AppTheme.successPrimary,
                 isHighlight: true,
+                padding: cardPadding,
               ),
             ),
           ],
         ),
 
-        const SizedBox(height: 16),
+        SizedBox(height: cardSpacing),
 
         AmountCard(
           title: 'Kapitał zabezpieczony nieruchomością',
@@ -522,15 +668,22 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           ),
           icon: Icons.home,
           color: AppTheme.warningPrimary,
+          padding: cardPadding,
         ),
       ],
     );
   }
 
-  Widget _buildDetailsSection(BuildContext context, bool isMobile) {
+  Widget _buildDetailsSection(
+    BuildContext context,
+    bool isMobile,
+    bool isTablet,
+  ) {
+    final padding = EdgeInsets.all(isMobile ? 16 : 20);
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: padding,
       decoration: AppTheme.elevatedSurfaceDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,14 +693,15 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: AppTheme.textPrimary,
               fontWeight: FontWeight.w700,
+              fontSize: isMobile ? 16 : 18,
             ),
           ),
 
-          const SizedBox(height: 16),
+          SizedBox(height: isMobile ? 12 : 16),
 
           ...widget.product.detailsList.map((detail) {
             return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: EdgeInsets.only(bottom: isMobile ? 8 : 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -558,10 +712,11 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                       detail.key,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppTheme.textSecondary,
+                        fontSize: isMobile ? 13 : 14,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  SizedBox(width: isMobile ? 12 : 16),
                   Expanded(
                     flex: isMobile ? 2 : 1,
                     child: Text(
@@ -569,6 +724,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppTheme.textPrimary,
                         fontWeight: FontWeight.w600,
+                        fontSize: isMobile ? 13 : 14,
                       ),
                       textAlign: TextAlign.right,
                     ),
@@ -582,7 +738,11 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
-  Widget _buildBondsSpecificSection(BuildContext context, bool isMobile) {
+  Widget _buildBondsSpecificSection(
+    BuildContext context,
+    bool isMobile,
+    bool isTablet,
+  ) {
     if (widget.product.realizedCapital == null &&
         widget.product.remainingCapital == null &&
         widget.product.realizedInterest == null &&
@@ -736,7 +896,11 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
-  Widget _buildSharesSpecificSection(BuildContext context, bool isMobile) {
+  Widget _buildSharesSpecificSection(
+    BuildContext context,
+    bool isMobile,
+    bool isTablet,
+  ) {
     if (widget.product.sharesCount == null &&
         widget.product.pricePerShare == null) {
       return const SizedBox.shrink();
@@ -783,18 +947,25 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
-  Widget _buildSourceInfoBar(UnifiedProduct product) {
+  Widget _buildSourceInfoBar(
+    UnifiedProduct product,
+    bool isMobile,
+    bool isTablet,
+  ) {
+    final padding = EdgeInsets.all(isMobile ? 10 : 14);
+    final spacing = isMobile ? 8.0 : 16.0;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: padding,
       decoration: BoxDecoration(
         color: AppTheme.backgroundSecondary.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppTheme.borderSecondary),
       ),
       child: Wrap(
-        spacing: 16,
-        runSpacing: 8,
+        spacing: spacing,
+        runSpacing: isMobile ? 4 : 8,
         children: [
           MetaChip(icon: Icons.tag, text: 'ID: ${product.id}'),
           MetaChip(icon: Icons.source, text: 'Źródło: ${product.sourceFile}'),
@@ -813,7 +984,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
-  Widget _buildOverviewTab(BuildContext context, bool isMobile) {
+  Widget _buildOverviewTab(BuildContext context, bool isMobile, bool isTablet) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -841,7 +1012,11 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
-  Widget _buildAnalyticsTab(BuildContext context, bool isMobile) {
+  Widget _buildAnalyticsTab(
+    BuildContext context,
+    bool isMobile,
+    bool isTablet,
+  ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -870,9 +1045,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   }
 
   Widget _buildMainStatsCards(BuildContext context, bool isMobile) {
-    final totalInvestors = _investors.length;
-    // ⭐ POPRAWKA: Używaj nowych getterów do sumowania wartości z inwestorów
-    final totalRemainingCapital = _totalRemainingCapital;
+    final stats = _statistics;
+    final totalInvestors = stats.totalInvestors;
+    final totalRemainingCapital = stats.totalRemainingCapital;
 
     return GridView.count(
       crossAxisCount: isMobile ? 2 : 4,
@@ -890,7 +1065,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         ),
         StatCard(
           title: 'Suma inwestycji',
-          value: CurrencyFormatter.formatCurrencyShort(_totalInvestmentAmount),
+          value: CurrencyFormatter.formatCurrencyShort(
+            stats.totalInvestmentAmount,
+          ),
           icon: Icons.trending_down,
           color: AppTheme.infoPrimary,
         ),
@@ -903,7 +1080,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         StatCard(
           title: 'Zabezpiecz. nieru.',
           value: CurrencyFormatter.formatCurrencyShort(
-            _totalCapitalSecuredByRealEstate,
+            stats.totalCapitalSecuredByRealEstate,
           ),
           icon: Icons.home,
           color: AppTheme.warningPrimary,
@@ -1237,13 +1414,10 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   }
 
   Widget _buildPerformanceMetrics(BuildContext context, bool isMobile) {
-    // ⭐ POPRAWKA: Oblicz profit/loss z danych inwestorów
-    final totalInvestmentAmount = _totalInvestmentAmount;
-    final totalRemainingCapital = _totalRemainingCapital;
-    final profitLoss = totalRemainingCapital - totalInvestmentAmount;
-    final profitLossPercentage = totalInvestmentAmount > 0
-        ? (profitLoss / totalInvestmentAmount) * 100
-        : 0.0;
+    // 🎯 NOWY: Użyj statystyk z centralnego serwisu
+    final stats = _statistics;
+    final profitLoss = stats.profitLoss;
+    final profitLossPercentage = stats.profitLossPercentage;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1293,9 +1467,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
             PerformanceCard(
               title: 'Średnia na inwestora',
               value: CurrencyFormatter.formatCurrencyShort(
-                _investors.isNotEmpty
-                    ? _totalRemainingCapital / _investors.length
-                    : 0,
+                stats.averageCapitalPerInvestor,
               ),
               color: AppTheme.primaryAccent,
               icon: Icons.person,
@@ -1307,8 +1479,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   }
 
   Widget _buildInvestorAnalytics(BuildContext context, bool isMobile) {
-    final activeInvestors = _investors.where((i) => i.client.isActive).length;
-    final inactiveInvestors = _investors.length - activeInvestors;
+    final stats = _statistics;
+    final activeInvestors = stats.activeInvestors;
+    final inactiveInvestors = stats.inactiveInvestors;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1450,20 +1623,5 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         ),
       ],
     );
-  }
-
-  IconData _getProductIcon() {
-    switch (widget.product.productType) {
-      case UnifiedProductType.bonds:
-        return Icons.account_balance;
-      case UnifiedProductType.shares:
-        return Icons.trending_up;
-      case UnifiedProductType.loans:
-        return Icons.handshake;
-      case UnifiedProductType.apartments:
-        return Icons.home;
-      case UnifiedProductType.other:
-        return Icons.category;
-    }
   }
 }

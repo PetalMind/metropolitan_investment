@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
+import '../../services/universal_investment_service.dart' as universal;
 import '../investor_edit/currency_controls.dart';
 import '../investor_edit/investments_summary.dart';
 import '../investor_edit/investment_edit_card.dart';
@@ -63,11 +64,14 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
       vsync: this,
     );
     _tabController.addListener(() {
-      setState(() {
-        _currentTabIndex = _tabController.index;
-      });
+      if (mounted) {
+        setState(() {
+          _currentTabIndex = _tabController.index;
+        });
+      }
     });
 
+    // 🎯 FORCE FRESH DATA: Rozpocznij od świeżych danych zamiast starych z widget.investor
     _initializeData();
   }
 
@@ -79,25 +83,209 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
   }
 
   void _initializeData() {
-    // Znajdź inwestycje dla produktu
-    _editableInvestments = _editService.findInvestmentsForProduct(
-      widget.investor,
-      widget.product,
-    );
+    // 🎯 IMPROVED: Inicjalizuj bezpośrednio ze świeżymi danymi zamiast szukania
+    _loadFreshInvestmentData();
+  }
 
-    if (_editableInvestments.isEmpty) {
+  /// 🚀 NOWA METODA: Ładuje świeże dane bezpośrednio z UniversalInvestmentService
+  Future<void> _loadFreshInvestmentData() async {
+    try {
+      debugPrint(
+        '🔄 [InvestorEditDialog] Loading fresh investment data for product: ${widget.product.name}',
+      );
+
+      // Znajdź inwestycje używając podstawowego dopasowania
+      final potentialInvestments = widget.investor.investments.where((inv) {
+        // Podstawowe dopasowanie po nazwie produktu
+        final nameMatch =
+            inv.productName.trim().toLowerCase() ==
+            widget.product.name.trim().toLowerCase();
+
+        if (nameMatch) {
+          debugPrint(
+            '🎯 [InvestorEditDialog] Found potential match: ${inv.id} (${inv.productName})',
+          );
+          return true;
+        }
+        return false;
+      }).toList();
+
+      if (potentialInvestments.isEmpty) {
+        setState(() {
+          _state = _state.copyWith(
+            error: 'Nie znaleziono inwestycji dla tego produktu',
+          );
+        });
+        return;
+      }
+
+      // Pobierz świeże dane dla znalezionych inwestycji
+      final investmentIds = potentialInvestments.map((inv) => inv.id).toList();
+      debugPrint(
+        '🔍 [InvestorEditDialog] Fetching fresh data for investments: $investmentIds',
+      );
+
+      final universalService = universal.UniversalInvestmentService.instance;
+      await universalService.clearAllCache(); // Force fresh fetch
+
+      final freshInvestments = await universalService.getInvestments(
+        investmentIds,
+      );
+
+      if (freshInvestments.isEmpty) {
+        debugPrint(
+          '⚠️ [InvestorEditDialog] No fresh data found, using potential investments',
+        );
+        debugPrint(
+          '⚠️ [InvestorEditDialog] This might cause data inconsistency - investigating...',
+        );
+        _editableInvestments = potentialInvestments;
+      } else {
+        debugPrint(
+          '✅ [InvestorEditDialog] Using fresh data for ${freshInvestments.length} investments',
+        );
+
+        // 🔍 DIAGNOSTICS: Compare fresh vs potential data
+        for (
+          int i = 0;
+          i < freshInvestments.length && i < potentialInvestments.length;
+          i++
+        ) {
+          final fresh = freshInvestments[i];
+          final potential = potentialInvestments[i];
+
+          if (fresh.id == potential.id) {
+            debugPrint(
+              '🔍 [InvestorEditDialog] Data comparison for ${fresh.id}:',
+            );
+            debugPrint(
+              '   FRESH:     remainingCapital=${fresh.remainingCapital}, investmentAmount=${fresh.investmentAmount}',
+            );
+            debugPrint(
+              '   POTENTIAL: remainingCapital=${potential.remainingCapital}, investmentAmount=${potential.investmentAmount}',
+            );
+
+            if (fresh.remainingCapital != potential.remainingCapital ||
+                fresh.investmentAmount != potential.investmentAmount) {
+              debugPrint(
+                '⚠️ [InvestorEditDialog] DATA MISMATCH DETECTED - using fresh data',
+              );
+            }
+          }
+        }
+
+        _editableInvestments = freshInvestments;
+      }
+
+      // Loguj finalne dane
+      for (int i = 0; i < _editableInvestments.length; i++) {
+        final inv = _editableInvestments[i];
+        debugPrint('📊 [InvestorEditDialog] Final investment $i: ${inv.id}');
+        debugPrint('   - remainingCapital: ${inv.remainingCapital}');
+        debugPrint('   - investmentAmount: ${inv.investmentAmount}');
+        debugPrint(
+          '   - capitalForRestructuring: ${inv.capitalForRestructuring}',
+        );
+        debugPrint(
+          '   - capitalSecuredByRealEstate: ${inv.capitalSecuredByRealEstate}',
+        );
+        debugPrint('   - updatedAt: ${inv.updatedAt.toIso8601String()}');
+      }
+
+      _setupControllers();
+    } catch (e) {
+      debugPrint(
+        '❌ [InvestorEditDialog] Error loading fresh investment data: $e',
+      );
       setState(() {
         _state = _state.copyWith(
-          error: 'Nie znaleziono inwestycji dla tego produktu',
+          error: 'Błąd podczas ładowania danych inwestycji',
         );
       });
-      return;
     }
+  }
 
-    _setupControllers();
+  /// Reloads investment data from Firebase and updates controllers
+  Future<void> _reloadInvestmentData() async {
+    try {
+      debugPrint('🔄 [InvestorEditDialog] Starting investment data reload...');
+
+      // Give Firebase time to propagate changes (longer delay for consistency)
+      await Future.delayed(const Duration(milliseconds: 1000));
+
+      // 🎯 UNIFIED: Clear all caches to ensure consistency with product views
+      await _editService.clearInvestmentCache();
+
+      // 🚀 FORCE FRESH FETCH: Bypass all caching for this critical operation
+      final universalService = universal.UniversalInvestmentService.instance;
+      await universalService.clearAllCache();
+
+      // Re-fetch specific investments directly by their IDs (most reliable approach)
+      final originalInvestmentIds = _editableInvestments
+          .map((inv) => inv.id)
+          .toList();
+      debugPrint(
+        '� [InvestorEditDialog] Re-fetching investments by IDs: $originalInvestmentIds',
+      );
+
+      final freshInvestments = await universalService.getInvestments(
+        originalInvestmentIds,
+      );
+
+      if (freshInvestments.isEmpty) {
+        debugPrint(
+          '⚠️ [InvestorEditDialog] No fresh investments found, keeping original data',
+        );
+        return;
+      }
+
+      // Update the editable investments with fresh data
+      _editableInvestments = freshInvestments;
+
+      debugPrint(
+        '🔄 [InvestorEditDialog] Updated with ${_editableInvestments.length} fresh investments',
+      );
+
+      // Log the fresh values with detailed comparison
+      for (int i = 0; i < _editableInvestments.length; i++) {
+        final inv = _editableInvestments[i];
+        debugPrint('📊 [InvestorEditDialog] Fresh investment $i: ${inv.id}');
+        debugPrint('   - remainingCapital: ${inv.remainingCapital}');
+        debugPrint('   - investmentAmount: ${inv.investmentAmount}');
+        debugPrint(
+          '   - capitalForRestructuring: ${inv.capitalForRestructuring}',
+        );
+        debugPrint(
+          '   - capitalSecuredByRealEstate: ${inv.capitalSecuredByRealEstate}',
+        );
+        debugPrint('   - updatedAt: ${inv.updatedAt.toIso8601String()}');
+      }
+
+      // Dispose old controllers and create new ones with fresh data
+      _controllers.dispose();
+      _setupControllers();
+
+      // Force UI update
+      if (mounted) {
+        setState(() {
+          _state = _state.resetChanges();
+        });
+      }
+
+      debugPrint(
+        '✅ [InvestorEditDialog] Investment data reloaded successfully with fresh values',
+      );
+    } catch (e) {
+      debugPrint('❌ [InvestorEditDialog] Error reloading investment data: $e');
+      // Continue without error - dialog will still function with old data
+    }
   }
 
   void _setupControllers() {
+    debugPrint(
+      '🔧 [InvestorEditDialog] Setting up controllers for ${_editableInvestments.length} investments',
+    );
+
     // Utwórz kontrolery
     final remainingCapitalControllers = <TextEditingController>[];
     final investmentAmountControllers = <TextEditingController>[];
@@ -106,33 +294,53 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     final statusValues = <InvestmentStatus>[];
 
     for (final investment in _editableInvestments) {
+      debugPrint(
+        '🔧 [InvestorEditDialog] Setting up controller for investment: ${investment.id}',
+      );
+      debugPrint('   - SOURCE DATA:');
+      debugPrint('     * remainingCapital: ${investment.remainingCapital}');
+      debugPrint('     * investmentAmount: ${investment.investmentAmount}');
+      debugPrint(
+        '     * capitalForRestructuring: ${investment.capitalForRestructuring}',
+      );
+      debugPrint(
+        '     * capitalSecuredByRealEstate: ${investment.capitalSecuredByRealEstate}',
+      );
+      debugPrint('     * updatedAt: ${investment.updatedAt.toIso8601String()}');
+
+      final remainingCapitalFormatted = _editService.formatValueForController(
+        investment.remainingCapital,
+      );
+      final investmentAmountFormatted = _editService.formatValueForController(
+        investment.investmentAmount,
+      );
+      final capitalForRestructuringFormatted = _editService
+          .formatValueForController(investment.capitalForRestructuring);
+      final capitalSecuredFormatted = _editService.formatValueForController(
+        investment.capitalSecuredByRealEstate,
+      );
+
+      debugPrint('   - FORMATTED FOR CONTROLLERS:');
+      debugPrint('     * remainingCapital: "$remainingCapitalFormatted"');
+      debugPrint('     * investmentAmount: "$investmentAmountFormatted"');
+      debugPrint(
+        '     * capitalForRestructuring: "$capitalForRestructuringFormatted"',
+      );
+      debugPrint(
+        '     * capitalSecuredByRealEstate: "$capitalSecuredFormatted"',
+      );
+
       remainingCapitalControllers.add(
-        TextEditingController(
-          text: _editService.formatValueForController(
-            investment.remainingCapital,
-          ),
-        ),
+        TextEditingController(text: remainingCapitalFormatted),
       );
       investmentAmountControllers.add(
-        TextEditingController(
-          text: _editService.formatValueForController(
-            investment.investmentAmount,
-          ),
-        ),
+        TextEditingController(text: investmentAmountFormatted),
       );
       capitalForRestructuringControllers.add(
-        TextEditingController(
-          text: _editService.formatValueForController(
-            investment.capitalForRestructuring,
-          ),
-        ),
+        TextEditingController(text: capitalForRestructuringFormatted),
       );
       capitalSecuredControllers.add(
-        TextEditingController(
-          text: _editService.formatValueForController(
-            investment.capitalSecuredByRealEstate,
-          ),
-        ),
+        TextEditingController(text: capitalSecuredFormatted),
       );
       statusValues.add(investment.status);
     }
@@ -159,6 +367,14 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     // Ustaw listenery
     _setupListeners();
 
+    // 🧮 INITIAL CALCULATION: Oblicz kapitał pozostały dla wszystkich inwestycji na starcie
+    for (int i = 0; i < _editableInvestments.length; i++) {
+      debugPrint(
+        '🔢 [InvestorEditDialog] Performing initial calculation for investment ${i + 1}',
+      );
+      _calculateAutomaticValues(i);
+    }
+
     // Zaktualizuj stan
     setState(() {
       _state = _state.copyWith(originalTotalProductAmount: totalAmount);
@@ -168,18 +384,40 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
   void _setupListeners() {
     // Listenery dla kontrolerów inwestycji
     for (int i = 0; i < _editableInvestments.length; i++) {
-      _controllers.remainingCapitalControllers[i].addListener(_onDataChanged);
+      // ⚠️ WAŻNE: NIE dodajemy listenera do remainingCapitalControllers - to pole jest obliczane automatycznie
+
+      // Listener dla kwoty inwestycji
       _controllers.investmentAmountControllers[i].addListener(() {
         _onDataChanged();
         _calculateAutomaticValues(i);
       });
+
+      // Listener dla kapitału do restrukturyzacji - automatycznie przeliczy kapitał pozostały
       _controllers.capitalForRestructuringControllers[i].addListener(() {
+        debugPrint(
+          '🔄 [InvestorEditDialog] Capital for restructuring changed for investment ${i + 1}',
+        );
+        debugPrint(
+          '   New value: "${_controllers.capitalForRestructuringControllers[i].text}"',
+        );
         _onDataChanged();
-        _calculateAutomaticValues(i);
+        _calculateAutomaticValues(
+          i,
+        ); // ← To automatycznie obliczy kapitał pozostały
       });
+
+      // Listener dla kapitału zabezpieczonego - automatycznie przeliczy kapitał pozostały
       _controllers.capitalSecuredByRealEstateControllers[i].addListener(() {
+        debugPrint(
+          '🔄 [InvestorEditDialog] Capital secured changed for investment ${i + 1}',
+        );
+        debugPrint(
+          '   New value: "${_controllers.capitalSecuredByRealEstateControllers[i].text}"',
+        );
         _onDataChanged();
-        _calculateAutomaticValues(i);
+        _calculateAutomaticValues(
+          i,
+        ); // ← To automatycznie obliczy kapitał pozostały
       });
     }
 
@@ -190,9 +428,11 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
   }
 
   void _onDataChanged() {
-    setState(() {
-      _state = _state.withChanges();
-    });
+    if (mounted) {
+      setState(() {
+        _state = _state.withChanges();
+      });
+    }
   }
 
   void _onTotalAmountChanged() {
@@ -208,9 +448,11 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     // Sprawdź czy wartość rzeczywiście się zmieniła
     if ((newTotalAmount - _state.originalTotalProductAmount).abs() < 0.01) {
       if (_state.pendingTotalAmountChange != null) {
-        setState(() {
-          _state = _state.copyWith(pendingTotalAmountChange: null);
-        });
+        if (mounted) {
+          setState(() {
+            _state = _state.copyWith(pendingTotalAmountChange: null);
+          });
+        }
       }
       return;
     }
@@ -221,12 +463,14 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     );
     debugPrint('   - Nowa kwota: ${newTotalAmount.toStringAsFixed(2)}');
 
-    setState(() {
-      _state = _state.copyWith(
-        pendingTotalAmountChange: newTotalAmount,
-        isChanged: true,
-      );
-    });
+    if (mounted) {
+      setState(() {
+        _state = _state.copyWith(
+          pendingTotalAmountChange: newTotalAmount,
+          isChanged: true,
+        );
+      });
+    }
   }
 
   void _calculateAutomaticValues(int index) {
@@ -247,35 +491,57 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
       capitalSecuredText,
     );
 
-    // Oblicz kapitał pozostały
-    final calculatedRemainingCapital = _editService.calculateRemainingCapital(
-      capitalSecured,
-      capitalForRestructuring,
+    // 🧮 AUTOMATIC CALCULATION: Kapitał pozostały = Kapitał zabezpieczony + Kapitał do restrukturyzacji
+    final calculatedRemainingCapital = capitalSecured + capitalForRestructuring;
+
+    debugPrint(
+      '🧮 [InvestorEditDialog] Auto-calculating remaining capital for investment ${index + 1}:',
+    );
+    debugPrint(
+      '   - Kapitał zabezpieczony: ${capitalSecured.toStringAsFixed(2)}',
+    );
+    debugPrint(
+      '   - Kapitał do restrukturyzacji: ${capitalForRestructuring.toStringAsFixed(2)}',
+    );
+    debugPrint(
+      '   - Obliczony kapitał pozostały: ${calculatedRemainingCapital.toStringAsFixed(2)}',
     );
 
-    // Aktualizuj pole pozostałego kapitału
-    final currentRemainingCapital = _editService.parseValueFromController(
-      _controllers.remainingCapitalControllers[index].text,
+    // Aktualizuj pole pozostałego kapitału ZAWSZE (jest to pole kalkulowane automatycznie)
+    final newRemainingCapitalText = _editService.formatValueForController(
+      calculatedRemainingCapital,
     );
 
-    if ((calculatedRemainingCapital - currentRemainingCapital).abs() > 0.01) {
-      _controllers.remainingCapitalControllers[index].text = _editService
-          .formatValueForController(calculatedRemainingCapital);
+    // Sprawdź czy wartość rzeczywiście się zmieniła, żeby uniknąć nieskończonych pętli
+    if (_controllers.remainingCapitalControllers[index].text !=
+        newRemainingCapitalText) {
+      debugPrint(
+        '📝 [InvestorEditDialog] Updating remaining capital: ${_controllers.remainingCapitalControllers[index].text} → $newRemainingCapitalText',
+      );
+      _controllers.remainingCapitalControllers[index].text =
+          newRemainingCapitalText;
     }
 
-    // Sprawdź zgodność z kwotą inwestycji
-    if ((calculatedRemainingCapital - investmentAmount).abs() > 0.01) {
+    // 📊 WALIDACJA: Sprawdź zgodność z kwotą inwestycji (tylko ostrzeżenie, nie blokuje)
+    final difference = (calculatedRemainingCapital - investmentAmount).abs();
+    if (difference > 0.01) {
       debugPrint(
-        '⚠️ [RefactoredDialog] Niezgodność sum dla inwestycji ${index + 1}',
+        '⚠️ [InvestorEditDialog] Uwaga: Suma kapitałów (${calculatedRemainingCapital.toStringAsFixed(2)}) różni się od kwoty inwestycji (${investmentAmount.toStringAsFixed(2)}) o ${difference.toStringAsFixed(2)}',
+      );
+    } else {
+      debugPrint(
+        '✅ [InvestorEditDialog] Kapitały są zgodne z kwotą inwestycji',
       );
     }
   }
 
   void _onStatusChanged(int index, InvestmentStatus newStatus) {
-    setState(() {
-      _controllers.statusValues[index] = newStatus;
-      _state = _state.withChanges();
-    });
+    if (mounted) {
+      setState(() {
+        _controllers.statusValues[index] = newStatus;
+        _state = _state.withChanges();
+      });
+    }
   }
 
   @override
@@ -526,9 +792,11 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
           fontSize: 16,
         ),
         onTap: (index) {
-          setState(() {
-            _currentTabIndex = index;
-          });
+          if (mounted) {
+            setState(() {
+              _currentTabIndex = index;
+            });
+          }
         },
         tabs: [
           Tab(icon: Icon(Icons.edit, size: 20), text: 'Edycja Inwestycji'),
@@ -1379,9 +1647,11 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
         // Odśwież dane externally
         widget.onSaved();
 
-        setState(() {
-          _state = _state.withLoading(false);
-        });
+        if (mounted) {
+          setState(() {
+            _state = _state.withLoading(false);
+          });
+        }
         return;
       }
 
@@ -1411,26 +1681,51 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
           );
         }
 
-        // Odśwież dane externally
+        // 🎯 UNIFIED: Odśwież dane externally z forceRefresh
         widget.onSaved();
 
-        setState(() {
-          _state = _state.resetChanges().withLoading(false);
-        });
+        // 🎯 UNIFIED: Reload investment data to show fresh values in the dialog
+        await _reloadInvestmentData();
+
+        // 🔔 DODATKOWO: Pokaż informację o tym ile inwestycji zostało zaktualizowanych
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '📊 Zaktualizowano ${_editableInvestments.length} inwestycji z najnowszymi danymi',
+              ),
+              backgroundColor: AppThemePro.sharesGreen,
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+
+        if (mounted) {
+          setState(() {
+            _state = _state.resetChanges().withLoading(false);
+          });
+        }
       } else {
-        setState(() {
-          _state = _state
-              .withLoading(false)
-              .copyWith(error: 'Błąd podczas zapisywania zmian');
-        });
+        if (mounted) {
+          setState(() {
+            _state = _state
+                .withLoading(false)
+                .copyWith(error: 'Błąd podczas zapisywania zmian');
+          });
+        }
       }
     } catch (e) {
       debugPrint('❌ [RefactoredDialog] Błąd podczas zapisywania: $e');
-      setState(() {
-        _state = _state
-            .withLoading(false)
-            .copyWith(error: 'Błąd podczas zapisywania zmian: ${e.toString()}');
-      });
+      if (mounted) {
+        setState(() {
+          _state = _state
+              .withLoading(false)
+              .copyWith(
+                error: 'Błąd podczas zapisywania zmian: ${e.toString()}',
+              );
+        });
+      }
     }
   }
 
