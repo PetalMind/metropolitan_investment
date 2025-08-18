@@ -201,19 +201,19 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             ],
           ),
         ),
-        
+
         // Responsywny layout dla metryk
-        isMobile 
-          ? _buildMobileMetricsGrid(
-              totalInvestmentAmount, 
-              totalRemainingCapital, 
-              totalCapitalSecured
-            )
-          : _buildDesktopMetricsWrap(
-              totalInvestmentAmount, 
-              totalRemainingCapital, 
-              totalCapitalSecured
-            ),
+        isMobile
+            ? _buildMobileMetricsGrid(
+                totalInvestmentAmount,
+                totalRemainingCapital,
+                totalCapitalSecured,
+              )
+            : _buildDesktopMetricsWrap(
+                totalInvestmentAmount,
+                totalRemainingCapital,
+                totalCapitalSecured,
+              ),
       ],
     );
   }
@@ -229,9 +229,9 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             Expanded(child: _buildMetricLoadingCard()),
           ],
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // Drugi wiersz - jeden loading card na całą szerokość
         _buildMetricLoadingCard(),
       ],
@@ -283,9 +283,9 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             ),
           ],
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // Drugi wiersz - jedna karta na całą szerokość
         _buildCompactMetricCard(
           title: 'Kapitał zabezpieczony',
@@ -455,7 +455,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     if (_isEditModeEnabled) {
       // ⭐ NOWE: Automatycznie przełącz na tab "Inwestorzy" (index 1)
       widget.onTabChanged?.call(1);
-      
+
       _showSnackBar(
         'Tryb edycji włączony - kliknij na inwestora aby edytować',
         isError: false,
@@ -586,17 +586,11 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
 
         // Typ produktu
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 4,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.15),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.2),
-              width: 1,
-            ),
+            border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
           ),
           child: Text(
             widget.product.productType.displayName,
@@ -726,7 +720,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
           scale: value,
           child: Container(
             padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 12 : 16, 
+              horizontal: isMobile ? 12 : 16,
               vertical: isMobile ? 6 : 8,
             ),
             decoration: BoxDecoration(
@@ -970,12 +964,13 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                       Flexible(
                         child: Text(
                           title,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withOpacity(0.8),
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.2,
-                            fontSize: 11,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Colors.white.withOpacity(0.8),
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.2,
+                                fontSize: 11,
+                              ),
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,

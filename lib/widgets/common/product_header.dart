@@ -46,7 +46,9 @@ class ProductHeader extends StatelessWidget {
           topRight: Radius.circular(20),
         ),
       ),
-      child: isMobile ? _buildMobileLayout(context) : _buildDesktopLayout(context),
+      child: isMobile
+          ? _buildMobileLayout(context)
+          : _buildDesktopLayout(context),
     );
   }
 
@@ -242,7 +244,7 @@ class ProductHeader extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 6 : 8, 
+        horizontal: isMobile ? 6 : 8,
         vertical: isMobile ? 3 : 4,
       ),
       decoration: BoxDecoration(

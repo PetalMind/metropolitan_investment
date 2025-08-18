@@ -259,10 +259,15 @@ class UnifiedProductService extends BaseService {
       id: id,
       name:
           data['productName']?.toString() ??
+          data['produkt_nazwa']?.toString() ??
           data['clientName']?.toString() ??
           'Unnamed Product',
       productType: _mapProductType(data['productType']),
-      investmentAmount: safeToDouble(data['investmentAmount']),
+      investmentAmount: () {
+        final value = safeToDouble(data['kwota_inwestycji'] ?? data['investmentAmount']);
+        debugPrint('🔍 [UnifiedProductService] Investment amount for $id: kwota_inwestycji=${data['kwota_inwestycji']}, investmentAmount=${data['investmentAmount']}, result=$value');
+        return value;
+      }(),
       createdAt: parseDate(data['createdAt']) ?? DateTime.now(),
       uploadedAt: parseDate(data['updatedAt']) ?? DateTime.now(),
       sourceFile:
@@ -277,11 +282,15 @@ class UnifiedProductService extends BaseService {
         'employeeLastName': data['employeeLastName']?.toString() ?? '',
         'branchCode': data['branchCode']?.toString() ?? '',
       },
-      realizedCapital: safeToDouble(data['realizedCapital']),
-      remainingCapital: safeToDouble(data['remainingCapital']),
-      realizedInterest: safeToDouble(data['realizedInterest']),
+      realizedCapital: safeToDouble(data['kapital_zrealizowany'] ?? data['realizedCapital']),
+      remainingCapital: () {
+        final value = safeToDouble(data['kapital_pozostaly'] ?? data['remainingCapital']);
+        debugPrint('🔍 [UnifiedProductService] Remaining capital for $id: kapital_pozostaly=${data['kapital_pozostaly']}, remainingCapital=${data['remainingCapital']}, result=$value');
+        return value;
+      }(),
+      realizedInterest: safeToDouble(data['odsetki_zrealizowane'] ?? data['realizedInterest']),
       remainingInterest: safeToDouble(data['remainingInterest']),
-      realizedTax: safeToDouble(data['realizedTax']),
+      realizedTax: safeToDouble(data['zrealizowany_podatek'] ?? data['realizedTax']),
       transferToOtherProduct: safeToDouble(data['transferToOtherProduct']),
       sharesCount: data['sharesCount'] != null
           ? int.tryParse(data['sharesCount'].toString())
