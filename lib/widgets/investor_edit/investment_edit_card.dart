@@ -114,7 +114,8 @@ class InvestmentEditCard extends StatelessWidget {
                       color: AppThemePro.profitGreen,
                       isEditable: false, // 🔒 ZABLOKOWANE: Kwota inwestycji nie może być edytowana
                       helpText: 'Wartość podstawowa inwestycji',
-                      originalValue: investment.investmentAmount, // 🚀 NOWE: Oryginalna wartość
+                      investmentId: investment.id, // 🚀 NOWE: ID inwestycji
+                      fieldName: 'investmentAmount', // 🚀 NOWE: Nazwa pola
                       showChangeIndicator: true, // 🚀 NOWE: Pokaż wskaźnik zmian
                     ),
                   ),
@@ -128,7 +129,8 @@ class InvestmentEditCard extends StatelessWidget {
                       isEditable: false,
                       helpText: 'Obliczane automatycznie',
                       calculationFormula: 'Zabezpieczony + Restrukturyzacja', // 🚀 NOWE: Wzór
-                      originalValue: investment.remainingCapital, // 🚀 NOWE: Oryginalna wartość
+                      investmentId: investment.id, // 🚀 NOWE: ID inwestycji
+                      fieldName: 'remainingCapital', // 🚀 NOWE: Nazwa pola
                       showChangeIndicator: true, // 🚀 NOWE: Pokaż wskaźnik zmian
                     ),
                   ),
@@ -147,7 +149,8 @@ class InvestmentEditCard extends StatelessWidget {
                       icon: Icons.security,
                       color: AppThemePro.statusSuccess,
                       onChanged: onChanged,
-                      originalValue: investment.capitalSecuredByRealEstate, // 🚀 NOWE: Oryginalna wartość
+                      investmentId: investment.id, // 🚀 NOWE: ID inwestycji
+                      fieldName: 'capitalSecuredByRealEstate', // 🚀 NOWE: Nazwa pola
                       showChangeIndicator: true, // 🚀 NOWE: Pokaż wskaźnik zmian
                       helpText: 'Kapitał zabezpieczony nieruchomością', // 🚀 NOWE: Lepszy opis
                     ),
@@ -160,7 +163,8 @@ class InvestmentEditCard extends StatelessWidget {
                       icon: Icons.construction,
                       color: AppThemePro.statusWarning,
                       onChanged: onChanged,
-                      originalValue: investment.capitalForRestructuring, // 🚀 NOWE: Oryginalna wartość
+                      investmentId: investment.id, // 🚀 NOWE: ID inwestycji
+                      fieldName: 'capitalForRestructuring', // 🚀 NOWE: Nazwa pola
                       showChangeIndicator: true, // 🚀 NOWE: Pokaż wskaźnik zmian
                       helpText: 'Kapitał przeznaczony na restrukturyzację', // 🚀 NOWE: Lepszy opis
                     ),
@@ -246,10 +250,6 @@ class InvestmentEditCard extends StatelessWidget {
           // 🚀 NOWE: Panel szybkich obliczeń w czasie rzeczywistym
           const SizedBox(height: 16),
           _buildCalculationPreviewPanel(),
-
-          // Historia zmian
-          const SizedBox(height: 12),
-          SizedBox(
             width: double.infinity,
             child: TextButton.icon(
               onPressed: () {

@@ -105,6 +105,7 @@ export 'services/enhanced_analytics_service.dart'; // 🚀 NOWE: Ulepszony serwi
 export 'services/analytics_migration_service.dart'; // 🚀 NOWE: Serwis migracji analityki
 export 'services/debug_firestore_service.dart';
 export 'services/investment_change_history_service.dart'; // 🚀 NOWE: Historia zmian inwestycji
+export 'services/investment_change_calculator_service.dart'; // 🚀 NOWE: Obliczanie zmian procentowych z historii
 export 'services/investor_edit_service.dart'; // 🚀 NOWE: Serwis logiki biznesowej dla edycji inwestora
 
 // Voting status change model

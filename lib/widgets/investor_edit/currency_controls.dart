@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../utils/currency_input_formatter.dart';
 import '../../theme/app_theme_professional.dart';
+import '../../models_and_services.dart';
 
 /// Widget dla pól edycji kwot walutowych z formatowaniem
 ///
@@ -9,8 +10,8 @@ import '../../theme/app_theme_professional.dart';
 /// - Walidację wartości
 /// - Spójny wygląd zgodny z AppThemePro
 /// - Obsługę tekstu pomocy
-/// - 🚀 NOWE: Wizualne wskaźniki zmian i automatyczne przeliczanie
-class CurrencyInputField extends StatelessWidget {
+/// - 🚀 NOWE: Wizualne wskaźniki zmian na podstawie rzeczywistej historii
+class CurrencyInputField extends StatefulWidget {
   final String label;
   final TextEditingController controller;
   final IconData icon;
@@ -19,7 +20,8 @@ class CurrencyInputField extends StatelessWidget {
   final String? helpText;
   final String? Function(String?)? validator;
   final VoidCallback? onChanged;
-  final double? originalValue; // 🚀 NOWE: Oryginalna wartość do porównania
+  final String? investmentId; // 🚀 NOWE: ID inwestycji do pobierania historii
+  final String? fieldName; // 🚀 NOWE: Nazwa pola do śledzenia zmian
   final String? calculationFormula; // 🚀 NOWE: Wzór obliczenia (np. "Zabezpieczony + Restrukturyzacja")
   final bool showChangeIndicator; // 🚀 NOWE: Czy pokazywać wskaźnik zmian
 
@@ -33,90 +35,109 @@ class CurrencyInputField extends StatelessWidget {
     this.helpText,
     this.validator,
     this.onChanged,
-    this.originalValue, // 🚀 NOWE: Oryginalna wartość do porównania
+    this.investmentId, // 🚀 NOWE: ID inwestycji do pobierania historii
+    this.fieldName, // 🚀 NOWE: Nazwa pola do śledzenia zmian
     this.calculationFormula, // 🚀 NOWE: Wzór obliczenia
     this.showChangeIndicator = false, // 🚀 NOWE: Wskaźnik zmian
   });
 
   @override
-  Widget build(BuildContext context) {
-    // 🧮 OBLICZ RÓŻNICĘ jeśli mamy originalValue
-    double? currentValue;
-    double? change;
-    double? changePercentage;
-    
-    if (originalValue != null) {
-      final text = controller.text.replaceAll(' ', '').replaceAll(',', '.');
-      currentValue = double.tryParse(text) ?? 0.0;
-      change = currentValue - originalValue!;
-      changePercentage = originalValue! != 0 ? (change / originalValue!) * 100 : 0.0;
+  State<CurrencyInputField> createState() => _CurrencyInputFieldState();
+}
+
+class _CurrencyInputFieldState extends State<CurrencyInputField> {
+  FieldChangeInfo? _fieldChangeInfo;
+  bool _isLoadingChange = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showChangeIndicator && 
+        widget.investmentId != null && 
+        widget.fieldName != null) {
+      _loadFieldChangeInfo();
     }
+  }
+  
+  /// Ładuje informacje o zmianach z historii
+  Future<void> _loadFieldChangeInfo() async {
+    if (_isLoadingChange) return;
+    
+    setState(() {
+      _isLoadingChange = true;
+    });
+    
+    try {
+      final calculator = InvestmentChangeCalculatorService();
+      final text = widget.controller.text.replaceAll(' ', '').replaceAll(',', '.');
+      final currentValue = double.tryParse(text) ?? 0.0;
+      
+      final changeInfo = await calculator.calculateFieldChange(
+        investmentId: widget.investmentId!,
+        fieldName: widget.fieldName!,
+        currentValue: currentValue,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _fieldChangeInfo = changeInfo;
+          _isLoadingChange = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ [CurrencyInputField] Error loading field change info: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingChange = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icon, size: 16, color: color),
+            Icon(widget.icon, size: 16, color: widget.color),
             const SizedBox(width: 8),
             Text(
-              label,
+              widget.label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: AppThemePro.textPrimary,
               ),
             ),
-            // 🚀 NOWE: Wskaźnik zmian
-            if (showChangeIndicator && change != null && change.abs() > 0.01) ...[
+            // 🚀 NOWE: Wskaźnik zmian na podstawie rzeczywistej historii
+            if (widget.showChangeIndicator && _fieldChangeInfo != null && _fieldChangeInfo!.changeAmount.abs() > 0.01) ...[
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: (change > 0 ? AppThemePro.profitGreen : AppThemePro.lossRed).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: (change > 0 ? AppThemePro.profitGreen : AppThemePro.lossRed).withValues(alpha: 0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      change > 0 ? Icons.trending_up : Icons.trending_down,
-                      size: 12,
-                      color: change > 0 ? AppThemePro.profitGreen : AppThemePro.lossRed,
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      '${changePercentage!.toStringAsFixed(1)}%',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: change > 0 ? AppThemePro.profitGreen : AppThemePro.lossRed,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _isLoadingChange
+                  ? _buildLoadingIndicator()
+                  : _buildChangeIndicator(_fieldChangeInfo!),
+            ] else if (widget.showChangeIndicator && _isLoadingChange) ...[
+              const SizedBox(width: 8),
+              _buildLoadingIndicator(),
             ],
           ],
         ),
         const SizedBox(height: 8),
         TextFormField(
-          controller: controller,
-          enabled: isEditable,
-          inputFormatters: isEditable ? [CurrencyInputFormatter()] : null,
+          controller: widget.controller,
+          enabled: widget.isEditable,
+          inputFormatters: widget.isEditable ? [CurrencyInputFormatter()] : null,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: isEditable
+            color: widget.isEditable
                 ? AppThemePro.textPrimary
                 : AppThemePro.textSecondary,
             fontWeight: FontWeight.w500,
           ),
           decoration: InputDecoration(
             filled: true,
-            fillColor: isEditable
+            fillColor: widget.isEditable
                 ? AppThemePro.backgroundSecondary
                 : AppThemePro.backgroundTertiary,
             border: OutlineInputBorder(
@@ -129,7 +150,7 @@ class CurrencyInputField extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: color, width: 2),
+              borderSide: BorderSide(color: widget.color, width: 2),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -149,17 +170,23 @@ class CurrencyInputField extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          validator: validator,
+          validator: widget.validator,
           onChanged: (value) {
-            if (onChanged != null) {
-              onChanged!();
+            if (widget.onChanged != null) {
+              widget.onChanged!();
+            }
+            // Przeładuj informacje o zmianach gdy wartość się zmieni
+            if (widget.showChangeIndicator && 
+                widget.investmentId != null && 
+                widget.fieldName != null) {
+              _loadFieldChangeInfo();
             }
           },
         ),
-        if (helpText != null) ...[
+        if (widget.helpText != null) ...[
           const SizedBox(height: 4),
           Text(
-            helpText!,
+            widget.helpText!,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppThemePro.textSecondary,
               fontStyle: FontStyle.italic,
@@ -167,7 +194,7 @@ class CurrencyInputField extends StatelessWidget {
           ),
         ],
         // 🚀 NOWE: Wzór obliczenia
-        if (calculationFormula != null) ...[
+        if (widget.calculationFormula != null) ...[
           const SizedBox(height: 6),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -189,7 +216,7 @@ class CurrencyInputField extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  calculationFormula!,
+                  widget.calculationFormula!,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppThemePro.accentGold,
                     fontWeight: FontWeight.w500,
@@ -201,6 +228,62 @@ class CurrencyInputField extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+
+  /// Widget wskaźnika ładowania
+  Widget _buildLoadingIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppThemePro.textMuted.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const SizedBox(
+        width: 12,
+        height: 12,
+        child: CircularProgressIndicator(
+          strokeWidth: 1.5,
+          valueColor: AlwaysStoppedAnimation<Color>(AppThemePro.textMuted),
+        ),
+      ),
+    );
+  }
+
+  /// Widget wskaźnika zmian
+  Widget _buildChangeIndicator(FieldChangeInfo changeInfo) {
+    final isPositive = changeInfo.isPositive;
+    final color = isPositive ? AppThemePro.profitGreen : AppThemePro.lossRed;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isPositive ? Icons.trending_up : Icons.trending_down,
+            size: 12,
+            color: color,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            '${changeInfo.changePercentage.abs().toStringAsFixed(1)}%',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
