@@ -100,6 +100,9 @@ export 'services/unified_statistics_utils.dart';
 export 'services/unified_statistics_service.dart'; // ZUNIFIKOWANY SERWIS (lokalny fallback)
 export 'services/server_side_statistics_service.dart'; // 🚀 SERWIS SERWEROWY (Firebase Functions)
 export 'services/unified_dashboard_statistics_service.dart'; // 🚀 NOWE: Zunifikowane statystyki dashboard
+export 'services/optimized_data_cache_service.dart'; // 🚀 NOWE: Zoptymalizowany cache danych
+export 'services/enhanced_analytics_service.dart'; // 🚀 NOWE: Ulepszony serwis analityki
+export 'services/analytics_migration_service.dart'; // 🚀 NOWE: Serwis migracji analityki
 export 'services/debug_firestore_service.dart';
 export 'services/investment_change_history_service.dart'; // 🚀 NOWE: Historia zmian inwestycji
 export 'services/investor_edit_service.dart'; // 🚀 NOWE: Serwis logiki biznesowej dla edycji inwestora

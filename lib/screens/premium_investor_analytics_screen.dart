@@ -40,6 +40,8 @@ class _PremiumInvestorAnalyticsScreenState
     extends State<PremiumInvestorAnalyticsScreen>
     with TickerProviderStateMixin {
   // 🎮 CORE SERVICES
+  final AnalyticsMigrationService _migrationService =
+      AnalyticsMigrationService(); // 🚀 NOWY: Zoptymalizowany serwis z migracją
   final FirebaseFunctionsPremiumAnalyticsService _premiumAnalyticsService =
       FirebaseFunctionsPremiumAnalyticsService(); // 🚀 NOWY: Premium Analytics Service
   final FirebaseFunctionsAnalyticsServiceUpdated _analyticsService =
@@ -362,9 +364,8 @@ class _PremiumInvestorAnalyticsScreenState
         );
       }
 
-      // 🔄 FALLBACK: Użyj starszego serwisu jako backup
-      final fallbackService = ia_service.InvestorAnalyticsService();
-      final fallbackResult = await fallbackService
+      // 🚀 OPTIMIZED FALLBACK: Użyj zoptymalizowanego serwisu z migracją
+      final fallbackResult = await _migrationService
           .getInvestorsSortedByRemainingCapital(
             page: _currentPage,
             pageSize: _pageSize,
@@ -374,6 +375,7 @@ class _PremiumInvestorAnalyticsScreenState
             votingStatusFilter: _selectedVotingStatus,
             clientTypeFilter: _selectedClientType,
             showOnlyWithUnviableInvestments: _showOnlyWithUnviableInvestments,
+            forceRefresh: _currentPage == 1, // Odśwież cache na pierwszej stronie
           );
 
       if (mounted) {
@@ -5396,5 +5398,76 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
         },
       ),
     );
+  }
+
+  // 🚀 NOWE METODY: Integracja z optymalizowanymi serwisami
+
+  /// Odświeża cache i reloaduje dane z nowym serwisem
+  Future<void> _refreshOptimizedCache() async {
+    try {
+      _migrationService.clearAllCache();
+      await _loadInitialData();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.rocket_launch, color: Colors.white),
+                SizedBox(width: 8),
+                Text('🚀 Cache odświeżony - używam zoptymalizowanych serwisów'),
+              ],
+            ),
+            backgroundColor: AppTheme.successPrimary,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Błąd odświeżania cache: $e'),
+            backgroundColor: AppTheme.errorPrimary,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Sprawdza status migracji do nowych serwisów
+  void _checkMigrationStatus() {
+    final status = _migrationService.getMigrationStatus();
+    print('📊 [Premium Analytics] Status migracji: $status');
+    
+    if (!status['useEnhancedServices']) {
+      print('⚠️ [Premium Analytics] Enhanced services wyłączone - używam legacy');
+    }
+  }
+
+  /// Wywołuje porównanie wydajności między starym a nowym serwisem
+  Future<void> _runPerformanceComparison() async {
+    try {
+      final comparison = await _migrationService.comparePerformance(
+        testIterations: 3,
+        pageSize: _pageSize,
+      );
+      
+      print('📊 [Performance] ${comparison.summary}');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('📊 ${comparison.summary}'),
+            backgroundColor: comparison.enhancedIsFaster 
+                ? AppTheme.successPrimary 
+                : AppTheme.warningPrimary,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ [Performance] Błąd porównania: $e');
+    }
   }
 }

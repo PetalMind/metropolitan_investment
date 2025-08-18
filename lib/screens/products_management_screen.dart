@@ -60,6 +60,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   _productManagementService; // 🚀 NOWY: Centralny serwis
   late final CacheManagementService
   _cacheManagementService; // 🚀 NOWY: Zarządzanie cache
+  late final AnalyticsMigrationService
+  _analyticsMigrationService; // 🚀 NOWY: Serwis migracji analityki
   late final AnimationController _fadeController;
   late final AnimationController _slideController;
   late final Animation<double> _fadeAnimation;
@@ -602,6 +604,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         ProductManagementService(); // 🚀 NOWY: Centralny serwis
     _cacheManagementService =
         CacheManagementService(); // 🚀 NOWY: Zarządzanie cache
+    _analyticsMigrationService =
+        AnalyticsMigrationService(); // 🚀 NOWY: Serwis migracji analityki
   }
 
   void _initializeAnimations() {
@@ -3415,6 +3419,53 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         ),
       ],
     );
+  }
+
+  // 🚀 NOWE METODY: Integracja z zoptymalizowanymi serwisami
+
+  /// Odświeża cache używając nowych zoptymalizowanych serwisów
+  Future<void> _refreshWithOptimizedServices() async {
+    try {
+      // Wyczyść cache wszystkich serwisów
+      _analyticsMigrationService.clearAllCache();
+      await _productManagementService.clearAllCache();
+      
+      // Reloaduj dane
+      await _loadInitialData();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.rocket_launch, color: Colors.white),
+                SizedBox(width: 8),
+                Text('🚀 Cache odświeżony z optymalizacjami'),
+              ],
+            ),
+            backgroundColor: AppTheme.successPrimary,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Błąd odświeżania: $e'),
+            backgroundColor: AppTheme.errorPrimary,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Sprawdza status cache wszystkich serwisów
+  void _checkCacheStatus() {
+    final migrationStatus = _analyticsMigrationService.getMigrationStatus();
+    print('📊 [Products] Status migracji analityki: $migrationStatus');
+    
+    print('📊 [Products] Cache ProductManagementService sprawdzony');
   }
 
   void _showAddProductDialog() {

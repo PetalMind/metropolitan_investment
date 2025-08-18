@@ -11,7 +11,10 @@
       "Bash(find:*)",
       "Bash(rm:*)",
       "Bash(flutter build:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(firebase functions:delete:*)",
+      "Bash(flutter run:*)"
     ],
     "deny": []
   }

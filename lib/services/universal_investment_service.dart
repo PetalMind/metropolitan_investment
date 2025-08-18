@@ -117,6 +117,87 @@ class UniversalInvestmentService extends BaseService {
     }
   }
 
+  /// 🎯 AUTOMATIC CAPITAL CALCULATION
+  /// Oblicza kapitał pozostały na podstawie nieruchomości i restrukturyzacji
+  double calculateRemainingCapital({
+    required double capitalSecuredByRealEstate,
+    required double capitalForRestructuring,
+  }) {
+    return capitalSecuredByRealEstate + capitalForRestructuring;
+  }
+
+  /// 🎯 SMART UPDATE - automatycznie oblicza powiązane pola
+  Future<bool> updateInvestmentFieldsSmart(
+    String investmentId, {
+    double? investmentAmount,
+    double? capitalForRestructuring,
+    double? capitalSecuredByRealEstate,
+    double? remainingCapital, // można nadpisać automatyczne obliczenie
+    bool autoCalculateRemainingCapital = true,
+    InvestmentStatus? status,
+    String? editorName,
+    String? editorEmail,
+    String? changeReason,
+  }) async {
+    try {
+      debugPrint(
+        '🧮 [UniversalInvestment] SMART UPDATE for investment: $investmentId',
+      );
+
+      // 1. Pobierz current state
+      final currentInvestment = await getInvestment(investmentId);
+      if (currentInvestment == null) {
+        debugPrint(
+          '❌ [UniversalInvestment] Investment not found: $investmentId',
+        );
+        return false;
+      }
+
+      // 2. Użyj obecnych wartości jako domyślnych jeśli nie podano nowych
+      final newCapitalSecured = capitalSecuredByRealEstate ?? currentInvestment.capitalSecuredByRealEstate;
+      final newCapitalRestructuring = capitalForRestructuring ?? currentInvestment.capitalForRestructuring;
+      final newInvestmentAmount = investmentAmount ?? currentInvestment.investmentAmount;
+
+      // 3. Automatycznie oblicz remainingCapital jeśli nie podano jawnie
+      double newRemainingCapital;
+      if (remainingCapital != null) {
+        // Użytkownik podał jawną wartość
+        newRemainingCapital = remainingCapital;
+        debugPrint('💡 [UniversalInvestment] Using manual remainingCapital: $remainingCapital');
+      } else if (autoCalculateRemainingCapital) {
+        // Automatyczne obliczenie
+        newRemainingCapital = calculateRemainingCapital(
+          capitalSecuredByRealEstate: newCapitalSecured,
+          capitalForRestructuring: newCapitalRestructuring,
+        );
+        debugPrint('🧮 [UniversalInvestment] Auto-calculated remainingCapital: $newCapitalSecured + $newCapitalRestructuring = $newRemainingCapital');
+      } else {
+        // Zachowaj obecną wartość
+        newRemainingCapital = currentInvestment.remainingCapital;
+        debugPrint('💾 [UniversalInvestment] Preserving current remainingCapital: $newRemainingCapital');
+      }
+
+      // 4. Wykonaj standardową aktualizację z obliczonymi wartościami
+      return await updateInvestmentFields(
+        investmentId,
+        remainingCapital: newRemainingCapital,
+        investmentAmount: newInvestmentAmount,
+        capitalForRestructuring: newCapitalRestructuring,
+        capitalSecuredByRealEstate: newCapitalSecured,
+        status: status,
+        editorName: editorName,
+        editorEmail: editorEmail,
+        changeReason: changeReason ?? 'Smart update with automatic capital calculation',
+      );
+
+    } catch (e) {
+      debugPrint(
+        '❌ [UniversalInvestment] Error in smart update for $investmentId: $e',
+      );
+      return false;
+    }
+  }
+
   /// 🎯 PARTIAL UPDATE - aktualizuje tylko wybrane pola bez nadpisywania reszty
   Future<bool> updateInvestmentFields(
     String investmentId, {
@@ -134,17 +215,23 @@ class UniversalInvestmentService extends BaseService {
         '💾 [UniversalInvestment] PARTIAL UPDATE for investment: $investmentId',
       );
       debugPrint('🔍 [UniversalInvestment] Input values:');
-      if (remainingCapital != null)
+      if (remainingCapital != null) {
         debugPrint('   - remainingCapital: $remainingCapital');
-      if (investmentAmount != null)
+      }
+      if (investmentAmount != null) {
         debugPrint('   - investmentAmount: $investmentAmount');
-      if (capitalForRestructuring != null)
+      }
+      if (capitalForRestructuring != null) {
         debugPrint('   - capitalForRestructuring: $capitalForRestructuring');
-      if (capitalSecuredByRealEstate != null)
+      }
+      if (capitalSecuredByRealEstate != null) {
         debugPrint(
           '   - capitalSecuredByRealEstate: $capitalSecuredByRealEstate',
         );
-      if (status != null) debugPrint('   - status: $status');
+      }
+      if (status != null) {
+        debugPrint('   - status: $status');
+      }
 
       // 1. Pobierz current state
       final currentInvestment = await getInvestment(investmentId);

@@ -554,9 +554,7 @@ class InvestorEditService {
       for (int i = 0; i < originalInvestments.length; i++) {
         final original = originalInvestments[i];
 
-        final remainingCapital = parseValueFromController(
-          remainingCapitalControllers[i].text,
-        );
+        // remainingCapital już nie jest używany - będzie automatycznie obliczony
         final investmentAmount = parseValueFromController(
           investmentAmountControllers[i].text,
         );
@@ -568,18 +566,29 @@ class InvestorEditService {
         );
         final status = statusValues[i];
 
-        // Sprawdź czy są zmiany
+        // Sprawdź czy są zmiany w polach które użytkownik może edytować
+        // UWAGA: remainingCapital nie jest sprawdzany - będzie automatycznie obliczony
         bool hasChanges = false;
-        if ((remainingCapital - original.remainingCapital).abs() > 0.01)
+        if ((investmentAmount - original.investmentAmount).abs() > 0.01) {
           hasChanges = true;
-        if ((investmentAmount - original.investmentAmount).abs() > 0.01)
+          debugPrint('📝 [InvestorEditService] Change detected: investmentAmount ${original.investmentAmount} → $investmentAmount');
+        }
+        if ((capitalForRestructuring - original.capitalForRestructuring).abs() > 0.01) {
           hasChanges = true;
-        if ((capitalForRestructuring - original.capitalForRestructuring).abs() >
-            0.01)
+          debugPrint('📝 [InvestorEditService] Change detected: capitalForRestructuring ${original.capitalForRestructuring} → $capitalForRestructuring');
+        }
+        if ((capitalSecured - original.capitalSecuredByRealEstate).abs() > 0.01) {
           hasChanges = true;
-        if ((capitalSecured - original.capitalSecuredByRealEstate).abs() > 0.01)
+          debugPrint('📝 [InvestorEditService] Change detected: capitalSecuredByRealEstate ${original.capitalSecuredByRealEstate} → $capitalSecured');
+        }
+        if (status != original.status) {
           hasChanges = true;
-        if (status != original.status) hasChanges = true;
+          debugPrint('📝 [InvestorEditService] Change detected: status ${original.status} → $status');
+        }
+        
+        // Oblicz spodziewany remainingCapital dla logowania
+        final expectedRemainingCapital = capitalSecured + capitalForRestructuring;
+        debugPrint('🧮 [InvestorEditService] Auto-calculated remainingCapital will be: $capitalSecured + $capitalForRestructuring = $expectedRemainingCapital');
 
         if (!hasChanges) {
           debugPrint(
@@ -594,17 +603,18 @@ class InvestorEditService {
           '📝 [InvestorEditService] UNIVERSAL: Edytuję inwestycję ${i + 1}/${originalInvestments.length}: ${original.id}',
         );
 
-        // 🎯 PARTIAL UPDATE - aktualizuje tylko zmienione pola, inne pozostają bez zmian
-        final success = await universalService.updateInvestmentFields(
+        // 🎯 SMART UPDATE - aktualizuje pola z automatycznym obliczaniem kapitału pozostałego
+        final success = await universalService.updateInvestmentFieldsSmart(
           original.id,
-          remainingCapital: remainingCapital,
           investmentAmount: investmentAmount,
           capitalForRestructuring: capitalForRestructuring,
           capitalSecuredByRealEstate: capitalSecured,
+          // remainingCapital: nie podajemy - zostanie automatycznie obliczony
+          autoCalculateRemainingCapital: true,
           status: status,
           editorName: 'System Edycji Inwestorów',
           editorEmail: 'system@metropolitan.pl',
-          changeReason: changeReason,
+          changeReason: '$changeReason (auto calculation: capitalSecured + capitalRestructuring)',
         );
 
         if (success) {

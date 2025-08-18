@@ -10,7 +10,7 @@ const { HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const { safeToDouble } = require("./utils/data-mapping");
 const { getCachedResult, setCachedResult } = require("./utils/cache-utils");
-const { calculateCapitalSecuredByRealEstate } = require("./utils/unified-statistics");
+const { calculateCapitalSecuredByRealEstate, getUnifiedField } = require("./utils/unified-statistics");
 
 // 🎯 GŁÓWNA FUNKCJA: Pobieranie inwestorów dla produktu z zaawansowaną optymalizacją
 exports.getProductInvestorsOptimized = onCall({
@@ -566,49 +566,19 @@ function createProductInvestorSummary(client, investments) {
   let totalRealizedCapital = 0;
 
   const processedInvestments = investments.map(investment => {
-    // Mapowanie kwoty inwestycji - sprawdź pola w kolejności priorytetów - NOWE POLA MAJĄ WYŻSZY PRIORYTET
-    const amount = safeToDouble(
-      investment.Kwota_inwestycji ||        // Nowe pole (string)
-      investment.kwota_inwestycji ||        // Stare pole (number)
-      investment.investmentAmount ||        // Backup pole (number)
-      0
-    );
+    // Mapowanie kwoty inwestycji - używa unified field mapping
+    const amount = getUnifiedField(investment, 'investmentAmount');
 
-    // Mapowanie kapitału pozostałego - obsłuż różne formaty - NOWE POLA MAJĄ WYŻSZY PRIORYTET
-    let remainingCapital = 0;
+    // Mapowanie kapitału pozostałego - używa unified field mapping
+    const remainingCapital = getUnifiedField(investment, 'remainingCapital');
 
-    if (investment['Kapital Pozostaly']) {
-      // String z przecinkami: "200,000.00" - używamy bezpiecznej funkcji
-      remainingCapital = safeToDouble(investment['Kapital Pozostaly']);
-    } else if (investment.kapital_pozostaly) {
-      // Number pole
-      remainingCapital = safeToDouble(investment.kapital_pozostaly);
-    } else if (investment.remainingCapital) {
-      // Backup number pole  
-      remainingCapital = safeToDouble(investment.remainingCapital);
-    } else if (investment.kapital_do_restrukturyzacji) {
-      // Alternative number pole
-      remainingCapital = safeToDouble(investment.kapital_do_restrukturyzacji);
-    }
+    // Mapowanie zrealizowanego kapitału - używa unified field mapping
+    const realizedCapital = getUnifiedField(investment, 'realizedCapital');
 
-    // Mapowanie zrealizowanego kapitału - NOWE POLA MAJĄ WYŻSZY PRIORYTET
-    let realizedCapital = 0;
-
-    if (investment['Kapital zrealizowany']) {
-      // String pole: "0.00" - używamy bezpiecznej funkcji
-      realizedCapital = safeToDouble(investment['Kapital zrealizowany']);
-    } else if (investment.kapital_zrealizowany) {
-      // Number pole
-      realizedCapital = safeToDouble(investment.kapital_zrealizowany);
-    } else if (investment.realizedCapital) {
-      // Backup number pole
-      realizedCapital = safeToDouble(investment.realizedCapital);
-    }
-
-    // Mapowanie dodatkowych pól dla analiz
-    const remainingInterest = safeToDouble(investment.odsetki_pozostale || investment.remainingInterest || 0);
-    const realizedInterest = safeToDouble(investment.odsetki_zrealizowane || investment.realizedInterest || 0);
-    const status = investment.Status_produktu || investment.status || 'Nieznany';
+    // Mapowanie dodatkowych pól dla analiz - używa unified field mapping
+    const remainingInterest = getUnifiedField(investment, 'remainingInterest');
+    const realizedInterest = getUnifiedField(investment, 'realizedInterest');
+    const status = getUnifiedField(investment, 'productStatus');
 
     totalInvestmentAmount += amount;
     totalViableCapital += remainingCapital;
@@ -621,10 +591,10 @@ function createProductInvestorSummary(client, investments) {
       investmentAmount: amount,
       remainingCapital: remainingCapital,
       realizedCapital: realizedCapital,
-      // 🚀 ENHANCED: Dodatkowe pola finansowe z znormalizowanych danych
-      capitalForRestructuring: safeToDouble(investment.capitalForRestructuring || 0),
-      capitalSecuredByRealEstate: safeToDouble(investment.capitalSecuredByRealEstate || 0),
-      transferToOtherProduct: safeToDouble(investment.transferToOtherProduct || 0),
+      // 🚀 ENHANCED: Dodatkowe pola finansowe z znormalizowanych danych - używa unified field mapping
+      capitalForRestructuring: getUnifiedField(investment, 'capitalForRestructuring'),
+      capitalSecuredByRealEstate: getUnifiedField(investment, 'capitalSecuredByRealEstate'),
+      transferToOtherProduct: getUnifiedField(investment, 'transferToOtherProduct'),
       // Odsetki
       remainingInterest: remainingInterest,
       realizedInterest: realizedInterest,
