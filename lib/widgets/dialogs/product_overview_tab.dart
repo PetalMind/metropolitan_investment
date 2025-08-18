@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 // CENTRALNY IMPORT zgodnie z wytycznymi (models + services)
 import '../../models_and_services.dart';
 import '../../theme/app_theme.dart';
-import 'product_details_service.dart';
 
 /// Zakładka ze szczegółami produktu
 class ProductOverviewTab extends StatefulWidget {
@@ -20,10 +19,9 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  final ProductDetailsService _service = ProductDetailsService();
-  final UnifiedProductService _productService = UnifiedProductService();
+  final UnifiedProductModalService _modalService = UnifiedProductModalService();
 
-  UnifiedProduct? _freshProduct;
+  ProductModalData? _modalData;
   bool _isLoading = false;
   String? _error;
 
@@ -40,11 +38,15 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
       _error = null;
     });
     try {
-      final loaded = await _productService.getProductById(widget.product.id);
+      // ⭐ UJEDNOLICONE POBIERANIE: Używamy UnifiedProductModalService
+      final modalData = await _modalService.getProductModalData(
+        product: widget.product,
+        forceRefresh: false,
+      );
+      
       if (mounted) {
         setState(() {
-          // Jeśli nic nie znaleziono w Firestore – użyj przekazanego obiektu (brak placeholderów)
-          _freshProduct = loaded ?? widget.product;
+          _modalData = modalData;
           _isLoading = false;
         });
       }
@@ -52,7 +54,7 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
       if (mounted) {
         setState(() {
           _error = e.toString();
-          _freshProduct = widget.product; // fallback do istniejących danych
+          _modalData = null; // fallback do przekazanych danych
           _isLoading = false;
         });
       }
@@ -100,7 +102,35 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
 
   @override
   Widget build(BuildContext context) {
-    final product = _freshProduct ?? widget.product;
+    // ⭐ UJEDNOLICONE DANE: Używamy danych z UnifiedProductModalService lub fallback
+    var product = _modalData?.product ?? widget.product;
+    
+    // ⭐ POPRAWA NAZWY FIRMY: Spróbuj pobrać nazwę firmy z pierwszego inwestora jeśli nie ma lub jest "Nieznana firma"
+    if (_modalData != null && 
+        _modalData!.investors.isNotEmpty && 
+        (product.companyName == null || 
+         product.companyName!.isEmpty || 
+         product.companyName == 'Nieznana firma')) {
+      
+      // Znajdź pierwszego inwestora z tą samą nazwą produktu
+      final matchingInvestor = _modalData!.investors
+          .where((investor) => investor.investments
+              .any((inv) => inv.productName == product.name))
+          .firstOrNull;
+      
+      if (matchingInvestor != null) {
+        final investment = matchingInvestor.investments
+            .where((inv) => inv.productName == product.name)
+            .firstOrNull;
+        
+        if (investment != null && 
+            investment.creditorCompany.isNotEmpty &&
+            investment.creditorCompany != 'Nieznana firma') {
+          // Utwórz nowy obiekt produktu z poprawioną nazwą firmy
+          product = product.copyWith(companyName: investment.creditorCompany);
+        }
+      }
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -133,15 +163,23 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
                   child: Column(
                     children: [
                       Icon(
-                        Icons.error_outline,
-                        color: AppTheme.errorColor,
+                        Icons.warning_outlined,
+                        color: AppTheme.warningPrimary,
                         size: 32,
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Błąd pobierania: $_error',
+                        'Błąd UnifiedProductModalService: $_error',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.errorColor,
+                          color: AppTheme.warningPrimary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Używam danych z cache',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.textTertiary,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -157,6 +195,38 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
               ),
 
             if (!_isLoading && _error == null) ...[
+              // ⭐ INFORMACJA O ŹRÓDLE DANYCH
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.infoPrimary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.infoPrimary.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: AppTheme.infoPrimary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Źródło: ${_modalData != null ? "UnifiedProductModalService (${_modalData!.fromCache ? "cache" : "fresh"})" : "Cache lokalny"}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.infoPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: SlideTransition(
@@ -206,28 +276,28 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
       children.add(
         _buildDetailRow(
           'Zrealizowany kapitał',
-          _service.formatCurrency(product.realizedCapital!),
+          CurrencyFormatter.formatCurrency(product.realizedCapital!),
         ),
       );
     if (product.remainingCapital != null)
       children.add(
         _buildDetailRow(
           'Pozostały kapitał',
-          _service.formatCurrency(product.remainingCapital!),
+          CurrencyFormatter.formatCurrency(product.remainingCapital!),
         ),
       );
     if (product.realizedInterest != null)
       children.add(
         _buildDetailRow(
           'Zrealizowane odsetki',
-          _service.formatCurrency(product.realizedInterest!),
+          CurrencyFormatter.formatCurrency(product.realizedInterest!),
         ),
       );
     if (product.remainingInterest != null)
       children.add(
         _buildDetailRow(
           'Pozostałe odsetki',
-          _service.formatCurrency(product.remainingInterest!),
+          CurrencyFormatter.formatCurrency(product.remainingInterest!),
         ),
       );
     if (product.interestRate != null)
@@ -241,10 +311,10 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
       children.add(
         _buildDetailRow(
           'Data zapadalności',
-          _service.formatDate(product.maturityDate!),
+          product.maturityDate!.toString().split(' ')[0],
         ),
       );
-    if (product.companyName != null)
+    if (product.companyName != null && product.companyName!.isNotEmpty && product.companyName != 'Nieznana firma')
       children.add(_buildDetailRow('Emitent', product.companyName!));
     if (children.isEmpty) return const SizedBox.shrink();
     return _buildProductTypeContainer(
@@ -271,15 +341,15 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
       children.add(
         _buildDetailRow(
           'Cena za udział',
-          _service.formatCurrency(product.pricePerShare!),
+          CurrencyFormatter.formatCurrency(product.pricePerShare!),
         ),
       );
-    if (product.companyName != null)
+    if (product.companyName != null && product.companyName!.isNotEmpty && product.companyName != 'Nieznana firma')
       children.add(_buildDetailRow('Nazwa spółki', product.companyName!));
     children.add(
       _buildDetailRow(
         'Wartość całkowita',
-        _service.formatCurrency(product.totalValue),
+        CurrencyFormatter.formatCurrency(product.totalValue),
       ),
     );
     if (children.isEmpty) return const SizedBox.shrink();
@@ -325,7 +395,7 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
       children.add(
         _buildDetailRow(
           'Termin spłaty',
-          _service.formatDate(product.maturityDate!),
+          product.maturityDate!.toString().split(' ')[0],
         ),
       );
     }
@@ -410,10 +480,10 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
     children.add(
       _buildDetailRow(
         'Wartość całkowita',
-        _service.formatCurrency(product.totalValue),
+        CurrencyFormatter.formatCurrency(product.totalValue),
       ),
     );
-    if (product.companyName != null) {
+    if (product.companyName != null && product.companyName!.isNotEmpty && product.companyName != 'Nieznana firma') {
       children.add(_buildDetailRow('Firma', product.companyName!));
     }
     if (product.currency != null) {
@@ -604,15 +674,15 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
           ),
           _buildDetailRow(
             'Kwota inwestycji',
-            _service.formatCurrency(product.investmentAmount),
+            CurrencyFormatter.formatCurrency(product.investmentAmount),
           ),
           _buildDetailRow(
             'Data utworzenia',
-            _service.formatDate(product.createdAt),
+            product.createdAt.toString().split(' ')[0],
           ),
           _buildDetailRow(
             'Ostatnia aktualizacja',
-            _service.formatDate(product.uploadedAt),
+            product.uploadedAt.toString().split(' ')[0],
           ),
           _buildDetailRow('Waluta', product.currency ?? 'PLN'),
         ],

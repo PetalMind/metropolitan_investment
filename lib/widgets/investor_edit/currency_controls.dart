@@ -112,7 +112,10 @@ class _CurrencyInputFieldState extends State<CurrencyInputField> {
               ),
             ),
             // 🚀 NOWE: Wskaźnik zmian na podstawie rzeczywistej historii
-            if (widget.showChangeIndicator && _fieldChangeInfo != null && _fieldChangeInfo!.changeAmount.abs() > 0.01) ...[
+            if (widget.showChangeIndicator && 
+                _fieldChangeInfo != null && 
+                _fieldChangeInfo!.changeAmount.abs() > 0.01 &&
+                _fieldChangeInfo!.changePercentage.abs() > 1.0) ...[
               const SizedBox(width: 8),
               _isLoadingChange
                   ? _buildLoadingIndicator()

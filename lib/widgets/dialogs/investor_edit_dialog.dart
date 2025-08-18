@@ -5,6 +5,7 @@ import '../../services/universal_investment_service.dart' as universal;
 import '../investor_edit/currency_controls.dart';
 import '../investor_edit/investments_summary.dart';
 import '../investor_edit/investment_edit_card.dart';
+import '../investor_edit/investment_edit_card.dart';
 import '../investment_history_widget.dart'; // 🚀 NOWE: Widget historii zmian
 import 'investor_edit_dialog_enhancements.dart';
 
@@ -855,7 +856,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
               child: _buildInvestmentsSection(),
             ),
           ),
-     
+      
 
           // Bottom padding
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
@@ -997,37 +998,184 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     );
   }
 
+  Widget _buildExecutiveSummary() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppThemePro.backgroundSecondary,
+            AppThemePro.backgroundSecondary.withBlue(20),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppThemePro.accentGold.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppThemePro.accentGold.withOpacity(0.1),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.accentGold.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.analytics_rounded,
+                    color: AppThemePro.accentGold,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'KONTROLA PRODUKTU',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: AppThemePro.textPrimary,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.0,
+                            ),
+                      ),
+                      Text(
+                        'Zarządzanie całkowitą wartością i skalowanie',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppThemePro.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Product total amount control with enhanced styling
+            ProductTotalAmountControl(
+              controller: _controllers.totalProductAmountController,
+              originalAmount: _state.originalTotalProductAmount,
+              isChangingAmount: _state.isChangingTotalAmount,
+              pendingChange: _state.pendingTotalAmountChange,
+              onChanged: _onDataChanged,
+            ),
+
+            const SizedBox(height: 28),
+
+            // Enhanced investments summary
+            Container(
+              decoration: BoxDecoration(
+                color: AppThemePro.backgroundTertiary.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppThemePro.borderSecondary.withOpacity(0.5),
+                  width: 1,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: InvestmentsSummaryWidget(
+                  investments: _editableInvestments,
+                  remainingCapitalControllers:
+                      _controllers.remainingCapitalControllers,
+                  investmentAmountControllers:
+                      _controllers.investmentAmountControllers,
+                  capitalForRestructuringControllers:
+                      _controllers.capitalForRestructuringControllers,
+                  capitalSecuredControllers:
+                      _controllers.capitalSecuredByRealEstateControllers,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildInvestmentsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Investments list without header
-        Padding(
+        // Section header with modern styling
+        Container(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            children: List.generate(_editableInvestments.length, (index) {
-              return Container(
-                margin: EdgeInsets.only(
-                  bottom: index < _editableInvestments.length - 1 ? 20 : 0,
-                ),
-                child: InvestmentEditCard(
-                  investment: _editableInvestments[index],
-                  index: index,
-                  remainingCapitalController:
-                      _controllers.remainingCapitalControllers[index],
-                  investmentAmountController:
-                      _controllers.investmentAmountControllers[index],
-                  capitalForRestructuringController:
-                      _controllers.capitalForRestructuringControllers[index],
-                  capitalSecuredController: _controllers
-                      .capitalSecuredByRealEstateControllers[index],
-                  statusValue: _controllers.statusValues[index],
-                  onStatusChanged: (status) =>
-                      _onStatusChanged(index, status),
-                  onChanged: _onDataChanged,
-                ),
-              );
-            }),
+          decoration: BoxDecoration(
+            color: AppThemePro.backgroundSecondary.withOpacity(0.8),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+            ),
+            border: Border.all(color: AppThemePro.borderPrimary, width: 1),
+          ),
+          child: Row(
+            children: [
+         
+            ],
+          ),
+        ),
+
+        // Investments cards with enhanced spacing
+        Container(
+          decoration: BoxDecoration(
+            color: AppThemePro.backgroundSecondary.withOpacity(0.3),
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(16),
+              bottomRight: Radius.circular(16),
+            ),
+            border: Border(
+              left: BorderSide(color: AppThemePro.borderPrimary, width: 1),
+              right: BorderSide(color: AppThemePro.borderPrimary, width: 1),
+              bottom: BorderSide(color: AppThemePro.borderPrimary, width: 1),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: List.generate(_editableInvestments.length, (index) {
+                return Container(
+                  margin: EdgeInsets.only(
+                    bottom: index < _editableInvestments.length - 1 ? 20 : 0,
+                  ),
+                  child: InvestmentEditCard(
+                    investment: _editableInvestments[index],
+                    index: index,
+                    remainingCapitalController:
+                        _controllers.remainingCapitalControllers[index],
+                    investmentAmountController:
+                        _controllers.investmentAmountControllers[index],
+                    capitalForRestructuringController:
+                        _controllers.capitalForRestructuringControllers[index],
+                    capitalSecuredController: _controllers
+                        .capitalSecuredByRealEstateControllers[index],
+                    statusValue: _controllers.statusValues[index],
+                    onStatusChanged: (status) =>
+                        _onStatusChanged(index, status),
+                    onChanged: _onDataChanged,
+                  ),
+                );
+              }),
+            ),
           ),
         ),
       ],

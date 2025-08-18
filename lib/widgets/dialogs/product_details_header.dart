@@ -36,11 +36,10 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     with TickerProviderStateMixin {
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
-  // ⭐ UJEDNOLICONY SERWIS: Wykorzystujemy zunifikowane statystyki dashboard
-  final UnifiedDashboardStatisticsService _statisticsService =
-      UnifiedDashboardStatisticsService();
+  // ⭐ UJEDNOLICONY SERWIS: Wykorzystujemy zunifikowany serwis modal produktu
+  final UnifiedProductModalService _modalService = UnifiedProductModalService();
 
-  UnifiedDashboardStatistics? _unifiedStatistics;
+  ProductModalData? _modalData;
   bool _isLoadingStatistics = false;
 
   // ⭐ NOWE: Stan edycji - przekazywany do product_investors_tab
@@ -67,13 +66,16 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     setState(() => _isLoadingStatistics = true);
 
     try {
-      // ⭐ UJEDNOLICONE OBLICZENIA: Używamy zunifikowanych statystyk z inwestorów
-      final stats = await _statisticsService.getStatisticsFromInvestors();
+      // ⭐ UJEDNOLICONE OBLICZENIA: Używamy zunifikowanego serwisu modal produktu
+      final modalData = await _modalService.getProductModalData(
+        product: widget.product,
+        forceRefresh: false,
+      );
 
       if (!mounted) return;
 
       setState(() {
-        _unifiedStatistics = stats;
+        _modalData = modalData;
         _isLoadingStatistics = false;
       });
     } catch (error) {
@@ -92,6 +94,8 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.investors != widget.investors ||
         oldWidget.isLoadingInvestors != widget.isLoadingInvestors) {
+      // ⭐ NOWE: Wyczyść cache modalu przy aktualizacji danych
+      _modalService.clearProductCache(widget.product.id);
       _loadServerStatistics();
     }
   }
@@ -157,16 +161,16 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
       return isMobile ? _buildMobileLoadingGrid() : _buildDesktopLoadingRow();
     }
 
-    // ⭐ UJEDNOLICONE OBLICZENIA: Używamy zunifikowanych statystyk lub fallback lokalny
+    // ⭐ UJEDNOLICONE OBLICZENIA: Używamy danych z UnifiedProductModalService lub fallback lokalny
     final double totalInvestmentAmount;
     final double totalRemainingCapital;
     final double totalCapitalSecured;
 
-    if (_unifiedStatistics != null) {
-      // Zunifikowane statystyki z serwisu
-      totalInvestmentAmount = _unifiedStatistics!.totalInvestmentAmount;
-      totalRemainingCapital = _unifiedStatistics!.totalRemainingCapital;
-      totalCapitalSecured = _unifiedStatistics!.totalCapitalSecured;
+    if (_modalData != null) {
+      // Zunifikowane statystyki z serwisu modal
+      totalInvestmentAmount = _modalData!.statistics.totalInvestmentAmount;
+      totalRemainingCapital = _modalData!.statistics.totalRemainingCapital;
+      totalCapitalSecured = _modalData!.statistics.totalCapitalSecuredByRealEstate;
     } else {
       // Fallback: Obliczenia lokalne według wzoru z product_details_modal.dart
       totalInvestmentAmount = _computeTotalInvestmentAmount();
@@ -190,7 +194,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
-                  'Źródło: ${_unifiedStatistics != null ? "Zunifikowane statystyki" : "Obliczenia lokalne"}',
+                  'Źródło: ${_modalData != null ? "UnifiedProductModalService (${_modalData!.fromCache ? "cache" : "fresh"})" : "Obliczenia lokalne"}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.white.withOpacity(0.7),
                     fontSize: isMobile ? 10 : 12,

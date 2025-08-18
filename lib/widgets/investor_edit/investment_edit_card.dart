@@ -131,7 +131,7 @@ class InvestmentEditCard extends StatelessWidget {
                       calculationFormula: 'Zabezpieczony + Restrukturyzacja', // 🚀 NOWE: Wzór
                       investmentId: investment.id, // 🚀 NOWE: ID inwestycji
                       fieldName: 'remainingCapital', // 🚀 NOWE: Nazwa pola
-                      showChangeIndicator: true, // 🚀 NOWE: Pokaż wskaźnik zmian
+                      showChangeIndicator: false, // 🚀 TYMCZASOWO WYŁĄCZONE: debugujemy problem z wskaźnikami
                     ),
                   ),
                 ],
@@ -165,7 +165,7 @@ class InvestmentEditCard extends StatelessWidget {
                       onChanged: onChanged,
                       investmentId: investment.id, // 🚀 NOWE: ID inwestycji
                       fieldName: 'capitalForRestructuring', // 🚀 NOWE: Nazwa pola
-                      showChangeIndicator: true, // 🚀 NOWE: Pokaż wskaźnik zmian
+                      showChangeIndicator: false, // 🚀 TYMCZASOWO WYŁĄCZONE: debugujemy problem z wskaźnikami
                       helpText: 'Kapitał przeznaczony na restrukturyzację', // 🚀 NOWE: Lepszy opis
                     ),
                   ),
@@ -251,34 +251,8 @@ class InvestmentEditCard extends StatelessWidget {
           const SizedBox(height: 16),
           _buildCalculationPreviewPanel(),
 
-            width: double.infinity,
-            child: TextButton.icon(
-              onPressed: () {
-                // Implementacja historii już istnieje w parent dialog
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Historia zmian dostępna w zakładce "Historia Zmian"'),
-                    backgroundColor: Colors.blue,
-                  ),
-                );
-              },
-              icon: Icon(
-                Icons.history,
-                size: 16,
-                color: AppThemePro.textSecondary,
-              ),
-              label: Text(
-                'Zobacz historię zmian',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppThemePro.textSecondary,
-                ),
-              ),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-              ),
-            ),
-          ),
+          // Historia zmian
+         
         ],
       ),
     );

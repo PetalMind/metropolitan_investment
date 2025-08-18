@@ -23,7 +23,11 @@ class InvestmentChangeCalculatorService {
       // Pobierz historię zmian dla tej inwestycji
       final history = await _historyService.getInvestmentHistory(investmentId);
       
+      debugPrint('📚 [InvestmentChangeCalculatorService] History check for $investmentId:');
+      debugPrint('   - History entries found: ${history.length}');
+      
       if (history.isEmpty) {
+        debugPrint('❌ [InvestmentChangeCalculatorService] No history found for $investmentId');
         return null;
       }
       
@@ -32,10 +36,14 @@ class InvestmentChangeCalculatorService {
       FieldChange? latestFieldChange;
       
       for (final entry in history.take(maxHistoryEntries)) {
+        debugPrint('🔍 [InvestmentChangeCalculatorService] Checking entry from ${entry.changedAt}');
+        debugPrint('   - Field changes in this entry: ${entry.fieldChanges.map((fc) => fc.fieldName).join(', ')}');
+        
         for (final fieldChange in entry.fieldChanges) {
           if (fieldChange.fieldName == fieldName) {
             latestChangeEntry = entry;
             latestFieldChange = fieldChange;
+            debugPrint('✅ [InvestmentChangeCalculatorService] Found change for $fieldName in entry from ${entry.changedAt}');
             break;
           }
         }
@@ -43,13 +51,46 @@ class InvestmentChangeCalculatorService {
       }
       
       if (latestFieldChange == null) {
+        debugPrint('❌ [InvestmentChangeCalculatorService] No field change found for $fieldName');
         return null;
       }
       
-      // Oblicz zmiany
-      final oldValue = _parseValue(latestFieldChange.oldValue);
-      final changeAmount = currentValue - oldValue;
-      final changePercentage = oldValue != 0 ? (changeAmount / oldValue) * 100 : 0.0;
+      // Oblicz zmiany - UWAGA: latestFieldChange może być odwrócone w logice!
+      // Sprawdźmy czy oldValue i newValue są w odpowiedniej kolejności
+      final historyOldValue = _parseValue(latestFieldChange.oldValue);
+      final historyNewValue = _parseValue(latestFieldChange.newValue);
+      
+      debugPrint('🔍 [InvestmentChangeCalculatorService] Historia dla $fieldName:');
+      debugPrint('   - W historii oldValue: $historyOldValue');
+      debugPrint('   - W historii newValue: $historyNewValue');
+      debugPrint('   - Obecna wartość w kontrolerze: $currentValue');
+      
+      // Określ które wartości używać do obliczenia zmiany
+      late double changeAmount;
+      late double oldValue;
+      
+      // Sprawdź czy obecna wartość to ta sama co newValue z historii
+      if ((currentValue - historyNewValue).abs() < 0.01) {
+        debugPrint('✅ [InvestmentChangeCalculatorService] Current matches history newValue, using oldValue as baseline');
+        changeAmount = currentValue - historyOldValue;
+        oldValue = historyOldValue;
+      } else if ((currentValue - historyOldValue).abs() < 0.01) {
+        debugPrint('✅ [InvestmentChangeCalculatorService] Current matches history oldValue, using newValue as baseline');
+        changeAmount = currentValue - historyNewValue;
+        oldValue = historyNewValue;
+      } else {
+        debugPrint('⚠️ [InvestmentChangeCalculatorService] Current value doesn\'t match either history value, using oldValue as baseline');
+        changeAmount = currentValue - historyOldValue;
+        oldValue = historyOldValue;
+      }
+      
+      // Jeśli stara wartość to 0, nie pokazujemy wskaźnika procentowego
+      if (oldValue == 0.0) {
+        debugPrint('❌ [InvestmentChangeCalculatorService] Old value is 0 for $fieldName, skipping percentage calculation');
+        return null;
+      }
+      
+      final changePercentage = (changeAmount / oldValue) * 100;
       
       debugPrint('📊 [InvestmentChangeCalculatorService] Calculating change for $fieldName:');
       debugPrint('   - Current value: $currentValue');
