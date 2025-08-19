@@ -85,9 +85,82 @@ class _PersonalGreetingWeekWidgetState
       );
       map.putIfAbsent(dateKey, () => []).add(e);
     }
-    return Map.fromEntries(
-      map.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
-    );
+    
+    // Sortuj zadania w ramach każdego dnia według godziny
+    for (final entry in map.entries) {
+      entry.value.sort((a, b) => a.startDate.compareTo(b.startDate));
+    }
+    
+    return map;
+  }
+
+  List<MapEntry<DateTime, List<CalendarEvent>>> _getSortedDays(Map<DateTime, List<CalendarEvent>> grouped) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    final entries = grouped.entries.toList();
+    final List<MapEntry<DateTime, List<CalendarEvent>>> result = [];
+    
+    // 1. Najpierw dzisiejsze zadania (jeśli są)
+    final todayEntry = entries.where((e) => e.key.isAtSameMomentAs(today)).firstOrNull;
+    if (todayEntry != null) {
+      result.add(todayEntry);
+    }
+    
+    // 2. Potem reszta tygodnia (poniedziałek-piątek), pomijając dzisiaj
+    final weekDays = entries
+        .where((e) => 
+            !e.key.isAtSameMomentAs(today) && // Nie dzisiaj
+            e.key.weekday >= 1 && e.key.weekday <= 5) // Pon-Pią
+        .toList();
+    
+    // Sortuj od poniedziałku do piątku
+    weekDays.sort((a, b) => a.key.compareTo(b.key));
+    result.addAll(weekDays);
+    
+    // 3. Weekend na końcu (sobota-niedziela)
+    final weekendDays = entries
+        .where((e) => 
+            !e.key.isAtSameMomentAs(today) && // Nie dzisiaj
+            (e.key.weekday == 6 || e.key.weekday == 7)) // Sob-Nie
+        .toList();
+    
+    weekendDays.sort((a, b) => a.key.compareTo(b.key));
+    result.addAll(weekendDays);
+    
+    return result;
+  }
+
+  String _formatTime(CalendarEvent event) {
+    // Sprawdź czy to wydarzenie całodniowe
+    final start = event.startDate;
+    final end = event.endDate;
+    
+    // Jeśli to wydarzenie oznaczone jako całodniowe
+    if (event.isAllDay) {
+      return 'Cały dzień';
+    }
+    
+    // Sprawdź czy różnica między start a end to dokładnie 24h lub więcej i start/end to północ
+    final duration = end.difference(start);
+    if (duration.inDays >= 1 && 
+        start.hour == 0 && start.minute == 0 && 
+        end.hour == 0 && end.minute == 0) {
+      return 'Cały dzień';
+    }
+    
+    // Sprawdź czy to godzina o północy (prawdopodobnie całodniowe)
+    if (start.hour == 0 && start.minute == 0 && end.hour == 23 && end.minute == 59) {
+      return 'Cały dzień';
+    }
+    
+    // Wydarzenia z tą samą godziną start i end (krótkie wydarzenia)
+    if (start.isAtSameMomentAs(end) || duration.inMinutes <= 15) {
+      return DateFormat('HH:mm').format(start);
+    }
+    
+    // Wydarzenie z godziną końcową
+    return '${DateFormat('HH:mm').format(start)} - ${DateFormat('HH:mm').format(end)}';
   }
 
   String _relativeDue(DateTime when) {
@@ -119,8 +192,8 @@ class _PersonalGreetingWeekWidgetState
           child: Container(
             margin: const EdgeInsets.only(bottom: 24),
             child: const MetropolitanLogoWidget.splash(
-              size: 220,
-              animated: true,
+              size: 280,
+              animated: false,
             ),
           ),
         ),
@@ -223,6 +296,7 @@ class _PersonalGreetingWeekWidgetState
     }
 
     final grouped = _groupByDay(_events);
+    final sortedDays = _getSortedDays(grouped);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,18 +321,48 @@ class _PersonalGreetingWeekWidgetState
           ],
         ),
         const SizedBox(height: 12),
-        ...grouped.entries.map((entry) {
+        ...sortedDays.map((entry) {
           final day = entry.key;
           final items = entry.value;
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final isToday = day.isAtSameMomentAs(today);
+          
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 8),
-              Text(
-                DateFormat('EEE, d MMM', 'pl_PL').format(day),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppThemePro.textTertiary,
-                ),
+              Row(
+                children: [
+                  Text(
+                    isToday 
+                      ? 'Dzisiaj' 
+                      : DateFormat('EEE, d MMM', 'pl_PL').format(day),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: isToday 
+                        ? AppThemePro.accentGold 
+                        : AppThemePro.textTertiary,
+                      fontWeight: isToday ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                  if (isToday) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppThemePro.accentGold.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${items.length}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppThemePro.accentGold,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 6),
               ...items.map((ev) => _buildTaskRow(ev)).toList(),
@@ -287,9 +391,29 @@ class _PersonalGreetingWeekWidgetState
             ),
           ),
           title: Text(ev.title, style: Theme.of(context).textTheme.bodyLarge),
-          subtitle: ev.location != null
-              ? Text(ev.location!, style: Theme.of(context).textTheme.bodySmall)
-              : null,
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Godzina wydarzenia
+              Text(
+                _formatTime(ev),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppThemePro.accentGold,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              // Lokalizacja (jeśli jest)
+              if (ev.location != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  ev.location!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppThemePro.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
           trailing: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
