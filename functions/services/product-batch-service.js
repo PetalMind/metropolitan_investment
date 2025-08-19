@@ -154,9 +154,9 @@ function generateProductKey(investment) {
   );
 
   const productType = safeToString(
-    investment.productType || 
-    investment.typ_produktu || 
-    investment.Typ_produktu || 
+    investment.productType ||
+    investment.typ_produktu ||
+    investment.Typ_produktu ||
     'bonds'
   );
 
@@ -188,9 +188,9 @@ function extractProductInfo(investment) {
       'Nieznany Produkt'
     ),
     type: safeToString(
-      investment.productType || 
-      investment.typ_produktu || 
-      investment.Typ_produktu || 
+      investment.productType ||
+      investment.typ_produktu ||
+      investment.Typ_produktu ||
       'bonds'
     ),
     companyId: safeToString(
@@ -214,8 +214,8 @@ function extractProductInfo(investment) {
       'Nieznana Firma'
     ),
     interestRate: safeToDouble(
-      investment.interestRate || 
-      investment.oprocentowanie || 
+      investment.interestRate ||
+      investment.oprocentowanie ||
       investment.Oprocentowanie
     ),
   };

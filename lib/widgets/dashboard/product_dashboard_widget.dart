@@ -408,16 +408,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     });
   }
 
-  // Helper method to get user's first letter
-  String _getUserInitial() {
-    if (_userProfile != null && _userProfile!.firstName.isNotEmpty) {
-      return _userProfile!.firstName[0].toUpperCase();
-    }
-    if (_userProfile != null && _userProfile!.email.isNotEmpty) {
-      return _userProfile!.email[0].toUpperCase();
-    }
-    return 'U'; // Default fallback
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -454,9 +444,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
             _buildHeader(),
             const SizedBox(height: 20),
 
-            // Deduplication toggle
-            _buildDeduplicationToggle(),
-            const SizedBox(height: 32),
 
             // Quick summary tiles - CAŁA BAZA DANYCH
             _buildGlobalSummary(),
@@ -496,7 +483,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
           decoration: AppThemePro.premiumCardDecoration,
           child: Row(
             children: [
-              // User Avatar with first letter instead of logo
+              // Company Logo
               ScaleTransition(
                 scale: _scaleAnimation,
                 child: Container(
@@ -504,12 +491,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   height: 80,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
-                      colors: [
-                        AppThemePro.accentGold,
-                        AppThemePro.accentGoldMuted,
-                      ],
-                    ),
+                    color: Colors.white,
                     boxShadow: [
                       BoxShadow(
                         color: AppThemePro.accentGold.withOpacity(0.3),
@@ -518,15 +500,11 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                       ),
                     ],
                   ),
-                  child: Center(
-                    child: Text(
-                      _getUserInitial(),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                      ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Image.asset(
+                      'assets/logos/logo.png',
+                      fit: BoxFit.contain,
                     ),
                   ),
                 ),
@@ -624,64 +602,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     );
   }
 
-  Widget _buildDeduplicationToggle() {
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: AppThemePro.premiumCardDecoration,
-        child: Row(
-          children: [
-            Icon(
-              _showDeduplicatedView
-                  ? Icons.filter_vintage
-                  : Icons.all_inclusive,
-              color: AppThemePro.accentGold,
-              size: 24,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _showDeduplicatedView
-                        ? 'Widok: Produkty unikalne'
-                        : 'Widok: Wszystkie inwestycje',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppThemePro.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _showDeduplicatedView
-                        ? 'Wyświetlane są deduplikowane produkty (${_deduplicatedProducts.length} unikalnych)'
-                        : 'Wyświetlane są wszystkie inwestycje (${_investments.length} pozycji)',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppThemePro.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Switch.adaptive(
-              value: _showDeduplicatedView,
-              onChanged: (value) {
-                setState(() {
-                  _showOptimizedView =
-                      value; // 🚀 FIXED: Używaj rzeczywistej zmiennej
-                  // Wyczyść wybrane produkty przy przełączaniu trybu
-                  _selectedProductIds.clear();
-                });
-              },
-              activeColor: AppThemePro.accentGold,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildGlobalSummary() {
     // 🚀 NOWE: Używamy zunifikowanych statystyk zamiast manualnych obliczeń
@@ -1257,18 +1177,8 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
               setState(() {
                 if (value == true) {
                   _selectedProductIds.add(product.id);
-                  // 🚀 NOWE: Wywołaj callback przy wyborze produktu
-                  // Znajdź pierwszą powiązaną inwestycję
-                  final relatedInvestment = _investments.firstWhere(
-                    (inv) =>
-                        inv.productName == product.name &&
-                        inv.creditorCompany == product.companyName,
-                    orElse: () => _investments.isNotEmpty
-                        ? _investments.first
-                        : throw Exception('Brak inwestycji'),
-                  );
-                  _selectedInvestment = relatedInvestment;
-                  widget.onProductSelected?.call(relatedInvestment.id);
+                  // 🚀 FIXED: Use product.id directly instead of trying to find related investment
+                  widget.onProductSelected?.call(product.id);
                 } else {
                   _selectedProductIds.remove(product.id);
                 }

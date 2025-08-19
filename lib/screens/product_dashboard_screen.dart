@@ -23,9 +23,12 @@ class ProductDashboardScreen extends StatefulWidget {
   State<ProductDashboardScreen> createState() => _ProductDashboardScreenState();
 }
 
-class _ProductDashboardScreenState extends State<ProductDashboardScreen> {
+class _ProductDashboardScreenState extends State<ProductDashboardScreen>
+    with SingleTickerProviderStateMixin {
   String? _selectedProductId;
   bool _showDetailsPanel = false;
+  late AnimationController _avatarPulseController;
+  late Animation<double> _pulseAnimation;
 
   // RBAC getter
   bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
@@ -73,6 +76,25 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen> {
         floatingActionButton: _buildFloatingActions(context),
       ),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _avatarPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.98, end: 1.04).animate(
+      CurvedAnimation(parent: _avatarPulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _avatarPulseController.dispose();
+    super.dispose();
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
@@ -171,6 +193,12 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen> {
           ),
         ),
 
+        // Logo centered above avatar + breathing avatar section
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: _buildLogoAndAvatarSection(),
+        ),
+
         // Zawartość panelu szczegółów
         Expanded(
           child: SingleChildScrollView(
@@ -191,6 +219,64 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen> {
               },
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  // Centered logo over animated avatar (breathing effect)
+  Widget _buildLogoAndAvatarSection() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Centered logo
+        Center(
+          child: Image.asset(
+            'assets/logos/logo.png',
+            width: 92,
+            height: 40,
+            fit: BoxFit.contain,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Animated avatar
+        Consumer<AuthProvider>(
+          builder: (context, auth, child) {
+            final fullName =
+                auth.userProfile?.fullName ?? auth.user?.displayName ?? '';
+            final initial = fullName.isNotEmpty
+                ? fullName.trim()[0].toUpperCase()
+                : 'U';
+
+            return ScaleTransition(
+              scale: _pulseAnimation,
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: AppThemePro.accentGold,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppThemePro.accentGold.withOpacity(0.18),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  initial,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ],
     );

@@ -228,3 +228,53 @@ Key documentation in root directory:
 - `CLAUDE.md` - Alternative AI assistant guidelines with comprehensive commands
 - `FIRESTORE_INDEXES_OPTIMIZED.md` - Database performance patterns
 - Various `*_GUIDE.md` and `*_README.md` files for specific features
+# .github/copilot-instructions.md
+
+Purpose: Short, actionable guidance so an AI coding agent can be productive quickly in this repo.
+
+Quick summary
+- Tech stack: Flutter (Dart) frontend + Firebase backend (Firestore, Auth, Cloud Functions). Cloud Functions live in `functions/` (Node.js). Data-migration & utilities live in root `tools/` and many JS helpers.
+- Single source of truth: product data consolidated in `investments` collection (legacy collections like `bonds`, `shares`, `loans`, `apartments` are deprecated).
+
+Where to start (files to open)
+- `lib/models_and_services.dart` — central barrel export; import models/services from here.
+- `lib/services/` — business logic, services extend `BaseService` (caching pattern).
+- `lib/screens/` — UI screens; `lib/widgets/dialogs/` for modal patterns.
+- `functions/` — cloud functions and server-side analytics; tests in `functions/test_*.js`.
+- `firebase_options.dart`, `firestore.indexes.json`, `firebase.json` — important config for deploy and indexing.
+- `CLAUDE.md` and `README.md` — longer existing AI guidance and workflows.
+
+Project-specific conventions (must-follow)
+- ALWAYS import models/services via `lib/models_and_services.dart` (do not import individual model files).
+- Field-mapping: code uses English properties while Firestore contains Polish legacy field names. Use the model's fromFirestore()/toFirestore() helpers and `field-mapping-utils.js` when updating mapping logic.
+- Logical IDs: product IDs are semantic (e.g. `bond_0001`, `loan_0005`, `apartment_0045`) — do not replace with UUIDs.
+- Services pattern: most services extend `BaseService` and implement a caching TTL (5 minutes). Look for `DataCacheService` / `WebOptimizedCacheService` for web behavior.
+- Firebase Functions region: use `europe-west1` for client calls: e.g. `FirebaseFunctions.instanceFor(region: 'europe-west1')`.
+- Pagination & heavy queries: use server-side functions for >1000 records; client page size defaults to 250.
+
+Common commands (quick)
+- Flutter: `flutter pub get`, `flutter run`, `flutter build web --release`, `flutter analyze`.
+- Functions: `cd functions && npm install`, `firebase emulators:start --only functions`, `firebase deploy --only functions`.
+- Data tools: root JS scripts and `tools/` Dart scripts — examples in `CLAUDE.md`.
+
+Patterns & examples you should follow when changing code
+- Navigation: routes defined in `lib/config/app_routes.dart`; use typed route helpers (e.g. `AppRoutes.clientDetailsPath(id)`) or provided context extension methods.
+- Auth & RBAC: `AuthProvider` (Provider) controls isAdmin and gating in UI; use `Consumer<AuthProvider>` checks in widgets when adding privileged UX.
+- Analytics: heavy aggregation should be routed to cloud functions (`functions/`) and cached server-side (5m). Use `firebase_functions_analytics_service.dart` wrapper.
+- Change history: use `InvestmentChangeHistoryService` for recording edits; only admins may perform destructive updates.
+
+What NOT to change without checks
+- Firestore field names or ID formats without updating `field-mapping-utils.js` and migration scripts.
+- Cloud Functions region or function signatures without running the emulator and relevant function tests.
+- Central barrel exports in `lib/models_and_services.dart` — many files depend on that import path.
+
+Testing & verification
+- Run unit/widget tests: `flutter test` (check `test/`), run function tests under `functions/` (`npm run test`).
+- Use Firebase emulator for local function testing and logs: `firebase emulators:start` and `firebase functions:log`.
+
+If you need more context
+- Read `CLAUDE.md` for additional developer commands and background.
+- Search for `ClientIdMappingService`, `BaseService`, and `investments` to understand ID & mapping logic quickly.
+
+Feedback
+- If anything here is unclear or missing, tell me which area (data mapping, functions, UI patterns, or deploy steps) you want expanded and I will iterate.
