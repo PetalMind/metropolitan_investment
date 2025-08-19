@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models_and_services.dart';
+import '../providers/auth_provider.dart';
 import '../services/firebase_functions_products_service.dart' as fb;
 import '../services/unified_product_service.dart' as unified;
 import '../services/optimized_product_service.dart'; // 🚀 NOWY IMPORT
@@ -20,6 +22,9 @@ import '../widgets/product_filter_widget.dart';
 import '../widgets/dialogs/product_details_dialog.dart';
 import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
 import '../widgets/common/synchronized_product_values_widget.dart'; // 🚀 NOWY: Zsynchronizowane wartości
+
+// RBAC: wspólny tooltip dla braku uprawnień
+const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
 
 /// Ekran zarządzania produktami pobieranymi z kolekcji 'investments'
 /// Wykorzystuje FirebaseFunctionsProductsService do server-side przetwarzania danych
@@ -80,6 +85,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   bool _isLoading = true;
   bool _isRefreshing = false;
   String? _error;
+
+  // RBAC getter
+  bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
 
   // Kontrolery wyszukiwania i filtrowania
   final TextEditingController _searchController = TextEditingController();
@@ -2362,13 +2370,16 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   }
 
   Widget _buildFloatingActionButton() {
-    return FloatingActionButton.extended(
-      onPressed: _showAddProductDialog,
-      backgroundColor: AppTheme.secondaryGold,
-      foregroundColor: AppTheme.textOnSecondary,
-      icon: const Icon(Icons.add),
-      label: const Text('Dodaj Produkt'),
-      elevation: 8,
+    return Tooltip(
+      message: canEdit ? 'Dodaj Produkt' : kRbacNoPermissionTooltip,
+      child: FloatingActionButton.extended(
+        onPressed: canEdit ? _showAddProductDialog : null,
+        backgroundColor: canEdit ? AppTheme.secondaryGold : Colors.grey,
+        foregroundColor: AppTheme.textOnSecondary,
+        icon: const Icon(Icons.add),
+        label: const Text('Dodaj Produkt'),
+        elevation: 8,
+      ),
     );
   }
 

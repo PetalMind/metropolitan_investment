@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../widgets/dashboard/product_dashboard_widget.dart';
 import '../theme/app_theme_professional.dart';
 import '../models_and_services.dart';
+import '../providers/auth_provider.dart';
+
+// RBAC: wspólny tooltip dla braku uprawnień
+const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
 
 /// 🚀 SCREEN DEMONSTRACYJNY NOWEGO DASHBOARD PRODUKTÓW
 /// Nowoczesny ekran pokazujący funkcjonalność ProductDashboardWidget
@@ -21,6 +26,9 @@ class ProductDashboardScreen extends StatefulWidget {
 class _ProductDashboardScreenState extends State<ProductDashboardScreen> {
   String? _selectedProductId;
   bool _showDetailsPanel = false;
+
+  // RBAC getter
+  bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
 
   @override
   Widget build(BuildContext context) {
@@ -521,20 +529,23 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Przycisk odświeżania
-        FloatingActionButton(
-          heroTag: "refresh",
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Odświeżanie danych...'),
-                backgroundColor: AppThemePro.accentGold,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          },
-          backgroundColor: AppThemePro.accentGold,
-          foregroundColor: AppThemePro.primaryDark,
-          child: const Icon(Icons.refresh),
+        Tooltip(
+          message: canEdit ? 'Odśwież dane' : kRbacNoPermissionTooltip,
+          child: FloatingActionButton(
+            heroTag: "refresh",
+            onPressed: canEdit ? () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Odświeżanie danych...'),
+                  backgroundColor: AppThemePro.accentGold,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            } : null,
+            backgroundColor: canEdit ? AppThemePro.accentGold : Colors.grey,
+            foregroundColor: AppThemePro.primaryDark,
+            child: const Icon(Icons.refresh),
+          ),
         ),
 
         const SizedBox(height: 16),

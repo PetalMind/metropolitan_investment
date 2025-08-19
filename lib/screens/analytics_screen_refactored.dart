@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme_professional.dart';
+import '../providers/auth_provider.dart';
 
 // Import wszystkich tabów
 import 'analytics/tabs/overview_tab.dart';
@@ -8,6 +10,9 @@ import 'analytics/tabs/risk_tab.dart';
 import 'analytics/tabs/employees_tab.dart';
 import 'analytics/tabs/geographic_tab.dart';
 import 'analytics/tabs/trends_tab.dart';
+
+// RBAC: wspólny tooltip dla braku uprawnień
+const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
 
 /// 🚀 PROFESSIONAL ANALYTICS SCREEN
 /// Completely redesigned with professional theme and modular components
@@ -27,6 +32,9 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
   String _selectedAnalyticsTab = 'overview';
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+
+  // RBAC getter
+  bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
 
   // Responsive breakpoints
   bool get _isTablet => MediaQuery.of(context).size.width > 768;
@@ -143,18 +151,21 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
       children: [
         _buildTimeRangeSelector(),
         const SizedBox(width: 16),
-        ElevatedButton.icon(
-          onPressed: _exportReport,
-          icon: Icon(Icons.download, color: AppThemePro.primaryDark),
-          label: Text(
-            'Eksport',
-            style: TextStyle(color: AppThemePro.primaryDark),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppThemePro.accentGold,
-            foregroundColor: AppThemePro.primaryDark,
-            elevation: 2,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        Tooltip(
+          message: canEdit ? 'Eksportuj raport' : kRbacNoPermissionTooltip,
+          child: ElevatedButton.icon(
+            onPressed: canEdit ? _exportReport : null,
+            icon: Icon(Icons.download, color: canEdit ? AppThemePro.primaryDark : Colors.grey),
+            label: Text(
+              'Eksport',
+              style: TextStyle(color: canEdit ? AppThemePro.primaryDark : Colors.grey),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppThemePro.accentGold,
+              foregroundColor: AppThemePro.primaryDark,
+              elevation: 2,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
           ),
         ),
       ],
@@ -280,13 +291,16 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
   }
 
   Widget _buildRefreshFab() {
-    return FloatingActionButton.extended(
-      onPressed: _refreshCurrentTab,
-      backgroundColor: AppThemePro.accentGold,
-      foregroundColor: AppThemePro.primaryDark,
-      elevation: 4,
-      icon: const Icon(Icons.refresh),
-      label: const Text('Odśwież'),
+    return Tooltip(
+      message: canEdit ? 'Odśwież dane' : kRbacNoPermissionTooltip,
+      child: FloatingActionButton.extended(
+        onPressed: canEdit ? _refreshCurrentTab : null,
+        backgroundColor: canEdit ? AppThemePro.accentGold : Colors.grey,
+        foregroundColor: AppThemePro.primaryDark,
+        elevation: 4,
+        icon: const Icon(Icons.refresh),
+        label: const Text('Odśwież'),
+      ),
     );
   }
 

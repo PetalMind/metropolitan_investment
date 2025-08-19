@@ -185,6 +185,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     final double totalInvestmentAmount;
     final double totalRemainingCapital;
     final double totalCapitalSecured;
+    final double totalCapitalForRestructuring;
 
     if (_modalData != null) {
       // Zunifikowane statystyki z serwisu modal
@@ -192,11 +193,14 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
       totalRemainingCapital = _modalData!.statistics.totalRemainingCapital;
       totalCapitalSecured =
           _modalData!.statistics.totalCapitalSecuredByRealEstate;
+      // Oblicz kapitał do restrukturyzacji lokalnie jeśli nie ma w modalData
+      totalCapitalForRestructuring = _computeTotalCapitalForRestructuring();
     } else {
       // Fallback: Obliczenia lokalne według wzoru z product_details_modal.dart
       totalInvestmentAmount = _computeTotalInvestmentAmount();
       totalRemainingCapital = _computeTotalRemainingCapital();
       totalCapitalSecured = _computeTotalCapitalSecured();
+      totalCapitalForRestructuring = _computeTotalCapitalForRestructuring();
     }
 
     return Column(
@@ -213,16 +217,6 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                 color: Colors.white.withOpacity(0.7),
               ),
               const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  'Źródło: ${_modalData != null ? "UnifiedProductModalService (${_modalData!.fromCache ? "cache" : "fresh"})" : "Obliczenia lokalne"}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: isMobile ? 10 : 12,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
             ],
           ),
         ),
@@ -233,11 +227,13 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                 totalInvestmentAmount,
                 totalRemainingCapital,
                 totalCapitalSecured,
+                totalCapitalForRestructuring,
               )
             : _buildDesktopMetricsWrap(
                 totalInvestmentAmount,
                 totalRemainingCapital,
                 totalCapitalSecured,
+                totalCapitalForRestructuring,
               ),
       ],
     );
@@ -257,22 +253,25 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
 
         const SizedBox(height: 12),
 
-        // Drugi wiersz - jeden loading card na całą szerokość
-        _buildMetricLoadingCard(),
+        // Drugi wiersz - dwa loading cards
+        Row(
+          children: [
+            Expanded(child: _buildMetricLoadingCard()),
+            const SizedBox(width: 12),
+            Expanded(child: _buildMetricLoadingCard()),
+          ],
+        ),
       ],
     );
   }
 
   Widget _buildDesktopLoadingRow() {
-    return Row(
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
       children: List.generate(
-        3,
-        (i) => Expanded(
-          child: Container(
-            margin: EdgeInsets.only(right: i < 2 ? 16 : 0),
-            child: _buildMetricLoadingCard(),
-          ),
-        ),
+        4,
+        (i) => SizedBox(width: 220, child: _buildMetricLoadingCard()),
       ),
     );
   }
@@ -281,6 +280,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     double totalInvestmentAmount,
     double totalRemainingCapital,
     double totalCapitalSecured,
+    double totalCapitalForRestructuring,
   ) {
     return Column(
       children: [
@@ -312,13 +312,31 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
 
         const SizedBox(height: 12),
 
-        // Drugi wiersz - jedna karta na całą szerokość
-        _buildCompactMetricCard(
-          title: 'Kapitał zabezpieczony',
-          value: CurrencyFormatter.formatCurrency(totalCapitalSecured),
-          subtitle: 'PLN',
-          icon: Icons.security,
-          color: AppTheme.warningPrimary,
+        // Drugi wiersz - dwie karty
+        Row(
+          children: [
+            Expanded(
+              child: _buildCompactMetricCard(
+                title: 'Kapitał zabezpieczony',
+                value: CurrencyFormatter.formatCurrency(totalCapitalSecured),
+                subtitle: 'PLN',
+                icon: Icons.security,
+                color: AppTheme.warningPrimary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildCompactMetricCard(
+                title: 'Kapitał do restrukturyzacji',
+                value: CurrencyFormatter.formatCurrency(
+                  totalCapitalForRestructuring,
+                ),
+                subtitle: 'PLN',
+                icon: Icons.build,
+                color: AppTheme.errorPrimary,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -328,6 +346,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     double totalInvestmentAmount,
     double totalRemainingCapital,
     double totalCapitalSecured,
+    double totalCapitalForRestructuring,
   ) {
     return Wrap(
       spacing: 16,
@@ -362,6 +381,18 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             subtitle: 'PLN',
             icon: Icons.security,
             color: AppTheme.warningPrimary,
+          ),
+        ),
+        SizedBox(
+          width: 220,
+          child: _buildMetricCard(
+            title: 'Kapitał do restrukturyzacji',
+            value: CurrencyFormatter.formatCurrency(
+              totalCapitalForRestructuring,
+            ),
+            subtitle: 'PLN',
+            icon: Icons.build,
+            color: AppTheme.errorPrimary,
           ),
         ),
       ],

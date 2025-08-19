@@ -217,14 +217,6 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
                       color: AppTheme.infoPrimary,
                     ),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Źródło: ${_modalData != null ? "UnifiedProductModalService (${_modalData!.fromCache ? "cache" : "fresh"})" : "Cache lokalny"}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.infoPrimary,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),

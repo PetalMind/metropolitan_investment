@@ -978,7 +978,6 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         runSpacing: isMobile ? 4 : 8,
         children: [
           MetaChip(icon: Icons.tag, text: 'ID: ${product.id}'),
-          MetaChip(icon: Icons.source, text: 'Źródło: ${product.sourceFile}'),
           MetaChip(
             icon: Icons.upload,
             text:

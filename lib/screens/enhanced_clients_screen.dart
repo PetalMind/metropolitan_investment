@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:provider/provider.dart';
 import '../models_and_services.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
 
 class EnhancedClientsScreen extends StatefulWidget {
@@ -39,6 +41,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
   List<Client> get _selectedClients => _activeClients
       .where((client) => _selectedClientIds.contains(client.id))
       .toList();
+
+  // RBAC getter
+  bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
 
   @override
   void initState() {
@@ -370,7 +375,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
             ),
           ] else ...[
             ElevatedButton.icon(
-              onPressed: _enterSelectionMode,
+              onPressed: canEdit ? _enterSelectionMode : null,
               icon: const Icon(Icons.email),
               label: const Text('Wyślij Email'),
               style: ElevatedButton.styleFrom(
@@ -388,7 +393,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
             ),
             const SizedBox(width: 12),
             ElevatedButton.icon(
-              onPressed: () => _showClientForm(),
+              onPressed: canEdit ? () => _showClientForm() : null,
               icon: const Icon(Icons.add),
               label: const Text('Nowy Klient'),
               style: ElevatedButton.styleFrom(
@@ -732,24 +737,26 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
             label: 'Akcje',
             value: (client) => '',
             width: 120,
-            widget: (client) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  onPressed: () => _showClientForm(client),
-                  icon: const Icon(Icons.edit, size: 18),
-                  tooltip: 'Edytuj',
-                ),
-                IconButton(
-                  onPressed: () => _deleteClient(client),
-                  icon: const Icon(Icons.delete, size: 18),
-                  tooltip: 'Usuń',
-                  style: IconButton.styleFrom(
-                    foregroundColor: AppTheme.errorColor,
+            widget: (client) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: canEdit ? () => _showClientForm(client) : null,
+                    icon: const Icon(Icons.edit, size: 18),
+                    tooltip: 'Edytuj',
                   ),
-                ),
-              ],
-            ),
+                  IconButton(
+                    onPressed: canEdit ? () => _deleteClient(client) : null,
+                    icon: const Icon(Icons.delete, size: 18),
+                    tooltip: 'Usuń',
+                    style: IconButton.styleFrom(
+                      foregroundColor: AppTheme.errorColor,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
       ],
     );
@@ -816,7 +823,13 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () => _showClientForm(),
+            onPressed: () {
+              final authProvider =
+                  Provider.of<AuthProvider>(context, listen: false);
+              if (authProvider.isAdmin) {
+                _showClientForm();
+              }
+            },
             icon: const Icon(Icons.add),
             label: const Text('Dodaj Klienta'),
             style: ElevatedButton.styleFrom(

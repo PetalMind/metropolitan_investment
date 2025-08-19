@@ -7,6 +7,8 @@ import '../services/calendar_service.dart';
 import '../services/calendar_notification_service.dart'; // 🚀 NOWE
 import '../widgets/calendar/enhanced_calendar_event_dialog.dart';
 import '../theme/app_theme_professional.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 /// 🗓 PROFESSIONAL ENHANCED CALENDAR SCREEN
 /// Kompletnie przeprojektowany kalendarz z Firebase integration
@@ -249,6 +251,9 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
 
   @override
   Widget build(BuildContext context) {
+  // RBAC: tylko admin może dodawać / edytować wydarzenia
+  final authProvider = Provider.of<AuthProvider>(context, listen: true);
+  final canEdit = authProvider.isAdmin;
     return Scaffold(
       backgroundColor: AppThemePro.backgroundPrimary,
       body: Focus(
@@ -279,7 +284,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
           ],
         ),
       ),
-      floatingActionButton: _buildEnhancedFAB(),
+  floatingActionButton: _buildEnhancedFAB(canEdit: canEdit),
     );
   }
 
@@ -395,21 +400,23 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     );
   }
 
-  Widget _buildEnhancedFAB() {
+  Widget _buildEnhancedFAB({required bool canEdit}) {
     return ScaleTransition(
       scale: _scaleAnimation,
       child: FloatingActionButton.extended(
-        onPressed: () {
-          _showAddEventDialog();
-          _triggerBounce();
-        },
+        onPressed: canEdit
+            ? () {
+                _showAddEventDialog();
+                _triggerBounce();
+              }
+            : null,
         backgroundColor: AppThemePro.accentGold,
         foregroundColor: AppThemePro.primaryDark,
         elevation: 8,
         icon: const Icon(Icons.add_circle_outline, size: 24),
-        label: const Text(
-          'Nowe Wydarzenie',
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        label: Text(
+          canEdit ? 'Nowe Wydarzenie' : 'Tylko podgląd',
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
         ),
       ),
     );
@@ -1220,6 +1227,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     required bool isMobile,
     required bool isTablet,
   }) {
+  final canEdit = Provider.of<AuthProvider>(context, listen: false).isAdmin;
     return Row(
       children: List.generate(7, (index) {
         final day = _selectedWeekStart.add(Duration(days: index));
@@ -1230,8 +1238,10 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
         return Expanded(
           child: GestureDetector(
             onTap: () {
-              _showAddEventDialog(initialDate: day);
-              _triggerMicroInteraction();
+              if (canEdit) {
+                _showAddEventDialog(initialDate: day);
+                _triggerMicroInteraction();
+              }
             },
             child: Container(
               height: isMobile
@@ -1286,33 +1296,41 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
                   ),
                   Expanded(
                     child: dayEvents.isEmpty
-                        ? // 🚀 NOWE: Wskazówka dla pustych dni
+                        ? // 🚀 NOWE: Wskazówka dla pustych dni (tylko gdy admin)
                           Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_circle_outline,
-                                  size: isMobile ? 20 : 24,
-                                  color: AppThemePro.textTertiary.withValues(
-                                    alpha: 0.5,
+                            child: canEdit
+                                ? Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.add_circle_outline,
+                                        size: isMobile ? 20 : 24,
+                                        color: AppThemePro.textTertiary
+                                            .withValues(
+                                          alpha: 0.5,
+                                        ),
+                                      ),
+                                      if (!isMobile) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Dodaj\nevent',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: AppThemePro.textTertiary
+                                                .withValues(alpha: 0.7),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  )
+                                : Icon(
+                                    Icons.event_available,
+                                    size: isMobile ? 18 : 22,
+                                    color: AppThemePro.textTertiary
+                                        .withValues(alpha: 0.4),
                                   ),
-                                ),
-                                if (!isMobile) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Dodaj\nevent',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: AppThemePro.textTertiary
-                                          .withValues(alpha: 0.7),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
                           )
                         : ListView.builder(
                             padding: EdgeInsets.symmetric(

@@ -236,7 +236,42 @@ const sendInvestmentEmailToClient = onCall(async (request) => {
 /**
  * Tworzy transporter email (SMTP)
  */
-function createEmailTransporter() {
+async function createEmailTransporter() {
+  console.log("🔄 [EmailService] Pobieranie konfiguracji SMTP z Firestore...");
+  try {
+    const smtpConfigDoc = await db.collection('app_settings').doc('smtp_configuration').get();
+
+    if (!smtpConfigDoc.exists) {
+      console.error("❌ [EmailService] Brak konfiguracji SMTP w Firestore! Używam fallback.");
+      // Fallback do zmiennych środowiskowych jeśli dokument nie istnieje
+      return createTransporterFromEnv();
+    }
+
+    const settings = smtpConfigDoc.data();
+    const config = {
+      host: settings.host,
+      port: settings.port,
+      secure: settings.security === 'ssl' || settings.port === 465, // SSL dla portu 465
+      auth: {
+        user: settings.username,
+        pass: settings.password, // Hasło powinno być odczytywane z bezpiecznego miejsca
+      },
+      // Opcjonalne: Wymuś TLS jeśli jest wybrane
+      requireTLS: settings.security === 'tls',
+    };
+
+    console.log(`✅ [EmailService] Konfiguracja SMTP załadowana z Firestore: ${config.host}:${config.port}`);
+    return nodemailer.createTransport(config);
+  } catch (error) {
+    console.error("❌ [EmailService] Błąd podczas pobierania konfiguracji SMTP z Firestore. Używam fallback.", error);
+    return createTransporterFromEnv();
+  }
+}
+
+/**
+ * Tworzy transporter ze zmiennych środowiskowych (fallback)
+ */
+function createTransporterFromEnv() {
   // W produkcji należy skonfigurować przez Firebase Config
   // firebase functions:config:set email.smtp_host="smtp.gmail.com" email.smtp_user="your@gmail.com" email.smtp_password="password"
 
@@ -250,8 +285,8 @@ function createEmailTransporter() {
     }
   };
 
-  console.log(`📧 [EmailService] Konfiguracja SMTP: ${config.host}:${config.port} (user: ${config.auth.user})`);
-  return nodemailer.createTransporter(config);
+  console.log(`📧 [EmailService] Konfiguracja SMTP (fallback z env): ${config.host}:${config.port} (user: ${config.auth.user})`);
+  return nodemailer.createTransport(config);
 }
 
 /**

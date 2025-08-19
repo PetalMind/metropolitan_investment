@@ -3,100 +3,72 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models_and_services.dart'; // Centralny export wszystkich modeli i serwisów
+import '../providers/auth_provider.dart';
 import '../services/investor_analytics_service.dart'
-    as ia_service; // Tylko dla InvestorAnalyticsResult conflict resolution
+  as ia_service; // Tylko dla InvestorAnalyticsResult conflict resolution
 import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
 import '../widgets/dialogs/investor_export_dialog.dart';
-
-/// 🎯 PREMIUM INVESTOR ANALYTICS DASHBOARD
-///
-/// 🚀 Najnowocześniejszy dashboard analityki inwestorów w Polsce
-/// Inspirowany platformami Bloomberg Terminal, Refinitiv, i najlepszymi fintech solutions
-///
-/// ✨ KLUCZOWE FUNKCJONALNOŚCI:
-/// • � Analiza grupy większościowej (koalicja ≥51% kapitału)
-/// • 🗳️ Zaawansowana analiza głosowania (TAK/NIE/WSTRZYMUJE/NIEZDECYDOWANY)
-/// • 📈 Inteligentne statystyki systemu z predykcją trendów
-/// • 🔍 Intuicyjne filtrowanie pod ręką - lightning fast
-/// • 📱 Responsive design dla wszystkich urządzeń
-/// • ⚡ Performance-first architecture z lazy loading
-/// • 🎨 Premium UI/UX - level Bloomberg Terminal
-/// • 🔐 Enterprise-grade error handling
-/// • 🌟 Smooth animations i micro-interactions
-/// • 💎 Professional financial color coding
+// RBAC wspólna stała tooltip
+const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
+// === Przywrócona definicja widgetu i stanu ===
 class PremiumInvestorAnalyticsScreen extends StatefulWidget {
   final String? initialSearchQuery;
-
   const PremiumInvestorAnalyticsScreen({super.key, this.initialSearchQuery});
-
   @override
-  State<PremiumInvestorAnalyticsScreen> createState() =>
-      _PremiumInvestorAnalyticsScreenState();
+  State<PremiumInvestorAnalyticsScreen> createState() => _PremiumInvestorAnalyticsScreenState();
 }
 
-class _PremiumInvestorAnalyticsScreenState
-    extends State<PremiumInvestorAnalyticsScreen>
-    with TickerProviderStateMixin {
-  // 🎮 CORE SERVICES
-  final AnalyticsMigrationService _migrationService =
-      AnalyticsMigrationService(); // 🚀 NOWY: Zoptymalizowany serwis z migracją
-  final FirebaseFunctionsPremiumAnalyticsService _premiumAnalyticsService =
-      FirebaseFunctionsPremiumAnalyticsService(); // 🚀 NOWY: Premium Analytics Service
-  final FirebaseFunctionsAnalyticsServiceUpdated _analyticsService =
-      FirebaseFunctionsAnalyticsServiceUpdated(); // 🔄 FALLBACK: Stary serwis jako backup
-  final ia_service.InvestorAnalyticsService _updateService =
-      ia_service.InvestorAnalyticsService(); // Dla aktualizacji danych
+class _PremiumInvestorAnalyticsScreenState extends State<PremiumInvestorAnalyticsScreen> with TickerProviderStateMixin {
+  // === POLA PRZYWRÓCONE ===
+  // RBAC
+  bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
+  // Serwisy
+  final AnalyticsMigrationService _migrationService = AnalyticsMigrationService();
+  final FirebaseFunctionsPremiumAnalyticsService _premiumAnalyticsService = FirebaseFunctionsPremiumAnalyticsService();
+  final FirebaseFunctionsAnalyticsServiceUpdated _analyticsService = FirebaseFunctionsAnalyticsServiceUpdated();
+  final ia_service.InvestorAnalyticsService _updateService = ia_service.InvestorAnalyticsService();
   final VotingAnalysisManager _votingManager = VotingAnalysisManager();
-  final EmailAndExportService _emailExportService =
-      EmailAndExportService(); // 🚀 NOWY: Email i eksport
-  final InvestmentService _investmentService =
-      InvestmentService(); // 🚀 NOWY: Skalowanie inwestycji
-
-  // 🎛️ UI CONTROLLERS
+  // Kontrolery
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final PageController _pageController = PageController();
-
-  // 🎨 ANIMATION CONTROLLERS
+  // Animacje
   late AnimationController _filterAnimationController;
   late AnimationController _fabAnimationController;
   late AnimationController _statsAnimationController;
   late TabController _tabController;
-
-  // 🎭 ANIMATIONS
   late Animation<Offset> _filterSlideAnimation;
-  late Animation<double> _fabScaleAnimation;
-  late Animation<double> _statsOpacityAnimation;
 
-  // 📊 DATA STATE
+  // Dane główne
   List<InvestorSummary> _allInvestors = [];
   List<InvestorSummary> _displayedInvestors = [];
   InvestorAnalyticsResult? _currentResult;
-  PremiumAnalyticsResult? _premiumResult; // 🚀 NOWE: Premium Analytics Result
+  PremiumAnalyticsResult? _premiumResult;
 
-  // 📈 MAJORITY CONTROL ANALYSIS
+  // Analiza większości
   double _majorityThreshold = 51.0;
   List<InvestorSummary> _majorityHolders = [];
 
-  // 🗳️ VOTING ANALYSIS
+  // Głosowanie
   Map<VotingStatus, double> _votingDistribution = {};
   Map<VotingStatus, int> _votingCounts = {};
 
-  // 🔄 DATA REFRESH STATE
+  // Stany ładowania
   bool _isLoading = true;
   bool _isLoadingMore = false;
   bool _isRefreshing = false;
-  bool _dataWasUpdated = false; // 📍 Flaga czy dane były rzeczywiście zmieniane
+  bool _dataWasUpdated = false;
   String? _error;
 
-  // 📄 PAGINATION
+  // Paginacja
   int _currentPage = 1;
-  final int _pageSize = 10000; // Zwiększony limit do 10k inwestorów
+  final int _pageSize = 10000;
   int _totalCount = 0;
 
-  // 🎛️ ADVANCED FILTERS
+  // Filtry / sortowanie
   String _sortBy = 'viableRemainingCapital';
   bool _sortAscending = false;
   VotingStatus? _selectedVotingStatus;
@@ -108,26 +80,21 @@ class _PremiumInvestorAnalyticsScreenState
   double _maxCapitalFilter = double.infinity;
   String _searchQuery = '';
 
-  // 🖼️ VIEW CONFIGURATION
+  // Widoki
   bool _isFilterVisible = false;
-  bool _showDeduplicatedProducts =
-      true; // Domyślnie pokazuj deduplikowane produkty
-
-  // 📊 VIEW MODES
-  ViewMode _investorsViewMode = ViewMode.list; // Domyślnie lista zamiast kart
+  bool _showDeduplicatedProducts = true;
+  ViewMode _investorsViewMode = ViewMode.list;
   ViewMode _majorityViewMode = ViewMode.list;
 
-  // 📋 MULTI-SELECTION STATE
+  // Selekcja
   bool _isSelectionMode = false;
   Set<String> _selectedInvestorIds = <String>{};
-  List<InvestorSummary> get _selectedInvestors => _allInvestors
-      .where((investor) => _selectedInvestorIds.contains(investor.client.id))
-      .toList();
+  List<InvestorSummary> get _selectedInvestors => _allInvestors.where((i) => _selectedInvestorIds.contains(i.client.id)).toList();
 
-  // 📱 RESPONSIVE BREAKPOINTS
+  // Responsywność
   bool get _isTablet => MediaQuery.of(context).size.width > 768;
 
-  // ⚙️ CONFIGURATION
+  // Timery
   Timer? _searchDebounceTimer;
   Timer? _refreshTimer;
   static const Duration _searchDebounceDelay = Duration(milliseconds: 300);
@@ -136,23 +103,10 @@ class _PremiumInvestorAnalyticsScreenState
   @override
   void initState() {
     super.initState();
-
-    // Ustaw początkowy search query jeśli został przekazany
-    if (widget.initialSearchQuery != null &&
-        widget.initialSearchQuery!.isNotEmpty) {
+    if (widget.initialSearchQuery != null && widget.initialSearchQuery!.isNotEmpty) {
       _searchQuery = widget.initialSearchQuery!;
       _searchController.text = _searchQuery;
-
-      // Automatycznie przełącz na zakładkę Inwestorzy i pokaż filtry
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _tabController.animateTo(1); // Index 1 = Inwestorzy tab
-          setState(() => _isFilterVisible = true);
-          _filterAnimationController.forward();
-        }
-      });
     }
-
     _initializeAnimations();
     _initializeListeners();
     _startPeriodicRefresh();
@@ -167,62 +121,24 @@ class _PremiumInvestorAnalyticsScreenState
     super.dispose();
   }
 
-  // 🎨 INITIALIZATION METHODS
-
   void _initializeAnimations() {
-    // Tab controller
     _tabController = TabController(length: 4, vsync: this);
-
-    // Filter panel animation
     _filterAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-
-    // FAB animation
     _fabAnimationController = AnimationController(
       duration: const Duration(milliseconds: 250),
       vsync: this,
     );
-
-    // Stats animation
     _statsAnimationController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-
-    // Initialize animation curves
-    _filterSlideAnimation =
-        Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _filterAnimationController,
-            curve: Curves.easeOutQuart,
-          ),
-        );
-
-    _fabScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _fabAnimationController,
-        curve: Curves.elasticOut,
-      ),
+    _filterSlideAnimation = Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero).animate(
+      CurvedAnimation(parent: _filterAnimationController, curve: Curves.easeOutQuart),
     );
-
-    _statsOpacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _statsAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
-
-    // Start initial animations
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted) {
-        _fabAnimationController.forward();
-        _statsAnimationController.forward();
-      }
-    });
   }
-
   void _initializeListeners() {
     _scrollController.addListener(_onScroll);
     _searchController.addListener(_onSearchChanged);
@@ -888,7 +804,8 @@ class _PremiumInvestorAnalyticsScreenState
           ],
         ),
       ),
-      floatingActionButton: _buildFloatingActionButton(),
+  // FAB zawsze renderowany – dla roli user przyciski pasywne z tooltipami
+  floatingActionButton: _buildFloatingActionButton(),
     );
   }
 
@@ -1124,30 +1041,6 @@ class _PremiumInvestorAnalyticsScreenState
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildVotingStatusFilter() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Status głosowania',
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(color: AppTheme.textSecondary),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            _buildVotingStatusChip(null, 'Wszystkie'),
-            ...VotingStatus.values.map(
-              (status) => _buildVotingStatusChip(status, status.displayName),
-            ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -1514,20 +1407,25 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildRefreshButton() {
-    return IconButton(
-      onPressed: _isLoading ? null : _refreshData,
-      icon: _isRefreshing
-          ? SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation(AppTheme.secondaryGold),
+    return Tooltip(
+      message: canEdit ? 'Odśwież dane' : kRbacNoPermissionTooltip,
+      child: IconButton(
+        onPressed: (!canEdit || _isLoading) ? null : _refreshData,
+        icon: _isRefreshing
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(AppTheme.secondaryGold),
+                ),
+              )
+            : Icon(
+                Icons.refresh_rounded,
+                color: canEdit ? AppTheme.textSecondary : Colors.grey,
               ),
-            )
-          : Icon(Icons.refresh_rounded),
-      color: AppTheme.textSecondary,
-      tooltip: 'Odśwież dane',
+        tooltip: canEdit ? 'Odśwież dane' : kRbacNoPermissionTooltip,
+      ),
     );
   }
 
@@ -1548,111 +1446,89 @@ class _PremiumInvestorAnalyticsScreenState
 
   Widget _buildViewModeToggle() {
     return ViewModeSelector(
-      currentMode: _investorsViewMode,
-      onModeChanged: (ViewMode mode) {
+      currentMode: _tabController.index == 3
+          ? _majorityViewMode
+          : _investorsViewMode,
+      onModeChanged: (mode) {
         setState(() {
-          if (_tabController.index == 1) {
-            // Inwestorzy tab
-            _investorsViewMode = mode;
-          } else if (_tabController.index == 3) {
-            // Większość tab
+          if (_tabController.index == 3) {
             _majorityViewMode = mode;
+          } else {
+            _investorsViewMode = mode;
           }
         });
       },
       isTablet: _isTablet,
     );
   }
-
+  
   Widget _buildFloatingActionButton() {
-    if (_isSelectionMode) {
-      // Tryb wielokrotnego wyboru - pokaż liczbę wybranych i akcje
-      return ScaleTransition(
-        scale: _fabScaleAnimation,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_selectedInvestorIds.isNotEmpty) ...[
-              // Email FAB
-              FloatingActionButton(
-                heroTag: "email_fab",
-                onPressed: _showEmailDialog,
-                backgroundColor: AppTheme.secondaryGold,
-                foregroundColor: Colors.white,
-                mini: true,
-                child: const Icon(Icons.email_outlined),
-              ),
-              const SizedBox(height: 8),
-              // Export FAB
-              FloatingActionButton(
-                heroTag: "export_fab",
-                onPressed: _showExportDialog,
-                backgroundColor: AppTheme.primaryAccent,
-                foregroundColor: Colors.white,
-                mini: true,
-                child: const Icon(Icons.file_download_outlined),
-              ),
-              const SizedBox(height: 12),
-            ],
-            // Główny FAB z liczbą wybranych
-            FloatingActionButton.extended(
-              heroTag: "main_fab",
-              onPressed: _exitSelectionMode,
-              backgroundColor: Colors.grey[700],
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.close),
-              label: Text('Wybrano: ${_selectedInvestorIds.length}'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Normalny tryb - standardowy przycisk akcji
-    return ScaleTransition(
-      scale: _fabScaleAnimation,
+    return Tooltip(
+      message: canEdit ? 'Akcje analityczne' : kRbacNoPermissionTooltip,
       child: FloatingActionButton.extended(
-        onPressed: _showActionMenu,
-        backgroundColor: AppTheme.secondaryGold,
-        foregroundColor: AppTheme.textOnSecondary,
-        icon: const Icon(Icons.more_vert_rounded),
-        label: const Text('Akcje'),
+        onPressed: canEdit ? _showActionMenu : null,
+        backgroundColor:
+            canEdit ? AppTheme.secondaryGold : AppTheme.backgroundTertiary,
+        foregroundColor:
+            canEdit ? AppTheme.backgroundPrimary : AppTheme.textSecondary,
+        icon: Icon(Icons.menu_rounded),
+        label: Text('Akcje'),
       ),
     );
   }
 
-  // 🎨 SYSTEM STATS AND ANALYTICS
-
-  Widget _buildSystemStatsSliver() {
+  SliverToBoxAdapter _buildSystemStatsSliver() {
     return SliverToBoxAdapter(
-      child: FadeTransition(
-        opacity: _statsOpacityAnimation,
-        child: Container(
-          margin: EdgeInsets.all(_isTablet ? 16 : 12),
-          padding: const EdgeInsets.all(20),
-          decoration: AppTheme.premiumCardDecoration,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.dashboard_rounded, color: AppTheme.secondaryGold),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Przegląd systemu',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildStatsGrid(),
-            ],
-          ),
+      child: Container(
+        margin: EdgeInsets.all(_isTablet ? 16 : 12),
+        padding: const EdgeInsets.all(20),
+        decoration: AppTheme.premiumCardDecoration,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.insights_rounded, color: AppTheme.secondaryGold),
+                const SizedBox(width: 8),
+                Text(
+                  'Statystyki systemowe',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildStatsGrid(),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildVotingStatusFilter() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Status głosowania',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            _buildVotingStatusChip(null, 'Wszystkie'),
+            _buildVotingStatusChip(VotingStatus.yes, 'TAK'),
+            _buildVotingStatusChip(VotingStatus.no, 'NIE'),
+            _buildVotingStatusChip(VotingStatus.abstain, 'WSTRZYMUJE'),
+            _buildVotingStatusChip(VotingStatus.undecided, 'NIEZDEC.'),
+          ],
+        ),
+      ],
     );
   }
 
@@ -1846,62 +1722,6 @@ class _PremiumInvestorAnalyticsScreenState
         },
       ),
     );
-  }
-
-  /// Skaluje kwoty inwestycji produktu proporcjonalnie
-  Future<void> _scaleProductInvestments(
-    String productId,
-    String productName,
-    double newTotalAmount,
-  ) async {
-    try {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 20),
-              Text('Skalowanie inwestycji...'),
-            ],
-          ),
-        ),
-      );
-
-      final result = await _investmentService.scaleProductInvestments(
-        productId: productId,
-        productName: productName,
-        newTotalAmount: newTotalAmount,
-        reason: 'Proporcjonalne skalowanie z Premium Analytics',
-      );
-
-      Navigator.of(context).pop(); // Zamknij dialog loading
-
-      if (result.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✅ Skalowanie zakończone: ${result.summary.affectedInvestments} inwestycji',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Odśwież dane
-        await _refreshData();
-      } else {
-        throw Exception('Skalowanie nie powiodło się');
-      }
-    } catch (e) {
-      Navigator.of(context).pop(); // Zamknij dialog loading
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Błąd skalowania: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 
   void _showActionMenu() {
@@ -2336,333 +2156,6 @@ class _PremiumInvestorAnalyticsScreenState
 
   // 🎨 SYSTEM STATS AND ANALYTICS
 
-  Widget _buildInvestorsTableHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceCard,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: Row(
-        children: [
-          SizedBox(width: 30, child: Text('#', style: _getTableHeaderStyle())),
-          Expanded(
-            flex: 3,
-            child: Text('Inwestor', style: _getTableHeaderStyle()),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text('Status', style: _getTableHeaderStyle()),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text('Kapitał pozostały', style: _getTableHeaderStyle()),
-          ),
-          if (_isTablet) ...[
-            Expanded(
-              flex: 2,
-              child: Text('Kwota inwestycji', style: _getTableHeaderStyle()),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text('Do restrukturyzacji', style: _getTableHeaderStyle()),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text('Zabezp. nieruch.', style: _getTableHeaderStyle()),
-            ),
-          ] else ...[
-            // Mobile view - pokazuj tylko kwotę inwestycji w kompaktowej formie
-            Expanded(
-              flex: 1,
-              child: Text('Kwota\ninwest.', style: _getTableHeaderStyle()),
-            ),
-          ],
-          Expanded(
-            flex: 1,
-            child: Text('Udział', style: _getTableHeaderStyle()),
-          ),
-          Expanded(
-            flex: 1,
-            child: Text('Liczba\ninwestycji', style: _getTableHeaderStyle()),
-          ),
-          if (_isTablet) ...[
-            SizedBox(
-              width: 48,
-              child: Text('Akcje', style: _getTableHeaderStyle()),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInvestorsTableRow(InvestorSummary investor, int index) {
-    final votingStatusColor = _getVotingStatusColor(
-      investor.client.votingStatus,
-    );
-    final capitalPercentage = _votingManager.totalViableCapital > 0
-        ? (investor.viableRemainingCapital /
-                  _votingManager.totalViableCapital) *
-              100
-        : 0.0;
-    final isMajorityHolder = _majorityHolders.contains(investor);
-
-    return InkWell(
-      onTap: () => _showInvestorDetails(investor),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isMajorityHolder
-              ? AppTheme.secondaryGold.withOpacity(0.05)
-              : AppTheme.backgroundSecondary,
-          border: Border(
-            bottom: BorderSide(color: AppTheme.borderSecondary, width: 0.5),
-          ),
-        ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 30,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: votingStatusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: votingStatusColor.withOpacity(0.3)),
-                ),
-                child: Text(
-                  '${index + 1}',
-                  style: TextStyle(
-                    color: votingStatusColor,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 3,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          investor.client.name,
-                          style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          investor.client.type.displayName,
-                          style: TextStyle(
-                            color: AppTheme.textTertiary,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (isMajorityHolder) ...[
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.star_rounded,
-                      color: AppTheme.secondaryGold,
-                      size: 14,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: votingStatusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: votingStatusColor.withOpacity(0.3)),
-                ),
-                child: Text(
-                  investor.client.votingStatus.displayName,
-                  style: TextStyle(
-                    color: votingStatusColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    CurrencyFormatter.formatCurrencyShort(
-                      investor.viableRemainingCapital,
-                    ),
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                  Text(
-                    '${capitalPercentage.toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_isTablet) ...[
-              Expanded(
-                flex: 2,
-                child: Text(
-                  CurrencyFormatter.formatCurrencyShort(
-                    investor.totalInvestmentAmount,
-                  ),
-                  style: TextStyle(
-                    color: AppTheme.infoPrimary,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  CurrencyFormatter.formatCurrencyShort(
-                    investor.capitalForRestructuring,
-                  ),
-                  style: TextStyle(
-                    color: AppTheme.warningPrimary,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  CurrencyFormatter.formatCurrencyShort(
-                    investor.capitalSecuredByRealEstate,
-                  ),
-                  style: TextStyle(
-                    color: AppTheme.successPrimary,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ] else ...[
-              // Mobile view - pokazuj tylko kwotę inwestycji
-              Expanded(
-                flex: 1,
-                child: Text(
-                  CurrencyFormatter.formatCurrencyShort(
-                    investor.totalInvestmentAmount,
-                  ),
-                  style: TextStyle(
-                    color: AppTheme.infoPrimary,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 10,
-                  ),
-                ),
-              ),
-            ],
-            Expanded(
-              flex: 1,
-              child: Text(
-                '${capitalPercentage.toStringAsFixed(1)}%',
-                style: TextStyle(
-                  color: isMajorityHolder
-                      ? AppTheme.secondaryGold
-                      : AppTheme.textSecondary,
-                  fontWeight: isMajorityHolder
-                      ? FontWeight.w600
-                      : FontWeight.w500,
-                  fontSize: 11,
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 1,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryAccent.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '${investor.investmentCount}',
-                  style: TextStyle(
-                    color: AppTheme.primaryAccent,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-            if (_isTablet) ...[
-              SizedBox(
-                width: 48,
-                child: PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert_rounded, size: 16),
-                  color: AppTheme.backgroundModal,
-                  itemBuilder: (context) => [
-                    PopupMenuItem<String>(
-                      value: 'details',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 16,
-                            color: AppTheme.infoPrimary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text('Szczegóły'),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem<String>(
-                      value: 'export',
-                      child: Row(children: [
-                    
-                        ],
-                      ),
-                    ),
-                  ],
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'details':
-                        _showInvestorDetails(investor);
-                        break;
-                      case 'export':
-                        _exportInvestorData(investor);
-                        break;
-                    }
-                  },
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
 
   TextStyle _getTableHeaderStyle() {
     return TextStyle(
@@ -4838,7 +4331,13 @@ class _PremiumInvestorAnalyticsScreenState
     });
     _exitSelectionMode();
   }
+
+  // === RBAC aliasy i brakujące metody używane w UI (oryginalnie w extension) ===
+  void _clearSelection() => _deselectAllInvestors();
+  void _selectAllVisibleInvestors() => _selectAllInvestors();
 }
+
+// ================== HELPER DATA CLASSES (Top-level) ==================
 
 class _StatItem {
   final String label;
@@ -4932,6 +4431,8 @@ class TrendChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
+
+// === KONIEC KLASY STANU ===
 
 class VotingPieChartPainter extends CustomPainter {
   final Map<VotingStatus, double> votingDistribution;
@@ -5259,215 +4760,5 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
         );
       },
     );
-  }
-
-  // Helper method for exporting investor data
-  void _exportInvestorData(InvestorSummary investor) {
-    // Prepare data for export/sharing
-    final data = StringBuffer();
-    data.writeln('=== ${investor.client.name} ===');
-    data.writeln('Email: ${investor.client.email}');
-    data.writeln(
-      'Status głosowania: ${investor.client.votingStatus.displayName}',
-    );
-    data.writeln('Typ klienta: ${investor.client.type.displayName}');
-    data.writeln('');
-    data.writeln('Szczegóły finansowe:');
-    data.writeln(
-      '• Kapitał pozostały: ${CurrencyFormatter.formatCurrency(investor.viableRemainingCapital)}',
-    );
-    data.writeln(
-      '• Kwota inwestycji: ${CurrencyFormatter.formatCurrency(investor.totalInvestmentAmount)}',
-    );
-    data.writeln(
-      '• Kapitał do restrukturyzacji: ${CurrencyFormatter.formatCurrency(investor.capitalForRestructuring)}',
-    );
-    data.writeln(
-      '• Kapitał zabezpieczony nieruchomościami: ${CurrencyFormatter.formatCurrency(investor.capitalSecuredByRealEstate)}',
-    );
-    data.writeln('• Liczba inwestycji: ${investor.investmentCount}');
-
-    // Copy to clipboard
-    Clipboard.setData(ClipboardData(text: data.toString()));
-
-    // Show confirmation
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('📋 Dane inwestora skopiowane do schowka'),
-        backgroundColor: AppTheme.successColor,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  // 📋 MULTI-SELECTION METHODS
-
-  void _enterSelectionMode() {
-    setState(() {
-      _isSelectionMode = true;
-      _selectedInvestorIds.clear();
-    });
-
-    _fabAnimationController.forward();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('👆 Dotknij inwestorów aby ich wybrać'),
-        backgroundColor: AppTheme.primaryAccent,
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'OK',
-          textColor: Colors.white,
-          onPressed: () {},
-        ),
-      ),
-    );
-  }
-
-  void _exitSelectionMode() {
-    setState(() {
-      _isSelectionMode = false;
-      _selectedInvestorIds.clear();
-    });
-  }
-
-  void _toggleInvestorSelection(String investorId) {
-    setState(() {
-      if (_selectedInvestorIds.contains(investorId)) {
-        _selectedInvestorIds.remove(investorId);
-      } else {
-        _selectedInvestorIds.add(investorId);
-      }
-    });
-  }
-
-  void _selectAllVisibleInvestors() {
-    setState(() {
-      for (final investor in _displayedInvestors) {
-        _selectedInvestorIds.add(investor.client.id);
-      }
-    });
-  }
-
-  void _clearSelection() {
-    setState(() {
-      _selectedInvestorIds.clear();
-    });
-  }
-
-  void _showEmailDialog() {
-    if (_selectedInvestors.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('❌ Nie wybrano żadnych inwestorów'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => EnhancedInvestorEmailDialog(
-        selectedInvestors: _selectedInvestors,
-        onEmailSent: () {
-          _exitSelectionMode();
-        },
-      ),
-    );
-  }
-
-  void _showExportDialog() {
-    if (_selectedInvestors.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('❌ Nie wybrano żadnych inwestorów'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => InvestorExportDialog(
-        selectedInvestors: _selectedInvestors,
-        onExportComplete: () {
-          _exitSelectionMode();
-        },
-      ),
-    );
-  }
-
-  // 🚀 NOWE METODY: Integracja z optymalizowanymi serwisami
-
-  /// Odświeża cache i reloaduje dane z nowym serwisem
-  Future<void> _refreshOptimizedCache() async {
-    try {
-      _migrationService.clearAllCache();
-      await _loadInitialData();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.rocket_launch, color: Colors.white),
-                SizedBox(width: 8),
-                Text('🚀 Cache odświeżony - używam zoptymalizowanych serwisów'),
-              ],
-            ),
-            backgroundColor: AppTheme.successPrimary,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Błąd odświeżania cache: $e'),
-            backgroundColor: AppTheme.errorPrimary,
-          ),
-        );
-      }
-    }
-  }
-
-  /// Sprawdza status migracji do nowych serwisów
-  void _checkMigrationStatus() {
-    final status = _migrationService.getMigrationStatus();
-    print('📊 [Premium Analytics] Status migracji: $status');
-    
-    if (!status['useEnhancedServices']) {
-      print('⚠️ [Premium Analytics] Enhanced services wyłączone - używam legacy');
-    }
-  }
-
-  /// Wywołuje porównanie wydajności między starym a nowym serwisem
-  Future<void> _runPerformanceComparison() async {
-    try {
-      final comparison = await _migrationService.comparePerformance(
-        testIterations: 3,
-        pageSize: _pageSize,
-      );
-      
-      print('📊 [Performance] ${comparison.summary}');
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('📊 ${comparison.summary}'),
-            backgroundColor: comparison.enhancedIsFaster 
-                ? AppTheme.successPrimary 
-                : AppTheme.warningPrimary,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    } catch (e) {
-      print('❌ [Performance] Błąd porównania: $e');
-    }
   }
 }

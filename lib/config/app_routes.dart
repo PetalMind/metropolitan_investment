@@ -14,6 +14,7 @@ import '../screens/product_dashboard_screen.dart';
 import '../widgets/auth_wrapper.dart';
 import '../widgets/main_layout.dart';
 import '../providers/auth_provider.dart';
+import '../screens/settings/smtp_settings_screen.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
 
@@ -62,6 +63,7 @@ class AppRoutes {
   // === DODATKOWE FUNKCJONALNOŚCI ===
   static const String profile = '/profile';
   static const String settings = '/settings';
+  static const String smtpSettings = '/settings/smtp';
   static const String reports = '/reports';
   static const String notifications = '/notifications';
 
@@ -216,7 +218,7 @@ class MainNavigationItems {
 /// Klasa konfigurująca router aplikacji
 class AppRouter {
   static final GoRouter _router = GoRouter(
-    initialLocation: AppRoutes.dashboard,
+    initialLocation: AppRoutes.root, // Zamiast dashboard - lepiej zacząć od root
     debugLogDiagnostics: true,
 
     // Funkcja przekierowań na podstawie stanu autoryzacji
@@ -241,10 +243,15 @@ class AppRouter {
         return AppRoutes.login;
       }
 
+      if (isAuthenticated && currentLocation == AppRoutes.root) {
+        // Zalogowany użytkownik na root - przekieruj do dashboard
+        return AppRoutes.dashboard;
+      }
+
       if (isAuthenticated &&
           isPublicRoute &&
           currentLocation != AppRoutes.root) {
-        // Zalogowany użytkownik próbuje dostać się do publicznej strony
+        // Zalogowany użytkownik próbuje dostać się do publicznej strony (nie root)
         return AppRoutes.dashboard;
       }
 
@@ -422,6 +429,16 @@ class AppRouter {
               state,
               const SettingsScreen(),
             ),
+            routes: [
+              GoRoute(
+                path: 'smtp',
+                pageBuilder: (context, state) => _buildPageWithTransition(
+                  context,
+                  state,
+                  const SmtpSettingsScreen(),
+                ),
+              ),
+            ],
           ),
 
           GoRoute(

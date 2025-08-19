@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../config/app_routes.dart';
 import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
+
+// RBAC: wspólny tooltip dla braku uprawnień
+const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
 
 /// 🔧 Settings Screen
 /// Ekran ustawień aplikacji z zarządzaniem obliczeniami kapitału oraz innymi opcjami
@@ -15,33 +21,49 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   int _selectedTabIndex = 0;
 
-  final List<SettingsTab> _tabs = [
-    SettingsTab(
-      title: 'Obliczenia kapitału',
-      icon: Icons.calculate,
-      content: const CapitalCalculationSettingsTab(),
-    ),
-    SettingsTab(
-      title: 'Konto',
-      icon: Icons.account_circle,
-      content: const AccountSettingsTab(),
-    ),
-    SettingsTab(
-      title: 'Aplikacja',
-      icon: Icons.settings_applications,
-      content: const ApplicationSettingsTab(),
-    ),
-    SettingsTab(
-      title: 'Dane',
-      icon: Icons.storage,
-      content: const DataSettingsTab(),
-    ),
-    SettingsTab(
-      title: 'System',
-      icon: Icons.computer,
-      content: const SystemSettingsTab(),
-    ),
-  ];
+  List<SettingsTab> get _tabs {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final isAdmin = authProvider.isAdmin;
+    
+    List<SettingsTab> tabs = [
+      SettingsTab(
+        title: 'Obliczenia kapitału',
+        icon: Icons.calculate,
+        content: const CapitalCalculationSettingsTab(),
+      ),
+      SettingsTab(
+        title: 'Konto',
+        icon: Icons.account_circle,
+        content: const AccountSettingsTab(),
+      ),
+      SettingsTab(
+        title: 'Aplikacja',
+        icon: Icons.settings_applications,
+        content: const ApplicationSettingsTab(),
+      ),
+      SettingsTab(
+        title: 'Dane',
+        icon: Icons.storage,
+        content: const DataSettingsTab(),
+      ),
+      SettingsTab(
+        title: 'System',
+        icon: Icons.computer,
+        content: const SystemSettingsTab(),
+      ),
+    ];
+
+    // Dodaj zakładkę Admin tylko dla administratorów
+    if (isAdmin) {
+      tabs.add(SettingsTab(
+        title: 'Admin',
+        icon: Icons.admin_panel_settings,
+        content: const AdminSettingsTab(),
+      ));
+    }
+
+    return tabs;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -794,6 +816,9 @@ class _ApplicationSettingsTabState extends State<ApplicationSettingsTab> {
   String _dateFormat = 'dd/MM/yyyy';
   String _language = 'pl';
 
+  // RBAC getter
+  bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -1013,14 +1038,16 @@ class _ApplicationSettingsTabState extends State<ApplicationSettingsTab> {
                     icon: Icons.download,
                     title: 'Eksportuj ustawienia',
                     subtitle: 'Zapisz bieżące ustawienia do pliku',
-                    onTap: () => _exportSettings(context),
+                    onTap: canEdit ? () => _exportSettings(context) : null,
+                    disabled: !canEdit,
                   ),
                   _buildAdvancedOption(
                     context,
                     icon: Icons.upload,
                     title: 'Importuj ustawienia',
                     subtitle: 'Przywróć ustawienia z pliku',
-                    onTap: () => _importSettings(context),
+                    onTap: canEdit ? () => _importSettings(context) : null,
+                    disabled: !canEdit,
                   ),
                   _buildAdvancedOption(
                     context,
@@ -1028,7 +1055,8 @@ class _ApplicationSettingsTabState extends State<ApplicationSettingsTab> {
                     title: 'Przywróć domyślne',
                     subtitle:
                         'Resetuj wszystkie ustawienia do wartości domyślnych',
-                    onTap: () => _resetSettings(context),
+                    onTap: canEdit ? () => _resetSettings(context) : null,
+                    disabled: !canEdit,
                   ),
                 ],
               ),
@@ -1042,9 +1070,9 @@ class _ApplicationSettingsTabState extends State<ApplicationSettingsTab> {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => _saveSettings(context),
+                  onPressed: canEdit ? () => _saveSettings(context) : null,
                   icon: const Icon(Icons.save),
-                  label: const Text('Zapisz ustawienia'),
+                  label: Text(canEdit ? 'Zapisz ustawienia' : 'Tylko podgląd'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
@@ -1055,9 +1083,9 @@ class _ApplicationSettingsTabState extends State<ApplicationSettingsTab> {
               const SizedBox(width: 16),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => _discardChanges(context),
+                  onPressed: canEdit ? () => _discardChanges(context) : null,
                   icon: const Icon(Icons.cancel),
-                  label: const Text('Odrzuć zmiany'),
+                  label: Text(canEdit ? 'Odrzuć zmiany' : 'Brak uprawnień'),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.all(16),
                   ),
@@ -1075,7 +1103,8 @@ class _ApplicationSettingsTabState extends State<ApplicationSettingsTab> {
     required IconData icon,
     required String title,
     required String subtitle,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
+    bool disabled = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1084,12 +1113,18 @@ class _ApplicationSettingsTabState extends State<ApplicationSettingsTab> {
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
+          onTap: disabled ? null : onTap,
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                Icon(icon, color: Colors.blue),
+                Tooltip(
+                  message: disabled ? kRbacNoPermissionTooltip : title,
+                  child: Icon(
+                    icon,
+                    color: disabled ? Colors.grey : Colors.blue,
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -1892,6 +1927,13 @@ class SystemSettingsTab extends StatelessWidget {
                   const SizedBox(height: 16),
                   _buildSystemAction(
                     context,
+                    icon: Icons.email,
+                    title: 'Konfiguracja serwera SMTP',
+                    subtitle: 'Zarządzaj ustawieniami wysyłania e-maili',
+                    onTap: () => context.go(AppRoutes.smtpSettings),
+                  ),
+                  _buildSystemAction(
+                    context,
                     icon: Icons.cached,
                     title: 'Wyczyść cache aplikacji',
                     subtitle: 'Usuń dane tymczasowe i odśwież cache',
@@ -2079,26 +2121,316 @@ class SystemSettingsTab extends StatelessWidget {
   }
 }
 
-class _PlaceholderTab extends StatelessWidget {
-  final String title;
-  const _PlaceholderTab({required this.title});
+/// 👑 ADMIN SETTINGS TAB
+/// Zarządzanie użytkownikami i rolami - tylko dla administratorów
+class AdminSettingsTab extends StatefulWidget {
+  const AdminSettingsTab({super.key});
+
+  @override
+  State<AdminSettingsTab> createState() => _AdminSettingsTabState();
+}
+
+class _AdminSettingsTabState extends State<AdminSettingsTab> {
+  List<Map<String, dynamic>> _allUsers = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // Pobierz wszystkich użytkowników z Firestore
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .orderBy('email')
+          .get();
+
+      final users = querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        data['uid'] = doc.id; // Dodaj uid do map
+        return data;
+      }).toList();
+
+      setState(() {
+        _allUsers = users;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Błąd podczas ładowania użytkowników: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _updateUserRole(String uid, String newRole) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .update({
+        'role': newRole,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Odśwież listę
+      await _loadUsers();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Rola użytkownika została zaktualizowana'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd podczas aktualizacji roli: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return SingleChildScrollView(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.construction, size: 64, color: Colors.grey),
+          const Text(
+            'Zarządzanie użytkownikami i rolami',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+          const SizedBox(height: 24),
+
+          // Statystyki użytkowników
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Statystyki użytkowników',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_error != null)
+                    Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.red),
+                    )
+                  else ...[
+                    _buildUserStats(),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _loadUsers,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Odśwież'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
+
+          // Lista użytkowników
+          if (!_isLoading && _error == null)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Lista użytkowników',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildUsersTable(),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserStats() {
+    final adminCount = _allUsers.where((u) => u['role'] == 'admin').length;
+    final userCount = _allUsers.where((u) => u['role'] == 'user').length;
+    final activeCount = _allUsers.where((u) => u['isActive'] == true).length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard('Użytkownicy', userCount, Colors.blue),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard('Administratorzy', adminCount, Colors.orange),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard('Aktywni', activeCount, Colors.green),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, int count, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(color: color.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Text(
+            '$count',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
           Text(
             title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: const TextStyle(color: Colors.grey),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Ta sekcja jest w trakcie rozwoju',
-            style: TextStyle(color: Colors.grey),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUsersTable() {
+    return DataTable(
+      columns: const [
+        DataColumn(label: Text('Email')),
+        DataColumn(label: Text('Imię i nazwisko')),
+        DataColumn(label: Text('Rola')),
+        DataColumn(label: Text('Status')),
+        DataColumn(label: Text('Ostatnie logowanie')),
+        DataColumn(label: Text('Akcje')),
+      ],
+      rows: _allUsers.map((user) => _buildUserRow(user)).toList(),
+    );
+  }
+
+  DataRow _buildUserRow(Map<String, dynamic> user) {
+    final String email = user['email'] ?? '';
+    final String firstName = user['firstName'] ?? '';
+    final String lastName = user['lastName'] ?? '';
+    final String fullName = '$firstName $lastName'.trim();
+    final String role = user['role'] ?? 'user';
+    final bool isActive = user['isActive'] ?? true;
+    final Timestamp? lastLoginTimestamp = user['lastLoginAt'] as Timestamp?;
+    final DateTime? lastLoginAt = lastLoginTimestamp?.toDate();
+
+    return DataRow(
+      cells: [
+        DataCell(Text(email)),
+        DataCell(Text(fullName.isNotEmpty ? fullName : email)),
+        DataCell(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: role == 'admin' ? Colors.orange.withOpacity(0.2) : Colors.blue.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              role == 'admin' ? 'Administrator' : 'Użytkownik',
+              style: TextStyle(
+                color: role == 'admin' ? Colors.orange : Colors.blue,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ),
+        DataCell(
+          Icon(
+            isActive ? Icons.check_circle : Icons.cancel,
+            color: isActive ? Colors.green : Colors.red,
+          ),
+        ),
+        DataCell(
+          Text(
+            lastLoginAt != null
+                ? '${lastLoginAt.day}.${lastLoginAt.month}.${lastLoginAt.year}'
+                : 'Nigdy',
+          ),
+        ),
+        DataCell(
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                value: role == 'admin' ? 'user' : 'admin',
+                child: Row(
+                  children: [
+                    Icon(
+                      role == 'admin' ? Icons.person : Icons.admin_panel_settings,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(role == 'admin' ? 'Usuń uprawnienia admin' : 'Nadaj uprawnienia admin'),
+                  ],
+                ),
+              ),
+            ],
+            onSelected: (newRole) => _showRoleChangeDialog(user, newRole),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showRoleChangeDialog(Map<String, dynamic> user, String newRole) {
+    final String roleText = newRole == 'admin' ? 'administratora' : 'użytkownika';
+    final String email = user['email'] ?? '';
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Zmiana roli użytkownika'),
+        content: Text(
+          'Czy na pewno chcesz zmienić rolę użytkownika $email na $roleText?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Anuluj'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _updateUserRole(user['uid'], newRole);
+            },
+            child: const Text('Potwierdź'),
           ),
         ],
       ),

@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/employee.dart';
 import '../services/employee_service.dart';
 import '../widgets/data_table_widget.dart';
 import '../widgets/employee_form.dart';
 import '../widgets/animated_button.dart';
 import '../theme/app_theme.dart';
+import '../providers/auth_provider.dart';
+
+// RBAC: wspólny tooltip dla braku uprawnień
+const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
 
 class EmployeesScreen extends StatefulWidget {
   const EmployeesScreen({super.key});
@@ -21,6 +26,9 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   bool _sortAscending = true;
   String? _selectedBranch;
   List<String> _branches = [];
+
+  // RBAC getter
+  bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
 
   @override
   void initState() {
@@ -178,15 +186,21 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
         title: const Text('Zarządzanie pracownikami'),
         backgroundColor: AppTheme.backgroundSecondary,
         actions: [
-          AnimatedButton(
-            onPressed: () => _showEmployeeForm(),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.add, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Dodaj pracownika', style: TextStyle(color: Colors.white)),
-              ],
+          Tooltip(
+            message: canEdit ? 'Dodaj pracownika' : kRbacNoPermissionTooltip,
+            child: AnimatedButton(
+              onPressed: canEdit ? () => _showEmployeeForm() : null,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add, color: canEdit ? Colors.white : Colors.grey),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Dodaj pracownika',
+                    style: TextStyle(color: canEdit ? Colors.white : Colors.grey),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -365,18 +379,21 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                         if (_searchQuery.isEmpty &&
                             _selectedBranch == null) ...[
                           const SizedBox(height: 24),
-                          AnimatedButton(
-                            onPressed: () => _showEmployeeForm(),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.add, color: Colors.white),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Dodaj pierwszego pracownika',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
+                          Tooltip(
+                            message: canEdit ? 'Dodaj pierwszego pracownika' : kRbacNoPermissionTooltip,
+                            child: AnimatedButton(
+                              onPressed: canEdit ? () => _showEmployeeForm() : null,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.add, color: canEdit ? Colors.white : Colors.grey),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Dodaj pierwszego pracownika',
+                                    style: TextStyle(color: canEdit ? Colors.white : Colors.grey),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -523,22 +540,26 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                       widget: (employee) => Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          IconButton(
-                            onPressed: () =>
-                                _showEmployeeForm(employee: employee),
-                            icon: const Icon(
-                              Icons.edit,
-                              color: AppTheme.secondaryGold,
+                          Tooltip(
+                            message: canEdit ? 'Edytuj' : kRbacNoPermissionTooltip,
+                            child: IconButton(
+                              onPressed: canEdit ? () =>
+                                  _showEmployeeForm(employee: employee) : null,
+                              icon: Icon(
+                                Icons.edit,
+                                color: canEdit ? AppTheme.secondaryGold : Colors.grey,
+                              ),
                             ),
-                            tooltip: 'Edytuj',
                           ),
-                          IconButton(
-                            onPressed: () => _deleteEmployee(employee),
-                            icon: const Icon(
-                              Icons.delete,
-                              color: AppTheme.errorPrimary,
+                          Tooltip(
+                            message: canEdit ? 'Usuń' : kRbacNoPermissionTooltip,
+                            child: IconButton(
+                              onPressed: canEdit ? () => _deleteEmployee(employee) : null,
+                              icon: Icon(
+                                Icons.delete,
+                                color: canEdit ? AppTheme.errorPrimary : Colors.grey,
+                              ),
                             ),
-                            tooltip: 'Usuń',
                           ),
                         ],
                       ),
