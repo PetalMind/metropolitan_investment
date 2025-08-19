@@ -291,23 +291,21 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _isLoading 
-        ? const Center(
-            child: MetropolitanLoadingWidget.clients(
-              showProgress: true,
+      body: _isLoading
+          ? const Center(
+              child: MetropolitanLoadingWidget.clients(showProgress: true),
+            )
+          : RefreshIndicator(
+              onRefresh: _refreshData,
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  _buildStatsBar(),
+                  _buildToolbar(),
+                  Expanded(child: _buildContent()),
+                ],
+              ),
             ),
-          )
-        : RefreshIndicator(
-            onRefresh: _refreshData,
-            child: Column(
-              children: [
-                _buildHeader(),
-                _buildStatsBar(),
-                _buildToolbar(),
-                Expanded(child: _buildContent()),
-              ],
-            ),
-          ),
     );
   }
 

@@ -29,7 +29,7 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
   String? _selectedProductId;
   bool _showDetailsPanel = false;
   bool _isLoading = true;
-  
+
   // RBAC getter
   bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
 
@@ -56,45 +56,43 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
       child: Scaffold(
         backgroundColor: AppThemePro.backgroundPrimary,
         appBar: _buildAppBar(context),
-        body: _isLoading 
-          ? const Center(
-              child: MetropolitanLoadingWidget.financial(
-                showProgress: true,
-              ),
-            )
-          : Row(
-              children: [
-                // Główny dashboard - 70% szerokości
-                Expanded(
-                  flex: 7,
-                  child: ProductDashboardWidget(
-                    selectedProductId: _selectedProductId,
-                    onProductSelected: (productId) {
-                      setState(() {
-                        _selectedProductId = productId;
-                    _showDetailsPanel = true;
-                  });
-                },
-              ),
-            ),
-
-            // Panel szczegółów - 30% szerokości (jeśli aktywny)
-            if (_showDetailsPanel && _selectedProductId != null)
-              Container(
-                width: MediaQuery.of(context).size.width * 0.3,
-                decoration: BoxDecoration(
-                  color: AppThemePro.backgroundSecondary,
-                  border: Border(
-                    left: BorderSide(
-                      color: AppThemePro.borderSecondary,
-                      width: 1,
+        body: _isLoading
+            ? const Center(
+                child: MetropolitanLoadingWidget.financial(showProgress: true),
+              )
+            : Row(
+                children: [
+                  // Główny dashboard - 70% szerokości
+                  Expanded(
+                    flex: 7,
+                    child: ProductDashboardWidget(
+                      selectedProductId: _selectedProductId,
+                      onProductSelected: (productId) {
+                        setState(() {
+                          _selectedProductId = productId;
+                          _showDetailsPanel = true;
+                        });
+                      },
                     ),
                   ),
-                ),
-                child: _buildDetailsPanel(),
+
+                  // Panel szczegółów - 30% szerokości (jeśli aktywny)
+                  if (_showDetailsPanel && _selectedProductId != null)
+                    Container(
+                      width: MediaQuery.of(context).size.width * 0.3,
+                      decoration: BoxDecoration(
+                        color: AppThemePro.backgroundSecondary,
+                        border: Border(
+                          left: BorderSide(
+                            color: AppThemePro.borderSecondary,
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      child: _buildDetailsPanel(),
+                    ),
+                ],
               ),
-          ],
-        ),
       ),
     );
   }

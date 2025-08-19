@@ -5,18 +5,17 @@ import '../theme/app_theme_professional.dart';
 import 'metropolitan_logo_widget.dart';
 
 /// 🏛️ **Metropolitan Loading System**
-/// 
+///
 /// Unified loading system dla całej aplikacji Metropolitan Investment
 /// Wykorzystuje brand guidelines i professional animations
-/// 
+///
 /// **Typy ładowania:**
 /// • 📊 Dane finansowe
-/// • 👥 Klienci i inwestorzy  
+/// • 👥 Klienci i inwestorzy
 /// • 📈 Analityka i raporty
 /// • 🏢 Produkty i portfolio
 /// • ⚙️ Konfiguracja i ustawienia
 class MetropolitanLoadingSystem {
-  
   /// **Loading steps dla różnych typów danych**
   static const Map<MetropolitanLoadingType, List<String>> _loadingSteps = {
     MetropolitanLoadingType.financial: [
@@ -210,23 +209,23 @@ class MetropolitanLoadingWidget extends StatefulWidget {
   }) : style = MetropolitanLoadingStyle.compact;
 
   @override
-  State<MetropolitanLoadingWidget> createState() => _MetropolitanLoadingWidgetState();
+  State<MetropolitanLoadingWidget> createState() =>
+      _MetropolitanLoadingWidgetState();
 }
 
 class _MetropolitanLoadingWidgetState extends State<MetropolitanLoadingWidget>
     with TickerProviderStateMixin {
-  
   late AnimationController _rotationController;
   late AnimationController _pulseController;
   late AnimationController _shimmerController;
-  
+
   late Animation<double> _rotationAnimation;
   late Animation<double> _pulseAnimation;
   late Animation<double> _shimmerAnimation;
-  
+
   int _currentStepIndex = 0;
   String _currentMessage = '';
-  
+
   @override
   void initState() {
     super.initState();
@@ -239,40 +238,28 @@ class _MetropolitanLoadingWidgetState extends State<MetropolitanLoadingWidget>
       duration: const Duration(seconds: 3),
       vsync: this,
     );
-    
+
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
+
     _shimmerController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
     );
 
-    _rotationAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _rotationController,
-      curve: Curves.linear,
-    ));
+    _rotationAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _rotationController, curve: Curves.linear),
+    );
 
-    _pulseAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.2,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
+    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
 
-    _shimmerAnimation = Tween<double>(
-      begin: -1.0,
-      end: 2.0,
-    ).animate(CurvedAnimation(
-      parent: _shimmerController,
-      curve: Curves.easeInOut,
-    ));
+    _shimmerAnimation = Tween<double>(begin: -1.0, end: 2.0).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
+    );
 
     // Start animations
     _rotationController.repeat();
@@ -314,7 +301,7 @@ class _MetropolitanLoadingWidgetState extends State<MetropolitanLoadingWidget>
   Widget build(BuildContext context) {
     final accentColor = widget.accentColor ?? AppThemePro.accentGold;
     final icon = MetropolitanLoadingSystem._loadingIcons[widget.type] ?? '🏛️';
-    
+
     switch (widget.style) {
       case MetropolitanLoadingStyle.full:
         return _buildFullLoading(accentColor, icon);
@@ -340,23 +327,23 @@ class _MetropolitanLoadingWidgetState extends State<MetropolitanLoadingWidget>
               style: MetropolitanLogoStyle.premium,
             ),
           ),
-          
+
           // Loading indicator
           _buildLoadingIndicator(accentColor, icon, size: 80),
-          
+
           const SizedBox(height: 32),
-          
+
           // Progress bar (if enabled)
           if (widget.showProgress && widget.progress != null)
             _buildProgressBar(accentColor),
-          
+
           const SizedBox(height: 24),
-          
+
           // Loading message
           _buildLoadingMessage(),
-          
+
           const SizedBox(height: 16),
-          
+
           // Loading dots animation
           _buildLoadingDots(),
         ],
@@ -389,12 +376,14 @@ class _MetropolitanLoadingWidgetState extends State<MetropolitanLoadingWidget>
   }
 
   Widget _buildMinimalLoading(Color accentColor, String icon) {
-    return Center(
-      child: _buildLoadingIndicator(accentColor, icon, size: 24),
-    );
+    return Center(child: _buildLoadingIndicator(accentColor, icon, size: 24));
   }
 
-  Widget _buildLoadingIndicator(Color accentColor, String icon, {required double size}) {
+  Widget _buildLoadingIndicator(
+    Color accentColor,
+    String icon, {
+    required double size,
+  }) {
     return AnimatedBuilder(
       animation: Listenable.merge([_rotationAnimation, _pulseAnimation]),
       builder: (context, child) {
@@ -417,7 +406,7 @@ class _MetropolitanLoadingWidgetState extends State<MetropolitanLoadingWidget>
                     ),
                   ),
                 ),
-                
+
                 // Inner progress circle
                 Container(
                   width: size * 0.8,
@@ -439,15 +428,10 @@ class _MetropolitanLoadingWidgetState extends State<MetropolitanLoadingWidget>
                     ],
                   ),
                   child: Center(
-                    child: Text(
-                      icon,
-                      style: TextStyle(
-                        fontSize: size * 0.3,
-                      ),
-                    ),
+                    child: Text(icon, style: TextStyle(fontSize: size * 0.3)),
                   ),
                 ),
-                
+
                 // Shimmer effect
                 AnimatedBuilder(
                   animation: _shimmerAnimation,
@@ -506,7 +490,7 @@ class _MetropolitanLoadingWidgetState extends State<MetropolitanLoadingWidget>
 
   Widget _buildLoadingMessage({bool compact = false}) {
     final message = widget.customMessage ?? _currentMessage;
-    
+
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
       child: Text(
@@ -534,7 +518,7 @@ class _MetropolitanLoadingWidgetState extends State<MetropolitanLoadingWidget>
             final delay = index * 0.3;
             final progress = (_rotationAnimation.value + delay) % 1.0;
             final opacity = (math.sin(progress * math.pi * 2) + 1) / 2;
-            
+
             return Container(
               margin: const EdgeInsets.symmetric(horizontal: 2),
               width: 6,
@@ -555,8 +539,10 @@ class _MetropolitanLoadingWidgetState extends State<MetropolitanLoadingWidget>
 enum MetropolitanLoadingStyle {
   /// Pełny ekran z logo i animacjami
   full,
+
   /// Kompaktowy w rzędzie z tekstem
   compact,
+
   /// Minimalny - tylko spinner
   minimal,
 }

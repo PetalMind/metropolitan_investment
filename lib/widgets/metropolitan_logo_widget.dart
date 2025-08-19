@@ -3,32 +3,32 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../theme/app_theme_professional.dart';
 
 /// 🏛️ **Metropolitan Investment Logo Widget**
-/// 
+///
 /// Profesjonalny widget logo z efektami premium i animacjami
 /// Wykorzystuje SVG logo firmy z zaawansowanymi stylami wizualnymi
-/// 
+///
 /// **Funkcjonalności:**
 /// • 🎨 Dynamiczne kolory (złoty akcent + białe logo)
 /// • ✨ Animacje hover i loading
-/// • 📱 Responsywny design  
+/// • 📱 Responsywny design
 /// • 🔧 Konfigurowalny rozmiar
 /// • 🌟 Efekty 3D i świecenia
 class MetropolitanLogoWidget extends StatefulWidget {
   /// Rozmiar logo (szerokość)
   final double size;
-  
+
   /// Kolor logo (domyślnie biały)
   final Color? color;
-  
+
   /// Czy logo ma być animowane
   final bool animated;
-  
+
   /// Czy logo ma efekt hover
   final bool enableHover;
-  
+
   /// Callback po kliknięciu
   final VoidCallback? onTap;
-  
+
   /// Styl wyświetlania
   final MetropolitanLogoStyle style;
 
@@ -81,12 +81,10 @@ class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget>
   late AnimationController _rotationController;
   late AnimationController _scaleController;
   late AnimationController _glowController;
-  
+
   late Animation<double> _rotationAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _glowAnimation;
-  
-  bool _isHovered = false;
 
   @override
   void initState() {
@@ -102,40 +100,28 @@ class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget>
       duration: const Duration(seconds: 8),
       vsync: this,
     );
-    
+
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    
+
     _glowController = AnimationController(
       duration: const Duration(seconds: 3),
       vsync: this,
     );
 
-    _rotationAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _rotationController,
-      curve: Curves.linear,
-    ));
+    _rotationAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _rotationController, curve: Curves.linear),
+    );
 
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.05,
-    ).animate(CurvedAnimation(
-      parent: _scaleController,
-      curve: Curves.easeInOut,
-    ));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
+    );
 
-    _glowAnimation = Tween<double>(
-      begin: 0.3,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _glowController,
-      curve: Curves.easeInOut,
-    ));
+    _glowAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
+    );
   }
 
   void _startAnimations() {
@@ -145,14 +131,12 @@ class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget>
 
   void _onHoverEnter() {
     if (!widget.enableHover) return;
-    setState(() => _isHovered = true);
-    _scaleController.forward();
+    // Removed hover animations
   }
 
   void _onHoverExit() {
     if (!widget.enableHover) return;
-    setState(() => _isHovered = false);
-    _scaleController.reverse();
+    // Removed hover animations
   }
 
   @override
@@ -166,7 +150,7 @@ class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget>
   @override
   Widget build(BuildContext context) {
     final logoColor = widget.color ?? AppThemePro.textPrimary;
-    
+
     return GestureDetector(
       onTap: widget.onTap,
       child: MouseRegion(
@@ -204,83 +188,12 @@ class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget>
   }
 
   Widget _buildPremiumLogo(Color logoColor) {
-    return Container(
+    // Tylko złote SVG logo bez ramek i animacji
+    return SizedBox(
       width: widget.size,
-      height: widget.size * 0.75, // Maintain aspect ratio
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(widget.size * 0.2),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppThemePro.surfaceCard,
-            AppThemePro.primaryMedium,
-          ],
-        ),
-        border: Border.all(
-          color: AppThemePro.borderPrimary,
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-          if (widget.animated)
-            BoxShadow(
-              color: AppThemePro.accentGold.withOpacity(_glowAnimation.value * 0.5),
-              blurRadius: 30,
-              spreadRadius: 5,
-            ),
-          if (_isHovered)
-            BoxShadow(
-              color: AppThemePro.accentGold.withOpacity(0.6),
-              blurRadius: 25,
-              spreadRadius: 3,
-            ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Shimmer effect
-          if (widget.animated)
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(widget.size * 0.2),
-                child: AnimatedBuilder(
-                  animation: _rotationController,
-                  builder: (context, child) {
-                    return Transform.translate(
-                      offset: Offset(
-                        (widget.size * 2) * _rotationAnimation.value - widget.size,
-                        0,
-                      ),
-                      child: Container(
-                        width: widget.size,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.transparent,
-                              AppThemePro.accentGold.withOpacity(0.3),
-                              Colors.transparent,
-                            ],
-                            stops: const [0.0, 0.5, 1.0],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          
-          // Logo SVG
-          Center(
-            child: _buildSvgLogo(logoColor, widget.size * 0.6),
-          ),
-        ],
-      ),
+      height:
+          widget.size * 0.53, // Zachowaj proporcje SVG (84.17/159.77 ≈ 0.53)
+      child: _buildSvgLogo(AppThemePro.accentGold, widget.size),
     );
   }
 
@@ -291,14 +204,9 @@ class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget>
       decoration: BoxDecoration(
         color: AppThemePro.surfaceCard.withOpacity(0.8),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppThemePro.borderPrimary,
-          width: 1,
-        ),
+        border: Border.all(color: AppThemePro.borderPrimary, width: 1),
       ),
-      child: Center(
-        child: _buildSvgLogo(logoColor, widget.size * 0.7),
-      ),
+      child: Center(child: _buildSvgLogo(logoColor, widget.size * 0.7)),
     );
   }
 
@@ -358,8 +266,10 @@ class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget>
 enum MetropolitanLogoStyle {
   /// Pełny premium style z efektami
   premium,
+
   /// Prosty style z lekkim kontenerem
   simple,
+
   /// Minimalistyczny - tylko SVG
   minimal,
 }
@@ -376,10 +286,7 @@ extension MetropolitanLogoExtensions on Widget {
       decoration: BoxDecoration(
         color: backgroundColor ?? AppThemePro.surfaceCard,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppThemePro.borderPrimary,
-          width: 1,
-        ),
+        border: Border.all(color: AppThemePro.borderPrimary, width: 1),
       ),
       child: this,
     );

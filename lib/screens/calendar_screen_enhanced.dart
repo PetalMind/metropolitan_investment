@@ -254,7 +254,8 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
   Widget build(BuildContext context) {
     // RBAC: zarówno user jak i admin mogą dodawać / edytować wydarzenia
     final authProvider = Provider.of<AuthProvider>(context, listen: true);
-    final canEdit = authProvider.isLoggedIn; // Zmieniono z isAdmin na isLoggedIn
+    final canEdit =
+        authProvider.isLoggedIn; // Zmieniono z isAdmin na isLoggedIn
     return Scaffold(
       backgroundColor: AppThemePro.backgroundPrimary,
       body: Focus(
@@ -658,9 +659,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
 
   Widget _buildLoadingState() {
     return const Center(
-      child: MetropolitanLoadingWidget.calendar(
-        showProgress: true,
-      ),
+      child: MetropolitanLoadingWidget.calendar(showProgress: true),
     );
   }
 
@@ -1213,7 +1212,10 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     required bool isMobile,
     required bool isTablet,
   }) {
-    final canEdit = Provider.of<AuthProvider>(context, listen: false).isLoggedIn; // Zmieniono z isAdmin na isLoggedIn
+    final canEdit = Provider.of<AuthProvider>(
+      context,
+      listen: false,
+    ).isLoggedIn; // Zmieniono z isAdmin na isLoggedIn
     return Row(
       children: List.generate(7, (index) {
         final day = _selectedWeekStart.add(Duration(days: index));

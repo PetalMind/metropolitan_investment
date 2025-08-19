@@ -3,7 +3,7 @@ import '../widgets/metropolitan_logo_widget.dart';
 import '../theme/app_theme_professional.dart';
 
 /// **Przykłady użycia MetropolitanLogoWidget**
-/// 
+///
 /// Demonstracja różnych wariantów i stylów logo
 class MetropolitanLogoExamples extends StatelessWidget {
   const MetropolitanLogoExamples({super.key});
@@ -25,7 +25,7 @@ class MetropolitanLogoExamples extends StatelessWidget {
               'Premium Logo (Splash Screen)',
               const MetropolitanLogoWidget.splash(),
             ),
-            
+
             _buildSection(
               'Navigation Logo',
               Row(
@@ -44,12 +44,12 @@ class MetropolitanLogoExamples extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             _buildSection(
               'Compact Logo',
               const MetropolitanLogoWidget.compact(),
             ),
-            
+
             _buildSection(
               'Custom Sized Logo',
               const MetropolitanLogoWidget(
@@ -58,7 +58,7 @@ class MetropolitanLogoExamples extends StatelessWidget {
                 style: MetropolitanLogoStyle.premium,
               ),
             ),
-            
+
             _buildSection(
               'Different Colors',
               Row(
@@ -79,14 +79,14 @@ class MetropolitanLogoExamples extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             _buildSection(
               'With Metropolitan Branding',
               const MetropolitanLogoWidget.compact().withMetropolitanBranding(
                 padding: const EdgeInsets.all(24),
               ),
             ),
-            
+
             _buildSection(
               'Interactive Logo with Callback',
               MetropolitanLogoWidget.compact(
@@ -127,10 +127,7 @@ class MetropolitanLogoExamples extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppThemePro.surfaceCard,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppThemePro.borderPrimary,
-                width: 1,
-              ),
+              border: Border.all(color: AppThemePro.borderPrimary, width: 1),
             ),
             child: Center(child: content),
           ),
@@ -141,11 +138,10 @@ class MetropolitanLogoExamples extends StatelessWidget {
 }
 
 /// **Widget demonstracyjny dla głównego layoutu**
-/// 
+///
 /// Pokazuje jak użyć logo w prawdziwej aplikacji
-class AppBarWithMetropolitanLogo extends StatelessWidget 
+class AppBarWithMetropolitanLogo extends StatelessWidget
     implements PreferredSizeWidget {
-  
   final String title;
   final List<Widget>? actions;
   final VoidCallback? onLogoTap;
@@ -165,10 +161,12 @@ class AppBarWithMetropolitanLogo extends StatelessWidget
       leading: Padding(
         padding: const EdgeInsets.all(8.0),
         child: MetropolitanLogoWidget.navigation(
-          onTap: onLogoTap ?? () {
-            // Domyślnie nawiguj do home
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          },
+          onTap:
+              onLogoTap ??
+              () {
+                // Domyślnie nawiguj do home
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
         ),
       ),
       title: Text(

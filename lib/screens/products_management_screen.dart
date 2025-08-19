@@ -1857,9 +1857,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           if (_isLoading)
             SliverFillRemaining(
               child: const Center(
-                child: MetropolitanLoadingWidget.products(
-                  showProgress: true,
-                ),
+                child: MetropolitanLoadingWidget.products(showProgress: true),
               ),
             )
           else if (_error != null)

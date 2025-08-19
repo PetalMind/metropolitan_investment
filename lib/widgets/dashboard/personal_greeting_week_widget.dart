@@ -4,6 +4,7 @@ import '../../theme/app_theme_professional.dart';
 import '../../models/calendar/calendar_event.dart';
 import '../../services/calendar_service.dart';
 import '../../models_and_services.dart';
+import '../metropolitan_logo_widget.dart';
 
 /// Personalizowany nagłówek + karta z zadaniami na aktualny tydzień
 class PersonalGreetingWeekWidget extends StatefulWidget {
@@ -113,56 +114,43 @@ class _PersonalGreetingWeekWidgetState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Greeting header
+        // Logo nad tekstem powitalnym - wycentrowane
+        Center(
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            child: const MetropolitanLogoWidget.splash(
+              size: 220,
+              animated: true,
+            ),
+          ),
+        ),
+
+        // Greeting header - tekst po lewej stronie
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 0.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _formatDatePL(DateTime.now()),
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppThemePro.textTertiary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${_greeting()}, $name',
-                      style: Theme.of(context).textTheme.headlineLarge
-                          ?.copyWith(
-                            color: AppThemePro.textPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Jak mogę Ci pomóc dziś?',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            color: AppThemePro.accentGold,
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ],
+              Text(
+                _formatDatePL(DateTime.now()),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: AppThemePro.textTertiary,
                 ),
               ),
-              // Centered logo in its allocated space
-              Expanded(
-                child: Center(
-                  child: SizedBox(
-                    width: 150,
-                    height: 150,
-                    child: Image.asset(
-                      'assets/logos/logo.png',
-                      width: 150,
-                      height: 150,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
+              const SizedBox(height: 8),
+              Text(
+                '${_greeting()}, $name',
+                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                  color: AppThemePro.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Jak mogę Ci pomóc dziś?',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: AppThemePro.accentGold,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

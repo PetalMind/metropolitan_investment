@@ -89,23 +89,21 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppThemePro.backgroundPrimary,
-      body: _isLoading 
-        ? const Center(
-            child: MetropolitanLoadingWidget.analytics(
-              showProgress: true,
-            ),
-          )
-        : Column(
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: _buildTabContent(),
+      body: _isLoading
+          ? const Center(
+              child: MetropolitanLoadingWidget.analytics(showProgress: true),
+            )
+          : Column(
+              children: [
+                _buildHeader(context),
+                Expanded(
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: _buildTabContent(),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
       floatingActionButton: _buildRefreshFab(),
     );
   }
