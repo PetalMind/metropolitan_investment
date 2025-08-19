@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import 'package:provider/provider.dart';
 import '../models_and_services.dart'; // Centralny import z ultra-precyzyjnym serwisem
+import '../providers/auth_provider.dart';
 import 'premium_loading_widget.dart';
 import 'premium_error_widget.dart';
-import 'dialogs/product_edit_dialog.dart';
 import 'dialogs/product_delete_dialog.dart';
 
 /// Enhanced widget do wyświetlania szczegółów produktu w modal dialog
@@ -21,6 +21,10 @@ class _EnhancedProductDetailsDialogState
     extends State<EnhancedProductDetailsDialog>
     with TickerProviderStateMixin {
   late TabController _tabController;
+  late ScrollController _scrollController;
+  late AnimationController _headerAnimationController;
+  late Animation<double> _headerAnimation;
+  
   final UltraPreciseProductInvestorsService _investorsService =
       UltraPreciseProductInvestorsService();
 
@@ -30,19 +34,74 @@ class _EnhancedProductDetailsDialogState
 
   // Stany dla operacji edycji i usuwania
   bool _isPerformingAction = false;
+  
+  // State for header collapse animation
+  bool _isHeaderCollapsed = false;
+  // double _scrollOffset = 0.0; // Commented out as not currently used
+  static const double _headerCollapseThreshold = 100.0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _scrollController = ScrollController();
+    _headerAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _headerAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.6,
+    ).animate(CurvedAnimation(
+      parent: _headerAnimationController,
+      curve: Curves.easeInOut,
+    ));
+    
+    _scrollController.addListener(_onScroll);
+    _tabController.addListener(_onTabChanged);
+    
     // Rozpocznij ładowanie inwestorów natychmiast
     _loadInvestors();
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _tabController.removeListener(_onTabChanged);
+    _scrollController.dispose();
     _tabController.dispose();
+    _headerAnimationController.dispose();
     super.dispose();
+  }
+  
+  void _onScroll() {
+    final offset = _scrollController.offset;
+    // setState(() {
+    //   _scrollOffset = offset;
+    // });
+    
+    if (offset > _headerCollapseThreshold && !_isHeaderCollapsed) {
+      setState(() {
+        _isHeaderCollapsed = true;
+      });
+      _headerAnimationController.forward();
+    } else if (offset <= _headerCollapseThreshold && _isHeaderCollapsed) {
+      setState(() {
+        _isHeaderCollapsed = false;
+      });
+      _headerAnimationController.reverse();
+    }
+  }
+  
+  void _onTabChanged() {
+    // Reset scroll position when changing tabs
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   Future<void> _loadInvestors() async {
@@ -101,6 +160,29 @@ class _EnhancedProductDetailsDialogState
     }
   }
 
+  /// Obsługuje wyświetlanie historii zmian produktu
+  Future<void> _handleShowHistory() async {
+    try {
+      await showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (context) => ProductHistoryDialog(
+          product: widget.product,
+        ),
+      );
+    } catch (e) {
+      print('❌ Błąd podczas wyświetlania historii: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Wystąpił błąd podczas ładowania historii: $e'),
+            backgroundColor: AppTheme.errorPrimary,
+          ),
+        );
+      }
+    }
+  }
+
   /// Obsługuje edycję produktu
   Future<void> _handleEditProduct() async {
     setState(() {
@@ -108,23 +190,13 @@ class _EnhancedProductDetailsDialogState
     });
 
     try {
-      final result = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => ProductEditDialog(
-          product: widget.product,
-          onProductUpdated: () {
-            // Odśwież dane po aktualizacji
-            _loadInvestors();
-          },
+      // TODO: Implement product edit dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Funkcja edycji produktu będzie wkrótce dostępna'),
+          backgroundColor: AppTheme.infoPrimary,
         ),
       );
-
-      if (result == true) {
-        // Dialog został zamknięty po pomyślnej edycji
-        // Możemy tutaj odświeżyć dane lub zamknąć aktualny dialog
-        print('✅ Produkt został zaktualizowany pomyślnie');
-      }
     } catch (e) {
       print('❌ Błąd podczas edycji produktu: $e');
       if (mounted) {
@@ -237,14 +309,14 @@ class _EnhancedProductDetailsDialogState
                 // Tab Bar
                 _buildTabBar(),
 
-                // Tab Bar View
+                // Tab Bar View with enhanced scrolling
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
                     children: [
-                      _buildOverviewTab(),
-                      _buildInvestorsTab(),
-                      _buildAnalyticsTab(),
+                      _buildScrollableTab(_buildOverviewTab()),
+                      _buildScrollableTab(_buildInvestorsTab()),
+                      _buildScrollableTab(_buildAnalyticsTab()),
                     ],
                   ),
                 ),
@@ -271,7 +343,10 @@ class _EnhancedProductDetailsDialogState
   }
 
   Widget _buildDialogHeader() {
-    return Container(
+    return AnimatedBuilder(
+      animation: _headerAnimation,
+      builder: (context, child) {
+        return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -303,23 +378,58 @@ class _EnhancedProductDetailsDialogState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Przyciski edycji i usuwania
+              // Przyciski akcji
               Row(
                 children: [
-                  // Przycisk edycji
+                  // Przycisk historii - dostępny dla wszystkich
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: AppTheme.infoPrimary.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
+                        color: AppTheme.infoPrimary.withOpacity(0.3),
                         width: 1,
                       ),
                     ),
                     child: IconButton(
                       onPressed: _isPerformingAction
                           ? null
-                          : _handleEditProduct,
+                          : _handleShowHistory,
+                      icon: const Icon(
+                        Icons.history,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      style: IconButton.styleFrom(
+                        padding: const EdgeInsets.all(8),
+                        minimumSize: const Size(36, 36),
+                      ),
+                      tooltip: 'Historia zmian',
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+                  // Przycisk edycji with RBAC
+                  Consumer<AuthProvider>(
+                    builder: (context, auth, child) {
+                      final canEdit = auth.isAdmin;
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: canEdit 
+                              ? Colors.white.withOpacity(0.15)
+                              : Colors.grey.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: canEdit 
+                                ? Colors.white.withOpacity(0.2)
+                                : Colors.grey.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: IconButton(
+                          onPressed: (_isPerformingAction || !canEdit)
+                              ? null
+                              : _handleEditProduct,
                       icon: _isPerformingAction
                           ? SizedBox(
                               width: 16,
@@ -331,17 +441,19 @@ class _EnhancedProductDetailsDialogState
                                 ),
                               ),
                             )
-                          : const Icon(
+                          : Icon(
                               Icons.edit,
-                              color: Colors.white,
+                              color: canEdit ? Colors.white : Colors.grey,
                               size: 18,
                             ),
                       style: IconButton.styleFrom(
                         padding: const EdgeInsets.all(8),
                         minimumSize: const Size(36, 36),
                       ),
-                      tooltip: 'Edytuj produkt',
+                      tooltip: canEdit ? 'Edytuj produkt' : 'Brak uprawnień do edycji',
                     ),
+                  );
+                    },
                   ),
 
                   const SizedBox(width: 8),
@@ -500,10 +612,12 @@ class _EnhancedProductDetailsDialogState
 
           const SizedBox(height: 20),
 
-          // Metryki finansowe
-          _buildFinancialMetrics(),
+          // Metryki finansowe with enhanced layout
+          _buildEnhancedFinancialMetrics(),
         ],
       ),
+    );
+      },
     );
   }
 
@@ -572,35 +686,56 @@ class _EnhancedProductDetailsDialogState
     );
   }
 
-  Widget _buildFinancialMetrics() {
+  Widget _buildEnhancedFinancialMetrics() {
     final profitLoss =
         widget.product.totalValue - widget.product.investmentAmount;
     final profitLossPercentage = widget.product.investmentAmount > 0
         ? (profitLoss / widget.product.investmentAmount) * 100
         : 0.0;
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Responsive grid: 4 columns on wide screens, 2 on medium, 1 on narrow
+        final isWide = constraints.maxWidth > 600;
+        final isMedium = constraints.maxWidth > 400;
+        
+        if (isWide) {
+          // 4-column layout for wide screens
+          return _build4ColumnMetrics(profitLoss, profitLossPercentage);
+        } else if (isMedium) {
+          // 2-column layout for medium screens
+          return _build2ColumnMetrics(profitLoss, profitLossPercentage);
+        } else {
+          // Single column for narrow screens
+          return _buildSingleColumnMetrics(profitLoss, profitLossPercentage);
+        }
+      },
+    );
+  }
+  
+  Widget _build4ColumnMetrics(double profitLoss, double profitLossPercentage) {
     return Row(
       children: [
         Expanded(
           child: _buildMetricCard(
             title: 'Inwestycja',
             value: _formatCurrency(widget.product.investmentAmount),
-            subtitle: 'PLN',
+            subtitle: 'Kapitał początkowy',
             icon: Icons.input,
             color: AppTheme.infoPrimary,
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Expanded(
           child: _buildMetricCard(
             title: 'Wartość',
             value: _formatCurrency(widget.product.totalValue),
-            subtitle: 'PLN',
+            subtitle: 'Aktualna wartość',
             icon: Icons.account_balance_wallet,
             color: AppTheme.secondaryGold,
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Expanded(
           child: _buildMetricCard(
             title: profitLoss >= 0 ? 'Zysk' : 'Strata',
@@ -612,7 +747,118 @@ class _EnhancedProductDetailsDialogState
                 : AppTheme.lossPrimary,
           ),
         ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildMetricCard(
+            title: 'ROI',
+            value: '${profitLossPercentage.toStringAsFixed(2)}%',
+            subtitle: 'Return on Investment',
+            icon: Icons.assessment,
+            color: profitLoss >= 0
+                ? AppTheme.successPrimary
+                : AppTheme.errorPrimary,
+          ),
+        ),
       ],
+    );
+  }
+  
+  Widget _build2ColumnMetrics(double profitLoss, double profitLossPercentage) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCard(
+                title: 'Inwestycja',
+                value: _formatCurrency(widget.product.investmentAmount),
+                subtitle: 'PLN',
+                icon: Icons.input,
+                color: AppTheme.infoPrimary,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCard(
+                title: 'Wartość',
+                value: _formatCurrency(widget.product.totalValue),
+                subtitle: 'PLN',
+                icon: Icons.account_balance_wallet,
+                color: AppTheme.secondaryGold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCard(
+                title: profitLoss >= 0 ? 'Zysk' : 'Strata',
+                value: _formatCurrency(profitLoss.abs()),
+                subtitle: '${profitLossPercentage.toStringAsFixed(1)}%',
+                icon: profitLoss >= 0 ? Icons.trending_up : Icons.trending_down,
+                color: profitLoss >= 0
+                    ? AppTheme.gainPrimary
+                    : AppTheme.lossPrimary,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCard(
+                title: 'ROI',
+                value: '${profitLossPercentage.toStringAsFixed(2)}%',
+                subtitle: 'Return',
+                icon: Icons.assessment,
+                color: profitLoss >= 0
+                    ? AppTheme.successPrimary
+                    : AppTheme.errorPrimary,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildSingleColumnMetrics(double profitLoss, double profitLossPercentage) {
+    return Column(
+      children: [
+        _buildMetricCard(
+          title: 'Inwestycja',
+          value: _formatCurrency(widget.product.investmentAmount),
+          subtitle: 'Kapitał początkowy',
+          icon: Icons.input,
+          color: AppTheme.infoPrimary,
+        ),
+        const SizedBox(height: 12),
+        _buildMetricCard(
+          title: 'Wartość obecna',
+          value: _formatCurrency(widget.product.totalValue),
+          subtitle: 'Aktualna wycena',
+          icon: Icons.account_balance_wallet,
+          color: AppTheme.secondaryGold,
+        ),
+        const SizedBox(height: 12),
+        _buildMetricCard(
+          title: profitLoss >= 0 ? 'Zysk' : 'Strata',
+          value: _formatCurrency(profitLoss.abs()),
+          subtitle: '${profitLossPercentage.toStringAsFixed(1)}% ROI',
+          icon: profitLoss >= 0 ? Icons.trending_up : Icons.trending_down,
+          color: profitLoss >= 0
+              ? AppTheme.gainPrimary
+              : AppTheme.lossPrimary,
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildScrollableTab(Widget content) {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(24),
+      child: content,
     );
   }
 
@@ -820,34 +1066,30 @@ class _EnhancedProductDetailsDialogState
   }
 
   Widget _buildOverviewTab() {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(), // Wymuś przewijanie
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Szczegółowe informacje specyficzne dla typu produktu
-          _buildProductSpecificDetails(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Szczegółowe informacje specyficzne dla typu produktu
+        _buildProductSpecificDetails(),
 
+        const SizedBox(height: 24),
+
+        // Podstawowe informacje
+        _buildBasicInformation(),
+
+        const SizedBox(height: 24),
+
+        // Opis produktu
+        if (widget.product.description.isNotEmpty) ...[
+          _buildDescriptionSection(),
           const SizedBox(height: 24),
-
-          // Podstawowe informacje
-          _buildBasicInformation(),
-
-          const SizedBox(height: 24),
-
-          // Opis produktu
-          if (widget.product.description.isNotEmpty) ...[
-            _buildDescriptionSection(),
-            const SizedBox(height: 24),
-          ],
-
-          // Dodatkowe informacje
-          if (widget.product.additionalInfo.isNotEmpty) ...[
-            _buildAdditionalInfoSection(),
-          ],
         ],
-      ),
+
+        // Dodatkowe informacje
+        if (widget.product.additionalInfo.isNotEmpty) ...[
+          _buildAdditionalInfoSection(),
+        ],
+      ],
     );
   }
 
@@ -972,93 +1214,83 @@ class _EnhancedProductDetailsDialogState
       );
     }
 
-    return SingleChildScrollView(
-      physics:
-          const AlwaysScrollableScrollPhysics(), // Wymuś przewijanie jak inne zakładki
-      padding: const EdgeInsets.all(
-        24,
-      ), // Używaj tego samego paddingu co inne zakładki
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: _investors.map((investor) {
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: AppTheme.backgroundSecondary.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: _investors.map((investor) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: AppTheme.backgroundSecondary.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1)),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(16),
+            leading: CircleAvatar(
+              backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+              child: Icon(Icons.person, color: AppTheme.primaryColor),
             ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(16),
-              leading: CircleAvatar(
-                backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                child: Icon(Icons.person, color: AppTheme.primaryColor),
+            title: Text(
+              investor.client.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
               ),
-              title: Text(
-                investor.client.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (investor.client.email.isNotEmpty)
-                    Text(
-                      investor.client.email,
-                      style: TextStyle(
-                        color: AppTheme.textSecondary.withOpacity(0.8),
-                      ),
-                    ),
-                  if (investor.client.phone.isNotEmpty)
-                    Text(
-                      investor.client.phone,
-                      style: TextStyle(
-                        color: AppTheme.textSecondary.withOpacity(0.8),
-                      ),
-                    ),
-                  const SizedBox(height: 4),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (investor.client.email.isNotEmpty)
                   Text(
-                    'Inwestycje: ${investor.investmentCount}',
+                    investor.client.email,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.secondaryGold,
-                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textSecondary.withOpacity(0.8),
                     ),
                   ),
-                ],
-              ),
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.secondaryGold.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _formatCurrency(investor.viableRemainingCapital),
+                if (investor.client.phone.isNotEmpty)
+                  Text(
+                    investor.client.phone,
+                    style: TextStyle(
+                      color: AppTheme.textSecondary.withOpacity(0.8),
+                    ),
+                  ),
+                const SizedBox(height: 4),
+                Text(
+                  'Inwestycje: ${investor.investmentCount}',
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.bold,
                     color: AppTheme.secondaryGold,
+                    fontWeight: FontWeight.w500,
                   ),
+                ),
+              ],
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: AppTheme.secondaryGold.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _formatCurrency(investor.viableRemainingCapital),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.secondaryGold,
                 ),
               ),
             ),
-          );
-        }).toList(),
-      ),
+          ),
+        );
+      }).toList(),
     );
   }
 
   Widget _buildAnalyticsTab() {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(), // Wymuś przewijanie
-      padding: const EdgeInsets.all(24),
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Statystyki inwestorów
@@ -1247,7 +1479,7 @@ class _EnhancedProductDetailsDialogState
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),
