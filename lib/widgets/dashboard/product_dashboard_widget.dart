@@ -6,6 +6,7 @@ import '../../models_and_services.dart';
 import '../../services/optimized_product_service.dart'; // 🚀 NOWY ZOPTYMALIZOWANY SERWIS
 import '../premium_loading_widget.dart';
 import '../premium_error_widget.dart';
+import 'personal_greeting_week_widget.dart';
 
 /// 🚀 METROPOLITAN PRODUCT DASHBOARD
 /// Nowoczesny, funkcjonalny dashboard produktów inwestycyjnych
@@ -60,6 +61,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   Set<String> _selectedProductIds = {};
   bool _showOptimizedView =
       true; // 🚀 NOWA FLAGA - domyślnie zoptymalizowany widok
+  // ignore: unused_field
   OptimizedProductsResult?
   _optimizedResult; // 🚀 NOWE: Kompletny wynik z serwera
   UnifiedDashboardStatistics?
@@ -408,7 +410,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     });
   }
 
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -440,10 +441,10 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with welcome message and logo
-            _buildHeader(),
+            const SizedBox(height: 16),
+            // Personal greeting + this week's tasks
+            PersonalGreetingWeekWidget(userProfile: _userProfile),
             const SizedBox(height: 20),
-
 
             // Quick summary tiles - CAŁA BAZA DANYCH
             _buildGlobalSummary(),
@@ -511,53 +512,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
               ),
               const SizedBox(width: 24),
 
-              // Welcome message
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Witaj, ',
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(color: AppThemePro.textSecondary),
-                        ),
-                        Text(
-                          _userProfile?.firstName ?? 'Użytkowniku',
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(
-                                color: AppThemePro.accentGold,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _dateFormat.format(DateTime.now()),
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppThemePro.textTertiary,
-                      ),
-                    ),
-                    if (_investments.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Zarządzasz ${_investments.length} ${_investments.length == 1
-                            ? 'produktem'
-                            : _investments.length < 5
-                            ? 'produktami'
-                            : 'produktami'}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppThemePro.textMuted,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              // Current time
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -575,6 +529,20 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   ),
                   builder: (context, snapshot) {
                     final now = snapshot.data ?? DateTime.now();
+                    // Compute user initial safely
+                    String initialChar = 'U';
+                    String? displayName;
+                    if (_userProfile != null) {
+                      final firstName = _userProfile!.firstName.trim();
+                      final fullName = _userProfile!.fullName.trim();
+                      displayName = firstName.isNotEmpty
+                          ? firstName
+                          : (fullName.isNotEmpty ? fullName : null);
+                    }
+                    if (displayName != null && displayName.isNotEmpty) {
+                      initialChar = displayName[0].toUpperCase();
+                    }
+
                     return Column(
                       children: [
                         Text(
@@ -590,6 +558,29 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: AppThemePro.textTertiary),
                         ),
+                        const SizedBox(width: 12),
+                        // User avatar (initial on gold background)
+                        ScaleTransition(
+                          scale: _scaleAnimation,
+                          child: Container(
+                            margin: const EdgeInsets.only(left: 12),
+                            child: Tooltip(
+                              message: _userProfile?.fullName ?? 'Użytkownik',
+                              child: CircleAvatar(
+                                radius: 28,
+                                backgroundColor: AppThemePro.accentGold,
+                                child: Text(
+                                  initialChar,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     );
                   },
@@ -601,7 +592,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       ),
     );
   }
-
 
   Widget _buildGlobalSummary() {
     // 🚀 NOWE: Używamy zunifikowanych statystyk zamiast manualnych obliczeń
@@ -697,7 +687,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
           Row(
             children: [
               Text(
-                'Podsumowanie całej bazy danych',
+                'Podsumowanie',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: AppThemePro.textPrimary,
                   fontWeight: FontWeight.w600,
@@ -723,8 +713,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              dataSourceInfo, // 💡 Informacja o źródle danych
             ],
           ),
           const SizedBox(height: 16),

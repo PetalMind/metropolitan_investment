@@ -27,8 +27,7 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
     with SingleTickerProviderStateMixin {
   String? _selectedProductId;
   bool _showDetailsPanel = false;
-  late AnimationController _avatarPulseController;
-  late Animation<double> _pulseAnimation;
+  // Removed unused avatar animation fields
 
   // RBAC getter
   bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
@@ -73,7 +72,6 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
               ),
           ],
         ),
-        floatingActionButton: _buildFloatingActions(context),
       ),
     );
   }
@@ -81,19 +79,12 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _avatarPulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1600),
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 0.98, end: 1.04).animate(
-      CurvedAnimation(parent: _avatarPulseController, curve: Curves.easeInOut),
-    );
+    // Removed unused avatar animation initialization
   }
 
   @override
   void dispose() {
-    _avatarPulseController.dispose();
+    // Removed unused avatar animation disposal
     super.dispose();
   }
 
@@ -193,12 +184,6 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
           ),
         ),
 
-        // Logo centered above avatar + breathing avatar section
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: _buildLogoAndAvatarSection(),
-        ),
-
         // Zawartość panelu szczegółów
         Expanded(
           child: SingleChildScrollView(
@@ -225,62 +210,6 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
   }
 
   // Centered logo over animated avatar (breathing effect)
-  Widget _buildLogoAndAvatarSection() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Centered logo
-        Center(
-          child: Image.asset(
-            'assets/logos/logo.png',
-            width: 92,
-            height: 40,
-            fit: BoxFit.contain,
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Animated avatar
-        Consumer<AuthProvider>(
-          builder: (context, auth, child) {
-            final fullName =
-                auth.userProfile?.fullName ?? auth.user?.displayName ?? '';
-            final initial = fullName.isNotEmpty
-                ? fullName.trim()[0].toUpperCase()
-                : 'U';
-
-            return ScaleTransition(
-              scale: _pulseAnimation,
-              child: Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: AppThemePro.accentGold,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppThemePro.accentGold.withOpacity(0.18),
-                      blurRadius: 12,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  initial,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
 
   Widget _buildProductDetails(Investment investment) {
     return Column(
@@ -607,51 +536,6 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildFloatingActions(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Przycisk odświeżania
-        Tooltip(
-          message: canEdit ? 'Odśwież dane' : kRbacNoPermissionTooltip,
-          child: FloatingActionButton(
-            heroTag: "refresh",
-            onPressed: canEdit
-                ? () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Odświeżanie danych...'),
-                        backgroundColor: AppThemePro.accentGold,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                : null,
-            backgroundColor: canEdit ? AppThemePro.accentGold : Colors.grey,
-            foregroundColor: AppThemePro.primaryDark,
-            child: const Icon(Icons.refresh),
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Przycisk szczegółów (jeśli produkt wybrany)
-        if (_selectedProductId != null)
-          FloatingActionButton(
-            heroTag: "details",
-            onPressed: () {
-              setState(() {
-                _showDetailsPanel = !_showDetailsPanel;
-              });
-            },
-            backgroundColor: AppThemePro.bondsBlue,
-            foregroundColor: Colors.white,
-            child: Icon(_showDetailsPanel ? Icons.close : Icons.info),
-          ),
-      ],
     );
   }
 
