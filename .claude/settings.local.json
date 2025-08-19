@@ -16,7 +16,8 @@
       "Bash(firebase functions:delete:*)",
       "Bash(flutter run:*)",
       "Bash(dart:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }

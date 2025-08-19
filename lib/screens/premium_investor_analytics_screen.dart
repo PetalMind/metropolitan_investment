@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_theme_professional.dart';
 import '../models_and_services.dart'; // Centralny export wszystkich modeli i serwisów
 import '../providers/auth_provider.dart';
 import '../services/investor_analytics_service.dart'
@@ -802,24 +803,38 @@ class _PremiumInvestorAnalyticsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundPrimary,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildAppBar(),
-            _buildTabBar(),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildOverviewTab(),
-                  _buildInvestorsTab(),
-                  _buildAnalyticsTab(),
-                  _buildMajorityTab(),
-                ],
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.topLeft,
+            radius: 1.5,
+            colors: [
+              AppThemePro.primaryDark,
+              AppThemePro.backgroundPrimary,
+              AppThemePro.backgroundSecondary.withValues(alpha: 0.8),
+              AppThemePro.backgroundPrimary,
+            ],
+            stops: const [0.0, 0.3, 0.7, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildAppBar(),
+              _buildTabBar(),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildOverviewTab(),
+                    _buildInvestorsTab(),
+                    _buildAnalyticsTab(),
+                    _buildMajorityTab(),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       // FAB zawsze renderowany – dla roli user przyciski pasywne z tooltipami
@@ -834,30 +849,85 @@ class _PremiumInvestorAnalyticsScreenState
         vertical: 16,
       ),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundSecondary,
-        border: const Border(
-          bottom: BorderSide(color: AppTheme.borderSecondary, width: 0.5),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppThemePro.primaryDark,
+            AppThemePro.primaryMedium.withValues(alpha: 0.9),
+            AppThemePro.backgroundPrimary,
+          ],
         ),
+        border: Border(
+          bottom: BorderSide(
+            color: AppThemePro.accentGold.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppThemePro.accentGold.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.analytics_rounded,
-            color: AppTheme.secondaryGold,
-            size: _isTablet ? 32 : 28,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: RadialGradient(
+                colors: [
+                  AppThemePro.accentGold.withValues(alpha: 0.3),
+                  AppThemePro.accentGold.withValues(alpha: 0.1),
+                  Colors.transparent,
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppThemePro.accentGold.withValues(alpha: 0.4),
+                  blurRadius: 12,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.analytics_rounded,
+              color: AppThemePro.accentGold,
+              size: _isTablet ? 32 : 28,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _isSelectionMode
-                      ? 'Wybór Inwestorów'
-                      : 'Analityka Inwestorów',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.w700,
+                ShaderMask(
+                  shaderCallback: (bounds) => LinearGradient(
+                    colors: [
+                      AppThemePro.accentGold,
+                      AppThemePro.accentGoldMuted,
+                      AppThemePro.textPrimary,
+                    ],
+                  ).createShader(bounds),
+                  child: Text(
+                    _isSelectionMode
+                        ? 'Wybór Inwestorów'
+                        : 'Analityka Inwestorów',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                      shadows: [
+                        Shadow(
+                          color: AppThemePro.accentGold.withValues(alpha: 0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 if (_totalCount > 0) ...[
@@ -940,21 +1010,87 @@ class _PremiumInvestorAnalyticsScreenState
 
   Widget _buildTabBar() {
     return Container(
-      color: AppTheme.backgroundSecondary,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppThemePro.backgroundSecondary,
+            AppThemePro.backgroundPrimary,
+          ],
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: AppThemePro.accentGold.withValues(alpha: 0.2),
+            width: 1,
+          ),
+        ),
+      ),
       child: TabBar(
         controller: _tabController,
         tabs: [
-          Tab(text: 'Przegląd', icon: Icon(Icons.dashboard_rounded)),
-          Tab(text: 'Inwestorzy', icon: Icon(Icons.people_rounded)),
-          Tab(text: 'Analityka', icon: Icon(Icons.analytics_rounded)),
-          Tab(text: 'Większość', icon: Icon(Icons.gavel_rounded)),
+          Tab(
+            text: 'Przegląd',
+            icon: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: AppThemePro.accentGold.withValues(alpha: 0.1),
+              ),
+              child: Icon(Icons.dashboard_rounded),
+            ),
+          ),
+          Tab(
+            text: 'Inwestorzy',
+            icon: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: AppThemePro.accentGold.withValues(alpha: 0.1),
+              ),
+              child: Icon(Icons.people_rounded),
+            ),
+          ),
+          Tab(
+            text: 'Analityka',
+            icon: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: AppThemePro.accentGold.withValues(alpha: 0.1),
+              ),
+              child: Icon(Icons.analytics_rounded),
+            ),
+          ),
+          Tab(
+            text: 'Większość',
+            icon: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: AppThemePro.accentGold.withValues(alpha: 0.1),
+              ),
+              child: Icon(Icons.gavel_rounded),
+            ),
+          ),
         ],
-        labelColor: AppTheme.secondaryGold,
-        unselectedLabelColor: AppTheme.textTertiary,
-        indicatorColor: AppTheme.secondaryGold,
+        labelColor: AppThemePro.accentGold,
+        unselectedLabelColor: AppThemePro.textTertiary,
+        indicatorColor: AppThemePro.accentGold,
+        indicatorWeight: 3,
+        indicator: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          gradient: LinearGradient(
+            colors: [
+              AppThemePro.accentGold.withValues(alpha: 0.3),
+              AppThemePro.accentGold.withValues(alpha: 0.1),
+            ],
+          ),
+        ),
         labelStyle: TextStyle(
           fontSize: _isTablet ? 14 : 12,
           fontWeight: FontWeight.w600,
+          letterSpacing: 0.3,
         ),
         unselectedLabelStyle: TextStyle(
           fontSize: _isTablet ? 14 : 12,
@@ -1483,16 +1619,66 @@ class _PremiumInvestorAnalyticsScreenState
   Widget _buildFloatingActionButton() {
     return Tooltip(
       message: canEdit ? 'Akcje analityczne' : kRbacNoPermissionTooltip,
-      child: FloatingActionButton.extended(
-        onPressed: canEdit ? _showActionMenu : null,
-        backgroundColor: canEdit
-            ? AppTheme.secondaryGold
-            : AppTheme.backgroundTertiary,
-        foregroundColor: canEdit
-            ? AppTheme.backgroundPrimary
-            : AppTheme.textSecondary,
-        icon: Icon(Icons.menu_rounded),
-        label: Text('Akcje'),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(32),
+          gradient: canEdit
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppThemePro.accentGold,
+                    AppThemePro.accentGoldMuted,
+                    AppThemePro.accentGoldDark,
+                  ],
+                )
+              : null,
+          color: canEdit ? null : AppThemePro.surfaceInteractive,
+          boxShadow: canEdit
+              ? [
+                  BoxShadow(
+                    color: AppThemePro.accentGold.withValues(alpha: 0.4),
+                    blurRadius: 16,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 4),
+                  ),
+                  BoxShadow(
+                    color: AppThemePro.accentGold.withValues(alpha: 0.2),
+                    blurRadius: 32,
+                    spreadRadius: 4,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : null,
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: canEdit ? _showActionMenu : null,
+          backgroundColor: Colors.transparent,
+          foregroundColor: canEdit
+              ? AppThemePro.primaryDark
+              : AppThemePro.textSecondary,
+          elevation: 0,
+          focusElevation: 0,
+          hoverElevation: 0,
+          highlightElevation: 0,
+          icon: Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: canEdit
+                  ? AppThemePro.primaryDark.withValues(alpha: 0.1)
+                  : Colors.transparent,
+            ),
+            child: Icon(Icons.menu_rounded),
+          ),
+          label: Text(
+            'Akcje',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -10,7 +10,7 @@ import '../widgets/enhanced_clients/spectacular_clients_grid.dart';
 import '../widgets/enhanced_clients/enhanced_client_stats_display.dart';
 
 /// 🎨 SPEKTAKULARNY EKRAN KLIENTÓW Z EFEKTEM WOW
-///
+/// 
 /// Funkcje:
 /// - Zwijany nagłówek z animacjami podczas przewijania
 /// - Spektakularny grid zamiast tradycyjnej tabeli
@@ -27,20 +27,20 @@ class EnhancedClientsScreen extends StatefulWidget {
 
 class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     with TickerProviderStateMixin {
+  
   // Services
-  final IntegratedClientService _integratedClientService =
-      IntegratedClientService();
+  final IntegratedClientService _integratedClientService = IntegratedClientService();
   final ClientService _clientService = ClientService();
-
+  
   // Controllers
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-
+  
   // Animation Controllers
   late AnimationController _headerController;
   late AnimationController _gridController;
   late AnimationController _selectionController;
-
+  
   // Data
   List<Client> _allClients = [];
   List<Client> _activeClients = [];
@@ -59,13 +59,13 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   // Multi-selection
   bool _isSelectionMode = false;
   Set<String> _selectedClientIds = <String>{};
-
+  
   // Header collapse state
   bool _isHeaderCollapsed = false;
-
-  // Pagination state
+  
+  // Pagination state  
   bool _hasMoreData = false;
-
+  
   List<Client> get _selectedClients => _displayedClients
       .where((client) => _selectedClientIds.contains(client.id))
       .toList();
@@ -86,11 +86,11 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
   void _loadMoreClients() async {
     if (_isLoadingMore || !_hasMoreData) return;
-
+    
     setState(() {
       _isLoadingMore = true;
     });
-
+    
     try {
       // Load more clients implementation
       // For now, we'll just set hasMoreData to false
@@ -129,12 +129,12 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-
+    
     _gridController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-
+    
     _selectionController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
@@ -148,7 +148,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         setState(() {
           _isHeaderCollapsed = isCollapsed;
         });
-
+        
         if (isCollapsed) {
           _headerController.forward();
         } else {
@@ -190,15 +190,11 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
         print('📊 [EnhancedClientsScreen] Wyniki ładowania:');
         print('   - Wszyscy klienci (getAllClients): ${allClients.length}');
-        print(
-          '   - Aktywni klienci (getActiveClients): ${activeClients.length}',
-        );
+        print('   - Aktywni klienci (getActiveClients): ${activeClients.length}');
         print('   - Statystyki - łącznie: ${clientStats.totalClients}');
         print('   - Statystyki - inwestycje: ${clientStats.totalInvestments}');
-        print(
-          '   - Statystyki - kapitał: ${clientStats.totalRemainingCapital}',
-        );
-
+        print('   - Statystyki - kapitał: ${clientStats.totalRemainingCapital}');
+        
         setState(() {
           _allClients = allClients;
           _activeClients = activeClients;
@@ -370,9 +366,11 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
                   },
                   additionalActions: _buildHeaderActions(),
                 ),
-
+                
                 // 🎨 SPECTACULAR CLIENTS GRID
-                Expanded(child: _buildContent()),
+                Expanded(
+                  child: _buildContent(),
+                ),
               ],
             ),
     );
@@ -394,7 +392,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           ),
           const SizedBox(width: 12),
         ],
-
+        
         if (canEdit && !_isSelectionMode) ...[
           ElevatedButton.icon(
             onPressed: () => _showClientForm(),
@@ -407,7 +405,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           ),
           const SizedBox(width: 12),
         ],
-
+        
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert, color: Colors.white),
           onSelected: _handleMenuAction,
@@ -461,9 +459,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         isSelectionMode: _isSelectionMode,
         selectedClientIds: _selectedClientIds,
         scrollController: _scrollController,
-        onClientTap: _isSelectionMode
-            ? null
-            : (client) => _showClientForm(client),
+        onClientTap: _isSelectionMode ? null : (client) => _showClientForm(client),
         onSelectionChanged: (selectedIds) {
           setState(() {
             _selectedClientIds = selectedIds;
@@ -484,16 +480,16 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           const SizedBox(height: 16),
           Text(
             'Wystąpił błąd',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(color: AppTheme.textSecondary),
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             _errorMessage,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(color: AppTheme.textTertiary),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: AppTheme.textTertiary,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -520,18 +516,18 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           const SizedBox(height: 16),
           Text(
             'Brak klientów',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(color: AppTheme.textSecondary),
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             _searchController.text.isNotEmpty
                 ? 'Nie znaleziono klientów spełniających kryteria wyszukiwania'
                 : 'Dodaj pierwszego klienta, aby rozpocząć',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(color: AppTheme.textTertiary),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: AppTheme.textTertiary,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
