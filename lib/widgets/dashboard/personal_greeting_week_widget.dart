@@ -85,49 +85,58 @@ class _PersonalGreetingWeekWidgetState
       );
       map.putIfAbsent(dateKey, () => []).add(e);
     }
-    
+
     // Sortuj zadania w ramach każdego dnia według godziny
     for (final entry in map.entries) {
       entry.value.sort((a, b) => a.startDate.compareTo(b.startDate));
     }
-    
+
     return map;
   }
 
-  List<MapEntry<DateTime, List<CalendarEvent>>> _getSortedDays(Map<DateTime, List<CalendarEvent>> grouped) {
+  List<MapEntry<DateTime, List<CalendarEvent>>> _getSortedDays(
+    Map<DateTime, List<CalendarEvent>> grouped,
+  ) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    
+
     final entries = grouped.entries.toList();
     final List<MapEntry<DateTime, List<CalendarEvent>>> result = [];
-    
+
     // 1. Najpierw dzisiejsze zadania (jeśli są)
-    final todayEntry = entries.where((e) => e.key.isAtSameMomentAs(today)).firstOrNull;
+    final todayEntry = entries
+        .where((e) => e.key.isAtSameMomentAs(today))
+        .firstOrNull;
     if (todayEntry != null) {
       result.add(todayEntry);
     }
-    
+
     // 2. Potem reszta tygodnia (poniedziałek-piątek), pomijając dzisiaj
     final weekDays = entries
-        .where((e) => 
-            !e.key.isAtSameMomentAs(today) && // Nie dzisiaj
-            e.key.weekday >= 1 && e.key.weekday <= 5) // Pon-Pią
+        .where(
+          (e) =>
+              !e.key.isAtSameMomentAs(today) && // Nie dzisiaj
+              e.key.weekday >= 1 &&
+              e.key.weekday <= 5,
+        ) // Pon-Pią
         .toList();
-    
+
     // Sortuj od poniedziałku do piątku
     weekDays.sort((a, b) => a.key.compareTo(b.key));
     result.addAll(weekDays);
-    
+
     // 3. Weekend na końcu (sobota-niedziela)
     final weekendDays = entries
-        .where((e) => 
-            !e.key.isAtSameMomentAs(today) && // Nie dzisiaj
-            (e.key.weekday == 6 || e.key.weekday == 7)) // Sob-Nie
+        .where(
+          (e) =>
+              !e.key.isAtSameMomentAs(today) && // Nie dzisiaj
+              (e.key.weekday == 6 || e.key.weekday == 7),
+        ) // Sob-Nie
         .toList();
-    
+
     weekendDays.sort((a, b) => a.key.compareTo(b.key));
     result.addAll(weekendDays);
-    
+
     return result;
   }
 
@@ -135,30 +144,35 @@ class _PersonalGreetingWeekWidgetState
     // Sprawdź czy to wydarzenie całodniowe
     final start = event.startDate;
     final end = event.endDate;
-    
+
     // Jeśli to wydarzenie oznaczone jako całodniowe
     if (event.isAllDay) {
       return 'Cały dzień';
     }
-    
+
     // Sprawdź czy różnica między start a end to dokładnie 24h lub więcej i start/end to północ
     final duration = end.difference(start);
-    if (duration.inDays >= 1 && 
-        start.hour == 0 && start.minute == 0 && 
-        end.hour == 0 && end.minute == 0) {
+    if (duration.inDays >= 1 &&
+        start.hour == 0 &&
+        start.minute == 0 &&
+        end.hour == 0 &&
+        end.minute == 0) {
       return 'Cały dzień';
     }
-    
+
     // Sprawdź czy to godzina o północy (prawdopodobnie całodniowe)
-    if (start.hour == 0 && start.minute == 0 && end.hour == 23 && end.minute == 59) {
+    if (start.hour == 0 &&
+        start.minute == 0 &&
+        end.hour == 23 &&
+        end.minute == 59) {
       return 'Cały dzień';
     }
-    
+
     // Wydarzenia z tą samą godziną start i end (krótkie wydarzenia)
     if (start.isAtSameMomentAs(end) || duration.inMinutes <= 15) {
       return DateFormat('HH:mm').format(start);
     }
-    
+
     // Wydarzenie z godziną końcową
     return '${DateFormat('HH:mm').format(start)} - ${DateFormat('HH:mm').format(end)}';
   }
@@ -327,7 +341,7 @@ class _PersonalGreetingWeekWidgetState
           final now = DateTime.now();
           final today = DateTime(now.year, now.month, now.day);
           final isToday = day.isAtSameMomentAs(today);
-          
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -335,20 +349,23 @@ class _PersonalGreetingWeekWidgetState
               Row(
                 children: [
                   Text(
-                    isToday 
-                      ? 'Dzisiaj' 
-                      : DateFormat('EEE, d MMM', 'pl_PL').format(day),
+                    isToday
+                        ? 'Dzisiaj'
+                        : DateFormat('EEE, d MMM', 'pl_PL').format(day),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: isToday 
-                        ? AppThemePro.accentGold 
-                        : AppThemePro.textTertiary,
+                      color: isToday
+                          ? AppThemePro.accentGold
+                          : AppThemePro.textTertiary,
                       fontWeight: isToday ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                   if (isToday) ...[
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppThemePro.accentGold.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),

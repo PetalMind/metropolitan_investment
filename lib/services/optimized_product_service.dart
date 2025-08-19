@@ -8,9 +8,12 @@ import 'base_service.dart';
 /// 🚀 OPTIMIZED PRODUCT SERVICE - Korzysta z batch Firebase Functions
 /// Zastępuje powolny DeduplicatedProductService
 class OptimizedProductService extends BaseService {
-  static const String _cacheKeyPrefix = 'optimized_products_v1_';
-  
-  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
+  static const String _cacheKeyPrefix =
+      'optimized_products_v2_'; // v2 po dodaniu companyId mapping
+
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'europe-west1',
+  );
 
   /// 🚀 GŁÓWNA METODA: Pobiera wszystkie produkty jednym wywołaniem Firebase Functions
   Future<OptimizedProductsResult> getAllProductsOptimized({
@@ -33,23 +36,30 @@ class OptimizedProductService extends BaseService {
       }
 
       if (kDebugMode) {
-        print('🚀 [OptimizedProductService] Wywołuję getAllProductsWithInvestors...');
+        print(
+          '🚀 [OptimizedProductService] Wywołuję getAllProductsWithInvestors...',
+        );
       }
 
-      final optimizedResult = await _fetchFromFirebase(forceRefresh, includeStatistics, maxProducts);
+      final optimizedResult = await _fetchFromFirebase(
+        forceRefresh,
+        includeStatistics,
+        maxProducts,
+      );
 
       // Cache na 5 minut - używaj metody z BaseService
       await _setCacheData(cacheKey, optimizedResult);
 
       if (kDebugMode) {
-        print('🎯 [OptimizedProductService] Pobrano ${optimizedResult.products.length} produktów z cache: ${optimizedResult.fromCache}');
+        print(
+          '🎯 [OptimizedProductService] Pobrano ${optimizedResult.products.length} produktów z cache: ${optimizedResult.fromCache}',
+        );
       }
 
       return optimizedResult;
-
     } catch (e) {
       logError('getAllProductsOptimized', e);
-      
+
       // Fallback: zwróć pusty wynik zamiast crashować
       return OptimizedProductsResult(
         products: [],
@@ -64,14 +74,16 @@ class OptimizedProductService extends BaseService {
   }
 
   Future<OptimizedProductsResult> _fetchFromFirebase(
-    bool forceRefresh, 
-    bool includeStatistics, 
-    int maxProducts
+    bool forceRefresh,
+    bool includeStatistics,
+    int maxProducts,
   ) async {
     final stopwatch = Stopwatch()..start();
 
     // 🚀 KLUCZ: Jedno wywołanie Firebase Functions zamiast setek
-    final HttpsCallable callable = _functions.httpsCallable('getAllProductsWithInvestors');
+    final HttpsCallable callable = _functions.httpsCallable(
+      'getAllProductsWithInvestors',
+    );
     final HttpsCallableResult result = await callable.call({
       'forceRefresh': forceRefresh,
       'includeStatistics': includeStatistics,
@@ -81,7 +93,9 @@ class OptimizedProductService extends BaseService {
     stopwatch.stop();
 
     if (kDebugMode) {
-      print('✅ [OptimizedProductService] Firebase Functions zakończone w ${stopwatch.elapsedMilliseconds}ms');
+      print(
+        '✅ [OptimizedProductService] Firebase Functions zakończone w ${stopwatch.elapsedMilliseconds}ms',
+      );
     }
 
     final data = result.data as Map<String, dynamic>;
@@ -92,7 +106,10 @@ class OptimizedProductService extends BaseService {
   static final Map<String, _CacheEntry> _cache = <String, _CacheEntry>{};
 
   Future<void> _setCacheData(String key, OptimizedProductsResult data) async {
-    _cache[key] = _CacheEntry(data, DateTime.now().add(const Duration(minutes: 5)));
+    _cache[key] = _CacheEntry(
+      data,
+      DateTime.now().add(const Duration(minutes: 5)),
+    );
   }
 
   T? _getCacheData<T>(String key) {
@@ -105,7 +122,9 @@ class OptimizedProductService extends BaseService {
   }
 
   /// Pobiera produkty określonego typu (filtruje lokalnie)
-  Future<List<OptimizedProduct>> getProductsByType(UnifiedProductType type) async {
+  Future<List<OptimizedProduct>> getProductsByType(
+    UnifiedProductType type,
+  ) async {
     try {
       final allProducts = await getAllProductsOptimized();
       return allProducts.products.where((p) => p.productType == type).toList();
@@ -189,13 +208,17 @@ class OptimizedProductsResult {
 
   factory OptimizedProductsResult.fromMap(Map<String, dynamic> map) {
     return OptimizedProductsResult(
-      products: (map['products'] as List<dynamic>?)
-          ?.map((p) => OptimizedProduct.fromMap(p as Map<String, dynamic>))
-          .toList() ?? [],
+      products:
+          (map['products'] as List<dynamic>?)
+              ?.map((p) => OptimizedProduct.fromMap(p as Map<String, dynamic>))
+              .toList() ??
+          [],
       totalProducts: map['totalProducts'] as int? ?? 0,
       totalInvestments: map['totalInvestments'] as int? ?? 0,
-      statistics: map['statistics'] != null 
-          ? GlobalProductStatistics.fromMap(map['statistics'] as Map<String, dynamic>)
+      statistics: map['statistics'] != null
+          ? GlobalProductStatistics.fromMap(
+              map['statistics'] as Map<String, dynamic>,
+            )
           : null,
       executionTime: map['executionTime'] as int? ?? 0,
       fromCache: map['fromCache'] as bool? ?? false,
@@ -252,18 +275,23 @@ class OptimizedProduct {
       companyName: map['companyName'] as String? ?? '',
       companyId: map['companyId'] as String? ?? '',
       totalValue: (map['totalValue'] as num?)?.toDouble() ?? 0.0,
-      totalRemainingCapital: (map['totalRemainingCapital'] as num?)?.toDouble() ?? 0.0,
+      totalRemainingCapital:
+          (map['totalRemainingCapital'] as num?)?.toDouble() ?? 0.0,
       totalInvestments: map['totalInvestments'] as int? ?? 0,
       uniqueInvestors: map['uniqueInvestors'] as int? ?? 0,
       actualInvestorCount: map['actualInvestorCount'] as int? ?? 0,
       averageInvestment: (map['averageInvestment'] as num?)?.toDouble() ?? 0.0,
       interestRate: (map['interestRate'] as num?)?.toDouble() ?? 0.0,
-      earliestInvestmentDate: _parseDate(map['earliestInvestmentDate']) ?? DateTime.now(),
-      latestInvestmentDate: _parseDate(map['latestInvestmentDate']) ?? DateTime.now(),
+      earliestInvestmentDate:
+          _parseDate(map['earliestInvestmentDate']) ?? DateTime.now(),
+      latestInvestmentDate:
+          _parseDate(map['latestInvestmentDate']) ?? DateTime.now(),
       status: _mapProductStatus(map['status'] as String?),
-      topInvestors: (map['topInvestors'] as List<dynamic>?)
-          ?.map((i) => OptimizedInvestor.fromMap(i as Map<String, dynamic>))
-          .toList() ?? [],
+      topInvestors:
+          (map['topInvestors'] as List<dynamic>?)
+              ?.map((i) => OptimizedInvestor.fromMap(i as Map<String, dynamic>))
+              .toList() ??
+          [],
       metadata: map['metadata'] as Map<String, dynamic>? ?? {},
     );
   }
@@ -361,14 +389,21 @@ class GlobalProductStatistics {
     return GlobalProductStatistics(
       totalProducts: map['totalProducts'] as int? ?? 0,
       totalValue: (map['totalValue'] as num?)?.toDouble() ?? 0.0,
-      totalRemainingCapital: (map['totalRemainingCapital'] as num?)?.toDouble() ?? 0.0,
+      totalRemainingCapital:
+          (map['totalRemainingCapital'] as num?)?.toDouble() ?? 0.0,
       totalInvestors: map['totalInvestors'] as int? ?? 0,
-      averageValuePerProduct: (map['averageValuePerProduct'] as num?)?.toDouble() ?? 0.0,
-      averageInvestorsPerProduct: (map['averageInvestorsPerProduct'] as num?)?.toDouble() ?? 0.0,
-      productTypeDistribution: Map<String, int>.from(map['productTypeDistribution'] as Map? ?? {}),
-      topProductsByValue: (map['topProductsByValue'] as List<dynamic>?)
-          ?.map((t) => TopProductSummary.fromMap(t as Map<String, dynamic>))
-          .toList() ?? [],
+      averageValuePerProduct:
+          (map['averageValuePerProduct'] as num?)?.toDouble() ?? 0.0,
+      averageInvestorsPerProduct:
+          (map['averageInvestorsPerProduct'] as num?)?.toDouble() ?? 0.0,
+      productTypeDistribution: Map<String, int>.from(
+        map['productTypeDistribution'] as Map? ?? {},
+      ),
+      topProductsByValue:
+          (map['topProductsByValue'] as List<dynamic>?)
+              ?.map((t) => TopProductSummary.fromMap(t as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 }

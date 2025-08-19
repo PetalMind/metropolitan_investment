@@ -29,8 +29,8 @@ const getAllProductsWithInvestors = onCall({
       maxProducts = 500
     } = request.data || {};
 
-    // Cache key dla całego batch
-    const cacheKey = `batch_products_with_investors_v3_${maxProducts}`;
+    // Cache key dla całego batch - v4 po dodaniu companyId mapping
+    const cacheKey = `batch_products_with_investors_v4_${maxProducts}`;
 
     if (!forceRefresh) {
       const cached = await getCachedResult(cacheKey);
@@ -204,6 +204,7 @@ function extractProductInfo(investment) {
       investment.creditorCompany ||
       investment.wierzyciel_spolka ||
       investment.companyName ||
+      investment.companyId ||             // ✅ DODANE: companyId dla "Metropolitan Investment S.A."
       investment.nazwa_firmy ||
       investment.nazwa_spolki ||
       investment.emitent ||

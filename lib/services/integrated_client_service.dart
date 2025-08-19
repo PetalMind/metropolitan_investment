@@ -3,8 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/client.dart';
 import 'base_service.dart';
 import 'client_service.dart';
-import 'firebase_functions_client_service.dart'
-    show ClientStats; // Import tylko dla ClientStats
+import 'firebase_functions_client_service.dart'; // Importujemy tylko dla ClientStats
 
 /// Zintegrowany serwis klientów
 /// Używa Firebase Functions jako głównej metody z fallbackiem do standardowego ClientService
@@ -233,55 +232,61 @@ class IntegratedClientService extends BaseService {
         throw Exception('Brak danych z Firebase Functions');
       }
 
-      print('   - Firebase Functions response:');
-      print(
-        '     * totalClients: ${data['totalClients']} (${data['totalClients'].runtimeType})',
-      );
-      print(
-        '     * totalInvestments: ${data['totalInvestments']} (${data['totalInvestments'].runtimeType})',
-      );
-      print(
-        '     * totalRemainingCapital: ${data['totalRemainingCapital']} (${data['totalRemainingCapital'].runtimeType})',
-      );
-      print('     * source: ${data['source']}');
+      // Bezpieczne parsowanie z null-safety
+      final totalClients = _safeParseInt(data['totalClients']);
+      final totalInvestments = _safeParseInt(data['totalInvestments']);
+      final totalRemainingCapital = _safeParseDouble(data['totalRemainingCapital']);
 
-      // Sprawdź czy dane są prawidłowe (nie null)
-      if (data['totalClients'] == null ||
-          data['totalInvestments'] == null ||
-          data['totalRemainingCapital'] == null) {
-        print(
-          '⚠️ [WARNING] Firebase Functions zwróciły null dla kluczowych pól',
-        );
-        print('   - totalClients null: ${data['totalClients'] == null}');
-        print(
-          '   - totalInvestments null: ${data['totalInvestments'] == null}',
-        );
-        print(
-          '   - totalRemainingCapital null: ${data['totalRemainingCapital'] == null}',
-        );
+      print('   - Firebase Functions response (parsed):');
+      print('     * totalClients: $totalClients (${totalClients.runtimeType})');
+      print('     * totalInvestments: $totalInvestments (${totalInvestments.runtimeType})');
+      print('     * totalRemainingCapital: $totalRemainingCapital (${totalRemainingCapital.runtimeType})');
+      print('     * source: ${data['source'] ?? 'unknown'}');
+
+      // Sprawdź czy dane mają sens biznesowo
+      if (totalClients < 0 || totalInvestments < 0 || totalRemainingCapital < 0) {
+        print('⚠️ [WARNING] Firebase Functions zwróciły nieprawidłowe wartości');
+        print('   - totalClients: $totalClients');
+        print('   - totalInvestments: $totalInvestments');
+        print('   - totalRemainingCapital: $totalRemainingCapital');
         print('   - Wymuszam fallback...');
-        throw Exception('Nieprawidłowe dane z Firebase Functions - pola null');
+        throw Exception('Nieprawidłowe dane z Firebase Functions - negatywne wartości');
+      }
+
+      // Sprawdź logikę biznesową - czy klienci mają inwestycje
+      if (totalClients > 0 && totalInvestments == 0 && totalRemainingCapital == 0) {
+        print('⚠️ [WARNING] Firebase Functions zwróciły 0 kapitału i inwestycji dla $totalClients klientów');
+        print('   - To może wskazywać na błąd w logice serwera');
+        print('   - Wymuszam fallback...');
+        throw Exception('Nieprawidłowe dane z Firebase Functions - brak inwestycji dla klientów');
       }
 
       final stats = ClientStats(
-        totalClients: data['totalClients'] ?? 0,
-        totalInvestments: data['totalInvestments'] ?? 0,
-        totalRemainingCapital: (data['totalRemainingCapital'] ?? 0.0)
-            .toDouble(),
-        averageCapitalPerClient: (data['averageCapitalPerClient'] ?? 0.0)
-            .toDouble(),
-        lastUpdated: data['lastUpdated'] ?? DateTime.now().toIso8601String(),
-        source: data['source'] ?? 'firebase-functions',
+        totalClients: totalClients,
+        totalInvestments: totalInvestments,
+        totalRemainingCapital: totalRemainingCapital,
+        averageCapitalPerClient: totalClients > 0
+            ? totalRemainingCapital / totalClients
+            : 0.0,
+        lastUpdated: _safeParseString(data['lastUpdated'], DateTime.now().toIso8601String()),
+        source: _safeParseString(data['source'], 'firebase-functions'),
       );
 
       // Dodatkowa walidacja - sprawdź czy dane wyglądają sensownie
-      if (stats.totalRemainingCapital == 0 && stats.totalClients > 0) {
+      if (totalRemainingCapital == 0 && totalClients > 0) {
         print(
-          '⚠️ [WARNING] Firebase Functions zwróciły 0 kapitału dla ${stats.totalClients} klientów',
+          '⚠️ [WARNING] Firebase Functions zwróciły 0 kapitału dla $totalClients klientów',
         );
         print('   - Wymuszam fallback...');
         throw Exception('Nieprawidłowe dane z Firebase Functions - 0 kapitału');
       }
+
+      print('✅ [IntegratedClientService] Pomyślnie pobrano statystyki z Firebase Functions:');
+      print('   - Klienci: ${stats.totalClients}');
+      print('   - Inwestycje: ${stats.totalInvestments}');
+      print('   - Kapitał: ${stats.totalRemainingCapital.toStringAsFixed(2)} PLN');
+      print('   - Średnia na klienta: ${stats.averageCapitalPerClient.toStringAsFixed(2)} PLN');
+      print('   - Źródło: ${stats.source}');
 
       logError('getClientStats', 'Pobrano statystyki z Firebase Functions');
       return stats;
@@ -299,9 +304,10 @@ class IntegratedClientService extends BaseService {
         final unifiedStats = await _getUnifiedClientStats();
         final clientsStats = await _fallbackService.getClientStats();
 
-        final totalClients =
-            (clientsStats['total_clients'] as int?) ??
-            unifiedStats.totalClients;
+        // Bezpieczne parsowanie danych z fallback
+        final totalClients = _safeParseInt(clientsStats['total_clients']) != 0
+            ? _safeParseInt(clientsStats['total_clients'])
+            : unifiedStats.totalClients;
         final totalInvestments = unifiedStats.totalInvestments;
         final totalRemainingCapital = unifiedStats.totalRemainingCapital;
 
@@ -321,6 +327,12 @@ class IntegratedClientService extends BaseService {
           source: 'advanced-fallback',
         );
 
+        print('✅ [IntegratedClientService] Pomyślnie pobrano z zaawansowanego fallback:');
+        print('   - Klienci: ${stats.totalClients}');
+        print('   - Inwestycje: ${stats.totalInvestments}');
+        print('   - Kapitał: ${stats.totalRemainingCapital.toStringAsFixed(2)} PLN');
+        print('   - Średnia na klienta: ${stats.averageCapitalPerClient.toStringAsFixed(2)} PLN');
+
         logError(
           'getClientStats',
           'Zaawansowany fallback: ${totalClients} klientów, ${totalInvestments} inwestycji, ${totalRemainingCapital.toStringAsFixed(0)} PLN',
@@ -339,7 +351,7 @@ class IntegratedClientService extends BaseService {
         try {
           print('   - Próba podstawowego fallback...');
           final clientsStats = await _fallbackService.getClientStats();
-          final totalClients = clientsStats['total_clients'] ?? 0;
+          final totalClients = _safeParseInt(clientsStats['total_clients']);
 
           print('   - Podstawowy fallback response:');
           print('     * totalClients: $totalClients');
@@ -494,22 +506,15 @@ class IntegratedClientService extends BaseService {
     for (final doc in investmentsSnapshot.docs) {
       final data = doc.data();
 
-      // Spróbuj różne nazwy pól dla pozostałego kapitału
-      dynamic capitalValue =
-          data['kapital_pozostaly'] ??
-          data['remainingCapital'] ??
-          data['capital_remaining'] ??
-          0;
-
-      double parsedCapital = 0.0;
-
-      if (capitalValue is num) {
-        parsedCapital = capitalValue.toDouble();
-      } else if (capitalValue is String && capitalValue.isNotEmpty) {
-        // Wyczyść string i spróbuj sparsować
-        final cleanValue = capitalValue.replaceAll(',', '').replaceAll(' ', '');
-        parsedCapital = double.tryParse(cleanValue) ?? 0.0;
-      }
+      // Użyj bezpiecznej metody parsowania
+      final parsedCapital = _safeParseDouble(
+        data['kapital_pozostaly'] ??
+        data['remainingCapital'] ??
+        data['capital_remaining'] ??
+        data['Kapital Pozostaly'] ??
+        data['Remaining Capital'] ??
+        0
+      );
 
       if (parsedCapital > 0) {
         totalRemainingCapital += parsedCapital;
@@ -545,5 +550,72 @@ class IntegratedClientService extends BaseService {
       lastUpdated: DateTime.now().toIso8601String(),
       source: 'unified-statistics-direct',
     );
+  }
+
+  /// Bezpieczne parsowanie int z null-safety
+  int _safeParseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) {
+      if (value.isEmpty) return 0;
+      
+      // Wyczyść string z niepotrzebnych znaków
+      String cleanValue = value
+          .replaceAll(' ', '')      // usuń spacje
+          .replaceAll(',', '')      // usuń przecinki
+          .trim();
+      
+      final parsed = int.tryParse(cleanValue);
+      if (parsed != null) {
+        return parsed;
+      }
+      
+      // Spróbuj jako double i przekształć
+      final parsedDouble = double.tryParse(cleanValue);
+      if (parsedDouble != null && parsedDouble.isFinite) {
+        return parsedDouble.toInt();
+      }
+      
+      print('⚠️ [WARNING] Nie można sparsować int z: "$value" -> "$cleanValue"');
+      return 0;
+    }
+    print('⚠️ [WARNING] Nieznany typ dla int: $value (${value.runtimeType})');
+    return 0;
+  }
+
+  /// Bezpieczne parsowanie double z null-safety
+  double _safeParseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      if (value.isEmpty) return 0.0;
+      
+      // Wyczyść string z polskich separatorów i białych znaków
+      String cleanValue = value
+          .replaceAll(' ', '')      // usuń spacje
+          .replaceAll(',', '.')     // zamień przecinek na kropkę
+          .replaceAll('zł', '')     // usuń symbol waluty
+          .replaceAll('PLN', '')    // usuń symbol waluty
+          .trim();
+      
+      final parsed = double.tryParse(cleanValue);
+      if (parsed != null && parsed.isFinite) {
+        return parsed;
+      }
+      
+      print('⚠️ [WARNING] Nie można sparsować double z: "$value" -> "$cleanValue"');
+      return 0.0;
+    }
+    print('⚠️ [WARNING] Nieznany typ dla double: $value (${value.runtimeType})');
+    return 0.0;
+  }
+
+  /// Bezpieczne parsowanie String z null-safety
+  String _safeParseString(dynamic value, [String defaultValue = '']) {
+    if (value == null) return defaultValue;
+    if (value is String) return value;
+    return value.toString();
   }
 }

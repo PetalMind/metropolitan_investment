@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../theme/app_theme_professional.dart';
 import '../../models_and_services.dart';
-import '../../services/optimized_product_service.dart'; // 🚀 NOWY ZOPTYMALIZOWANY SERWIS
 import '../premium_loading_widget.dart';
 import '../premium_error_widget.dart';
 import 'personal_greeting_week_widget.dart';
@@ -19,14 +18,7 @@ import 'personal_greeting_week_widget.dart';
 /// - Sekcja ryzyk i statusów finansowych
 /// - Płynne animacje i mikrointerakcje
 class ProductDashboardWidget extends StatefulWidget {
-  final String? selectedProductId;
-  final Function(String productId)? onProductSelected;
-
-  const ProductDashboardWidget({
-    super.key,
-    this.selectedProductId,
-    this.onProductSelected,
-  });
+  const ProductDashboardWidget({super.key});
 
   @override
   State<ProductDashboardWidget> createState() => _ProductDashboardWidgetState();
@@ -61,9 +53,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   Set<String> _selectedProductIds = {};
   bool _showOptimizedView =
       true; // 🚀 NOWA FLAGA - domyślnie zoptymalizowany widok
-  // ignore: unused_field
-  OptimizedProductsResult?
-  _optimizedResult; // 🚀 NOWE: Kompletny wynik z serwera
   UnifiedDashboardStatistics?
   _dashboardStatistics; // 🚀 NOWE: Zunifikowane statystyki
 
@@ -143,7 +132,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
           .getAllProductsOptimized(forceRefresh: true, includeStatistics: true);
 
       _optimizedProducts = optimizedResult.products;
-      _optimizedResult = optimizedResult;
 
       // 🚀 OPTYMALIZACJA: Nie rób dodatkowego wywołania getAllInvestments - użyj danych z OptimizedProductService
       if (kDebugMode) {
@@ -191,15 +179,8 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       // Apply filtering and sorting
       _applyFilteringAndSorting();
 
-      // Select first investment if none selected
-      if (widget.selectedProductId != null) {
-        _selectedInvestment = _investments
-            .where((inv) => inv.id == widget.selectedProductId)
-            .firstOrNull;
-      }
-      _selectedInvestment ??= _investments.isNotEmpty
-          ? _investments.first
-          : null;
+      // Select first investment if available
+      _selectedInvestment = _investments.isNotEmpty ? _investments.first : null;
 
       if (mounted) {
         setState(() {
@@ -473,125 +454,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     );
   }
 
-  Widget _buildHeader() {
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: AppThemePro.premiumCardDecoration,
-          child: Row(
-            children: [
-              // Company Logo
-              ScaleTransition(
-                scale: _scaleAnimation,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppThemePro.accentGold.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Image.asset(
-                      'assets/logos/logo.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 24),
-
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: AppThemePro.surfaceElevated,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppThemePro.borderSecondary),
-                ),
-                child: StreamBuilder<DateTime>(
-                  stream: Stream.periodic(
-                    const Duration(seconds: 1),
-                    (_) => DateTime.now(),
-                  ),
-                  builder: (context, snapshot) {
-                    final now = snapshot.data ?? DateTime.now();
-                    // Compute user initial safely
-                    String initialChar = 'U';
-                    String? displayName;
-                    if (_userProfile != null) {
-                      final firstName = _userProfile!.firstName.trim();
-                      final fullName = _userProfile!.fullName.trim();
-                      displayName = firstName.isNotEmpty
-                          ? firstName
-                          : (fullName.isNotEmpty ? fullName : null);
-                    }
-                    if (displayName != null && displayName.isNotEmpty) {
-                      initialChar = displayName[0].toUpperCase();
-                    }
-
-                    return Column(
-                      children: [
-                        Text(
-                          DateFormat('HH:mm:ss', 'pl_PL').format(now),
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(
-                                color: AppThemePro.accentGold,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                        Text(
-                          DateFormat('dd MMM', 'pl_PL').format(now),
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: AppThemePro.textTertiary),
-                        ),
-                        const SizedBox(width: 12),
-                        // User avatar (initial on gold background)
-                        ScaleTransition(
-                          scale: _scaleAnimation,
-                          child: Container(
-                            margin: const EdgeInsets.only(left: 12),
-                            child: Tooltip(
-                              message: _userProfile?.fullName ?? 'Użytkownik',
-                              child: CircleAvatar(
-                                radius: 28,
-                                backgroundColor: AppThemePro.accentGold,
-                                child: Text(
-                                  initialChar,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildGlobalSummary() {
     // 🚀 NOWE: Używamy zunifikowanych statystyk zamiast manualnych obliczeń
     if (_dashboardStatistics == null) {
@@ -610,35 +472,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     }
 
     final stats = _dashboardStatistics!;
-
-    // 💡 Informacja o źródle danych dla użytkownika
-    final dataSourceInfo = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppThemePro.profitGreen.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppThemePro.profitGreen.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.data_usage_rounded,
-            size: 14,
-            color: AppThemePro.profitGreen,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            'Źródło: Inwestorzy (viableCapital)',
-            style: TextStyle(
-              fontSize: 11,
-              color: AppThemePro.profitGreen,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
 
     final tiles = [
       _SummaryTileData(
@@ -1164,8 +997,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
               setState(() {
                 if (value == true) {
                   _selectedProductIds.add(product.id);
-                  // 🚀 FIXED: Use product.id directly instead of trying to find related investment
-                  widget.onProductSelected?.call(product.id);
                 } else {
                   _selectedProductIds.remove(product.id);
                 }
@@ -1238,9 +1069,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
               setState(() {
                 if (value == true) {
                   _selectedProductIds.add(investment.id);
-                  // 🚀 NOWE: Wywołaj callback przy wyborze inwestycji
                   _selectedInvestment = investment;
-                  widget.onProductSelected?.call(investment.id);
                 } else {
                   _selectedProductIds.remove(investment.id);
                 }
@@ -1347,7 +1176,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
 
     if (_showDeduplicatedView) {
       // Oblicz dla deduplikowanych produktów
-      for (final product in selectedItems.cast<DeduplicatedProduct>()) {
+      for (final product in selectedItems.cast<OptimizedProduct>()) {
         totalInvestmentAmount += product.totalValue;
         totalRemainingCapital += product.totalRemainingCapital;
 
@@ -1503,88 +1332,125 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   }
 
   Widget _buildSelectedProductsDetails() {
-    final selectedInvestments = _investments
-        .where((inv) => _selectedProductIds.contains(inv.id))
-        .toList();
+    // 🚀 POPRAWKA: Używaj odpowiedniej listy w zależności od trybu wyświetlania
+    if (_showDeduplicatedView) {
+      // Tryb zoptymalizowany - używamy OptimizedProduct
+      final selectedProducts = _optimizedProducts
+          .where((prod) => _selectedProductIds.contains(prod.id))
+          .toList();
 
-    if (selectedInvestments.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(32),
-        decoration: AppThemePro.premiumCardDecoration,
-        child: Center(
-          child: Column(
-            children: [
-              Icon(Icons.info_outline, color: AppThemePro.textMuted, size: 48),
-              const SizedBox(height: 16),
-              Text(
-                'Szczegóły produktu',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppThemePro.textPrimary,
-                  fontWeight: FontWeight.w600,
+      if (selectedProducts.isEmpty) {
+        return _buildNoSelectedProductsMessage();
+      }
+
+      return FadeTransition(
+        opacity: _fadeAnimation,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Szczegóły wybranych produktów',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: AppThemePro.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Wybierz produkty powyżej aby zobaczyć szczegółowe informacje',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: AppThemePro.textMuted),
-                textAlign: TextAlign.center,
-              ),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.statusInfo.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppThemePro.statusInfo.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    '${selectedProducts.length} PRODUKTÓW',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppThemePro.statusInfo,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Pokaż listę wybranych zoptymalizowanych produktów
+            _buildOptimizedProductsList(selectedProducts),
+          ],
+        ),
+      );
+    } else {
+      // Tryb tradycyjny - używamy Investment (ale lista jest pusta)
+      final selectedInvestments = _investments
+          .where((inv) => _selectedProductIds.contains(inv.id))
+          .toList();
+
+      if (selectedInvestments.isEmpty) {
+        return _buildNoSelectedProductsMessage();
+      }
+
+      return FadeTransition(
+        opacity: _fadeAnimation,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Szczegóły wybranych produktów',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: AppThemePro.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.statusInfo.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppThemePro.statusInfo.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    '${selectedInvestments.length} PRODUKTÓW',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppThemePro.statusInfo,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Jeśli wybrano tylko jeden produkt, pokaż szczegóły jak wcześniej
+            if (selectedInvestments.length == 1) ...[
+              _buildSingleProductDetails(selectedInvestments.first),
+            ] else ...[
+              // Jeśli wybrano wiele produktów, pokaż listę
+              _buildMultipleProductsList(selectedInvestments),
             ],
-          ),
+          ],
         ),
       );
     }
-
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Szczegóły wybranych produktów',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppThemePro.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppThemePro.statusInfo.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppThemePro.statusInfo.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  '${selectedInvestments.length} PRODUKTÓW',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppThemePro.statusInfo,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Jeśli wybrano tylko jeden produkt, pokaż szczegóły jak wcześniej
-          if (selectedInvestments.length == 1) ...[
-            _buildSingleProductDetails(selectedInvestments.first),
-          ] else ...[
-            // Jeśli wybrano wiele produktów, pokaż listę
-            _buildMultipleProductsList(selectedInvestments),
-          ],
-        ],
-      ),
-    );
   }
 
   Widget _buildSingleProductDetails(Investment investment) {
@@ -2600,6 +2466,275 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       dataSource: 'OptimizedProductService (converted)',
       calculatedAt: DateTime.now(),
     );
+  }
+
+  // 🚀 NOWE: Widget dla komunikatu o braku wybranych produktów
+  Widget _buildNoSelectedProductsMessage() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: AppThemePro.premiumCardDecoration,
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.check_box_outline_blank,
+              color: AppThemePro.textMuted,
+              size: 48,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Nie wybrano żadnych produktów',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: AppThemePro.textMuted),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Zaznacz produkty powyżej aby zobaczyć szczegóły',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppThemePro.textTertiary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 🚀 NOWE: Lista szczegółów dla zoptymalizowanych produktów
+  Widget _buildOptimizedProductsList(List<OptimizedProduct> selectedProducts) {
+    return Container(
+      decoration: AppThemePro.premiumCardDecoration,
+      child: Column(
+        children: [
+          // Header tabeli
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            decoration: BoxDecoration(
+              color: AppThemePro.accentGold.withOpacity(0.05),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Nazwa produktu',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppThemePro.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Firma',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppThemePro.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Inwestycje',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppThemePro.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Typ',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppThemePro.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Pozostały kapitał',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppThemePro.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Status',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppThemePro.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Lista produktów
+          ...selectedProducts.asMap().entries.map((entry) {
+            final index = entry.key;
+            final product = entry.value;
+            final isLast = index == selectedProducts.length - 1;
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: BoxDecoration(
+                border: isLast
+                    ? null
+                    : Border(
+                        bottom: BorderSide(
+                          color: AppThemePro.borderPrimary,
+                          width: 0.5,
+                        ),
+                      ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      product.name.isNotEmpty
+                          ? product.name
+                          : 'Produkt ${product.id.substring(0, 8)}...',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppThemePro.textPrimary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      product.companyName,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppThemePro.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      '${product.totalInvestments}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppThemePro.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getUnifiedProductTypeColor(
+                          product.productType,
+                        ).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        product.productType.displayName,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: _getUnifiedProductTypeColor(
+                            product.productType,
+                          ),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      _currencyFormat.format(product.totalRemainingCapital),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppThemePro.accentGold,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: _getProductStatusColor(
+                          product.status,
+                        ).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        _getProductStatusIcon(product.status),
+                        color: _getProductStatusColor(product.status),
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  // 🚀 NOWE: Metody pomocnicze dla statusów produktów
+  Color _getProductStatusColor(ProductStatus status) {
+    switch (status) {
+      case ProductStatus.active:
+        return AppThemePro.statusSuccess;
+      case ProductStatus.inactive:
+        return AppThemePro.statusWarning;
+      case ProductStatus.pending:
+        return AppThemePro.statusInfo;
+      case ProductStatus.suspended:
+        return AppThemePro.lossRed;
+    }
+  }
+
+  IconData _getProductStatusIcon(ProductStatus status) {
+    switch (status) {
+      case ProductStatus.active:
+        return Icons.check_circle;
+      case ProductStatus.inactive:
+        return Icons.pause_circle;
+      case ProductStatus.pending:
+        return Icons.pending;
+      case ProductStatus.suspended:
+        return Icons.cancel;
+    }
   }
 }
 
