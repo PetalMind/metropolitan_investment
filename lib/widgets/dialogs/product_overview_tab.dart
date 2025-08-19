@@ -110,7 +110,7 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
         _modalData!.investors.isNotEmpty &&
         (product.companyName == null ||
             product.companyName!.isEmpty ||
-            product.companyName == 'Nieznana firma')) {
+            product.companyName?.toLowerCase() == 'nieznana firma')) {
       // Znajdź pierwszego inwestora z tą samą nazwą produktu
       final matchingInvestor = _modalData!.investors
           .where(
@@ -127,7 +127,7 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
 
         if (investment != null &&
             investment.creditorCompany.isNotEmpty &&
-            investment.creditorCompany != 'Nieznana firma') {
+            investment.creditorCompany.toLowerCase() != 'nieznana firma') {
           // Utwórz nowy obiekt produktu z poprawioną nazwą firmy
           product = product.copyWith(companyName: investment.creditorCompany);
         }
@@ -310,7 +310,7 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
       );
     if (product.companyName != null &&
         product.companyName!.isNotEmpty &&
-        product.companyName != 'Nieznana firma')
+        product.companyName?.toLowerCase() != 'nieznana firma')
       children.add(_buildDetailRow('Emitent', product.companyName!));
     if (children.isEmpty) return const SizedBox.shrink();
     return _buildProductTypeContainer(
@@ -342,7 +342,7 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
       );
     if (product.companyName != null &&
         product.companyName!.isNotEmpty &&
-        product.companyName != 'Nieznana firma')
+        product.companyName?.toLowerCase() != 'nieznana firma')
       children.add(_buildDetailRow('Nazwa spółki', product.companyName!));
     children.add(
       _buildDetailRow(
@@ -483,7 +483,7 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
     );
     if (product.companyName != null &&
         product.companyName!.isNotEmpty &&
-        product.companyName != 'Nieznana firma') {
+        product.companyName?.toLowerCase() != 'nieznana firma') {
       children.add(_buildDetailRow('Firma', product.companyName!));
     }
     if (product.currency != null) {

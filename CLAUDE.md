@@ -26,9 +26,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run upload-clients` - Upload clients data using upload_clients_to_firebase.js
 - `npm run upload-normalized` - Upload normalized data with field mapping
 - `npm run upload-investments` - Upload investment data to Firebase
+- `npm run upload-normalized:dry-run` - Dry run upload without making changes
+- `npm run upload-normalized:full` - Full upload with cleanup and reporting
 - `dart run tools/complete_client_extractor.dart` - Extract clients from Excel
 - `dart run tools/complete_investment_extractor.dart` - Extract investments from Excel
 - `node field-mapping-utils.js` - Test field mapping system
+- `npm run fix-missing-clients` - Fix missing client references
+- `npm run validate-investments` - Validate investment data integrity
 
 ### Testing
 - `flutter test test/widget_test.dart` - Run specific test file
@@ -155,6 +159,18 @@ signedDate          // maps from 'signingDate' | 'data_podpisania' | 'Data_podpi
 - Mock services available when Firebase unavailable
 - Debug modes and cache inspection tools included
 
+**Role-Based Access Control (RBAC):**
+- `AuthProvider.isAdmin` determines admin access throughout the app
+- RBAC constants defined in `lib/constants/rbac_constants.dart`
+- UI components use `Consumer<AuthProvider>` to conditionally show admin features
+- Critical operations (edit, delete) are restricted to admin users only
+
+**Change History System:**
+- `InvestmentChangeHistoryService` tracks all investment modifications
+- `ProductChangeHistoryService` aggregates history for product-related changes
+- History dialogs available for both investments and products
+- All users can view history, but only admins can make changes
+
 ### Testing Strategy
 - Widget tests in `test/` directory
 - Premium analytics filtering has dedicated test coverage
@@ -209,6 +225,36 @@ import '../models_and_services.dart';
 - Map-based caching in services with TTL
 - Lazy loading with `ListView.builder`
 - `shimmer` package for loading states
+
+### UI Component Patterns
+```dart
+// Dialog pattern for product/client details
+showDialog(
+  context: context,
+  builder: (context) => EnhancedProductDetailsDialog(
+    product: product,
+    onShowInvestors: () => _showInvestors(product),
+  ),
+);
+
+// RBAC-aware UI components
+Consumer<AuthProvider>(
+  builder: (context, auth, child) {
+    final canEdit = auth.isAdmin;
+    return IconButton(
+      onPressed: canEdit ? _handleEdit : null,
+      icon: Icon(Icons.edit, color: canEdit ? Colors.white : Colors.grey),
+      tooltip: canEdit ? 'Edit' : 'Insufficient permissions',
+    );
+  },
+);
+```
+
+### Widget Architecture
+- Dialogs in `lib/widgets/dialogs/` follow consistent patterns
+- Premium widgets (loading, error) provide consistent UX
+- History dialogs support both tabbed views and detailed statistics
+- All modals use responsive design with `MediaQuery` constraints
 
 ## Key Dependencies & Versions
 ```yaml

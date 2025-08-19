@@ -321,9 +321,11 @@ class DeduplicatedProductService extends BaseService {
 
     final companyId =
         data['companyId'] ??
+        data['ID_Spolka'] ??
         data['id_spolka'] ??
         data['creditorCompany'] ??
-        'Nieznana Firma';
+        data['wierzyciel_spolka'] ??
+        'unknown';
 
     // Normalizuj klucz - usuń specjalne znaki i spacje
     final normalizedKey = '$productName|$productType|$companyId'
@@ -481,6 +483,14 @@ class DeduplicatedProductService extends BaseService {
       companyName:
           firstInvestment['creditorCompany'] ??
           firstInvestment['wierzyciel_spolka'] ??
+          firstInvestment['companyName'] ??
+          firstInvestment['nazwa_firmy'] ??
+          firstInvestment['nazwa_spolki'] ??
+          firstInvestment['emitent'] ??
+          firstInvestment['developer'] ??
+          firstInvestment['issuer'] ??
+          firstInvestment['Emitent'] ??
+          firstInvestment['Developer'] ??
           firstInvestment['companyId'] ??
           'Nieznana Firma',
       totalValue: totalValue,

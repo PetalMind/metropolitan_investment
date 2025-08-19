@@ -148,14 +148,24 @@ function generateProductKey(investment) {
   const productName = safeToString(
     investment.productName ||
     investment.projectName ||
-    investment.nazwa_produktu
+    investment.nazwa_produktu ||
+    investment.Produkt_nazwa ||
+    investment.produkt_nazwa
   );
 
-  const productType = safeToString(investment.productType || investment.typ_produktu || 'bonds');
+  const productType = safeToString(
+    investment.productType || 
+    investment.typ_produktu || 
+    investment.Typ_produktu || 
+    'bonds'
+  );
 
   const companyId = safeToString(
     investment.companyId ||
+    investment.ID_Spolka ||
+    investment.id_spolka ||
     investment.creditorCompany ||
+    investment.wierzyciel_spolka ||
     'unknown'
   );
 
@@ -173,20 +183,41 @@ function extractProductInfo(investment) {
       investment.productName ||
       investment.projectName ||
       investment.nazwa_produktu ||
+      investment.Produkt_nazwa ||
+      investment.produkt_nazwa ||
       'Nieznany Produkt'
     ),
-    type: safeToString(investment.productType || investment.typ_produktu || 'bonds'),
+    type: safeToString(
+      investment.productType || 
+      investment.typ_produktu || 
+      investment.Typ_produktu || 
+      'bonds'
+    ),
     companyId: safeToString(
       investment.companyId ||
+      investment.ID_Spolka ||
+      investment.id_spolka ||
       investment.creditorCompany ||
       'unknown'
     ),
     companyName: safeToString(
       investment.creditorCompany ||
       investment.wierzyciel_spolka ||
+      investment.companyName ||
+      investment.nazwa_firmy ||
+      investment.nazwa_spolki ||
+      investment.emitent ||
+      investment.developer ||
+      investment.issuer ||
+      investment.Emitent ||
+      investment.Developer ||
       'Nieznana Firma'
     ),
-    interestRate: safeToDouble(investment.interestRate || investment.oprocentowanie),
+    interestRate: safeToDouble(
+      investment.interestRate || 
+      investment.oprocentowanie || 
+      investment.Oprocentowanie
+    ),
   };
 }
 
