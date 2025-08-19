@@ -9,6 +9,7 @@ class OptimizedVotingStatusSelector extends StatefulWidget {
   final bool isCompact;
   final bool showLabels;
   final String? clientName;
+  final bool enabled; // RBAC: czy można edytować
 
   const OptimizedVotingStatusSelector({
     super.key,
@@ -17,6 +18,7 @@ class OptimizedVotingStatusSelector extends StatefulWidget {
     this.isCompact = false,
     this.showLabels = true,
     this.clientName,
+    this.enabled = true, // domyślnie włączony
   });
 
   @override
@@ -169,69 +171,88 @@ class _OptimizedVotingStatusSelectorState
               builder: (context, child) {
                 return Transform.scale(
                   scale: isSelected ? _scaleAnimation.value : 1.0,
-                  child: GestureDetector(
-                    onTap: () => _handleStatusChange(status),
-                    onTapDown: (_) => _animationController.forward(),
-                    onTapUp: (_) => _animationController.reverse(),
-                    onTapCancel: () => _animationController.reverse(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? _getVotingStatusColor(status)
-                            : _getVotingStatusColor(status).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(25),
-                        border: Border.all(
-                          color: _getVotingStatusColor(status),
-                          width: isSelected ? 2 : 1,
+                  child: Tooltip(
+                    message: widget.enabled ? '' : kRbacNoPermissionTooltip,
+                    child: GestureDetector(
+                      onTap: widget.enabled
+                          ? () => _handleStatusChange(status)
+                          : null,
+                      onTapDown: widget.enabled
+                          ? (_) => _animationController.forward()
+                          : null,
+                      onTapUp: widget.enabled
+                          ? (_) => _animationController.reverse()
+                          : null,
+                      onTapCancel: widget.enabled
+                          ? () => _animationController.reverse()
+                          : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
                         ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: _getVotingStatusColor(
-                                    status,
-                                  ).withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _getVotingStatusIcon(status),
-                            color: isSelected
-                                ? Colors.white
+                        decoration: BoxDecoration(
+                          color: !widget.enabled
+                              ? Colors.grey.withOpacity(0.1)
+                              : isSelected
+                              ? _getVotingStatusColor(status)
+                              : _getVotingStatusColor(status).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(25),
+                          border: Border.all(
+                            color: !widget.enabled
+                                ? Colors.grey.shade400
                                 : _getVotingStatusColor(status),
-                            size: 20,
+                            width: isSelected ? 2 : 1,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            status.displayName,
-                            style: TextStyle(
-                              color: isSelected
+                          boxShadow: isSelected && widget.enabled
+                              ? [
+                                  BoxShadow(
+                                    color: _getVotingStatusColor(
+                                      status,
+                                    ).withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _getVotingStatusIcon(status),
+                              color: !widget.enabled
+                                  ? Colors.grey.shade600
+                                  : isSelected
                                   ? Colors.white
                                   : _getVotingStatusColor(status),
-                              fontWeight: FontWeight.w600,
+                              size: 20,
                             ),
-                          ),
-                          if (isSelected) ...[
                             const SizedBox(width: 8),
-                            const Icon(
-                              Icons.check,
-                              color: Colors.white,
-                              size: 16,
+                            Text(
+                              status.displayName,
+                              style: TextStyle(
+                                color: !widget.enabled
+                                    ? Colors.grey.shade600
+                                    : isSelected
+                                    ? Colors.white
+                                    : _getVotingStatusColor(status),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
+                            if (isSelected) ...[
+                              const SizedBox(width: 8),
+                              const Icon(
+                                Icons.check,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+                    ), // Zamknięcie GestureDetector
+                  ), // Zamknięcie Tooltip
                 );
               },
             );

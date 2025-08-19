@@ -3440,10 +3440,10 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       // Wyczyść cache wszystkich serwisów
       _analyticsMigrationService.clearAllCache();
       await _productManagementService.clearAllCache();
-      
+
       // Reloaduj dane
       await _loadInitialData();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -3475,7 +3475,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   void _checkCacheStatus() {
     final migrationStatus = _analyticsMigrationService.getMigrationStatus();
     print('📊 [Products] Status migracji analityki: $migrationStatus');
-    
+
     print('📊 [Products] Cache ProductManagementService sprawdzony');
   }
 

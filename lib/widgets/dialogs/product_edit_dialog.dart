@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../../theme/app_theme_professional.dart';
 import '../../models_and_services.dart';
+import '../../providers/auth_provider.dart';
 import '../../utils/currency_formatter.dart';
 import '../investment_history_widget.dart';
 
@@ -45,6 +47,9 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
   // Controllers for form fields
   final Map<String, TextEditingController> _controllers = {};
   final Map<String, FocusNode> _focusNodes = {};
+
+  // RBAC: sprawdzenie uprawnień
+  bool get canEdit => context.read<AuthProvider>().isAdmin;
 
   // Original investments for this product
   List<Investment> _productInvestments = [];
@@ -1149,38 +1154,50 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
               const SizedBox(width: 12),
 
               // Save button
-              ElevatedButton(
-                onPressed:
-                    _isSaving || !_isEditMode || _modifiedInvestments.isEmpty
-                    ? null
-                    : _saveChanges,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.accentGold,
-                  foregroundColor: AppThemePro.primaryDark,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
+              Tooltip(
+                message: canEdit ? 'Zapisz zmiany' : kRbacNoPermissionTooltip,
+                child: ElevatedButton(
+                  onPressed:
+                      canEdit &&
+                          !_isSaving &&
+                          _isEditMode &&
+                          _modifiedInvestments.isNotEmpty
+                      ? _saveChanges
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: canEdit
+                        ? AppThemePro.accentGold
+                        : Colors.grey.shade400,
+                    foregroundColor: canEdit
+                        ? AppThemePro.primaryDark
+                        : Colors.grey.shade600,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
-                ),
-                child: _isSaving
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                AppThemePro.primaryDark,
+                  child: _isSaving
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  canEdit
+                                      ? AppThemePro.primaryDark
+                                      : Colors.grey.shade600,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text('Zapisywanie...'),
-                        ],
-                      )
-                    : const Text('Zapisz zmiany'),
+                            const SizedBox(width: 8),
+                            const Text('Zapisywanie...'),
+                          ],
+                        )
+                      : const Text('Zapisz zmiany'),
+                ),
               ),
             ],
           ),
@@ -1778,6 +1795,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: newTotalController,
+                            enabled: canEdit,
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
@@ -1848,6 +1866,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: reasonController,
+                            enabled: canEdit,
                             maxLines: 2,
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(

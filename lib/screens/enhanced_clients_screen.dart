@@ -824,8 +824,10 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () {
-              final authProvider =
-                  Provider.of<AuthProvider>(context, listen: false);
+              final authProvider = Provider.of<AuthProvider>(
+                context,
+                listen: false,
+              );
               if (authProvider.isAdmin) {
                 _showClientForm();
               }

@@ -155,10 +155,15 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
           message: canEdit ? 'Eksportuj raport' : kRbacNoPermissionTooltip,
           child: ElevatedButton.icon(
             onPressed: canEdit ? _exportReport : null,
-            icon: Icon(Icons.download, color: canEdit ? AppThemePro.primaryDark : Colors.grey),
+            icon: Icon(
+              Icons.download,
+              color: canEdit ? AppThemePro.primaryDark : Colors.grey,
+            ),
             label: Text(
               'Eksport',
-              style: TextStyle(color: canEdit ? AppThemePro.primaryDark : Colors.grey),
+              style: TextStyle(
+                color: canEdit ? AppThemePro.primaryDark : Colors.grey,
+              ),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppThemePro.accentGold,

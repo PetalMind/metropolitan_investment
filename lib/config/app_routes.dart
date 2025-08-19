@@ -218,7 +218,8 @@ class MainNavigationItems {
 /// Klasa konfigurująca router aplikacji
 class AppRouter {
   static final GoRouter _router = GoRouter(
-    initialLocation: AppRoutes.root, // Zamiast dashboard - lepiej zacząć od root
+    initialLocation:
+        AppRoutes.root, // Zamiast dashboard - lepiej zacząć od root
     debugLogDiagnostics: true,
 
     // Funkcja przekierowań na podstawie stanu autoryzacji

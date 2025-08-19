@@ -179,3 +179,6 @@ export 'utils/cache_helper.dart'; // 🚀 HELPER: Łatwe zarządzanie cache w UI
 export 'utils/voting_analysis_manager.dart';
 export 'utils/investor_sort_filter_manager.dart';
 export 'utils/pagination_manager.dart';
+
+// Constants exports
+export 'constants/rbac_constants.dart'; // 🔒 RBAC: Stałe kontroli dostępu

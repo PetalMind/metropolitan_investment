@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models_and_services.dart';
+import '../../providers/auth_provider.dart';
 import '../../theme/app_theme_professional.dart';
 import '../investor_edit/currency_controls.dart';
-import '../investor_edit/investments_summary.dart';
 import '../investor_edit/investment_edit_card.dart';
-import '../investment_history_widget.dart';
 
 /// 📝 Dialog edycji inwestora - Wersja refaktoryzowana
 ///
@@ -45,6 +45,9 @@ class _RefactoredInvestorEditDialogState
   late InvestorEditState _state;
   late InvestmentEditControllers _controllers;
   late List<Investment> _editableInvestments;
+
+  // RBAC: sprawdzenie uprawnień
+  bool get canEdit => context.read<AuthProvider>().isAdmin;
 
   @override
   void initState() {
@@ -352,7 +355,6 @@ class _RefactoredInvestorEditDialogState
               onChanged: _onDataChanged,
             ),
 
-            
             const SizedBox(height: 24),
 
             // Lista inwestycji do edycji
@@ -497,28 +499,42 @@ class _RefactoredInvestorEditDialogState
           const SizedBox(width: 12),
 
           // Zapisz
-          ElevatedButton(
-            onPressed: _state.isLoading ? null : _saveChanges,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppThemePro.accentGold,
-              foregroundColor: AppThemePro.backgroundPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-            child: _state.isLoading
-                ? SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppThemePro.backgroundPrimary,
+          Tooltip(
+            message: canEdit
+                ? 'Zapisz zmiany inwestycji'
+                : kRbacNoPermissionTooltip,
+            child: ElevatedButton(
+              onPressed: canEdit && !_state.isLoading ? _saveChanges : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: canEdit
+                    ? AppThemePro.accentGold
+                    : Colors.grey.shade400,
+                foregroundColor: canEdit
+                    ? AppThemePro.backgroundPrimary
+                    : Colors.grey.shade600,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+              child: _state.isLoading
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          canEdit
+                              ? AppThemePro.backgroundPrimary
+                              : Colors.grey.shade600,
+                        ),
                       ),
+                    )
+                  : Text(
+                      'Zapisz zmiany',
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
-                  )
-                : Text(
-                    'Zapisz zmiany',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
+            ),
           ),
         ],
       ),
@@ -638,69 +654,5 @@ class _RefactoredInvestorEditDialogState
             .copyWith(error: 'Błąd podczas zapisywania zmian: ${e.toString()}');
       });
     }
-  }
-
-  /// Pokazuje historię zmian inwestycji w dialogu
-  void _showInvestmentHistory(Investment investment) {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.8,
-          height: MediaQuery.of(context).size.height * 0.7,
-          decoration: BoxDecoration(
-            color: AppThemePro.backgroundPrimary,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppThemePro.borderPrimary),
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppThemePro.backgroundSecondary,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                  border: Border(
-                    bottom: BorderSide(color: AppThemePro.borderPrimary),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.history,
-                      color: AppThemePro.accentGold,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Historia zmian - ${investment.id}',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: AppThemePro.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(Icons.close, color: AppThemePro.textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: InvestmentHistoryWidget(investmentId: investment.id),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

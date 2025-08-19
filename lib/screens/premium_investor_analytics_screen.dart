@@ -8,28 +8,37 @@ import '../theme/app_theme.dart';
 import '../models_and_services.dart'; // Centralny export wszystkich modeli i serwisów
 import '../providers/auth_provider.dart';
 import '../services/investor_analytics_service.dart'
-  as ia_service; // Tylko dla InvestorAnalyticsResult conflict resolution
+    as ia_service; // Tylko dla InvestorAnalyticsResult conflict resolution
 import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
 import '../widgets/dialogs/investor_export_dialog.dart';
+
 // RBAC wspólna stała tooltip
 const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
+
 // === Przywrócona definicja widgetu i stanu ===
 class PremiumInvestorAnalyticsScreen extends StatefulWidget {
   final String? initialSearchQuery;
   const PremiumInvestorAnalyticsScreen({super.key, this.initialSearchQuery});
   @override
-  State<PremiumInvestorAnalyticsScreen> createState() => _PremiumInvestorAnalyticsScreenState();
+  State<PremiumInvestorAnalyticsScreen> createState() =>
+      _PremiumInvestorAnalyticsScreenState();
 }
 
-class _PremiumInvestorAnalyticsScreenState extends State<PremiumInvestorAnalyticsScreen> with TickerProviderStateMixin {
+class _PremiumInvestorAnalyticsScreenState
+    extends State<PremiumInvestorAnalyticsScreen>
+    with TickerProviderStateMixin {
   // === POLA PRZYWRÓCONE ===
   // RBAC
   bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
   // Serwisy
-  final AnalyticsMigrationService _migrationService = AnalyticsMigrationService();
-  final FirebaseFunctionsPremiumAnalyticsService _premiumAnalyticsService = FirebaseFunctionsPremiumAnalyticsService();
-  final FirebaseFunctionsAnalyticsServiceUpdated _analyticsService = FirebaseFunctionsAnalyticsServiceUpdated();
-  final ia_service.InvestorAnalyticsService _updateService = ia_service.InvestorAnalyticsService();
+  final AnalyticsMigrationService _migrationService =
+      AnalyticsMigrationService();
+  final FirebaseFunctionsPremiumAnalyticsService _premiumAnalyticsService =
+      FirebaseFunctionsPremiumAnalyticsService();
+  final FirebaseFunctionsAnalyticsServiceUpdated _analyticsService =
+      FirebaseFunctionsAnalyticsServiceUpdated();
+  final ia_service.InvestorAnalyticsService _updateService =
+      ia_service.InvestorAnalyticsService();
   final VotingAnalysisManager _votingManager = VotingAnalysisManager();
   // Kontrolery
   final TextEditingController _searchController = TextEditingController();
@@ -89,7 +98,9 @@ class _PremiumInvestorAnalyticsScreenState extends State<PremiumInvestorAnalytic
   // Selekcja
   bool _isSelectionMode = false;
   Set<String> _selectedInvestorIds = <String>{};
-  List<InvestorSummary> get _selectedInvestors => _allInvestors.where((i) => _selectedInvestorIds.contains(i.client.id)).toList();
+  List<InvestorSummary> get _selectedInvestors => _allInvestors
+      .where((i) => _selectedInvestorIds.contains(i.client.id))
+      .toList();
 
   // Responsywność
   bool get _isTablet => MediaQuery.of(context).size.width > 768;
@@ -103,7 +114,8 @@ class _PremiumInvestorAnalyticsScreenState extends State<PremiumInvestorAnalytic
   @override
   void initState() {
     super.initState();
-    if (widget.initialSearchQuery != null && widget.initialSearchQuery!.isNotEmpty) {
+    if (widget.initialSearchQuery != null &&
+        widget.initialSearchQuery!.isNotEmpty) {
       _searchQuery = widget.initialSearchQuery!;
       _searchController.text = _searchQuery;
     }
@@ -135,10 +147,15 @@ class _PremiumInvestorAnalyticsScreenState extends State<PremiumInvestorAnalytic
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    _filterSlideAnimation = Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero).animate(
-      CurvedAnimation(parent: _filterAnimationController, curve: Curves.easeOutQuart),
-    );
+    _filterSlideAnimation =
+        Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _filterAnimationController,
+            curve: Curves.easeOutQuart,
+          ),
+        );
   }
+
   void _initializeListeners() {
     _scrollController.addListener(_onScroll);
     _searchController.addListener(_onSearchChanged);
@@ -291,7 +308,8 @@ class _PremiumInvestorAnalyticsScreenState extends State<PremiumInvestorAnalytic
             votingStatusFilter: _selectedVotingStatus,
             clientTypeFilter: _selectedClientType,
             showOnlyWithUnviableInvestments: _showOnlyWithUnviableInvestments,
-            forceRefresh: _currentPage == 1, // Odśwież cache na pierwszej stronie
+            forceRefresh:
+                _currentPage == 1, // Odśwież cache na pierwszej stronie
           );
 
       if (mounted) {
@@ -804,8 +822,8 @@ class _PremiumInvestorAnalyticsScreenState extends State<PremiumInvestorAnalytic
           ],
         ),
       ),
-  // FAB zawsze renderowany – dla roli user przyciski pasywne z tooltipami
-  floatingActionButton: _buildFloatingActionButton(),
+      // FAB zawsze renderowany – dla roli user przyciski pasywne z tooltipami
+      floatingActionButton: _buildFloatingActionButton(),
     );
   }
 
@@ -1461,16 +1479,18 @@ class _PremiumInvestorAnalyticsScreenState extends State<PremiumInvestorAnalytic
       isTablet: _isTablet,
     );
   }
-  
+
   Widget _buildFloatingActionButton() {
     return Tooltip(
       message: canEdit ? 'Akcje analityczne' : kRbacNoPermissionTooltip,
       child: FloatingActionButton.extended(
         onPressed: canEdit ? _showActionMenu : null,
-        backgroundColor:
-            canEdit ? AppTheme.secondaryGold : AppTheme.backgroundTertiary,
-        foregroundColor:
-            canEdit ? AppTheme.backgroundPrimary : AppTheme.textSecondary,
+        backgroundColor: canEdit
+            ? AppTheme.secondaryGold
+            : AppTheme.backgroundTertiary,
+        foregroundColor: canEdit
+            ? AppTheme.backgroundPrimary
+            : AppTheme.textSecondary,
         icon: Icon(Icons.menu_rounded),
         label: Text('Akcje'),
       ),
@@ -1493,9 +1513,9 @@ class _PremiumInvestorAnalyticsScreenState extends State<PremiumInvestorAnalytic
                 Text(
                   'Statystyki systemowe',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -1513,9 +1533,9 @@ class _PremiumInvestorAnalyticsScreenState extends State<PremiumInvestorAnalytic
       children: [
         Text(
           'Status głosowania',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(color: AppTheme.textSecondary),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -2155,7 +2175,6 @@ class _PremiumInvestorAnalyticsScreenState extends State<PremiumInvestorAnalytic
   }
 
   // 🎨 SYSTEM STATS AND ANALYTICS
-
 
   TextStyle _getTableHeaderStyle() {
     return TextStyle(

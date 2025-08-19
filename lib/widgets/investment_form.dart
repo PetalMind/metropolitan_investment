@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../models/investment.dart';
 import '../models/product.dart';
 import '../models/client.dart';
@@ -8,7 +9,9 @@ import '../services/investment_service.dart';
 import '../services/client_service.dart';
 import '../services/employee_service.dart';
 import '../services/product_service.dart';
+import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../constants/rbac_constants.dart';
 
 class InvestmentForm extends StatefulWidget {
   final Investment? investment;
@@ -26,6 +29,9 @@ class _InvestmentFormState extends State<InvestmentForm> {
   final _clientService = ClientService();
   final _employeeService = EmployeeService();
   final _productService = ProductService();
+
+  // RBAC: sprawdzenie uprawnień
+  bool get canEdit => context.read<AuthProvider>().isAdmin;
 
   // Form controllers
   final _investmentAmountController = TextEditingController();
@@ -297,19 +303,22 @@ class _InvestmentFormState extends State<InvestmentForm> {
             ),
           ),
           const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: _isSaving ? null : _saveInvestment,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.surfaceCard,
-              foregroundColor: AppTheme.primaryColor,
+          Tooltip(
+            message: canEdit ? 'Zapisz inwestycję' : kRbacNoPermissionTooltip,
+            child: ElevatedButton(
+              onPressed: canEdit && !_isSaving ? _saveInvestment : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.surfaceCard,
+                foregroundColor: AppTheme.primaryColor,
+              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Zapisz'),
             ),
-            child: _isSaving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Zapisz'),
           ),
           const SizedBox(width: 16),
         ],
@@ -350,94 +359,65 @@ class _InvestmentFormState extends State<InvestmentForm> {
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _clients.any((c) => c.id == _selectedClientId)
-                      ? _selectedClientId
-                      : null,
-                  decoration: const InputDecoration(labelText: 'Klient *'),
-                  items: _clients
-                      .map(
-                        (client) => DropdownMenuItem(
-                          value: client.id,
-                          child: Text(client.name),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setState(() => _selectedClientId = value),
-                  validator: (value) =>
-                      value == null ? 'Wybierz klienta' : null,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _employees.any((e) => e.id == _selectedEmployeeId)
-                      ? _selectedEmployeeId
-                      : null,
-                  decoration: const InputDecoration(labelText: 'Doradca *'),
-                  items: _employees
-                      .map(
-                        (employee) => DropdownMenuItem(
-                          value: employee.id,
-                          child: Text(employee.fullName),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setState(() => _selectedEmployeeId = value),
-                  validator: (value) =>
-                      value == null ? 'Wybierz doradcę' : null,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<ProductType>(
-                  value: _selectedProductType,
-                  decoration: const InputDecoration(
-                    labelText: 'Typ produktu *',
+                child: IgnorePointer(
+                  ignoring: !canEdit,
+                  child: Opacity(
+                    opacity: canEdit ? 1.0 : 0.6,
+                    child: DropdownButtonFormField<String>(
+                      value: _clients.any((c) => c.id == _selectedClientId)
+                          ? _selectedClientId
+                          : null,
+                      decoration: InputDecoration(
+                        labelText: 'Klient *',
+                        helperText: canEdit ? null : kRbacNoPermissionTooltip,
+                      ),
+                      items: _clients
+                          .map(
+                            (client) => DropdownMenuItem(
+                              value: client.id,
+                              child: Text(client.name),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: canEdit
+                          ? (value) => setState(() => _selectedClientId = value)
+                          : null,
+                      validator: (value) =>
+                          value == null ? 'Wybierz klienta' : null,
+                    ),
                   ),
-                  items: ProductType.values
-                      .map(
-                        (type) => DropdownMenuItem(
-                          value: type,
-                          child: Text(type.displayName),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedProductType = value!;
-                      _selectedProductId = null;
-                      _filterProducts();
-                    });
-                  },
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  value:
-                      _filteredProducts.any((p) => p.id == _selectedProductId)
-                      ? _selectedProductId
-                      : null,
-                  decoration: const InputDecoration(labelText: 'Produkt *'),
-                  items: _filteredProducts
-                      .map(
-                        (product) => DropdownMenuItem(
-                          value: product.id,
-                          child: Text(product.name),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setState(() => _selectedProductId = value),
-                  validator: (value) =>
-                      value == null ? 'Wybierz produkt' : null,
+                child: IgnorePointer(
+                  ignoring: !canEdit,
+                  child: Opacity(
+                    opacity: canEdit ? 1.0 : 0.6,
+                    child: DropdownButtonFormField<String>(
+                      value: _employees.any((e) => e.id == _selectedEmployeeId)
+                          ? _selectedEmployeeId
+                          : null,
+                      decoration: InputDecoration(
+                        labelText: 'Doradca *',
+                        helperText: canEdit ? null : kRbacNoPermissionTooltip,
+                      ),
+                      items: _employees
+                          .map(
+                            (employee) => DropdownMenuItem(
+                              value: employee.id,
+                              child: Text(employee.fullName),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: canEdit
+                          ? (value) =>
+                                setState(() => _selectedEmployeeId = value)
+                          : null,
+                      validator: (value) =>
+                          value == null ? 'Wybierz doradcę' : null,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -446,36 +426,70 @@ class _InvestmentFormState extends State<InvestmentForm> {
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<InvestmentStatus>(
-                  value: _selectedStatus,
-                  decoration: const InputDecoration(labelText: 'Status'),
-                  items: InvestmentStatus.values
-                      .map(
-                        (status) => DropdownMenuItem(
-                          value: status,
-                          child: Text(status.displayName),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setState(() => _selectedStatus = value!),
+                child: IgnorePointer(
+                  ignoring: !canEdit,
+                  child: Opacity(
+                    opacity: canEdit ? 1.0 : 0.6,
+                    child: DropdownButtonFormField<ProductType>(
+                      value: _selectedProductType,
+                      decoration: InputDecoration(
+                        labelText: 'Typ produktu *',
+                        helperText: canEdit ? null : kRbacNoPermissionTooltip,
+                      ),
+                      items: ProductType.values
+                          .map(
+                            (type) => DropdownMenuItem(
+                              value: type,
+                              child: Text(type.displayName),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: canEdit
+                          ? (value) {
+                              setState(() {
+                                _selectedProductType = value!;
+                                _selectedProductId = null;
+                                _filterProducts();
+                              });
+                            }
+                          : null,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: DropdownButtonFormField<MarketType>(
-                  value: _selectedMarketType,
-                  decoration: const InputDecoration(labelText: 'Rynek'),
-                  items: MarketType.values
-                      .map(
-                        (type) => DropdownMenuItem(
-                          value: type,
-                          child: Text(type.displayName),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setState(() => _selectedMarketType = value!),
+                child: IgnorePointer(
+                  ignoring: !canEdit,
+                  child: Opacity(
+                    opacity: canEdit ? 1.0 : 0.6,
+                    child: DropdownButtonFormField<String>(
+                      value:
+                          _filteredProducts.any(
+                            (p) => p.id == _selectedProductId,
+                          )
+                          ? _selectedProductId
+                          : null,
+                      decoration: InputDecoration(
+                        labelText: 'Produkt *',
+                        helperText: canEdit ? null : kRbacNoPermissionTooltip,
+                      ),
+                      items: _filteredProducts
+                          .map(
+                            (product) => DropdownMenuItem(
+                              value: product.id,
+                              child: Text(product.name),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: canEdit
+                          ? (value) =>
+                                setState(() => _selectedProductId = value)
+                          : null,
+                      validator: (value) =>
+                          value == null ? 'Wybierz produkt' : null,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -483,12 +497,87 @@ class _InvestmentFormState extends State<InvestmentForm> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Checkbox(
-                value: _isAllocated,
-                onChanged: (value) => setState(() => _isAllocated = value!),
+              Expanded(
+                child: IgnorePointer(
+                  ignoring: !canEdit,
+                  child: Opacity(
+                    opacity: canEdit ? 1.0 : 0.6,
+                    child: DropdownButtonFormField<InvestmentStatus>(
+                      value: _selectedStatus,
+                      decoration: InputDecoration(
+                        labelText: 'Status',
+                        helperText: canEdit ? null : kRbacNoPermissionTooltip,
+                      ),
+                      items: InvestmentStatus.values
+                          .map(
+                            (status) => DropdownMenuItem(
+                              value: status,
+                              child: Text(status.displayName),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: canEdit
+                          ? (value) => setState(() => _selectedStatus = value!)
+                          : null,
+                    ),
+                  ),
+                ),
               ),
-              const Text('Przydział dokonany'),
+              const SizedBox(width: 16),
+              Expanded(
+                child: IgnorePointer(
+                  ignoring: !canEdit,
+                  child: Opacity(
+                    opacity: canEdit ? 1.0 : 0.6,
+                    child: DropdownButtonFormField<MarketType>(
+                      value: _selectedMarketType,
+                      decoration: InputDecoration(
+                        labelText: 'Rynek',
+                        helperText: canEdit ? null : kRbacNoPermissionTooltip,
+                      ),
+                      items: MarketType.values
+                          .map(
+                            (type) => DropdownMenuItem(
+                              value: type,
+                              child: Text(type.displayName),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: canEdit
+                          ? (value) =>
+                                setState(() => _selectedMarketType = value!)
+                          : null,
+                    ),
+                  ),
+                ),
+              ),
             ],
+          ),
+          const SizedBox(height: 16),
+          Tooltip(
+            message: canEdit
+                ? 'Oznacz przydział jako dokonany'
+                : kRbacNoPermissionTooltip,
+            child: Row(
+              children: [
+                IgnorePointer(
+                  ignoring: !canEdit,
+                  child: Opacity(
+                    opacity: canEdit ? 1.0 : 0.6,
+                    child: Checkbox(
+                      value: _isAllocated,
+                      onChanged: canEdit
+                          ? (value) => setState(() => _isAllocated = value!)
+                          : null,
+                    ),
+                  ),
+                ),
+                Text(
+                  'Przydział dokonany',
+                  style: TextStyle(color: canEdit ? null : Colors.grey),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -512,9 +601,10 @@ class _InvestmentFormState extends State<InvestmentForm> {
               Expanded(
                 child: TextFormField(
                   controller: _investmentAmountController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Kwota inwestycji *',
                     suffixText: 'PLN',
+                    helperText: canEdit ? null : kRbacNoPermissionTooltip,
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
@@ -524,15 +614,17 @@ class _InvestmentFormState extends State<InvestmentForm> {
                   ],
                   validator: (value) =>
                       value?.isEmpty == true ? 'Podaj kwotę inwestycji' : null,
+                  enabled: canEdit,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: TextFormField(
                   controller: _paidAmountController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Kwota wpłacona *',
                     suffixText: 'PLN',
+                    helperText: canEdit ? null : kRbacNoPermissionTooltip,
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
@@ -542,6 +634,7 @@ class _InvestmentFormState extends State<InvestmentForm> {
                   ],
                   validator: (value) =>
                       value?.isEmpty == true ? 'Podaj kwotę wpłaconą' : null,
+                  enabled: canEdit,
                 ),
               ),
             ],
@@ -552,9 +645,10 @@ class _InvestmentFormState extends State<InvestmentForm> {
               Expanded(
                 child: TextFormField(
                   controller: _realizedCapitalController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Kapitał zrealizowany',
                     suffixText: 'PLN',
+                    helperText: canEdit ? null : kRbacNoPermissionTooltip,
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
@@ -562,15 +656,17 @@ class _InvestmentFormState extends State<InvestmentForm> {
                       RegExp(r'^\d+\.?\d{0,2}'),
                     ),
                   ],
+                  enabled: canEdit,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: TextFormField(
                   controller: _realizedInterestController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Odsetki zrealizowane',
                     suffixText: 'PLN',
+                    helperText: canEdit ? null : kRbacNoPermissionTooltip,
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
@@ -578,6 +674,7 @@ class _InvestmentFormState extends State<InvestmentForm> {
                       RegExp(r'^\d+\.?\d{0,2}'),
                     ),
                   ],
+                  enabled: canEdit,
                 ),
               ),
             ],
@@ -588,9 +685,10 @@ class _InvestmentFormState extends State<InvestmentForm> {
               Expanded(
                 child: TextFormField(
                   controller: _remainingCapitalController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Kapitał pozostały',
                     suffixText: 'PLN',
+                    helperText: canEdit ? null : kRbacNoPermissionTooltip,
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
@@ -598,15 +696,17 @@ class _InvestmentFormState extends State<InvestmentForm> {
                       RegExp(r'^\d+\.?\d{0,2}'),
                     ),
                   ],
+                  enabled: canEdit,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: TextFormField(
                   controller: _remainingInterestController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Odsetki pozostałe',
                     suffixText: 'PLN',
+                    helperText: canEdit ? null : kRbacNoPermissionTooltip,
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
@@ -614,6 +714,7 @@ class _InvestmentFormState extends State<InvestmentForm> {
                       RegExp(r'^\d+\.?\d{0,2}'),
                     ),
                   ],
+                  enabled: canEdit,
                 ),
               ),
             ],
@@ -624,9 +725,10 @@ class _InvestmentFormState extends State<InvestmentForm> {
               Expanded(
                 child: TextFormField(
                   controller: _plannedTaxController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Planowany podatek',
                     suffixText: 'PLN',
+                    helperText: canEdit ? null : kRbacNoPermissionTooltip,
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
@@ -634,15 +736,17 @@ class _InvestmentFormState extends State<InvestmentForm> {
                       RegExp(r'^\d+\.?\d{0,2}'),
                     ),
                   ],
+                  enabled: canEdit,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: TextFormField(
                   controller: _realizedTaxController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Zrealizowany podatek',
                     suffixText: 'PLN',
+                    helperText: canEdit ? null : kRbacNoPermissionTooltip,
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
@@ -650,6 +754,7 @@ class _InvestmentFormState extends State<InvestmentForm> {
                       RegExp(r'^\d+\.?\d{0,2}'),
                     ),
                   ],
+                  enabled: canEdit,
                 ),
               ),
             ],
@@ -671,32 +776,62 @@ class _InvestmentFormState extends State<InvestmentForm> {
           Row(
             children: [
               Expanded(
-                child: InkWell(
-                  onTap: () => _selectDate(context, _signedDate, (date) {
-                    setState(() => _signedDate = date);
-                  }),
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Data podpisania *',
+                child: Tooltip(
+                  message: canEdit
+                      ? 'Wybierz datę podpisania'
+                      : kRbacNoPermissionTooltip,
+                  child: InkWell(
+                    onTap: canEdit
+                        ? () => _selectDate(context, _signedDate, (date) {
+                            setState(() => _signedDate = date);
+                          })
+                        : null,
+                    child: IgnorePointer(
+                      child: Opacity(
+                        opacity: canEdit ? 1.0 : 0.6,
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Data podpisania *',
+                            helperText: canEdit
+                                ? null
+                                : kRbacNoPermissionTooltip,
+                          ),
+                          child: Text(_formatDate(_signedDate)),
+                        ),
+                      ),
                     ),
-                    child: Text(_formatDate(_signedDate)),
                   ),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: InkWell(
-                  onTap: () => _selectDate(context, _entryDate, (date) {
-                    setState(() => _entryDate = date);
-                  }),
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Data wejścia',
-                    ),
-                    child: Text(
-                      _entryDate != null
-                          ? _formatDate(_entryDate!)
-                          : 'Nie wybrano',
+                child: Tooltip(
+                  message: canEdit
+                      ? 'Wybierz datę wejścia'
+                      : kRbacNoPermissionTooltip,
+                  child: InkWell(
+                    onTap: canEdit
+                        ? () => _selectDate(context, _entryDate, (date) {
+                            setState(() => _entryDate = date);
+                          })
+                        : null,
+                    child: IgnorePointer(
+                      child: Opacity(
+                        opacity: canEdit ? 1.0 : 0.6,
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Data wejścia',
+                            helperText: canEdit
+                                ? null
+                                : kRbacNoPermissionTooltip,
+                          ),
+                          child: Text(
+                            _entryDate != null
+                                ? _formatDate(_entryDate!)
+                                : 'Nie wybrano',
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -707,34 +842,66 @@ class _InvestmentFormState extends State<InvestmentForm> {
           Row(
             children: [
               Expanded(
-                child: InkWell(
-                  onTap: () => _selectDate(context, _exitDate, (date) {
-                    setState(() => _exitDate = date);
-                  }),
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Data wyjścia',
-                    ),
-                    child: Text(
-                      _exitDate != null
-                          ? _formatDate(_exitDate!)
-                          : 'Nie wybrano',
+                child: Tooltip(
+                  message: canEdit
+                      ? 'Wybierz datę wyjścia'
+                      : kRbacNoPermissionTooltip,
+                  child: InkWell(
+                    onTap: canEdit
+                        ? () => _selectDate(context, _exitDate, (date) {
+                            setState(() => _exitDate = date);
+                          })
+                        : null,
+                    child: IgnorePointer(
+                      child: Opacity(
+                        opacity: canEdit ? 1.0 : 0.6,
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Data wyjścia',
+                            helperText: canEdit
+                                ? null
+                                : kRbacNoPermissionTooltip,
+                          ),
+                          child: Text(
+                            _exitDate != null
+                                ? _formatDate(_exitDate!)
+                                : 'Nie wybrano',
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: InkWell(
-                  onTap: () => _selectDate(context, _redemptionDate, (date) {
-                    setState(() => _redemptionDate = date);
-                  }),
-                  child: InputDecorator(
-                    decoration: const InputDecoration(labelText: 'Data wykupu'),
-                    child: Text(
-                      _redemptionDate != null
-                          ? _formatDate(_redemptionDate!)
-                          : 'Nie wybrano',
+                child: Tooltip(
+                  message: canEdit
+                      ? 'Wybierz datę wykupu'
+                      : kRbacNoPermissionTooltip,
+                  child: InkWell(
+                    onTap: canEdit
+                        ? () => _selectDate(context, _redemptionDate, (date) {
+                            setState(() => _redemptionDate = date);
+                          })
+                        : null,
+                    child: IgnorePointer(
+                      child: Opacity(
+                        opacity: canEdit ? 1.0 : 0.6,
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Data wykupu',
+                            helperText: canEdit
+                                ? null
+                                : kRbacNoPermissionTooltip,
+                          ),
+                          child: Text(
+                            _redemptionDate != null
+                                ? _formatDate(_redemptionDate!)
+                                : 'Nie wybrano',
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -763,7 +930,11 @@ class _InvestmentFormState extends State<InvestmentForm> {
               Expanded(
                 child: TextFormField(
                   controller: _proposalIdController,
-                  decoration: const InputDecoration(labelText: 'ID propozycji'),
+                  decoration: InputDecoration(
+                    labelText: 'ID propozycji',
+                    helperText: canEdit ? null : kRbacNoPermissionTooltip,
+                  ),
+                  enabled: canEdit,
                 ),
               ),
               const SizedBox(width: 16),
@@ -771,11 +942,13 @@ class _InvestmentFormState extends State<InvestmentForm> {
                 Expanded(
                   child: TextFormField(
                     controller: _sharesCountController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Liczba udziałów',
+                      helperText: canEdit ? null : kRbacNoPermissionTooltip,
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    enabled: canEdit,
                   ),
                 )
               else

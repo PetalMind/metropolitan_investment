@@ -533,15 +533,17 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen> {
           message: canEdit ? 'Odśwież dane' : kRbacNoPermissionTooltip,
           child: FloatingActionButton(
             heroTag: "refresh",
-            onPressed: canEdit ? () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Odświeżanie danych...'),
-                  backgroundColor: AppThemePro.accentGold,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            } : null,
+            onPressed: canEdit
+                ? () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Odświeżanie danych...'),
+                        backgroundColor: AppThemePro.accentGold,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                : null,
             backgroundColor: canEdit ? AppThemePro.accentGold : Colors.grey,
             foregroundColor: AppThemePro.primaryDark,
             child: const Icon(Icons.refresh),

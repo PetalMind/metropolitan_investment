@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import '../../models_and_services.dart';
+import '../../providers/auth_provider.dart';
 import '../dialogs/product_investors_tab.dart';
 import '../dialogs/product_details_header.dart';
 
@@ -42,6 +44,9 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
 
   // 🚀 NOWA OCHRONA: Flaga przeciw rekurencyjnemu odświeżaniu
   bool _isRefreshing = false;
+
+  // RBAC: sprawdzenie uprawnień
+  bool get canEdit => context.read<AuthProvider>().isAdmin;
 
   @override
   void initState() {
@@ -255,12 +260,16 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                 onClose: () => Navigator.of(context).pop(),
                 onDataChanged: () async {
                   // 🎯 NOWY: Callback do pełnego odświeżenia danych modalu po edycji kapitału
-                  debugPrint('🔄 [ProductDetailsModal] Header data changed - refreshing all data');
+                  debugPrint(
+                    '🔄 [ProductDetailsModal] Header data changed - refreshing all data',
+                  );
                   try {
                     await _modalService.clearAllCache();
                     await _loadModalData(forceRefresh: true);
                   } catch (e) {
-                    debugPrint('⚠️ [ProductDetailsModal] Error refreshing after header change: $e');
+                    debugPrint(
+                      '⚠️ [ProductDetailsModal] Error refreshing after header change: $e',
+                    );
                   }
                 },
               ),
@@ -531,6 +540,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       investors: _investors,
       isLoading: _isLoadingInvestors,
       error: _investorsError,
+      isEditModeEnabled: canEdit, // RBAC: tylko administratorzy mogą edytować
       onRefresh: () async {
         // 🎯 NOWY: Odśwież dane modalu
         debugPrint(

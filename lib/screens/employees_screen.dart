@@ -197,7 +197,9 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                   const SizedBox(width: 8),
                   Text(
                     'Dodaj pracownika',
-                    style: TextStyle(color: canEdit ? Colors.white : Colors.grey),
+                    style: TextStyle(
+                      color: canEdit ? Colors.white : Colors.grey,
+                    ),
                   ),
                 ],
               ),
@@ -380,17 +382,28 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                             _selectedBranch == null) ...[
                           const SizedBox(height: 24),
                           Tooltip(
-                            message: canEdit ? 'Dodaj pierwszego pracownika' : kRbacNoPermissionTooltip,
+                            message: canEdit
+                                ? 'Dodaj pierwszego pracownika'
+                                : kRbacNoPermissionTooltip,
                             child: AnimatedButton(
-                              onPressed: canEdit ? () => _showEmployeeForm() : null,
+                              onPressed: canEdit
+                                  ? () => _showEmployeeForm()
+                                  : null,
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.add, color: canEdit ? Colors.white : Colors.grey),
+                                  Icon(
+                                    Icons.add,
+                                    color: canEdit ? Colors.white : Colors.grey,
+                                  ),
                                   const SizedBox(width: 8),
                                   Text(
                                     'Dodaj pierwszego pracownika',
-                                    style: TextStyle(color: canEdit ? Colors.white : Colors.grey),
+                                    style: TextStyle(
+                                      color: canEdit
+                                          ? Colors.white
+                                          : Colors.grey,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -541,23 +554,34 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Tooltip(
-                            message: canEdit ? 'Edytuj' : kRbacNoPermissionTooltip,
+                            message: canEdit
+                                ? 'Edytuj'
+                                : kRbacNoPermissionTooltip,
                             child: IconButton(
-                              onPressed: canEdit ? () =>
-                                  _showEmployeeForm(employee: employee) : null,
+                              onPressed: canEdit
+                                  ? () => _showEmployeeForm(employee: employee)
+                                  : null,
                               icon: Icon(
                                 Icons.edit,
-                                color: canEdit ? AppTheme.secondaryGold : Colors.grey,
+                                color: canEdit
+                                    ? AppTheme.secondaryGold
+                                    : Colors.grey,
                               ),
                             ),
                           ),
                           Tooltip(
-                            message: canEdit ? 'Usuń' : kRbacNoPermissionTooltip,
+                            message: canEdit
+                                ? 'Usuń'
+                                : kRbacNoPermissionTooltip,
                             child: IconButton(
-                              onPressed: canEdit ? () => _deleteEmployee(employee) : null,
+                              onPressed: canEdit
+                                  ? () => _deleteEmployee(employee)
+                                  : null,
                               icon: Icon(
                                 Icons.delete,
-                                color: canEdit ? AppTheme.errorPrimary : Colors.grey,
+                                color: canEdit
+                                    ? AppTheme.errorPrimary
+                                    : Colors.grey,
                               ),
                             ),
                           ),

@@ -6,7 +6,7 @@ import '../theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../config/app_routes.dart';
 import '../services/notification_service.dart';
-import '../services/calendar_notification_service.dart'; // 🚀 NOWE
+import '../constants/rbac_constants.dart'; // 🔒 RBAC stałe
 import 'notification_badge.dart';
 import 'enhanced_navigation_badge.dart'; // 🚀 NOWE
 
@@ -24,6 +24,9 @@ class _MainLayoutState extends State<MainLayout> {
   bool _isRailExtended = false;
   bool _showQuickActions = false;
   late NotificationService _notificationService;
+
+  // RBAC: sprawdzenie uprawnień
+  bool get canEdit => context.read<AuthProvider>().isAdmin;
 
   @override
   void initState() {
@@ -284,11 +287,10 @@ class _MainLayoutState extends State<MainLayout> {
                 return ListTile(
                   leading: NavigationBadgeFactory.wrapWithBadge(
                     route: item.route,
-                    animated: true, // 🚀 NOWE: Animowane badge'y w mobile drawer
+                    animated:
+                        true, // 🚀 NOWE: Animowane badge'y w mobile drawer
                     child: Icon(
-                      isSelected
-                          ? (item.selectedIcon ?? item.icon)
-                          : item.icon,
+                      isSelected ? (item.selectedIcon ?? item.icon) : item.icon,
                       color: isSelected
                           ? AppTheme.secondaryGold
                           : AppTheme.textTertiary,
@@ -722,7 +724,7 @@ class _MainLayoutState extends State<MainLayout> {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Szybkie akcje (gdy rozwinięte)
-        if (_showQuickActions) ...[
+        if (_showQuickActions && canEdit) ...[
           FloatingActionButton.small(
             onPressed: () => context.push(AppRoutes.addInvestment),
             heroTag: "add_investment",
@@ -732,11 +734,16 @@ class _MainLayoutState extends State<MainLayout> {
           ),
           const SizedBox(height: 8),
           FloatingActionButton.small(
-            onPressed: () => context.push(AppRoutes.addClient),
+            onPressed: canEdit ? () => context.push(AppRoutes.addClient) : null,
             heroTag: "add_client",
-            tooltip: 'Dodaj klienta',
-            backgroundColor: AppTheme.infoColor,
-            child: const Icon(Icons.person_add),
+            tooltip: canEdit ? 'Dodaj klienta' : kRbacNoPermissionTooltip,
+            backgroundColor: canEdit
+                ? AppTheme.infoColor
+                : Colors.grey.shade400,
+            child: Icon(
+              Icons.person_add,
+              color: canEdit ? Colors.white : Colors.grey.shade600,
+            ),
           ),
           const SizedBox(height: 8),
           FloatingActionButton.small(
@@ -750,15 +757,25 @@ class _MainLayoutState extends State<MainLayout> {
         ],
 
         // Główny FAB
-        FloatingActionButton(
-          onPressed: () {
-            setState(() => _showQuickActions = !_showQuickActions);
-          },
-          backgroundColor: AppTheme.primaryColor,
-          child: AnimatedRotation(
-            turns: _showQuickActions ? 0.125 : 0.0,
-            duration: const Duration(milliseconds: 200),
-            child: const Icon(Icons.add),
+        Tooltip(
+          message: canEdit ? 'Szybkie akcje' : kRbacNoPermissionTooltip,
+          child: FloatingActionButton(
+            onPressed: canEdit
+                ? () {
+                    setState(() => _showQuickActions = !_showQuickActions);
+                  }
+                : null,
+            backgroundColor: canEdit
+                ? AppTheme.primaryColor
+                : Colors.grey.shade400,
+            child: AnimatedRotation(
+              turns: _showQuickActions ? 0.125 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                Icons.add,
+                color: canEdit ? Colors.white : Colors.grey.shade600,
+              ),
+            ),
           ),
         ),
       ],

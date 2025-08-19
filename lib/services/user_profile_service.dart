@@ -7,8 +7,10 @@ class UserProfileService {
 
   Future<UserProfile?> getUserProfile(String uid) async {
     try {
-      DocumentSnapshot doc =
-          await _firestore.collection(_collectionPath).doc(uid).get();
+      DocumentSnapshot doc = await _firestore
+          .collection(_collectionPath)
+          .doc(uid)
+          .get();
       if (doc.exists) {
         return UserProfile.fromFirestore(doc);
       }

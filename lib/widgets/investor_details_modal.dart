@@ -66,6 +66,9 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   final DataCacheService _cacheService = DataCacheService();
   final InvestmentService _investmentService = InvestmentService();
 
+  // RBAC: sprawdzenie uprawnień
+  bool get canEdit => context.read<AuthProvider>().isAdmin;
+
   @override
   void initState() {
     super.initState();
@@ -546,6 +549,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
             },
             isCompact: false,
             showLabels: true,
+            enabled: canEdit, // RBAC: tylko administratorzy mogą edytować
           ),
         ],
       ),
@@ -656,7 +660,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
           'Edytuj',
           Icons.edit,
           AppTheme.cryptoColor,
-          () => _showEditClientForm(),
+          canEdit ? () => _showEditClientForm() : null,
         ),
         const SizedBox(height: 12),
         _buildActionCard(
@@ -766,9 +770,9 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
           const SizedBox(width: 16),
           Expanded(
             child: ElevatedButton(
-              onPressed: (_hasChanges && !_isSaving)
+              onPressed: (_hasChanges && !_isSaving && canEdit)
                   ? _saveChanges
-                  : null, // Wyłącz podczas loading
+                  : null, // Wyłącz podczas loading lub gdy brak uprawnień
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: AppTheme.primaryColor,
@@ -895,9 +899,10 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
               child: ClientNotesWidget(
                 clientId: widget.investor.client.id,
                 clientName: widget.investor.client.name,
+                isReadOnly:
+                    !canEdit, // RBAC: tylko administratorzy mogą edytować notatki
                 currentUserId: 'current_user', // TODO: Pobierz z auth service
                 currentUserName: 'Użytkownik',
-                isReadOnly: false,
               ),
             ),
           ),
@@ -970,26 +975,35 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
         // 🎯 NOWY: Przycisk edycji inwestycji
         if (!_isEditingInvestments)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 16),
-            child: ElevatedButton.icon(
-              onPressed: _startEditingInvestments,
-              icon: const Icon(Icons.edit, size: 18),
-              label: const Text('Edytuj inwestycje'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+          Tooltip(
+            message: canEdit
+                ? 'Edytuj inwestycje klienta'
+                : kRbacNoPermissionTooltip,
+            child: Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 16),
+              child: ElevatedButton.icon(
+                onPressed: canEdit ? _startEditingInvestments : null,
+                icon: const Icon(Icons.edit, size: 18),
+                label: const Text('Edytuj inwestycje'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: canEdit
+                      ? AppTheme.primaryColor
+                      : Colors.grey.shade400,
+                  foregroundColor: canEdit
+                      ? Colors.white
+                      : Colors.grey.shade600,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
             ),
           ),
 
         // 🎯 NOWY: Przyciski akcji podczas edycji
-        if (_isEditingInvestments)
+        if (_isEditingInvestments && canEdit)
           Container(
             margin: const EdgeInsets.only(bottom: 16),
             child: Row(
@@ -1403,14 +1417,18 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
             FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
           ],
           style: TextStyle(
-            color: AppTheme.textPrimary,
+            color: canEdit ? AppTheme.textPrimary : AppTheme.textSecondary,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
           decoration: InputDecoration(
             isDense: true,
             filled: true,
-            fillColor: AppTheme.backgroundSecondary.withOpacity(0.7),
+            fillColor: canEdit
+                ? AppTheme.backgroundSecondary.withOpacity(0.7)
+                : AppTheme.backgroundSecondary.withOpacity(0.3),
+            helperText: canEdit ? null : kRbacNoPermissionTooltip,
+            helperStyle: TextStyle(color: Colors.orange.shade700, fontSize: 10),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(6),
               borderSide: BorderSide(color: color.withOpacity(0.3)),
@@ -1426,6 +1444,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
             suffixText: 'PLN',
             suffixStyle: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
           ),
+          enabled: canEdit,
           validator: (value) {
             if (value == null || value.isEmpty) {
               return 'Pole wymagane';
@@ -2068,11 +2087,6 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
         );
       }
     }
-  }
-
-  void _showInvestmentsTab() {
-    // Przełącz na zakładkę z inwestycjami (index 1)
-    _tabController.animateTo(1);
   }
 
   // Helper functions

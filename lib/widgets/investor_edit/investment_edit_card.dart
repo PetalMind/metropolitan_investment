@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
+import '../../providers/auth_provider.dart';
 import 'currency_controls.dart';
 
 /// Widget karty edycji pojedynczej inwestycji
@@ -30,6 +32,9 @@ class InvestmentEditCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // RBAC: sprawdzenie uprawnień
+    final bool canEdit = context.read<AuthProvider>().isAdmin;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -112,11 +117,13 @@ class InvestmentEditCard extends StatelessWidget {
                       controller: investmentAmountController,
                       icon: Icons.attach_money,
                       color: AppThemePro.profitGreen,
-                      isEditable: false, // 🔒 ZABLOKOWANE: Kwota inwestycji nie może być edytowana
+                      isEditable:
+                          false, // 🔒 ZABLOKOWANE: Kwota inwestycji nie może być edytowana
                       helpText: 'Wartość podstawowa inwestycji',
                       investmentId: investment.id, // 🚀 NOWE: ID inwestycji
                       fieldName: 'investmentAmount', // 🚀 NOWE: Nazwa pola
-                      showChangeIndicator: true, // 🚀 NOWE: Pokaż wskaźnik zmian
+                      showChangeIndicator:
+                          true, // 🚀 NOWE: Pokaż wskaźnik zmian
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -128,10 +135,12 @@ class InvestmentEditCard extends StatelessWidget {
                       color: AppThemePro.primaryLight,
                       isEditable: false,
                       helpText: 'Obliczane automatycznie',
-                      calculationFormula: 'Zabezpieczony + Restrukturyzacja', // 🚀 NOWE: Wzór
+                      calculationFormula:
+                          'Zabezpieczony + Restrukturyzacja', // 🚀 NOWE: Wzór
                       investmentId: investment.id, // 🚀 NOWE: ID inwestycji
                       fieldName: 'remainingCapital', // 🚀 NOWE: Nazwa pola
-                      showChangeIndicator: false, // 🚀 TYMCZASOWO WYŁĄCZONE: debugujemy problem z wskaźnikami
+                      showChangeIndicator:
+                          false, // 🚀 TYMCZASOWO WYŁĄCZONE: debugujemy problem z wskaźnikami
                     ),
                   ),
                 ],
@@ -148,11 +157,16 @@ class InvestmentEditCard extends StatelessWidget {
                       controller: capitalSecuredController,
                       icon: Icons.security,
                       color: AppThemePro.statusSuccess,
-                      onChanged: onChanged,
+                      isEditable: canEdit, // RBAC: tylko admin może edytować
+                      onChanged: canEdit ? onChanged : null,
                       investmentId: investment.id, // 🚀 NOWE: ID inwestycji
-                      fieldName: 'capitalSecuredByRealEstate', // 🚀 NOWE: Nazwa pola
-                      showChangeIndicator: true, // 🚀 NOWE: Pokaż wskaźnik zmian
-                      helpText: 'Kapitał zabezpieczony nieruchomością', // 🚀 NOWE: Lepszy opis
+                      fieldName:
+                          'capitalSecuredByRealEstate', // 🚀 NOWE: Nazwa pola
+                      showChangeIndicator:
+                          true, // 🚀 NOWE: Pokaż wskaźnik zmian
+                      helpText: canEdit
+                          ? 'Kapitał zabezpieczony nieruchomością'
+                          : 'Brak uprawnień – rola user', // 🚀 RBAC: Lepszy opis
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -162,11 +176,16 @@ class InvestmentEditCard extends StatelessWidget {
                       controller: capitalForRestructuringController,
                       icon: Icons.construction,
                       color: AppThemePro.statusWarning,
-                      onChanged: onChanged,
+                      isEditable: canEdit, // RBAC: tylko admin może edytować
+                      onChanged: canEdit ? onChanged : null,
                       investmentId: investment.id, // 🚀 NOWE: ID inwestycji
-                      fieldName: 'capitalForRestructuring', // 🚀 NOWE: Nazwa pola
-                      showChangeIndicator: false, // 🚀 TYMCZASOWO WYŁĄCZONE: debugujemy problem z wskaźnikami
-                      helpText: 'Kapitał przeznaczony na restrukturyzację', // 🚀 NOWE: Lepszy opis
+                      fieldName:
+                          'capitalForRestructuring', // 🚀 NOWE: Nazwa pola
+                      showChangeIndicator:
+                          false, // 🚀 TYMCZASOWO WYŁĄCZONE: debugujemy problem z wskaźnikami
+                      helpText: canEdit
+                          ? 'Kapitał przeznaczony na restrukturyzację'
+                          : 'Brak uprawnień – rola user', // 🚀 RBAC: Lepszy opis
                     ),
                   ),
                 ],
@@ -194,53 +213,66 @@ class InvestmentEditCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppThemePro.backgroundTertiary,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppThemePro.borderPrimary),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<InvestmentStatus>(
-                    value: statusValue,
-                    isExpanded: true,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppThemePro.textPrimary,
+              Tooltip(
+                message: canEdit
+                    ? 'Zmień status inwestycji'
+                    : kRbacNoPermissionTooltip,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: canEdit
+                        ? AppThemePro.backgroundTertiary
+                        : AppThemePro.backgroundTertiary.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppThemePro.borderPrimary),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<InvestmentStatus>(
+                      value: statusValue,
+                      isExpanded: true,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: canEdit
+                            ? AppThemePro.textPrimary
+                            : AppThemePro.textSecondary,
+                      ),
+                      dropdownColor: AppThemePro.backgroundSecondary,
+                      icon: Icon(
+                        Icons.arrow_drop_down,
+                        color: canEdit
+                            ? AppThemePro.textSecondary
+                            : AppThemePro.textSecondary.withOpacity(0.5),
+                      ),
+                      onChanged: canEdit
+                          ? (InvestmentStatus? newValue) {
+                              if (newValue != null) {
+                                onStatusChanged(newValue);
+                                if (onChanged != null) {
+                                  onChanged!();
+                                }
+                              }
+                            }
+                          : null,
+                      items: InvestmentStatus.values.map((status) {
+                        return DropdownMenuItem<InvestmentStatus>(
+                          value: status,
+                          child: Row(
+                            children: [
+                              Icon(
+                                _getStatusIcon(status),
+                                size: 16,
+                                color: _getStatusColor(status),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(status.displayName),
+                            ],
+                          ),
+                        );
+                      }).toList(),
                     ),
-                    dropdownColor: AppThemePro.backgroundSecondary,
-                    icon: Icon(
-                      Icons.arrow_drop_down,
-                      color: AppThemePro.textSecondary,
-                    ),
-                    onChanged: (InvestmentStatus? newValue) {
-                      if (newValue != null) {
-                        onStatusChanged(newValue);
-                        if (onChanged != null) {
-                          onChanged!();
-                        }
-                      }
-                    },
-                    items: InvestmentStatus.values.map((status) {
-                      return DropdownMenuItem<InvestmentStatus>(
-                        value: status,
-                        child: Row(
-                          children: [
-                            Icon(
-                              _getStatusIcon(status),
-                              size: 16,
-                              color: _getStatusColor(status),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(status.displayName),
-                          ],
-                        ),
-                      );
-                    }).toList(),
                   ),
                 ),
               ),
@@ -252,7 +284,6 @@ class InvestmentEditCard extends StatelessWidget {
           _buildCalculationPreviewPanel(),
 
           // Historia zmian
-         
         ],
       ),
     );
@@ -261,18 +292,29 @@ class InvestmentEditCard extends StatelessWidget {
   /// 🚀 NOWE: Panel podglądu obliczeń w czasie rzeczywistym
   Widget _buildCalculationPreviewPanel() {
     // Parsuj aktualne wartości z kontrolerów
-    final double currentCapitalSecured = _parseControllerValue(capitalSecuredController.text);
-    final double currentCapitalForRestructuring = _parseControllerValue(capitalForRestructuringController.text);
-    final double currentInvestmentAmount = _parseControllerValue(investmentAmountController.text);
-    
+    final double currentCapitalSecured = _parseControllerValue(
+      capitalSecuredController.text,
+    );
+    final double currentCapitalForRestructuring = _parseControllerValue(
+      capitalForRestructuringController.text,
+    );
+    final double currentInvestmentAmount = _parseControllerValue(
+      investmentAmountController.text,
+    );
+
     // Oblicz kapitał pozostały według wzoru
-    final double calculatedRemainingCapital = currentCapitalSecured + currentCapitalForRestructuring;
-    
+    final double calculatedRemainingCapital =
+        currentCapitalSecured + currentCapitalForRestructuring;
+
     // Sprawdź czy wartości się zgadzają
-    final double currentRemainingCapital = _parseControllerValue(remainingCapitalController.text);
-    final bool isBalanced = (calculatedRemainingCapital - currentRemainingCapital).abs() < 0.01;
-    final bool matchesInvestmentAmount = (calculatedRemainingCapital - currentInvestmentAmount).abs() < 0.01;
-    
+    final double currentRemainingCapital = _parseControllerValue(
+      remainingCapitalController.text,
+    );
+    final bool isBalanced =
+        (calculatedRemainingCapital - currentRemainingCapital).abs() < 0.01;
+    final bool matchesInvestmentAmount =
+        (calculatedRemainingCapital - currentInvestmentAmount).abs() < 0.01;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -312,19 +354,16 @@ class InvestmentEditCard extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // Wzór obliczenia
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: AppThemePro.backgroundSecondary,
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: AppThemePro.borderPrimary,
-                width: 1,
-              ),
+              border: Border.all(color: AppThemePro.borderPrimary, width: 1),
             ),
             child: Text(
               '${currentCapitalSecured.toStringAsFixed(0)} PLN + ${currentCapitalForRestructuring.toStringAsFixed(0)} PLN = ${calculatedRemainingCapital.toStringAsFixed(0)} PLN',
@@ -336,23 +375,27 @@ class InvestmentEditCard extends StatelessWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 6),
-          
+
           // Status zgodności
           Row(
             children: [
               Icon(
                 isBalanced ? Icons.check_circle : Icons.warning,
                 size: 14,
-                color: isBalanced ? AppThemePro.statusSuccess : AppThemePro.statusWarning,
+                color: isBalanced
+                    ? AppThemePro.statusSuccess
+                    : AppThemePro.statusWarning,
               ),
               const SizedBox(width: 4),
               Text(
                 isBalanced ? 'Wartości się zgadzają' : 'Niezgodność wartości',
                 style: TextStyle(
                   fontSize: 11,
-                  color: isBalanced ? AppThemePro.statusSuccess : AppThemePro.statusWarning,
+                  color: isBalanced
+                      ? AppThemePro.statusSuccess
+                      : AppThemePro.statusWarning,
                   fontWeight: FontWeight.w500,
                 ),
               ),

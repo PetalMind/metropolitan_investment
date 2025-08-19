@@ -24,7 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   List<SettingsTab> get _tabs {
     final authProvider = Provider.of<AuthProvider>(context);
     final isAdmin = authProvider.isAdmin;
-    
+
     List<SettingsTab> tabs = [
       SettingsTab(
         title: 'Obliczenia kapitału',
@@ -55,11 +55,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     // Dodaj zakładkę Admin tylko dla administratorów
     if (isAdmin) {
-      tabs.add(SettingsTab(
-        title: 'Admin',
-        icon: Icons.admin_panel_settings,
-        content: const AdminSettingsTab(),
-      ));
+      tabs.add(
+        SettingsTab(
+          title: 'Admin',
+          icon: Icons.admin_panel_settings,
+          content: const AdminSettingsTab(),
+        ),
+      );
     }
 
     return tabs;
@@ -2174,10 +2176,7 @@ class _AdminSettingsTabState extends State<AdminSettingsTab> {
 
   Future<void> _updateUserRole(String uid, String newRole) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .update({
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
         'role': newRole,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -2232,10 +2231,7 @@ class _AdminSettingsTabState extends State<AdminSettingsTab> {
                   if (_isLoading)
                     const Center(child: CircularProgressIndicator())
                   else if (_error != null)
-                    Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.red),
-                    )
+                    Text(_error!, style: const TextStyle(color: Colors.red))
                   else ...[
                     _buildUserStats(),
                     const SizedBox(height: 16),
@@ -2265,7 +2261,10 @@ class _AdminSettingsTabState extends State<AdminSettingsTab> {
                   children: [
                     const Text(
                       'Lista użytkowników',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     _buildUsersTable(),
@@ -2285,17 +2284,13 @@ class _AdminSettingsTabState extends State<AdminSettingsTab> {
 
     return Row(
       children: [
-        Expanded(
-          child: _buildStatCard('Użytkownicy', userCount, Colors.blue),
-        ),
+        Expanded(child: _buildStatCard('Użytkownicy', userCount, Colors.blue)),
         const SizedBox(width: 16),
         Expanded(
           child: _buildStatCard('Administratorzy', adminCount, Colors.orange),
         ),
         const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard('Aktywni', activeCount, Colors.green),
-        ),
+        Expanded(child: _buildStatCard('Aktywni', activeCount, Colors.green)),
       ],
     );
   }
@@ -2317,10 +2312,7 @@ class _AdminSettingsTabState extends State<AdminSettingsTab> {
               color: color,
             ),
           ),
-          Text(
-            title,
-            style: const TextStyle(color: Colors.grey),
-          ),
+          Text(title, style: const TextStyle(color: Colors.grey)),
         ],
       ),
     );
@@ -2358,7 +2350,9 @@ class _AdminSettingsTabState extends State<AdminSettingsTab> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: role == 'admin' ? Colors.orange.withOpacity(0.2) : Colors.blue.withOpacity(0.2),
+              color: role == 'admin'
+                  ? Colors.orange.withOpacity(0.2)
+                  : Colors.blue.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -2393,11 +2387,17 @@ class _AdminSettingsTabState extends State<AdminSettingsTab> {
                 child: Row(
                   children: [
                     Icon(
-                      role == 'admin' ? Icons.person : Icons.admin_panel_settings,
+                      role == 'admin'
+                          ? Icons.person
+                          : Icons.admin_panel_settings,
                       size: 16,
                     ),
                     const SizedBox(width: 8),
-                    Text(role == 'admin' ? 'Usuń uprawnienia admin' : 'Nadaj uprawnienia admin'),
+                    Text(
+                      role == 'admin'
+                          ? 'Usuń uprawnienia admin'
+                          : 'Nadaj uprawnienia admin',
+                    ),
                   ],
                 ),
               ),
@@ -2410,9 +2410,11 @@ class _AdminSettingsTabState extends State<AdminSettingsTab> {
   }
 
   void _showRoleChangeDialog(Map<String, dynamic> user, String newRole) {
-    final String roleText = newRole == 'admin' ? 'administratora' : 'użytkownika';
+    final String roleText = newRole == 'admin'
+        ? 'administratora'
+        : 'użytkownika';
     final String email = user['email'] ?? '';
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

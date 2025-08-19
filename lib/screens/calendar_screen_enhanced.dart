@@ -251,9 +251,9 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
 
   @override
   Widget build(BuildContext context) {
-  // RBAC: tylko admin może dodawać / edytować wydarzenia
-  final authProvider = Provider.of<AuthProvider>(context, listen: true);
-  final canEdit = authProvider.isAdmin;
+    // RBAC: tylko admin może dodawać / edytować wydarzenia
+    final authProvider = Provider.of<AuthProvider>(context, listen: true);
+    final canEdit = authProvider.isAdmin;
     return Scaffold(
       backgroundColor: AppThemePro.backgroundPrimary,
       body: Focus(
@@ -284,7 +284,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
           ],
         ),
       ),
-  floatingActionButton: _buildEnhancedFAB(canEdit: canEdit),
+      floatingActionButton: _buildEnhancedFAB(canEdit: canEdit),
     );
   }
 
@@ -1227,7 +1227,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     required bool isMobile,
     required bool isTablet,
   }) {
-  final canEdit = Provider.of<AuthProvider>(context, listen: false).isAdmin;
+    final canEdit = Provider.of<AuthProvider>(context, listen: false).isAdmin;
     return Row(
       children: List.generate(7, (index) {
         final day = _selectedWeekStart.add(Duration(days: index));
@@ -1306,9 +1306,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
                                         Icons.add_circle_outline,
                                         size: isMobile ? 20 : 24,
                                         color: AppThemePro.textTertiary
-                                            .withValues(
-                                          alpha: 0.5,
-                                        ),
+                                            .withValues(alpha: 0.5),
                                       ),
                                       if (!isMobile) ...[
                                         const SizedBox(height: 4),
@@ -1328,8 +1326,9 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
                                 : Icon(
                                     Icons.event_available,
                                     size: isMobile ? 18 : 22,
-                                    color: AppThemePro.textTertiary
-                                        .withValues(alpha: 0.4),
+                                    color: AppThemePro.textTertiary.withValues(
+                                      alpha: 0.4,
+                                    ),
                                   ),
                           )
                         : ListView.builder(
