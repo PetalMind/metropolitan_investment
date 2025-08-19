@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme_professional.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/metropolitan_loading_system.dart';
 
 // Import wszystkich tabów
 import 'analytics/tabs/overview_tab.dart';
@@ -30,6 +31,7 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
   // UI State
   int _selectedTimeRange = 12;
   String _selectedAnalyticsTab = 'overview';
+  bool _isLoading = true;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -53,6 +55,17 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
   void initState() {
     super.initState();
     _initializeAnimations();
+    _simulateAnalyticsLoading();
+  }
+
+  void _simulateAnalyticsLoading() async {
+    // Symulacja ładowania danych analitycznych
+    await Future.delayed(const Duration(seconds: 3));
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   void _initializeAnimations() {
@@ -76,17 +89,23 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppThemePro.backgroundPrimary,
-      body: Column(
-        children: [
-          _buildHeader(context),
-          Expanded(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: _buildTabContent(),
+      body: _isLoading 
+        ? const Center(
+            child: MetropolitanLoadingWidget.analytics(
+              showProgress: true,
             ),
+          )
+        : Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: _buildTabContent(),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
       floatingActionButton: _buildRefreshFab(),
     );
   }

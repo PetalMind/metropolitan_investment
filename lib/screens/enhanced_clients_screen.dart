@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
+import '../widgets/metropolitan_loading_system.dart';
 
 class EnhancedClientsScreen extends StatefulWidget {
   const EnhancedClientsScreen({super.key});
@@ -290,17 +291,23 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: _refreshData,
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildStatsBar(),
-            _buildToolbar(),
-            Expanded(child: _buildContent()),
-          ],
-        ),
-      ),
+      body: _isLoading 
+        ? const Center(
+            child: MetropolitanLoadingWidget.clients(
+              showProgress: true,
+            ),
+          )
+        : RefreshIndicator(
+            onRefresh: _refreshData,
+            child: Column(
+              children: [
+                _buildHeader(),
+                _buildStatsBar(),
+                _buildToolbar(),
+                Expanded(child: _buildContent()),
+              ],
+            ),
+          ),
     );
   }
 

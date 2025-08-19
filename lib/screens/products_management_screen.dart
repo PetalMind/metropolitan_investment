@@ -19,6 +19,7 @@ import '../widgets/premium_error_widget.dart';
 import '../widgets/product_card_widget.dart';
 import '../widgets/product_stats_widget.dart';
 import '../widgets/product_filter_widget.dart';
+import '../widgets/metropolitan_loading_system.dart';
 import '../widgets/dialogs/product_details_dialog.dart';
 import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
 import '../widgets/common/synchronized_product_values_widget.dart'; // 🚀 NOWY: Zsynchronizowane wartości
@@ -1855,7 +1856,11 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           _buildSearchAndFilters(),
           if (_isLoading)
             SliverFillRemaining(
-              child: PremiumLoadingWidget(message: 'Ładowanie produktów...'),
+              child: const Center(
+                child: MetropolitanLoadingWidget.products(
+                  showProgress: true,
+                ),
+              ),
             )
           else if (_error != null)
             SliverFillRemaining(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../widgets/dashboard/product_dashboard_widget.dart';
+import '../widgets/metropolitan_loading_system.dart';
 import '../theme/app_theme_professional.dart';
 import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
@@ -27,10 +28,26 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
     with SingleTickerProviderStateMixin {
   String? _selectedProductId;
   bool _showDetailsPanel = false;
-  // Removed unused avatar animation fields
-
+  bool _isLoading = true;
+  
   // RBAC getter
   bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
+
+  @override
+  void initState() {
+    super.initState();
+    _simulateLoading();
+  }
+
+  void _simulateLoading() async {
+    // Symulacja ładowania danych dashboard
+    await Future.delayed(const Duration(seconds: 3));
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,16 +56,22 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
       child: Scaffold(
         backgroundColor: AppThemePro.backgroundPrimary,
         appBar: _buildAppBar(context),
-        body: Row(
-          children: [
-            // Główny dashboard - 70% szerokości
-            Expanded(
-              flex: 7,
-              child: ProductDashboardWidget(
-                selectedProductId: _selectedProductId,
-                onProductSelected: (productId) {
-                  setState(() {
-                    _selectedProductId = productId;
+        body: _isLoading 
+          ? const Center(
+              child: MetropolitanLoadingWidget.financial(
+                showProgress: true,
+              ),
+            )
+          : Row(
+              children: [
+                // Główny dashboard - 70% szerokości
+                Expanded(
+                  flex: 7,
+                  child: ProductDashboardWidget(
+                    selectedProductId: _selectedProductId,
+                    onProductSelected: (productId) {
+                      setState(() {
+                        _selectedProductId = productId;
                     _showDetailsPanel = true;
                   });
                 },
@@ -74,12 +97,6 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
         ),
       ),
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Removed unused avatar animation initialization
   }
 
   @override

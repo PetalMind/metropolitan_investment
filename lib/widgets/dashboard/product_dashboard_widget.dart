@@ -441,7 +441,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 16),
             // Personal greeting + this week's tasks
             PersonalGreetingWeekWidget(userProfile: _userProfile),
             const SizedBox(height: 20),

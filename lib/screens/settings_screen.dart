@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../config/app_routes.dart';
 import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/metropolitan_loading_system.dart';
 
 // RBAC: wspólny tooltip dla braku uprawnień
 const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
@@ -2229,7 +2230,11 @@ class _AdminSettingsTabState extends State<AdminSettingsTab> {
                   ),
                   const SizedBox(height: 16),
                   if (_isLoading)
-                    const Center(child: CircularProgressIndicator())
+                    const Center(
+                      child: MetropolitanLoadingWidget.settings(
+                        showProgress: true,
+                      ),
+                    )
                   else if (_error != null)
                     Text(_error!, style: const TextStyle(color: Colors.red))
                   else ...[

@@ -6,6 +6,7 @@ import '../models/calendar/calendar_event.dart';
 import '../services/calendar_service.dart';
 import '../services/calendar_notification_service.dart'; // 🚀 NOWE
 import '../widgets/calendar/enhanced_calendar_event_dialog.dart';
+import '../widgets/metropolitan_loading_system.dart';
 import '../theme/app_theme_professional.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -251,9 +252,9 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
 
   @override
   Widget build(BuildContext context) {
-    // RBAC: tylko admin może dodawać / edytować wydarzenia
+    // RBAC: zarówno user jak i admin mogą dodawać / edytować wydarzenia
     final authProvider = Provider.of<AuthProvider>(context, listen: true);
-    final canEdit = authProvider.isAdmin;
+    final canEdit = authProvider.isLoggedIn; // Zmieniono z isAdmin na isLoggedIn
     return Scaffold(
       backgroundColor: AppThemePro.backgroundPrimary,
       body: Focus(
@@ -656,24 +657,9 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
   }
 
   Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            color: AppThemePro.accentGold,
-            strokeWidth: 3,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Ładowanie kalendarza...',
-            style: TextStyle(
-              color: AppThemePro.textSecondary,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+    return const Center(
+      child: MetropolitanLoadingWidget.calendar(
+        showProgress: true,
       ),
     );
   }
@@ -1227,7 +1213,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     required bool isMobile,
     required bool isTablet,
   }) {
-    final canEdit = Provider.of<AuthProvider>(context, listen: false).isAdmin;
+    final canEdit = Provider.of<AuthProvider>(context, listen: false).isLoggedIn; // Zmieniono z isAdmin na isLoggedIn
     return Row(
       children: List.generate(7, (index) {
         final day = _selectedWeekStart.add(Duration(days: index));
@@ -1296,7 +1282,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
                   ),
                   Expanded(
                     child: dayEvents.isEmpty
-                        ? // 🚀 NOWE: Wskazówka dla pustych dni (tylko gdy admin)
+                        ? // 🚀 NOWE: Wskazówka dla pustych dni (każdy zalogowany użytkownik)
                           Center(
                             child: canEdit
                                 ? Column(
