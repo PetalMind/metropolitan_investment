@@ -10,7 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:html' as html show Blob, Url, AnchorElement;
-import '../theme/app_theme.dart';
+// import '../theme/app_theme.dart'; // Replaced with app_theme_professional.dart
 import '../theme/app_theme_professional.dart';
 import '../models_and_services.dart'; // Centralny export wszystkich modeli i serwisów
 import '../providers/auth_provider.dart';
@@ -105,6 +105,7 @@ class _PremiumInvestorAnalyticsScreenState
   // Selekcja
   bool _isSelectionMode = false;
   bool _isExportMode = false; // 🚀 NOWY: Tryb eksportu
+  bool _isEmailMode = false; // 🚀 NOWY: Tryb email
   Set<String> _selectedInvestorIds = <String>{};
   List<InvestorSummary> get _selectedInvestors => _allInvestors
       .where((i) => _selectedInvestorIds.contains(i.client.id))
@@ -505,7 +506,7 @@ class _PremiumInvestorAnalyticsScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('📊 Dane zostały automatycznie odświeżone'),
-            backgroundColor: AppTheme.successColor,
+            backgroundColor: AppThemePro.statusSuccess,
             duration: Duration(seconds: 2),
           ),
         );
@@ -521,7 +522,7 @@ class _PremiumInvestorAnalyticsScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Błąd odświeżania danych: ${e.toString()}'),
-            backgroundColor: AppTheme.errorColor,
+            backgroundColor: AppThemePro.statusError,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -1015,7 +1016,7 @@ class _PremiumInvestorAnalyticsScreenState
                         ? 'Wybrano ${_selectedInvestorIds.length} z ${_displayedInvestors.length} inwestorów'
                         : '${_totalCount} inwestorów • ${CurrencyFormatter.formatCurrency(_votingManager.totalViableCapital, showDecimals: false)}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.textSecondary,
+                      color: AppThemePro.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1025,17 +1026,17 @@ class _PremiumInvestorAnalyticsScreenState
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.successPrimary.withOpacity(0.1),
+                      color: AppThemePro.statusSuccess.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: AppTheme.successPrimary.withOpacity(0.3),
+                        color: AppThemePro.statusSuccess.withOpacity(0.3),
                       ),
                     ),
                     child: Text(
                       'Źródło: Inwestorzy (viableCapital)',
                       style: TextStyle(
                         fontSize: 10,
-                        color: AppTheme.successPrimary,
+                        color: AppThemePro.statusSuccess,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1065,7 +1066,7 @@ class _PremiumInvestorAnalyticsScreenState
                   style: const TextStyle(fontSize: 12),
                 ),
                 style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.secondaryGold,
+                  foregroundColor: AppThemePro.accentGold,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 4,
@@ -1078,6 +1079,8 @@ class _PremiumInvestorAnalyticsScreenState
             _buildRefreshButton(),
             const SizedBox(width: 8),
             _buildExportButton(), // 🚀 NOWY: Przycisk eksportu
+            const SizedBox(width: 8),
+            _buildEmailButton(), // 🚀 NOWY: Przycisk email
             const SizedBox(width: 8),
             _buildViewModeToggle(),
             const SizedBox(width: 8),
@@ -1108,6 +1111,8 @@ class _PremiumInvestorAnalyticsScreenState
       ),
       child: _isExportMode
           ? _buildExportModeTabBar()
+          : _isEmailMode
+          ? _buildEmailModeTabBar()
           : TabBar(
               controller: _tabController,
               tabs: [
@@ -1283,6 +1288,107 @@ class _PremiumInvestorAnalyticsScreenState
     );
   }
 
+  Widget _buildEmailModeTabBar() {
+    return Container(
+      height: 80,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          // Info o trybie email
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppThemePro.accentGold.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppThemePro.accentGold.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.email_rounded,
+                    color: AppThemePro.accentGold,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Tryb email',
+                          style: TextStyle(
+                            color: AppThemePro.accentGold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'Wybierz odbiorców maili',
+                          style: TextStyle(
+                            color: AppThemePro.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_selectedInvestorIds.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppThemePro.accentGold,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${_selectedInvestorIds.length}',
+                        style: TextStyle(
+                          color: AppThemePro.primaryDark,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Przycisk wyślij emaile
+          ElevatedButton.icon(
+            onPressed: _selectedInvestorIds.isEmpty
+                ? null
+                : () => _showEmailDialog(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _selectedInvestorIds.isEmpty
+                  ? AppThemePro.surfaceInteractive
+                  : AppThemePro.accentGold,
+              foregroundColor: _selectedInvestorIds.isEmpty
+                  ? AppThemePro.textMuted
+                  : AppThemePro.primaryDark,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            icon: Icon(Icons.send_rounded, size: 18),
+            label: Text(
+              'Wyślij emaile',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildExportModeBanner() {
     return SliverToBoxAdapter(
       child: AnimatedContainer(
@@ -1423,18 +1529,18 @@ class _PremiumInvestorAnalyticsScreenState
         position: _filterSlideAnimation,
         child: Container(
           margin: EdgeInsets.all(_isTablet ? 16 : 12),
-          decoration: AppTheme.premiumCardDecoration,
+          decoration: AppThemePro.premiumCardDecoration,
           child: ExpansionTile(
             title: Text(
               'Zaawansowane filtry',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppTheme.textPrimary,
+                color: AppThemePro.textPrimary,
                 fontWeight: FontWeight.w600,
               ),
             ),
             leading: Icon(
               Icons.filter_list_rounded,
-              color: AppTheme.secondaryGold,
+              color: AppThemePro.accentGold,
             ),
             children: [
               Padding(
@@ -1471,11 +1577,11 @@ class _PremiumInvestorAnalyticsScreenState
         });
         _applyFiltersAndSort();
       },
-      backgroundColor: AppTheme.surfaceCard,
-      selectedColor: AppTheme.secondaryGold.withOpacity(0.2),
-      checkmarkColor: AppTheme.secondaryGold,
+      backgroundColor: AppThemePro.surfaceCard,
+      selectedColor: AppThemePro.accentGold.withOpacity(0.2),
+      checkmarkColor: AppThemePro.accentGold,
       labelStyle: TextStyle(
-        color: isSelected ? AppTheme.secondaryGold : AppTheme.textSecondary,
+        color: isSelected ? AppThemePro.accentGold : AppThemePro.textSecondary,
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
       ),
     );
@@ -1489,7 +1595,7 @@ class _PremiumInvestorAnalyticsScreenState
           'Typ klienta',
           style: Theme.of(
             context,
-          ).textTheme.titleSmall?.copyWith(color: AppTheme.textSecondary),
+          ).textTheme.titleSmall?.copyWith(color: AppThemePro.textSecondary),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -1516,11 +1622,11 @@ class _PremiumInvestorAnalyticsScreenState
         });
         _applyFiltersAndSort();
       },
-      backgroundColor: AppTheme.surfaceCard,
-      selectedColor: AppTheme.primaryAccent.withOpacity(0.2),
-      checkmarkColor: AppTheme.primaryAccent,
+      backgroundColor: AppThemePro.surfaceCard,
+      selectedColor: AppThemePro.accentGold.withOpacity(0.2),
+      checkmarkColor: AppThemePro.accentGold,
       labelStyle: TextStyle(
-        color: isSelected ? AppTheme.primaryAccent : AppTheme.textSecondary,
+        color: isSelected ? AppThemePro.accentGold : AppThemePro.textSecondary,
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
       ),
     );
@@ -1534,7 +1640,7 @@ class _PremiumInvestorAnalyticsScreenState
           'Zakres kapitału',
           style: Theme.of(
             context,
-          ).textTheme.titleSmall?.copyWith(color: AppTheme.textSecondary),
+          ).textTheme.titleSmall?.copyWith(color: AppThemePro.textSecondary),
         ),
         const SizedBox(height: 8),
         Row(
@@ -1585,7 +1691,7 @@ class _PremiumInvestorAnalyticsScreenState
             setState(() => _showDeduplicatedProducts = value ?? false);
             // Opcjonalnie: odśwież dane jeśli potrzeba
           },
-          activeColor: AppTheme.primaryAccent,
+          activeColor: AppThemePro.accentGold,
         ),
         CheckboxListTile(
           title: Text(
@@ -1596,7 +1702,7 @@ class _PremiumInvestorAnalyticsScreenState
             setState(() => _showOnlyMajorityHolders = value ?? false);
             _applyFiltersAndSort();
           },
-          activeColor: AppTheme.secondaryGold,
+          activeColor: AppThemePro.accentGold,
         ),
         CheckboxListTile(
           title: Text('Tylko z niewykonalnymi inwestycjami'),
@@ -1605,7 +1711,7 @@ class _PremiumInvestorAnalyticsScreenState
             setState(() => _showOnlyWithUnviableInvestments = value ?? false);
             _applyFiltersAndSort();
           },
-          activeColor: AppTheme.errorPrimary,
+          activeColor: AppThemePro.statusError,
         ),
         CheckboxListTile(
           title: Text('Uwzględnij nieaktywnych'),
@@ -1614,7 +1720,7 @@ class _PremiumInvestorAnalyticsScreenState
             setState(() => _includeInactive = value ?? false);
             _loadInitialData();
           },
-          activeColor: AppTheme.warningPrimary,
+          activeColor: AppThemePro.statusWarning,
         ),
       ],
     );
@@ -1628,7 +1734,7 @@ class _PremiumInvestorAnalyticsScreenState
           onPressed: _resetFilters,
           icon: Icon(Icons.clear_rounded),
           label: Text('Wyczyść filtry'),
-          style: TextButton.styleFrom(foregroundColor: AppTheme.errorPrimary),
+          style: TextButton.styleFrom(foregroundColor: AppThemePro.statusError),
         ),
         ElevatedButton.icon(
           onPressed: () => _toggleFilterPanel(),
@@ -1654,17 +1760,17 @@ class _PremiumInvestorAnalyticsScreenState
               margin: EdgeInsets.all(_isTablet ? 16 : 12),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.infoPrimary.withOpacity(0.1),
+                color: AppThemePro.accentGold.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: AppTheme.infoPrimary.withOpacity(0.3),
+                  color: AppThemePro.accentGold.withOpacity(0.3),
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.info_outline,
-                    color: AppTheme.infoPrimary,
+                    color: AppThemePro.accentGold,
                     size: 20,
                   ),
                   const SizedBox(width: 12),
@@ -1672,7 +1778,7 @@ class _PremiumInvestorAnalyticsScreenState
                     child: Text(
                       'Wyszukano inwestora: "${widget.initialSearchQuery}"',
                       style: TextStyle(
-                        color: AppTheme.infoPrimary,
+                        color: AppThemePro.accentGold,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1685,7 +1791,7 @@ class _PremiumInvestorAnalyticsScreenState
                     },
                     child: Text(
                       'Wyczyść',
-                      style: TextStyle(color: AppTheme.infoPrimary),
+                      style: TextStyle(color: AppThemePro.accentGold),
                     ),
                   ),
                 ],
@@ -1728,18 +1834,18 @@ class _PremiumInvestorAnalyticsScreenState
         ),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceCard,
+          color: AppThemePro.surfaceCard,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.borderSecondary),
+          border: Border.all(color: AppThemePro.borderSecondary),
         ),
         child: Row(
           children: [
-            Icon(Icons.sort_rounded, color: AppTheme.textSecondary, size: 20),
+            Icon(Icons.sort_rounded, color: AppThemePro.textSecondary, size: 20),
             const SizedBox(width: 12),
             Text(
               'Sortuj według:',
               style: TextStyle(
-                color: AppTheme.textSecondary,
+                color: AppThemePro.textSecondary,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -1778,7 +1884,7 @@ class _PremiumInvestorAnalyticsScreenState
                 _sortAscending
                     ? Icons.arrow_upward_rounded
                     : Icons.arrow_downward_rounded,
-                color: AppTheme.secondaryGold,
+                color: AppThemePro.accentGold,
                 size: 20,
               ),
               tooltip: _sortAscending ? 'Rosnąco' : 'Malejąco',
@@ -1798,17 +1904,17 @@ class _PremiumInvestorAnalyticsScreenState
         label,
         style: TextStyle(
           color: isSelected
-              ? AppTheme.backgroundPrimary
-              : AppTheme.textSecondary,
+              ? AppThemePro.backgroundPrimary
+              : AppThemePro.textSecondary,
           fontSize: 12,
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
         ),
       ),
-      selectedColor: AppTheme.secondaryGold,
-      backgroundColor: AppTheme.backgroundTertiary,
-      checkmarkColor: AppTheme.backgroundPrimary,
+      selectedColor: AppThemePro.accentGold,
+      backgroundColor: AppThemePro.backgroundTertiary,
+      checkmarkColor: AppThemePro.backgroundPrimary,
       side: BorderSide(
-        color: isSelected ? AppTheme.secondaryGold : AppTheme.borderSecondary,
+        color: isSelected ? AppThemePro.accentGold : AppThemePro.borderSecondary,
         width: 1,
       ),
       onSelected: (selected) {
@@ -1833,12 +1939,12 @@ class _PremiumInvestorAnalyticsScreenState
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(AppTheme.secondaryGold),
+                  valueColor: AlwaysStoppedAnimation(AppThemePro.accentGold),
                 ),
               )
             : Icon(
                 Icons.refresh_rounded,
-                color: canEdit ? AppTheme.textSecondary : Colors.grey,
+                color: canEdit ? AppThemePro.textSecondary : Colors.grey,
               ),
         tooltip: canEdit ? 'Odśwież dane' : kRbacNoPermissionTooltip,
       ),
@@ -1866,6 +1972,27 @@ class _PremiumInvestorAnalyticsScreenState
     );
   }
 
+  Widget _buildEmailButton() {
+    return Tooltip(
+      message: canEdit
+          ? (_isEmailMode ? 'Zakończ wysyłanie' : 'Wyślij emaile')
+          : kRbacNoPermissionTooltip,
+      child: IconButton(
+        onPressed: !canEdit ? null : _toggleEmailMode,
+        icon: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: Icon(
+            _isEmailMode ? Icons.close_rounded : Icons.email_rounded,
+            key: ValueKey(_isEmailMode),
+            color: _isEmailMode
+                ? AppThemePro.statusError
+                : (canEdit ? AppThemePro.accentGold : Colors.grey),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFilterToggleButton() {
     return IconButton(
       onPressed: _toggleFilterPanel,
@@ -1874,8 +2001,8 @@ class _PremiumInvestorAnalyticsScreenState
             ? Icons.filter_list_off_rounded
             : Icons.filter_list_rounded,
         color: _isFilterVisible
-            ? AppTheme.secondaryGold
-            : AppTheme.textSecondary,
+            ? AppThemePro.accentGold
+            : AppThemePro.textSecondary,
       ),
       tooltip: 'Filtry',
     );
@@ -1904,18 +2031,18 @@ class _PremiumInvestorAnalyticsScreenState
       child: Container(
         margin: EdgeInsets.all(_isTablet ? 16 : 12),
         padding: const EdgeInsets.all(20),
-        decoration: AppTheme.premiumCardDecoration,
+        decoration: AppThemePro.premiumCardDecoration,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.insights_rounded, color: AppTheme.secondaryGold),
+                Icon(Icons.insights_rounded, color: AppThemePro.accentGold),
                 const SizedBox(width: 8),
                 Text(
                   'Statystyki systemowe',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppTheme.textPrimary,
+                    color: AppThemePro.textPrimary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1937,7 +2064,7 @@ class _PremiumInvestorAnalyticsScreenState
           'Status głosowania',
           style: Theme.of(
             context,
-          ).textTheme.titleSmall?.copyWith(color: AppTheme.textSecondary),
+          ).textTheme.titleSmall?.copyWith(color: AppThemePro.textSecondary),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -2019,7 +2146,7 @@ class _PremiumInvestorAnalyticsScreenState
           showDecimals: false,
         ),
         Icons.account_balance_wallet_rounded,
-        AppTheme.successPrimary,
+        AppThemePro.statusSuccess,
       ),
       _StatItem(
         'Większość kapitału (51%)',
@@ -2028,19 +2155,19 @@ class _PremiumInvestorAnalyticsScreenState
           showDecimals: false,
         ),
         Icons.gavel_rounded,
-        AppTheme.secondaryGold,
+        AppThemePro.accentGold,
       ),
       _StatItem(
         'Większość osobowa (51%)',
         '${majorityInvestorCount} z ${_totalCount}',
         Icons.people_rounded,
-        AppTheme.infoPrimary,
+        AppThemePro.accentGold,
       ),
       _StatItem(
         'Kapitał całkowity',
         CurrencyFormatter.formatCurrency(totalCapital, showDecimals: false),
         Icons.trending_up_rounded,
-        AppTheme.warningPrimary,
+        AppThemePro.statusWarning,
       ),
     ];
 
@@ -2062,7 +2189,7 @@ class _PremiumInvestorAnalyticsScreenState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard,
+        color: AppThemePro.surfaceCard,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: stat.color.withOpacity(0.2), width: 1),
       ),
@@ -2074,7 +2201,7 @@ class _PremiumInvestorAnalyticsScreenState
           Text(
             stat.value,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppTheme.textPrimary,
+              color: AppThemePro.textPrimary,
               fontWeight: FontWeight.w700,
             ),
             textAlign: TextAlign.center,
@@ -2084,7 +2211,7 @@ class _PremiumInvestorAnalyticsScreenState
             stat.label,
             style: Theme.of(
               context,
-            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
+            ).textTheme.bodySmall?.copyWith(color: AppThemePro.textSecondary),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -2235,7 +2362,7 @@ class _PremiumInvestorAnalyticsScreenState
 
     showDialog(
       context: context,
-      builder: (context) => EnhancedInvestorEmailDialog(
+      builder: (context) => EnhancedEmailEditorDialog(
         selectedInvestors: _selectedInvestors,
         onEmailSent: () {
           Navigator.of(context).pop();
@@ -2256,18 +2383,18 @@ class _PremiumInvestorAnalyticsScreenState
       child: Container(
         margin: EdgeInsets.all(_isTablet ? 16 : 12),
         padding: const EdgeInsets.all(20),
-        decoration: AppTheme.premiumCardDecoration,
+        decoration: AppThemePro.premiumCardDecoration,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.how_to_vote_rounded, color: AppTheme.secondaryGold),
+                Icon(Icons.how_to_vote_rounded, color: AppThemePro.accentGold),
                 const SizedBox(width: 8),
                 Text(
                   'Rozkład głosowania',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppTheme.textPrimary,
+                    color: AppThemePro.textPrimary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -2304,13 +2431,13 @@ class _PremiumInvestorAnalyticsScreenState
               Expanded(
                 child: Text(
                   '${status.displayName} ($count)',
-                  style: TextStyle(color: AppTheme.textSecondary),
+                  style: TextStyle(color: AppThemePro.textSecondary),
                 ),
               ),
               Text(
                 '${percentage.toStringAsFixed(1)}%',
                 style: TextStyle(
-                  color: AppTheme.textPrimary,
+                  color: AppThemePro.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -2319,7 +2446,7 @@ class _PremiumInvestorAnalyticsScreenState
                 height: 6,
                 width: 60,
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceCard,
+                  color: AppThemePro.surfaceCard,
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: FractionallySizedBox(
@@ -2343,13 +2470,13 @@ class _PremiumInvestorAnalyticsScreenState
   Color _getVotingStatusColor(VotingStatus status) {
     switch (status) {
       case VotingStatus.yes:
-        return AppTheme.successPrimary;
+        return AppThemePro.statusSuccess;
       case VotingStatus.no:
-        return AppTheme.errorPrimary;
+        return AppThemePro.statusError;
       case VotingStatus.abstain:
-        return AppTheme.warningPrimary;
+        return AppThemePro.statusWarning;
       case VotingStatus.undecided:
-        return AppTheme.neutralPrimary;
+        return AppThemePro.neutralGray;
     }
   }
 
@@ -2358,18 +2485,18 @@ class _PremiumInvestorAnalyticsScreenState
       child: Container(
         margin: EdgeInsets.all(_isTablet ? 16 : 12),
         padding: const EdgeInsets.all(20),
-        decoration: AppTheme.premiumCardDecoration,
+        decoration: AppThemePro.premiumCardDecoration,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.lightbulb_rounded, color: AppTheme.secondaryGold),
+                Icon(Icons.lightbulb_rounded, color: AppThemePro.accentGold),
                 const SizedBox(width: 8),
                 Text(
                   'Kluczowe spostrzeżenia',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppTheme.textPrimary,
+                    color: AppThemePro.textPrimary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -2406,7 +2533,7 @@ class _PremiumInvestorAnalyticsScreenState
               Expanded(
                 child: Text(
                   insight.text,
-                  style: TextStyle(color: AppTheme.textSecondary, height: 1.4),
+                  style: TextStyle(color: AppThemePro.textSecondary, height: 1.4),
                 ),
               ),
             ],
@@ -2424,7 +2551,7 @@ class _PremiumInvestorAnalyticsScreenState
       insights.add(
         _Insight(
           'Znaleziono ${_majorityHolders.length} inwestorów z udziałem ≥${_majorityThreshold.toStringAsFixed(0)}%',
-          AppTheme.secondaryGold,
+          AppThemePro.accentGold,
         ),
       );
     }
@@ -2438,14 +2565,14 @@ class _PremiumInvestorAnalyticsScreenState
       insights.add(
         _Insight(
           'Większość kapitału (${yesPercentage.toStringAsFixed(1)}%) jest ZA',
-          AppTheme.successPrimary,
+          AppThemePro.statusSuccess,
         ),
       );
     } else if (undecidedPercentage > 80.0) {
       insights.add(
         _Insight(
           'Większość inwestorów (${undecidedPercentage.toStringAsFixed(1)}%) jest niezdecydowana',
-          AppTheme.warningPrimary,
+          AppThemePro.statusWarning,
         ),
       );
     }
@@ -2458,7 +2585,7 @@ class _PremiumInvestorAnalyticsScreenState
       insights.add(
         _Insight(
           'Wysoka koncentracja kapitału - średnio ${CurrencyFormatter.formatCurrencyShort(avgCapital)} na inwestora',
-          AppTheme.infoPrimary,
+          AppThemePro.accentGold,
         ),
       );
     }
@@ -2473,12 +2600,12 @@ class _PremiumInvestorAnalyticsScreenState
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation(AppTheme.secondaryGold),
+              valueColor: AlwaysStoppedAnimation(AppThemePro.accentGold),
             ),
             const SizedBox(height: 16),
             Text(
               'Ładowanie danych...',
-              style: TextStyle(color: AppTheme.textSecondary),
+              style: TextStyle(color: AppThemePro.textSecondary),
             ),
           ],
         ),
@@ -2495,20 +2622,20 @@ class _PremiumInvestorAnalyticsScreenState
             Icon(
               Icons.error_outline_rounded,
               size: 64,
-              color: AppTheme.errorPrimary,
+              color: AppThemePro.statusError,
             ),
             const SizedBox(height: 16),
             Text(
               'Błąd ładowania danych',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppTheme.textPrimary,
+                color: AppThemePro.textPrimary,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               _error ?? 'Nieznany błąd',
-              style: TextStyle(color: AppTheme.textSecondary),
+              style: TextStyle(color: AppThemePro.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -2548,7 +2675,7 @@ class _PremiumInvestorAnalyticsScreenState
 
   TextStyle _getTableHeaderStyle() {
     return TextStyle(
-      color: AppTheme.textPrimary,
+      color: AppThemePro.textPrimary,
       fontWeight: FontWeight.w700,
       fontSize: 13,
     );
@@ -2560,7 +2687,7 @@ class _PremiumInvestorAnalyticsScreenState
         padding: const EdgeInsets.all(20),
         child: Center(
           child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation(AppTheme.secondaryGold),
+            valueColor: AlwaysStoppedAnimation(AppThemePro.accentGold),
           ),
         ),
       ),
@@ -2571,18 +2698,18 @@ class _PremiumInvestorAnalyticsScreenState
     child: Container(
       margin: EdgeInsets.all(_isTablet ? 16 : 12),
       padding: const EdgeInsets.all(20),
-      decoration: AppTheme.premiumCardDecoration,
+      decoration: AppThemePro.premiumCardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.speed_rounded, color: AppTheme.secondaryGold),
+              Icon(Icons.speed_rounded, color: AppThemePro.accentGold),
               const SizedBox(width: 12),
               Text(
                 'Metryki wydajności',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppTheme.textPrimary,
+                  color: AppThemePro.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -2601,14 +2728,14 @@ class _PremiumInvestorAnalyticsScreenState
     child: Container(
       margin: EdgeInsets.all(_isTablet ? 16 : 12),
       padding: const EdgeInsets.all(20),
-      decoration: AppTheme.premiumCardDecoration,
+      decoration: AppThemePro.premiumCardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Rozkład głosowania',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: AppTheme.textPrimary,
+              color: AppThemePro.textPrimary,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -2623,18 +2750,18 @@ class _PremiumInvestorAnalyticsScreenState
     child: Container(
       margin: EdgeInsets.all(_isTablet ? 16 : 12),
       padding: const EdgeInsets.all(20),
-      decoration: AppTheme.premiumCardDecoration,
+      decoration: AppThemePro.premiumCardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.trending_up_rounded, color: AppTheme.secondaryGold),
+              Icon(Icons.trending_up_rounded, color: AppThemePro.accentGold),
               const SizedBox(width: 12),
               Text(
                 'Analiza trendów',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppTheme.textPrimary,
+                  color: AppThemePro.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -2653,13 +2780,13 @@ class _PremiumInvestorAnalyticsScreenState
     child: Container(
       margin: EdgeInsets.all(_isTablet ? 16 : 12),
       padding: const EdgeInsets.all(20),
-      decoration: AppTheme.premiumCardDecoration,
+      decoration: AppThemePro.premiumCardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.group_rounded, color: AppTheme.secondaryGold),
+              Icon(Icons.group_rounded, color: AppThemePro.accentGold),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -2668,14 +2795,14 @@ class _PremiumInvestorAnalyticsScreenState
                     Text(
                       'Grupa większościowa (≥51%)',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppTheme.textPrimary,
+                        color: AppThemePro.textPrimary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
                       'Minimalna koalicja inwestorów kontrolująca większość kapitału',
                       style: TextStyle(
-                        color: AppTheme.textSecondary,
+                        color: AppThemePro.textSecondary,
                         fontSize: 12,
                       ),
                     ),
@@ -2706,24 +2833,24 @@ class _PremiumInvestorAnalyticsScreenState
         _buildMajorityStatRow(
           'Próg większości',
           '${_majorityThreshold.toStringAsFixed(0)}%',
-          AppTheme.secondaryGold,
+          AppThemePro.accentGold,
         ),
         _buildMajorityStatRow(
           'Rozmiar grupy większościowej',
           '${_majorityHolders.length} inwestorów',
-          AppTheme.infoPrimary,
+          AppThemePro.accentGold,
         ),
         _buildMajorityStatRow(
           'Łączny kapitał grupy',
           CurrencyFormatter.formatCurrencyShort(majorityCapital),
-          AppTheme.successPrimary,
+          AppThemePro.statusSuccess,
         ),
         _buildMajorityStatRow(
           'Udział grupy w całości',
           '${majorityPercentage.toStringAsFixed(1)}%',
           majorityPercentage >= 51.0
-              ? AppTheme.successPrimary
-              : AppTheme.warningPrimary,
+              ? AppThemePro.statusSuccess
+              : AppThemePro.statusWarning,
         ),
       ],
     );
@@ -2735,7 +2862,7 @@ class _PremiumInvestorAnalyticsScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: AppTheme.textSecondary)),
+          Text(label, style: TextStyle(color: AppThemePro.textSecondary)),
           Text(
             value,
             style: TextStyle(color: color, fontWeight: FontWeight.w600),
@@ -2762,26 +2889,26 @@ class _PremiumInvestorAnalyticsScreenState
         child: Container(
           margin: EdgeInsets.all(_isTablet ? 16 : 12),
           padding: const EdgeInsets.all(40),
-          decoration: AppTheme.premiumCardDecoration,
+          decoration: AppThemePro.premiumCardDecoration,
           child: Center(
             child: Column(
               children: [
                 Icon(
                   Icons.people_outline_rounded,
                   size: 64,
-                  color: AppTheme.textTertiary,
+                  color: AppThemePro.textTertiary,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Brak grup większościowych',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppTheme.textSecondary,
+                    color: AppThemePro.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Nie znaleziono inwestorów spełniających kryteria większości',
-                  style: TextStyle(color: AppTheme.textTertiary),
+                  style: TextStyle(color: AppThemePro.textTertiary),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -2814,26 +2941,26 @@ class _PremiumInvestorAnalyticsScreenState
         child: Container(
           margin: EdgeInsets.all(_isTablet ? 16 : 12),
           padding: const EdgeInsets.all(40),
-          decoration: AppTheme.premiumCardDecoration,
+          decoration: AppThemePro.premiumCardDecoration,
           child: Center(
             child: Column(
               children: [
                 Icon(
                   Icons.people_outline_rounded,
                   size: 64,
-                  color: AppTheme.textTertiary,
+                  color: AppThemePro.textTertiary,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Brak grup większościowych',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppTheme.textSecondary,
+                    color: AppThemePro.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Nie znaleziono inwestorów spełniających kryteria większości',
-                  style: TextStyle(color: AppTheme.textTertiary),
+                  style: TextStyle(color: AppThemePro.textTertiary),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -2846,7 +2973,7 @@ class _PremiumInvestorAnalyticsScreenState
     return SliverToBoxAdapter(
       child: Container(
         margin: EdgeInsets.all(_isTablet ? 16 : 12),
-        decoration: AppTheme.premiumCardDecoration,
+        decoration: AppThemePro.premiumCardDecoration,
         child: Column(
           children: [
             _buildMajorityTableHeader(),
@@ -2863,7 +2990,7 @@ class _PremiumInvestorAnalyticsScreenState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard,
+        color: AppThemePro.surfaceCard,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       child: Row(
@@ -2929,7 +3056,7 @@ class _PremiumInvestorAnalyticsScreenState
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: AppTheme.borderSecondary, width: 0.5),
+          bottom: BorderSide(color: AppThemePro.borderSecondary, width: 0.5),
         ),
       ),
       child: Row(
@@ -2939,16 +3066,16 @@ class _PremiumInvestorAnalyticsScreenState
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: AppTheme.secondaryGold.withOpacity(0.1),
+                color: AppThemePro.accentGold.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: AppTheme.secondaryGold.withOpacity(0.3),
+                  color: AppThemePro.accentGold.withOpacity(0.3),
                 ),
               ),
               child: Text(
                 '$position',
                 style: TextStyle(
-                  color: AppTheme.secondaryGold,
+                  color: AppThemePro.accentGold,
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
                 ),
@@ -2961,7 +3088,7 @@ class _PremiumInvestorAnalyticsScreenState
             child: Text(
               investor.client.name,
               style: TextStyle(
-                color: AppTheme.textPrimary,
+                color: AppThemePro.textPrimary,
                 fontWeight: FontWeight.w600,
               ),
               maxLines: 1,
@@ -2975,7 +3102,7 @@ class _PremiumInvestorAnalyticsScreenState
                 investor.viableRemainingCapital,
               ),
               style: TextStyle(
-                color: AppTheme.textPrimary,
+                color: AppThemePro.textPrimary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -2985,7 +3112,7 @@ class _PremiumInvestorAnalyticsScreenState
             child: Text(
               '${percentage.toStringAsFixed(1)}%',
               style: TextStyle(
-                color: AppTheme.textSecondary,
+                color: AppThemePro.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -2996,8 +3123,8 @@ class _PremiumInvestorAnalyticsScreenState
               '${cumulativePercentage.toStringAsFixed(1)}%',
               style: TextStyle(
                 color: cumulativePercentage >= _majorityThreshold
-                    ? AppTheme.successPrimary
-                    : AppTheme.warningPrimary,
+                    ? AppThemePro.statusSuccess
+                    : AppThemePro.statusWarning,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -3028,7 +3155,7 @@ class _PremiumInvestorAnalyticsScreenState
               child: IconButton(
                 icon: Icon(Icons.info_outline_rounded, size: 20),
                 onPressed: () => _showInvestorDetails(investor),
-                color: AppTheme.textSecondary,
+                color: AppThemePro.textSecondary,
               ),
             ),
           ],
@@ -3043,24 +3170,24 @@ class _PremiumInvestorAnalyticsScreenState
         child: Container(
           margin: EdgeInsets.all(_isTablet ? 16 : 12),
           padding: const EdgeInsets.all(20),
-          decoration: AppTheme.premiumCardDecoration,
+          decoration: AppThemePro.premiumCardDecoration,
           child: Center(
             child: Column(
               children: [
                 Icon(
                   Icons.people_outline_rounded,
                   size: 48,
-                  color: AppTheme.textTertiary,
+                  color: AppThemePro.textTertiary,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Brak posiadaczy większości',
-                  style: TextStyle(color: AppTheme.textSecondary),
+                  style: TextStyle(color: AppThemePro.textSecondary),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Żaden inwestor nie posiada ≥${_majorityThreshold.toStringAsFixed(0)}% kapitału',
-                  style: TextStyle(color: AppTheme.textTertiary),
+                  style: TextStyle(color: AppThemePro.textTertiary),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -3120,17 +3247,17 @@ class _PremiumInvestorAnalyticsScreenState
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: AppTheme.secondaryGold.withOpacity(0.1),
+                        color: AppThemePro.accentGold.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: AppTheme.secondaryGold.withOpacity(0.3),
+                          color: AppThemePro.accentGold.withOpacity(0.3),
                         ),
                       ),
                       child: Center(
                         child: Text(
                           '$position',
                           style: TextStyle(
-                            color: AppTheme.secondaryGold,
+                            color: AppThemePro.accentGold,
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
                           ),
@@ -3145,7 +3272,7 @@ class _PremiumInvestorAnalyticsScreenState
                           Text(
                             investor.client.name,
                             style: TextStyle(
-                              color: AppTheme.textPrimary,
+                              color: AppThemePro.textPrimary,
                               fontWeight: FontWeight.w700,
                               fontSize: 16,
                             ),
@@ -3179,7 +3306,7 @@ class _PremiumInvestorAnalyticsScreenState
                     ),
                     Icon(
                       Icons.star_rounded,
-                      color: AppTheme.secondaryGold,
+                      color: AppThemePro.accentGold,
                       size: 24,
                     ),
                   ],
@@ -3194,7 +3321,7 @@ class _PremiumInvestorAnalyticsScreenState
                           Text(
                             'Kapitał',
                             style: TextStyle(
-                              color: AppTheme.textTertiary,
+                              color: AppThemePro.textTertiary,
                               fontSize: 12,
                             ),
                           ),
@@ -3204,7 +3331,7 @@ class _PremiumInvestorAnalyticsScreenState
                               investor.viableRemainingCapital,
                             ),
                             style: TextStyle(
-                              color: AppTheme.textPrimary,
+                              color: AppThemePro.textPrimary,
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
                             ),
@@ -3219,7 +3346,7 @@ class _PremiumInvestorAnalyticsScreenState
                           Text(
                             'Udział',
                             style: TextStyle(
-                              color: AppTheme.textTertiary,
+                              color: AppThemePro.textTertiary,
                               fontSize: 12,
                             ),
                           ),
@@ -3227,7 +3354,7 @@ class _PremiumInvestorAnalyticsScreenState
                           Text(
                             '${percentage.toStringAsFixed(1)}%',
                             style: TextStyle(
-                              color: AppTheme.textPrimary,
+                              color: AppThemePro.textPrimary,
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
                             ),
@@ -3244,7 +3371,7 @@ class _PremiumInvestorAnalyticsScreenState
                     Text(
                       'Skumulowany udział:',
                       style: TextStyle(
-                        color: AppTheme.textTertiary,
+                        color: AppThemePro.textTertiary,
                         fontSize: 12,
                       ),
                     ),
@@ -3252,8 +3379,8 @@ class _PremiumInvestorAnalyticsScreenState
                       '${cumulativePercentage.toStringAsFixed(1)}%',
                       style: TextStyle(
                         color: cumulativePercentage >= _majorityThreshold
-                            ? AppTheme.successPrimary
-                            : AppTheme.warningPrimary,
+                            ? AppThemePro.statusSuccess
+                            : AppThemePro.statusWarning,
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
                       ),
@@ -3275,14 +3402,14 @@ class _PremiumInvestorAnalyticsScreenState
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: AppTheme.secondaryGold.withOpacity(0.1),
+            color: AppThemePro.accentGold.withOpacity(0.1),
             borderRadius: BorderRadius.circular(24),
           ),
           child: Center(
             child: Text(
               '#$position',
               style: TextStyle(
-                color: AppTheme.secondaryGold,
+                color: AppThemePro.accentGold,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
@@ -3292,7 +3419,7 @@ class _PremiumInvestorAnalyticsScreenState
         title: Text(
           investor.client.name,
           style: TextStyle(
-            color: AppTheme.textPrimary,
+            color: AppThemePro.textPrimary,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -3301,14 +3428,14 @@ class _PremiumInvestorAnalyticsScreenState
           children: [
             Text(
               'Kapitał: ${CurrencyFormatter.formatCurrencyShort(investor.viableRemainingCapital)}',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+              style: TextStyle(color: AppThemePro.textSecondary, fontSize: 12),
             ),
             Text(
               'Skumulowane: ${cumulativePercentage.toStringAsFixed(1)}%',
               style: TextStyle(
                 color: cumulativePercentage >= _majorityThreshold
-                    ? AppTheme.successPrimary
-                    : AppTheme.textTertiary,
+                    ? AppThemePro.statusSuccess
+                    : AppThemePro.textTertiary,
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
               ),
@@ -3322,14 +3449,14 @@ class _PremiumInvestorAnalyticsScreenState
             Text(
               '${percentage.toStringAsFixed(2)}%',
               style: TextStyle(
-                color: AppTheme.secondaryGold,
+                color: AppThemePro.accentGold,
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
             ),
             Text(
               'kontroli',
-              style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
+              style: TextStyle(color: AppThemePro.textTertiary, fontSize: 12),
             ),
           ],
         ),
@@ -3378,7 +3505,7 @@ class _PremiumInvestorAnalyticsScreenState
         Text(
           'Informacje kontaktowe',
           style: TextStyle(
-            color: AppTheme.textPrimary,
+            color: AppThemePro.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -3387,7 +3514,7 @@ class _PremiumInvestorAnalyticsScreenState
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.backgroundTertiary,
+            color: AppThemePro.backgroundTertiary,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
@@ -3419,7 +3546,7 @@ class _PremiumInvestorAnalyticsScreenState
                   Icons.warning_rounded,
                   'Niewykonalne inwestycje',
                   '${investor.client.unviableInvestments.length}',
-                  AppTheme.warningPrimary,
+                  AppThemePro.statusWarning,
                 ),
               ],
             ],
@@ -3437,18 +3564,18 @@ class _PremiumInvestorAnalyticsScreenState
   ]) {
     return Row(
       children: [
-        Icon(icon, color: AppTheme.textSecondary, size: 16),
+        Icon(icon, color: AppThemePro.textSecondary, size: 16),
         const SizedBox(width: 8),
         Text(
           '$label:',
-          style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+          style: TextStyle(color: AppThemePro.textSecondary, fontSize: 14),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             value,
             style: TextStyle(
-              color: valueColor ?? AppTheme.textPrimary,
+              color: valueColor ?? AppThemePro.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -3471,7 +3598,7 @@ class _PremiumInvestorAnalyticsScreenState
         Text(
           'Statystyki finansowe',
           style: TextStyle(
-            color: AppTheme.textPrimary,
+            color: AppThemePro.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -3486,7 +3613,7 @@ class _PremiumInvestorAnalyticsScreenState
                   investor.viableRemainingCapital,
                 ),
                 Icons.account_balance_rounded,
-                AppTheme.successPrimary,
+                AppThemePro.statusSuccess,
               ),
             ),
             const SizedBox(width: 12),
@@ -3495,7 +3622,7 @@ class _PremiumInvestorAnalyticsScreenState
                 'Udział w całości',
                 '${investorShare.toStringAsFixed(2)}%',
                 Icons.pie_chart_rounded,
-                AppTheme.infoPrimary,
+                AppThemePro.accentGold,
               ),
             ),
           ],
@@ -3510,7 +3637,7 @@ class _PremiumInvestorAnalyticsScreenState
                   investor.totalInvestmentAmount,
                 ),
                 Icons.account_balance_wallet_rounded,
-                AppTheme.primaryAccent,
+                AppThemePro.accentGold,
               ),
             ),
             const SizedBox(width: 12),
@@ -3519,7 +3646,7 @@ class _PremiumInvestorAnalyticsScreenState
                 'Liczba inwestycji',
                 investor.investmentCount.toString(),
                 Icons.list_alt_rounded,
-                AppTheme.warningPrimary,
+                AppThemePro.statusWarning,
               ),
             ),
           ],
@@ -3537,7 +3664,7 @@ class _PremiumInvestorAnalyticsScreenState
                       : 0,
                 ),
                 Icons.calculate_rounded,
-                AppTheme.secondaryGold,
+                AppThemePro.accentGold,
               ),
             ),
             const SizedBox(width: 12),
@@ -3546,7 +3673,7 @@ class _PremiumInvestorAnalyticsScreenState
                 'Zwrot kapitału',
                 CurrencyFormatter.formatCurrency(investor.totalRealizedCapital),
                 Icons.trending_up_rounded,
-                AppTheme.successPrimary,
+                AppThemePro.statusSuccess,
               ),
             ),
           ],
@@ -3564,7 +3691,7 @@ class _PremiumInvestorAnalyticsScreenState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundTertiary,
+        color: AppThemePro.backgroundTertiary,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
@@ -3579,7 +3706,7 @@ class _PremiumInvestorAnalyticsScreenState
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: AppTheme.textSecondary,
+                    color: AppThemePro.textSecondary,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -3591,7 +3718,7 @@ class _PremiumInvestorAnalyticsScreenState
           Text(
             value,
             style: TextStyle(
-              color: AppTheme.textPrimary,
+              color: AppThemePro.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
@@ -3613,7 +3740,7 @@ class _PremiumInvestorAnalyticsScreenState
                   ? 'Produkty (${_getUniqueProductsCount(investor)})'
                   : 'Inwestycje (${investor.investments.length})',
               style: TextStyle(
-                color: AppTheme.textPrimary,
+                color: AppThemePro.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -3623,13 +3750,13 @@ class _PremiumInvestorAnalyticsScreenState
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryAccent.withOpacity(0.2),
+                  color: AppThemePro.accentGold.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   'DEDUPLIKOWANE',
                   style: TextStyle(
-                    color: AppTheme.primaryAccent,
+                    color: AppThemePro.accentGold,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
@@ -3642,13 +3769,13 @@ class _PremiumInvestorAnalyticsScreenState
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.warningPrimary.withOpacity(0.2),
+                  color: AppThemePro.statusWarning.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${investor.client.unviableInvestments.length} niewykonalne',
                   style: TextStyle(
-                    color: AppTheme.warningPrimary,
+                    color: AppThemePro.statusWarning,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
@@ -3699,14 +3826,14 @@ class _PremiumInvestorAnalyticsScreenState
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.backgroundModal,
+        backgroundColor: AppThemePro.backgroundModal,
         title: Row(
           children: [
-            Icon(Icons.gavel_rounded, color: AppTheme.secondaryGold),
+            Icon(Icons.gavel_rounded, color: AppThemePro.accentGold),
             const SizedBox(width: 12),
             Text(
               'Analiza kontroli większościowej',
-              style: TextStyle(color: AppTheme.textPrimary),
+              style: TextStyle(color: AppThemePro.textPrimary),
             ),
           ],
         ),
@@ -3727,7 +3854,7 @@ class _PremiumInvestorAnalyticsScreenState
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Zamknij',
-              style: TextStyle(color: AppTheme.textSecondary),
+              style: TextStyle(color: AppThemePro.textSecondary),
             ),
           ),
           ElevatedButton.icon(
@@ -3753,7 +3880,7 @@ class _PremiumInvestorAnalyticsScreenState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundTertiary,
+        color: AppThemePro.backgroundTertiary,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -3762,7 +3889,7 @@ class _PremiumInvestorAnalyticsScreenState
           Text(
             'Kluczowe metryki',
             style: TextStyle(
-              color: AppTheme.textPrimary,
+              color: AppThemePro.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -3784,7 +3911,7 @@ class _PremiumInvestorAnalyticsScreenState
             'Udział w całości:',
             '${majorityPercentage.toStringAsFixed(1)}%',
           ),
-          const Divider(color: AppTheme.borderSecondary),
+          const Divider(color: AppThemePro.borderSecondary),
           Row(
             children: [
               Icon(
@@ -3792,8 +3919,8 @@ class _PremiumInvestorAnalyticsScreenState
                     ? Icons.check_circle
                     : Icons.warning,
                 color: majorityPercentage >= _majorityThreshold
-                    ? AppTheme.successPrimary
-                    : AppTheme.warningPrimary,
+                    ? AppThemePro.statusSuccess
+                    : AppThemePro.statusWarning,
                 size: 16,
               ),
               const SizedBox(width: 8),
@@ -3804,8 +3931,8 @@ class _PremiumInvestorAnalyticsScreenState
                       : 'Grupa nie osiąga progu większości',
                   style: TextStyle(
                     color: majorityPercentage >= _majorityThreshold
-                        ? AppTheme.successPrimary
-                        : AppTheme.warningPrimary,
+                        ? AppThemePro.statusSuccess
+                        : AppThemePro.statusWarning,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -3823,11 +3950,11 @@ class _PremiumInvestorAnalyticsScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: AppTheme.textSecondary)),
+          Text(label, style: TextStyle(color: AppThemePro.textSecondary)),
           Text(
             value,
             style: TextStyle(
-              color: AppTheme.textPrimary,
+              color: AppThemePro.textPrimary,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -3845,7 +3972,7 @@ class _PremiumInvestorAnalyticsScreenState
           Text(
             'Lista posiadaczy większości (${_majorityHolders.length})',
             style: TextStyle(
-              color: AppTheme.textPrimary,
+              color: AppThemePro.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -3866,20 +3993,20 @@ class _PremiumInvestorAnalyticsScreenState
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.backgroundSecondary,
+                    color: AppThemePro.backgroundSecondary,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
                       CircleAvatar(
                         radius: 16,
-                        backgroundColor: AppTheme.secondaryGold.withOpacity(
+                        backgroundColor: AppThemePro.accentGold.withOpacity(
                           0.2,
                         ),
                         child: Text(
                           '${index + 1}',
                           style: TextStyle(
-                            color: AppTheme.secondaryGold,
+                            color: AppThemePro.accentGold,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -3893,14 +4020,14 @@ class _PremiumInvestorAnalyticsScreenState
                             Text(
                               holder.client.name,
                               style: TextStyle(
-                                color: AppTheme.textPrimary,
+                                color: AppThemePro.textPrimary,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                             Text(
                               '${CurrencyFormatter.formatCurrencyShort(holder.viableRemainingCapital)} (${percentage.toStringAsFixed(1)}%)',
                               style: TextStyle(
-                                color: AppTheme.textSecondary,
+                                color: AppThemePro.textSecondary,
                                 fontSize: 12,
                               ),
                             ),
@@ -3941,14 +4068,14 @@ class _PremiumInvestorAnalyticsScreenState
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.backgroundModal,
+        backgroundColor: AppThemePro.backgroundModal,
         title: Row(
           children: [
-            Icon(Icons.poll_rounded, color: AppTheme.secondaryGold),
+            Icon(Icons.poll_rounded, color: AppThemePro.accentGold),
             const SizedBox(width: 12),
             Text(
               'Analiza rozkładu głosowania',
-              style: TextStyle(color: AppTheme.textPrimary),
+              style: TextStyle(color: AppThemePro.textPrimary),
             ),
           ],
         ),
@@ -3970,7 +4097,7 @@ class _PremiumInvestorAnalyticsScreenState
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Zamknij',
-              style: TextStyle(color: AppTheme.textSecondary),
+              style: TextStyle(color: AppThemePro.textSecondary),
             ),
           ),
           ElevatedButton.icon(
@@ -3988,7 +4115,7 @@ class _PremiumInvestorAnalyticsScreenState
       height: 250,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundTertiary,
+        color: AppThemePro.backgroundTertiary,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -3996,7 +4123,7 @@ class _PremiumInvestorAnalyticsScreenState
           Text(
             'Rozkład kapitału głosującego',
             style: TextStyle(
-              color: AppTheme.textPrimary,
+              color: AppThemePro.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -4020,7 +4147,7 @@ class _PremiumInvestorAnalyticsScreenState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundTertiary,
+        color: AppThemePro.backgroundTertiary,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -4029,7 +4156,7 @@ class _PremiumInvestorAnalyticsScreenState
           Text(
             'Podsumowanie głosowania',
             style: TextStyle(
-              color: AppTheme.textPrimary,
+              color: AppThemePro.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -4059,7 +4186,7 @@ class _PremiumInvestorAnalyticsScreenState
       child: Text(
         text,
         style: TextStyle(
-          color: AppTheme.textSecondary,
+          color: AppThemePro.textSecondary,
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
@@ -4097,7 +4224,7 @@ class _PremiumInvestorAnalyticsScreenState
                 const SizedBox(width: 8),
                 Text(
                   status.displayName,
-                  style: TextStyle(color: AppTheme.textPrimary, fontSize: 12),
+                  style: TextStyle(color: AppThemePro.textPrimary, fontSize: 12),
                 ),
               ],
             ),
@@ -4106,7 +4233,7 @@ class _PremiumInvestorAnalyticsScreenState
             padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
             child: Text(
               CurrencyFormatter.formatCurrencyShort(capital),
-              style: TextStyle(color: AppTheme.textPrimary, fontSize: 12),
+              style: TextStyle(color: AppThemePro.textPrimary, fontSize: 12),
             ),
           ),
           Padding(
@@ -4114,7 +4241,7 @@ class _PremiumInvestorAnalyticsScreenState
             child: Text(
               '${percentage.toStringAsFixed(1)}%',
               style: TextStyle(
-                color: AppTheme.textPrimary,
+                color: AppThemePro.textPrimary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -4124,7 +4251,7 @@ class _PremiumInvestorAnalyticsScreenState
             padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
             child: Text(
               count.toString(),
-              style: TextStyle(color: AppTheme.textPrimary, fontSize: 12),
+              style: TextStyle(color: AppThemePro.textPrimary, fontSize: 12),
             ),
           ),
         ],
@@ -4138,7 +4265,7 @@ class _PremiumInvestorAnalyticsScreenState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundTertiary,
+        color: AppThemePro.backgroundTertiary,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -4148,14 +4275,14 @@ class _PremiumInvestorAnalyticsScreenState
             children: [
               Icon(
                 Icons.lightbulb_rounded,
-                color: AppTheme.secondaryGold,
+                color: AppThemePro.accentGold,
                 size: 20,
               ),
               const SizedBox(width: 8),
               Text(
                 'Kluczowe spostrzeżenia',
                 style: TextStyle(
-                  color: AppTheme.textPrimary,
+                  color: AppThemePro.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -4183,7 +4310,7 @@ class _PremiumInvestorAnalyticsScreenState
                         child: Text(
                           insight.text,
                           style: TextStyle(
-                            color: AppTheme.textSecondary,
+                            color: AppThemePro.textSecondary,
                             fontSize: 13,
                             height: 1.4,
                           ),
@@ -4210,21 +4337,21 @@ class _PremiumInvestorAnalyticsScreenState
       insights.add(
         _Insight(
           'Większość kapitału głosuje ZA - decyzja może zostać podjęta',
-          AppTheme.successPrimary,
+          AppThemePro.statusSuccess,
         ),
       );
     } else if (noPercentage >= 51.0) {
       insights.add(
         _Insight(
           'Większość kapitału głosuje NIE - propozycja zostanie odrzucona',
-          AppTheme.errorPrimary,
+          AppThemePro.statusError,
         ),
       );
     } else {
       insights.add(
         _Insight(
           'Brak większości - wynik zależy od niezdecydowanych głosów',
-          AppTheme.warningPrimary,
+          AppThemePro.statusWarning,
         ),
       );
     }
@@ -4233,7 +4360,7 @@ class _PremiumInvestorAnalyticsScreenState
       insights.add(
         _Insight(
           'Znaczący udział niezdecydowanych inwestorów (${undecidedPercentage.toStringAsFixed(1)}%) - warto kontynuować kampanię informacyjną',
-          AppTheme.infoPrimary,
+          AppThemePro.accentGold,
         ),
       );
     }
@@ -4300,7 +4427,7 @@ class _PremiumInvestorAnalyticsScreenState
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: AppTheme.successPrimary,
+        backgroundColor: AppThemePro.statusSuccess,
       ),
     );
   }
@@ -4308,7 +4435,7 @@ class _PremiumInvestorAnalyticsScreenState
   void _showErrorSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppTheme.errorPrimary),
+      SnackBar(content: Text(message), backgroundColor: AppThemePro.statusError),
     );
   }
 
@@ -4329,25 +4456,25 @@ class _PremiumInvestorAnalyticsScreenState
           'ROI Średni',
           metrics['avgROI']!,
           Icons.trending_up_rounded,
-          AppTheme.successPrimary,
+          AppThemePro.statusSuccess,
         ),
         _buildPerformanceCard(
           'Najwyższy ROI',
           metrics['maxROI']!,
           Icons.star_rounded,
-          AppTheme.secondaryGold,
+          AppThemePro.accentGold,
         ),
         _buildPerformanceCard(
           'Efektywność',
           metrics['efficiency']!,
           Icons.speed_rounded,
-          AppTheme.infoPrimary,
+          AppThemePro.accentGold,
         ),
         _buildPerformanceCard(
           'Współczynnik Sharpe',
           metrics['sharpeRatio']!,
           Icons.analytics_rounded,
-          AppTheme.warningPrimary,
+          AppThemePro.statusWarning,
         ),
       ],
     );
@@ -4362,7 +4489,7 @@ class _PremiumInvestorAnalyticsScreenState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundTertiary,
+        color: AppThemePro.backgroundTertiary,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
@@ -4378,7 +4505,7 @@ class _PremiumInvestorAnalyticsScreenState
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: AppTheme.textSecondary,
+                    color: AppThemePro.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -4390,7 +4517,7 @@ class _PremiumInvestorAnalyticsScreenState
           Text(
             value,
             style: TextStyle(
-              color: AppTheme.textPrimary,
+              color: AppThemePro.textPrimary,
               fontSize: _isTablet ? 20 : 18,
               fontWeight: FontWeight.w700,
             ),
@@ -4405,7 +4532,7 @@ class _PremiumInvestorAnalyticsScreenState
       height: 180,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundTertiary,
+        color: AppThemePro.backgroundTertiary,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -4414,7 +4541,7 @@ class _PremiumInvestorAnalyticsScreenState
           Text(
             'Rozkład wydajności portfela',
             style: TextStyle(
-              color: AppTheme.textPrimary,
+              color: AppThemePro.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -4452,13 +4579,13 @@ class _PremiumInvestorAnalyticsScreenState
             const SizedBox(height: 8),
             Text(
               category,
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 10),
+              style: TextStyle(color: AppThemePro.textSecondary, fontSize: 10),
               textAlign: TextAlign.center,
             ),
             Text(
               '${performance.toStringAsFixed(1)}%',
               style: TextStyle(
-                color: AppTheme.textPrimary,
+                color: AppThemePro.textPrimary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -4504,9 +4631,9 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Color _getPerformanceColor(double performance) {
-    if (performance >= 15) return AppTheme.successPrimary;
-    if (performance >= 10) return AppTheme.warningPrimary;
-    return AppTheme.errorPrimary;
+    if (performance >= 15) return AppThemePro.statusSuccess;
+    if (performance >= 10) return AppThemePro.statusWarning;
+    return AppThemePro.statusError;
   }
 
   Widget _buildTrendMetrics() {
@@ -4519,7 +4646,7 @@ class _PremiumInvestorAnalyticsScreenState
             'Wzrost kapitału',
             metrics['capitalGrowth']!,
             Icons.trending_up_rounded,
-            AppTheme.successPrimary,
+            AppThemePro.statusSuccess,
           ),
         ),
         const SizedBox(width: 12),
@@ -4528,7 +4655,7 @@ class _PremiumInvestorAnalyticsScreenState
             'Nowi inwestorzy',
             metrics['newInvestors']!,
             Icons.person_add_rounded,
-            AppTheme.infoPrimary,
+            AppThemePro.accentGold,
           ),
         ),
         const SizedBox(width: 12),
@@ -4537,7 +4664,7 @@ class _PremiumInvestorAnalyticsScreenState
             'Średnia inwestycja',
             metrics['avgInvestment']!,
             Icons.account_balance_rounded,
-            AppTheme.warningPrimary,
+            AppThemePro.statusWarning,
           ),
         ),
       ],
@@ -4553,7 +4680,7 @@ class _PremiumInvestorAnalyticsScreenState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundTertiary,
+        color: AppThemePro.backgroundTertiary,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
@@ -4568,7 +4695,7 @@ class _PremiumInvestorAnalyticsScreenState
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: AppTheme.textSecondary,
+                    color: AppThemePro.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -4580,7 +4707,7 @@ class _PremiumInvestorAnalyticsScreenState
           Text(
             value,
             style: TextStyle(
-              color: AppTheme.textPrimary,
+              color: AppThemePro.textPrimary,
               fontSize: _isTablet ? 18 : 16,
               fontWeight: FontWeight.w700,
             ),
@@ -4597,7 +4724,7 @@ class _PremiumInvestorAnalyticsScreenState
       height: 200,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundTertiary,
+        color: AppThemePro.backgroundTertiary,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -4606,7 +4733,7 @@ class _PremiumInvestorAnalyticsScreenState
           Text(
             'Trend kapitału w czasie',
             style: TextStyle(
-              color: AppTheme.textPrimary,
+              color: AppThemePro.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -4696,6 +4823,104 @@ class _PremiumInvestorAnalyticsScreenState
         ),
       );
     }
+  }
+
+  void _toggleEmailMode() {
+    setState(() {
+      _isEmailMode = !_isEmailMode;
+      if (_isEmailMode) {
+        _isSelectionMode = true;
+        _selectedInvestorIds.clear();
+        _tabController.animateTo(1); // Przejdź na tab "Inwestorzy"
+        // Wyłącz tryb eksportu jeśli był aktywny
+        _isExportMode = false;
+      } else {
+        _isSelectionMode = false;
+        _selectedInvestorIds.clear();
+      }
+    });
+
+    if (_isEmailMode) {
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Tryb email aktywny - wybierz odbiorców wiadomości',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: AppThemePro.accentGold,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Anuluj',
+            textColor: AppThemePro.primaryDark,
+            onPressed: _toggleEmailMode,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _showEmailDialog() {
+    // Sprawdź czy wybrano odbiorców
+    if (_selectedInvestorIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '❌ Najpierw wybierz odbiorców maili\n💡 Użyj trybu email aby wybrać inwestorów',
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+
+      // Automatycznie włącz tryb email jeśli nie jest włączony
+      if (!_isEmailMode && !_isSelectionMode) {
+        print(
+          '🔧 [_showEmailDialog] Automatycznie włączam tryb email',
+        );
+        _toggleEmailMode();
+      }
+
+      return;
+    }
+
+    // Filtruj inwestorów z prawidłowymi emailami
+    final investorsWithEmail = _selectedInvestors
+        .where((investor) => 
+            investor.client.email != null && 
+            investor.client.email!.isNotEmpty &&
+            RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(investor.client.email!))
+        .toList();
+
+    if (investorsWithEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '❌ Wybrani inwestorzy nie mają prawidłowych adresów email',
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => EnhancedEmailEditorDialog(
+        selectedInvestors: investorsWithEmail,
+        onEmailSent: () {
+          Navigator.of(context).pop();
+          _toggleEmailMode(); // Zakończ tryb email
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Emaile zostały wysłane'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _showExportFormatDialog() {
@@ -5079,13 +5304,13 @@ class TrendChartPainter extends CustomPainter {
     if (data.isEmpty) return;
 
     final paint = Paint()
-      ..color = AppTheme.secondaryGold
+      ..color = AppThemePro.accentGold
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
     final fillPaint = Paint()
-      ..color = AppTheme.secondaryGold.withOpacity(0.1)
+      ..color = AppThemePro.accentGold.withOpacity(0.1)
       ..style = PaintingStyle.fill;
 
     final path = Path();
@@ -5125,7 +5350,7 @@ class TrendChartPainter extends CustomPainter {
 
     // Narysuj punkty
     final pointPaint = Paint()
-      ..color = AppTheme.secondaryGold
+      ..color = AppThemePro.accentGold
       ..style = PaintingStyle.fill;
 
     for (final point in data) {
@@ -5209,7 +5434,7 @@ class VotingPieChartPainter extends CustomPainter {
 
     // Narysuj obramowanie
     final borderPaint = Paint()
-      ..color = AppTheme.borderSecondary
+      ..color = AppThemePro.borderSecondary
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
@@ -5219,13 +5444,13 @@ class VotingPieChartPainter extends CustomPainter {
   Color _getVotingStatusColorForPainter(VotingStatus status) {
     switch (status) {
       case VotingStatus.yes:
-        return AppTheme.successPrimary;
+        return AppThemePro.statusSuccess;
       case VotingStatus.no:
-        return AppTheme.errorPrimary;
+        return AppThemePro.statusError;
       case VotingStatus.abstain:
-        return AppTheme.warningPrimary;
+        return AppThemePro.statusWarning;
       case VotingStatus.undecided:
-        return AppTheme.textTertiary;
+        return AppThemePro.textTertiary;
     }
   }
 
@@ -5281,11 +5506,11 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: hasUnviable
-                  ? AppTheme.warningPrimary.withOpacity(0.1)
-                  : AppTheme.backgroundTertiary,
+                  ? AppThemePro.statusWarning.withOpacity(0.1)
+                  : AppThemePro.backgroundTertiary,
               borderRadius: BorderRadius.circular(8),
               border: hasUnviable
-                  ? Border.all(color: AppTheme.warningPrimary.withOpacity(0.3))
+                  ? Border.all(color: AppThemePro.statusWarning.withOpacity(0.3))
                   : null,
             ),
             child: Row(
@@ -5295,8 +5520,8 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
                   height: 8,
                   decoration: BoxDecoration(
                     color: hasUnviable
-                        ? AppTheme.warningPrimary
-                        : AppTheme.successPrimary,
+                        ? AppThemePro.statusWarning
+                        : AppThemePro.statusSuccess,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -5311,7 +5536,7 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
                             child: Text(
                               firstInvestment.productName,
                               style: TextStyle(
-                                color: AppTheme.textPrimary,
+                                color: AppThemePro.textPrimary,
                                 fontWeight: FontWeight.w500,
                                 fontSize: 13,
                               ),
@@ -5323,13 +5548,13 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryAccent.withOpacity(0.2),
+                              color: AppThemePro.accentGold.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               '${productInvestments.length}x',
                               style: TextStyle(
-                                color: AppTheme.primaryAccent,
+                                color: AppThemePro.accentGold,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -5340,7 +5565,7 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
                       Text(
                         '${firstInvestment.creditorCompany} • ${firstInvestment.productType.displayName}',
                         style: TextStyle(
-                          color: AppTheme.textSecondary,
+                          color: AppThemePro.textSecondary,
                           fontSize: 11,
                         ),
                       ),
@@ -5353,7 +5578,7 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
                     Text(
                       CurrencyFormatter.formatCurrencyShort(totalCapital),
                       style: TextStyle(
-                        color: AppTheme.textPrimary,
+                        color: AppThemePro.textPrimary,
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                       ),
@@ -5362,7 +5587,7 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
                       Text(
                         'CZĘŚĆ NIEWYKONALNA',
                         style: TextStyle(
-                          color: AppTheme.warningPrimary,
+                          color: AppThemePro.statusWarning,
                           fontSize: 9,
                           fontWeight: FontWeight.w600,
                         ),
@@ -5395,11 +5620,11 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: isUnviable
-                  ? AppTheme.warningPrimary.withOpacity(0.1)
-                  : AppTheme.backgroundTertiary,
+                  ? AppThemePro.statusWarning.withOpacity(0.1)
+                  : AppThemePro.backgroundTertiary,
               borderRadius: BorderRadius.circular(8),
               border: isUnviable
-                  ? Border.all(color: AppTheme.warningPrimary.withOpacity(0.3))
+                  ? Border.all(color: AppThemePro.statusWarning.withOpacity(0.3))
                   : null,
             ),
             child: Row(
@@ -5409,8 +5634,8 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
                   height: 8,
                   decoration: BoxDecoration(
                     color: isUnviable
-                        ? AppTheme.warningPrimary
-                        : AppTheme.successPrimary,
+                        ? AppThemePro.statusWarning
+                        : AppThemePro.statusSuccess,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -5422,7 +5647,7 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
                       Text(
                         investment.productName,
                         style: TextStyle(
-                          color: AppTheme.textPrimary,
+                          color: AppThemePro.textPrimary,
                           fontWeight: FontWeight.w500,
                           fontSize: 13,
                         ),
@@ -5430,7 +5655,7 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
                       Text(
                         '${investment.creditorCompany} • ${investment.productType.displayName}',
                         style: TextStyle(
-                          color: AppTheme.textSecondary,
+                          color: AppThemePro.textSecondary,
                           fontSize: 11,
                         ),
                       ),
@@ -5445,7 +5670,7 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
                         investment.remainingCapital,
                       ),
                       style: TextStyle(
-                        color: AppTheme.textPrimary,
+                        color: AppThemePro.textPrimary,
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                       ),
@@ -5454,7 +5679,7 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
                       Text(
                         'NIEWYKONALNA',
                         style: TextStyle(
-                          color: AppTheme.warningPrimary,
+                          color: AppThemePro.statusWarning,
                           fontSize: 9,
                           fontWeight: FontWeight.w600,
                         ),

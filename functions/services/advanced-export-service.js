@@ -13,7 +13,14 @@
  * 
  * 📦 WYMAGANE ZALEŻNOŚCI:
  * • exceljs: Generowanie prawdziwych plików Excel
- * • pdfkit: Generowanie prawdziwych plików PDF  
+ * • pdfkit: Generowanie praw  // Nagłówki zgodne z nowym formatem
+  let csvContent = 'Inwestor - Produkt - Typ,Data wejścia,Kwota inwestycji,Kapitał pozostały,Kapitał zabezpieczony nieruchomością,Kapitał do restrukturyzacji\n';
+
+  investorsData.forEach(investor => {
+    // Dodaj każdą inwestycję jako osobny wiersz
+    investor.investmentDetails.forEach(detail => {
+      csvContent += `"${detail.displayName}","${detail.investmentEntryDate}",${detail.investmentAmount},${detail.remainingCapital},${detail.capitalSecuredByRealEstate},${detail.capitalForRestructuring}\n`;
+    });plików PDF  
  * • docx: Generowanie prawdziwych plików Word
  */
 
@@ -310,8 +317,6 @@ function createInvestorSummary(clientId, investments) {
   return {
     clientId,
     clientName,
-    email: firstInvestment.email || '',
-    phone: firstInvestment.telefon || firstInvestment.phone || '',
     investmentCount: investments.length,
     totalInvestmentAmount: totalInvestment,
     totalRemainingCapital: totalRemaining,
@@ -347,7 +352,15 @@ async function generatePDFExport(investorsData, templateType, options, currentDa
 
   try {
     const PDFDocument = require('pdfkit');
-    const doc = new PDFDocument();
+    const doc = new PDFDocument({
+      bufferPages: true,
+      compress: false,
+      info: {
+        Title: 'Metropolitan Investment - Raport Inwestorów',
+        Author: 'Metropolitan Investment',
+        CreationDate: new Date()
+      }
+    });
     
     // Buffer do zbierania danych PDF
     const buffers = [];
@@ -371,12 +384,7 @@ async function generatePDFExport(investorsData, templateType, options, currentDa
 
       // Informacje o inwestorze
       doc.fontSize(14).text(`${index + 1}. INWESTOR: ${investor.clientName}`, 50, yPosition);
-      yPosition += 20;
-      
-      doc.fontSize(10)
-        .text(`Email: ${investor.email}`, 70, yPosition)
-        .text(`Telefon: ${investor.phone}`, 70, yPosition + 15);
-      yPosition += 40;
+      yPosition += 30;
 
       doc.fontSize(12).text(`INWESTYCJE (${investor.investmentCount}):`, 50, yPosition);
       yPosition += 20;
@@ -469,8 +477,6 @@ Liczba inwestorów: ${investorsData.length}
   investorsData.forEach((investor, index) => {
     content += `
 ${index + 1}. INWESTOR: ${investor.clientName}
-   Email: ${investor.email}
-   Telefon: ${investor.phone}
 
    INWESTYCJE (${investor.investmentCount}):
 `;
@@ -520,9 +526,7 @@ async function generateExcelExport(investorsData, templateType, options, current
       'Kwota inwestycji',
       'Kapitał pozostały',
       'Kapitał zabezpieczony nieruchomością',
-      'Kapitał do restrukturyzacji',
-      'Email inwestora',
-      'Telefon inwestora'
+      'Kapitał do restrukturyzacji'
     ];
 
     // Dodaj nagłówki
@@ -546,9 +550,7 @@ async function generateExcelExport(investorsData, templateType, options, current
           detail.investmentAmount,
           detail.remainingCapital,
           detail.capitalSecuredByRealEstate,
-          detail.capitalForRestructuring,
-          investor.email,
-          investor.phone
+          detail.capitalForRestructuring
         ]);
       });
     });
@@ -596,12 +598,12 @@ async function generateExcelExport(investorsData, templateType, options, current
  */
 function generateExcelContent(investorsData, templateType, options) {
   // Nagłówki zgodne z nowym formatem
-  let csvContent = 'Inwestor - Produkt - Typ,Data wejścia,Kwota inwestycji,Kapitał pozostały,Kapitał zabezpieczony nieruchomością,Kapitał do restrukturyzacji,Email inwestora,Telefon inwestora\n';
+  let csvContent = 'Inwestor - Produkt - Typ,Data wejścia,Kwota inwestycji,Kapitał pozostały,Kapitał zabezpieczony nieruchomością,Kapitał do restrukturyzacji\n';
 
   investorsData.forEach(investor => {
     // Dodaj każdą inwestycję jako osobny wiersz
     investor.investmentDetails.forEach(detail => {
-      csvContent += `"${detail.displayName}","${detail.investmentEntryDate}",${detail.investmentAmount},${detail.remainingCapital},${detail.capitalSecuredByRealEstate},${detail.capitalForRestructuring},"${investor.email}","${investor.phone}"\n`;
+      csvContent += `"${detail.displayName}","${detail.investmentEntryDate}",${detail.investmentAmount},${detail.remainingCapital},${detail.capitalSecuredByRealEstate},${detail.capitalForRestructuring}\n`;
     });
   });
 
@@ -673,14 +675,6 @@ async function generateWordExport(investorsData, templateType, options, currentD
                   text: `${index + 1}. INWESTOR: ${investor.clientName}`,
                   bold: true
                 })
-              ]
-            }),
-
-            new Paragraph({
-              children: [
-                new TextRun(`Email: ${investor.email}`),
-                new TextRun({ text: " | ", bold: true }),
-                new TextRun(`Telefon: ${investor.phone}`)
               ]
             }),
 
@@ -798,8 +792,6 @@ Data: ${new Date().toLocaleString('pl-PL')}
 
   investorsData.forEach((investor, index) => {
     content += `${index + 1}. INWESTOR: ${investor.clientName}
-Email: ${investor.email}
-Telefon: ${investor.phone}
 
 INWESTYCJE (${investor.investmentCount}):
 

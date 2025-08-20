@@ -259,6 +259,92 @@ class EmailAndExportService extends BaseService {
     
     return results;
   }
+
+  /// Wysyła niestandardowe maile HTML do wielu klientów z edytora Quill
+  Future<List<EmailSendResult>> sendCustomEmailsToMultipleClients({
+    required List<InvestorSummary> investors,
+    String? subject,
+    required String htmlContent,
+    bool includeInvestmentDetails = false,
+    required String senderEmail,
+    String senderName = 'Metropolitan Investment',
+  }) async {
+    const String cacheKey = 'send_custom_emails';
+    
+    try {
+      // Walidacja danych wejściowych
+      if (investors.isEmpty) {
+        throw Exception('Lista inwestorów nie może być pusta');
+      }
+
+      if (senderEmail.isEmpty) {
+        throw Exception('Wymagany jest email wysyłającego');
+      }
+
+      if (htmlContent.isEmpty) {
+        throw Exception('Treść email nie może być pusta');
+      }
+
+      // Przygotuj dane do wysłania do Firebase Functions
+      final functionData = {
+        'recipients': investors.map((investor) => {
+          'clientId': investor.client.id,
+          'clientEmail': investor.client.email ?? '',
+          'clientName': investor.client.name,
+          'investmentCount': investor.investmentCount,
+          'totalAmount': investor.totalRemainingCapital,
+        }).toList(),
+        'htmlContent': htmlContent,
+        'subject': subject ?? 'Wiadomość od $senderName',
+        'includeInvestmentDetails': includeInvestmentDetails,
+        'senderEmail': senderEmail,
+        'senderName': senderName,
+      };
+
+      logDebug('sendCustomEmailsToMultipleClients', 'Wysyłam ${investors.length} niestandardowych maili');
+
+      // Wywołaj Firebase Functions
+      final result = await FirebaseFunctions.instanceFor(region: 'europe-west1')
+          .httpsCallable('sendCustomHtmlEmailsToMultipleClients')
+          .call(functionData);
+
+      logDebug('sendCustomEmailsToMultipleClients', 'Maile niestandardowe wysłane pomyślnie');
+
+      // Przetwórz wynik
+      final data = result.data as Map<String, dynamic>;
+      
+      if (data['success'] == true) {
+        clearCache(cacheKey);
+        
+        final results = <EmailSendResult>[];
+        final resultsList = data['results'] as List<dynamic>? ?? [];
+        
+        for (final resultData in resultsList) {
+          results.add(EmailSendResult.fromJson(resultData as Map<String, dynamic>));
+        }
+        
+        return results;
+      } else {
+        throw Exception('Wysyłanie maili nie powiodło się: ${data['error'] ?? 'Nieznany błąd'}');
+      }
+
+    } catch (e) {
+      logError('sendCustomEmailsToMultipleClients', e);
+      
+      // Zwróć listę błędów dla każdego inwestora
+      return investors.map((investor) => EmailSendResult(
+        success: false,
+        messageId: '',
+        clientEmail: investor.client.email ?? '',
+        clientName: investor.client.name,
+        investmentCount: investor.investmentCount,
+        totalAmount: investor.totalRemainingCapital,
+        executionTimeMs: 0,
+        template: 'custom_html',
+        error: e.toString(),
+      )).toList();
+    }
+  }
 }
 
 /// 🎯 Model wyniku wysyłania maila

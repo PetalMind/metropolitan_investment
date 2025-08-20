@@ -275,15 +275,26 @@ function createTransporterFromEnv() {
   // W produkcji należy skonfigurować przez Firebase Config
   // firebase functions:config:set email.smtp_host="smtp.gmail.com" email.smtp_user="your@gmail.com" email.smtp_password="password"
 
+  // Odczytaj konfigurację z Firebase Config lub zmiennych środowiskowych
+  const functions = require('firebase-functions');
+  
+  // Próba odczytu z Firebase Config
+  const emailConfig = functions.config().email || {};
+  
   const config = {
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT) || 587,
+    host: process.env.SMTP_HOST || emailConfig.smtp_host || 'smtp.office365.com',
+    port: parseInt(process.env.SMTP_PORT || emailConfig.smtp_port) || 587,
     secure: false, // true for 465, false for other ports
     auth: {
-      user: process.env.SMTP_USER || 'your-email@example.com',
-      pass: process.env.SMTP_PASSWORD || 'your-app-password'
+      user: process.env.SMTP_USER || emailConfig.smtp_user,
+      pass: process.env.SMTP_PASSWORD || emailConfig.smtp_password
     }
   };
+
+  // Sprawdź czy mamy wymagane dane uwierzytelniania
+  if (!config.auth.user || !config.auth.pass) {
+    throw new Error('Brak konfiguracji SMTP. Skonfiguruj zmienne środowiskowe lub Firebase Config.');
+  }
 
   console.log(`📧 [EmailService] Konfiguracja SMTP (fallback z env): ${config.host}:${config.port} (user: ${config.auth.user})`);
   return nodemailer.createTransport(config);

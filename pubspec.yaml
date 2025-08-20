@@ -92,6 +92,11 @@ dependencies:
   pdf: ^3.11.1
   printing: ^5.13.2
   
+  # Rich text editor
+  flutter_quill: ^11.4.2
+  flutter_localizations:
+    sdk: flutter
+  
   # Responsive UI
   responsive_framework: ^1.5.1
   
