@@ -1856,15 +1856,84 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           _buildSearchAndFilters(),
           if (_isLoading)
             SliverFillRemaining(
-              child: const Center(
-                child: MetropolitanLoadingWidget.products(showProgress: true),
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF1A1B23),
+                      Color(0xFF2A2D3A),
+                    ],
+                  ),
+                ),
+                child: const Center(
+                  child: MetropolitanLoadingWidget.products(showProgress: true),
+                ),
               ),
             )
           else if (_error != null)
             SliverFillRemaining(
-              child: PremiumErrorWidget(
-                error: _error!,
-                onRetry: _loadInitialData,
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF1A1B23),
+                      Color(0xFF2A2D3A),
+                    ],
+                  ),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 80,
+                        color: AppTheme.errorColor,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '⚠️ Wystąpił błąd',
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          _error!,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: AppTheme.textTertiary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _loadInitialData,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Spróbuj ponownie'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.secondaryGold,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             )
           else
@@ -1877,14 +1946,25 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
 
   Widget _buildAppBar() {
     return SliverAppBar(
-      expandedHeight: 120,
+      expandedHeight: 140,
       floating: false,
       pinned: true,
       backgroundColor: AppTheme.backgroundPrimary,
       elevation: 0,
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
-          decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF1A1B23),
+                Color(0xFF2A2D3A),
+                Color(0xFF1A1B23),
+              ],
+              stops: [0.0, 0.5, 1.0],
+            ),
+          ),
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -1894,27 +1974,51 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                 children: [
                   FadeTransition(
                     opacity: _fadeAnimation,
-                    child: Text(
-                      _isSelectionMode
-                          ? 'Wybrano produktów: ${_selectedProducts.length}'
-                          : 'Zarządzanie Produktami',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            color: AppTheme.textOnPrimary,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.5,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.inventory_2,
+                          color: AppTheme.secondaryGold,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _isSelectionMode
+                                ? 'Wybrano produktów: ${_selectedProducts.length}'
+                                : '🎨 Zarządzanie Produktami',
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  color: AppTheme.textOnPrimary,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: -0.5,
+                                ),
                           ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   FadeTransition(
                     opacity: _fadeAnimation,
-                    child: Text(
-                      _showDeduplicatedView
-                          ? '${_filteredDeduplicatedProducts.length} z ${_deduplicatedProducts.length} unikalnych produktów'
-                          : '${_filteredProducts.length} z ${_allProducts.length} produktów',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.textOnPrimary.withValues(alpha: 0.8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.secondaryGold.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppTheme.secondaryGold.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        _showDeduplicatedView
+                            ? '✨ ${_filteredDeduplicatedProducts.length} z ${_deduplicatedProducts.length} unikalnych produktów'
+                            : '📊 ${_filteredProducts.length} z ${_allProducts.length} produktów',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.secondaryGold,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -1925,20 +2029,39 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         ),
       ),
       actions: [
-        // Email functionality w trybie selekcji
+        // Email functionality w trybie selekcji - Enhanced UI
         if (_isSelectionMode) ...[
-          IconButton(
-            icon: Icon(
-              Icons.email,
-              color: _selectedProducts.isNotEmpty
-                  ? AppTheme.secondaryGold
-                  : AppTheme.textSecondary,
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: ElevatedButton.icon(
+              onPressed: _selectedProducts.isNotEmpty ? _showEmailDialog : null,
+              icon: const Icon(Icons.email, size: 18),
+              label: Text('${_selectedProducts.length}'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _selectedProducts.isNotEmpty 
+                    ? AppTheme.secondaryGold 
+                    : AppTheme.textSecondary.withValues(alpha: 0.3),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                elevation: _selectedProducts.isNotEmpty ? 4 : 0,
+              ),
             ),
-            onPressed: _selectedProducts.isNotEmpty ? _showEmailDialog : null,
-            tooltip: 'Wyślij email do wybranych (${_selectedProducts.length})',
           ),
           IconButton(
-            icon: const Icon(Icons.close, color: AppTheme.secondaryGold),
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppTheme.errorColor.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppTheme.errorColor.withValues(alpha: 0.3),
+                ),
+              ),
+              child: const Icon(Icons.close, color: AppTheme.errorColor, size: 18),
+            ),
             onPressed: () {
               setState(() {
                 _isSelectionMode = false;
@@ -1948,77 +2071,170 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             tooltip: 'Anuluj selekcję',
           ),
         ] else ...[
-          // Przycisk rozpoczęcia selekcji email
+          // Przycisk rozpoczęcia selekcji email - Enhanced UI
           IconButton(
-            icon: const Icon(Icons.email, color: AppTheme.secondaryGold),
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppTheme.secondaryGold.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppTheme.secondaryGold.withValues(alpha: 0.3),
+                ),
+              ),
+              child: const Icon(Icons.email, color: AppTheme.secondaryGold, size: 18),
+            ),
             onPressed: () {
               setState(() {
                 _isSelectionMode = true;
               });
             },
-            tooltip: 'Wybierz produkty do email',
+            tooltip: '📧 Wybierz produkty do email',
           ),
         ],
 
-        // Przełącznik deduplikacji
-        IconButton(
-          icon: Icon(
-            _showDeduplicatedView ? Icons.filter_vintage : Icons.all_inclusive,
-            color: AppTheme.secondaryGold,
-          ),
-          onPressed: () async {
-            setState(() {
-              _showDeduplicatedView = !_showDeduplicatedView;
-              _applyFiltersAndSearch();
-            });
-            HapticFeedback.lightImpact();
+        // Przełącznik deduplikacji - Enhanced UI
+        Container(
+          margin: const EdgeInsets.only(right: 4),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: _showDeduplicatedView 
+                    ? AppTheme.secondaryGold.withValues(alpha: 0.2)
+                    : AppTheme.primaryColor.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _showDeduplicatedView 
+                      ? AppTheme.secondaryGold.withValues(alpha: 0.4)
+                      : AppTheme.primaryColor.withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
+              ),
+              child: Icon(
+                _showDeduplicatedView ? Icons.filter_vintage : Icons.all_inclusive,
+                color: _showDeduplicatedView ? AppTheme.secondaryGold : AppTheme.primaryColor,
+                size: 18,
+              ),
+            ),
+            onPressed: () async {
+              setState(() {
+                _showDeduplicatedView = !_showDeduplicatedView;
+                _applyFiltersAndSearch();
+              });
+              HapticFeedback.lightImpact();
 
-            // 🚀 NOWE: Wyczyść cache liczby inwestorów po przełączeniu trybu
-            try {
-              final investorCountService = UnifiedInvestorCountService();
-              investorCountService.clearAllCache();
-              debugPrint(
-                '✅ [ProductsManagement] Cache liczby inwestorów wyczyszczony',
-              );
-            } catch (e) {
-              debugPrint('⚠️ [ProductsManagement] Błąd czyszczenia cache: $e');
-            }
+              // 🚀 NOWE: Wyczyść cache liczby inwestorów po przełączeniu trybu
+              try {
+                final investorCountService = UnifiedInvestorCountService();
+                investorCountService.clearAllCache();
+                debugPrint(
+                  '✅ [ProductsManagement] Cache liczby inwestorów wyczyszczony',
+                );
+              } catch (e) {
+                debugPrint('⚠️ [ProductsManagement] Błąd czyszczenia cache: $e');
+              }
 
-            // Odśwież statystyki po przełączeniu trybu
-            await _refreshStatistics();
-          },
-          tooltip: _showDeduplicatedView
-              ? 'Pokaż wszystkie inwestycje'
-              : 'Pokaż produkty unikalne',
-        ),
-        IconButton(
-          icon: Icon(
-            _showStatistics ? Icons.analytics_outlined : Icons.analytics,
-            color: AppTheme.secondaryGold,
+              // Odśwież statystyki po przełączeniu trybu
+              await _refreshStatistics();
+            },
+            tooltip: _showDeduplicatedView
+                ? '📋 Pokaż wszystkie inwestycje'
+                : '✨ Pokaż produkty unikalne',
           ),
-          onPressed: () {
-            setState(() {
-              _showStatistics = !_showStatistics;
-            });
-            HapticFeedback.lightImpact();
-          },
-          tooltip: _showStatistics ? 'Ukryj statystyki' : 'Pokaż statystyki',
         ),
-        IconButton(
-          icon: Icon(
-            _viewMode == ViewMode.grid ? Icons.view_list : Icons.grid_view,
-            color: AppTheme.secondaryGold,
+        // Statistics toggle - Enhanced UI
+        Container(
+          margin: const EdgeInsets.only(right: 4),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: _showStatistics 
+                    ? AppTheme.successColor.withValues(alpha: 0.2)
+                    : AppTheme.textSecondary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _showStatistics 
+                      ? AppTheme.successColor.withValues(alpha: 0.4)
+                      : AppTheme.textSecondary.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Icon(
+                _showStatistics ? Icons.analytics : Icons.analytics_outlined,
+                color: _showStatistics ? AppTheme.successColor : AppTheme.textSecondary,
+                size: 18,
+              ),
+            ),
+            onPressed: () {
+              setState(() {
+                _showStatistics = !_showStatistics;
+              });
+              HapticFeedback.lightImpact();
+            },
+            tooltip: _showStatistics ? '📊 Ukryj statystyki' : '📈 Pokaż statystyki',
           ),
-          onPressed: _toggleViewMode,
-          tooltip: 'Zmień widok',
         ),
-        IconButton(
-          icon: Icon(
-            _isRefreshing ? Icons.hourglass_empty : Icons.refresh,
-            color: AppTheme.secondaryGold,
+        // View mode toggle - Enhanced UI
+        Container(
+          margin: const EdgeInsets.only(right: 4),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                ),
+              ),
+              child: Icon(
+                _viewMode == ViewMode.grid ? Icons.view_list : Icons.grid_view,
+                color: AppTheme.primaryColor,
+                size: 18,
+              ),
+            ),
+            onPressed: _toggleViewMode,
+            tooltip: '🔄 Zmień widok',
           ),
-          onPressed: _isRefreshing ? null : _refreshData,
-          tooltip: 'Odśwież dane',
+        ),
+        // Refresh button - Enhanced UI with animation
+        Container(
+          margin: const EdgeInsets.only(right: 4),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: _isRefreshing 
+                    ? AppTheme.warningColor.withValues(alpha: 0.2)
+                    : AppTheme.secondaryGold.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _isRefreshing 
+                      ? AppTheme.warningColor.withValues(alpha: 0.4)
+                      : AppTheme.secondaryGold.withValues(alpha: 0.4),
+                ),
+              ),
+              child: _isRefreshing
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppTheme.warningColor,
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      Icons.refresh,
+                      color: AppTheme.secondaryGold,
+                      size: 18,
+                    ),
+            ),
+            onPressed: _isRefreshing ? null : _refreshData,
+            tooltip: '🔄 Odśwież dane',
+          ),
         ),
         // 🚀 NOWY: Globalne zarządzanie cache
         if (_useProductManagementService)
@@ -2110,47 +2326,104 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Column(
             children: [
-              // Pasek wyszukiwania
+              // Enhanced search bar with gradient border
               Container(
-                decoration: AppTheme.premiumCardDecoration,
-                child: TextField(
-                  controller: _searchController,
-                  style: const TextStyle(color: AppTheme.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'Wyszukaj produkty...',
-                    hintStyle: TextStyle(color: AppTheme.textTertiary),
-                    prefixIcon: const Icon(
-                      Icons.search,
-                      color: AppTheme.secondaryGold,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.secondaryGold.withValues(alpha: 0.3),
+                      AppTheme.primaryColor.withValues(alpha: 0.3),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.shadowColor.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
                     ),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(
-                              Icons.clear,
-                              color: AppTheme.textTertiary,
+                  ],
+                ),
+                child: Container(
+                  margin: const EdgeInsets.all(1),
+                  decoration: BoxDecoration(
+                    color: AppTheme.backgroundSecondary,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(color: AppTheme.textPrimary, fontSize: 16),
+                    decoration: InputDecoration(
+                      hintText: '🔍 Wyszukaj produkty...',
+                      hintStyle: TextStyle(
+                        color: AppTheme.textTertiary,
+                        fontSize: 16,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      prefixIcon: Container(
+                        margin: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondaryGold.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.search,
+                          color: AppTheme.secondaryGold,
+                          size: 20,
+                        ),
+                      ),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.errorColor.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.clear,
+                                  color: AppTheme.errorColor,
+                                  size: 18,
+                                ),
+                              ),
+                              onPressed: () {
+                                _searchController.clear();
+                              },
+                            )
+                          : IconButton(
+                              icon: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: _showFilters
+                                      ? AppTheme.successColor.withValues(alpha: 0.2)
+                                      : AppTheme.secondaryGold.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  _showFilters
+                                      ? Icons.filter_list
+                                      : Icons.filter_list_outlined,
+                                  color: _showFilters
+                                      ? AppTheme.successColor
+                                      : AppTheme.secondaryGold,
+                                  size: 18,
+                                ),
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _showFilters = !_showFilters;
+                                });
+                                HapticFeedback.lightImpact();
+                              },
                             ),
-                            onPressed: () {
-                              _searchController.clear();
-                            },
-                          )
-                        : IconButton(
-                            icon: Icon(
-                              _showFilters
-                                  ? Icons.filter_list
-                                  : Icons.filter_list_outlined,
-                              color: AppTheme.secondaryGold,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _showFilters = !_showFilters;
-                              });
-                              HapticFeedback.lightImpact();
-                            },
-                          ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 18,
+                      ),
                     ),
                   ),
                 ),
@@ -2299,69 +2572,138 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     return Center(
       child: Container(
         padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppTheme.backgroundPrimary,
+              AppTheme.backgroundSecondary.withValues(alpha: 0.3),
+            ],
+          ),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Enhanced icon with particle effect
             Container(
-              width: 120,
-              height: 120,
+              width: 140,
+              height: 140,
               decoration: BoxDecoration(
-                color: AppTheme.surfaceCard,
-                borderRadius: BorderRadius.circular(60),
+                gradient: RadialGradient(
+                  colors: [
+                    AppTheme.secondaryGold.withValues(alpha: 0.2),
+                    AppTheme.primaryColor.withValues(alpha: 0.1),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.7, 1.0],
+                ),
+                borderRadius: BorderRadius.circular(70),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.shadowColor,
-                    blurRadius: 20,
+                    color: AppTheme.secondaryGold.withValues(alpha: 0.2),
+                    blurRadius: 30,
                     offset: const Offset(0, 10),
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.inventory_2_outlined,
-                size: 60,
-                color: AppTheme.secondaryGold,
+              child: Container(
+                margin: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceCard,
+                  borderRadius: BorderRadius.circular(50),
+                  border: Border.all(
+                    color: AppTheme.secondaryGold.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: Icon(
+                  hasSearch || hasFilters
+                      ? Icons.search_off
+                      : Icons.inventory_2_outlined,
+                  size: 60,
+                  color: AppTheme.secondaryGold,
+                ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             Text(
               hasSearch || hasFilters
-                  ? 'Brak produktów spełniających kryteria'
-                  : 'Brak produktów w systemie',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  ? '🔍 Brak produktów spełniających kryteria'
+                  : '🎆 Brak produktów w systemie',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 color: AppTheme.textPrimary,
                 fontWeight: FontWeight.bold,
+                letterSpacing: -0.5,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 12),
-            Text(
-              hasSearch || hasFilters
-                  ? 'Spróbuj zmienić filtry lub wyszukiwaną frazę'
-                  : 'Dodaj pierwszy produkt do systemu',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge?.copyWith(color: AppTheme.textSecondary),
-              textAlign: TextAlign.center,
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.textTertiary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                hasSearch || hasFilters
+                    ? '✨ Spróbuj zmienić filtry lub wyszukiwaną frazę'
+                    : '🚀 Dodaj pierwszy produkt do systemu',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: AppTheme.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
             if (hasSearch || hasFilters) ...[
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() {
-                    _filterCriteria = const ProductFilterCriteria();
-                    _showFilters = false;
-                  });
-                  _applyFiltersAndSearch();
-                },
-                icon: const Icon(Icons.clear_all),
-                label: const Text('Wyczyść filtry'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.secondaryGold,
-                  foregroundColor: AppTheme.textOnSecondary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
+              const SizedBox(height: 32),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.secondaryGold.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _filterCriteria = const ProductFilterCriteria();
+                      _showFilters = false;
+                    });
+                    _applyFiltersAndSearch();
+                  },
+                  icon: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.clear_all, size: 18),
+                  ),
+                  label: const Text(
+                    'Wyczyść filtry',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.secondaryGold,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
                   ),
                 ),
               ),
@@ -2374,14 +2716,44 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
 
   Widget _buildFloatingActionButton() {
     return Tooltip(
-      message: canEdit ? 'Dodaj Produkt' : kRbacNoPermissionTooltip,
-      child: FloatingActionButton.extended(
-        onPressed: canEdit ? _showAddProductDialog : null,
-        backgroundColor: canEdit ? AppTheme.secondaryGold : Colors.grey,
-        foregroundColor: AppTheme.textOnSecondary,
-        icon: const Icon(Icons.add),
-        label: const Text('Dodaj Produkt'),
-        elevation: 8,
+      message: canEdit ? '🎆 Dodaj Produkt' : kRbacNoPermissionTooltip,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: canEdit 
+                  ? AppTheme.secondaryGold.withValues(alpha: 0.3)
+                  : Colors.grey.withValues(alpha: 0.2),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: canEdit ? _showAddProductDialog : null,
+          backgroundColor: canEdit ? AppTheme.secondaryGold : Colors.grey.shade600,
+          foregroundColor: Colors.white,
+          icon: Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.add, size: 20),
+          ),
+          label: Text(
+            'Dodaj Produkt',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
       ),
     );
   }
@@ -2503,7 +2875,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                     child: _buildStatColumnWithSyncWidget(
                       'Łączna wartość',
                       product,
-                      'totalRemainingCapitalShort',
+                      'totalInvestmentAmount',
                       Icons.account_balance_wallet,
                     ),
                   ),
@@ -2518,7 +2890,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                     child: _buildStatColumnWithSyncWidget(
                       'Pozostały kapitał',
                       product,
-                      'totalRemainingCapitalShort',
+                      'totalRemainingCapital',
                       Icons.trending_up,
                     ),
                   ),
