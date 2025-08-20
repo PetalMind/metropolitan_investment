@@ -1,9 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:html' as html show Blob, Url, AnchorElement;
 import '../theme/app_theme.dart';
 import '../theme/app_theme_professional.dart';
 import '../models_and_services.dart'; // Centralny export wszystkich modeli i serwisów
@@ -98,6 +104,7 @@ class _PremiumInvestorAnalyticsScreenState
 
   // Selekcja
   bool _isSelectionMode = false;
+  bool _isExportMode = false; // 🚀 NOWY: Tryb eksportu
   Set<String> _selectedInvestorIds = <String>{};
   List<InvestorSummary> get _selectedInvestors => _allInvestors
       .where((i) => _selectedInvestorIds.contains(i.client.id))
@@ -604,7 +611,7 @@ class _PremiumInvestorAnalyticsScreenState
       _isLoading = false;
     });
 
-    // Update voting analysis
+    // Update voting analysis - używając wartości z serwera dla lepszej dokładności
     _votingManager.calculateVotingCapitalDistribution(_allInvestors);
 
     // 🔍 DEBUG: Sprawdź voting manager po aktualizacji
@@ -632,10 +639,33 @@ class _PremiumInvestorAnalyticsScreenState
   void _calculateMajorityAnalysis() {
     if (_allInvestors.isEmpty) return;
 
-    final totalCapital = _allInvestors.fold<double>(
-      0.0,
-      (sum, investor) => sum + investor.viableRemainingCapital,
-    );
+    // Priorytet: Zawsze używaj danych z premium analytics jeśli są dostępne
+    if (_premiumResult != null) {
+      _majorityHolders = _premiumResult!.majorityAnalysis.majorityHolders;
+      _majorityThreshold = _premiumResult!.majorityAnalysis.majorityThreshold;
+
+      print(
+        '✅ [MajorityAnalysis] Używam danych z premium analytics: ${_majorityHolders.length} większościowych posiadaczy',
+      );
+      return;
+    }
+
+    // 🔍 LOKALNE OBLICZENIA (FALLBACK)
+    print('⚠️ [MajorityAnalysis] Używam lokalnych obliczeń jako fallback');
+
+    // Pobierz totalViableCapital z serwera jeśli dostępny
+    double totalCapital;
+    if (_currentResult != null) {
+      totalCapital = _currentResult!.totalViableCapital;
+      print('   - Używam totalViableCapital z serwera: ${totalCapital}');
+    } else {
+      // Jako ostateczny fallback, oblicz lokalnie
+      totalCapital = _allInvestors.fold<double>(
+        0.0,
+        (sum, investor) => sum + investor.viableRemainingCapital,
+      );
+      print('   - Obliczam lokalnie totalCapital: ${totalCapital}');
+    }
 
     // Sortuj inwestorów według kapitału malejąco
     final sortedInvestors = List<InvestorSummary>.from(_allInvestors);
@@ -660,10 +690,57 @@ class _PremiumInvestorAnalyticsScreenState
         break;
       }
     }
+
+    print(
+      '   - Znaleziono ${_majorityHolders.length} większościowych posiadaczy (>${_majorityThreshold}%)',
+    );
   }
 
   void _calculateVotingAnalysis() {
     if (_allInvestors.isEmpty) return;
+
+    // Priorytet: Zawsze używaj danych z premium analytics jeśli są dostępne
+    if (_premiumResult != null) {
+      _votingDistribution = {
+        VotingStatus.yes:
+            _premiumResult!.votingAnalysis.votingDistribution['yes'] ?? 0.0,
+        VotingStatus.no:
+            _premiumResult!.votingAnalysis.votingDistribution['no'] ?? 0.0,
+        VotingStatus.abstain:
+            _premiumResult!.votingAnalysis.votingDistribution['abstain'] ?? 0.0,
+        VotingStatus.undecided:
+            _premiumResult!.votingAnalysis.votingDistribution['undecided'] ??
+            0.0,
+      };
+
+      _votingCounts = {
+        VotingStatus.yes:
+            _premiumResult!.votingAnalysis.votingCounts['yes'] ?? 0,
+        VotingStatus.no: _premiumResult!.votingAnalysis.votingCounts['no'] ?? 0,
+        VotingStatus.abstain:
+            _premiumResult!.votingAnalysis.votingCounts['abstain'] ?? 0,
+        VotingStatus.undecided:
+            _premiumResult!.votingAnalysis.votingCounts['undecided'] ?? 0,
+      };
+
+      print('✅ [VotingAnalysis] Używam danych z premium analytics');
+      return;
+    }
+
+    // 🔍 LOKALNE OBLICZENIA (FALLBACK)
+    print('⚠️ [VotingAnalysis] Używam lokalnych obliczeń jako fallback');
+
+    // Zaktualizuj dane w VotingAnalysisManager z właściwymi inwestorami i totalCapital
+    if (_currentResult != null) {
+      // Jeśli mamy dostęp do serwera, użyj jego totalViableCapital
+      _votingManager.calculateVotingCapitalDistribution(_allInvestors);
+      print(
+        '   - Używam totalViableCapital z serwera dla VotingAnalysisManager',
+      );
+    } else {
+      // Standardowe obliczenie
+      _votingManager.calculateVotingCapitalDistribution(_allInvestors);
+    }
 
     _votingDistribution = {
       VotingStatus.yes: _votingManager.yesVotingPercentage,
@@ -823,22 +900,23 @@ class _PremiumInvestorAnalyticsScreenState
               _buildAppBar(),
               _buildTabBar(),
               Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildOverviewTab(),
-                    _buildInvestorsTab(),
-                    _buildAnalyticsTab(),
-                    _buildMajorityTab(),
-                  ],
-                ),
+                child: _isExportMode
+                    ? _buildInvestorsTab() // W trybie eksportu tylko tab Inwestorzy
+                    : TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildOverviewTab(),
+                          _buildInvestorsTab(),
+                          _buildAnalyticsTab(),
+                          _buildMajorityTab(),
+                        ],
+                      ),
               ),
             ],
           ),
         ),
       ),
-      // FAB zawsze renderowany – dla roli user przyciski pasywne z tooltipami
-      floatingActionButton: _buildFloatingActionButton(),
+      // 🚀 USUNIĘTO: FloatingActionButton - zastąpiony ikoną eksportu w AppBar
     );
   }
 
@@ -999,6 +1077,8 @@ class _PremiumInvestorAnalyticsScreenState
             // Standardowe przyciski
             _buildRefreshButton(),
             const SizedBox(width: 8),
+            _buildExportButton(), // 🚀 NOWY: Przycisk eksportu
+            const SizedBox(width: 8),
             _buildViewModeToggle(),
             const SizedBox(width: 8),
           ],
@@ -1026,75 +1106,256 @@ class _PremiumInvestorAnalyticsScreenState
           ),
         ),
       ),
-      child: TabBar(
-        controller: _tabController,
-        tabs: [
-          Tab(
-            text: 'Przegląd',
-            icon: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
+      child: _isExportMode
+          ? _buildExportModeTabBar()
+          : TabBar(
+              controller: _tabController,
+              tabs: [
+                Tab(
+                  text: 'Przegląd',
+                  icon: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: AppThemePro.accentGold.withValues(alpha: 0.1),
+                    ),
+                    child: Icon(Icons.dashboard_rounded),
+                  ),
+                ),
+                Tab(
+                  text: 'Inwestorzy',
+                  icon: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: AppThemePro.accentGold.withValues(alpha: 0.1),
+                    ),
+                    child: Icon(Icons.people_rounded),
+                  ),
+                ),
+                Tab(
+                  text: 'Analityka',
+                  icon: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: AppThemePro.accentGold.withValues(alpha: 0.1),
+                    ),
+                    child: Icon(Icons.analytics_rounded),
+                  ),
+                ),
+                Tab(
+                  text: 'Większość',
+                  icon: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: AppThemePro.accentGold.withValues(alpha: 0.1),
+                    ),
+                    child: Icon(Icons.gavel_rounded),
+                  ),
+                ),
+              ],
+              labelColor: AppThemePro.accentGold,
+              unselectedLabelColor: AppThemePro.textTertiary,
+              indicatorColor: AppThemePro.accentGold,
+              indicatorWeight: 3,
+              indicator: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                color: AppThemePro.accentGold.withValues(alpha: 0.1),
+                gradient: LinearGradient(
+                  colors: [
+                    AppThemePro.accentGold.withValues(alpha: 0.3),
+                    AppThemePro.accentGold.withValues(alpha: 0.1),
+                  ],
+                ),
               ),
-              child: Icon(Icons.dashboard_rounded),
+              labelStyle: TextStyle(
+                fontSize: _isTablet ? 14 : 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+              ),
+              unselectedLabelStyle: TextStyle(
+                fontSize: _isTablet ? 14 : 12,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+    );
+  }
+
+  Widget _buildExportModeTabBar() {
+    return Container(
+      height: 80,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          // Info o trybie eksportu
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppThemePro.accentGold.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppThemePro.accentGold.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.download_rounded,
+                    color: AppThemePro.accentGold,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Tryb eksportu',
+                          style: TextStyle(
+                            color: AppThemePro.accentGold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'Wybierz inwestorów do eksportu',
+                          style: TextStyle(
+                            color: AppThemePro.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_selectedInvestorIds.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppThemePro.accentGold,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${_selectedInvestorIds.length}',
+                        style: TextStyle(
+                          color: AppThemePro.primaryDark,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
-          Tab(
-            text: 'Inwestorzy',
-            icon: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
+          const SizedBox(width: 12),
+
+          // Przycisk dokończ eksport
+          ElevatedButton.icon(
+            onPressed: _selectedInvestorIds.isEmpty
+                ? null
+                : () => _showExportFormatDialog(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _selectedInvestorIds.isEmpty
+                  ? AppThemePro.surfaceInteractive
+                  : AppThemePro.accentGold,
+              foregroundColor: _selectedInvestorIds.isEmpty
+                  ? AppThemePro.textMuted
+                  : AppThemePro.primaryDark,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
-                color: AppThemePro.accentGold.withValues(alpha: 0.1),
               ),
-              child: Icon(Icons.people_rounded),
             ),
-          ),
-          Tab(
-            text: 'Analityka',
-            icon: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: AppThemePro.accentGold.withValues(alpha: 0.1),
-              ),
-              child: Icon(Icons.analytics_rounded),
-            ),
-          ),
-          Tab(
-            text: 'Większość',
-            icon: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: AppThemePro.accentGold.withValues(alpha: 0.1),
-              ),
-              child: Icon(Icons.gavel_rounded),
+            icon: Icon(Icons.check_rounded, size: 18),
+            label: Text(
+              'Dokończ eksport',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
           ),
         ],
-        labelColor: AppThemePro.accentGold,
-        unselectedLabelColor: AppThemePro.textTertiary,
-        indicatorColor: AppThemePro.accentGold,
-        indicatorWeight: 3,
-        indicator: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+      ),
+    );
+  }
+
+  Widget _buildExportModeBanner() {
+    return SliverToBoxAdapter(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              AppThemePro.accentGold.withValues(alpha: 0.3),
-              AppThemePro.accentGold.withValues(alpha: 0.1),
+              AppThemePro.accentGold.withOpacity(0.1),
+              AppThemePro.accentGoldMuted.withOpacity(0.1),
             ],
           ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppThemePro.accentGold.withOpacity(0.3)),
         ),
-        labelStyle: TextStyle(
-          fontSize: _isTablet ? 14 : 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.3,
-        ),
-        unselectedLabelStyle: TextStyle(
-          fontSize: _isTablet ? 14 : 12,
-          fontWeight: FontWeight.w400,
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppThemePro.accentGold,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.download_rounded,
+                color: AppThemePro.primaryDark,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tryb eksportu aktywny',
+                    style: TextStyle(
+                      color: AppThemePro.accentGold,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    'Zaznacz inwestorów, których dane chcesz wyeksportować. Następnie kliknij "Dokończ eksport" w górnej części ekranu.',
+                    style: TextStyle(
+                      color: AppThemePro.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_selectedInvestorIds.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppThemePro.accentGold,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '${_selectedInvestorIds.length} wybranych',
+                  style: TextStyle(
+                    color: AppThemePro.primaryDark,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -1116,6 +1377,7 @@ class _PremiumInvestorAnalyticsScreenState
     return CustomScrollView(
       controller: _scrollController,
       slivers: [
+        if (_isExportMode) _buildExportModeBanner(),
         if (_isFilterVisible) _buildFilterPanel(),
         _buildSearchBar(),
         _buildInvestorsSortBar(),
@@ -1583,6 +1845,27 @@ class _PremiumInvestorAnalyticsScreenState
     );
   }
 
+  Widget _buildExportButton() {
+    return Tooltip(
+      message: canEdit
+          ? (_isExportMode ? 'Zakończ eksport' : 'Eksportuj dane')
+          : kRbacNoPermissionTooltip,
+      child: IconButton(
+        onPressed: !canEdit ? null : _toggleExportMode,
+        icon: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: Icon(
+            _isExportMode ? Icons.close_rounded : Icons.download_rounded,
+            key: ValueKey(_isExportMode),
+            color: _isExportMode
+                ? AppThemePro.statusError
+                : (canEdit ? AppThemePro.accentGold : Colors.grey),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFilterToggleButton() {
     return IconButton(
       onPressed: _toggleFilterPanel,
@@ -1613,73 +1896,6 @@ class _PremiumInvestorAnalyticsScreenState
         });
       },
       isTablet: _isTablet,
-    );
-  }
-
-  Widget _buildFloatingActionButton() {
-    return Tooltip(
-      message: canEdit ? 'Akcje analityczne' : kRbacNoPermissionTooltip,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(32),
-          gradient: canEdit
-              ? LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppThemePro.accentGold,
-                    AppThemePro.accentGoldMuted,
-                    AppThemePro.accentGoldDark,
-                  ],
-                )
-              : null,
-          color: canEdit ? null : AppThemePro.surfaceInteractive,
-          boxShadow: canEdit
-              ? [
-                  BoxShadow(
-                    color: AppThemePro.accentGold.withValues(alpha: 0.4),
-                    blurRadius: 16,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 4),
-                  ),
-                  BoxShadow(
-                    color: AppThemePro.accentGold.withValues(alpha: 0.2),
-                    blurRadius: 32,
-                    spreadRadius: 4,
-                    offset: const Offset(0, 8),
-                  ),
-                ]
-              : null,
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: canEdit ? _showActionMenu : null,
-          backgroundColor: Colors.transparent,
-          foregroundColor: canEdit
-              ? AppThemePro.primaryDark
-              : AppThemePro.textSecondary,
-          elevation: 0,
-          focusElevation: 0,
-          hoverElevation: 0,
-          highlightElevation: 0,
-          icon: Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: canEdit
-                  ? AppThemePro.primaryDark.withValues(alpha: 0.1)
-                  : Colors.transparent,
-            ),
-            child: Icon(Icons.menu_rounded),
-          ),
-          label: Text(
-            'Akcje',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -1751,15 +1967,42 @@ class _PremiumInvestorAnalyticsScreenState
         '🚀 [StatsGrid] Używam Premium Analytics: Capital ${totalCapital.toStringAsFixed(2)}',
       );
     } else if (_currentResult != null) {
-      // Fallback na standardowe dane
+      // Fallback na standardowe dane - ale zawsze preferuj serwer
       totalViableCapital = _currentResult!.totalViableCapital;
+
+      // WAŻNE: Używamy _totalInvestmentAmount_ zamiast sumy _viableRemainingCapital_ dla zgodności z serwerem
       totalCapital = _allInvestors.fold<double>(
         0.0,
         (sum, investor) => sum + investor.totalInvestmentAmount,
       );
 
-      print('   - Viable Capital: ${totalViableCapital.toStringAsFixed(2)}');
+      print('⚠️ [StatsGrid] Używam fallback - może być mniej dokładny!');
+      print(
+        '   - Viable Capital z serwera: ${totalViableCapital.toStringAsFixed(2)}',
+      );
       print('   - Total Capital: ${totalCapital.toStringAsFixed(2)}');
+
+      // Sprawdź czy wartość lokalna jest zgodna z wartością z serwera
+      final localViableCapital = _allInvestors.fold<double>(
+        0.0,
+        (sum, investor) => sum + investor.viableRemainingCapital,
+      );
+
+      if ((localViableCapital - totalViableCapital).abs() > 100000) {
+        // Jeśli różnica jest duża, pokaż szczegóły
+        print(
+          '⚠️ [StatsGrid] UWAGA: Znacząca różnica między lokalnym a serwerowym kapitałem!',
+        );
+        print(
+          '   - Lokalne viableRemainingCapital: ${localViableCapital.toStringAsFixed(2)}',
+        );
+        print(
+          '   - Z serwera totalViableCapital: ${totalViableCapital.toStringAsFixed(2)}',
+        );
+        print(
+          '   - Różnica: ${(localViableCapital - totalViableCapital).toStringAsFixed(2)}',
+        );
+      }
     }
 
     // Oblicz próg 51% kapitału
@@ -1870,7 +2113,84 @@ class _PremiumInvestorAnalyticsScreenState
     }
   }
 
-  // 🚀 NOWE FUNKCJONALNOŚCI: EMAIL I EKSPORT
+  // � DOWNLOAD FILE METHOD
+  Future<void> _downloadFile(
+    String base64Data,
+    String filename,
+    String contentType,
+  ) async {
+    try {
+      // PEŁNA WALIDACJA NULL-SAFE Z ASSERT'ami w debug mode
+      assert(base64Data.isNotEmpty, 'base64Data nie może być pusty');
+      assert(filename.isNotEmpty, 'filename nie może być pusty');
+
+      if (base64Data.isEmpty) {
+        throw Exception('Dane pliku są puste');
+      }
+
+      if (filename.isEmpty) {
+        throw Exception('Nazwa pliku jest pusta');
+      }
+
+      // Zabezpieczenie contentType - jeśli null lub pusty, użyj domyślnego
+      final safeContentType = (contentType.isNotEmpty)
+          ? contentType
+          : 'application/octet-stream';
+
+      print(
+        '🔍 Rozpoczynam pobieranie pliku: $filename (${base64Data.length} znaków base64)',
+      );
+      print('📄 Content type: $safeContentType');
+
+      // Dekoduj base64 do bajtów - może rzucić wyjątek jeśli nieprawidłowy base64
+      late List<int> bytes;
+      try {
+        bytes = base64Decode(base64Data);
+      } catch (decodeError) {
+        throw Exception('Błąd dekodowania base64: $decodeError');
+      }
+
+      print('📦 Zdekodowano ${bytes.length} bajtów');
+
+      // Sprawdź czy jesteśmy na web
+      if (kIsWeb) {
+        try {
+          // Web - użyj URL.createObjectURL i <a> download
+          final blob = html.Blob([bytes]);
+          final url = html.Url.createObjectUrl(blob);
+
+          html.AnchorElement(href: url)
+            ..setAttribute('download', filename)
+            ..click();
+
+          // Cleanup
+          html.Url.revokeObjectUrl(url);
+
+          print('✅ Plik pobrany pomyślnie przez przeglądarkę');
+        } catch (webError) {
+          print('❌ Błąd pobierania w przeglądarce: $webError');
+          throw Exception('Błąd pobierania w przeglądarce: $webError');
+        }
+      } else {
+        // Mobile/Desktop - użyj path_provider
+        final directory = await getApplicationDocumentsDirectory();
+        final filePath = '${directory.path}/$filename';
+
+        final file = File(filePath);
+        await file.writeAsBytes(bytes);
+
+        print('Plik zapisany w: $filePath');
+      }
+    } catch (e) {
+      print('❌ [_downloadFile] Błąd pobierania pliku: $e');
+      print(
+        '❌ [_downloadFile] Parametry: base64Length=${base64Data.length}, filename=$filename, contentType=$contentType',
+      );
+      rethrow;
+    }
+  }
+
+  // �🚀 NOWE FUNKCJONALNOŚCI: EMAIL I EKSPORT
 
   /// Eksportuje wybranych inwestorów do różnych formatów
   Future<void> _exportSelectedInvestors() async {
@@ -1927,144 +2247,6 @@ class _PremiumInvestorAnalyticsScreenState
           );
         },
       ),
-    );
-  }
-
-  void _showActionMenu() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.backgroundModal,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => _buildActionSheet(),
-    );
-  }
-
-  Widget _buildActionSheet() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Akcje Premium Analytics',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // 🚀 NOWE: Eksport danych
-          _buildActionTile(
-            'Eksport danych inwestorów',
-            'Wyeksportuj wszystkich inwestorów do CSV/Excel/JSON',
-            Icons.download_rounded,
-            AppTheme.successColor,
-            () async {
-              Navigator.pop(context);
-              await _exportSelectedInvestors();
-            },
-          ),
-
-          // 🚀 NOWE: Email do inwestorów
-          _buildActionTile(
-            'Wyślij email do inwestorów',
-            'Wyślij maile do wszystkich lub wybranych inwestorów',
-            Icons.email_rounded,
-            AppTheme.primaryAccent,
-            () async {
-              Navigator.pop(context);
-              await _sendEmailToSelectedInvestors();
-            },
-          ),
-
-          // Nowa opcja wielokrotnego wyboru
-          _buildActionTile(
-            'Wybór wielu inwestorów',
-            'Zaznacz inwestorów do masowych operacji',
-            Icons.checklist_rounded,
-            AppTheme.primaryColor,
-            () {
-              Navigator.pop(context);
-              _enterSelectionMode();
-            },
-          ),
-
-          // 🚀 NOWE: Analiza premium
-          _buildActionTile(
-            'Odśwież analizę premium',
-            'Wymuszenie przeładowania najnowszych danych',
-            Icons.analytics_rounded,
-            AppTheme.warningColor,
-            () async {
-              Navigator.pop(context);
-              await _refreshData();
-            },
-          ),
-
-          _buildActionTile(
-            'Eksportuj emaile',
-            'Skopiuj adresy email do schowka',
-            Icons.email_rounded,
-            AppTheme.infoPrimary,
-            _exportEmails,
-          ),
-          _buildActionTile(
-            'Analiza większości',
-            'Szczegółowa analiza kontroli większościowej',
-            Icons.gavel_rounded,
-            AppTheme.secondaryGold,
-            _performMajorityControlAnalysis,
-          ),
-          _buildActionTile(
-            'Rozkład głosowania',
-            'Analiza rozkładu kapitału głosującego',
-            Icons.how_to_vote_rounded,
-            AppTheme.warningPrimary,
-            _performVotingDistributionAnalysis,
-          ),
-          _buildActionTile(
-            'Odśwież cache',
-            'Wymuś odświeżenie danych z serwera',
-            Icons.refresh_rounded,
-            AppTheme.errorPrimary,
-            _showRefreshCacheDialog,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionTile(
-    String title,
-    String subtitle,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: color),
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: AppTheme.textPrimary,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      subtitle: Text(subtitle, style: TextStyle(color: AppTheme.textSecondary)),
-      onTap: () {
-        Navigator.pop(context);
-        onTap();
-      },
     );
   }
 
@@ -2351,10 +2533,12 @@ class _PremiumInvestorAnalyticsScreenState
       isTablet: _isTablet,
       isLoading: false, // Already handled at screen level
       error: null, // Already handled at screen level
-      onInvestorTap: _isSelectionMode
+      onInvestorTap: (_isSelectionMode || _isExportMode)
           ? (investor) => _toggleInvestorSelection(investor.client.id)
           : _showInvestorDetails,
-      isSelectionMode: _isSelectionMode,
+      isSelectionMode:
+          _isSelectionMode ||
+          _isExportMode, // Aktivuj selekcję także w trybie eksportu
       selectedInvestorIds: _selectedInvestorIds,
       onInvestorSelectionToggle: _toggleInvestorSelection,
     );
@@ -4479,7 +4663,325 @@ class _PremiumInvestorAnalyticsScreenState
     return points;
   }
 
-  // 📋 MULTI-SELECTION METHODS
+  // � EXPORT MODE METHODS
+
+  void _toggleExportMode() {
+    setState(() {
+      _isExportMode = !_isExportMode;
+      if (_isExportMode) {
+        _isSelectionMode = true;
+        _selectedInvestorIds.clear();
+        _tabController.animateTo(1); // Przejdź na tab "Inwestorzy"
+      } else {
+        _isSelectionMode = false;
+        _selectedInvestorIds.clear();
+      }
+    });
+
+    if (_isExportMode) {
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Tryb eksportu aktywny - wybierz inwestorów do eksportu',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: AppThemePro.accentGold,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Anuluj',
+            textColor: AppThemePro.primaryDark,
+            onPressed: _toggleExportMode,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _showExportFormatDialog() {
+    // DODAJ SZCZEGÓŁOWE DEBUGOWANIE STANU PRZED EKSPORTEM
+    print('🔍 [_showExportFormatDialog] Stan aplikacji:');
+    print('   - _selectedInvestorIds.length: ${_selectedInvestorIds.length}');
+    print('   - _selectedInvestorIds: ${_selectedInvestorIds.toList()}');
+    print('   - _isSelectionMode: $_isSelectionMode');
+    print('   - _isExportMode: $_isExportMode');
+    print('   - _displayedInvestors.length: ${_displayedInvestors.length}');
+    print('   - _allInvestors.length: ${_allInvestors.length}');
+
+    if (_selectedInvestorIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '❌ Najpierw wybierz inwestorów do eksportu\n💡 Użyj trybu selekcji lub eksportu aby wybrać inwestorów',
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+
+      // Automatycznie włącz tryb eksportu jeśli nie jest włączony
+      if (!_isExportMode && !_isSelectionMode) {
+        print(
+          '🔧 [_showExportFormatDialog] Automatycznie włączam tryb eksportu',
+        );
+        _toggleExportMode();
+      }
+
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => _ExportFormatDialog(
+        selectedCount: _selectedInvestorIds.length,
+        onFormatSelected: _performExport,
+      ),
+    );
+  }
+
+  Future<void> _performExport(String format) async {
+    if (!mounted) return;
+
+    // Dialog już zamknięty w _buildFormatOption
+    setState(() => _isLoading = true);
+
+    try {
+      // WALIDACJA clientIds PRZED WYSŁANIEM
+      if (_selectedInvestorIds.isEmpty) {
+        throw Exception('Nie wybrano żadnych inwestorów do eksportu');
+      }
+
+      final clientIdsList = _selectedInvestorIds.toList();
+      print(
+        '🚀 [_performExport] Eksportuję ${clientIdsList.length} inwestorów w formacie: $format',
+      );
+      print('📋 [_performExport] clientIds: $clientIdsList');
+      print(
+        '🔍 [_performExport] clientIds.runtimeType: ${clientIdsList.runtimeType}',
+      );
+      print(
+        '🔍 [_performExport] clientIds.isNotEmpty: ${clientIdsList.isNotEmpty}',
+      );
+
+      // Wywołanie Firebase Function
+      final functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
+      final callable = functions.httpsCallable('exportInvestorsAdvanced');
+
+      final requestData = {
+        'clientIds': clientIdsList,
+        'exportFormat': format,
+        'templateType': 'summary',
+        'options': {
+          'includePersonalData': true,
+          'includeInvestmentDetails': true,
+        },
+        'requestedBy':
+            Provider.of<AuthProvider>(context, listen: false).user?.email ??
+            'anonymous',
+      };
+
+      print('📤 [_performExport] Dane requestu:');
+      print(
+        '   - clientIds: ${requestData['clientIds']} (type: ${requestData['clientIds'].runtimeType})',
+      );
+      print('   - exportFormat: ${requestData['exportFormat']}');
+      print('   - requestedBy: ${requestData['requestedBy']}');
+
+      final result = await callable.call(requestData);
+
+      print('✅ [_performExport] Otrzymano odpowiedź z Firebase Functions');
+      print('🔍 [_performExport] Result.data: ${result.data}');
+
+      if (result.data['success'] == true) {
+        // POBIERZ WSZYSTKIE DANE POTRZEBNE DO POBRANIA PLIKU
+        final filename = result.data['filename']?.toString() ?? 'eksport_file';
+        final downloadUrl = result.data['downloadUrl']?.toString() ?? '';
+        final rawFileData = result.data['fileData'];
+        final rawContentType = result.data['contentType'];
+
+        // NULL-SAFE KONWERSJE
+        final fileData = rawFileData?.toString();
+        final contentType =
+            rawContentType?.toString() ?? 'application/octet-stream';
+
+        print('📋 [_performExport] Pobrane dane:');
+        print('   - filename: $filename');
+        print('   - fileData length: ${fileData?.length ?? 0}');
+        print('   - contentType: $contentType');
+
+        // PRZEKAŻ KOMPLETNE DANE DO DIALOGU (BEZ PONOWNEGO WYWOŁANIA FIREBASE)
+        _showExportSuccessDialog(
+          filename,
+          downloadUrl,
+          format,
+          fileData,
+          contentType,
+        );
+
+        // Zakończ tryb eksportu
+        _toggleExportMode();
+      } else {
+        throw Exception('Eksport nie powiódł się');
+      }
+    } catch (error) {
+      print('❌ [_performExport] Błąd eksportu: $error');
+      print('❌ [_performExport] Typ błędu: ${error.runtimeType}');
+
+      String userMessage = 'Błąd eksportu: ${error.toString()}';
+
+      // Sprawdź czy to błąd Firebase Functions
+      if (error.toString().contains('firebase_functions/')) {
+        print('🔥 To błąd Firebase Functions: ${error.toString()}');
+
+        if (error.toString().contains('invalid-argument')) {
+          userMessage =
+              'Nieprawidłowe dane wejściowe. Sprawdź czy wybrano inwestorów.';
+        } else if (error.toString().contains('unauthenticated')) {
+          userMessage = 'Błąd autoryzacji. Zaloguj się ponownie.';
+        } else if (error.toString().contains('not-found')) {
+          userMessage = 'Nie znaleziono danych do eksportu.';
+        }
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(userMessage),
+          backgroundColor: AppThemePro.statusError,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showExportSuccessDialog(
+    String filename,
+    String downloadUrl,
+    String format,
+    String? fileData,
+    String? contentType,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppThemePro.backgroundSecondary,
+        title: Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: AppThemePro.statusSuccess),
+            const SizedBox(width: 8),
+            const Text(
+              'Eksport zakończony',
+              style: TextStyle(color: AppThemePro.textPrimary),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Pomyślnie wyeksportowano ${_selectedInvestorIds.length} inwestorów.',
+              style: const TextStyle(color: AppThemePro.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: AppThemePro.elevatedSurfaceDecoration,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Plik: $filename',
+                    style: const TextStyle(
+                      color: AppThemePro.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Format: ${format.toUpperCase()}',
+                    style: const TextStyle(color: AppThemePro.textTertiary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Zamknij',
+              style: TextStyle(color: AppThemePro.textMuted),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+
+              try {
+                // SPRAWDŹ CZY MAMY JUŻ GOTOWE DANE DO POBRANIA (BEZ PONOWNEGO WYWOŁANIA FIREBASE)
+                if (fileData != null && fileData.isNotEmpty) {
+                  print(
+                    '📁 [ExportDialog] Używam już pobranych danych (${fileData.length} znaków)',
+                  );
+
+                  final safeContentType = contentType?.isNotEmpty == true
+                      ? contentType!
+                      : 'application/octet-stream';
+
+                  await _downloadFile(fileData, filename, safeContentType);
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('✅ Plik $filename został pobrany'),
+                        backgroundColor: AppThemePro.statusSuccess,
+                      ),
+                    );
+                  }
+                } else {
+                  // FALLBACK: Jeśli nie mamy danych, pokaż błąd
+                  print('❌ [ExportDialog] Brak danych do pobrania');
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '❌ Brak danych do pobrania. Spróbuj ponownie.',
+                        ),
+                        backgroundColor: AppThemePro.statusError,
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                print('❌ [ExportDialog] Błąd podczas pobierania pliku: $e');
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Błąd pobierania pliku: ${e.toString()}'),
+                      backgroundColor: AppThemePro.statusError,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppThemePro.accentGold,
+              foregroundColor: AppThemePro.primaryDark,
+            ),
+            child: const Text('Pobierz'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // �📋 MULTI-SELECTION METHODS
 
   void _enterSelectionMode() {
     setState(() {
@@ -4515,8 +5017,8 @@ class _PremiumInvestorAnalyticsScreenState
       }
     });
 
-    // Wyjdź z trybu wyboru jeśli nic nie jest zaznaczone
-    if (_selectedInvestorIds.isEmpty) {
+    // Wyjdź z trybu wyboru jeśli nic nie jest zaznaczone (ale nie z trybu eksportu)
+    if (_selectedInvestorIds.isEmpty && !_isExportMode) {
       _exitSelectionMode();
     }
   }
@@ -4964,6 +5466,192 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
           ),
         );
       },
+    );
+  }
+}
+
+// === DIALOG WYBORU FORMATU EKSPORTU ===
+
+class _ExportFormatDialog extends StatelessWidget {
+  final int selectedCount;
+  final Function(String) onFormatSelected;
+
+  const _ExportFormatDialog({
+    required this.selectedCount,
+    required this.onFormatSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: AppThemePro.backgroundSecondary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: AppThemePro.borderPrimary, width: 1),
+      ),
+      child: Container(
+        width: 400,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.accentGold.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.download_rounded,
+                    color: AppThemePro.accentGold,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Eksport danych',
+                        style: TextStyle(
+                          color: AppThemePro.textPrimary,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Wybierz format dla $selectedCount inwestorów',
+                        style: TextStyle(
+                          color: AppThemePro.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Format options
+            _buildFormatOption(
+              context,
+              'pdf',
+              'PDF',
+              'Profesjonalny raport PDF',
+              Icons.picture_as_pdf_rounded,
+              AppThemePro.lossRed,
+            ),
+            const SizedBox(height: 12),
+            _buildFormatOption(
+              context,
+              'excel',
+              'Excel',
+              'Arkusz kalkulacyjny z danymi',
+              Icons.table_chart_rounded,
+              AppThemePro.profitGreen,
+            ),
+            const SizedBox(height: 12),
+            _buildFormatOption(
+              context,
+              'word',
+              'Word',
+              'Dokument tekstowy',
+              Icons.description_rounded,
+              AppThemePro.bondsBlue,
+            ),
+
+            const SizedBox(height: 24),
+
+            // Actions
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Anuluj',
+                    style: TextStyle(color: AppThemePro.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormatOption(
+    BuildContext context,
+    String format,
+    String title,
+    String description,
+    IconData icon,
+    Color color,
+  ) {
+    return InkWell(
+      onTap: () {
+        // Bezpieczne zamknięcie i wywołanie callback
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+        onFormatSelected(format);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppThemePro.borderPrimary),
+          color: AppThemePro.backgroundTertiary.withOpacity(0.3),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: AppThemePro.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      color: AppThemePro.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: AppThemePro.textMuted,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
