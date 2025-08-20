@@ -2,20 +2,57 @@
  * Advanced Export Service - Zaawansowany eksport inwestorów
  * 
  * Serwis obsługujący eksport danych inwestorów do formatów:
- * - PDF (wysokiej jakości raporty)
+ * - PDF (wysokiej jakości raporty) 
  * - Excel (zaawansowane arkusze z formatowaniem)
  * - Word (dokumenty biznesowe)
  * 
  * 🎯 KLUCZOWE FUNKCJONALNOŚCI:
  * • Profesjonalne formatowanie zgodne z marką Metropolitan Investment
  * • Eksport do PDF, Excel, Word z pełnym brandingiem
- * • Elastyczne szablony dokumentów
- * • Zaawansowane filtry i opcje eksportu
- * • Nazwa plików: typDokumentu_metropolitan_dataStworzenia
+ * • Prawdziwe pliki binarne (nie tekstowe z nieprawidłowym content-type)
+ * 
+ * 📦 WYMAGANE ZALEŻNOŚCI:
+ * • exceljs: Generowanie prawdziwych plików Excel
+ * • pdfkit: Generowanie prawdziwych plików PDF  
+ * • docx: Generowanie prawdziwych plików Word
  */
 
-const { onCall } = require("firebase-functions/v2/https");
-const { HttpsError } = require("firebase-functions/v2/https");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+
+// Test dostępności bibliotek eksportu
+let EXPORT_LIBRARIES = {
+  excel: false,
+  pdf: false,
+  word: false
+};
+
+// Sprawdź dostępność ExcelJS
+try {
+  require('exceljs');
+  EXPORT_LIBRARIES.excel = true;
+  console.log('✅ [AdvancedExportService] ExcelJS dostępne');
+} catch (error) {
+  console.warn('⚠️ [AdvancedExportService] ExcelJS niedostępne:', error.message);
+}
+
+// Sprawdź dostępność PDFKit
+try {
+  require('pdfkit');
+  EXPORT_LIBRARIES.pdf = true;
+  console.log('✅ [AdvancedExportService] PDFKit dostępne');
+} catch (error) {
+  console.warn('⚠️ [AdvancedExportService] PDFKit niedostępne:', error.message);
+}
+
+// Sprawdź dostępność docx
+try {
+  require('docx');
+  EXPORT_LIBRARIES.word = true;
+  console.log('✅ [AdvancedExportService] docx dostępne');
+} catch (error) {
+  console.warn('⚠️ [AdvancedExportService] docx niedostępne:', error.message);
+}
+
 const { db } = require("../utils/firebase-config");
 const { safeToDouble, safeToString } = require("../utils/data-mapping");
 
@@ -59,6 +96,18 @@ const exportInvestorsAdvanced = onCall({
 
     if (!requestedBy) {
       throw new HttpsError('unauthenticated', 'Wymagany requestedBy');
+    }
+
+    // 🔍 SPRAWDŹ DOSTĘPNOŚĆ BIBLIOTEK DLA DANEGO FORMATU
+    const formatLibraryMap = {
+      'excel': 'excel',
+      'pdf': 'pdf', 
+      'word': 'word'
+    };
+
+    const requiredLibrary = formatLibraryMap[exportFormat];
+    if (requiredLibrary && !EXPORT_LIBRARIES[requiredLibrary]) {
+      console.warn(`⚠️ [AdvancedExportService] Biblioteka dla ${exportFormat} niedostępna, użyję fallback`);
     }
 
     // 🔍 POBIERZ DANE INWESTORÓW
@@ -294,22 +343,116 @@ function calculateRiskLevel(secured, remaining) {
  * Generuje eksport PDF
  */
 async function generatePDFExport(investorsData, templateType, options, currentDate) {
-  console.log(`📄 [AdvancedExportService] Generuję PDF dla ${investorsData.length} inwestorów`);
+  console.log(`📄 [AdvancedExportService] Generuję prawdziwy PDF dla ${investorsData.length} inwestorów`);
 
-  const pdfContent = generatePDFContent(investorsData, templateType, options);
-  const filename = `PDF_metropolitan_${currentDate}.pdf`;
+  try {
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument();
+    
+    // Buffer do zbierania danych PDF
+    const buffers = [];
+    doc.on('data', buffers.push.bind(buffers));
+    
+    // Nagłówek dokumentu
+    doc.fontSize(20).text('METROPOLITAN INVESTMENT', 50, 50);
+    doc.fontSize(16).text(`Raport Inwestorów - ${templateType.toUpperCase()}`, 50, 80);
+    doc.fontSize(12).text(`Data generowania: ${new Date().toLocaleString('pl-PL')}`, 50, 110);
+    doc.text(`Liczba inwestorów: ${investorsData.length}`, 50, 130);
+    
+    let yPosition = 160;
 
-  // Zwróć dane pliku jako base64 do pobrania przez przeglądarkę
-  const base64Content = Buffer.from(pdfContent, 'utf8').toString('base64');
+    // Dane inwestorów
+    investorsData.forEach((investor, index) => {
+      // Sprawdź czy potrzebna nowa strona
+      if (yPosition > 700) {
+        doc.addPage();
+        yPosition = 50;
+      }
 
-  return {
-    filename,
-    fileData: base64Content, // Rzeczywiste dane pliku
-    downloadUrl: null, // Nie potrzebujemy URL
-    fileSize: pdfContent.length,
-    contentType: 'application/pdf'
-  };
-}/**
+      // Informacje o inwestorze
+      doc.fontSize(14).text(`${index + 1}. INWESTOR: ${investor.clientName}`, 50, yPosition);
+      yPosition += 20;
+      
+      doc.fontSize(10)
+        .text(`Email: ${investor.email}`, 70, yPosition)
+        .text(`Telefon: ${investor.phone}`, 70, yPosition + 15);
+      yPosition += 40;
+
+      doc.fontSize(12).text(`INWESTYCJE (${investor.investmentCount}):`, 50, yPosition);
+      yPosition += 20;
+
+      // Szczegóły inwestycji
+      investor.investmentDetails.forEach((detail, idx) => {
+        if (yPosition > 700) {
+          doc.addPage();
+          yPosition = 50;
+        }
+
+        doc.fontSize(11).text(`${idx + 1}. ${detail.displayName}`, 70, yPosition);
+        yPosition += 15;
+
+        doc.fontSize(9)
+          .text(`Data wejścia: ${detail.investmentEntryDate}`, 90, yPosition)
+          .text(`Kwota inwestycji: ${detail.investmentAmount.toLocaleString('pl-PL')} PLN`, 90, yPosition + 12)
+          .text(`Kapitał pozostały: ${detail.remainingCapital.toLocaleString('pl-PL')} PLN`, 90, yPosition + 24)
+          .text(`Kapitał zabezpieczony: ${detail.capitalSecuredByRealEstate.toLocaleString('pl-PL')} PLN`, 90, yPosition + 36)
+          .text(`Do restrukturyzacji: ${detail.capitalForRestructuring.toLocaleString('pl-PL')} PLN`, 90, yPosition + 48);
+        
+        yPosition += 70;
+      });
+
+      // Podsumowanie inwestora
+      doc.fontSize(10).text(`Łączna kwota: ${investor.totalInvestmentAmount.toLocaleString('pl-PL')} PLN`, 70, yPosition);
+      yPosition += 30;
+    });
+
+    // Zakończ dokument
+    doc.end();
+
+    // Czekaj na zakończenie i zwróć dane
+    return new Promise((resolve, reject) => {
+      doc.on('end', () => {
+        try {
+          const pdfBuffer = Buffer.concat(buffers);
+          const base64Content = pdfBuffer.toString('base64');
+          const filename = `PDF_metropolitan_${currentDate}.pdf`;
+
+          console.log(`✅ [AdvancedExportService] PDF wygenerowany: ${pdfBuffer.length} bajtów`);
+
+          resolve({
+            filename,
+            fileData: base64Content,
+            downloadUrl: null,
+            fileSize: pdfBuffer.length,
+            contentType: 'application/pdf'
+          });
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      doc.on('error', reject);
+    });
+
+  } catch (error) {
+    console.error(`❌ [AdvancedExportService] Błąd generowania PDF:`, error);
+    
+    // FALLBACK: Użyj tekstowy format z poprawnym content-type
+    const textContent = generatePDFContent(investorsData, templateType, options);
+    const base64Content = Buffer.from(textContent, 'utf8').toString('base64');
+    const filename = `TXT_metropolitan_${currentDate}.txt`;
+
+    return {
+      filename,
+      fileData: base64Content,
+      downloadUrl: null,
+      fileSize: textContent.length,
+      contentType: 'text/plain'
+    };
+  }
+}
+
+/**
  * Generuje zawartość PDF z nowym formatem
  */
 function generatePDFContent(investorsData, templateType, options) {
@@ -363,22 +506,92 @@ ${index + 1}. INWESTOR: ${investor.clientName}
  * Generuje eksport Excel
  */
 async function generateExcelExport(investorsData, templateType, options, currentDate) {
-  console.log(`📊 [AdvancedExportService] Generuję Excel dla ${investorsData.length} inwestorów`);
+  console.log(`📊 [AdvancedExportService] Generuję prawdziwy Excel dla ${investorsData.length} inwestorów`);
 
-  const excelContent = generateExcelContent(investorsData, templateType, options);
-  const filename = `Excel_metropolitan_${currentDate}.xlsx`;
+  try {
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Raport Inwestorów');
 
-  // Zwróć dane CSV jako base64 (w produkcji użyj prawdziwego Excel)
-  const base64Content = Buffer.from(excelContent, 'utf8').toString('base64');
+    // Nagłówki kolumn
+    const headers = [
+      'Inwestor - Produkt - Typ',
+      'Data wejścia',
+      'Kwota inwestycji',
+      'Kapitał pozostały',
+      'Kapitał zabezpieczony nieruchomością',
+      'Kapitał do restrukturyzacji',
+      'Email inwestora',
+      'Telefon inwestora'
+    ];
 
-  return {
-    filename,
-    fileData: base64Content, // Rzeczywiste dane pliku
-    downloadUrl: null, // Nie potrzebujemy URL
-    fileSize: excelContent.length,
-    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  };
-}/**
+    // Dodaj nagłówki
+    worksheet.addRow(headers);
+
+    // Stylizuj nagłówki
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE6E6FA' }
+    };
+
+    // Dodaj dane
+    investorsData.forEach(investor => {
+      investor.investmentDetails.forEach(detail => {
+        worksheet.addRow([
+          detail.displayName,
+          detail.investmentEntryDate,
+          detail.investmentAmount,
+          detail.remainingCapital,
+          detail.capitalSecuredByRealEstate,
+          detail.capitalForRestructuring,
+          investor.email,
+          investor.phone
+        ]);
+      });
+    });
+
+    // Autowidth kolumn
+    worksheet.columns.forEach(column => {
+      column.width = 20;
+    });
+
+    // Generuj buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+    const base64Content = buffer.toString('base64');
+    const filename = `Excel_metropolitan_${currentDate}.xlsx`;
+
+    console.log(`✅ [AdvancedExportService] Excel wygenerowany: ${buffer.length} bajtów`);
+
+    return {
+      filename,
+      fileData: base64Content,
+      downloadUrl: null,
+      fileSize: buffer.length,
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    };
+
+  } catch (error) {
+    console.error(`❌ [AdvancedExportService] Błąd generowania Excel:`, error);
+    
+    // FALLBACK: Użyj CSV z poprawnym content-type
+    const csvContent = generateExcelContent(investorsData, templateType, options);
+    const base64Content = Buffer.from(csvContent, 'utf8').toString('base64');
+    const filename = `CSV_metropolitan_${currentDate}.csv`;
+
+    return {
+      filename,
+      fileData: base64Content,
+      downloadUrl: null,
+      fileSize: csvContent.length,
+      contentType: 'text/csv'
+    };
+  }
+}
+
+/**
  * Generuje zawartość Excel z nowym formatem
  */
 function generateExcelContent(investorsData, templateType, options) {
@@ -399,22 +612,181 @@ function generateExcelContent(investorsData, templateType, options) {
  * Generuje eksport Word
  */
 async function generateWordExport(investorsData, templateType, options, currentDate) {
-  console.log(`📝 [AdvancedExportService] Generuję Word dla ${investorsData.length} inwestorów`);
+  console.log(`📝 [AdvancedExportService] Generuję prawdziwy Word dla ${investorsData.length} inwestorów`);
 
-  const wordContent = generateWordContent(investorsData, templateType, options);
-  const filename = `Word_metropolitan_${currentDate}.docx`;
+  try {
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel } = require('docx');
 
-  // Zwróć dane jako base64
-  const base64Content = Buffer.from(wordContent, 'utf8').toString('base64');
+    // Tworzenie dokumentu
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          // Nagłówek dokumentu
+          new Paragraph({
+            heading: HeadingLevel.TITLE,
+            children: [
+              new TextRun({
+                text: "METROPOLITAN INVESTMENT",
+                bold: true,
+                size: 32
+              })
+            ]
+          }),
+          
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `Raport Inwestorów - ${templateType.toUpperCase()}`,
+                bold: true,
+                size: 24
+              })
+            ]
+          }),
 
-  return {
-    filename,
-    fileData: base64Content, // Rzeczywiste dane pliku
-    downloadUrl: null, // Nie potrzebujemy URL
-    fileSize: wordContent.length,
-    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  };
-}/**
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `Data generowania: ${new Date().toLocaleString('pl-PL')}`,
+                size: 20
+              })
+            ]
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `Liczba inwestorów: ${investorsData.length}`,
+                size: 20
+              })
+            ]
+          }),
+
+          new Paragraph(""), // Pusty akapit
+
+          // Dane inwestorów
+          ...investorsData.flatMap((investor, index) => [
+            new Paragraph({
+              heading: HeadingLevel.HEADING_1,
+              children: [
+                new TextRun({
+                  text: `${index + 1}. INWESTOR: ${investor.clientName}`,
+                  bold: true
+                })
+              ]
+            }),
+
+            new Paragraph({
+              children: [
+                new TextRun(`Email: ${investor.email}`),
+                new TextRun({ text: " | ", bold: true }),
+                new TextRun(`Telefon: ${investor.phone}`)
+              ]
+            }),
+
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `INWESTYCJE (${investor.investmentCount}):`,
+                  bold: true
+                })
+              ]
+            }),
+
+            // Szczegóły inwestycji
+            ...investor.investmentDetails.flatMap((detail, idx) => [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `${idx + 1}. ${detail.displayName}`,
+                    bold: true
+                  })
+                ]
+              }),
+
+              new Paragraph({
+                children: [
+                  new TextRun(`Data wejścia: ${detail.investmentEntryDate}`)
+                ]
+              }),
+
+              new Paragraph({
+                children: [
+                  new TextRun(`Kwota inwestycji: ${detail.investmentAmount.toLocaleString('pl-PL')} PLN`)
+                ]
+              }),
+
+              new Paragraph({
+                children: [
+                  new TextRun(`Kapitał pozostały: ${detail.remainingCapital.toLocaleString('pl-PL')} PLN`)
+                ]
+              }),
+
+              new Paragraph({
+                children: [
+                  new TextRun(`Kapitał zabezpieczony nieruchomością: ${detail.capitalSecuredByRealEstate.toLocaleString('pl-PL')} PLN`)
+                ]
+              }),
+
+              new Paragraph({
+                children: [
+                  new TextRun(`Kapitał do restrukturyzacji: ${detail.capitalForRestructuring.toLocaleString('pl-PL')} PLN`)
+                ]
+              }),
+
+              new Paragraph(""), // Pusty akapit
+            ]),
+
+            // Podsumowanie inwestora
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `PODSUMOWANIE: Łączna kwota inwestycji: ${investor.totalInvestmentAmount.toLocaleString('pl-PL')} PLN`,
+                  bold: true
+                })
+              ]
+            }),
+
+            new Paragraph(""), // Separacja między inwestorami
+          ])
+        ]
+      }]
+    });
+
+    // Generuj buffer
+    const buffer = await Packer.toBuffer(doc);
+    const base64Content = buffer.toString('base64');
+    const filename = `Word_metropolitan_${currentDate}.docx`;
+
+    console.log(`✅ [AdvancedExportService] Word wygenerowany: ${buffer.length} bajtów`);
+
+    return {
+      filename,
+      fileData: base64Content,
+      downloadUrl: null,
+      fileSize: buffer.length,
+      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    };
+
+  } catch (error) {
+    console.error(`❌ [AdvancedExportService] Błąd generowania Word:`, error);
+    
+    // FALLBACK: Użyj tekstowy format z poprawnym content-type
+    const textContent = generateWordContent(investorsData, templateType, options);
+    const base64Content = Buffer.from(textContent, 'utf8').toString('base64');
+    const filename = `TXT_metropolitan_${currentDate}.txt`;
+
+    return {
+      filename,
+      fileData: base64Content,
+      downloadUrl: null,
+      fileSize: textContent.length,
+      contentType: 'text/plain'
+    };
+  }
+}
+
+/**
  * Generuje zawartość Word z nowym formatem
  */
 function generateWordContent(investorsData, templateType, options) {
