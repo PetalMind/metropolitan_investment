@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import '../../models_and_services.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/currency_formatter.dart';
 import '../dialogs/product_investors_tab.dart';
 import '../dialogs/product_details_header.dart';
 
@@ -251,31 +252,64 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
-          child: Column(
-            children: [
-              ProductDetailsHeader(
-                product: widget.product,
-                investors: _investors,
-                isLoadingInvestors: _isLoadingInvestors,
-                onClose: () => Navigator.of(context).pop(),
-                onDataChanged: () async {
-                  // 🎯 NOWY: Callback do pełnego odświeżenia danych modalu po edycji kapitału
-                  debugPrint(
-                    '🔄 [ProductDetailsModal] Header data changed - refreshing all data',
-                  );
-                  try {
-                    await _modalService.clearAllCache();
-                    await _loadModalData(forceRefresh: true);
-                  } catch (e) {
-                    debugPrint(
-                      '⚠️ [ProductDetailsModal] Error refreshing after header change: $e',
-                    );
-                  }
-                },
-              ),
-              _buildResponsiveTabBar(context, isMobile, isTablet),
-              Expanded(child: _buildTabBarView(context, isMobile, isTablet)),
-            ],
+          child: NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) {
+              return [
+                // Header, który się zwija
+                SliverAppBar(
+                  expandedHeight: isMobile
+                      ? 200
+                      : 250, // Wysokość rozwiniętego headera
+                  collapsedHeight: 0, // Kompletnie zwinięty header
+                  toolbarHeight: 0,
+                  pinned: false, // Header się całkowicie chowa
+                  floating: true, // Header pojawia się gdy przewijamy w górę
+                  snap: true, // Szybkie animacje zwijania/rozwijania
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.backgroundPrimary,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(isMobile ? 16 : 20),
+                          topRight: Radius.circular(isMobile ? 16 : 20),
+                        ),
+                      ),
+                      child: ProductDetailsHeader(
+                        product: widget.product,
+                        investors: _investors,
+                        isLoadingInvestors: _isLoadingInvestors,
+                        onClose: () => Navigator.of(context).pop(),
+                        onDataChanged: () async {
+                          // 🎯 NOWY: Callback do pełnego odświeżenia danych modalu po edycji kapitału
+                          debugPrint(
+                            '🔄 [ProductDetailsModal] Header data changed - refreshing all data',
+                          );
+                          try {
+                            await _modalService.clearAllCache();
+                            await _loadModalData(forceRefresh: true);
+                          } catch (e) {
+                            debugPrint(
+                              '⚠️ [ProductDetailsModal] Error refreshing after header change: $e',
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                // Taby - zawsze widoczne na górze
+                SliverPersistentHeader(
+                  pinned: true, // Taby zawsze widoczne
+                  floating: false,
+                  delegate: _TabBarDelegate(
+                    tabBar: _buildResponsiveTabBar(context, isMobile, isTablet),
+                  ),
+                ),
+              ];
+            },
+            body: _buildTabBarView(context, isMobile, isTablet),
           ),
         ),
       ),
@@ -317,8 +351,20 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           labelColor: AppTheme.primaryAccent,
           unselectedLabelColor: AppTheme.textSecondary,
           dividerColor: Colors.transparent,
-          overlayColor: MaterialStateProperty.all(
-            AppTheme.primaryAccent.withOpacity(0.1),
+          // Lepszy efekt hover i aktywnego tabu
+          overlayColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return AppTheme.primaryAccent.withOpacity(0.15);
+            }
+            return AppTheme.primaryAccent.withOpacity(0.05);
+          }),
+          // Ulepszony indicator z zaokrąglonymi rogami
+          indicator: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: AppTheme.primaryAccent.withOpacity(0.1),
+            border: Border(
+              bottom: BorderSide(color: AppTheme.primaryAccent, width: 3),
+            ),
           ),
           // 📱 RESPONSIVE TEXT STYLES
           labelStyle: TextStyle(
@@ -380,33 +426,49 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     bool isTablet,
   ) {
     if (isMobile) {
-      // 📱 MOBILE: Tylko ikony lub bardzo krótki tekst
+      // 📱 MOBILE: Kompaktowa wersja z większą ikoną i krótszym tekstem
       return Tab(
+        height: 56, // Wyższa zakładka dla lepszej dotykalności na mobile
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 20),
-            if (text.length <= 7) // Tylko krótkie teksty na mobile
-              Text(
-                text,
-                style: const TextStyle(fontSize: 10),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            Icon(
+              icon,
+              size: 24, // Większa ikona
+            ),
+            const SizedBox(height: 4),
+            Text(
+              text.split(' ').first, // Tylko pierwsze słowo
+              style: const TextStyle(
+                fontSize: 11, // Mniejsza czcionka
+                fontWeight: FontWeight.w500,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       );
     } else {
-      // 💻 DESKTOP/TABLET: Ikona + pełny tekst
+      // 💻 DESKTOP/TABLET: Ikona + pełny tekst w poziomym układzie
       return Tab(
+        height: 48, // Standardowa wysokość
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: isTablet ? 18 : 20),
-            const SizedBox(width: 8),
+            Icon(icon, size: isTablet ? 20 : 22),
+            SizedBox(width: isTablet ? 8 : 10),
             Flexible(
-              child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: isTablet ? 13 : 14,
+                ),
+              ),
             ),
           ],
         ),
@@ -437,96 +499,109 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     final product = _freshProduct;
     final horizontalPadding = isMobile ? 12.0 : (isTablet ? 16.0 : 20.0);
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(horizontalPadding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_isLoadingModalData)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: isMobile ? 32 : 40,
-                      height: isMobile ? 32 : 40,
-                      child: const CircularProgressIndicator(),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Ładowanie aktualnych danych produktu…',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontSize: isMobile ? 12 : 14,
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.all(horizontalPadding),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_isLoadingModalData)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            SizedBox(
+                              width: isMobile ? 32 : 40,
+                              height: isMobile ? 32 : 40,
+                              child: const CircularProgressIndicator(),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Ładowanie aktualnych danych produktu…',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(fontSize: isMobile ? 12 : 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else if (_modalError != null)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: AppTheme.errorColor,
+                              size: isMobile ? 32 : 40,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Błąd pobierania danych produktu',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: AppTheme.errorColor,
+                                    fontSize: isMobile ? 14 : 16,
+                                  ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _modalError!,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: AppTheme.textTertiary,
+                                    fontSize: isMobile ? 12 : 14,
+                                  ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  _loadModalData(forceRefresh: true),
+                              icon: Icon(
+                                Icons.refresh,
+                                size: isMobile ? 16 : 18,
+                              ),
+                              label: Text(
+                                'Ponów próbę',
+                                style: TextStyle(fontSize: isMobile ? 12 : 14),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
+
+                  // Sekcja kwot
+                  _buildAmountsSection(context, isMobile, isTablet),
+
+                  const SizedBox(height: 24),
+
+                  // Sekcja szczegółów
+                  _buildDetailsSection(context, isMobile, isTablet),
+
+                  if (product.productType == UnifiedProductType.bonds) ...[
+                    const SizedBox(height: 24),
+                    _buildBondsSpecificSection(context, isMobile, isTablet),
                   ],
-                ),
-              ),
-            )
-          else if (_modalError != null)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: AppTheme.errorColor,
-                      size: isMobile ? 32 : 40,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Błąd pobierania danych produktu',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.errorColor,
-                        fontSize: isMobile ? 14 : 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _modalError!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textTertiary,
-                        fontSize: isMobile ? 12 : 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: () => _loadModalData(forceRefresh: true),
-                      icon: Icon(Icons.refresh, size: isMobile ? 16 : 18),
-                      label: Text(
-                        'Ponów próbę',
-                        style: TextStyle(fontSize: isMobile ? 12 : 14),
-                      ),
-                    ),
+
+                  if (product.productType == UnifiedProductType.shares) ...[
+                    const SizedBox(height: 24),
+                    _buildSharesSpecificSection(context, isMobile, isTablet),
                   ],
-                ),
+                  const SizedBox(height: 24),
+                  _buildSourceInfoBar(product, isMobile, isTablet),
+                ],
               ),
-            ),
-
-          // Sekcja kwot
-          _buildAmountsSection(context, isMobile, isTablet),
-
-          const SizedBox(height: 24),
-
-          // Sekcja szczegółów
-          _buildDetailsSection(context, isMobile, isTablet),
-
-          if (product.productType == UnifiedProductType.bonds) ...[
-            const SizedBox(height: 24),
-            _buildBondsSpecificSection(context, isMobile, isTablet),
-          ],
-
-          if (product.productType == UnifiedProductType.shares) ...[
-            const SizedBox(height: 24),
-            _buildSharesSpecificSection(context, isMobile, isTablet),
-          ],
-          const SizedBox(height: 24),
-          _buildSourceInfoBar(product, isMobile, isTablet),
-        ],
-      ),
+            ]),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1004,30 +1079,38 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   }
 
   Widget _buildOverviewTab(BuildContext context, bool isMobile, bool isTablet) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Statystyki główne
-          _buildMainStatsCards(context, isMobile),
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Statystyki główne
+                  _buildMainStatsCards(context, isMobile),
 
-          const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-          // Sekcja kwot - uproszczona w przegladzie
-          _buildQuickAmountsSection(context, isMobile),
+                  // Sekcja kwot - uproszczona w przegladzie
+                  _buildQuickAmountsSection(context, isMobile),
 
-          const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-          // Top inwestorzy - podgląd
-          _buildTopInvestorsPreview(context),
+                  // Top inwestorzy - podgląd
+                  _buildTopInvestorsPreview(context),
 
-          const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-          // Status i kluczowe informacje
-          _buildKeyInfoSection(context),
-        ],
-      ),
+                  // Status i kluczowe informacje
+                  _buildKeyInfoSection(context),
+                ],
+              ),
+            ]),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1036,30 +1119,38 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     bool isMobile,
     bool isTablet,
   ) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Wykresy i analiza
-          _buildAnalyticsCharts(context, isMobile),
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Wykresy i analiza
+                  _buildAnalyticsCharts(context, isMobile),
 
-          const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-          // Metryki performensu
-          _buildPerformanceMetrics(context, isMobile),
+                  // Metryki performensu
+                  _buildPerformanceMetrics(context, isMobile),
 
-          const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-          // Analiza inwestorów
-          _buildInvestorAnalytics(context, isMobile),
+                  // Analiza inwestorów
+                  _buildInvestorAnalytics(context, isMobile),
 
-          const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-          // Trendy i prognozy
-          _buildTrendsSection(context, isMobile),
-        ],
-      ),
+                  // Trendy i prognozy
+                  _buildTrendsSection(context, isMobile),
+                ],
+              ),
+            ]),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1067,41 +1158,56 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     final stats = _statistics;
     final totalInvestors = stats.totalInvestors;
     final totalRemainingCapital = stats.totalRemainingCapital;
+    final responsiveBreakpoints = ResponsiveBreakpoints.of(context);
+
+    // Zawsze 4 elementy obok siebie na desktop, 2 na mobile i tablet w orientacji pionowej
+    final crossAxisCount =
+        responsiveBreakpoints.isMobile ||
+            (responsiveBreakpoints.isTablet &&
+                MediaQuery.of(context).orientation == Orientation.portrait)
+        ? 2
+        : 4;
+
+    // Dostosowany współczynnik proporcji dla lepszego wyglądu na różnych urządzeniach
+    final childAspectRatio = isMobile
+        ? 1.3
+        : responsiveBreakpoints.isTablet
+        ? 1.4
+        : 1.5;
 
     return GridView.count(
-      crossAxisCount: isMobile ? 2 : 4,
+      crossAxisCount: crossAxisCount,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: isMobile ? 1.2 : 1.3,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
+      childAspectRatio: childAspectRatio,
+      crossAxisSpacing: isMobile ? 8 : 12,
+      mainAxisSpacing: isMobile ? 8 : 12,
+      padding: EdgeInsets.symmetric(vertical: isMobile ? 4 : 8),
       children: [
         StatCard(
-          title: 'Inwestorzy',
-          value: totalInvestors.toString(),
-          icon: Icons.people,
+          title: 'Łącznie inwestorów',
+          value: '$totalInvestors',
+          icon: Icons.people_alt_rounded,
           color: AppTheme.primaryAccent,
         ),
         StatCard(
-          title: 'Suma inwestycji',
-          value: CurrencyFormatter.formatCurrencyShort(
-            stats.totalInvestmentAmount,
-          ),
-          icon: Icons.trending_down,
+          title: 'Pozostały kapitał',
+          value: CurrencyFormatter.formatCurrency(totalRemainingCapital),
+          icon: Icons.account_balance_wallet_rounded,
           color: AppTheme.infoPrimary,
         ),
         StatCard(
-          title: 'Kapitał pozostały',
-          value: CurrencyFormatter.formatCurrencyShort(totalRemainingCapital),
-          icon: Icons.account_balance_wallet,
+          title: 'Suma inwestycji',
+          value: CurrencyFormatter.formatCurrency(_totalInvestmentAmount),
+          icon: Icons.show_chart_rounded,
           color: AppTheme.successPrimary,
         ),
         StatCard(
-          title: 'Zabezpiecz. nieru.',
-          value: CurrencyFormatter.formatCurrencyShort(
-            stats.totalCapitalSecuredByRealEstate,
+          title: 'Zabezpieczony kapitał',
+          value: CurrencyFormatter.formatCurrency(
+            _totalCapitalSecuredByRealEstate,
           ),
-          icon: Icons.home,
+          icon: Icons.security_rounded,
           color: AppTheme.warningPrimary,
         ),
       ],
@@ -1642,5 +1748,63 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         ),
       ],
     );
+  }
+}
+
+// Delegate dla TabBar w SliverPersistentHeader
+class _TabBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget tabBar;
+
+  _TabBarDelegate({required this.tabBar});
+
+  @override
+  // Dostosowana wysokość na podstawie urządzenia
+  double get minExtent {
+    final isMobile = ResponsiveBreakpoints.of(_tabBarContext).isMobile;
+    return isMobile
+        ? 65
+        : 60; // Większa wysokość na mobile dla lepszej dotykalności
+  }
+
+  @override
+  double get maxExtent {
+    final isMobile = ResponsiveBreakpoints.of(_tabBarContext).isMobile;
+    return isMobile ? 65 : 60;
+  }
+
+  // Pobieramy kontekst budowy, aby mieć dostęp do ResponsiveBreakpoints
+  late final BuildContext _tabBarContext;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    // Zapisz kontekst przy pierwszym budowaniu
+    _tabBarContext = context;
+
+    final isMobile = ResponsiveBreakpoints.of(context).isMobile;
+
+    return Container(
+      height: isMobile ? 65 : 60,
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundSecondary,
+        boxShadow: [
+          if (shrinkOffset > 0) // Dodaj cień tylko gdy header jest zwinięty
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+        ],
+      ),
+      child: tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_TabBarDelegate oldDelegate) {
+    return tabBar != oldDelegate.tabBar;
   }
 }

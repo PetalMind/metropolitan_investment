@@ -111,15 +111,6 @@ class _VotingChangesTabState extends State<VotingChangesTab> {
             child: Icon(Icons.history, color: AppTheme.secondaryGold, size: 24),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Historia Zmian Statusu Głosowania',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ),
           if (_isLoading)
             Container(
               padding: const EdgeInsets.all(8),
