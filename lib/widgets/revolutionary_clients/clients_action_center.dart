@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 
 /// 🎪 CLIENTS ACTION CENTER
-/// 
+///
 /// Floating Action Center z:
 /// - Contextual actions z smooth morphing
 /// - Bulk operations z progress indicators
@@ -30,21 +30,20 @@ class ClientsActionCenter extends StatefulWidget {
 
 class _ClientsActionCenterState extends State<ClientsActionCenter>
     with TickerProviderStateMixin {
-  
   late AnimationController _slideController;
   late AnimationController _fabController;
   late AnimationController _dashboardController;
   late AnimationController _morphController;
   late AnimationController _expandController;
   late AnimationController _pulseController;
-  
+
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fabAnimation;
   late Animation<double> _dashboardAnimation;
   late Animation<double> _morphAnimation;
   late Animation<double> _expandAnimation;
   late Animation<double> _pulseAnimation;
-  
+
   bool _isActionCenterExpanded = false;
   bool _isDashboardVisible = false;
   bool _isSelectionMode = false;
@@ -69,12 +68,12 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    
+
     _expandController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -84,20 +83,16 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
       parent: _morphController,
       curve: Curves.easeInOut,
     );
-    
+
     _expandAnimation = CurvedAnimation(
       parent: _expandController,
       curve: Curves.easeOutBack,
     );
-    
-    _pulseAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.1,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
-    
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
     _pulseController.repeat(reverse: true);
   }
 
@@ -105,26 +100,26 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
     setState(() {
       _isActionCenterExpanded = !_isActionCenterExpanded;
     });
-    
+
     if (_isActionCenterExpanded) {
       _expandController.forward();
     } else {
       _expandController.reverse();
     }
   }
-  
+
   void _showBulkActions() {
     // Show bulk actions bottom sheet or dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Bulk actions triggered')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Bulk actions triggered')));
   }
-  
+
   void _toggleIntelligenceDashboard() {
     setState(() {
       _isDashboardVisible = !_isDashboardVisible;
     });
-    
+
     if (_isDashboardVisible) {
       _dashboardController.forward();
     } else {
@@ -135,7 +130,7 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
   @override
   void didUpdateWidget(ClientsActionCenter oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.isSelectionMode != oldWidget.isSelectionMode) {
       if (widget.isSelectionMode) {
         _morphController.forward();
@@ -150,7 +145,7 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
     setState(() {
       _isExpanded = !_isExpanded;
     });
-    
+
     if (_isExpanded) {
       _expandController.forward();
     } else {
@@ -170,7 +165,7 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
     return AnimatedBuilder(
       animation: _morphAnimation,
       builder: (context, child) {
-        return widget.isSelectionMode 
+        return widget.isSelectionMode
             ? _buildSelectionMode()
             : _buildNormalMode();
       },
@@ -191,9 +186,7 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
         icon: const Icon(Icons.add_rounded),
         label: const Text(
           'Nowy Klient',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w600),
         ),
         elevation: 8,
         highlightElevation: 12,
@@ -215,9 +208,9 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
             );
           },
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         // Main action button
         _buildMainActionButton(),
       ],
@@ -226,7 +219,7 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
 
   Widget _buildExpandedActions() {
     if (!_isExpanded) return const SizedBox();
-    
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -236,9 +229,9 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
           color: AppTheme.infoColor,
           onTap: widget.onExportSelected,
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         _buildActionButton(
           icon: Icons.edit_rounded,
           label: 'Edytuj zbiorczo',
@@ -247,9 +240,9 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
             // TODO: Implement bulk edit
           },
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         _buildActionButton(
           icon: Icons.delete_rounded,
           label: 'Usuń wybrane',
@@ -267,23 +260,23 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
       alignment: Alignment.center,
       children: [
         // Main button
-          FloatingActionButton.extended(
-            onPressed: _isSelectionMode 
-                ? _showBulkActions 
-                : () => _toggleActionCenter(),
-            label: Text(
-              _isSelectionMode ? 'Bulk Actions' : 'Quick Actions',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
+        FloatingActionButton.extended(
+          onPressed: _isSelectionMode
+              ? _showBulkActions
+              : () => _toggleActionCenter(),
+          label: Text(
+            _isSelectionMode ? 'Bulk Actions' : 'Quick Actions',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w600,
             ),
-            icon: Icon(
-              _isSelectionMode ? Icons.checklist_rounded : Icons.bolt_rounded,
-              color: AppTheme.secondaryGold,
-            ),
-            backgroundColor: AppTheme.backgroundSecondary,
-          ),        // Expand button
+          ),
+          icon: Icon(
+            _isSelectionMode ? Icons.checklist_rounded : Icons.bolt_rounded,
+            color: AppTheme.secondaryGold,
+          ),
+          backgroundColor: AppTheme.backgroundSecondary,
+        ), // Expand button
         Positioned(
           right: 8,
           child: GestureDetector(
@@ -322,12 +315,7 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
       backgroundColor: color,
       foregroundColor: Colors.white,
       icon: Icon(icon),
-      label: Text(
-        label,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+      label: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       elevation: 4,
       highlightElevation: 8,
     );
@@ -335,7 +323,7 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
 }
 
 /// 🧠 CLIENTS INTELLIGENCE DASHBOARD
-/// 
+///
 /// AI-powered analytics dashboard z:
 /// - Real-time insights z trend visualization
 /// - Predictive analytics z confidence indicators
@@ -356,16 +344,17 @@ class ClientsIntelligenceDashboard extends StatefulWidget {
   });
 
   @override
-  State<ClientsIntelligenceDashboard> createState() => _ClientsIntelligenceDashboardState();
+  State<ClientsIntelligenceDashboard> createState() =>
+      _ClientsIntelligenceDashboardState();
 }
 
-class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashboard>
+class _ClientsIntelligenceDashboardState
+    extends State<ClientsIntelligenceDashboard>
     with TickerProviderStateMixin {
-  
   late AnimationController _slideController;
   late AnimationController _counterController;
   late AnimationController _chartController;
-  
+
   late Animation<Offset> _slideAnimation;
   late Animation<double> _counterAnimation;
   late Animation<double> _chartAnimation;
@@ -390,30 +379,27 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _counterController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
+
     _chartController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
-    
+    _slideAnimation = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
+
     _counterAnimation = CurvedAnimation(
       parent: _counterController,
       curve: Curves.easeOutQuart,
     );
-    
+
     _chartAnimation = CurvedAnimation(
       parent: _chartController,
       curve: Curves.easeOutCubic,
@@ -422,11 +408,11 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
 
   void _startAnimations() {
     _slideController.forward();
-    
+
     Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) _counterController.forward();
     });
-    
+
     Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) _chartController.forward();
     });
@@ -456,7 +442,7 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
         child: Column(
           children: [
             _buildHeader(),
-            
+
             if (widget.isCompact)
               _buildCompactContent()
             else
@@ -472,9 +458,7 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppTheme.secondaryGold.withOpacity(0.1),
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Row(
         children: [
@@ -490,9 +474,9 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
               size: 24,
             ),
           ),
-          
+
           const SizedBox(width: 16),
-          
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -504,9 +488,9 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                
+
                 const SizedBox(height: 4),
-                
+
                 Text(
                   'AI-powered insights dla Twojego portfela klientów',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -516,7 +500,7 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
               ],
             ),
           ),
-          
+
           _buildInsightsBadge(),
         ],
       ),
@@ -537,14 +521,10 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.lightbulb_rounded,
-            color: AppTheme.successColor,
-            size: 16,
-          ),
-          
+          Icon(Icons.lightbulb_rounded, color: AppTheme.successColor, size: 16),
+
           const SizedBox(width: 6),
-          
+
           Text(
             '${widget.insights.length} insights',
             style: TextStyle(
@@ -577,9 +557,9 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
       child: Column(
         children: [
           _buildKeyMetrics(),
-          
+
           const SizedBox(height: 24),
-          
+
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -588,9 +568,9 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
               Expanded(flex: 3, child: _buildTrendChart()),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           _buildClientSegmentation(),
         ],
       ),
@@ -599,7 +579,7 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
 
   Widget _buildKeyMetrics() {
     final data = widget.intelligenceData;
-    
+
     return Row(
       children: [
         Expanded(
@@ -611,9 +591,9 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
             '↑ 12.5%',
           ),
         ),
-        
+
         const SizedBox(width: 16),
-        
+
         Expanded(
           child: _buildMetricCard(
             'Wskaźnik ryzyka',
@@ -623,9 +603,9 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
             data['risk_score'] < 0.5 ? '↓ Niskie' : '↑ Wysokie',
           ),
         ),
-        
+
         const SizedBox(width: 16),
-        
+
         Expanded(
           child: _buildMetricCard(
             'Wzrost',
@@ -654,23 +634,16 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
           decoration: BoxDecoration(
             color: AppTheme.backgroundSecondary,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: color.withOpacity(0.2),
-              width: 1,
-            ),
+            border: Border.all(color: color.withOpacity(0.2), width: 1),
           ),
           child: Column(
             children: [
               Row(
                 children: [
-                  Icon(
-                    icon,
-                    color: color,
-                    size: 20,
-                  ),
-                  
+                  Icon(icon, color: color, size: 20),
+
                   const SizedBox(width: 8),
-                  
+
                   Expanded(
                     child: Text(
                       title,
@@ -683,9 +656,9 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               Text(
                 value,
                 style: TextStyle(
@@ -694,9 +667,9 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              
+
               const SizedBox(height: 4),
-              
+
               Text(
                 trend,
                 style: TextStyle(
@@ -723,9 +696,9 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
             fontWeight: FontWeight.w600,
           ),
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         ...widget.insights.take(3).map((insight) {
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -739,7 +712,7 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
   Widget _buildInsightCard(ClientInsight insight) {
     Color insightColor;
     IconData insightIcon;
-    
+
     switch (insight.type) {
       case InsightType.opportunity:
         insightColor = AppTheme.successColor;
@@ -764,21 +737,14 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
       decoration: BoxDecoration(
         color: insightColor.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: insightColor.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: insightColor.withOpacity(0.2), width: 1),
       ),
       child: Row(
         children: [
-          Icon(
-            insightIcon,
-            color: insightColor,
-            size: 18,
-          ),
-          
+          Icon(insightIcon, color: insightColor, size: 18),
+
           const SizedBox(width: 12),
-          
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -791,15 +757,12 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                
+
                 const SizedBox(height: 2),
-                
+
                 Text(
                   insight.description,
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                 ),
               ],
             ),
@@ -819,10 +782,7 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
           decoration: BoxDecoration(
             color: AppTheme.backgroundSecondary,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppTheme.borderSecondary,
-              width: 1,
-            ),
+            border: Border.all(color: AppTheme.borderSecondary, width: 1),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -834,9 +794,9 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               Expanded(
                 child: CustomPaint(
                   painter: TrendChartPainter(
@@ -859,10 +819,7 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
       decoration: BoxDecoration(
         color: AppTheme.backgroundSecondary,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.borderSecondary,
-          width: 1,
-        ),
+        border: Border.all(color: AppTheme.borderSecondary, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -874,9 +831,9 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
               fontWeight: FontWeight.w600,
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           Row(
             children: [
               _buildSegmentChip('Premium', 45, AppTheme.secondaryGold),
@@ -899,10 +856,7 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
       ),
       child: Column(
         children: [
@@ -914,7 +868,7 @@ class _ClientsIntelligenceDashboardState extends State<ClientsIntelligenceDashbo
               fontWeight: FontWeight.w700,
             ),
           ),
-          
+
           Text(
             label,
             style: TextStyle(
@@ -934,10 +888,7 @@ class TrendChartPainter extends CustomPainter {
   final double progress;
   final Color color;
 
-  TrendChartPainter({
-    required this.progress,
-    required this.color,
-  });
+  TrendChartPainter({required this.progress, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -959,21 +910,21 @@ class TrendChartPainter extends CustomPainter {
 
     if (points.isNotEmpty) {
       path.moveTo(points.first.dx, points.first.dy);
-      
+
       for (int i = 1; i < points.length; i++) {
         final currentPoint = points[i];
         final previousPoint = points[i - 1];
-        
+
         final controlPoint1 = Offset(
           previousPoint.dx + (currentPoint.dx - previousPoint.dx) * 0.5,
           previousPoint.dy,
         );
-        
+
         final controlPoint2 = Offset(
           previousPoint.dx + (currentPoint.dx - previousPoint.dx) * 0.5,
           currentPoint.dy,
         );
-        
+
         path.cubicTo(
           controlPoint1.dx,
           controlPoint1.dy,
@@ -1009,7 +960,7 @@ class ClientInsight {
   final String description;
   final InsightPriority priority;
   final bool actionable;
-  
+
   ClientInsight({
     required this.type,
     required this.title,
@@ -1025,7 +976,7 @@ class ClientMetrics {
   final double averageInvestment;
   final DateTime lastActivity;
   final double riskScore;
-  
+
   ClientMetrics({
     required this.totalValue,
     required this.investmentCount,
@@ -1036,4 +987,5 @@ class ClientMetrics {
 }
 
 enum InsightType { opportunity, warning, info, success }
+
 enum InsightPriority { low, medium, high, critical }

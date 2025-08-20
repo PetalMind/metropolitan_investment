@@ -3,7 +3,7 @@ import '../../theme/app_theme.dart';
 import '../../models_and_services.dart';
 
 /// 🎨 ENHANCED CLIENT STATS DISPLAY
-/// 
+///
 /// Responsywny widget statystyk który:
 /// - Adaptuje się do rozmiaru kontenera (full/compact/mini)
 /// - Wyświetla się pięknie w CollapsibleSearchHeader
@@ -27,18 +27,18 @@ class EnhancedClientStatsDisplay extends StatefulWidget {
   });
 
   @override
-  State<EnhancedClientStatsDisplay> createState() => _EnhancedClientStatsDisplayState();
+  State<EnhancedClientStatsDisplay> createState() =>
+      _EnhancedClientStatsDisplayState();
 }
 
 class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
     with TickerProviderStateMixin {
-  
   late AnimationController _counterController;
   late AnimationController _progressController;
-  
+
   late Animation<double> _counterAnimation;
   late Animation<double> _progressAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -57,7 +57,7 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
+
     _progressController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
@@ -67,12 +67,12 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
       parent: _counterController,
       curve: Curves.easeOutQuart,
     );
-    
+
     _progressAnimation = CurvedAnimation(
       parent: _progressController,
       curve: Curves.easeInOutCubic,
     );
-    
+
     // Start animations when data is available
     if (widget.clientStats != null) {
       _startAnimations();
@@ -89,7 +89,7 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
   @override
   void didUpdateWidget(EnhancedClientStatsDisplay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.clientStats != null && oldWidget.clientStats == null) {
       _startAnimations();
     }
@@ -104,8 +104,12 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
     if (widget.clientStats != null) {
       print('   - totalClients: ${widget.clientStats!.totalClients}');
       print('   - totalInvestments: ${widget.clientStats!.totalInvestments}');
-      print('   - totalRemainingCapital: ${widget.clientStats!.totalRemainingCapital}');
-      print('   - averageCapitalPerClient: ${widget.clientStats!.averageCapitalPerClient}');
+      print(
+        '   - totalRemainingCapital: ${widget.clientStats!.totalRemainingCapital}',
+      );
+      print(
+        '   - averageCapitalPerClient: ${widget.clientStats!.averageCapitalPerClient}',
+      );
       print('   - source: ${widget.clientStats!.source}');
     }
 
@@ -120,9 +124,7 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
     return AnimatedBuilder(
       animation: Listenable.merge([_counterAnimation, _progressAnimation]),
       builder: (context, child) {
-        return widget.isCompact 
-            ? _buildCompactStats()
-            : _buildFullStats();
+        return widget.isCompact ? _buildCompactStats() : _buildFullStats();
       },
     );
   }
@@ -163,18 +165,18 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
   }
 
   Widget _buildErrorState() {
-    print('🔍 [EnhancedClientStatsDisplay] Showing error state - clientStats is null');
+    print(
+      '🔍 [EnhancedClientStatsDisplay] Showing error state - clientStats is null',
+    );
     print('   - widget.isLoading: ${widget.isLoading}');
     print('   - widget.clientStats: ${widget.clientStats}');
-    
+
     return Container(
       height: widget.isCompact ? 60 : 120,
       decoration: BoxDecoration(
         color: AppTheme.errorColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.errorColor.withOpacity(0.3),
-        ),
+        border: Border.all(color: AppTheme.errorColor.withOpacity(0.3)),
       ),
       child: Center(
         child: Column(
@@ -183,11 +185,7 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.refresh,
-                  color: AppTheme.secondaryGold,
-                  size: 20,
-                ),
+                Icon(Icons.refresh, color: AppTheme.secondaryGold, size: 20),
                 const SizedBox(width: 12),
                 Text(
                   'Ładowanie statystyk...',
@@ -203,10 +201,7 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
               const SizedBox(height: 8),
               Text(
                 'Dane będą dostępne za chwilę',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
               ),
             ],
           ],
@@ -217,7 +212,7 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
 
   Widget _buildCompactStats() {
     final stats = widget.clientStats!;
-    
+
     return Row(
       children: [
         Expanded(
@@ -229,9 +224,9 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
             isCompact: true,
           ),
         ),
-        
+
         const SizedBox(width: 16),
-        
+
         Expanded(
           child: _buildStatItem(
             label: 'Inwestycje',
@@ -241,9 +236,9 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
             isCompact: true,
           ),
         ),
-        
+
         const SizedBox(width: 16),
-        
+
         Expanded(
           flex: 2,
           child: _buildStatItem(
@@ -262,8 +257,9 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
 
   Widget _buildFullStats() {
     final stats = widget.clientStats!;
-    
-    return SingleChildScrollView( // 🚀 Dodajemy scroll na wypadek overflow
+
+    return SingleChildScrollView(
+      // 🚀 Dodajemy scroll na wypadek overflow
       child: Column(
         mainAxisSize: MainAxisSize.min, // 🚀 Minimalna wysokość
         children: [
@@ -279,9 +275,9 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
                   maxValue: stats.totalClients.toDouble(),
                 ),
               ),
-              
+
               const SizedBox(width: 20),
-              
+
               Expanded(
                 child: _buildStatItem(
                   label: 'Aktywne inwestycje',
@@ -294,9 +290,9 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
               ),
             ],
           ),
-          
+
           const SizedBox(height: 12), // 🚀 Zmniejszony odstęp
-          
+
           Row(
             children: [
               Expanded(
@@ -311,9 +307,9 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
                   maxValue: stats.totalRemainingCapital,
                 ),
               ),
-              
+
               const SizedBox(width: 20),
-              
+
               Expanded(
                 child: _buildStatItem(
                   label: 'Średnia na klienta',
@@ -328,7 +324,7 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
               ),
             ],
           ),
-          
+
           // 🚀 Ukrywamy sourceInfo w kompaktowym trybie headera
           if (widget.showSourceInfo && !widget.isCompact) ...[
             const SizedBox(height: 8), // 🚀 Mniejszy odstęp
@@ -353,9 +349,7 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
       decoration: BoxDecoration(
         color: color.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-        ),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,13 +363,9 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
                   color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: isCompact ? 16 : 20,
-                ),
+                child: Icon(icon, color: color, size: isCompact ? 16 : 20),
               ),
-              
+
               if (!isCompact) ...[
                 const SizedBox(width: 12),
                 Expanded(
@@ -393,9 +383,9 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
               ],
             ],
           ),
-          
+
           SizedBox(height: isCompact ? 4 : 8),
-          
+
           if (isCompact)
             Text(
               label,
@@ -407,9 +397,9 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-          
+
           SizedBox(height: isCompact ? 2 : 4),
-          
+
           Text(
             value,
             style: TextStyle(
@@ -419,7 +409,7 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
               letterSpacing: -0.5,
             ),
           ),
-          
+
           if (showProgress && !isCompact) ...[
             const SizedBox(height: 8),
             _buildProgressBar(color, maxValue),
@@ -453,7 +443,7 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
     Color sourceColor;
     IconData sourceIcon;
     String sourceText;
-    
+
     switch (stats.source) {
       case 'firebase-functions':
         sourceColor = AppTheme.successColor;
@@ -475,24 +465,18 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
         sourceIcon = Icons.info;
         sourceText = 'Nieznane źródło';
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: sourceColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: sourceColor.withOpacity(0.3),
-        ),
+        border: Border.all(color: sourceColor.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            sourceIcon,
-            color: sourceColor,
-            size: 14,
-          ),
+          Icon(sourceIcon, color: sourceColor, size: 14),
           const SizedBox(width: 6),
           Text(
             'Źródło: $sourceText',
@@ -517,7 +501,7 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
 
   String _animatedNumber(double targetValue, int decimals) {
     final currentValue = targetValue * _counterAnimation.value;
-    return decimals == 0 
+    return decimals == 0
         ? currentValue.round().toString()
         : currentValue.toStringAsFixed(decimals);
   }
@@ -537,7 +521,7 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
       final dateTime = DateTime.parse(isoString);
       final now = DateTime.now();
       final difference = now.difference(dateTime);
-      
+
       if (difference.inMinutes < 1) {
         return 'teraz';
       } else if (difference.inMinutes < 60) {

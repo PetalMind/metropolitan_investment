@@ -5,7 +5,8 @@ import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
 import '../widgets/metropolitan_loading_system.dart';
-import '../widgets/enhanced_clients/collapsible_search_header_fixed.dart' as CollapsibleHeader;
+import '../widgets/enhanced_clients/collapsible_search_header_fixed.dart'
+    as CollapsibleHeader;
 import '../widgets/enhanced_clients/spectacular_clients_grid.dart';
 import '../widgets/enhanced_clients/enhanced_client_stats_display.dart';
 
@@ -27,7 +28,7 @@ class EnhancedClientsScreen extends StatefulWidget {
 
 class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     with TickerProviderStateMixin {
-  // Services - UŻYWAMY JUŻ ISTNIEJĄCYCH SERWISÓW  
+  // Services - UŻYWAMY JUŻ ISTNIEJĄCYCH SERWISÓW
   final IntegratedClientService _integratedClientService =
       IntegratedClientService();
   final UnifiedDashboardStatisticsService _dashboardStatsService =
@@ -197,7 +198,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         print(
           '   - Aktywni klienci (getActiveClients): ${activeClients.length}',
         );
-        
+
         // 🔍 SZCZEGÓŁOWE DEBUGGING STATYSTYK
         print('   - Statystyki otrzymane: $clientStats');
         print('   - Statystyki - łącznie: ${clientStats.totalClients}');
@@ -205,48 +206,62 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         print(
           '   - Statystyki - kapitał: ${clientStats.totalRemainingCapital}',
         );
-        print('   - Statystyki - średnia na klienta: ${clientStats.averageCapitalPerClient}');
+        print(
+          '   - Statystyki - średnia na klienta: ${clientStats.averageCapitalPerClient}',
+        );
         print('   - Statystyki - źródło: ${clientStats.source}');
-        print('   - Statystyki - ostatnia aktualizacja: ${clientStats.lastUpdated}');
-        
+        print(
+          '   - Statystyki - ostatnia aktualizacja: ${clientStats.lastUpdated}',
+        );
+
         setState(() {
           _allClients = allClients;
           _activeClients = activeClients;
           _clientStats = clientStats;
           _isLoading = false;
         });
-        
+
         // 🎉 SUCCESS: Statystyki załadowane
         print('✅ [SUCCESS] Statystyki załadowane pomyślnie:');
         print('   - ${clientStats.totalClients} klientów');
-        print('   - ${clientStats.totalInvestments} inwestycji'); 
-        print('   - ${clientStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału');
+        print('   - ${clientStats.totalInvestments} inwestycji');
+        print(
+          '   - ${clientStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału',
+        );
         print('   - Źródło: ${clientStats.source}');
-        
+
         // 🚨 TYLKO JEŚLI WSZYSTKIE POLA SĄ 0 - użyj inteligentnego fallback z dashboardStats
-        if (clientStats.totalClients == 0 && clientStats.totalInvestments == 0 && clientStats.totalRemainingCapital == 0.0) {
-          print('⚠️ [EMERGENCY] Wszystkie statystyki są 0 - używam dashboardStats jako backup...');
-          
+        if (clientStats.totalClients == 0 &&
+            clientStats.totalInvestments == 0 &&
+            clientStats.totalRemainingCapital == 0.0) {
+          print(
+            '⚠️ [EMERGENCY] Wszystkie statystyki są 0 - używam dashboardStats jako backup...',
+          );
+
           // Użyj dashboardStats które już mamy załadowane
           final smartStats = ClientStats(
             totalClients: _allClients.length, // Prawdziwa liczba klientów
             totalInvestments: dashboardStats.totalInvestments,
             totalRemainingCapital: dashboardStats.totalRemainingCapital,
-            averageCapitalPerClient: _allClients.length > 0 
-                ? dashboardStats.totalRemainingCapital / _allClients.length 
+            averageCapitalPerClient: _allClients.length > 0
+                ? dashboardStats.totalRemainingCapital / _allClients.length
                 : 0.0,
             lastUpdated: DateTime.now().toIso8601String(),
             source: 'dashboard-stats-smart-backup',
           );
-          
+
           setState(() {
             _clientStats = smartStats;
           });
-          
+
           print('🎯 [EMERGENCY] Użyto inteligentnego backup:');
           print('   - ${_allClients.length} klientów (rzeczywista liczba)');
-          print('   - ${dashboardStats.totalInvestments} inwestycji (z dashboard)');
-          print('   - ${dashboardStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału (z dashboard)');
+          print(
+            '   - ${dashboardStats.totalInvestments} inwestycji (z dashboard)',
+          );
+          print(
+            '   - ${dashboardStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału (z dashboard)',
+          );
           print('   - Źródło: dashboard-stats-smart-backup');
         }
 
@@ -480,18 +495,13 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           // 🎨 FIXED COLLAPSIBLE SEARCH HEADER - ZAWSZE ZAJMUJE MIEJSCE
           CollapsibleHeader.CollapsibleSearchHeader(
             searchController: _searchController,
-            isCollapsed: _isHeaderCollapsed, // 🚀 KONTROLUJE UKRYWANIE STATYSTYK
+            isCollapsed:
+                _isHeaderCollapsed, // 🚀 KONTROLUJE UKRYWANIE STATYSTYK
             onSearchChanged: (query) {
               _currentSearchQuery = query;
               _performSearch();
             },
-            statsWidget: EnhancedClientStatsDisplay(
-              clientStats: _clientStats,
-              isLoading: false, // Header już widoczny, nie pokazuj loading
-              isCompact: _isHeaderCollapsed,
-              showTrends: true,
-              showSourceInfo: true,
-            ),
+           
             showActiveOnly: _showActiveOnly,
             onToggleActiveOnly: _toggleActiveClients,
             activeClientsCount: _activeClients.length,

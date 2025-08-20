@@ -235,30 +235,48 @@ class IntegratedClientService extends BaseService {
       // Bezpieczne parsowanie z null-safety
       final totalClients = _safeParseInt(data['totalClients']);
       final totalInvestments = _safeParseInt(data['totalInvestments']);
-      final totalRemainingCapital = _safeParseDouble(data['totalRemainingCapital']);
+      final totalRemainingCapital = _safeParseDouble(
+        data['totalRemainingCapital'],
+      );
 
       print('   - Firebase Functions response (parsed):');
       print('     * totalClients: $totalClients (${totalClients.runtimeType})');
-      print('     * totalInvestments: $totalInvestments (${totalInvestments.runtimeType})');
-      print('     * totalRemainingCapital: $totalRemainingCapital (${totalRemainingCapital.runtimeType})');
+      print(
+        '     * totalInvestments: $totalInvestments (${totalInvestments.runtimeType})',
+      );
+      print(
+        '     * totalRemainingCapital: $totalRemainingCapital (${totalRemainingCapital.runtimeType})',
+      );
       print('     * source: ${data['source'] ?? 'unknown'}');
 
       // Sprawdź czy dane mają sens biznesowo
-      if (totalClients < 0 || totalInvestments < 0 || totalRemainingCapital < 0) {
-        print('⚠️ [WARNING] Firebase Functions zwróciły nieprawidłowe wartości');
+      if (totalClients < 0 ||
+          totalInvestments < 0 ||
+          totalRemainingCapital < 0) {
+        print(
+          '⚠️ [WARNING] Firebase Functions zwróciły nieprawidłowe wartości',
+        );
         print('   - totalClients: $totalClients');
         print('   - totalInvestments: $totalInvestments');
         print('   - totalRemainingCapital: $totalRemainingCapital');
         print('   - Wymuszam fallback...');
-        throw Exception('Nieprawidłowe dane z Firebase Functions - negatywne wartości');
+        throw Exception(
+          'Nieprawidłowe dane z Firebase Functions - negatywne wartości',
+        );
       }
 
       // Sprawdź logikę biznesową - czy klienci mają inwestycje
-      if (totalClients > 0 && totalInvestments == 0 && totalRemainingCapital == 0) {
-        print('⚠️ [WARNING] Firebase Functions zwróciły 0 kapitału i inwestycji dla $totalClients klientów');
+      if (totalClients > 0 &&
+          totalInvestments == 0 &&
+          totalRemainingCapital == 0) {
+        print(
+          '⚠️ [WARNING] Firebase Functions zwróciły 0 kapitału i inwestycji dla $totalClients klientów',
+        );
         print('   - To może wskazywać na błąd w logice serwera');
         print('   - Wymuszam fallback...');
-        throw Exception('Nieprawidłowe dane z Firebase Functions - brak inwestycji dla klientów');
+        throw Exception(
+          'Nieprawidłowe dane z Firebase Functions - brak inwestycji dla klientów',
+        );
       }
 
       final stats = ClientStats(
@@ -268,7 +286,10 @@ class IntegratedClientService extends BaseService {
         averageCapitalPerClient: totalClients > 0
             ? totalRemainingCapital / totalClients
             : 0.0,
-        lastUpdated: _safeParseString(data['lastUpdated'], DateTime.now().toIso8601String()),
+        lastUpdated: _safeParseString(
+          data['lastUpdated'],
+          DateTime.now().toIso8601String(),
+        ),
         source: _safeParseString(data['source'], 'firebase-functions'),
       );
 
@@ -281,11 +302,17 @@ class IntegratedClientService extends BaseService {
         throw Exception('Nieprawidłowe dane z Firebase Functions - 0 kapitału');
       }
 
-      print('✅ [IntegratedClientService] Pomyślnie pobrano statystyki z Firebase Functions:');
+      print(
+        '✅ [IntegratedClientService] Pomyślnie pobrano statystyki z Firebase Functions:',
+      );
       print('   - Klienci: ${stats.totalClients}');
       print('   - Inwestycje: ${stats.totalInvestments}');
-      print('   - Kapitał: ${stats.totalRemainingCapital.toStringAsFixed(2)} PLN');
-      print('   - Średnia na klienta: ${stats.averageCapitalPerClient.toStringAsFixed(2)} PLN');
+      print(
+        '   - Kapitał: ${stats.totalRemainingCapital.toStringAsFixed(2)} PLN',
+      );
+      print(
+        '   - Średnia na klienta: ${stats.averageCapitalPerClient.toStringAsFixed(2)} PLN',
+      );
       print('   - Źródło: ${stats.source}');
 
       logError('getClientStats', 'Pobrano statystyki z Firebase Functions');
@@ -327,11 +354,17 @@ class IntegratedClientService extends BaseService {
           source: 'advanced-fallback',
         );
 
-        print('✅ [IntegratedClientService] Pomyślnie pobrano z zaawansowanego fallback:');
+        print(
+          '✅ [IntegratedClientService] Pomyślnie pobrano z zaawansowanego fallback:',
+        );
         print('   - Klienci: ${stats.totalClients}');
         print('   - Inwestycje: ${stats.totalInvestments}');
-        print('   - Kapitał: ${stats.totalRemainingCapital.toStringAsFixed(2)} PLN');
-        print('   - Średnia na klienta: ${stats.averageCapitalPerClient.toStringAsFixed(2)} PLN');
+        print(
+          '   - Kapitał: ${stats.totalRemainingCapital.toStringAsFixed(2)} PLN',
+        );
+        print(
+          '   - Średnia na klienta: ${stats.averageCapitalPerClient.toStringAsFixed(2)} PLN',
+        );
 
         logError(
           'getClientStats',
@@ -509,11 +542,11 @@ class IntegratedClientService extends BaseService {
       // Użyj bezpiecznej metody parsowania
       final parsedCapital = _safeParseDouble(
         data['kapital_pozostaly'] ??
-        data['remainingCapital'] ??
-        data['capital_remaining'] ??
-        data['Kapital Pozostaly'] ??
-        data['Remaining Capital'] ??
-        0
+            data['remainingCapital'] ??
+            data['capital_remaining'] ??
+            data['Kapital Pozostaly'] ??
+            data['Remaining Capital'] ??
+            0,
       );
 
       if (parsedCapital > 0) {
@@ -559,25 +592,27 @@ class IntegratedClientService extends BaseService {
     if (value is double) return value.toInt();
     if (value is String) {
       if (value.isEmpty) return 0;
-      
+
       // Wyczyść string z niepotrzebnych znaków
       String cleanValue = value
-          .replaceAll(' ', '')      // usuń spacje
-          .replaceAll(',', '')      // usuń przecinki
+          .replaceAll(' ', '') // usuń spacje
+          .replaceAll(',', '') // usuń przecinki
           .trim();
-      
+
       final parsed = int.tryParse(cleanValue);
       if (parsed != null) {
         return parsed;
       }
-      
+
       // Spróbuj jako double i przekształć
       final parsedDouble = double.tryParse(cleanValue);
       if (parsedDouble != null && parsedDouble.isFinite) {
         return parsedDouble.toInt();
       }
-      
-      print('⚠️ [WARNING] Nie można sparsować int z: "$value" -> "$cleanValue"');
+
+      print(
+        '⚠️ [WARNING] Nie można sparsować int z: "$value" -> "$cleanValue"',
+      );
       return 0;
     }
     print('⚠️ [WARNING] Nieznany typ dla int: $value (${value.runtimeType})');
@@ -591,24 +626,28 @@ class IntegratedClientService extends BaseService {
     if (value is int) return value.toDouble();
     if (value is String) {
       if (value.isEmpty) return 0.0;
-      
+
       // Wyczyść string z polskich separatorów i białych znaków
       String cleanValue = value
-          .replaceAll(' ', '')      // usuń spacje
-          .replaceAll(',', '.')     // zamień przecinek na kropkę
-          .replaceAll('zł', '')     // usuń symbol waluty
-          .replaceAll('PLN', '')    // usuń symbol waluty
+          .replaceAll(' ', '') // usuń spacje
+          .replaceAll(',', '.') // zamień przecinek na kropkę
+          .replaceAll('zł', '') // usuń symbol waluty
+          .replaceAll('PLN', '') // usuń symbol waluty
           .trim();
-      
+
       final parsed = double.tryParse(cleanValue);
       if (parsed != null && parsed.isFinite) {
         return parsed;
       }
-      
-      print('⚠️ [WARNING] Nie można sparsować double z: "$value" -> "$cleanValue"');
+
+      print(
+        '⚠️ [WARNING] Nie można sparsować double z: "$value" -> "$cleanValue"',
+      );
       return 0.0;
     }
-    print('⚠️ [WARNING] Nieznany typ dla double: $value (${value.runtimeType})');
+    print(
+      '⚠️ [WARNING] Nieznany typ dla double: $value (${value.runtimeType})',
+    );
     return 0.0;
   }
 

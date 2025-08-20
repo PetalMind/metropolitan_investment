@@ -3,7 +3,7 @@ import '../../models_and_services.dart';
 import '../../theme/app_theme.dart';
 
 /// 🎯 SPECTACULAR CLIENTS GRID
-/// 
+///
 /// Zastępuje tradycyjną tabelę spektakularnym, responsywnym gridem z:
 /// - Masonry layout dla optimal space utilization
 /// - Staggered animations podczas ładowania
@@ -41,13 +41,12 @@ class SpectacularClientsGrid extends StatefulWidget {
 
 class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     with TickerProviderStateMixin {
-  
   late AnimationController _staggerController;
   late AnimationController _pulseController;
-  
+
   final List<GlobalKey> _cardKeys = [];
   final Map<String, AnimationController> _cardAnimations = {};
-  
+
   @override
   void initState() {
     super.initState();
@@ -68,12 +67,12 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    
+
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
-    
+
     _pulseController.repeat();
     _staggerController.forward();
   }
@@ -95,7 +94,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   @override
   void didUpdateWidget(SpectacularClientsGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.clients.length != oldWidget.clients.length) {
       _setupCardKeys();
       _staggerController.reset();
@@ -122,7 +121,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     return LayoutBuilder(
       builder: (context, constraints) {
         final crossAxisCount = _calculateCrossAxisCount(constraints.maxWidth);
-        
+
         return CustomScrollView(
           controller: widget.scrollController,
           slivers: [
@@ -135,27 +134,24 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                 ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    if (index >= widget.clients.length) return null;
-                    
-                    final client = widget.clients[index];
-                    final delay = (index * 50).clamp(0, 800);
-                    
-                    return _buildAnimatedClientCard(
-                      client: client,
-                      index: index,
-                      delay: delay,
-                    );
-                  },
-                  childCount: widget.clients.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  if (index >= widget.clients.length) return null;
+
+                  final client = widget.clients[index];
+                  final delay = (index * 50).clamp(0, 800);
+
+                  return _buildAnimatedClientCard(
+                    client: client,
+                    index: index,
+                    delay: delay,
+                  );
+                }, childCount: widget.clients.length),
               ),
             ),
-            
+
             if (widget.isLoading)
               SliverToBoxAdapter(child: _buildLoadingIndicator()),
-              
+
             if (widget.hasMoreData && !widget.isLoading)
               SliverToBoxAdapter(child: _buildLoadMoreButton()),
           ],
@@ -188,7 +184,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
         final staggerProgress = Curves.easeOutCubic.transform(
           ((_staggerController.value * 1000 - delay) / 200).clamp(0.0, 1.0),
         );
-        
+
         return Transform.translate(
           offset: Offset(0, 50 * (1 - staggerProgress)),
           child: Opacity(
@@ -203,7 +199,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   Widget _buildClientCard(Client client, int index) {
     final isSelected = widget.selectedClientIds.contains(client.id);
     final cardAnimation = _getCardAnimation(client.id);
-    
+
     return AnimatedBuilder(
       animation: Listenable.merge([cardAnimation, _pulseController]),
       builder: (context, child) {
@@ -215,7 +211,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: isSelected 
+                  color: isSelected
                       ? AppTheme.secondaryGold.withOpacity(0.3)
                       : AppTheme.shadowColor.withOpacity(0.1),
                   blurRadius: isSelected ? 20 : 10,
@@ -232,13 +228,12 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeInOutCubic,
-                  transform: Matrix4.identity()
-                    ..scale(isSelected ? 1.05 : 1.0),
+                  transform: Matrix4.identity()..scale(isSelected ? 1.05 : 1.0),
                   decoration: BoxDecoration(
                     gradient: _buildCardGradient(client, isSelected),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: isSelected 
+                      color: isSelected
                           ? AppTheme.secondaryGold.withOpacity(0.6)
                           : AppTheme.borderSecondary.withOpacity(0.2),
                       width: isSelected ? 2 : 1,
@@ -248,7 +243,8 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
                     children: [
                       _buildCardBackground(),
                       _buildCardContent(client),
-                      if (widget.isSelectionMode) _buildSelectionOverlay(isSelected),
+                      if (widget.isSelectionMode)
+                        _buildSelectionOverlay(isSelected),
                       _buildStatusIndicator(client),
                     ],
                   ),
@@ -273,7 +269,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
         ],
       );
     }
-    
+
     if (!client.isActive) {
       return LinearGradient(
         begin: Alignment.topLeft,
@@ -285,7 +281,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
         ],
       );
     }
-    
+
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
@@ -305,9 +301,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
           animation: _pulseController,
           builder: (context, child) {
             return CustomPaint(
-              painter: ClientCardBackgroundPainter(
-                animation: _pulseController,
-              ),
+              painter: ClientCardBackgroundPainter(animation: _pulseController),
             );
           },
         ),
@@ -371,7 +365,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   Widget _buildClientAvatar(Client client) {
     final initials = _getClientInitials(client.name);
     final avatarColor = _getAvatarColor(client.name);
-    
+
     return Container(
       width: 50,
       height: 50,
@@ -379,16 +373,10 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            avatarColor,
-            avatarColor.withOpacity(0.7),
-          ],
+          colors: [avatarColor, avatarColor.withOpacity(0.7)],
         ),
         shape: BoxShape.circle,
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 2,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
       ),
       child: Center(
         child: Text(
@@ -442,19 +430,15 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
             color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            size: 16,
-            color: color,
-          ),
+          child: Icon(icon, size: 16, color: color),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             text,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -477,12 +461,12 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: client.isActive 
+        color: client.isActive
             ? AppTheme.successColor.withOpacity(0.15)
             : AppTheme.errorColor.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: client.isActive 
+          color: client.isActive
               ? AppTheme.successColor.withOpacity(0.3)
               : AppTheme.errorColor.withOpacity(0.3),
         ),
@@ -494,7 +478,9 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              color: client.isActive ? AppTheme.successColor : AppTheme.errorColor,
+              color: client.isActive
+                  ? AppTheme.successColor
+                  : AppTheme.errorColor,
               shape: BoxShape.circle,
             ),
           ),
@@ -502,7 +488,9 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
           Text(
             client.isActive ? 'Aktywny' : 'Nieaktywny',
             style: TextStyle(
-              color: client.isActive ? AppTheme.successColor : AppTheme.errorColor,
+              color: client.isActive
+                  ? AppTheme.successColor
+                  : AppTheme.errorColor,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -542,20 +530,14 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-        ),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
-          child: Icon(
-            icon,
-            size: 16,
-            color: color,
-          ),
+          child: Icon(icon, size: 16, color: color),
         ),
       ),
     );
@@ -570,13 +552,13 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: isSelected 
-              ? AppTheme.secondaryGold 
+          color: isSelected
+              ? AppTheme.secondaryGold
               : Colors.white.withOpacity(0.3),
           shape: BoxShape.circle,
           border: Border.all(
-            color: isSelected 
-                ? AppTheme.secondaryGold 
+            color: isSelected
+                ? AppTheme.secondaryGold
                 : AppTheme.borderSecondary,
             width: 2,
           ),
@@ -602,8 +584,11 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: (client.isActive ? AppTheme.successColor : AppTheme.errorColor)
-                  .withOpacity(0.4),
+              color:
+                  (client.isActive
+                          ? AppTheme.successColor
+                          : AppTheme.errorColor)
+                      .withOpacity(0.4),
               blurRadius: 8,
               spreadRadius: 2,
             ),
@@ -634,16 +619,16 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
           const SizedBox(height: 24),
           Text(
             'Brak klientów',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 8),
           Text(
             'Dodaj pierwszego klienta, aby rozpocząć',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textTertiary),
           ),
         ],
       ),
@@ -662,9 +647,9 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
             const SizedBox(height: 16),
             Text(
               'Ładowanie klientów...',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
             ),
           ],
         ),
@@ -710,13 +695,13 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
 
   void _toggleSelection(String clientId) {
     final newSelection = Set<String>.from(widget.selectedClientIds);
-    
+
     if (newSelection.contains(clientId)) {
       newSelection.remove(clientId);
     } else {
       newSelection.add(clientId);
     }
-    
+
     widget.onSelectionChanged?.call(newSelection);
   }
 
@@ -740,7 +725,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
       AppTheme.successColor,
       AppTheme.warningColor,
     ];
-    
+
     final index = name.hashCode.abs() % colors.length;
     return colors[index];
   }
@@ -763,14 +748,11 @@ class ClientCardBackgroundPainter extends CustomPainter {
       final progress = (animation.value + i * 0.3) % 1.0;
       final radius = size.width * 0.1 * (1 + progress);
       final opacity = (1 - progress) * 0.1;
-      
+
       paint.color = AppTheme.secondaryGold.withOpacity(opacity);
-      
+
       canvas.drawCircle(
-        Offset(
-          size.width * 0.8,
-          size.height * 0.2,
-        ),
+        Offset(size.width * 0.8, size.height * 0.2),
         radius,
         paint,
       );

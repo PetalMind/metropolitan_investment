@@ -5,7 +5,7 @@ import '../../models_and_services.dart';
 import '../../theme/app_theme.dart';
 
 /// 🦸‍♂️ CLIENTS HERO SECTION
-/// 
+///
 /// Spektakularny nagłówek z:
 /// - Animated gradient background z particles
 /// - Smart badges z real-time metrics
@@ -42,24 +42,23 @@ class ClientsHeroSection extends StatefulWidget {
 
 class _ClientsHeroSectionState extends State<ClientsHeroSection>
     with TickerProviderStateMixin {
-  
   late AnimationController _backgroundController;
   late AnimationController _metricsController;
   late AnimationController _actionsController;
   late AnimationController _insightsController;
   late AnimationController _particleController;
-  
+
   late Animation<double> _backgroundAnimation;
   late Animation<double> _metricsSlideAnimation;
   late Animation<double> _actionsScaleAnimation;
   late Animation<double> _insightsPulseAnimation;
-  
+
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'pl_PL',
     symbol: 'zł',
     decimalDigits: 0,
   );
-  
+
   List<Particle> _particles = [];
   bool _showInsights = true;
 
@@ -86,58 +85,42 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
       duration: const Duration(seconds: 10),
       vsync: this,
     );
-    
+
     _metricsController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    
+
     _actionsController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    
+
     _insightsController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
-    
+
     _particleController = AnimationController(
       duration: const Duration(seconds: 20),
       vsync: this,
     );
 
-    _backgroundAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _backgroundController,
-      curve: Curves.linear,
-    ));
-    
-    _metricsSlideAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _metricsController,
-      curve: Curves.easeOutQuart,
-    ));
-    
-    _actionsScaleAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _actionsController,
-      curve: Curves.elasticOut,
-    ));
-    
-    _insightsPulseAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _insightsController,
-      curve: Curves.elasticInOut,
-    ));
+    _backgroundAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _backgroundController, curve: Curves.linear),
+    );
+
+    _metricsSlideAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _metricsController, curve: Curves.easeOutQuart),
+    );
+
+    _actionsScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _actionsController, curve: Curves.elasticOut),
+    );
+
+    _insightsPulseAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _insightsController, curve: Curves.elasticInOut),
+    );
   }
 
   void _generateParticles() {
@@ -158,7 +141,7 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
     _backgroundController.repeat();
     _particleController.repeat();
     _insightsController.repeat(reverse: true);
-    
+
     Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) _actionsController.forward();
     });
@@ -167,7 +150,7 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
   @override
   void didUpdateWidget(ClientsHeroSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.isSelectionMode != oldWidget.isSelectionMode) {
       if (widget.isSelectionMode) {
         _actionsController.forward();
@@ -186,7 +169,7 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
         children: [
           // 🌟 Animated particles
           _buildParticleLayer(),
-          
+
           // 📊 Main content
           Padding(
             padding: const EdgeInsets.all(24),
@@ -195,9 +178,9 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
               children: [
                 // Top row: Title and intelligence toggle
                 _buildHeaderRow(),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Selection mode vs Normal mode
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 400),
@@ -210,17 +193,16 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
                       child: FadeTransition(opacity: animation, child: child),
                     );
                   },
-                  child: widget.isSelectionMode 
+                  child: widget.isSelectionMode
                       ? _buildSelectionModeContent()
                       : _buildNormalModeContent(),
                 ),
               ],
             ),
           ),
-          
+
           // 🎭 Selection mode overlay
-          if (widget.isSelectionMode)
-            _buildSelectionOverlay(),
+          if (widget.isSelectionMode) _buildSelectionOverlay(),
         ],
       ),
     );
@@ -297,24 +279,26 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.isSelectionMode 
+                          widget.isSelectionMode
                               ? '✉️ Wybierz Klientów'
                               : '👥 Baza Klientów',
-                          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                          ),
+                          style: Theme.of(context).textTheme.headlineLarge
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                              ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           widget.isSelectionMode
                               ? 'Zaznacz klientów do wysłania email'
                               : 'Zarządzanie i analiza portfela klientów',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white.withOpacity(0.9),
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(
+                                color: Colors.white.withOpacity(0.9),
+                                fontWeight: FontWeight.w500,
+                              ),
                         ),
                       ],
                     ),
@@ -324,7 +308,7 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
             ],
           ),
         ),
-        
+
         // 🔧 Action buttons
         _buildHeaderActions(),
       ],
@@ -345,9 +329,9 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
             isActive: _showInsights,
           ),
         ),
-        
+
         const SizedBox(width: 12),
-        
+
         // Selection mode actions
         if (widget.isSelectionMode) ...[
           ScaleTransition(
@@ -382,26 +366,22 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
             color: isActive
                 ? Colors.white.withOpacity(0.25)
                 : isDestructive
-                    ? Colors.red.withOpacity(0.2)
-                    : Colors.white.withOpacity(0.15),
+                ? Colors.red.withOpacity(0.2)
+                : Colors.white.withOpacity(0.15),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isActive
                   ? Colors.white.withOpacity(0.4)
                   : isDestructive
-                      ? Colors.red.withOpacity(0.3)
-                      : Colors.white.withOpacity(0.2),
+                  ? Colors.red.withOpacity(0.3)
+                  : Colors.white.withOpacity(0.2),
               width: 1,
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                color: Colors.white,
-                size: 20,
-              ),
+              Icon(icon, color: Colors.white, size: 20),
               const SizedBox(width: 8),
               Text(
                 label,
@@ -441,9 +421,9 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
               ),
           ],
         ),
-        
+
         const SizedBox(height: 24),
-        
+
         // Quick actions row
         _buildSelectionActions(),
       ],
@@ -463,9 +443,9 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
           ).animate(_metricsSlideAnimation),
           child: _buildMetricsRow(),
         ),
-        
+
         const SizedBox(height: 24),
-        
+
         // Insights row
         if (widget.insights.isNotEmpty && _showInsights)
           ScaleTransition(
@@ -482,7 +462,7 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
     }
 
     final stats = widget.clientStats!;
-    final avgInvestment = stats.totalInvestments > 0 
+    final avgInvestment = stats.totalInvestments > 0
         ? stats.totalRemainingCapital / stats.totalInvestments
         : 0.0;
 
@@ -496,27 +476,27 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
             Icons.people_rounded,
             AppTheme.primaryColor,
           ),
-          
+
           const SizedBox(width: 16),
-          
+
           _buildMetricBadge(
             '${stats.totalInvestments}',
             'Inwestycji',
             Icons.trending_up_rounded,
             AppTheme.secondaryGold,
           ),
-          
+
           const SizedBox(width: 16),
-          
+
           _buildMetricBadge(
             _currencyFormat.format(stats.totalRemainingCapital),
             'Kapitał',
             Icons.account_balance_wallet_rounded,
             AppTheme.infoColor,
           ),
-          
+
           const SizedBox(width: 16),
-          
+
           _buildMetricBadge(
             _currencyFormat.format(avgInvestment),
             'Średnia',
@@ -539,10 +519,7 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
         boxShadow: [
           BoxShadow(
             color: color.withOpacity(0.2),
@@ -560,11 +537,7 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
               color: color.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 20,
-            ),
+            child: Icon(icon, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
           Column(
@@ -611,7 +584,7 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
   Widget _buildInsightBadge(ClientInsight insight) {
     Color insightColor;
     IconData insightIcon;
-    
+
     switch (insight.type) {
       case InsightType.opportunity:
         insightColor = AppTheme.successColor;
@@ -636,19 +609,12 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
       decoration: BoxDecoration(
         color: insightColor.withOpacity(0.15),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: insightColor.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: insightColor.withOpacity(0.3), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            insightIcon,
-            color: Colors.white,
-            size: 16,
-          ),
+          Icon(insightIcon, color: Colors.white, size: 16),
           const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -687,19 +653,12 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
       decoration: BoxDecoration(
         color: color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: Colors.white,
-            size: 24,
-          ),
+          Icon(icon, color: Colors.white, size: 24),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -728,11 +687,7 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
     );
   }
 
-  Widget _buildActionBadge(
-    String label,
-    IconData icon,
-    VoidCallback onTap,
-  ) {
+  Widget _buildActionBadge(String label, IconData icon, VoidCallback onTap) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -751,11 +706,7 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                color: Colors.white,
-                size: 20,
-              ),
+              Icon(icon, color: Colors.white, size: 20),
               const SizedBox(width: 8),
               Text(
                 label,
@@ -776,23 +727,15 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
     return Row(
       children: [
         if (widget.canEdit)
-          _buildActionBadge(
-            'Nowy Klient',
-            Icons.add_rounded,
-            () {
-              // TODO: Implement new client
-            },
-          ),
-        
+          _buildActionBadge('Nowy Klient', Icons.add_rounded, () {
+            // TODO: Implement new client
+          }),
+
         const SizedBox(width: 16),
-        
-        _buildActionBadge(
-          'Eksport',
-          Icons.download_rounded,
-          () {
-            // TODO: Implement export
-          },
-        ),
+
+        _buildActionBadge('Eksport', Icons.download_rounded, () {
+          // TODO: Implement export
+        }),
       ],
     );
   }
@@ -859,10 +802,7 @@ class ParticlePainter extends CustomPainter {
   final List<Particle> particles;
   final double animation;
 
-  ParticlePainter({
-    required this.particles,
-    required this.animation,
-  });
+  ParticlePainter({required this.particles, required this.animation});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -880,13 +820,9 @@ class ParticlePainter extends CustomPainter {
 
       final x = particle.x * size.width;
       final y = particle.y * size.height;
-      
+
       paint.color = Colors.white.withOpacity(particle.opacity * 0.6);
-      canvas.drawCircle(
-        Offset(x, y),
-        particle.size,
-        paint,
-      );
+      canvas.drawCircle(Offset(x, y), particle.size, paint);
     }
   }
 
@@ -903,7 +839,7 @@ class ClientInsight {
   final String description;
   final InsightPriority priority;
   final bool actionable;
-  
+
   ClientInsight({
     required this.type,
     required this.title,
@@ -914,4 +850,5 @@ class ClientInsight {
 }
 
 enum InsightType { opportunity, warning, info, success }
+
 enum InsightPriority { low, medium, high, critical }

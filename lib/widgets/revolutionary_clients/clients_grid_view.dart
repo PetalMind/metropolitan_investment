@@ -4,11 +4,11 @@ import '../../models_and_services.dart';
 import '../../theme/app_theme.dart';
 
 /// 🎨 CLIENTS GRID VIEW
-/// 
+///
 /// Spektakularne karty klientów z:
 /// - Staggered animations z physics-based timing
 /// - Contextual color coding z visual hierarchy
-/// - Micro-interactions z haptic feedback  
+/// - Micro-interactions z haptic feedback
 /// - Multi-selection z smooth transitions
 /// - Responsive grid z adaptive layouts
 /// - Parallax effects z depth perception
@@ -42,15 +42,14 @@ class ClientsGridView extends StatefulWidget {
 
 class _ClientsGridViewState extends State<ClientsGridView>
     with TickerProviderStateMixin {
-  
   late AnimationController _staggerController;
   late AnimationController _selectionController;
   late AnimationController _hoverController;
-  
+
   final Map<String, AnimationController> _cardControllers = {};
   final Map<String, Animation<double>> _cardScaleAnimations = {};
   final Map<String, Animation<Offset>> _cardSlideAnimations = {};
-  
+
   final ScrollController _scrollController = ScrollController();
   String? _hoveredClientId;
   double _scrollOffset = 0.0;
@@ -69,25 +68,27 @@ class _ClientsGridViewState extends State<ClientsGridView>
     _selectionController.dispose();
     _hoverController.dispose();
     _scrollController.dispose();
-    
+
     for (final controller in _cardControllers.values) {
       controller.dispose();
     }
-    
+
     super.dispose();
   }
 
   void _initializeAnimations() {
     _staggerController = AnimationController(
-      duration: Duration(milliseconds: 100 * widget.clients.length.clamp(0, 20)),
+      duration: Duration(
+        milliseconds: 100 * widget.clients.length.clamp(0, 20),
+      ),
       vsync: this,
     );
-    
+
     _selectionController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    
+
     _hoverController = AnimationController(
       duration: const Duration(milliseconds: 200),
       vsync: this,
@@ -110,7 +111,7 @@ class _ClientsGridViewState extends State<ClientsGridView>
     _cardControllers.clear();
     _cardScaleAnimations.clear();
     _cardSlideAnimations.clear();
-    
+
     // Create new animations for each client
     for (int i = 0; i < widget.clients.length; i++) {
       final client = widget.clients[i];
@@ -118,34 +119,26 @@ class _ClientsGridViewState extends State<ClientsGridView>
         duration: const Duration(milliseconds: 600),
         vsync: this,
       );
-      
+
       _cardControllers[client.id] = controller;
-      
-      _cardScaleAnimations[client.id] = Tween<double>(
-        begin: 0.0,
-        end: 1.0,
-      ).animate(CurvedAnimation(
-        parent: controller,
-        curve: Interval(
-          i * 0.1,
-          1.0,
-          curve: Curves.elasticOut,
-        ),
-      ));
-      
-      _cardSlideAnimations[client.id] = Tween<Offset>(
-        begin: const Offset(0, 1),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(
-        parent: controller,
-        curve: Interval(
-          i * 0.05,
-          1.0,
-          curve: Curves.easeOutCubic,
-        ),
-      ));
+
+      _cardScaleAnimations[client.id] = Tween<double>(begin: 0.0, end: 1.0)
+          .animate(
+            CurvedAnimation(
+              parent: controller,
+              curve: Interval(i * 0.1, 1.0, curve: Curves.elasticOut),
+            ),
+          );
+
+      _cardSlideAnimations[client.id] =
+          Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
+            CurvedAnimation(
+              parent: controller,
+              curve: Interval(i * 0.05, 1.0, curve: Curves.easeOutCubic),
+            ),
+          );
     }
-    
+
     // Start staggered animation
     _startStaggeredAnimation();
   }
@@ -154,7 +147,7 @@ class _ClientsGridViewState extends State<ClientsGridView>
     for (int i = 0; i < widget.clients.length; i++) {
       final client = widget.clients[i];
       final controller = _cardControllers[client.id];
-      
+
       Future.delayed(Duration(milliseconds: i * 50), () {
         if (mounted && controller != null) {
           controller.forward();
@@ -166,12 +159,12 @@ class _ClientsGridViewState extends State<ClientsGridView>
   @override
   void didUpdateWidget(ClientsGridView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     if (widget.clients.length != oldWidget.clients.length ||
         widget.clients != oldWidget.clients) {
       _createCardAnimations();
     }
-    
+
     if (widget.isSelectionMode != oldWidget.isSelectionMode) {
       if (widget.isSelectionMode) {
         _selectionController.forward();
@@ -211,7 +204,7 @@ class _ClientsGridViewState extends State<ClientsGridView>
       builder: (context, constraints) {
         final crossAxisCount = _calculateCrossAxisCount(constraints.maxWidth);
         final childAspectRatio = widget.isCompactMode ? 1.3 : 1.1;
-        
+
         return GridView.builder(
           controller: _scrollController,
           physics: const BouncingScrollPhysics(),
@@ -274,7 +267,7 @@ class _ClientsGridViewState extends State<ClientsGridView>
     final isHovered = _hoveredClientId == client.id;
     final scaleAnimation = _cardScaleAnimations[client.id];
     final slideAnimation = _cardSlideAnimations[client.id];
-    
+
     if (scaleAnimation == null || slideAnimation == null) {
       return const SizedBox();
     }
@@ -308,17 +301,19 @@ class _ClientsGridViewState extends State<ClientsGridView>
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: _getClientColor(client).withOpacity(
-                              isHovered ? 0.3 : 0.15,
-                            ),
+                            color: _getClientColor(
+                              client,
+                            ).withOpacity(isHovered ? 0.3 : 0.15),
                             blurRadius: isHovered ? 20 : 12,
                             offset: Offset(0, isHovered ? 8 : 4),
                           ),
                         ],
-                        border: isSelected ? Border.all(
-                          color: AppTheme.secondaryGold,
-                          width: 3,
-                        ) : null,
+                        border: isSelected
+                            ? Border.all(
+                                color: AppTheme.secondaryGold,
+                                width: 3,
+                              )
+                            : null,
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
@@ -326,14 +321,14 @@ class _ClientsGridViewState extends State<ClientsGridView>
                           children: [
                             // Background pattern
                             _buildCardBackground(client),
-                            
+
                             // Content
                             _buildCardContent(client),
-                            
+
                             // Selection overlay
                             if (widget.isSelectionMode)
                               _buildSelectionOverlay(isSelected),
-                            
+
                             // Status indicators
                             _buildStatusIndicators(client),
                           ],
@@ -384,9 +379,9 @@ class _ClientsGridViewState extends State<ClientsGridView>
             children: [
               // Avatar
               _buildClientAvatar(client),
-              
+
               const SizedBox(width: 12),
-              
+
               // Name and status
               Expanded(
                 child: Column(
@@ -404,26 +399,25 @@ class _ClientsGridViewState extends State<ClientsGridView>
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    
+
                     const SizedBox(height: 4),
-                    
+
                     _buildClientSubtitle(client),
                   ],
                 ),
               ),
             ],
           ),
-          
+
           const Spacer(),
-          
+
           // Metrics row
           _buildClientMetrics(client),
-          
+
           const SizedBox(height: 12),
-          
+
           // Action buttons
-          if (!widget.isSelectionMode)
-            _buildCardActions(client),
+          if (!widget.isSelectionMode) _buildCardActions(client),
         ],
       ),
     );
@@ -432,7 +426,7 @@ class _ClientsGridViewState extends State<ClientsGridView>
   Widget _buildClientAvatar(Client client) {
     final color = _getClientColor(client);
     final initials = _getClientInitials(client.name);
-    
+
     return Container(
       width: 48,
       height: 48,
@@ -440,10 +434,7 @@ class _ClientsGridViewState extends State<ClientsGridView>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            color,
-            color.withOpacity(0.7),
-          ],
+          colors: [color, color.withOpacity(0.7)],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
@@ -475,21 +466,21 @@ class _ClientsGridViewState extends State<ClientsGridView>
           width: 8,
           height: 8,
           decoration: BoxDecoration(
-            color: client.isActive 
-                ? AppTheme.successColor 
+            color: client.isActive
+                ? AppTheme.successColor
                 : AppTheme.errorColor,
             borderRadius: BorderRadius.circular(4),
           ),
         ),
-        
+
         const SizedBox(width: 6),
-        
+
         Expanded(
           child: Text(
             client.isActive ? 'Aktywny' : 'Nieaktywny',
             style: TextStyle(
-              color: client.isActive 
-                  ? AppTheme.successColor 
+              color: client.isActive
+                  ? AppTheme.successColor
                   : AppTheme.errorColor,
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -503,7 +494,7 @@ class _ClientsGridViewState extends State<ClientsGridView>
   Widget _buildClientMetrics(Client client) {
     // TODO: Get real metrics from service
     final metrics = _getClientMetrics(client);
-    
+
     return Row(
       children: [
         _buildMetricChip(
@@ -512,9 +503,9 @@ class _ClientsGridViewState extends State<ClientsGridView>
           'inwestycji',
           AppTheme.secondaryGold,
         ),
-        
+
         const SizedBox(width: 8),
-        
+
         _buildMetricChip(
           Icons.trending_up_rounded,
           '${metrics['value']}k',
@@ -536,19 +527,12 @@ class _ClientsGridViewState extends State<ClientsGridView>
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: color.withOpacity(0.2), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 12,
-          ),
+          Icon(icon, color: color, size: 12),
           const SizedBox(width: 4),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -588,10 +572,10 @@ class _ClientsGridViewState extends State<ClientsGridView>
             AppTheme.infoColor,
           ),
         ),
-        
+
         if (widget.canEdit) ...[
           const SizedBox(width: 8),
-          
+
           _buildActionButton(
             Icons.edit_rounded,
             '',
@@ -624,20 +608,13 @@ class _ClientsGridViewState extends State<ClientsGridView>
           decoration: BoxDecoration(
             color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: color.withOpacity(0.2),
-              width: 1,
-            ),
+            border: Border.all(color: color.withOpacity(0.2), width: 1),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                color: color,
-                size: 16,
-              ),
+              Icon(icon, color: color, size: 16),
               if (!isIconOnly) ...[
                 const SizedBox(width: 6),
                 Text(
@@ -661,33 +638,35 @@ class _ClientsGridViewState extends State<ClientsGridView>
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: isSelected 
+          color: isSelected
               ? AppTheme.secondaryGold.withOpacity(0.1)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: isSelected ? Center(
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: AppTheme.secondaryGold,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.secondaryGold.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+        child: isSelected
+            ? Center(
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppTheme.secondaryGold,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.secondaryGold.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
-              ],
-            ),
-            child: const Icon(
-              Icons.check_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-        ) : null,
+              )
+            : null,
       ),
     );
   }
@@ -724,7 +703,7 @@ class _ClientsGridViewState extends State<ClientsGridView>
   Widget _buildClientListTile(Client client, int index) {
     final isSelected = widget.selectedClientIds.contains(client.id);
     final scaleAnimation = _cardScaleAnimations[client.id];
-    
+
     if (scaleAnimation == null) return const SizedBox();
 
     return AnimatedBuilder(
@@ -737,20 +716,16 @@ class _ClientsGridViewState extends State<ClientsGridView>
             decoration: BoxDecoration(
               color: AppTheme.backgroundSecondary,
               borderRadius: BorderRadius.circular(12),
-              border: isSelected ? Border.all(
-                color: AppTheme.secondaryGold,
-                width: 2,
-              ) : Border.all(
-                color: AppTheme.borderSecondary,
-                width: 1,
-              ),
+              border: isSelected
+                  ? Border.all(color: AppTheme.secondaryGold, width: 2)
+                  : Border.all(color: AppTheme.borderSecondary, width: 1),
             ),
             child: Row(
               children: [
                 _buildClientAvatar(client),
-                
+
                 const SizedBox(width: 16),
-                
+
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -763,9 +738,9 @@ class _ClientsGridViewState extends State<ClientsGridView>
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      
+
                       const SizedBox(height: 4),
-                      
+
                       Text(
                         client.email,
                         style: const TextStyle(
@@ -776,11 +751,11 @@ class _ClientsGridViewState extends State<ClientsGridView>
                     ],
                   ),
                 ),
-                
+
                 _buildClientMetrics(client),
-                
+
                 const SizedBox(width: 16),
-                
+
                 if (!widget.isSelectionMode)
                   _buildActionButton(
                     Icons.arrow_forward_rounded,
@@ -804,7 +779,7 @@ class _ClientsGridViewState extends State<ClientsGridView>
 
   Widget _buildTimelineItem(Client client, int index) {
     final scaleAnimation = _cardScaleAnimations[client.id];
-    
+
     if (scaleAnimation == null) return const SizedBox();
 
     return AnimatedBuilder(
@@ -834,13 +809,11 @@ class _ClientsGridViewState extends State<ClientsGridView>
                     ),
                 ],
               ),
-              
+
               const SizedBox(width: 16),
-              
+
               // Content
-              Expanded(
-                child: _buildClientCard(client, index),
-              ),
+              Expanded(child: _buildClientCard(client, index)),
             ],
           ),
         );
@@ -858,23 +831,23 @@ class _ClientsGridViewState extends State<ClientsGridView>
             size: 80,
             color: AppTheme.textTertiary,
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           Text(
             'Brak klientów',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(color: AppTheme.textSecondary),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           Text(
             'Dostosuj filtry lub dodaj nowych klientów',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textTertiary),
           ),
         ],
       ),
@@ -912,10 +885,7 @@ class _ClientsGridViewState extends State<ClientsGridView>
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [
-        AppTheme.backgroundSecondary,
-        color.withOpacity(0.05),
-      ],
+      colors: [AppTheme.backgroundSecondary, color.withOpacity(0.05)],
     );
   }
 
@@ -957,13 +927,13 @@ class _ClientsGridViewState extends State<ClientsGridView>
 
   void _toggleSelection(String clientId) {
     final newSelection = Set<String>.from(widget.selectedClientIds);
-    
+
     if (newSelection.contains(clientId)) {
       newSelection.remove(clientId);
     } else {
       newSelection.add(clientId);
     }
-    
+
     widget.onSelectionChanged(newSelection);
   }
 
@@ -978,10 +948,7 @@ class ClientCardPatternPainter extends CustomPainter {
   final Color color;
   final double opacity;
 
-  ClientCardPatternPainter({
-    required this.color,
-    required this.opacity,
-  });
+  ClientCardPatternPainter({required this.color, required this.opacity});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -995,12 +962,8 @@ class ClientCardPatternPainter extends CustomPainter {
       for (int j = 0; j < 5; j++) {
         final x = (size.width / 4) * i;
         final y = (size.height / 4) * j;
-        
-        canvas.drawCircle(
-          Offset(x, y),
-          8,
-          paint,
-        );
+
+        canvas.drawCircle(Offset(x, y), 8, paint);
       }
     }
   }

@@ -1,59 +1,42 @@
 /// 🔧 REVOLUTIONARY CLIENTS TYPES
-/// 
+///
 /// Definicje typów używanych w systemie rewolucyjnych klientów
 /// Współdzielone między wszystkimi komponentami
 
 import 'package:flutter/material.dart';
 
 /// Client filter options
-enum ClientFilter { 
-  premium, 
-  corporate, 
-  inactive, 
-  recentActivity, 
-  highValue, 
+enum ClientFilter {
+  premium,
+  corporate,
+  inactive,
+  recentActivity,
+  highValue,
   lowRisk,
   highRisk,
   newClients,
-  loyalClients 
+  loyalClients,
 }
 
 /// Client sorting modes
-enum ClientSortMode { 
-  name, 
-  value, 
-  lastActivity, 
-  riskScore, 
+enum ClientSortMode {
+  name,
+  value,
+  lastActivity,
+  riskScore,
   dateAdded,
   alphabetical,
-  investmentCount 
+  investmentCount,
 }
 
 /// Client view modes
-enum ClientViewMode { 
-  grid, 
-  list, 
-  cards, 
-  timeline,
-  compact,
-  detailed 
-}
+enum ClientViewMode { grid, list, cards, timeline, compact, detailed }
 
 /// Insight types for AI analytics
-enum InsightType { 
-  opportunity, 
-  warning, 
-  info, 
-  success 
-}
+enum InsightType { opportunity, warning, info, success }
 
 /// Insight priority levels
-enum InsightPriority { 
-  low, 
-  medium, 
-  high, 
-  critical 
-}
+enum InsightPriority { low, medium, high, critical }
 
 /// Client insight data class
 class ClientInsight {
@@ -64,7 +47,7 @@ class ClientInsight {
   final bool actionable;
   final String? actionText;
   final VoidCallback? onAction;
-  
+
   ClientInsight({
     required this.type,
     required this.title,
@@ -85,7 +68,7 @@ class ClientMetrics {
   final double riskScore;
   final double growthRate;
   final String tier;
-  
+
   ClientMetrics({
     required this.totalValue,
     required this.investmentCount,
@@ -107,7 +90,7 @@ class ClientStats {
   final double totalAUM;
   final double monthlyGrowth;
   final DateTime lastUpdated;
-  
+
   ClientStats({
     required this.totalClients,
     required this.activeClients,
@@ -125,7 +108,7 @@ class LoadingProgress {
   final double progress;
   final String message;
   final String stage;
-  
+
   LoadingProgress({
     required this.progress,
     required this.message,
@@ -138,16 +121,16 @@ class ClientSelection {
   final Set<String> selectedIds;
   final bool isSelectAll;
   final int totalCount;
-  
+
   ClientSelection({
     required this.selectedIds,
     this.isSelectAll = false,
     this.totalCount = 0,
   });
-  
+
   bool get hasSelection => selectedIds.isNotEmpty;
   int get selectedCount => selectedIds.length;
-  
+
   ClientSelection copyWith({
     Set<String>? selectedIds,
     bool? isSelectAll,
@@ -168,7 +151,7 @@ class SearchSuggestion {
   final IconData icon;
   final Color color;
   final VoidCallback? onTap;
-  
+
   SearchSuggestion({
     required this.text,
     required this.category,
@@ -186,7 +169,7 @@ class FilterChip {
   final Color color;
   final bool isActive;
   final int count;
-  
+
   FilterChip({
     required this.filter,
     required this.label,
@@ -202,23 +185,23 @@ class AnimationConfig {
   final Duration duration;
   final Curve curve;
   final Duration delay;
-  
+
   const AnimationConfig({
     this.duration = const Duration(milliseconds: 300),
     this.curve = Curves.easeInOut,
     this.delay = Duration.zero,
   });
-  
+
   static const staggered = AnimationConfig(
     duration: Duration(milliseconds: 150),
     curve: Curves.easeOutBack,
   );
-  
+
   static const hero = AnimationConfig(
     duration: Duration(milliseconds: 600),
     curve: Curves.easeOutCubic,
   );
-  
+
   static const morphing = AnimationConfig(
     duration: Duration(milliseconds: 400),
     curve: Curves.easeInOutCubic,
@@ -233,7 +216,7 @@ class ActionButton {
   final VoidCallback onPressed;
   final bool isDestructive;
   final bool requiresConfirmation;
-  
+
   ActionButton({
     required this.label,
     required this.icon,
@@ -252,7 +235,7 @@ class BulkAction {
   final Function(List<String> clientIds) onExecute;
   final bool requiresConfirmation;
   final String? confirmationMessage;
-  
+
   BulkAction({
     required this.label,
     required this.icon,

@@ -14,7 +14,7 @@ import '../widgets/revolutionary_clients/clients_types.dart';
 import '../widgets/revolutionary_clients/clients_intelligence_dashboard.dart';
 
 /// 🚀 REVOLUTIONARY CLIENTS SCREEN
-/// 
+///
 /// Kompletnie przeprojektowane doświadczenie zarządzania klientami:
 /// - Hero Section z wizualną hierarchią i smart badges
 /// - Discovery Panel z AI-powered search i advanced filters
@@ -25,52 +25,53 @@ class RevolutionaryClientsScreen extends StatefulWidget {
   const RevolutionaryClientsScreen({super.key});
 
   @override
-  State<RevolutionaryClientsScreen> createState() => _RevolutionaryClientsScreenState();
+  State<RevolutionaryClientsScreen> createState() =>
+      _RevolutionaryClientsScreenState();
 }
 
 class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
     with TickerProviderStateMixin {
-  
   // 🎭 Animation Controllers
   late AnimationController _heroController;
   late AnimationController _cardController;
   late AnimationController _filterController;
   late AnimationController _actionController;
-  
+
   late Animation<double> _heroAnimation;
   late Animation<double> _cardStaggerAnimation;
   late Animation<Offset> _filterSlideAnimation;
   late Animation<double> _actionScaleAnimation;
 
   // 🧠 Services & Data
-  final IntegratedClientService _integratedClientService = IntegratedClientService();
+  final IntegratedClientService _integratedClientService =
+      IntegratedClientService();
   final ClientService _clientService = ClientService();
   final InvestorAnalyticsService _analyticsService = InvestorAnalyticsService();
-  
+
   // 📊 State Management
   List<Client> _allClients = [];
   List<Client> _displayedClients = [];
   ClientStats? _clientStats;
   Map<String, dynamic> _intelligenceData = {};
-  
+
   // 🎯 UI State
   bool _isLoading = true;
   bool _isInitialLoad = true;
   String _errorMessage = '';
   ClientViewMode _viewMode = ClientViewMode.grid;
   ClientSortMode _sortMode = ClientSortMode.nameAsc;
-  
+
   // 🔍 Discovery State
   String _searchQuery = '';
   Set<ClientFilter> _activeFilters = {};
   Set<String> _selectedClientIds = {};
   bool _isSelectionMode = false;
-  
+
   // 🎪 View Modes & Display
   double _cardAnimationProgress = 0.0;
   bool _showIntelligenceDashboard = true;
   bool _isCompactMode = false;
-  
+
   // 🚀 Smart Features
   List<ClientInsight> _clientInsights = [];
   Map<String, ClientMetrics> _clientMetrics = {};
@@ -101,17 +102,17 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    
+
     _cardController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _filterController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    
+
     _actionController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
@@ -121,27 +122,20 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
       parent: _heroController,
       curve: Curves.easeOutCubic,
     );
-    
+
     _cardStaggerAnimation = CurvedAnimation(
       parent: _cardController,
       curve: Curves.easeOutQuart,
     );
-    
-    _filterSlideAnimation = Tween<Offset>(
-      begin: const Offset(0, -1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _filterController,
-      curve: Curves.easeOutBack,
-    ));
-    
-    _actionScaleAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _actionController,
-      curve: Curves.elasticOut,
-    ));
+
+    _filterSlideAnimation =
+        Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero).animate(
+          CurvedAnimation(parent: _filterController, curve: Curves.easeOutBack),
+        );
+
+    _actionScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _actionController, curve: Curves.elasticOut),
+    );
   }
 
   Future<void> _startInitialLoad() async {
@@ -187,7 +181,6 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
         _applyFiltersAndSorting();
         _generateClientInsights();
       }
-
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -206,7 +199,7 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
   Future<Map<String, dynamic>> _loadIntelligenceData() async {
     // Simulate AI-powered insights loading
     await Future.delayed(const Duration(milliseconds: 800));
-    
+
     return {
       'total_investment_value': 15420000.0,
       'avg_client_value': 89500.0,
@@ -218,7 +211,7 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
         'new_clients_this_month': 23,
         'reactivated_clients': 8,
         'churned_clients': 3,
-      }
+      },
     };
   }
 
@@ -246,38 +239,43 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
 
   void _generateClientInsights() {
     final insights = <ClientInsight>[];
-    
+
     if (_clientStats != null) {
       // 🧠 AI-powered insights
-      final avgInvestment = _clientStats!.totalInvestments > 0 
+      final avgInvestment = _clientStats!.totalInvestments > 0
           ? _clientStats!.totalRemainingCapital / _clientStats!.totalInvestments
           : 0.0;
-      
+
       if (avgInvestment > 100000) {
-        insights.add(ClientInsight(
-          type: InsightType.opportunity,
-          title: 'Wysoka wartość portfela',
-          description: 'Średnia inwestycja przekracza 100k zł',
-          priority: InsightPriority.high,
-          actionable: true,
-        ));
+        insights.add(
+          ClientInsight(
+            type: InsightType.opportunity,
+            title: 'Wysoka wartość portfela',
+            description: 'Średnia inwestycja przekracza 100k zł',
+            priority: InsightPriority.high,
+            actionable: true,
+          ),
+        );
       }
-      
-      final activeRatio = _allClients.isNotEmpty 
+
+      final activeRatio = _allClients.isNotEmpty
           ? _allClients.where((c) => c.isActive).length / _allClients.length
           : 0.0;
-      
+
       if (activeRatio < 0.8) {
-        insights.add(ClientInsight(
-          type: InsightType.warning,
-          title: 'Niska aktywność klientów',
-          description: '${(activeRatio * 100).toStringAsFixed(1)}% aktywnych klientów',
-          priority: InsightPriority.medium,
-          actionable: true,
-        ));
+        insights.add(
+          ClientInsight(
+            type: InsightType.warning,
+            title: 'Niska aktywność klientów',
+            description:
+                '${(activeRatio * 100).toStringAsFixed(1)}% aktywnych klientów',
+            priority: InsightPriority.medium,
+            actionable: true,
+          ),
+        );
       }
     }
-    
+
     setState(() {
       _clientInsights = insights;
     });
@@ -285,26 +283,26 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
 
   void _applyFiltersAndSorting() {
     List<Client> filtered = List.from(_allClients);
-    
+
     // 🔍 Search Filter
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       filtered = filtered.where((client) {
         return client.name.toLowerCase().contains(query) ||
-               client.email.toLowerCase().contains(query) ||
-               (client.phone.toLowerCase().contains(query)) ||
-               (client.companyName?.toLowerCase().contains(query) ?? false);
+            client.email.toLowerCase().contains(query) ||
+            (client.phone.toLowerCase().contains(query)) ||
+            (client.companyName?.toLowerCase().contains(query) ?? false);
       }).toList();
     }
-    
+
     // 🎯 Active Filters
     for (final filter in _activeFilters) {
       filtered = filter.apply(filtered);
     }
-    
+
     // 📈 Sorting
     filtered = _sortMode.apply(filtered);
-    
+
     setState(() {
       _displayedClients = filtered;
     });
@@ -338,7 +336,7 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
     setState(() {
       _viewMode = viewMode;
     });
-    
+
     // Animate transition
     _cardController.reset();
     _cardController.forward();
@@ -349,7 +347,7 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
       _selectedClientIds = selectedIds;
       _isSelectionMode = selectedIds.isNotEmpty;
     });
-    
+
     if (selectedIds.isNotEmpty) {
       _actionController.forward();
     } else {
@@ -376,17 +374,18 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
 
   Future<void> _handleBulkEmail() async {
     if (_selectedClientIds.isEmpty) return;
-    
+
     final selectedClients = _displayedClients
         .where((client) => _selectedClientIds.contains(client.id))
         .toList();
-    
+
     try {
-      final investorsData = await _analyticsService
-          .getInvestorsByClientIds(_selectedClientIds.toList());
-      
+      final investorsData = await _analyticsService.getInvestorsByClientIds(
+        _selectedClientIds.toList(),
+      );
+
       if (!mounted) return;
-      
+
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -518,9 +517,7 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
             ),
 
             // 🎭 Bottom spacing
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 100),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
@@ -535,12 +532,14 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
           onExportSelected: () {
             // TODO: Implement export
           },
-          onCreateClient: canEdit ? () {
-            // TODO: Show client form
-          } : null,
+          onCreateClient: canEdit
+              ? () {
+                  // TODO: Show client form
+                }
+              : null,
         ),
       ),
-      
+
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
@@ -548,8 +547,18 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
 
 // 🎯 Enums & Models
 enum ClientViewMode { grid, list, cards, timeline }
-enum ClientSortMode { nameAsc, nameDesc, dateAsc, dateDesc, valueAsc, valueDesc }
+
+enum ClientSortMode {
+  nameAsc,
+  nameDesc,
+  dateAsc,
+  dateDesc,
+  valueAsc,
+  valueDesc,
+}
+
 enum InsightType { opportunity, warning, info, success }
+
 enum InsightPriority { low, medium, high, critical }
 
 class ClientInsight {
@@ -558,7 +567,7 @@ class ClientInsight {
   final String description;
   final InsightPriority priority;
   final bool actionable;
-  
+
   ClientInsight({
     required this.type,
     required this.title,
@@ -574,7 +583,7 @@ class ClientMetrics {
   final double averageInvestment;
   final DateTime lastActivity;
   final double riskScore;
-  
+
   ClientMetrics({
     required this.totalValue,
     required this.investmentCount,
@@ -593,7 +602,7 @@ abstract class ClientFilter {
 class ActiveClientsFilter extends ClientFilter {
   @override
   String get displayName => 'Aktywni';
-  
+
   @override
   List<Client> apply(List<Client> clients) {
     return clients.where((client) => client.isActive).toList();
@@ -603,7 +612,7 @@ class ActiveClientsFilter extends ClientFilter {
 class PremiumClientsFilter extends ClientFilter {
   @override
   String get displayName => 'Premium';
-  
+
   @override
   List<Client> apply(List<Client> clients) {
     // TODO: Implement premium logic based on investment value
@@ -629,7 +638,7 @@ extension ClientSortModeExtension on ClientSortMode {
         return 'Wartość malejąco';
     }
   }
-  
+
   List<Client> apply(List<Client> clients) {
     switch (this) {
       case ClientSortMode.nameAsc:

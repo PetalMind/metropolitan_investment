@@ -3,10 +3,10 @@ import 'dart:math' as math;
 import '../../theme/app_theme.dart';
 
 /// 🎭 COLLAPSIBLE SEARCH HEADER Z CAŁKOWITYM UKRYWANIEM STATYSTYK
-/// 
+///
 /// Inteligentny header który:
 /// - Zwija się podczas przewijania w dół (ukrywa statystyki CAŁKOWICIE)
-/// - Rozwija się podczas przewijania w górę  
+/// - Rozwija się podczas przewijania w górę
 /// - Transformuje pole wyszukiwania w ikonę w trybie zwiniętym
 /// - Smooth animations z physics-based motion
 /// - Statystyki znikają całkowicie podczas przewijania
@@ -39,21 +39,21 @@ class CollapsibleSearchHeader extends StatefulWidget {
   });
 
   @override
-  State<CollapsibleSearchHeader> createState() => _CollapsibleSearchHeaderState();
+  State<CollapsibleSearchHeader> createState() =>
+      _CollapsibleSearchHeaderState();
 }
 
 class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
     with TickerProviderStateMixin {
-  
   late AnimationController _collapseController;
   late AnimationController _searchController;
   late AnimationController _pulseController;
-  
+
   late Animation<double> _collapseAnimation;
   late Animation<double> _searchExpandAnimation;
   late Animation<double> _pulseAnimation;
   late Animation<double> _statsHideAnimation;
-  
+
   bool _isSearchExpanded = false;
 
   @override
@@ -75,12 +75,12 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    
+
     _searchController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
@@ -90,25 +90,21 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
       parent: _collapseController,
       curve: Curves.easeInOutCubic,
     );
-    
+
     _searchExpandAnimation = CurvedAnimation(
       parent: _searchController,
       curve: Curves.easeOutBack,
     );
-    
+
     _statsHideAnimation = CurvedAnimation(
       parent: _collapseController,
       curve: Curves.easeInOutQuart,
     );
-    
-    _pulseAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.1,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
-    
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
     // Start subtle pulse animation
     _pulseController.repeat(reverse: true);
   }
@@ -116,7 +112,7 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
   @override
   void didUpdateWidget(CollapsibleSearchHeader oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     // Reaguj na zmiany zewnętrznego stanu collapsed
     if (widget.isCollapsed != oldWidget.isCollapsed) {
       if (widget.isCollapsed) {
@@ -132,11 +128,11 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
 
   void _toggleSearchField() {
     if (!widget.isCollapsed) return;
-    
+
     setState(() {
       _isSearchExpanded = !_isSearchExpanded;
     });
-    
+
     if (_isSearchExpanded) {
       _searchController.forward();
       // Auto-focus on the search field
@@ -160,11 +156,16 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([_collapseAnimation, _searchExpandAnimation, _pulseAnimation, _statsHideAnimation]),
+      animation: Listenable.merge([
+        _collapseAnimation,
+        _searchExpandAnimation,
+        _pulseAnimation,
+        _statsHideAnimation,
+      ]),
       builder: (context, child) {
         // 🚀 DYNAMICZNA WYSOKOŚĆ - 240px gdy rozwinięty (więcej miejsca na statystyki), 80px gdy zwinięty
         final headerHeight = widget.isCollapsed ? 80.0 : 240.0;
-        
+
         return AnimatedContainer(
           duration: const Duration(milliseconds: 400),
           height: headerHeight,
@@ -176,7 +177,9 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
               end: Alignment.bottomRight,
               colors: [
                 AppTheme.primaryColor,
-                AppTheme.primaryColor.withOpacity(0.9), // Mniej przezroczystości
+                AppTheme.primaryColor.withOpacity(
+                  0.9,
+                ), // Mniej przezroczystości
                 AppTheme.secondaryGold.withOpacity(0.2),
               ],
             ),
@@ -192,7 +195,7 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
             children: [
               // Background particles
               _buildParticleBackground(),
-              
+
               // Main content
               Padding(
                 padding: EdgeInsets.symmetric(
@@ -204,19 +207,17 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
                   children: [
                     // 🎨 STATYSTYKI NA GÓRZE - ELASTYCZNA WYSOKOŚĆ GDY WIDOCZNE
                     if (!widget.isCollapsed && widget.statsWidget != null) ...[
-                      Flexible(
-                        child: widget.statsWidget!,
-                      ),
+                      Flexible(child: widget.statsWidget!),
                       const SizedBox(height: 8),
                     ],
-                    
+
                     _buildHeaderContent(),
-                    
+
                     if (!widget.isCollapsed) ...[
                       const SizedBox(height: 16),
                       _buildSearchSection(),
                     ],
-                    
+
                     // Expanded search in collapsed mode
                     if (widget.isCollapsed && _isSearchExpanded) ...[
                       const SizedBox(height: 12),
@@ -259,11 +260,11 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
                   letterSpacing: -0.5,
                 ),
               ),
-              
+
               if (!widget.isCollapsed) ...[
                 const SizedBox(height: 4),
                 Text(
-                  widget.isSelectionMode 
+                  widget.isSelectionMode
                       ? 'Wybierz klientów do wysłania emaila'
                       : 'Zarządzanie bazą klientów',
                   style: TextStyle(
@@ -276,7 +277,7 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
             ],
           ),
         ),
-        
+
         // 🎯 COLLAPSED SEARCH ICON
         if (widget.isCollapsed && !_isSearchExpanded)
           AnimatedBuilder(
@@ -291,9 +292,7 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                      ),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
                     ),
                     child: const Icon(
                       Icons.search,
@@ -305,9 +304,8 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
               );
             },
           ),
-          
-        if (widget.additionalActions != null)
-          widget.additionalActions!,
+
+        if (widget.additionalActions != null) widget.additionalActions!,
       ],
     );
   }
@@ -331,9 +329,7 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
       ),
       child: TextField(
         controller: widget.searchController,
@@ -390,7 +386,9 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
         label: Text(
           'Aktywni (${widget.activeClientsCount})',
           style: TextStyle(
-            color: widget.showActiveOnly ? Colors.white : Colors.white.withOpacity(0.8),
+            color: widget.showActiveOnly
+                ? Colors.white
+                : Colors.white.withOpacity(0.8),
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -415,7 +413,7 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
 }
 
 /// 🎨 PARTICLE BACKGROUND PAINTER
-/// 
+///
 /// Rysuje animowane cząsteczki w tle header'a
 class ParticleBackgroundPainter extends CustomPainter {
   final double animationValue;
@@ -435,20 +433,17 @@ class ParticleBackgroundPainter extends CustomPainter {
     // Draw animated particles
     for (int i = 0; i < 20; i++) {
       final x = (size.width / 20) * i + (animationValue * 10);
-      final y = math.sin((i * 0.5) + (animationValue * 2)) * 20 + size.height / 2;
+      final y =
+          math.sin((i * 0.5) + (animationValue * 2)) * 20 + size.height / 2;
       final radius = isCollapsed ? 1.0 : 2.0;
-      
-      canvas.drawCircle(
-        Offset(x % size.width, y),
-        radius,
-        paint,
-      );
+
+      canvas.drawCircle(Offset(x % size.width, y), radius, paint);
     }
   }
 
   @override
   bool shouldRepaint(ParticleBackgroundPainter oldDelegate) {
     return oldDelegate.animationValue != animationValue ||
-           oldDelegate.isCollapsed != isCollapsed;
+        oldDelegate.isCollapsed != isCollapsed;
   }
 }
