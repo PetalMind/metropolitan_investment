@@ -97,6 +97,18 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
 
   @override
   Widget build(BuildContext context) {
+    // 🔍 DEBUG: Sprawdź dokładnie jakie dane otrzymujemy
+    print('🔍 [EnhancedClientStatsDisplay] Building widget:');
+    print('   - isLoading: ${widget.isLoading}');
+    print('   - clientStats: ${widget.clientStats}');
+    if (widget.clientStats != null) {
+      print('   - totalClients: ${widget.clientStats!.totalClients}');
+      print('   - totalInvestments: ${widget.clientStats!.totalInvestments}');
+      print('   - totalRemainingCapital: ${widget.clientStats!.totalRemainingCapital}');
+      print('   - averageCapitalPerClient: ${widget.clientStats!.averageCapitalPerClient}');
+      print('   - source: ${widget.clientStats!.source}');
+    }
+
     if (widget.isLoading) {
       return _buildLoadingState();
     }
@@ -151,6 +163,10 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
   }
 
   Widget _buildErrorState() {
+    print('🔍 [EnhancedClientStatsDisplay] Showing error state - clientStats is null');
+    print('   - widget.isLoading: ${widget.isLoading}');
+    print('   - widget.clientStats: ${widget.clientStats}');
+    
     return Container(
       height: widget.isCompact ? 60 : 120,
       decoration: BoxDecoration(
@@ -161,23 +177,38 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
         ),
       ),
       child: Center(
-        child: Row(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              color: AppTheme.errorColor,
-              size: 20,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.refresh,
+                  color: AppTheme.secondaryGold,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Ładowanie statystyk...',
+                  style: TextStyle(
+                    color: AppTheme.secondaryGold,
+                    fontSize: widget.isCompact ? 14 : 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Text(
-              'Błąd ładowania statystyk',
-              style: TextStyle(
-                color: AppTheme.errorColor,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+            if (!widget.isCompact) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Dane będą dostępne za chwilę',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -232,75 +263,79 @@ class _EnhancedClientStatsDisplayState extends State<EnhancedClientStatsDisplay>
   Widget _buildFullStats() {
     final stats = widget.clientStats!;
     
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatItem(
-                label: 'Łączna liczba klientów',
-                value: _animatedNumber(stats.totalClients.toDouble(), 0),
-                icon: Icons.people,
-                color: AppTheme.infoColor,
-                showProgress: true,
-                maxValue: stats.totalClients.toDouble(),
-              ),
-            ),
-            
-            const SizedBox(width: 20),
-            
-            Expanded(
-              child: _buildStatItem(
-                label: 'Aktywne inwestycje',
-                value: _animatedNumber(stats.totalInvestments.toDouble(), 0),
-                icon: Icons.trending_up,
-                color: AppTheme.successColor,
-                showProgress: true,
-                maxValue: stats.totalInvestments.toDouble(),
-              ),
-            ),
-          ],
-        ),
-        
-        const SizedBox(height: 16),
-        
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatItem(
-                label: 'Łączny kapitał pozostały',
-                value: _formatCurrency(
-                  _animatedNumber(stats.totalRemainingCapital, 2),
+    return SingleChildScrollView( // 🚀 Dodajemy scroll na wypadek overflow
+      child: Column(
+        mainAxisSize: MainAxisSize.min, // 🚀 Minimalna wysokość
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatItem(
+                  label: 'Łączna liczba klientów',
+                  value: _animatedNumber(stats.totalClients.toDouble(), 0),
+                  icon: Icons.people,
+                  color: AppTheme.infoColor,
+                  showProgress: true,
+                  maxValue: stats.totalClients.toDouble(),
                 ),
-                icon: Icons.account_balance_wallet,
-                color: AppTheme.secondaryGold,
-                showProgress: true,
-                maxValue: stats.totalRemainingCapital,
               ),
-            ),
-            
-            const SizedBox(width: 20),
-            
-            Expanded(
-              child: _buildStatItem(
-                label: 'Średnia na klienta',
-                value: _formatCurrency(
-                  _animatedNumber(stats.averageCapitalPerClient, 2),
+              
+              const SizedBox(width: 20),
+              
+              Expanded(
+                child: _buildStatItem(
+                  label: 'Aktywne inwestycje',
+                  value: _animatedNumber(stats.totalInvestments.toDouble(), 0),
+                  icon: Icons.trending_up,
+                  color: AppTheme.successColor,
+                  showProgress: true,
+                  maxValue: stats.totalInvestments.toDouble(),
                 ),
-                icon: Icons.person_outline,
-                color: AppTheme.warningColor,
-                showProgress: true,
-                maxValue: stats.averageCapitalPerClient,
               ),
-            ),
+            ],
+          ),
+          
+          const SizedBox(height: 12), // 🚀 Zmniejszony odstęp
+          
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatItem(
+                  label: 'Łączny kapitał pozostały',
+                  value: _formatCurrency(
+                    _animatedNumber(stats.totalRemainingCapital, 2),
+                  ),
+                  icon: Icons.account_balance_wallet,
+                  color: AppTheme.secondaryGold,
+                  showProgress: true,
+                  maxValue: stats.totalRemainingCapital,
+                ),
+              ),
+              
+              const SizedBox(width: 20),
+              
+              Expanded(
+                child: _buildStatItem(
+                  label: 'Średnia na klienta',
+                  value: _formatCurrency(
+                    _animatedNumber(stats.averageCapitalPerClient, 2),
+                  ),
+                  icon: Icons.person_outline,
+                  color: AppTheme.warningColor,
+                  showProgress: true,
+                  maxValue: stats.averageCapitalPerClient,
+                ),
+              ),
+            ],
+          ),
+          
+          // 🚀 Ukrywamy sourceInfo w kompaktowym trybie headera
+          if (widget.showSourceInfo && !widget.isCompact) ...[
+            const SizedBox(height: 8), // 🚀 Mniejszy odstęp
+            _buildSourceInfo(stats),
           ],
-        ),
-        
-        if (widget.showSourceInfo) ...[
-          const SizedBox(height: 12),
-          _buildSourceInfo(stats),
         ],
-      ],
+      ),
     );
   }
 

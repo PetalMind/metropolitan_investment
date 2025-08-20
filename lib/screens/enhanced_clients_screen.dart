@@ -5,7 +5,7 @@ import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
 import '../widgets/metropolitan_loading_system.dart';
-import '../widgets/enhanced_clients/collapsible_search_header.dart';
+import '../widgets/enhanced_clients/collapsible_search_header_fixed.dart' as CollapsibleHeader;
 import '../widgets/enhanced_clients/spectacular_clients_grid.dart';
 import '../widgets/enhanced_clients/enhanced_client_stats_display.dart';
 
@@ -27,10 +27,11 @@ class EnhancedClientsScreen extends StatefulWidget {
 
 class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     with TickerProviderStateMixin {
-  // Services
+  // Services - UŻYWAMY JUŻ ISTNIEJĄCYCH SERWISÓW  
   final IntegratedClientService _integratedClientService =
       IntegratedClientService();
-  final ClientService _clientService = ClientService();
+  final UnifiedDashboardStatisticsService _dashboardStatsService =
+      UnifiedDashboardStatisticsService();
 
   // Controllers
   final TextEditingController _searchController = TextEditingController();
@@ -168,7 +169,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     try {
       print('🔄 [EnhancedClientsScreen] Rozpoczynam ładowanie danych...');
 
-      // Równoległe ładowanie danych z progress tracking
+      // Równoległe ładowanie danych używając istniejących serwisów
       final futures = await Future.wait([
         // Pobierz wszystkich klientów bez ograniczeń
         _integratedClientService.getAllClients(
@@ -179,32 +180,75 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         ),
         // Pobierz aktywnych klientów
         _integratedClientService.getActiveClients(),
-        // Pobierz statystyki
+        // Pobierz statystyki klientów - główny serwis
         _integratedClientService.getClientStats(),
+        // Pobierz zunifikowane statystyki dashboard jako backup
+        _dashboardStatsService.getStatisticsFromInvestments(),
       ]);
 
       if (mounted) {
         final allClients = futures[0] as List<Client>;
         final activeClients = futures[1] as List<Client>;
         final clientStats = futures[2] as ClientStats;
+        final dashboardStats = futures[3] as UnifiedDashboardStatistics;
 
         print('📊 [EnhancedClientsScreen] Wyniki ładowania:');
         print('   - Wszyscy klienci (getAllClients): ${allClients.length}');
         print(
           '   - Aktywni klienci (getActiveClients): ${activeClients.length}',
         );
+        
+        // 🔍 SZCZEGÓŁOWE DEBUGGING STATYSTYK
+        print('   - Statystyki otrzymane: $clientStats');
         print('   - Statystyki - łącznie: ${clientStats.totalClients}');
         print('   - Statystyki - inwestycje: ${clientStats.totalInvestments}');
         print(
           '   - Statystyki - kapitał: ${clientStats.totalRemainingCapital}',
         );
-
+        print('   - Statystyki - średnia na klienta: ${clientStats.averageCapitalPerClient}');
+        print('   - Statystyki - źródło: ${clientStats.source}');
+        print('   - Statystyki - ostatnia aktualizacja: ${clientStats.lastUpdated}');
+        
         setState(() {
           _allClients = allClients;
           _activeClients = activeClients;
           _clientStats = clientStats;
           _isLoading = false;
         });
+        
+        // 🎉 SUCCESS: Statystyki załadowane
+        print('✅ [SUCCESS] Statystyki załadowane pomyślnie:');
+        print('   - ${clientStats.totalClients} klientów');
+        print('   - ${clientStats.totalInvestments} inwestycji'); 
+        print('   - ${clientStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału');
+        print('   - Źródło: ${clientStats.source}');
+        
+        // 🚨 TYLKO JEŚLI WSZYSTKIE POLA SĄ 0 - użyj inteligentnego fallback z dashboardStats
+        if (clientStats.totalClients == 0 && clientStats.totalInvestments == 0 && clientStats.totalRemainingCapital == 0.0) {
+          print('⚠️ [EMERGENCY] Wszystkie statystyki są 0 - używam dashboardStats jako backup...');
+          
+          // Użyj dashboardStats które już mamy załadowane
+          final smartStats = ClientStats(
+            totalClients: _allClients.length, // Prawdziwa liczba klientów
+            totalInvestments: dashboardStats.totalInvestments,
+            totalRemainingCapital: dashboardStats.totalRemainingCapital,
+            averageCapitalPerClient: _allClients.length > 0 
+                ? dashboardStats.totalRemainingCapital / _allClients.length 
+                : 0.0,
+            lastUpdated: DateTime.now().toIso8601String(),
+            source: 'dashboard-stats-smart-backup',
+          );
+          
+          setState(() {
+            _clientStats = smartStats;
+          });
+          
+          print('🎯 [EMERGENCY] Użyto inteligentnego backup:');
+          print('   - ${_allClients.length} klientów (rzeczywista liczba)');
+          print('   - ${dashboardStats.totalInvestments} inwestycji (z dashboard)');
+          print('   - ${dashboardStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału (z dashboard)');
+          print('   - Źródło: dashboard-stats-smart-backup');
+        }
 
         // Zastosuj filtrowanie jeśli potrzeba
         _applyCurrentFilters();
@@ -316,11 +360,11 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         try {
           if (client == null) {
             // Nowy klient
-            await _clientService.createClient(savedClient);
+            await _integratedClientService.createClient(savedClient);
             _showSuccessSnackBar('Klient został dodany');
           } else {
             // Aktualizacja klienta
-            await _clientService.updateClient(client.id, savedClient);
+            await _integratedClientService.updateClient(client.id, savedClient);
             _showSuccessSnackBar('Klient został zaktualizowany');
           }
 
@@ -333,48 +377,139 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     );
   }
 
+  Future<void> _clearCache() async {
+    try {
+      // Użyj IntegratedClientService do czyszczenia cache
+      _integratedClientService.clearAllCache();
+      await _refreshData();
+      _showSuccessSnackBar('Cache został wyczyszczony i dane odświeżone');
+    } catch (e) {
+      _showErrorSnackBar('Błąd podczas czyszczenia cache: $e');
+    }
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppTheme.successColor,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppTheme.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  // 🚀 NOWE: Funkcje multi-selection dla email
+  void _enterSelectionMode() {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedClientIds.clear();
+    });
+    _selectionController.forward();
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedClientIds.clear();
+    });
+    _selectionController.reverse();
+  }
+
+  Future<void> _showEmailDialog() async {
+    if (_selectedClients.isEmpty) {
+      _showErrorSnackBar('Nie wybrano żadnych klientów');
+      return;
+    }
+
+    // Konwertuj klientów na InvestorSummary (potrzebne dane inwestycji)
+    final investorAnalyticsService = InvestorAnalyticsService();
+
+    try {
+      // Pobierz dane inwestycji dla wybranych klientów
+      final investorsData = await investorAnalyticsService
+          .getInvestorsByClientIds(_selectedClients.map((c) => c.id).toList());
+
+      if (!mounted) return;
+
+      if (investorsData.isEmpty) {
+        _showErrorSnackBar('Wybrani klienci nie mają żadnych inwestycji');
+        return;
+      }
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => EnhancedInvestorEmailDialog(
+          selectedInvestors: investorsData,
+          onEmailSent: () {
+            _exitSelectionMode();
+            _showSuccessSnackBar('Email został wysłany pomyślnie');
+          },
+        ),
+      );
+    } catch (e) {
+      _showErrorSnackBar('Błąd podczas pobierania danych inwestycji: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppTheme.backgroundPrimary,
+        body: const Center(
+          child: MetropolitanLoadingWidget.clients(showProgress: true),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundPrimary,
-      body: _isLoading
-          ? const Center(
-              child: MetropolitanLoadingWidget.clients(showProgress: true),
-            )
-          : Column(
-              children: [
-                // 🎨 COLLAPSIBLE SEARCH HEADER
-                CollapsibleSearchHeader(
-                  searchController: _searchController,
-                  onSearchChanged: (query) {
-                    _currentSearchQuery = query;
-                    _performSearch();
-                  },
-                  statsWidget: EnhancedClientStatsDisplay(
-                    clientStats: _clientStats,
-                    isLoading: _isLoading && _clientStats == null,
-                    isCompact: _isHeaderCollapsed,
-                    showTrends: true,
-                    showSourceInfo: true,
-                  ),
-                  showActiveOnly: _showActiveOnly,
-                  onToggleActiveOnly: _toggleActiveClients,
-                  activeClientsCount: _activeClients.length,
-                  isSelectionMode: _isSelectionMode,
-                  onSelectionModeToggle: () {
-                    if (_isSelectionMode) {
-                      _exitSelectionMode();
-                    } else {
-                      _enterSelectionMode();
-                    }
-                  },
-                  additionalActions: _buildHeaderActions(),
-                ),
-
-                // 🎨 SPECTACULAR CLIENTS GRID
-                Expanded(child: _buildContent()),
-              ],
+      body: Column(
+        children: [
+          // 🎨 FIXED COLLAPSIBLE SEARCH HEADER - ZAWSZE ZAJMUJE MIEJSCE
+          CollapsibleHeader.CollapsibleSearchHeader(
+            searchController: _searchController,
+            isCollapsed: _isHeaderCollapsed, // 🚀 KONTROLUJE UKRYWANIE STATYSTYK
+            onSearchChanged: (query) {
+              _currentSearchQuery = query;
+              _performSearch();
+            },
+            statsWidget: EnhancedClientStatsDisplay(
+              clientStats: _clientStats,
+              isLoading: false, // Header już widoczny, nie pokazuj loading
+              isCompact: _isHeaderCollapsed,
+              showTrends: true,
+              showSourceInfo: true,
             ),
+            showActiveOnly: _showActiveOnly,
+            onToggleActiveOnly: _toggleActiveClients,
+            activeClientsCount: _activeClients.length,
+            isSelectionMode: _isSelectionMode,
+            onSelectionModeToggle: () {
+              if (_isSelectionMode) {
+                _exitSelectionMode();
+              } else {
+                _enterSelectionMode();
+              }
+            },
+            additionalActions: _buildHeaderActions(),
+          ),
+
+          // 🎨 SPECTACULAR CLIENTS GRID - POZOSTAŁA PRZESTRZEŃ
+          Expanded(child: _buildContent()),
+        ],
+      ),
     );
   }
 
@@ -555,143 +690,5 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         ],
       ),
     );
-  }
-
-  Future<void> _clearCache() async {
-    try {
-      // Użyj IntegratedClientService do czyszczenia cache
-      _integratedClientService.clearAllCache();
-      await _refreshData();
-      _showSuccessSnackBar('Cache został wyczyszczony i dane odświeżone');
-    } catch (e) {
-      _showErrorSnackBar('Błąd podczas czyszczenia cache: $e');
-    }
-  }
-
-  void _deleteClient(Client client) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.backgroundModal,
-        title: const Text(
-          'Potwierdzenie usunięcia',
-          style: TextStyle(color: AppTheme.textPrimary),
-        ),
-        content: Text(
-          'Czy na pewno chcesz usunąć klienta ${client.name}?',
-          style: const TextStyle(color: AppTheme.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.textSecondary,
-            ),
-            child: const Text('Anuluj'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-
-              try {
-                // Usuń klienta używając ClientService bezpośrednio
-                await _clientService.deleteClient(client.id);
-                _showSuccessSnackBar('Klient został usunięty');
-                await _refreshData();
-              } catch (e) {
-                _showErrorSnackBar('Błąd podczas usuwania: $e');
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorColor,
-              foregroundColor: AppTheme.textOnPrimary,
-            ),
-            child: const Text('Usuń'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.successColor,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.errorColor,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void _showInfoSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.infoColor,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  // 🚀 NOWE: Funkcje multi-selection dla email
-  void _enterSelectionMode() {
-    setState(() {
-      _isSelectionMode = true;
-      _selectedClientIds.clear();
-    });
-  }
-
-  void _exitSelectionMode() {
-    setState(() {
-      _isSelectionMode = false;
-      _selectedClientIds.clear();
-    });
-  }
-
-  Future<void> _showEmailDialog() async {
-    if (_selectedClients.isEmpty) {
-      _showErrorSnackBar('Nie wybrano żadnych klientów');
-      return;
-    }
-
-    // Konwertuj klientów na InvestorSummary (potrzebne dane inwestycji)
-    final investorAnalyticsService = InvestorAnalyticsService();
-
-    try {
-      // Pobierz dane inwestycji dla wybranych klientów
-      final investorsData = await investorAnalyticsService
-          .getInvestorsByClientIds(_selectedClients.map((c) => c.id).toList());
-
-      if (!mounted) return;
-
-      if (investorsData.isEmpty) {
-        _showErrorSnackBar('Wybrani klienci nie mają żadnych inwestycji');
-        return;
-      }
-
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => EnhancedInvestorEmailDialog(
-          selectedInvestors: investorsData,
-          onEmailSent: () {
-            _exitSelectionMode();
-            _showSuccessSnackBar('Email został wysłany pomyślnie');
-          },
-        ),
-      );
-    } catch (e) {
-      _showErrorSnackBar('Błąd podczas pobierania danych inwestycji: $e');
-    }
   }
 }

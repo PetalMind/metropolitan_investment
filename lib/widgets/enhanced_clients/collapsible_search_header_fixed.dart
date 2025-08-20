@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../../theme/app_theme.dart';
 
-/// 🎭 COLLAPSIBLE SEARCH HEADER
+/// 🎭 COLLAPSIBLE SEARCH HEADER Z CAŁKOWITYM UKRYWANIEM STATYSTYK
 /// 
 /// Inteligentny header który:
 /// - Zwija się podczas przewijania w dół (ukrywa statystyki CAŁKOWICIE)
@@ -21,7 +21,7 @@ class CollapsibleSearchHeader extends StatefulWidget {
   final bool isSelectionMode;
   final VoidCallback? onSelectionModeToggle;
   final Widget? additionalActions;
-  final bool isCollapsed; // 🚀 NOWA WŁAŚCIWOŚĆ
+  final bool isCollapsed; // 🚀 KONTROLUJE CAŁKOWITE UKRYWANIE STATYSTYK
 
   const CollapsibleSearchHeader({
     super.key,
@@ -35,7 +35,7 @@ class CollapsibleSearchHeader extends StatefulWidget {
     this.isSelectionMode = false,
     this.onSelectionModeToggle,
     this.additionalActions,
-    this.isCollapsed = false, // 🚀 NOWY PARAMETR
+    this.isCollapsed = false,
   });
 
   @override
@@ -52,10 +52,10 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
   late Animation<double> _collapseAnimation;
   late Animation<double> _searchExpandAnimation;
   late Animation<double> _pulseAnimation;
-  late Animation<double> _statsHideAnimation; // 🚀 NOWA ANIMACJA
+  late Animation<double> _statsHideAnimation;
   
   bool _isSearchExpanded = false;
-  
+
   @override
   void initState() {
     super.initState();
@@ -130,14 +130,6 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
     }
   }
 
-  /// Method to be called from parent when scroll position changes
-  void updateScrollPosition(double scrollOffset, double maxScrollExtent) {
-    final shouldCollapse = scrollOffset > 100;
-    
-    // This method is no longer needed since we use external isCollapsed prop
-    // But keeping for backward compatibility
-  }
-
   void _toggleSearchField() {
     if (!widget.isCollapsed) return;
     
@@ -170,25 +162,29 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
     return AnimatedBuilder(
       animation: Listenable.merge([_collapseAnimation, _searchExpandAnimation, _pulseAnimation, _statsHideAnimation]),
       builder: (context, child) {
-        return Container(
-          height: widget.isCollapsed 
-            ? (80.0 + (_isSearchExpanded ? 60.0 : 0.0))
-            : (200.0 + (widget.statsWidget != null ? 120.0 : 0.0)),
+        // 🚀 DYNAMICZNA WYSOKOŚĆ - 240px gdy rozwinięty (więcej miejsca na statystyki), 80px gdy zwinięty
+        final headerHeight = widget.isCollapsed ? 80.0 : 240.0;
+        
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 400),
+          height: headerHeight,
           decoration: BoxDecoration(
+            // 🎨 NIEPRZEZROCZYSTE TŁO - lista będzie pod headerem
+            color: AppTheme.backgroundPrimary, // Solidne tło
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
                 AppTheme.primaryColor,
-                AppTheme.primaryColor.withOpacity(0.8),
-                AppTheme.secondaryGold.withOpacity(0.1),
+                AppTheme.primaryColor.withOpacity(0.9), // Mniej przezroczystości
+                AppTheme.secondaryGold.withOpacity(0.2),
               ],
             ),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.primaryColor.withOpacity(0.3),
-                blurRadius: 20 * (1 - _collapseAnimation.value),
-                offset: Offset(0, 5 * (1 - _collapseAnimation.value)),
+                color: AppTheme.primaryColor.withOpacity(0.4),
+                blurRadius: 15,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -206,31 +202,23 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHeaderContent(),
-                    
-                    // 🎨 STATYSTYKI CAŁKOWICIE ZNIKAJĄ PODCZAS PRZEWIJANIA
+                    // 🎨 STATYSTYKI NA GÓRZE - ELASTYCZNA WYSOKOŚĆ GDY WIDOCZNE
                     if (!widget.isCollapsed && widget.statsWidget != null) ...[
-                      const SizedBox(height: 16),
-                      AnimatedOpacity(
-                        opacity: 1.0 - _statsHideAnimation.value,
-                        duration: const Duration(milliseconds: 300),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 400),
-                          height: (1.0 - _statsHideAnimation.value) * 120.0,
-                          child: widget.statsWidget!,
-                        ),
+                      Flexible(
+                        child: widget.statsWidget!,
                       ),
+                      const SizedBox(height: 8),
                     ],
+                    
+                    _buildHeaderContent(),
                     
                     if (!widget.isCollapsed) ...[
                       const SizedBox(height: 16),
                       _buildSearchSection(),
-                      
-                      if (widget.statsWidget != null) ...[
-                        const SizedBox(height: 20),
-                        _buildStatsSection(),
-                      ],
-                    ] else if (_isSearchExpanded) ...[
+                    ],
+                    
+                    // Expanded search in collapsed mode
+                    if (widget.isCollapsed && _isSearchExpanded) ...[
                       const SizedBox(height: 12),
                       _buildCollapsedSearchField(),
                     ],
@@ -317,17 +305,7 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
               );
             },
           ),
-          if (widget.additionalActions != null)
-            widget.additionalActions!,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeaderActions() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
+          
         if (widget.additionalActions != null)
           widget.additionalActions!,
       ],
@@ -396,7 +374,10 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
       height: _searchExpandAnimation.value * 50,
       child: Transform.scale(
         scale: _searchExpandAnimation.value,
-        child: _buildSearchField(),
+        child: Opacity(
+          opacity: _searchExpandAnimation.value,
+          child: _buildSearchField(),
+        ),
       ),
     );
   }
@@ -468,120 +449,6 @@ class ParticleBackgroundPainter extends CustomPainter {
   @override
   bool shouldRepaint(ParticleBackgroundPainter oldDelegate) {
     return oldDelegate.animationValue != animationValue ||
-           oldDelegate.isCollapsed != isCollapsed;
-  }
-}
-        child: Opacity(
-          opacity: _searchExpandAnimation.value,
-          child: _buildSearchField(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActiveClientsFilter() {
-    return Container(
-      decoration: BoxDecoration(
-        color: widget.showActiveOnly 
-            ? AppTheme.secondaryGold.withOpacity(0.3)
-            : Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: widget.showActiveOnly 
-              ? AppTheme.secondaryGold.withOpacity(0.5)
-              : Colors.white.withOpacity(0.2),
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: widget.onToggleActiveOnly,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  widget.showActiveOnly 
-                      ? Icons.people 
-                      : Icons.people_outline,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Aktywni (${widget.activeClientsCount})',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatsSection() {
-    return AnimatedOpacity(
-      opacity: 1 - _collapseAnimation.value,
-      duration: const Duration(milliseconds: 200),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.2),
-          ),
-        ),
-        padding: const EdgeInsets.all(16),
-        child: widget.statsWidget ?? const SizedBox.shrink(),
-      ),
-    );
-  }
-}
-
-/// Custom painter for animated particle background
-class ParticleBackgroundPainter extends CustomPainter {
-  final Animation<double> animation;
-  final bool isCollapsed;
-
-  ParticleBackgroundPainter({
-    required this.animation,
-    required this.isCollapsed,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.1)
-      ..style = PaintingStyle.fill;
-
-    final particleCount = isCollapsed ? 8 : 15;
-    
-    for (int i = 0; i < particleCount; i++) {
-      final progress = (animation.value + i * 0.1) % 1.0;
-      final x = (size.width * 0.1) + (size.width * 0.8 * (i / particleCount));
-      final y = size.height * 0.2 + 
-          (size.height * 0.6 * math.sin(progress * 2 * math.pi));
-      
-      final radius = (3 + (i % 3)) * (isCollapsed ? 0.5 : 1.0);
-      
-      canvas.drawCircle(
-        Offset(x, y),
-        radius * animation.value,
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(ParticleBackgroundPainter oldDelegate) {
-    return oldDelegate.animation.value != animation.value ||
            oldDelegate.isCollapsed != isCollapsed;
   }
 }
