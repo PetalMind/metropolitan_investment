@@ -57,7 +57,6 @@ class Investment {
   final double? exchangeRate;
   final DateTime createdAt;
   final DateTime updatedAt;
-  // 🔥 POLA Z GŁÓWNEGO POZIOMU FIREBASE
   final double capitalSecuredByRealEstate;
   final double capitalForRestructuring;
   final Map<String, dynamic> additionalInfo;
