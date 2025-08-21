@@ -4,11 +4,9 @@ import 'package:provider/provider.dart';
 import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
-import '../widgets/metropolitan_loading_system.dart';
 import '../widgets/enhanced_clients/collapsible_search_header_fixed.dart'
     as CollapsibleHeader;
 import '../widgets/enhanced_clients/spectacular_clients_grid.dart';
-import '../widgets/enhanced_clients/enhanced_client_stats_display.dart';
 
 /// 🎨 SPEKTAKULARNY EKRAN KLIENTÓW Z EFEKTEM WOW
 ///
@@ -289,7 +287,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   Timer? _searchTimer;
   void _onSearchChanged() {
     _searchTimer?.cancel();
-    _searchTimer = Timer(const Duration(milliseconds: 500), () {
+    _searchTimer = Timer(const Duration(milliseconds: 1000), () {
       _performSearch();
     });
   }
@@ -300,6 +298,15 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
     final query = _searchController.text.trim();
 
+    // Dla krótkich zapytań (1-2 znaki) używaj lokalnego filtrowania
+    if (query.length <= 2) {
+      setState(() {
+        _currentSearchQuery = query;
+      });
+      return;
+    }
+
+    // Dla dłuższych zapytań używaj serwera z debouncing
     setState(() {
       _currentSearchQuery = query;
       _isLoading = true;
@@ -343,8 +350,22 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       return _activeClients;
     }
 
-    if (_currentSearchQuery.isNotEmpty) {
-      // Jeśli jest wyszukiwanie, zwróć wyniki z _allClients (już przefiltrowane przez serwis)
+    // Dla krótkich zapytań (1-2 znaki) używaj lokalnego filtrowania
+    if (_currentSearchQuery.isNotEmpty && _currentSearchQuery.length <= 2) {
+      final query = _currentSearchQuery.toLowerCase();
+      return _allClients.where((client) {
+        final clientName = client.name.toLowerCase();
+        final companyName = client.companyName?.toLowerCase() ?? '';
+        final email = client.email.toLowerCase();
+
+        return clientName.contains(query) ||
+            companyName.contains(query) ||
+            email.contains(query);
+      }).toList();
+    }
+
+    if (_currentSearchQuery.isNotEmpty && _currentSearchQuery.length > 2) {
+      // Jeśli jest długie wyszukiwanie, zwróć wyniki z _allClients (już przefiltrowane przez serwis)
       return _allClients;
     }
 
@@ -423,6 +444,68 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     );
   }
 
+  Widget _buildStatsWidget(ClientStats stats) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildStatCard(
+              'Klienci',
+              stats.totalClients.toString(),
+              Icons.people,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _buildStatCard(
+              'Inwestycje',
+              stats.totalInvestments.toString(),
+              Icons.trending_up,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _buildStatCard(
+              'Kapitał',
+              '${(stats.totalRemainingCapital / 1000000).toStringAsFixed(1)}M PLN',
+              Icons.attach_money,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.secondaryGold.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: AppTheme.secondaryGold, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            title,
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
   // 🚀 NOWE: Funkcje multi-selection dla email
   void _enterSelectionMode() {
     setState(() {
@@ -482,12 +565,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     if (_isLoading) {
       return Scaffold(
         backgroundColor: AppTheme.backgroundPrimary,
-        body: const Center(
-          child: MetropolitanLoadingWidget.clients(showProgress: true),
-        ),
+        body: const Center(child: PremiumShimmerLoadingWidget.fullScreen()),
       );
     }
-
     return Scaffold(
       backgroundColor: AppTheme.backgroundPrimary,
       body: Column(
@@ -501,7 +581,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
               _currentSearchQuery = query;
               _performSearch();
             },
-           
+            statsWidget: _clientStats != null
+                ? _buildStatsWidget(_clientStats!)
+                : null,
             showActiveOnly: _showActiveOnly,
             onToggleActiveOnly: _toggleActiveClients,
             activeClientsCount: _activeClients.length,
@@ -585,9 +667,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
   Widget _buildContent() {
     if (_isLoading) {
-      return const Center(
-        child: MetropolitanLoadingWidget.clients(showProgress: true),
-      );
+      return const Center(child: PremiumShimmerLoadingWidget.fullScreen());
     }
 
     if (_errorMessage.isNotEmpty) {

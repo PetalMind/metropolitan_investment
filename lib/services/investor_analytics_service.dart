@@ -554,13 +554,20 @@ class InvestorAnalyticsService extends BaseService {
         0.0,
         (sum, inv) => sum + inv.realizedCapital,
       );
-      final capitalSecuredByRealEstate = investments.fold(
-        0.0,
-        (sum, inv) => sum + inv.capitalSecuredByRealEstate,
-      );
       final capitalForRestructuring = investments.fold(
         0.0,
         (sum, inv) => sum + inv.capitalForRestructuring,
+      );
+
+      // 🎯 ZUNIFIKOWANY WZÓR jak w Dashboard: secured = max(remaining - restructuring, 0)
+      final capitalSecuredByRealEstate =
+          (totalRemainingCapital - capitalForRestructuring).clamp(
+            0.0,
+            double.infinity,
+          );
+
+      print(
+        '🎯 [InvestorAnalytics] ${client.name}: remaining=${totalRemainingCapital}, restructuring=${capitalForRestructuring}, secured=${capitalSecuredByRealEstate}',
       );
 
       // Używamy standardowego konstruktora InvestorSummary
@@ -581,8 +588,8 @@ class InvestorAnalyticsService extends BaseService {
         '❌ [InvestorAnalytics] Błąd obliczeń serwerowych dla ${client.name}: $e',
       );
 
-      // ⚠️ DEPRECATED: Fallback do starych obliczeń - używaj withoutCalculations()
-      return InvestorSummary.fromInvestments(client, investments);
+      // 🎯 ZUNIFIKOWANY FALLBACK: Używaj tego samego wzoru co w try
+      return InvestorSummary.withoutCalculations(client, investments);
     }
   }
 

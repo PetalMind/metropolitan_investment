@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/employee.dart';
-import '../services/employee_service.dart';
-import '../widgets/data_table_widget.dart';
+import 'dart:async';
+import '../models_and_services.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/employee_form.dart';
 import '../widgets/animated_button.dart';
-import '../theme/app_theme.dart';
-import '../providers/auth_provider.dart';
 
 // RBAC: wspólny tooltip dla braku uprawnień
 const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
@@ -27,6 +25,9 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   String? _selectedBranch;
   List<String> _branches = [];
 
+  // Debouncing timer for search
+  Timer? _searchTimer;
+
   // RBAC getter
   bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
 
@@ -39,6 +40,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchTimer?.cancel();
     super.dispose();
   }
 
@@ -55,8 +57,11 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   }
 
   void _onSearchChanged(String value) {
-    setState(() {
-      _searchQuery = value;
+    _searchTimer?.cancel();
+    _searchTimer = Timer(const Duration(milliseconds: 800), () {
+      setState(() {
+        _searchQuery = value;
+      });
     });
   }
 
@@ -311,11 +316,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppTheme.secondaryGold,
-                      ),
-                    ),
+                    child: PremiumShimmerLoadingWidget.fullScreen(),
                   );
                 }
 

@@ -5,7 +5,8 @@ import '../models_and_services.dart';
 /// Usprawnia pobieranie danych o inwestorach, łącznej wartości i pozostałym kapitale
 /// przez eliminację duplikacji zapytań i inteligentne cache'owanie
 class OptimizedDataCacheService extends BaseService {
-  static final OptimizedDataCacheService _instance = OptimizedDataCacheService._internal();
+  static final OptimizedDataCacheService _instance =
+      OptimizedDataCacheService._internal();
   factory OptimizedDataCacheService() => _instance;
   OptimizedDataCacheService._internal();
 
@@ -15,10 +16,11 @@ class OptimizedDataCacheService extends BaseService {
   static const Duration _cacheTimeout = Duration(minutes: 15);
 
   // Streamers dla reaktywnych aktualizacji
-  final StreamController<InvestorAnalyticsSummary> _analyticsController = 
+  final StreamController<InvestorAnalyticsSummary> _analyticsController =
       StreamController<InvestorAnalyticsSummary>.broadcast();
-  
-  Stream<InvestorAnalyticsSummary> get analyticsStream => _analyticsController.stream;
+
+  Stream<InvestorAnalyticsSummary> get analyticsStream =>
+      _analyticsController.stream;
 
   /// Pobiera kompletne dane analityczne z jednym zapytaniem do bazy
   Future<InvestorAnalyticsSummary> getCompleteAnalyticsData({
@@ -26,7 +28,7 @@ class OptimizedDataCacheService extends BaseService {
     bool includeInactive = false,
   }) async {
     final startTime = DateTime.now();
-    
+
     // Sprawdź cache
     if (!forceRefresh && _isCacheValid()) {
       print('📊 [OptimizedCache] Używam danych z cache');
@@ -34,7 +36,7 @@ class OptimizedDataCacheService extends BaseService {
     }
 
     print('🔄 [OptimizedCache] Ładuję świeże dane...');
-    
+
     try {
       // POJEDYNCZE ZAPYTANIE: Pobierz wszystkie dane równolegle
       final futures = await Future.wait([
@@ -47,7 +49,9 @@ class OptimizedDataCacheService extends BaseService {
       final investments = futures[1] as List<Investment>;
       final metadata = futures[2] as Map<String, dynamic>;
 
-      print('📊 [OptimizedCache] Pobrano ${clients.length} klientów, ${investments.length} inwestycji');
+      print(
+        '📊 [OptimizedCache] Pobrano ${clients.length} klientów, ${investments.length} inwestycji',
+      );
 
       // OPTYMALIZACJA: Mapowanie klientów z wykorzystaniem indeksów
       final clientsById = <String, Client>{};
@@ -105,7 +109,10 @@ class OptimizedDataCacheService extends BaseService {
             unprocessedInvestments.add(inv.id);
           }
 
-          final summary = _createInvestorSummaryOptimized(client, clientInvestments);
+          final summary = _createInvestorSummaryOptimized(
+            client,
+            clientInvestments,
+          );
           investors.add(summary);
         }
       }
@@ -137,9 +144,10 @@ class OptimizedDataCacheService extends BaseService {
       // Wyślij aktualizację do streamów
       _analyticsController.add(summary);
 
-      print('✅ [OptimizedCache] Kompletne dane załadowane w ${summary.processingTimeMs}ms');
+      print(
+        '✅ [OptimizedCache] Kompletne dane załadowane w ${summary.processingTimeMs}ms',
+      );
       return summary;
-
     } catch (e) {
       print('❌ [OptimizedCache] Błąd ładowania danych: $e');
       logError('getCompleteAnalyticsData', e);
@@ -150,8 +158,8 @@ class OptimizedDataCacheService extends BaseService {
   /// Sprawdza czy cache jest aktualny
   bool _isCacheValid() {
     return _unifiedDataCache != null &&
-           _cacheTimestamp != null &&
-           DateTime.now().difference(_cacheTimestamp!).abs() < _cacheTimeout;
+        _cacheTimestamp != null &&
+        DateTime.now().difference(_cacheTimestamp!).abs() < _cacheTimeout;
   }
 
   /// Buduje podsumowanie z cache
@@ -165,7 +173,10 @@ class OptimizedDataCacheService extends BaseService {
       globalMetrics: _unifiedDataCache!['globalMetrics'] as GlobalMetrics,
       totalClients: (_unifiedDataCache!['clients'] as List).length,
       totalInvestments: (_unifiedDataCache!['investments'] as List).length,
-      processedInvestments: investors.fold(0, (sum, inv) => sum + inv.investments.length),
+      processedInvestments: investors.fold(
+        0,
+        (sum, inv) => sum + inv.investments.length,
+      ),
       cacheSource: 'cache',
       processingTimeMs: 0,
     );
@@ -179,9 +190,7 @@ class OptimizedDataCacheService extends BaseService {
           .orderBy('name')
           .get();
 
-      return snapshot.docs
-          .map((doc) => Client.fromFirestore(doc))
-          .toList();
+      return snapshot.docs.map((doc) => Client.fromFirestore(doc)).toList();
     } catch (e) {
       print('❌ [OptimizedCache] Błąd pobierania klientów: $e');
       rethrow;
@@ -196,9 +205,7 @@ class OptimizedDataCacheService extends BaseService {
           .orderBy('clientId')
           .get();
 
-      return snapshot.docs
-          .map((doc) => Investment.fromFirestore(doc))
-          .toList();
+      return snapshot.docs.map((doc) => Investment.fromFirestore(doc)).toList();
     } catch (e) {
       print('❌ [OptimizedCache] Błąd pobierania inwestycji: $e');
       rethrow;
@@ -216,23 +223,33 @@ class OptimizedDataCacheService extends BaseService {
 
   /// Tworzy zoptymalizowane podsumowanie inwestora
   InvestorSummary _createInvestorSummaryOptimized(
-    Client client, 
+    Client client,
     List<Investment> investments,
   ) {
     // Oblicz sumy jednym przejściem przez inwestycje
     double totalInvestmentAmount = 0;
     double totalRemainingCapital = 0;
     double totalRealizedCapital = 0;
-    double capitalSecuredByRealEstate = 0;
     double capitalForRestructuring = 0;
 
     for (final investment in investments) {
       totalInvestmentAmount += investment.investmentAmount;
       totalRemainingCapital += investment.remainingCapital;
       totalRealizedCapital += investment.realizedCapital;
-      capitalSecuredByRealEstate += investment.capitalSecuredByRealEstate;
       capitalForRestructuring += investment.capitalForRestructuring;
     }
+
+    // 🎯 ZUNIFIKOWANY WZÓR jak w Dashboard: secured = max(remaining - restructuring, 0)
+    // ⭐ ZGODNY Z PRODUCT_DASHBOARD_WIDGET
+    final capitalSecuredByRealEstate =
+        (totalRemainingCapital - capitalForRestructuring).clamp(
+          0.0,
+          double.infinity,
+        );
+
+    print(
+      '🎯 [OptimizedDataCache] ${client.name}: remaining=${totalRemainingCapital}, restructuring=${capitalForRestructuring}, secured=${capitalSecuredByRealEstate}',
+    );
 
     return InvestorSummary(
       client: client,
@@ -250,7 +267,7 @@ class OptimizedDataCacheService extends BaseService {
 
   /// Oblicza globalne metryki systemu
   GlobalMetrics _calculateGlobalMetrics(
-    List<InvestorSummary> investors, 
+    List<InvestorSummary> investors,
     List<Investment> allInvestments,
   ) {
     double totalInvestmentAmount = 0;
@@ -287,8 +304,8 @@ class OptimizedDataCacheService extends BaseService {
       totalInvestmentAmount: totalInvestmentAmount,
       totalRemainingCapital: totalRemainingCapital,
       totalViableCapital: totalViableCapital,
-      averageInvestmentPerInvestor: investors.isNotEmpty 
-          ? totalInvestmentAmount / investors.length 
+      averageInvestmentPerInvestor: investors.isNotEmpty
+          ? totalInvestmentAmount / investors.length
           : 0.0,
       votingDistribution: votingDistribution,
       calculatedAt: DateTime.now(),
@@ -303,7 +320,9 @@ class OptimizedDataCacheService extends BaseService {
     String? searchQuery,
   }) {
     if (!_isCacheValid() || _unifiedDataCache == null) {
-      throw StateError('Cache nie jest aktualny. Wywołaj getCompleteAnalyticsData() najpierw.');
+      throw StateError(
+        'Cache nie jest aktualny. Wywołaj getCompleteAnalyticsData() najpierw.',
+      );
     }
 
     var investors = _unifiedDataCache!['investors'] as List<InvestorSummary>;
@@ -322,7 +341,9 @@ class OptimizedDataCacheService extends BaseService {
 
     if (showOnlyWithUnviableInvestments) {
       investors = investors
-          .where((inv) => inv.totalRemainingCapital > inv.viableRemainingCapital)
+          .where(
+            (inv) => inv.totalRemainingCapital > inv.viableRemainingCapital,
+          )
           .toList();
     }
 
@@ -355,8 +376,9 @@ class OptimizedDataCacheService extends BaseService {
       'isValid': _isCacheValid(),
       'lastUpdate': _cacheTimestamp?.toIso8601String(),
       'cacheSize': _unifiedDataCache?.length ?? 0,
-      'timeToExpiry': _cacheTimestamp != null 
-          ? _cacheTimeout.inMilliseconds - DateTime.now().difference(_cacheTimestamp!).inMilliseconds
+      'timeToExpiry': _cacheTimestamp != null
+          ? _cacheTimeout.inMilliseconds -
+                DateTime.now().difference(_cacheTimestamp!).inMilliseconds
           : 0,
     };
   }
@@ -419,9 +441,7 @@ class GlobalMetrics {
   });
 
   double get majorityControlThreshold => totalViableCapital * 0.51;
-  
-  double get averageCapitalPerInvestor => totalInvestorCount > 0
-      ? totalViableCapital / totalInvestorCount
-      : 0.0;
-}
 
+  double get averageCapitalPerInvestor =>
+      totalInvestorCount > 0 ? totalViableCapital / totalInvestorCount : 0.0;
+}

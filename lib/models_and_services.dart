@@ -161,10 +161,13 @@ export 'widgets/dialogs/enhanced_email_editor_dialog.dart'; // 🚀 NOWE: Zaawan
 export 'widgets/dialogs/investor_export_dialog.dart'; // ⭐ NOWE: Dialog eksportu danych
 export 'widgets/dialogs/product_history_dialog.dart'; // ⭐ NOWE: Dialog historii zmian produktu
 
+// Premium Analytics Components
+export 'widgets/premium_analytics/premium_analytics_header.dart'; // 🚀 NOWE: Nowoczesny responsywny header
+
 // Investor Edit Components - UI Components for editing investors
 export 'widgets/investor_edit/currency_controls.dart'; // 🚀 NOWE: Kontrolki walutowe
 export 'widgets/investor_edit/investments_summary.dart'; // 🚀 NOWE: Podsumowanie inwestycji
-export 'widgets/investor_edit/investment_edit_card.dart'; // 🚀 NOWE: Karta edycji inwestycji
+export 'widgets/investor_edit/investment_edit_card.dart'; // 🚀 NOWY: Karta edycji inwestycji
 
 // Investor Analytics Widgets - Professional Financial Views
 export 'widgets/investor_analytics/investor_views_container.dart';

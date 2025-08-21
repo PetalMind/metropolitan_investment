@@ -35,20 +35,6 @@ class InvestorSummary {
     // print('🔍 [InvestorSummary.fromInvestments] Obliczanie dla klienta: ${client.name}');
     // print('  - Liczba inwestycji: ${investments.length}');
 
-    // Helper function to parse capital values with commas
-    double parseCapitalValue(dynamic value) {
-      if (value == null) return 0.0;
-      if (value is double) return value;
-      if (value is int) return value.toDouble();
-      if (value is String) {
-        // Handle string values like "200,000.00" from Firebase
-        final cleaned = value.toString().replaceAll(',', '');
-        final parsed = double.tryParse(cleaned);
-        return parsed ?? 0.0;
-      }
-      return 0.0;
-    }
-
     double totalRemainingCapital = 0;
     double totalSharesValue =
         0; // Zachowujemy dla kompatybilności, ale zawsze = 0
@@ -71,45 +57,22 @@ class InvestorSummary {
       totalInvestmentAmount += investment.investmentAmount;
       totalRealizedCapital += investment.realizedCapital;
 
-      // 🏗️ POBIERZ DODATKOWE POLA - sprawdź główny poziom PIERWSZE, potem additionalInfo
-      // Mapowanie dla kapitału zabezpieczonego nieruchomością - z automatycznym fallback
-      double investmentCapitalSecured = 0.0;
-
-      // Najpierw sprawdź bezpośrednie pola na głównym poziomie
-      if (investment.additionalInfo.containsKey('capitalSecuredByRealEstate')) {
-        investmentCapitalSecured = parseCapitalValue(
-          investment.additionalInfo['capitalSecuredByRealEstate'],
-        );
-      } else if (investment.additionalInfo['realEstateSecuredCapital'] !=
-          null) {
-        investmentCapitalSecured = parseCapitalValue(
-          investment.additionalInfo['realEstateSecuredCapital'],
-        );
-      } else if (investment
-              .additionalInfo['Kapitał zabezpieczony nieruchomością'] !=
-          null) {
-        investmentCapitalSecured = parseCapitalValue(
-          investment.additionalInfo['Kapitał zabezpieczony nieruchomością'],
-        );
-      } else if (investment
-              .additionalInfo['kapital_zabezpieczony_nieruchomoscia'] !=
-          null) {
-        investmentCapitalSecured = parseCapitalValue(
-          investment.additionalInfo['kapital_zabezpieczony_nieruchomoscia'],
-        );
-      } else {
-        // Automatyczne obliczenie jako fallback
-        final capitalForRestructuringValue = investment.capitalForRestructuring;
-        final result =
-            investment.remainingCapital - capitalForRestructuringValue;
-        investmentCapitalSecured = result > 0 ? result : 0.0;
-      }
-
-      capitalSecuredByRealEstate += investmentCapitalSecured;
-
       // Sumowanie capitalForRestructuring bez dodatkowych lokalnych fallbacków (logika fallback w Investment.fromFirestore)
       capitalForRestructuring += investment.capitalForRestructuring;
     }
+
+    // 🎯 ZUNIFIKOWANY WZÓR jak w Dashboard: secured = max(remaining - restructuring, 0)
+    // Zastępuje skomplikowane mapowanie z additionalInfo jednym prostym wzorem
+    // ⭐ ZGODNY Z PRODUCT_DASHBOARD_WIDGET
+    capitalSecuredByRealEstate =
+        (totalRemainingCapital - capitalForRestructuring).clamp(
+          0.0,
+          double.infinity,
+        );
+
+    print(
+      '🎯 [InvestorSummary.fromInvestments] ${client.name}: remaining=${totalRemainingCapital}, restructuring=${capitalForRestructuring}, secured=${capitalSecuredByRealEstate}',
+    );
 
     // ⭐ WARTOŚĆ CAŁKOWITA = TYLKO kapitał pozostały
     final totalValue = totalRemainingCapital;
