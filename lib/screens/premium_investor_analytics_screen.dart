@@ -1152,6 +1152,20 @@ class _PremiumInvestorAnalyticsScreenState
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
           ),
+
+          const SizedBox(width: 8),
+
+          // Przycisk X do wyjścia z trybu eksportu
+          IconButton(
+            onPressed: _toggleExportMode,
+            style: IconButton.styleFrom(
+              backgroundColor: AppThemePro.statusError.withOpacity(0.1),
+              foregroundColor: AppThemePro.statusError,
+              padding: const EdgeInsets.all(12),
+            ),
+            icon: Icon(Icons.close_rounded, size: 20),
+            tooltip: 'Wyjdź z trybu eksportu',
+          ),
         ],
       ),
     );
@@ -1252,6 +1266,20 @@ class _PremiumInvestorAnalyticsScreenState
               'Wyślij emaile',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // Przycisk X do wyjścia z trybu email
+          IconButton(
+            onPressed: _toggleEmailMode,
+            style: IconButton.styleFrom(
+              backgroundColor: AppThemePro.statusError.withOpacity(0.1),
+              foregroundColor: AppThemePro.statusError,
+              padding: const EdgeInsets.all(12),
+            ),
+            icon: Icon(Icons.close_rounded, size: 20),
+            tooltip: 'Wyjdź z trybu email',
           ),
         ],
       ),

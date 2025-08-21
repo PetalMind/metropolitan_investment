@@ -317,7 +317,7 @@ Zespół Metropolitan Investment''';
                     child: Theme(
                       data: Theme.of(context).copyWith(
                         iconTheme: IconThemeData(
-                          color: AppThemePro.textPrimary,
+                          color: AppThemePro.backgroundPrimary,
                           size: 18,
                         ),
                         dividerColor: AppThemePro.borderPrimary,
@@ -330,7 +330,7 @@ Zespół Metropolitan Investment''';
                             ),
                           ),
                           textStyle: TextStyle(
-                            color: AppThemePro.textPrimary,
+                            color: AppThemePro.backgroundPrimary,
                             fontSize: 12,
                           ),
                         ),
@@ -344,7 +344,7 @@ Zespół Metropolitan Investment''';
                           ),
                           textTheme: TextTheme(
                             bodySmall: TextStyle(
-                              color: AppThemePro.textPrimary,
+                              color: AppThemePro.overlayDark,
                               fontSize: 12,
                             ),
                           ),
@@ -431,11 +431,11 @@ Zespół Metropolitan Investment''';
                           ),
                           textTheme: TextTheme(
                             bodyLarge: TextStyle(
-                              color: AppThemePro.textPrimary,
+                              color: AppThemePro.dividerColor,
                               fontSize: 14,
                             ),
                             bodyMedium: TextStyle(
-                              color: AppThemePro.textPrimary,
+                              color: AppThemePro.dividerColor,
                               fontSize: 14,
                             ),
                           ),
@@ -453,9 +453,19 @@ Zespół Metropolitan Investment''';
                             maxContentWidth: kIsWeb ? 800 : null,
                             // Kolorystyka edytora dla ciemnego motywu
                             customStyles: DefaultStyles(
+                              paragraph: DefaultTextBlockStyle(
+                                TextStyle(
+                                  color: AppThemePro.surfaceCard,
+                                  fontSize: 14,
+                                ),
+                                HorizontalSpacing.zero,
+                                VerticalSpacing.zero,
+                                VerticalSpacing.zero,
+                                null,
+                              ),
                               placeHolder: DefaultTextBlockStyle(
                                 TextStyle(
-                                  color: AppThemePro.textMuted,
+                                  color: AppThemePro.backgroundModal,
                                   fontSize: 14,
                                 ),
                                 HorizontalSpacing.zero,
