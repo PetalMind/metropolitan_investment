@@ -164,13 +164,15 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     if (width > 1400) return 4;
     if (width > 1000) return 3;
     if (width > 600) return 2;
-    return 1;
+    if (width > 400) return 1;
+    return 1; // Mobile: zawsze 1 kolumna dla wąskich ekranów
   }
 
   double _calculateAspectRatio(double width) {
     if (width > 1200) return 1.4;
     if (width > 800) return 1.2;
-    return 1.0;
+    if (width > 600) return 1.0;
+    return 0.8; // Mobile: niższe karty dla lepszego wykorzystania przestrzeni
   }
 
   Widget _buildAnimatedClientCard({
@@ -310,26 +312,35 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   }
 
   Widget _buildCardContent(Client client) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildClientHeader(client),
-          const SizedBox(height: 16),
-          _buildClientDetails(client),
-          const Spacer(),
-          _buildClientFooter(client),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Responsywny padding - mniejszy na mobile
+        final isMobile = constraints.maxWidth < 400;
+        final padding = isMobile ? 12.0 : 20.0;
+        final spacing = isMobile ? 12.0 : 16.0;
+        
+        return Padding(
+          padding: EdgeInsets.all(padding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildClientHeader(client, isMobile),
+              SizedBox(height: spacing),
+              _buildClientDetails(client, isMobile),
+              const Spacer(),
+              _buildClientFooter(client, isMobile),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildClientHeader(Client client) {
+  Widget _buildClientHeader(Client client, [bool isMobile = false]) {
     return Row(
       children: [
-        _buildClientAvatar(client),
-        const SizedBox(width: 12),
+        _buildClientAvatar(client, isMobile),
+        SizedBox(width: isMobile ? 8 : 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,6 +350,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: AppTheme.textPrimary,
                   fontWeight: FontWeight.bold,
+                  fontSize: isMobile ? 14 : null, // Mniejsza czcionka na mobile
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -350,6 +362,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppTheme.textSecondary,
                     fontStyle: FontStyle.italic,
+                    fontSize: isMobile ? 11 : null, // Mniejsza czcionka na mobile
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -362,13 +375,15 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     );
   }
 
-  Widget _buildClientAvatar(Client client) {
+  Widget _buildClientAvatar(Client client, [bool isMobile = false]) {
     final initials = _getClientInitials(client.name);
     final avatarColor = _getAvatarColor(client.name);
+    final size = isMobile ? 40.0 : 50.0; // Mniejszy avatar na mobile
+    final fontSize = isMobile ? 14.0 : 18.0; // Mniejsza czcionka na mobile
 
     return Container(
-      width: 50,
-      height: 50,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -381,36 +396,41 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
       child: Center(
         child: Text(
           initials,
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: fontSize,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildClientDetails(Client client) {
+  Widget _buildClientDetails(Client client, [bool isMobile = false]) {
+    final spacing = isMobile ? 6.0 : 8.0;
+    
     return Column(
       children: [
         _buildDetailRow(
           icon: Icons.email_outlined,
           text: client.email,
           color: AppTheme.infoColor,
+          isMobile: isMobile,
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: spacing),
         _buildDetailRow(
           icon: Icons.phone_outlined,
           text: client.phone,
           color: AppTheme.successColor,
+          isMobile: isMobile,
         ),
         if (client.pesel?.isNotEmpty == true) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: spacing),
           _buildDetailRow(
             icon: Icons.badge_outlined,
             text: client.pesel!,
             color: AppTheme.warningColor,
+            isMobile: isMobile,
           ),
         ],
       ],
@@ -421,24 +441,32 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     required IconData icon,
     required String text,
     required Color color,
+    bool isMobile = false,
   }) {
+    final iconSize = isMobile ? 14.0 : 16.0;
+    final padding = isMobile ? 4.0 : 6.0;
+    final spacing = isMobile ? 6.0 : 8.0;
+    
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(6),
+          padding: EdgeInsets.all(padding),
           decoration: BoxDecoration(
             color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, size: 16, color: color),
+          child: Icon(icon, size: iconSize, color: color),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: spacing),
         Expanded(
           child: Text(
             text,
             style: Theme.of(
               context,
-            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
+            ).textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+              fontSize: isMobile ? 11 : null, // Mniejsza czcionka na mobile
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -447,19 +475,29 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     );
   }
 
-  Widget _buildClientFooter(Client client) {
+  Widget _buildClientFooter(Client client, [bool isMobile = false]) {
     return Row(
       children: [
-        _buildActiveStatusChip(client),
+        _buildActiveStatusChip(client, isMobile),
         const Spacer(),
-        _buildQuickActions(client),
+        // Ukryj przyciski akcji - zgodnie z wymaganiem
+        // _buildQuickActions(client),
       ],
     );
   }
 
-  Widget _buildActiveStatusChip(Client client) {
+  Widget _buildActiveStatusChip(Client client, [bool isMobile = false]) {
+    final horizontalPadding = isMobile ? 8.0 : 12.0;
+    final verticalPadding = isMobile ? 4.0 : 6.0;
+    final fontSize = isMobile ? 10.0 : 12.0;
+    final dotSize = isMobile ? 6.0 : 8.0;
+    final spacing = isMobile ? 4.0 : 6.0;
+    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: verticalPadding,
+      ),
       decoration: BoxDecoration(
         color: client.isActive
             ? AppTheme.successColor.withOpacity(0.15)
@@ -475,8 +513,8 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 8,
-            height: 8,
+            width: dotSize,
+            height: dotSize,
             decoration: BoxDecoration(
               color: client.isActive
                   ? AppTheme.successColor
@@ -484,14 +522,14 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: spacing),
           Text(
             client.isActive ? 'Aktywny' : 'Nieaktywny',
             style: TextStyle(
               color: client.isActive
                   ? AppTheme.successColor
                   : AppTheme.errorColor,
-              fontSize: 12,
+              fontSize: fontSize,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -500,48 +538,8 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     );
   }
 
-  Widget _buildQuickActions(Client client) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildActionButton(
-          icon: Icons.edit_outlined,
-          color: AppTheme.infoColor,
-          onTap: () => widget.onClientTap?.call(client),
-        ),
-        const SizedBox(width: 8),
-        _buildActionButton(
-          icon: Icons.more_vert,
-          color: AppTheme.textSecondary,
-          onTap: () => _showClientOptions(client),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Icon(icon, size: 16, color: color),
-        ),
-      ),
-    );
-  }
+  // Usunięte metody _buildQuickActions i _buildActionButton
+  // zgodnie z wymaganiem usunięcia przycisków edycji i menu
 
   Widget _buildSelectionOverlay(bool isSelected) {
     return Positioned(
@@ -705,9 +703,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     widget.onSelectionChanged?.call(newSelection);
   }
 
-  void _showClientOptions(Client client) {
-    // TODO: Implement client options menu
-  }
+  // Usunięta metoda _showClientOptions - nie jest już potrzebna
 
   String _getClientInitials(String name) {
     final parts = name.split(' ');

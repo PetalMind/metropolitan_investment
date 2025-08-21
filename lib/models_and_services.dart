@@ -16,6 +16,7 @@ export 'models/voting_status_change.dart';
 export 'models/investment_change_history.dart'; // 🚀 NOWE: Historia zmian inwestycji
 export 'models/investor_edit_models.dart'; // 🚀 NOWE: Modele dla edycji inwestora
 export 'models/email_history.dart'; // 🚀 NOWE: Historia wysłanych emaili
+export 'models/smtp_settings.dart'; // 🚀 NOWE: Modele ustawień SMTP
 
 // Analytics models exports
 export 'models/analytics/overview_analytics_models.dart';
@@ -109,6 +110,7 @@ export 'services/investment_change_history_service.dart'; // 🚀 NOWE: Historia
 export 'services/product_change_history_service.dart'; // 🚀 NOWE: Historia zmian produktów
 export 'services/investment_change_calculator_service.dart'; // 🚀 NOWE: Obliczanie zmian procentowych z historii
 export 'services/investor_edit_service.dart'; // 🚀 NOWE: Serwis logiki biznesowej dla edycji inwestora
+export 'services/smtp_service.dart'; // 🚀 NOWE: Serwis konfiguracji i testowania SMTP
 
 // Voting status change model
 // VotingStatusChange is exported via models/voting_status_change.dart above

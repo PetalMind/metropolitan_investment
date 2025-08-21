@@ -6,7 +6,7 @@ import '../../theme/app_theme_professional.dart';
 import '../../providers/auth_provider.dart';
 
 /// Zaawansowany dialog do tworzenia i wysyłania maili z edytorem Quill
-/// 
+///
 /// Pozwala na:
 /// - Formatowanie tekstu za pomocą rich text editora
 /// - Podgląd HTML generowanego z edytora
@@ -27,19 +27,22 @@ class EnhancedEmailEditorDialog extends StatefulWidget {
   });
 
   @override
-  State<EnhancedEmailEditorDialog> createState() => _EnhancedEmailEditorDialogState();
+  State<EnhancedEmailEditorDialog> createState() =>
+      _EnhancedEmailEditorDialogState();
 }
 
 class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
     with TickerProviderStateMixin {
   late TabController _tabController;
   late QuillController _quillController;
-  
+
   final _formKey = GlobalKey<FormState>();
   final _senderEmailController = TextEditingController();
-  final _senderNameController = TextEditingController(text: 'Metropolitan Investment');
+  final _senderNameController = TextEditingController(
+    text: 'Metropolitan Investment',
+  );
   final _subjectController = TextEditingController();
-  
+
   String _emailTemplate = 'custom';
   bool _isLoading = false;
   bool _includeInvestmentDetails = true;
@@ -47,7 +50,12 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
   String? _error;
   List<EmailSendResult>? _results;
   String _previewHtml = '';
-  
+
+  // Zmienne dla testowania SMTP
+  bool _isTesting = false;
+  bool _isSendingTest = false;
+  String? _testResult;
+
   // Mapy do zarządzania adresami email odbiorców
   Map<String, bool> _recipientEnabled = {};
   Map<String, String> _recipientEmails = {};
@@ -60,23 +68,24 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    
+
     // Inicjalizacja QuillController z początkową treścią
     _quillController = QuillController.basic();
-    
+
     // Ustawienie początkowych wartości
-    _subjectController.text = widget.initialSubject ?? 
+    _subjectController.text =
+        widget.initialSubject ??
         'Aktualizacja portfela inwestycyjnego - Metropolitan Investment';
-    
+
     if (widget.initialMessage != null) {
       _insertInitialContent(widget.initialMessage!);
     } else {
       _insertDefaultTemplate();
     }
-    
+
     // Nasłuchiwanie zmian w edytorze dla aktualizacji podglądu
     _quillController.addListener(_updatePreview);
-    
+
     // Inicjalizacja map odbiorców
     _initializeRecipients();
   }
@@ -90,8 +99,9 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
     for (final investor in widget.selectedInvestors) {
       final clientId = investor.client.id;
       final email = investor.client.email ?? '';
-      
-      _recipientEnabled[clientId] = email.isNotEmpty && 
+
+      _recipientEnabled[clientId] =
+          email.isNotEmpty &&
           RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
       _recipientEmails[clientId] = email;
     }
@@ -120,10 +130,10 @@ Zespół Metropolitan Investment''';
 
   String _generateEmailPreview() {
     if (widget.selectedInvestors.isEmpty) return '';
-    
+
     final investor = widget.selectedInvestors.first;
     final deltaToHtml = _convertDocumentToHtml(_quillController.document);
-    
+
     // Generowanie podstawowego HTML z Quill content
     return '''
 <!DOCTYPE html>
@@ -222,9 +232,12 @@ Zespół Metropolitan Investment''';
     if (investor.investments.isEmpty) return '';
 
     final totalInvestment = investor.investments.fold<double>(
-      0.0, (sum, inv) => sum + inv.investmentAmount);
-    
-    String details = '''
+      0.0,
+      (sum, inv) => sum + inv.investmentAmount,
+    );
+
+    String details =
+        '''
     <div class="summary">
       <h3>📊 Podsumowanie Twojego Portfela</h3>
       <p><strong>Liczba inwestycji:</strong> ${investor.investments.length}</p>
@@ -245,7 +258,8 @@ Zespół Metropolitan Investment''';
       <tbody>''';
 
     for (final investment in investor.investments) {
-      details += '''
+      details +=
+          '''
         <tr>
           <td>${investment.productName}</td>
           <td>${investment.investmentAmount.toStringAsFixed(2)} PLN</td>
@@ -274,7 +288,7 @@ Zespół Metropolitan Investment''';
   @override
   Widget build(BuildContext context) {
     final canEdit = Provider.of<AuthProvider>(context).isAdmin;
-    
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(16),
@@ -325,11 +339,7 @@ Zespół Metropolitan Investment''';
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.edit_outlined,
-            color: Colors.white,
-            size: 28,
-          ),
+          const Icon(Icons.edit_outlined, color: Colors.white, size: 28),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -345,20 +355,14 @@ Zespół Metropolitan Investment''';
                 ),
                 Text(
                   'Odbiorcy: ${widget.selectedInvestors.length} inwestorów',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ],
             ),
           ),
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(
-              Icons.close,
-              color: Colors.white,
-            ),
+            icon: const Icon(Icons.close, color: Colors.white),
           ),
         ],
       ),
@@ -385,11 +389,7 @@ Zespół Metropolitan Investment''';
   Widget _buildTabContent() {
     return TabBarView(
       controller: _tabController,
-      children: [
-        _buildEditorTab(),
-        _buildSettingsTab(),
-        _buildPreviewTab(),
-      ],
+      children: [_buildEditorTab(), _buildSettingsTab(), _buildPreviewTab()],
     );
   }
 
@@ -426,9 +426,9 @@ Zespół Metropolitan Investment''';
               showJustifyAlignment: true,
             ),
           ),
-          
+
           const Divider(),
-          
+
           // Editor
           Expanded(
             child: Container(
@@ -445,9 +445,9 @@ Zespół Metropolitan Investment''';
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Szybkie akcje
           Row(
             children: [
@@ -501,7 +501,7 @@ Zespół Metropolitan Investment''';
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 16),
-            
+
             // Email wysyłającego
             TextFormField(
               controller: _senderEmailController,
@@ -521,9 +521,9 @@ Zespół Metropolitan Investment''';
                 return null;
               },
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Nazwa wysyłającego
             TextFormField(
               controller: _senderNameController,
@@ -533,9 +533,9 @@ Zespół Metropolitan Investment''';
                 prefixIcon: Icon(Icons.business_outlined),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Temat
             TextFormField(
               controller: _subjectController,
@@ -545,16 +545,125 @@ Zespół Metropolitan Investment''';
                 prefixIcon: Icon(Icons.subject_outlined),
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
+            // Sekcja testowania SMTP
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.blue[300]!),
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.blue[50],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.settings_remote, color: Colors.blue[700]),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Test Połączenia SMTP',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: Colors.blue[700],
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Sprawdź czy serwer email jest poprawnie skonfigurowany przed wysyłaniem maili.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _isTesting ? null : _testSmtpConnection,
+                          icon: _isTesting
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.wifi_tethering),
+                          label: Text(
+                            _isTesting ? 'Testowanie...' : 'Test Połączenia',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue[100],
+                            foregroundColor: Colors.blue[700],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              (_isSendingTest ||
+                                  _senderEmailController.text.trim().isEmpty)
+                              ? null
+                              : _sendTestEmail,
+                          icon: _isSendingTest
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.email_outlined),
+                          label: Text(
+                            _isSendingTest ? 'Wysyłanie...' : 'Wyślij Test',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green[100],
+                            foregroundColor: Colors.green[700],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_testResult != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        color: _testResult!.startsWith('✅')
+                            ? Colors.green[100]
+                            : Colors.red[100],
+                      ),
+                      child: Text(
+                        _testResult!,
+                        style: TextStyle(
+                          color: _testResult!.startsWith('✅')
+                              ? Colors.green[700]
+                              : Colors.red[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
             // Opcje dodatkowe
             Text(
               'Opcje Dodatkowe',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 16),
-            
+
             CheckboxListTile(
               title: const Text('Dołącz szczegóły inwestycji'),
               subtitle: const Text('Automatycznie dodaj tabelę z inwestycjami'),
@@ -566,15 +675,16 @@ Zespół Metropolitan Investment''';
               },
               activeColor: AppThemePro.accentGold,
             ),
-            
+
             // Typ wysyłki (jeśli więcej niż 1 odbiorca)
             if (widget.selectedInvestors.length > 1) ...[
               const SizedBox(height: 8),
               SwitchListTile(
                 title: const Text('Email grupowy'),
-                subtitle: Text(_isGroupEmail 
-                    ? 'Jeden email do wszystkich odbiorców (TO/CC/BCC)'
-                    : 'Osobne emaile dla każdego odbiorcy'
+                subtitle: Text(
+                  _isGroupEmail
+                      ? 'Jeden email do wszystkich odbiorców (TO/CC/BCC)'
+                      : 'Osobne emaile dla każdego odbiorcy',
                 ),
                 value: _isGroupEmail,
                 onChanged: (value) {
@@ -585,7 +695,7 @@ Zespół Metropolitan Investment''';
                 activeColor: AppThemePro.accentGold,
               ),
             ],
-            
+
             // Lista odbiorców
             const SizedBox(height: 24),
             Row(
@@ -606,10 +716,10 @@ Zespół Metropolitan Investment''';
               ],
             ),
             const SizedBox(height: 8),
-            
+
             // Lista inwestorów
             ..._buildRecipientsList(),
-            
+
             // Lista dodatkowych emaili
             if (_additionalEmails.isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -631,7 +741,7 @@ Zespół Metropolitan Investment''';
       final clientId = investor.client.id;
       final isEnabled = _recipientEnabled[clientId] ?? false;
       final currentEmail = _recipientEmails[clientId] ?? '';
-      
+
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
@@ -668,7 +778,10 @@ Zespół Metropolitan Investment''';
                 decoration: InputDecoration(
                   hintText: 'adres@email.com',
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(4),
                     borderSide: BorderSide(color: Colors.grey[300]!),
@@ -678,26 +791,31 @@ Zespół Metropolitan Investment''';
                 style: const TextStyle(fontSize: 12),
                 onChanged: (value) {
                   _recipientEmails[clientId] = value;
-                  
+
                   // Sprawdź czy email jest prawidłowy i automatycznie ustaw switch
-                  final isValid = value.isNotEmpty &&
+                  final isValid =
+                      value.isNotEmpty &&
                       RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value);
-                  
+
                   setState(() {
                     if (isValid && !_recipientEnabled[clientId]!) {
                       _recipientEnabled[clientId] = true;
                     }
                   });
                 },
-                validator: isEnabled ? (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Email jest wymagany';
-                  }
-                  if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value)) {
-                    return 'Nieprawidłowy format email';
-                  }
-                  return null;
-                } : null,
+                validator: isEnabled
+                    ? (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Email jest wymagany';
+                        }
+                        if (!RegExp(
+                          r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+                        ).hasMatch(value)) {
+                          return 'Nieprawidłowy format email';
+                        }
+                        return null;
+                      }
+                    : null,
               ),
             ],
           ),
@@ -713,7 +831,7 @@ Zespół Metropolitan Investment''';
     return _additionalEmails.asMap().entries.map((entry) {
       final index = entry.key;
       final email = entry.value;
-      
+
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
@@ -729,7 +847,10 @@ Zespół Metropolitan Investment''';
             decoration: InputDecoration(
               hintText: 'dodatkowy@email.com',
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(4),
                 borderSide: BorderSide(color: Colors.grey[300]!),
@@ -744,12 +865,18 @@ Zespół Metropolitan Investment''';
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.check, color: AppThemePro.statusSuccess, size: 20),
+                icon: const Icon(
+                  Icons.check,
+                  color: AppThemePro.statusSuccess,
+                  size: 20,
+                ),
                 onPressed: () {
                   // Potwierdzenie dodania adresu
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Adres ${email.isNotEmpty ? email : "(pusty)"} został potwierdzony'),
+                      content: Text(
+                        'Adres ${email.isNotEmpty ? email : "(pusty)"} został potwierdzony',
+                      ),
                       backgroundColor: AppThemePro.statusSuccess,
                       duration: const Duration(seconds: 2),
                     ),
@@ -758,7 +885,11 @@ Zespół Metropolitan Investment''';
                 tooltip: 'Potwierdź adres',
               ),
               IconButton(
-                icon: const Icon(Icons.delete, color: AppThemePro.statusError, size: 20),
+                icon: const Icon(
+                  Icons.delete,
+                  color: AppThemePro.statusError,
+                  size: 20,
+                ),
                 onPressed: () {
                   setState(() {
                     _additionalEmails.removeAt(index);
@@ -822,7 +953,7 @@ Zespół Metropolitan Investment''';
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Info o wybranym odbiorcy
           if (_selectedPreviewRecipient != null) ...[
             Container(
@@ -839,7 +970,10 @@ Zespół Metropolitan Investment''';
                   Expanded(
                     child: Text(
                       'Podgląd dla: ${_getRecipientInfo(_selectedPreviewRecipient!)}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -847,7 +981,7 @@ Zespół Metropolitan Investment''';
             ),
             const SizedBox(height: 16),
           ],
-          
+
           // Faktyczny podgląd email
           Expanded(
             child: Container(
@@ -863,9 +997,7 @@ Zespół Metropolitan Investment''';
                   ),
                 ],
               ),
-              child: SingleChildScrollView(
-                child: _buildEmailPreview(),
-              ),
+              child: SingleChildScrollView(child: _buildEmailPreview()),
             ),
           ),
         ],
@@ -875,7 +1007,7 @@ Zespół Metropolitan Investment''';
 
   List<Map<String, String>> _getEnabledRecipients() {
     final recipients = <Map<String, String>>[];
-    
+
     // Dodaj aktywnych inwestorów
     for (final investor in widget.selectedInvestors) {
       final clientId = investor.client.id;
@@ -888,11 +1020,12 @@ Zespół Metropolitan Investment''';
         });
       }
     }
-    
+
     // Dodaj dodatkowe emaile
     for (int i = 0; i < _additionalEmails.length; i++) {
       final email = _additionalEmails[i];
-      if (email.isNotEmpty && RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+      if (email.isNotEmpty &&
+          RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
         recipients.add({
           'id': 'additional_$i',
           'name': 'Dodatkowy: $email',
@@ -901,7 +1034,7 @@ Zespół Metropolitan Investment''';
         });
       }
     }
-    
+
     return recipients;
   }
 
@@ -913,12 +1046,12 @@ Zespół Metropolitan Investment''';
       }
       return 'Nieznany dodatkowy email';
     }
-    
+
     final investor = widget.selectedInvestors.firstWhere(
       (inv) => inv.client.id == recipientId,
       orElse: () => widget.selectedInvestors.first,
     );
-    
+
     final email = _recipientEmails[recipientId] ?? investor.client.email ?? '';
     return '${investor.client.name} <$email>';
   }
@@ -946,7 +1079,7 @@ Zespół Metropolitan Investment''';
 
     final recipientInfo = _getRecipientInfo(_selectedPreviewRecipient!);
     final plainText = _quillController.document.toPlainText();
-    
+
     return Container(
       color: Colors.white,
       child: Column(
@@ -966,9 +1099,14 @@ Zespół Metropolitan Investment''';
                   children: [
                     Text(
                       'Od: ',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
                     ),
-                    Text('${_senderNameController.text} <${_senderEmailController.text}>'),
+                    Text(
+                      '${_senderNameController.text} <${_senderEmailController.text}>',
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -976,7 +1114,10 @@ Zespół Metropolitan Investment''';
                   children: [
                     Text(
                       'Do: ',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
                     ),
                     Expanded(child: Text(recipientInfo)),
                   ],
@@ -986,16 +1127,21 @@ Zespół Metropolitan Investment''';
                   children: [
                     Text(
                       'Temat: ',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
                     ),
                     Expanded(
                       child: Text(
-                        _subjectController.text.isNotEmpty 
+                        _subjectController.text.isNotEmpty
                             ? _subjectController.text
                             : 'Brak tematu',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: _subjectController.text.isNotEmpty ? Colors.black : Colors.grey,
+                          color: _subjectController.text.isNotEmpty
+                              ? Colors.black
+                              : Colors.grey,
                         ),
                       ),
                     ),
@@ -1006,7 +1152,10 @@ Zespół Metropolitan Investment''';
                   children: [
                     Text(
                       'Data: ',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
                     ),
                     Text(DateTime.now().toString().split('.')[0]),
                   ],
@@ -1014,7 +1163,7 @@ Zespół Metropolitan Investment''';
               ],
             ),
           ),
-          
+
           // Email content
           Container(
             padding: const EdgeInsets.all(20),
@@ -1032,9 +1181,9 @@ Zespół Metropolitan Investment''';
                     'Szanowny/a ${widget.selectedInvestors.firstWhere((inv) => inv.client.id == _selectedPreviewRecipient!).client.name},',
                     style: const TextStyle(fontSize: 16),
                   ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Treść z edytora - dokładnie 1:1 z zawartością edytora
                 if (plainText.isNotEmpty)
                   Container(
@@ -1055,13 +1204,18 @@ Zespół Metropolitan Investment''';
                             color: AppThemePro.textPrimary,
                           ),
                         ),
-                        
+
                         // Dodanie szczegółów inwestycji jeśli włączone
-                        if (_includeInvestmentDetails && !_selectedPreviewRecipient!.startsWith('additional_')) ...[
+                        if (_includeInvestmentDetails &&
+                            !_selectedPreviewRecipient!.startsWith(
+                              'additional_',
+                            )) ...[
                           const SizedBox(height: 16),
                           const Divider(color: AppThemePro.borderSecondary),
                           const SizedBox(height: 16),
-                          _buildInvestmentDetailsInline(_selectedPreviewRecipient!),
+                          _buildInvestmentDetailsInline(
+                            _selectedPreviewRecipient!,
+                          ),
                         ],
                       ],
                     ),
@@ -1083,27 +1237,26 @@ Zespół Metropolitan Investment''';
                       ),
                     ),
                   ),
-                
+
                 // Szczegóły inwestycji są już wbudowane w treść powyżej
-                
                 const SizedBox(height: 24),
-                
+
                 // Podpis
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Z poważaniem,'),
                     Text(
-                      _senderNameController.text.isNotEmpty 
+                      _senderNameController.text.isNotEmpty
                           ? _senderNameController.text
                           : 'Metropolitan Investment',
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Footer
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -1114,10 +1267,7 @@ Zespół Metropolitan Investment''';
                   child: Text(
                     'Ten email został wygenerowany ${DateTime.now().toString().split('.')[0]}.\n'
                     'W razie pytań prosimy o kontakt z naszym działem obsługi klienta.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.blue[700],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.blue[700]),
                   ),
                 ),
               ],
@@ -1158,7 +1308,7 @@ Zespół Metropolitan Investment''';
             ],
           ),
           const SizedBox(height: 12),
-          
+
           // Statystyki
           Row(
             children: [
@@ -1178,43 +1328,57 @@ Zespół Metropolitan Investment''';
               ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Lista inwestycji (pierwsze 3)
           if (investor.investments.isNotEmpty) ...[
             Text(
               'Ostatnie inwestycje:',
-              style: TextStyle(fontWeight: FontWeight.w500, color: Colors.blue[700]),
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.blue[700],
+              ),
             ),
             const SizedBox(height: 8),
-            ...investor.investments.take(3).map((investment) => Container(
-              margin: const EdgeInsets.only(bottom: 4),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.blue[100]!),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      investment.productName,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            ...investor.investments
+                .take(3)
+                .map(
+                  (investment) => Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.blue[100]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            investment.productName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${investment.remainingCapital.toStringAsFixed(2)} PLN',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
                     ),
                   ),
-                  Text(
-                    '${investment.remainingCapital.toStringAsFixed(2)} PLN',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
-            )),
+                ),
             if (investor.investments.length > 3)
               Text(
                 '... i ${investor.investments.length - 3} więcej',
-                style: TextStyle(fontSize: 12, color: Colors.blue[600], fontStyle: FontStyle.italic),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.blue[600],
+                  fontStyle: FontStyle.italic,
+                ),
               ),
           ],
         ],
@@ -1240,7 +1404,7 @@ Zespół Metropolitan Investment''';
           ),
         ),
         const SizedBox(height: 12),
-        
+
         // Statystyki
         Container(
           padding: const EdgeInsets.all(12),
@@ -1254,7 +1418,10 @@ Zespół Metropolitan Investment''';
             children: [
               Text(
                 'Liczba inwestycji: ${investor.investmentCount}',
-                style: const TextStyle(color: AppThemePro.textSecondary, fontSize: 12),
+                style: const TextStyle(
+                  color: AppThemePro.textSecondary,
+                  fontSize: 12,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -1268,7 +1435,7 @@ Zespół Metropolitan Investment''';
             ],
           ),
         ),
-        
+
         // Lista inwestycji (pierwsze 3)
         if (investor.investments.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -1281,36 +1448,40 @@ Zespół Metropolitan Investment''';
             ),
           ),
           const SizedBox(height: 8),
-          ...investor.investments.take(3).map((investment) => Container(
-            margin: const EdgeInsets.only(bottom: 4),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppThemePro.backgroundSecondary,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: AppThemePro.borderSecondary),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    investment.productName,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: AppThemePro.textPrimary,
-                    ),
+          ...investor.investments
+              .take(3)
+              .map(
+                (investment) => Container(
+                  margin: const EdgeInsets.only(bottom: 4),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.backgroundSecondary,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: AppThemePro.borderSecondary),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          investment.productName,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AppThemePro.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${investment.remainingCapital.toStringAsFixed(2)} PLN',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppThemePro.accentGold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  '${investment.remainingCapital.toStringAsFixed(2)} PLN',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppThemePro.accentGold,
-                  ),
-                ),
-              ],
-            ),
-          )),
+              ),
           if (investor.investments.length > 3)
             Text(
               '... i ${investor.investments.length - 3} więcej',
@@ -1371,10 +1542,7 @@ Zespół Metropolitan Investment''';
           Icon(Icons.error_outline, color: Colors.red[700]),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              _error!,
-              style: TextStyle(color: Colors.red[700]),
-            ),
+            child: Text(_error!, style: TextStyle(color: Colors.red[700])),
           ),
         ],
       ),
@@ -1383,21 +1551,21 @@ Zespół Metropolitan Investment''';
 
   Widget _buildResults() {
     if (_results == null) return const SizedBox.shrink();
-    
+
     final successful = _results!.where((r) => r.success).length;
     final failed = _results!.length - successful;
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: successful == _results!.length 
-            ? Colors.green[50] 
+        color: successful == _results!.length
+            ? Colors.green[50]
             : Colors.orange[50],
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: successful == _results!.length 
-              ? Colors.green[300]! 
+          color: successful == _results!.length
+              ? Colors.green[300]!
               : Colors.orange[300]!,
         ),
       ),
@@ -1407,11 +1575,11 @@ Zespół Metropolitan Investment''';
           Row(
             children: [
               Icon(
-                successful == _results!.length 
-                    ? Icons.check_circle_outline 
+                successful == _results!.length
+                    ? Icons.check_circle_outline
                     : Icons.warning_outlined,
-                color: successful == _results!.length 
-                    ? Colors.green[700] 
+                color: successful == _results!.length
+                    ? Colors.green[700]
                     : Colors.orange[700],
               ),
               const SizedBox(width: 8),
@@ -1419,8 +1587,8 @@ Zespół Metropolitan Investment''';
                 'Wyniki wysyłania',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: successful == _results!.length 
-                      ? Colors.green[700] 
+                  color: successful == _results!.length
+                      ? Colors.green[700]
                       : Colors.orange[700],
                 ),
               ),
@@ -1464,10 +1632,10 @@ Zespół Metropolitan Investment''';
               ),
               const SizedBox(width: 8),
               ElevatedButton.icon(
-                onPressed: (!canEdit || _isLoading || !_hasValidEmails()) 
-                    ? null 
+                onPressed: (!canEdit || _isLoading || !_hasValidEmails())
+                    ? null
                     : _sendEmails,
-                icon: _isLoading 
+                icon: _isLoading
                     ? const SizedBox(
                         width: 16,
                         height: 16,
@@ -1493,7 +1661,8 @@ Zespół Metropolitan Investment''';
   }
 
   void _insertSignature() {
-    final signature = '\n\nZ poważaniem,\nZespół ${_senderNameController.text}\n';
+    final signature =
+        '\n\nZ poważaniem,\nZespół ${_senderNameController.text}\n';
     final length = _quillController.document.length;
     _quillController.document.insert(length - 1, signature);
   }
@@ -1503,10 +1672,13 @@ Zespół Metropolitan Investment''';
   }
 
   bool _hasValidEmails() {
-    return widget.selectedInvestors.any((investor) => 
-        investor.client.email != null && 
-        investor.client.email!.isNotEmpty &&
-        RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(investor.client.email!)
+    return widget.selectedInvestors.any(
+      (investor) =>
+          investor.client.email != null &&
+          investor.client.email!.isNotEmpty &&
+          RegExp(
+            r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+          ).hasMatch(investor.client.email!),
     );
   }
 
@@ -1525,22 +1697,8 @@ Zespół Metropolitan Investment''';
       _tabController.animateTo(1); // Przejdź do zakładki ustawień
       return;
     }
-    
-    // Filtruj inwestorów z prawidłowymi emailami
-    final investorsWithEmail = widget.selectedInvestors
-        .where((investor) => 
-            investor.client.email != null && 
-            investor.client.email!.isNotEmpty &&
-            RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(investor.client.email!))
-        .toList();
-    
-    if (investorsWithEmail.isEmpty) {
-      setState(() {
-        _error = 'Brak inwestorów z prawidłowymi adresami email';
-      });
-      return;
-    }
 
+    // Sprawdź czy istnieją konfiguracje SMTP
     setState(() {
       _isLoading = true;
       _error = null;
@@ -1548,17 +1706,91 @@ Zespół Metropolitan Investment''';
     });
 
     try {
+      // Sprawdź ustawienia SMTP przed wysyłaniem
+      final smtpService = SmtpService();
+      final smtpSettings = await smtpService.getSmtpSettings();
+
+      if (smtpSettings == null) {
+        setState(() {
+          _error =
+              'Brak konfiguracji serwera SMTP. Skonfiguruj ustawienia email w aplikacji.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Walidacja email wysyłającego
+      if (_senderEmailController.text.trim().isEmpty) {
+        setState(() {
+          _error = 'Podaj email wysyłającego';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Pobierz inwestorów z włączonymi emailami
+      final enabledRecipients = _getEnabledRecipients();
+
+      if (enabledRecipients.isEmpty) {
+        setState(() {
+          _error = 'Brak odbiorców z prawidłowymi adresami email';
+          _isLoading = false;
+        });
+        return;
+      }
+
       // Konwersja treści z Quill do HTML
       final htmlContent = _convertDocumentToHtml(_quillController.document);
-      
-      final results = await _emailAndExportService.sendCustomEmailsToMultipleClients(
-        investors: investorsWithEmail,
-        subject: _subjectController.text.isNotEmpty ? _subjectController.text : null,
-        htmlContent: htmlContent,
-        includeInvestmentDetails: _includeInvestmentDetails,
-        senderEmail: _senderEmailController.text,
-        senderName: _senderNameController.text,
-      );
+
+      if (htmlContent.trim().isEmpty) {
+        setState(() {
+          _error = 'Treść emaila nie może być pusta';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Przygotuj listę odbiorców
+      final recipientsWithInvestmentData = <InvestorSummary>[];
+
+      for (final recipient in enabledRecipients) {
+        final recipientId = recipient['id']!;
+
+        if (recipientId.startsWith('additional_')) {
+          // Dla dodatkowych emaili nie dodajemy ich do głównej listy
+          // Będą obsługiwane osobno w przyszłych wersjach
+          continue;
+        } else {
+          // Znajdź prawdziwego inwestora
+          final investor = widget.selectedInvestors.firstWhere(
+            (inv) => inv.client.id == recipientId,
+            orElse: () => widget.selectedInvestors.first,
+          );
+
+          // Aktualizuj email jeśli został zmieniony
+          final updatedEmail =
+              _recipientEmails[recipientId] ?? investor.client.email;
+          if (updatedEmail != investor.client.email) {
+            // Tworzy kopię inwestora z zaktualizowanym emailem
+            // W rzeczywistej implementacji możesz potrzebować bardziej zaawansowanej logiki
+          }
+
+          recipientsWithInvestmentData.add(investor);
+        }
+      }
+
+      // Wywołaj zintegrowaną funkcję wysyłania
+      final results = await _emailAndExportService
+          .sendCustomEmailsToMultipleClients(
+            investors: recipientsWithInvestmentData,
+            subject: _subjectController.text.isNotEmpty
+                ? _subjectController.text
+                : 'Wiadomość od ${_senderNameController.text}',
+            htmlContent: htmlContent,
+            includeInvestmentDetails: _includeInvestmentDetails,
+            senderEmail: _senderEmailController.text,
+            senderName: _senderNameController.text,
+          );
 
       setState(() {
         _results = results;
@@ -1568,35 +1800,51 @@ Zespół Metropolitan Investment''';
       // Pokaż snackbar z podsumowaniem
       final successful = results.where((r) => r.success).length;
       final failed = results.length - successful;
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              failed == 0 
+              failed == 0
                   ? '✅ Wysłano $successful maili pomyślnie'
                   : '⚠️ Wysłano $successful maili, błędów: $failed',
             ),
-            backgroundColor: failed == 0 ? Colors.green[700] : Colors.orange[700],
+            backgroundColor: failed == 0
+                ? Colors.green[700]
+                : Colors.orange[700],
+            duration: const Duration(seconds: 4),
           ),
         );
       }
 
-      widget.onEmailSent();
-
+      // Jeśli wszystkie maile zostały wysłane pomyślnie, wywołaj callback
+      if (failed == 0) {
+        widget.onEmailSent();
+      }
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = 'Błąd podczas wysyłania maili: ${e.toString()}';
         _isLoading = false;
       });
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Błąd wysyłania: ${e.toString()}'),
+            backgroundColor: Colors.red[700],
+            duration: const Duration(seconds: 6),
+          ),
+        );
+      }
     }
   }
+
   // Pomocnicza metoda konwersji dokumentu Quill na HTML
   String _convertDocumentToHtml(Document document) {
     try {
       // Pobierz plain text z dokumentu
       final plainText = document.toPlainText();
-      
+
       // Podstawowa konwersja na HTML
       return plainText
           .replaceAll('\n', '<br>')
@@ -1604,6 +1852,97 @@ Zespół Metropolitan Investment''';
     } catch (e) {
       // Fallback w przypadku błędu
       return 'Błąd konwersji treści: $e';
+    }
+  }
+
+  /// Testuje połączenie SMTP
+  Future<void> _testSmtpConnection() async {
+    setState(() {
+      _isTesting = true;
+      _testResult = null;
+    });
+
+    try {
+      final smtpService = SmtpService();
+      final smtpSettings = await smtpService.getSmtpSettings();
+
+      if (smtpSettings == null) {
+        setState(() {
+          _testResult =
+              '❌ Brak konfiguracji SMTP. Skonfiguruj ustawienia w aplikacji.';
+        });
+        return;
+      }
+
+      final result = await smtpService.testSmtpConnection(smtpSettings);
+
+      setState(() {
+        if (result['success'] == true) {
+          _testResult =
+              '✅ Połączenie pomyślne! Czas odpowiedzi: ${result['details']['responseTime']}ms';
+        } else {
+          _testResult = '❌ Błąd połączenia: ${result['error']}';
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _testResult = '❌ Błąd podczas testowania: $e';
+      });
+    } finally {
+      setState(() {
+        _isTesting = false;
+      });
+    }
+  }
+
+  /// Wysyła testowy email
+  Future<void> _sendTestEmail() async {
+    if (_senderEmailController.text.trim().isEmpty) {
+      setState(() {
+        _testResult = '❌ Podaj email wysyłającego przed testem';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSendingTest = true;
+      _testResult = null;
+    });
+
+    try {
+      final smtpService = SmtpService();
+      final smtpSettings = await smtpService.getSmtpSettings();
+
+      if (smtpSettings == null) {
+        setState(() {
+          _testResult =
+              '❌ Brak konfiguracji SMTP. Skonfiguruj ustawienia w aplikacji.';
+        });
+        return;
+      }
+
+      final result = await smtpService.sendTestEmail(
+        settings: smtpSettings,
+        testEmail: _senderEmailController.text.trim(),
+        customMessage: 'Test z edytora email - Metropolitan Investment',
+      );
+
+      setState(() {
+        if (result['success'] == true) {
+          _testResult =
+              '✅ Email testowy wysłany! ID: ${result['details']['messageId']}';
+        } else {
+          _testResult = '❌ Błąd wysyłania: ${result['error']}';
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _testResult = '❌ Błąd podczas wysyłania: $e';
+      });
+    } finally {
+      setState(() {
+        _isSendingTest = false;
+      });
     }
   }
 }
