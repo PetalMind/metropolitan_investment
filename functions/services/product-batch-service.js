@@ -54,6 +54,34 @@ const getAllProductsWithInvestors = onCall({
 
     console.log(`📊 [BatchProducts] Pobrano ${allInvestments.length} inwestycji`);
 
+    // KROK 1.5: Pobierz wszystkich klientów dla statusów głosowania 🆕
+    console.log("👥 [BatchProducts] Pobieranie danych klientów...");
+    const clientsSnapshot = await db.collection('clients').get();
+    const clientsMap = new Map();
+
+    clientsSnapshot.docs.forEach(doc => {
+      const clientData = doc.data();
+      const clientId = doc.id;
+      const excelId = clientData.id ? clientData.id.toString() : null;
+
+      // Mapuj zarówno po Firebase ID jak i Excel ID
+      clientsMap.set(clientId, {
+        id: clientId,
+        excelId: excelId,
+        votingStatus: clientData.votingStatus
+      });
+
+      if (excelId) {
+        clientsMap.set(excelId, {
+          id: clientId,
+          excelId: excelId,
+          votingStatus: clientData.votingStatus
+        });
+      }
+    });
+
+    console.log(`👥 [BatchProducts] Pobrano ${clientsSnapshot.docs.length} klientów, mapowanych: ${clientsMap.size}`);
+
     // KROK 2: Grupowanie po produktach (deduplikacja)
     const productGroups = new Map();
 
@@ -85,7 +113,7 @@ const getAllProductsWithInvestors = onCall({
       const batchResults = await Promise.allSettled(
         batch.map(async ([productKey, data]) => {
           try {
-            return await processProductGroup(productKey, data.productInfo, data.investments);
+            return await processProductGroup(productKey, data.productInfo, data.investments, clientsMap); // 🆕 Przekaż mapę klientów jako clientsData
           } catch (error) {
             console.error(`❌ [BatchProducts] Błąd produktu ${productKey}:`, error.message);
             return null;
@@ -225,7 +253,7 @@ function extractProductInfo(investment) {
 /**
  * Przetwarza grupę inwestycji dla jednego produktu
  */
-async function processProductGroup(productKey, productInfo, investments) {
+async function processProductGroup(productKey, productInfo, investments, clientsData) { // 🆕 Zmieniono nazwę na clientsData
   // Grupowanie po klientach (deduplikacja inwestorów)
   const clientsMap = new Map();
   let totalValue = 0;
@@ -254,6 +282,10 @@ async function processProductGroup(productKey, productInfo, investments) {
 
     // Grupuj po kliencie
     if (!clientsMap.has(clientId)) {
+      // 🆕 Znajdź status głosowania klienta
+      const clientInfo = clientsData.get(clientId);
+      const votingStatus = clientInfo ? clientInfo.votingStatus : 'undecided';
+
       clientsMap.set(clientId, {
         clientId,
         clientName: safeToString(
@@ -263,7 +295,8 @@ async function processProductGroup(productKey, productInfo, investments) {
         ),
         investments: [],
         totalAmount: 0,
-        totalRemaining: 0
+        totalRemaining: 0,
+        votingStatus: votingStatus // 🆕 Dodaj status głosowania
       });
     }
 

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/unified_product.dart';
 import '../models/investment.dart';
 import '../models/product.dart'; // Import dla ProductStatus
+import '../models/client.dart'; // 🆕 Import dla VotingStatus
 import 'base_service.dart';
 
 /// 🚀 OPTIMIZED PRODUCT SERVICE - Korzysta z batch Firebase Functions
@@ -343,6 +344,7 @@ class OptimizedInvestor {
   final int investmentCount;
   final double totalAmount;
   final double totalRemaining;
+  final VotingStatus? votingStatus; // 🆕 Status głosowania klienta
 
   OptimizedInvestor({
     required this.clientId,
@@ -350,6 +352,7 @@ class OptimizedInvestor {
     required this.investmentCount,
     required this.totalAmount,
     required this.totalRemaining,
+    this.votingStatus, // Opcjonalne - może być null jeśli nie ma danych
   });
 
   factory OptimizedInvestor.fromMap(Map<String, dynamic> map) {
@@ -359,7 +362,33 @@ class OptimizedInvestor {
       investmentCount: map['investments']?.length ?? 0,
       totalAmount: (map['totalAmount'] as num?)?.toDouble() ?? 0.0,
       totalRemaining: (map['totalRemaining'] as num?)?.toDouble() ?? 0.0,
+      votingStatus: _parseVotingStatus(
+        map['votingStatus'],
+      ), // 🆕 Parsowanie statusu głosowania
     );
+  }
+
+  /// 🆕 Pomocnicza metoda do parsowania statusu głosowania
+  static VotingStatus? _parseVotingStatus(dynamic status) {
+    if (status == null) return null;
+
+    final statusStr = status.toString().toLowerCase();
+    switch (statusStr) {
+      case 'yes':
+      case 'tak':
+        return VotingStatus.yes;
+      case 'no':
+      case 'nie':
+        return VotingStatus.no;
+      case 'abstain':
+      case 'wstrzymuje się':
+      case 'wstrzymuje_sie':
+        return VotingStatus.abstain;
+      case 'undecided':
+      case 'niezdecydowany':
+      default:
+        return VotingStatus.undecided;
+    }
   }
 }
 

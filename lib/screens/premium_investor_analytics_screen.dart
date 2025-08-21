@@ -37,7 +37,9 @@ class _PremiumInvestorAnalyticsScreenState
   // === POLA PRZYWRÓCONE ===
   // RBAC
   bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
-  // Serwisy
+  // Serwisy - 🚀 UJEDNOLICONE Z DASHBOARD
+  final OptimizedProductService _optimizedProductService =
+      OptimizedProductService();
   final AnalyticsMigrationService _migrationService =
       AnalyticsMigrationService();
   final FirebaseFunctionsPremiumAnalyticsService _premiumAnalyticsService =
@@ -236,10 +238,125 @@ class _PremiumInvestorAnalyticsScreenState
     });
 
     try {
-      // 🚀 PIERWSZE PODEJŚCIE: Premium Analytics Service
+      // 🚀 UJEDNOLICONE Z DASHBOARD: Sprawdź OptimizedProductService dla statystyk
+      print(
+        '🎯 [Premium Analytics] Pobieram statystyki z OptimizedProductService...',
+      );
+
+      final optimizedResult = await _optimizedProductService
+          .getAllProductsOptimized(
+            forceRefresh: true,
+            includeStatistics: true,
+            maxProducts: 10000,
+          );
+
+      // 🆕 SPRAWDŹ czy OptimizedProduct zawiera statusy głosowania
+      bool hasVotingStatuses = false;
+      if (optimizedResult.products.isNotEmpty) {
+        final firstProduct = optimizedResult.products.first;
+        if (firstProduct.topInvestors.isNotEmpty) {
+          final firstInvestor = firstProduct.topInvestors.first;
+          hasVotingStatuses = firstInvestor.votingStatus != null;
+          print(
+            '🔍 [Premium Analytics] Status głosowania pierwszy inwestor: ${firstInvestor.votingStatus}',
+          );
+        }
+      }
+
+      if (hasVotingStatuses) {
+        // ✅ OptimizedProduct zawiera statusy głosowania - konwertuj bezpośrednio
+        print(
+          '✅ [Premium Analytics] OptimizedProduct zawiera statusy głosowania - używam bezpośrednio',
+        );
+
+        final convertedInvestors =
+            await _convertOptimizedProductsToInvestorSummaries(
+              optimizedResult.products,
+            );
+
+        // Zachowaj statystyki z OptimizedProduct dla spójności z Dashboard
+        if (optimizedResult.statistics != null) {
+          final dashboardStats = _convertGlobalStatsToUnified(
+            optimizedResult.statistics!,
+          );
+          print(
+            '✅ [Premium Analytics] Zachowuję statystyki z OptimizedProductService',
+          );
+          print(
+            '💰 [Premium Analytics] totalRemainingCapital: ${dashboardStats.totalRemainingCapital}',
+          );
+        }
+
+        // Procesuj dane
+        final enhanced = InvestorAnalyticsResult(
+          investors: convertedInvestors,
+          allInvestors: convertedInvestors,
+          totalCount: convertedInvestors.length,
+          currentPage: 1,
+          pageSize: convertedInvestors.length,
+          hasNextPage: false,
+          hasPreviousPage: false,
+          totalViableCapital: convertedInvestors.fold<double>(
+            0.0,
+            (sum, inv) => sum + inv.viableRemainingCapital,
+          ),
+          votingDistribution:
+              {}, // Zostanie obliczone w _calculateVotingAnalysis
+          executionTimeMs: 0, // Placeholder
+          source: 'OptimizedProductService',
+        );
+
+        _processAnalyticsResult(enhanced);
+        _calculateMajorityAnalysis();
+        _calculateVotingAnalysis();
+
+        print('✅ [Premium Analytics] OptimizedProduct zakończone pomyślnie');
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        return; // Sukces - nie potrzebujemy fallback
+      } else {
+        // ⚠️ OptimizedProduct nie zawiera statusów głosowania - przejdź na fallback
+        print(
+          '⚠️ [Premium Analytics] OptimizedProduct nie zawiera statusów głosowania',
+        );
+        print(
+          '🔄 [Premium Analytics] Przechodzę na fallback z pełnymi danymi klientów...',
+        );
+
+        // Zachowaj statystyki z OptimizedProduct dla spójności z Dashboard
+        if (optimizedResult.statistics != null) {
+          final dashboardStats = _convertGlobalStatsToUnified(
+            optimizedResult.statistics!,
+          );
+          print(
+            '✅ [Premium Analytics] Zachowuję statystyki z OptimizedProductService',
+          );
+          print(
+            '💰 [Premium Analytics] totalRemainingCapital: ${dashboardStats.totalRemainingCapital}',
+          );
+        }
+
+        // Wyrzuć wyjątek aby przejść na fallback z pełnymi danymi klientów
+        throw Exception(
+          'Potrzebuję pełnych danych klientów dla głosowania - używam fallback',
+        );
+      }
+    } catch (fallbackError) {
+      print(
+        '❌ [Premium Analytics] Błąd OptimizedProductService: $fallbackError',
+      );
+
+      // 🔄 FALLBACK: Spróbuj starego sposobu jako ostatnią deską ratunku
       try {
-        _premiumResult = await _premiumAnalyticsService
-            .getPremiumInvestorAnalytics(
+        print(
+          '🔄 [Premium Analytics] Próbuje fallback na AnalyticsMigrationService...',
+        );
+
+        final fallbackResult = await _migrationService
+            .getInvestorsSortedByRemainingCapital(
               page: _currentPage,
               pageSize: _pageSize,
               sortBy: _sortBy,
@@ -248,97 +365,27 @@ class _PremiumInvestorAnalyticsScreenState
               votingStatusFilter: _selectedVotingStatus,
               clientTypeFilter: _selectedClientType,
               showOnlyWithUnviableInvestments: _showOnlyWithUnviableInvestments,
-              searchQuery: _searchQuery.isNotEmpty ? _searchQuery : null,
-              majorityThreshold: _majorityThreshold,
               forceRefresh: true,
             );
 
-        if (mounted && _premiumResult != null) {
-          // 📊 PROCESY PREMIUM ANALYTICS RESULT
-          _allInvestors = _premiumResult!.investors;
-          _displayedInvestors = List.from(_allInvestors);
-          _totalCount = _premiumResult!.totalCount;
-
-          // 🏆 USTAW DANE Z PREMIUM ANALYTICS
-          _majorityHolders = _premiumResult!.majorityAnalysis.majorityHolders;
-          _majorityThreshold =
-              _premiumResult!.majorityAnalysis.majorityThreshold;
-
-          // 🗳️ USTAW VOTING DISTRIBUTION Z PREMIUM ANALYTICS
-          _votingDistribution = {
-            VotingStatus.yes:
-                _premiumResult!.votingAnalysis.votingDistribution['yes'] ?? 0.0,
-            VotingStatus.no:
-                _premiumResult!.votingAnalysis.votingDistribution['no'] ?? 0.0,
-            VotingStatus.abstain:
-                _premiumResult!.votingAnalysis.votingDistribution['abstain'] ??
-                0.0,
-            VotingStatus.undecided:
-                _premiumResult!
-                    .votingAnalysis
-                    .votingDistribution['undecided'] ??
-                0.0,
-          };
-
-          _votingCounts = {
-            VotingStatus.yes:
-                _premiumResult!.votingAnalysis.votingCounts['yes'] ?? 0,
-            VotingStatus.no:
-                _premiumResult!.votingAnalysis.votingCounts['no'] ?? 0,
-            VotingStatus.abstain:
-                _premiumResult!.votingAnalysis.votingCounts['abstain'] ?? 0,
-            VotingStatus.undecided:
-                _premiumResult!.votingAnalysis.votingCounts['undecided'] ?? 0,
-          };
-
-          // 🎯 APPLY FILTERS AND SORT
-          _applyFiltersAndSort();
-
-          setState(() {
-            _isLoading = false;
-            _error = null;
-          });
-
-          print(
-            '✅ [Premium Analytics] Załadowano ${_allInvestors.length} inwestorów z premium analytics',
-          );
-          return; // Sukces! Nie potrzebujemy fallback
-        }
-      } catch (premiumError) {
-        print(
-          '⚠️ [Premium Analytics] Błąd premium service, używam fallback: $premiumError',
-        );
-      }
-
-      // 🚀 OPTIMIZED FALLBACK: Użyj zoptymalizowanego serwisu z migracją
-      final fallbackResult = await _migrationService
-          .getInvestorsSortedByRemainingCapital(
-            page: _currentPage,
-            pageSize: _pageSize,
-            sortBy: _sortBy,
-            sortAscending: _sortAscending,
-            includeInactive: _includeInactive,
-            votingStatusFilter: _selectedVotingStatus,
-            clientTypeFilter: _selectedClientType,
-            showOnlyWithUnviableInvestments: _showOnlyWithUnviableInvestments,
-            forceRefresh:
-                _currentPage == 1, // Odśwież cache na pierwszej stronie
-          );
-
-      if (mounted) {
-        // Konwertuj standardowy wynik do enhanced format
-        final enhancedResult = _convertToEnhancedResult(fallbackResult);
-
-        _processAnalyticsResult(enhancedResult);
+        final enhanced = _convertToEnhancedResult(fallbackResult);
+        _processAnalyticsResult(enhanced);
         _calculateMajorityAnalysis();
         _calculateVotingAnalysis();
-      }
-    } catch (fallbackError) {
-      if (mounted) {
+
+        print('✅ [Premium Analytics] Fallback zakończony pomyślnie');
+
         setState(() {
-          _error = _handleAnalyticsError(fallbackError);
           _isLoading = false;
         });
+      } catch (finalError) {
+        print('❌ [Premium Analytics] Ostateczny błąd: $finalError');
+        if (mounted) {
+          setState(() {
+            _error = _handleAnalyticsError(finalError);
+            _isLoading = false;
+          });
+        }
       }
     }
   }
@@ -5364,6 +5411,181 @@ class _PremiumInvestorAnalyticsScreenState
   // === RBAC aliasy i brakujące metody używane w UI (oryginalnie w extension) ===
   void _clearSelection() => _deselectAllInvestors();
   void _selectAllVisibleInvestors() => _selectAllInvestors();
+
+  // 🚀 NOWE METODY POMOCNICZE DLA UJEDNOLICENIA Z DASHBOARD
+
+  /// Konwertuje OptimizedProduct na InvestorSummary używając server-side danych
+  Future<List<InvestorSummary>> _convertOptimizedProductsToInvestorSummaries(
+    List<OptimizedProduct> products,
+  ) async {
+    print(
+      '🚀 [Premium Analytics] Konwertuję ${products.length} OptimizedProducts na InvestorSummary',
+    );
+
+    // Grupuj produkty według clientId (z topInvestors)
+    final Map<String, List<OptimizedProduct>> productsByClient = {};
+
+    for (final product in products) {
+      for (final investor in product.topInvestors) {
+        productsByClient.putIfAbsent(investor.clientId, () => []).add(product);
+      }
+    }
+
+    // 🔑 POBIERZ RZECZYWISTE DANE KLIENTÓW Z FIREBASE (status głosowania!)
+    print(
+      '🗳️ [Premium Analytics] Pobieram rzeczywiste dane klientów z Firebase...',
+    );
+    final IntegratedClientService clientService = IntegratedClientService();
+    final allClients = await clientService.getAllClients();
+    final Map<String, Client> clientsById = {
+      for (final client in allClients) client.id: client,
+    };
+
+    print(
+      '🗳️ [Premium Analytics] Pobrano ${clientsById.length} klientów z Firebase',
+    );
+
+    final List<InvestorSummary> investors = [];
+
+    for (final entry in productsByClient.entries) {
+      final clientId = entry.key;
+      final clientProducts = entry.value;
+
+      // 🔑 UŻYJ RZECZYWISTEGO KLIENTA Z FIREBASE LUB STWÓRZ TYMCZASOWEGO
+      Client client;
+      if (clientsById.containsKey(clientId)) {
+        client = clientsById[clientId]!;
+        print(
+          '✅ [Premium Analytics] Klient ${client.name}: voting=${client.votingStatus}',
+        );
+      } else {
+        print(
+          '⚠️ [Premium Analytics] Brak klienta $clientId w Firebase, tworzę tymczasowego',
+        );
+        client = Client(
+          id: clientId,
+          name: clientProducts.first.topInvestors
+              .firstWhere((inv) => inv.clientId == clientId)
+              .clientName,
+          type: ClientType.individual,
+          email: '',
+          phone: '',
+          address: '',
+          votingStatus: VotingStatus.undecided, // Tylko dla nieznanych klientów
+          unviableInvestments: [],
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          additionalInfo: {},
+        );
+      }
+
+      // Stwórz tymczasowe inwestycje z OptimizedProduct
+      final investments = <Investment>[];
+
+      for (final product in clientProducts) {
+        final investor = product.topInvestors.firstWhere(
+          (inv) => inv.clientId == clientId,
+        );
+
+        final investment = Investment(
+          id: '${product.id}_${clientId}',
+          clientId: clientId,
+          clientName: investor.clientName,
+          productName: product.name,
+          productType: _mapUnifiedToProductType(product.productType),
+          creditorCompany: product.companyName,
+          companyId: product.companyId,
+          investmentAmount: investor.totalAmount,
+          remainingCapital: investor.totalRemaining,
+          signedDate: product.earliestInvestmentDate,
+          status: InvestmentStatus.active,
+          isAllocated: false,
+          marketType: MarketType.primary,
+          entryDate: product.earliestInvestmentDate,
+          proposalId: '',
+          employeeId: '',
+          employeeFirstName: '',
+          employeeLastName: '',
+          branchCode: '',
+          sharesCount: 0,
+          paidAmount: investor.totalAmount,
+          realizedCapital: 0.0,
+          realizedInterest: 0.0,
+          transferToOtherProduct: 0.0,
+          remainingInterest: 0.0,
+          capitalSecuredByRealEstate: 0.0,
+          capitalForRestructuring: 0.0,
+          plannedTax: 0.0,
+          realizedTax: 0.0,
+          currency: 'PLN',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          additionalInfo: {},
+        );
+
+        investments.add(investment);
+      }
+
+      // Stwórz InvestorSummary
+      final investorSummary = InvestorSummary.fromInvestments(
+        client,
+        investments,
+      );
+      investors.add(investorSummary);
+    }
+
+    print(
+      '✅ [Premium Analytics] Skonwertowano na ${investors.length} InvestorSummary',
+    );
+    return investors;
+  }
+
+  /// Konwertuje UnifiedProductType na ProductType
+  ProductType _mapUnifiedToProductType(UnifiedProductType unifiedType) {
+    switch (unifiedType) {
+      case UnifiedProductType.bonds:
+        return ProductType.bonds;
+      case UnifiedProductType.shares:
+        return ProductType.shares;
+      case UnifiedProductType.loans:
+        return ProductType.loans;
+      case UnifiedProductType.apartments:
+        return ProductType.apartments;
+      case UnifiedProductType.other:
+        return ProductType.bonds; // Fallback
+    }
+  }
+
+  /// Konwertuje GlobalProductStatistics na UnifiedDashboardStatistics (kopiuje z Dashboard)
+  UnifiedDashboardStatistics _convertGlobalStatsToUnified(
+    GlobalProductStatistics globalStats,
+  ) {
+    // Szacuj kapitał do restrukturyzacji jako 5% całkowitej wartości (benchmark)
+    final estimatedCapitalForRestructuring = globalStats.totalValue * 0.05;
+
+    // Szacuj kapitał zabezpieczony jako pozostały kapitał minus do restrukturyzacji
+    final estimatedCapitalSecured =
+        (globalStats.totalRemainingCapital - estimatedCapitalForRestructuring)
+            .clamp(0.0, double.infinity);
+
+    return UnifiedDashboardStatistics(
+      totalInvestmentAmount: globalStats.totalValue,
+      totalRemainingCapital: globalStats.totalRemainingCapital,
+      totalCapitalSecured: estimatedCapitalSecured.toDouble(),
+      totalCapitalForRestructuring: estimatedCapitalForRestructuring,
+      totalViableCapital:
+          globalStats.totalRemainingCapital, // Całość jako viable
+      totalInvestments: globalStats.totalProducts,
+      activeInvestments:
+          globalStats.totalProducts, // Szacuj wszystkie jako aktywne
+      averageInvestmentAmount: globalStats.averageValuePerProduct,
+      averageRemainingCapital: globalStats.totalProducts > 0
+          ? globalStats.totalRemainingCapital / globalStats.totalProducts
+          : 0,
+      dataSource: 'OptimizedProductService (converted)',
+      calculatedAt: DateTime.now(),
+    );
+  }
 }
 
 // ================== HELPER DATA CLASSES (Top-level) ==================

@@ -393,12 +393,6 @@ class ParticleBackgroundPainter extends CustomPainter {
            oldDelegate.isCollapsed != isCollapsed;
   }
 }
-        child: Opacity(
-          opacity: _searchExpandAnimation.value,
-          child: _buildSearchField(),
-        ),
-      ),
-    );
   }
 
   Widget _buildActiveClientsFilter() {
