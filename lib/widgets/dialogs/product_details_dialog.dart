@@ -42,7 +42,7 @@ class _EnhancedProductDetailsDialogState
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _service = ProductDetailsService();
-    
+
     _loadInvestors();
 
     // 🚀 NOWE: Jeśli mamy highlightInvestmentId, automatycznie przełącz na zakładkę "Inwestorzy" (index 1)
@@ -67,8 +67,10 @@ class _EnhancedProductDetailsDialogState
 
   Future<void> _loadInvestors() async {
     try {
-      debugPrint('🔄 [ProductDetailsDialog] Loading investors for product: ${widget.product.name}');
-      
+      debugPrint(
+        '🔄 [ProductDetailsDialog] Loading investors for product: ${widget.product.name}',
+      );
+
       setState(() {
         _isLoadingInvestors = true;
         _investorsError = null;
@@ -76,8 +78,10 @@ class _EnhancedProductDetailsDialogState
 
       final investors = await _service.getInvestorsForProduct(widget.product);
 
-      debugPrint('✅ [ProductDetailsDialog] Loaded ${investors.length} investors');
-      
+      debugPrint(
+        '✅ [ProductDetailsDialog] Loaded ${investors.length} investors',
+      );
+
       if (mounted) {
         setState(() {
           _investors = investors;
@@ -87,7 +91,7 @@ class _EnhancedProductDetailsDialogState
     } catch (e, stackTrace) {
       debugPrint('❌ [ProductDetailsDialog] Error loading investors: $e');
       debugPrint('Stack trace: $stackTrace');
-      
+
       if (mounted) {
         setState(() {
           _investorsError = 'Błąd podczas ładowania inwestorów: $e';
@@ -148,7 +152,8 @@ class _EnhancedProductDetailsDialogState
                 isLoadingInvestors: _isLoadingInvestors,
                 onClose: () => Navigator.of(context).pop(),
                 onShowInvestors: widget.onShowInvestors,
-                isCollapsed: false, // ⭐ TYMCZASOWO: Wyłącz zwijanie dla debugowania
+                isCollapsed:
+                    false, // ⭐ TYMCZASOWO: Wyłącz zwijanie dla debugowania
                 collapseFactor: 1.0, // ⭐ TYMCZASOWO: Pełny rozmiar
                 onEditModeChanged: (editMode) {
                   setState(() {
@@ -159,7 +164,9 @@ class _EnhancedProductDetailsDialogState
                   _tabController.animateTo(tabIndex);
                 },
                 onDataChanged: () async {
-                  debugPrint('🔄 [ProductDetailsDialog] onDataChanged wywołane...');
+                  debugPrint(
+                    '🔄 [ProductDetailsDialog] onDataChanged wywołane...',
+                  );
                   await _loadInvestors();
                   debugPrint('✅ [ProductDetailsDialog] Dane odświeżone');
                 },

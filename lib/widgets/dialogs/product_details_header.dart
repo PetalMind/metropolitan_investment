@@ -134,14 +134,16 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
-    
+
     // ⭐ NOWE: Oblicz padding i wysokość na podstawie stanu zwijania
     final basePadding = isMobile ? 16.0 : 20.0;
     final padding = basePadding * widget.collapseFactor;
     final opacity = (0.3 + 0.7 * widget.collapseFactor).clamp(0.0, 1.0);
-    
+
     // ⭐ DEBUG: Dodaj debug info
-    debugPrint('🔍 [ProductDetailsHeader] Building header for: ${widget.product.name}');
+    debugPrint(
+      '🔍 [ProductDetailsHeader] Building header for: ${widget.product.name}',
+    );
     debugPrint('   - isCollapsed: ${widget.isCollapsed}');
     debugPrint('   - collapseFactor: ${widget.collapseFactor}');
     debugPrint('   - investors count: ${widget.investors.length}');
@@ -165,7 +167,9 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.3 * widget.collapseFactor),
+            color: AppTheme.primaryColor.withOpacity(
+              0.3 * widget.collapseFactor,
+            ),
             blurRadius: 15 * widget.collapseFactor,
             offset: const Offset(0, 5),
           ),
@@ -265,7 +269,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     final screenWidth = MediaQuery.of(context).size.width;
     final isVerySmall = screenWidth < 400; // ⭐ NOWE: Wykryj bardzo małe ekrany
     final spacing = isVerySmall ? 8.0 : 12.0;
-    
+
     if (isVerySmall) {
       // ⭐ NOWE: Na bardzo małych ekranach pokaż w jednej kolumnie
       return Column(
@@ -280,7 +284,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
         ],
       );
     }
-    
+
     return Column(
       children: [
         // Pierwszy wiersz - dwa loading cards
@@ -310,7 +314,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     final screenWidth = MediaQuery.of(context).size.width;
     // ⭐ NOWE: Spacing dostosowany do układu w jednej linii
     final spacing = screenWidth < 800 ? 12.0 : 16.0;
-    
+
     return Row(
       children: [
         Expanded(child: _buildMetricLoadingCard()),
@@ -332,7 +336,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   ) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isVerySmall = screenWidth < 400; // ⭐ NOWE: Wykryj bardzo małe ekrany
-    
+
     if (isVerySmall) {
       // ⭐ NOWE: Na bardzo małych ekranach pokaż w jednej kolumnie
       return Column(
@@ -374,7 +378,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
         ],
       );
     }
-    
+
     // ⭐ ULEPSZONY: Grid 2x2 dla normalnych rozmiarów mobile
     return Column(
       children: [
@@ -405,7 +409,6 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
         ),
 
         const SizedBox(height: 8), // ⭐ ZMNIEJSZONE: z 12 na 8
-
         // Drugi wiersz - dwie karty
         Row(
           children: [
@@ -445,7 +448,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     final screenWidth = MediaQuery.of(context).size.width;
     // ⭐ NOWE: Spacing dostosowany do układu w jednej linii
     final spacing = screenWidth < 800 ? 12.0 : 16.0;
-    
+
     return Row(
       children: [
         Expanded(
@@ -651,7 +654,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   Widget _buildMainInfo() {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
-    
+
     debugPrint('🔍 [ProductDetailsHeader] Building main info:');
     debugPrint('   - Product name: ${widget.product.name}');
     debugPrint('   - Product type: ${widget.product.productType}');
@@ -668,9 +671,10 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   Widget _buildMobileMainInfo() {
     // ⭐ NOWE: Skaluj rozmiary na podstawie współczynnika zwijania
     final iconSize = (widget.isCollapsed ? 32.0 : 48.0) * widget.collapseFactor;
-    final titleFontSize = (widget.isCollapsed ? 16.0 : 20.0) * widget.collapseFactor;
+    final titleFontSize =
+        (widget.isCollapsed ? 16.0 : 20.0) * widget.collapseFactor;
     final spacing = 12.0 * widget.collapseFactor;
-    
+
     if (widget.isCollapsed) {
       // Układ poziomy dla zwiniętego stanu
       return Row(
@@ -722,9 +726,9 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
               );
             },
           ),
-          
+
           SizedBox(width: 12),
-          
+
           // Nazwa produktu w trybie zwiniętym
           Expanded(
             child: Text(
@@ -739,13 +743,13 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          
+
           // Status badge
           _buildStatusBadge(),
         ],
       );
     }
-    
+
     // Układ pionowy dla normalnego stanu
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -853,7 +857,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     // ⭐ NOWE: Skaluj rozmiary na podstawie współczynnika zwijania
     final iconSize = (widget.isCollapsed ? 48.0 : 64.0) * widget.collapseFactor;
     final spacing = 20.0 * widget.collapseFactor;
-    
+
     return Row(
       children: [
         // Ikona produktu z animacją
@@ -962,12 +966,22 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     final color = AppTheme.getStatusColor(widget.product.status.displayName);
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
-    
+
     // ⭐ NOWE: Skaluj padding na podstawie stanu zwijania
-    final horizontalPadding = ((isMobile ? 12 : 16) * widget.collapseFactor).clamp(8.0, 16.0);
-    final verticalPadding = ((isMobile ? 6 : 8) * widget.collapseFactor).clamp(4.0, 8.0);
-    final fontSize = ((isMobile ? 11 : 12) * widget.collapseFactor).clamp(9.0, 12.0);
-    final dotSize = ((isMobile ? 6 : 8) * widget.collapseFactor).clamp(4.0, 8.0);
+    final horizontalPadding = ((isMobile ? 12 : 16) * widget.collapseFactor)
+        .clamp(8.0, 16.0);
+    final verticalPadding = ((isMobile ? 6 : 8) * widget.collapseFactor).clamp(
+      4.0,
+      8.0,
+    );
+    final fontSize = ((isMobile ? 11 : 12) * widget.collapseFactor).clamp(
+      9.0,
+      12.0,
+    );
+    final dotSize = ((isMobile ? 6 : 8) * widget.collapseFactor).clamp(
+      4.0,
+      8.0,
+    );
 
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 600),
@@ -1039,7 +1053,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   Widget _buildMetricLoadingCard() {
     final screenWidth = MediaQuery.of(context).size.width;
     final isVerySmall = screenWidth < 400; // ⭐ NOWE: Wykryj bardzo małe ekrany
-    
+
     // ⭐ ULEPSZONY: Responsywne rozmiary
     final cardHeight = isVerySmall ? 70.0 : 80.0;
     final padding = isVerySmall ? 8.0 : 16.0;
@@ -1049,7 +1063,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     final valueHeight = isVerySmall ? 16.0 : 20.0;
     final subtitleWidth = isVerySmall ? 25.0 : 30.0;
     final subtitleHeight = isVerySmall ? 10.0 : 12.0;
-    
+
     return Container(
       height: cardHeight,
       padding: EdgeInsets.all(padding),
@@ -1214,12 +1228,12 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   }) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isVerySmall = screenWidth < 400; // ⭐ NOWE: Wykryj bardzo małe ekrany
-    
+
     // Sprawdź czy to karta "Kapitał pozostały" w trybie edycji
     final isCapitalRemaining = title == 'Kapitał pozostały';
     final showGoldBorder =
         isCapitalRemaining && _isEditModeEnabled && onTap != null;
-        
+
     // ⭐ ULEPSZONY: Responsywne rozmiary
     final cardHeight = isVerySmall ? 70.0 : 80.0;
     final padding = isVerySmall ? 8.0 : 12.0;
@@ -1227,7 +1241,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     final titleFontSize = isVerySmall ? 10.0 : 11.0;
     final valueFontSize = isVerySmall ? 12.0 : 14.0;
     final subtitleFontSize = isVerySmall ? 9.0 : 10.0;
-    
+
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 1000),
       tween: Tween<double>(begin: 0, end: 1),
@@ -1299,12 +1313,13 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                               fit: BoxFit.scaleDown,
                               child: Text(
                                 value,
-                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: -0.2,
-                                  fontSize: valueFontSize,
-                                ),
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: -0.2,
+                                      fontSize: valueFontSize,
+                                    ),
                               ),
                             ),
                           ),
@@ -1312,12 +1327,13 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                             const SizedBox(width: 2),
                             Text(
                               subtitle,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: color,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.3,
-                                fontSize: subtitleFontSize,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: color,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.3,
+                                    fontSize: subtitleFontSize,
+                                  ),
                             ),
                           ],
                         ],
@@ -1351,23 +1367,25 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                         fit: BoxFit.scaleDown,
                         child: Text(
                           value,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.2,
-                            fontSize: valueFontSize,
-                          ),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -0.2,
+                                fontSize: valueFontSize,
+                              ),
                         ),
                       ),
                       if (subtitle.isNotEmpty)
                         Text(
                           subtitle,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: color,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.3,
-                            fontSize: subtitleFontSize,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: color,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                                fontSize: subtitleFontSize,
+                              ),
                         ),
                     ],
                   ],
