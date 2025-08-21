@@ -2205,6 +2205,91 @@ class _PremiumInvestorAnalyticsScreenState
 
   // �🚀 NOWE FUNKCJONALNOŚCI: EMAIL I EKSPORT
 
+  /// 🔄 Doładowuje pełne dane klientów z Firebase gdy są potrzebne funkcje email/eksportu
+  Future<void> _ensureFullClientData() async {
+    // Sprawdź czy klienci mają pełne dane (emaile)
+    bool hasFullClientData = false;
+    if (_allInvestors.isNotEmpty) {
+      final firstClient = _allInvestors.first.client;
+      hasFullClientData =
+          firstClient.email.isNotEmpty ||
+          firstClient.phone.isNotEmpty ||
+          firstClient.address.isNotEmpty;
+    }
+
+    if (hasFullClientData) {
+      print(
+        '✅ [Premium Analytics] Klienci mają już pełne dane - nie pobieram z Firebase',
+      );
+      return;
+    }
+
+    print(
+      '🔄 [Premium Analytics] Doładowuję pełne dane klientów z Firebase dla funkcji email/eksportu...',
+    );
+
+    try {
+      final IntegratedClientService clientService = IntegratedClientService();
+      final allClients = await clientService.getAllClients();
+      final Map<String, Client> fullClientsById = {
+        for (final client in allClients) client.id: client,
+      };
+
+      print(
+        '✅ [Premium Analytics] Pobrano ${fullClientsById.length} pełnych klientów z Firebase',
+      );
+
+      // Zaktualizuj istniejących inwestorów z pełnymi danymi klientów
+      final updatedInvestors = <InvestorSummary>[];
+
+      for (final investor in _allInvestors) {
+        final fullClient = fullClientsById[investor.client.id];
+        if (fullClient != null) {
+          // Zastąp klienta pełnymi danymi z Firebase, zachowując status głosowania z OptimizedProduct
+          final updatedClient = fullClient.copyWith(
+            votingStatus: investor
+                .client
+                .votingStatus, // Zachowaj status głosowania z OptimizedProduct
+          );
+
+          final updatedInvestor = InvestorSummary(
+            client: updatedClient,
+            investments: investor.investments,
+            totalRemainingCapital: investor.totalRemainingCapital,
+            totalSharesValue: investor.totalSharesValue,
+            totalValue: investor.totalValue,
+            totalInvestmentAmount: investor.totalInvestmentAmount,
+            totalRealizedCapital: investor.totalRealizedCapital,
+            capitalSecuredByRealEstate: investor.capitalSecuredByRealEstate,
+            capitalForRestructuring: investor.capitalForRestructuring,
+            investmentCount: investor.investmentCount,
+          );
+
+          updatedInvestors.add(updatedInvestor);
+        } else {
+          // Jeśli nie znaleziono klienta w Firebase, zostaw oryginalnego
+          updatedInvestors.add(investor);
+        }
+      }
+
+      setState(() {
+        _allInvestors = updatedInvestors;
+      });
+
+      // Ponownie zastosuj filtry z nowymi danymi
+      _applyFiltersAndSort();
+
+      print(
+        '🔄 [Premium Analytics] Zaktualizowano ${updatedInvestors.length} inwestorów z pełnymi danymi klientów',
+      );
+    } catch (e) {
+      print(
+        '⚠️ [Premium Analytics] Błąd podczas ładowania pełnych danych klientów: $e',
+      );
+      // Kontynuuj bez pełnych danych - funkcje email/eksportu będą działać z ograniczeniami
+    }
+  }
+
   /// Eksportuje wybranych inwestorów do różnych formatów
   Future<void> _exportSelectedInvestors() async {
     if (_selectedInvestors.isEmpty) {
@@ -5021,15 +5106,21 @@ class _PremiumInvestorAnalyticsScreenState
       return;
     }
 
-    // Filtruj inwestorów z prawidłowymi emailami
+    // 🔄 Upewnij się, że mamy pełne dane klientów przed pokazaniem dialogu email
+    _ensureFullClientDataThenShowEmailDialog();
+  }
+
+  Future<void> _ensureFullClientDataThenShowEmailDialog() async {
+    await _ensureFullClientData();
+
+    // Filtruj inwestorów z prawidłowymi emailami po doładowaniu danych
     final investorsWithEmail = _selectedInvestors
         .where(
           (investor) =>
-              investor.client.email != null &&
-              investor.client.email!.isNotEmpty &&
+              investor.client.email.isNotEmpty &&
               RegExp(
                 r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
-              ).hasMatch(investor.client.email!),
+              ).hasMatch(investor.client.email),
         )
         .toList();
 
@@ -5096,6 +5187,14 @@ class _PremiumInvestorAnalyticsScreenState
       return;
     }
 
+    // 🔄 Upewnij się, że mamy pełne dane klientów przed eksportem
+    _ensureFullClientDataThenShowExportDialog();
+  }
+
+  Future<void> _ensureFullClientDataThenShowExportDialog() async {
+    await _ensureFullClientData();
+
+    // Pokaż dialog wyboru formatu eksportu po doładowaniu danych
     showDialog(
       context: context,
       builder: (context) => _ExportFormatDialog(

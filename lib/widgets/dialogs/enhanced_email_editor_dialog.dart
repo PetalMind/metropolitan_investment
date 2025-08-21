@@ -109,14 +109,14 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
     try {
       // Wyczyść istniejącą treść
       _quillController.clear();
-      
+
       // Dodaj nową treść
       _quillController.document.insert(0, content);
-      
+
       // Ustaw kursor na końcu tekstu
       _quillController.updateSelection(
-        TextSelection.collapsed(offset: content.length), 
-        ChangeSource.local
+        TextSelection.collapsed(offset: content.length),
+        ChangeSource.local,
       );
     } catch (e) {
       debugPrint('Błąd podczas wstawiania treści: $e');
@@ -169,13 +169,13 @@ Zespół Metropolitan Investment''';
     try {
       _quillController.clear();
       _quillController.document.insert(0, defaultTemplate);
-      
+
       // Ustaw kursor na końcu
       _quillController.updateSelection(
-        TextSelection.collapsed(offset: defaultTemplate.length), 
-        ChangeSource.local
+        TextSelection.collapsed(offset: defaultTemplate.length),
+        ChangeSource.local,
       );
-      
+
       // Force refresh
       setState(() {});
     } catch (e) {
@@ -381,11 +381,9 @@ Zespół Metropolitan Investment''';
                         child: QuillSimpleToolbar(
                           controller: _quillController,
                           config: QuillSimpleToolbarConfig(
-                            multiRowsDisplay: false,
+                            multiRowsDisplay: true,
                             showFontFamily: false,
-                            showFontSize: kIsWeb
-                                ? false
-                                : true, // Rozmiar czcionki tylko na desktop/mobile
+                            showFontSize: true, // Rozmiar czcionki tylko na desktop/mobile
                             showStrikeThrough: false,
                             showInlineCode: false,
                             showCodeBlock: false,
@@ -411,9 +409,7 @@ Zespół Metropolitan Investment''';
                             showBackgroundColorButton: kIsWeb
                                 ? false
                                 : true, // Kolor tła tylko na desktop/mobile
-                            showColorButton: kIsWeb
-                                ? false
-                                : true, // Kolor tekstu tylko na desktop/mobile
+                            showColorButton: true, // Kolor tekstu tylko na desktop/mobile
                             showBoldButton: true,
                             showItalicButton: true,
                             showUnderLineButton: true,
@@ -453,42 +449,43 @@ Zespół Metropolitan Investment''';
                             bottomRight: Radius.circular(8),
                           ),
                         ),
-                      child: Theme(
-                        data: Theme.of(context).copyWith(
-                          // Nadpisanie kolorów dla lepszej widoczności na białym tle
-                          iconTheme: const IconThemeData(
-                            color: Colors.black87,
-                          ),
-                          textTheme: const TextTheme(
-                            bodyLarge: TextStyle(
-                              color: Colors.black87,
-                              fontSize: 14,
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            // Nadpisanie kolorów dla lepszej widoczności na białym tle
+                            iconTheme: IconThemeData(
+                              color: AppThemePro.backgroundPrimary,
                             ),
-                            bodyMedium: TextStyle(
-                              color: Colors.black87,
-                              fontSize: 14,
+                            textTheme: TextTheme(
+                              bodyLarge: TextStyle(
+                                color: AppThemePro.backgroundPrimary,
+                                fontSize: 14,
+                              ),
+                              bodyMedium: TextStyle(
+                                color: AppThemePro.backgroundPrimary,
+                                fontSize: 14,
+                              ),
+                            ),
+                            // Dodaj konfigurację selection
+                            textSelectionTheme: TextSelectionThemeData(
+                              cursorColor: AppThemePro.accentGold,
+                              selectionColor: AppThemePro.accentGold
+                                  .withOpacity(0.3),
+                              selectionHandleColor: AppThemePro.accentGold,
                             ),
                           ),
-                          // Dodaj konfigurację selection
-                          textSelectionTheme: TextSelectionThemeData(
-                            cursorColor: AppThemePro.accentGold,
-                            selectionColor: AppThemePro.accentGold.withOpacity(0.3),
-                            selectionHandleColor: AppThemePro.accentGold,
+                          child: QuillEditor.basic(
+                            controller: _quillController,
+                            config: QuillEditorConfig(
+                              placeholder: 'Wpisz treść swojego maila...',
+                              padding: const EdgeInsets.all(16),
+                              autoFocus: false,
+                              enableSelectionToolbar: true,
+                              scrollable: true,
+                              expands: false,
+                              // Web-specific optimizations
+                              maxContentWidth: kIsWeb ? 800 : null,
+                            ),
                           ),
-                        ),
-                        child: QuillEditor.basic(
-                          controller: _quillController,
-                          config: QuillEditorConfig(
-                            placeholder: 'Wpisz treść swojego maila...',
-                            padding: const EdgeInsets.all(16),
-                            autoFocus: false,
-                            enableSelectionToolbar: true,
-                            scrollable: true,
-                            expands: false,
-                            // Web-specific optimizations
-                            maxContentWidth: kIsWeb ? 800 : null,
-                          ),
-                        ),
                         ),
                       ),
                     ),
@@ -1970,13 +1967,13 @@ Zespół Metropolitan Investment''';
     try {
       const greeting = 'Szanowni Państwo,\n\n';
       _quillController.document.insert(0, greeting);
-      
+
       // Ustaw kursor po pozdrowieniu
       _quillController.updateSelection(
-        TextSelection.collapsed(offset: greeting.length), 
-        ChangeSource.local
+        TextSelection.collapsed(offset: greeting.length),
+        ChangeSource.local,
       );
-      
+
       setState(() {}); // Force refresh
     } catch (e) {
       debugPrint('Błąd podczas wstawiania powitania: $e');
@@ -1989,13 +1986,13 @@ Zespół Metropolitan Investment''';
           '\n\nZ poważaniem,\nZespół ${_senderNameController.text}\n';
       final length = _quillController.document.length;
       _quillController.document.insert(length - 1, signature);
-      
+
       // Ustaw kursor po podpisie
       _quillController.updateSelection(
-        TextSelection.collapsed(offset: length - 1 + signature.length), 
-        ChangeSource.local
+        TextSelection.collapsed(offset: length - 1 + signature.length),
+        ChangeSource.local,
       );
-      
+
       setState(() {}); // Force refresh
     } catch (e) {
       debugPrint('Błąd podczas wstawiania podpisu: $e');
@@ -2005,13 +2002,13 @@ Zespół Metropolitan Investment''';
   void _clearEditor() {
     try {
       _quillController.clear();
-      
+
       // Reset kursora
       _quillController.updateSelection(
-        const TextSelection.collapsed(offset: 0), 
-        ChangeSource.local
+        const TextSelection.collapsed(offset: 0),
+        ChangeSource.local,
       );
-      
+
       setState(() {}); // Force refresh
     } catch (e) {
       debugPrint('Błąd podczas czyszczenia edytora: $e');

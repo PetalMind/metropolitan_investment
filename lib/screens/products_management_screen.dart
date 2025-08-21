@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../theme/app_theme.dart';
 import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
@@ -15,7 +16,6 @@ import '../services/cache_management_service.dart'; // 🚀 NOWY: Zarządzanie c
 import '../services/unified_investor_count_service.dart'; // 🚀 NOWY: Serwis liczby inwestorów
 import '../adapters/product_statistics_adapter.dart';
 import '../widgets/product_card_widget.dart';
-import '../widgets/product_stats_widget.dart';
 import '../widgets/product_filter_widget.dart';
 import '../widgets/metropolitan_loading_system.dart';
 import '../widgets/dialogs/product_details_dialog.dart';
@@ -108,6 +108,12 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   bool _isSelectionMode = false;
   bool _isEmailMode = false; // 🚀 NOWY: Tryb email
   Set<String> _selectedProductIds = <String>{};
+
+  // 🚀 NOWY: Stan dla wykresu kołowego typów produktów
+  int _hoveredSectionIndex = -1;
+  UnifiedProductType? _selectedProductType;
+  Map<UnifiedProductType, double> _typeDistribution = {};
+  Map<UnifiedProductType, int> _typeCounts = {};
 
   // Gettery dla wybranych produktów
   List<DeduplicatedProduct> get _selectedProducts {
@@ -749,6 +755,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           _statistics = _convertGlobalStatsToFBStatsViAdapter(
             optimizedResult.statistics!,
           );
+          // Oblicz dystrybucję typów produktów dla wykresu kołowego
+          _calculateProductTypeDistribution();
         }
 
         _isLoading = false;
@@ -808,6 +816,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           // Statystyki
           if (productData.statistics != null) {
             _statistics = productData.statistics;
+            // Oblicz dystrybucję typów produktów dla wykresu kołowego
+            _calculateProductTypeDistribution();
           }
 
           // Metadane
@@ -905,6 +915,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         _statistics = statistics;
         _metadata = productsResult.metadata;
         _isLoading = false;
+        // Oblicz dystrybucję typów produktów dla wykresu kołowego
+        _calculateProductTypeDistribution();
       });
 
       _applyFiltersAndSearch();
@@ -956,6 +968,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       if (mounted) {
         setState(() {
           _statistics = newStats;
+          // Oblicz dystrybucję typów produktów dla wykresu kołowego
+          _calculateProductTypeDistribution();
         });
       }
     } catch (e) {
@@ -2317,6 +2331,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   }
 
   Widget _buildStatisticsSection() {
+    if (_statistics == null)
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+
     return SliverToBoxAdapter(
       child: SlideTransition(
         position: _slideAnimation,
@@ -2324,9 +2341,48 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           opacity: _fadeAnimation,
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child: ProductStatsWidget(
-              statistics: ProductStatisticsAdapter.adaptToUnified(_statistics!),
-              animationController: _fadeController,
+            child: Container(
+              decoration: AppTheme.premiumCardDecoration,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Nagłówek sekcji
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondaryGold.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.analytics,
+                          color: AppTheme.secondaryGold,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Dystrybucja typów produktów',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Wykres kołowy typów produktów
+                  _buildProductTypeChart(),
+
+                  const SizedBox(height: 20),
+
+                  // Legenda wykresu
+                  _buildProductTypeLegend(),
+                ],
+              ),
             ),
           ),
         ),
@@ -4037,6 +4093,341 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppTheme.errorColor),
     );
+  }
+
+  // 🚀 NOWE METODY: Wykres kołowy typów produktów
+
+  /// Oblicza dystrybucję typów produktów na podstawie aktualnych statystyk
+  void _calculateProductTypeDistribution() {
+    if (_statistics == null) {
+      _typeDistribution.clear();
+      _typeCounts.clear();
+      return;
+    }
+
+    final typeDistribList = _statistics!.typeDistribution;
+    final totalProducts = _statistics!.totalProducts;
+
+    _typeCounts.clear();
+    _typeDistribution.clear();
+
+    for (final typeStats in typeDistribList) {
+      final unifiedType = _mapStringToUnifiedProductType(typeStats.productType);
+      if (unifiedType != null) {
+        _typeCounts[unifiedType] = typeStats.count;
+        _typeDistribution[unifiedType] = totalProducts > 0
+            ? (typeStats.count / totalProducts) * 100
+            : 0.0;
+      }
+    }
+  }
+
+  /// Buduje wykres kołowy typów produktów
+  Widget _buildProductTypeChart() {
+    // Oblicz dystrybucję jeśli nie została jeszcze obliczona
+    if (_typeDistribution.isEmpty) {
+      _calculateProductTypeDistribution();
+    }
+
+    // Podczas ładowania pokaż shimmer chart
+    if (_isLoading || _typeDistribution.isEmpty) {
+      return Container(
+        height: 300,
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceInteractive.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 300),
+      height: 300,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          PieChart(
+            PieChartData(
+              sections: _buildProductTypePieChartSections(),
+              centerSpaceRadius: 80,
+              sectionsSpace: 2,
+              startDegreeOffset: -90,
+              pieTouchData: PieTouchData(
+                touchCallback:
+                    (FlTouchEvent event, PieTouchResponse? response) {
+                      setState(() {
+                        if (!event.isInterestedForInteractions ||
+                            response == null ||
+                            response.touchedSection == null) {
+                          _hoveredSectionIndex = -1;
+                          _selectedProductType = null;
+                          return;
+                        }
+
+                        _hoveredSectionIndex =
+                            response.touchedSection!.touchedSectionIndex;
+                        final types = UnifiedProductType.values.toList();
+                        if (_hoveredSectionIndex < types.length) {
+                          _selectedProductType = types[_hoveredSectionIndex];
+                        }
+                      });
+                    },
+              ),
+            ),
+          ),
+          // Zawartość środkowa wykresu
+          _buildProductTypeCenterContent(),
+        ],
+      ),
+    );
+  }
+
+  /// Buduje sekcje wykresu kołowego dla typów produktów
+  List<PieChartSectionData> _buildProductTypePieChartSections() {
+    return UnifiedProductType.values.asMap().entries.map((entry) {
+      final index = entry.key;
+      final type = entry.value;
+      final percentage = _typeDistribution[type] ?? 0.0;
+      final color = _getProductTypeColor(type);
+      final emoji = _getProductTypeEmoji(type);
+      final isHovered = index == _hoveredSectionIndex;
+
+      return PieChartSectionData(
+        color: color,
+        value: percentage,
+        title: percentage > 5 && !isHovered
+            ? '$emoji\n${percentage.toStringAsFixed(1)}%'
+            : '',
+        radius: isHovered ? 75 : 60,
+        titleStyle: TextStyle(
+          fontSize: isHovered ? 14 : 12,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+          shadows: [
+            Shadow(color: Colors.black54, offset: Offset(1, 1), blurRadius: 2),
+          ],
+        ),
+        badgeWidget: (percentage > 15 && !isHovered)
+            ? Container(
+                padding: EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 4,
+                      offset: Offset(2, 2),
+                    ),
+                  ],
+                ),
+                child: Text(emoji, style: TextStyle(fontSize: 16)),
+              )
+            : null,
+        badgePositionPercentageOffset: isHovered ? 1.4 : 1.2,
+        borderSide: isHovered
+            ? BorderSide(color: Colors.white, width: 3)
+            : BorderSide.none,
+      );
+    }).toList();
+  }
+
+  /// Buduje zawartość środkową wykresu kołowego
+  Widget _buildProductTypeCenterContent() {
+    if (_hoveredSectionIndex >= 0 && _selectedProductType != null) {
+      // Pokaż szczegółowe informacje dla wskazywanego typu
+      final percentage = _typeDistribution[_selectedProductType] ?? 0.0;
+      final count = _typeCounts[_selectedProductType] ?? 0;
+      final emoji = _getProductTypeEmoji(_selectedProductType!);
+
+      return Column(
+        key: ValueKey('detailed_${_selectedProductType.toString()}'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(emoji, style: TextStyle(fontSize: 32)),
+          SizedBox(height: 4),
+          Text(
+            _selectedProductType!.displayName,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            '$count produktów',
+            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+          ),
+          Text(
+            '${percentage.toStringAsFixed(1)}%',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: _getProductTypeColor(_selectedProductType!),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Domyślna zawartość środkowa
+    return Column(
+      key: ValueKey('default'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('📊', style: TextStyle(fontSize: 32)),
+        SizedBox(height: 8),
+        Text(
+          'Typy produktów',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        Text(
+          '${_statistics?.totalProducts ?? 0} łącznie',
+          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+        ),
+      ],
+    );
+  }
+
+  /// Buduje legendę wykresu kołowego
+  Widget _buildProductTypeLegend() {
+    // Podczas ładowania pokaż shimmer legend items
+    if (_isLoading || _typeDistribution.isEmpty) {
+      return Wrap(
+        spacing: 16,
+        runSpacing: 12,
+        children: List.generate(
+          4,
+          (index) => Container(
+            width: 120,
+            height: 20,
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceInteractive.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Wrap(
+      spacing: 16,
+      runSpacing: 12,
+      children: UnifiedProductType.values.asMap().entries.map((entry) {
+        final index = entry.key;
+        final type = entry.value;
+        final percentage = _typeDistribution[type] ?? 0.0;
+        final count = _typeCounts[type] ?? 0;
+
+        if (percentage == 0.0) return const SizedBox.shrink();
+
+        final color = _getProductTypeColor(type);
+        final emoji = _getProductTypeEmoji(type);
+        final isSelected = index == _hoveredSectionIndex;
+
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              if (_hoveredSectionIndex == index) {
+                _hoveredSectionIndex = -1;
+                _selectedProductType = null;
+              } else {
+                _hoveredSectionIndex = index;
+                _selectedProductType = type;
+              }
+            });
+          },
+          child: AnimatedContainer(
+            duration: Duration(milliseconds: 200),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSelected ? color : color.withOpacity(0.3),
+                width: isSelected ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(emoji, style: TextStyle(fontSize: 16)),
+                SizedBox(width: 8),
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  '${type.displayName} ($count)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    color: isSelected
+                        ? AppTheme.textPrimary
+                        : AppTheme.textSecondary,
+                  ),
+                ),
+                SizedBox(width: 4),
+                Text(
+                  '${percentage.toStringAsFixed(1)}%',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Pobiera kolor dla typu produktu
+  Color _getProductTypeColor(UnifiedProductType type) {
+    switch (type) {
+      case UnifiedProductType.apartments:
+        return AppTheme.infoPrimary;
+      case UnifiedProductType.bonds:
+        return AppTheme.successPrimary;
+      case UnifiedProductType.shares:
+        return AppTheme.warningPrimary;
+      case UnifiedProductType.loans:
+        return AppTheme.errorPrimary;
+      default:
+        return AppTheme.textSecondary;
+    }
+  }
+
+  /// Pobiera emoji dla typu produktu
+  String _getProductTypeEmoji(UnifiedProductType type) {
+    switch (type) {
+      case UnifiedProductType.apartments:
+        return '🏠';
+      case UnifiedProductType.bonds:
+        return '📜';
+      case UnifiedProductType.shares:
+        return '📈';
+      case UnifiedProductType.loans:
+        return '💰';
+      default:
+        return '📦';
+    }
   }
 }
 
