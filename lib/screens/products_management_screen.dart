@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../theme/app_theme.dart';
 import '../models_and_services.dart';
@@ -267,25 +266,26 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       });
     }
 
-    // 🆕 KROK 1: Znajdź samą inwestycję w Firebase, aby uzyskać informacje o produkcie
+    // 🚀 NOWE: Użyj UniversalInvestmentService zamiast bezpośredniego Firebase
     try {
-      print('🔍 [ProductsManagementScreen] Wyszukuję inwestycję w Firebase...');
-      final investmentDoc = await FirebaseFirestore.instance
-          .collection('investments')
-          .doc(investmentId)
-          .get();
+      print(
+        '🔍 [ProductsManagementScreen] Wyszukuję inwestycję przez UniversalInvestmentService...',
+      );
 
-      if (investmentDoc.exists) {
-        final investmentData = investmentDoc.data()!;
-        final productName = investmentData['productName'] ?? '';
-        final companyId = investmentData['companyId'] ?? '';
-        final productType = investmentData['productType'] ?? '';
+      final investment = await UniversalInvestmentService.instance
+          .getInvestment(investmentId);
+
+      if (investment != null) {
+        final productName = investment.productName;
+        final companyId = investment.companyId;
+        final productType = investment.productType.name;
 
         print('🔍 [ProductsManagementScreen] Znaleziono inwestycję:');
         print('  - Product Name: $productName');
         print('  - Company ID: $companyId');
         print('  - Product Type: $productType');
         print('  - Investment ID: $investmentId');
+        print('  - Logical Investment ID: ${investment.id}');
 
         // KROK 2: Szukaj produktu na podstawie nazwy produktu i firmy
         bool foundProduct = false;
@@ -309,7 +309,10 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
               _applyFiltersAndSearch();
 
               Future.delayed(const Duration(milliseconds: 500), () {
-                _showDeduplicatedProductDetails(product);
+                _showDeduplicatedProductDetails(
+                  product,
+                  investment.id,
+                ); // 🚀 POPRAWKA: użyj logical ID
               });
               foundProduct = true;
               return;
@@ -338,7 +341,10 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
               _applyFiltersAndSearch();
 
               Future.delayed(const Duration(milliseconds: 500), () {
-                _showOptimizedProductDetails(product, investmentId);
+                _showOptimizedProductDetails(
+                  product,
+                  investment.id,
+                ); // 🚀 POPRAWKA: użyj logical ID
               });
               foundProduct = true;
               return;
@@ -376,7 +382,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
 
         if (!foundProduct) {
           print(
-            '❌ [ProductsManagementScreen] Nie znaleziono produktu dla inwestycji: $investmentId, chociaż w firebase jest prawidłowy zapis w \'investments\'',
+            '❌ [ProductsManagementScreen] Nie znaleziono produktu dla inwestycji: $investmentId (logical: ${investment.id})',
           );
           print(
             '📊 [ProductsManagementScreen] Nazwa produktu: "$productName", Firma: "$companyId"',
@@ -421,7 +427,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         }
       } else {
         print(
-          '❌ [ProductsManagementScreen] Inwestycja $investmentId nie istnieje w Firebase',
+          '❌ [ProductsManagementScreen] Inwestycja $investmentId nie została znaleziona przez UniversalInvestmentService',
         );
 
         if (mounted) {
@@ -3081,7 +3087,10 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     );
   }
 
-  void _showDeduplicatedProductDetails(DeduplicatedProduct product) {
+  void _showDeduplicatedProductDetails(
+    DeduplicatedProduct product, [
+    String? highlightInvestmentId,
+  ]) {
     print(
       '🔍 [ProductsManagement] Pokazywanie szczegółów deduplikowanego produktu:',
     );
@@ -3089,6 +3098,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     print('  - Typ: ${product.productType.displayName}');
     print('  - ID: ${product.id}');
     print('  - Wartość: ${product.totalValue}');
+    print('  - Highlight Investment ID: $highlightInvestmentId');
 
     // Konwertujemy DeduplicatedProduct na UnifiedProduct
     final unifiedProduct = _convertDeduplicatedToUnified(product);
@@ -3105,6 +3115,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return EnhancedProductDetailsDialog(
           product: unifiedProduct,
           onShowInvestors: () => _showProductInvestors(unifiedProduct),
+          highlightInvestmentId:
+              highlightInvestmentId, // 🚀 NOWE: Przekaż ID inwestycji do podświetlenia
         );
       },
     );
@@ -3222,6 +3234,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return EnhancedProductDetailsDialog(
           product: unifiedProduct,
           onShowInvestors: () => _showProductInvestors(unifiedProduct),
+          highlightInvestmentId:
+              highlightInvestmentId, // 🚀 NOWE: Przekaż ID inwestycji do podświetlenia
         );
       },
     );

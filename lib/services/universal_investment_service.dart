@@ -154,27 +154,37 @@ class UniversalInvestmentService extends BaseService {
       }
 
       // 2. Użyj obecnych wartości jako domyślnych jeśli nie podano nowych
-      final newCapitalSecured = capitalSecuredByRealEstate ?? currentInvestment.capitalSecuredByRealEstate;
-      final newCapitalRestructuring = capitalForRestructuring ?? currentInvestment.capitalForRestructuring;
-      final newInvestmentAmount = investmentAmount ?? currentInvestment.investmentAmount;
+      final newCapitalSecured =
+          capitalSecuredByRealEstate ??
+          currentInvestment.capitalSecuredByRealEstate;
+      final newCapitalRestructuring =
+          capitalForRestructuring ?? currentInvestment.capitalForRestructuring;
+      final newInvestmentAmount =
+          investmentAmount ?? currentInvestment.investmentAmount;
 
       // 3. Automatycznie oblicz remainingCapital jeśli nie podano jawnie
       double newRemainingCapital;
       if (remainingCapital != null) {
         // Użytkownik podał jawną wartość
         newRemainingCapital = remainingCapital;
-        debugPrint('💡 [UniversalInvestment] Using manual remainingCapital: $remainingCapital');
+        debugPrint(
+          '💡 [UniversalInvestment] Using manual remainingCapital: $remainingCapital',
+        );
       } else if (autoCalculateRemainingCapital) {
         // Automatyczne obliczenie
         newRemainingCapital = calculateRemainingCapital(
           capitalSecuredByRealEstate: newCapitalSecured,
           capitalForRestructuring: newCapitalRestructuring,
         );
-        debugPrint('🧮 [UniversalInvestment] Auto-calculated remainingCapital: $newCapitalSecured + $newCapitalRestructuring = $newRemainingCapital');
+        debugPrint(
+          '🧮 [UniversalInvestment] Auto-calculated remainingCapital: $newCapitalSecured + $newCapitalRestructuring = $newRemainingCapital',
+        );
       } else {
         // Zachowaj obecną wartość
         newRemainingCapital = currentInvestment.remainingCapital;
-        debugPrint('💾 [UniversalInvestment] Preserving current remainingCapital: $newRemainingCapital');
+        debugPrint(
+          '💾 [UniversalInvestment] Preserving current remainingCapital: $newRemainingCapital',
+        );
       }
 
       // 4. Wykonaj standardową aktualizację z obliczonymi wartościami
@@ -187,9 +197,9 @@ class UniversalInvestmentService extends BaseService {
         status: status,
         editorName: editorName,
         editorEmail: editorEmail,
-        changeReason: changeReason ?? 'Smart update with automatic capital calculation',
+        changeReason:
+            changeReason ?? 'Smart update with automatic capital calculation',
       );
-
     } catch (e) {
       debugPrint(
         '❌ [UniversalInvestment] Error in smart update for $investmentId: $e',
@@ -517,6 +527,43 @@ class UniversalInvestmentService extends BaseService {
     }
   }
 
+  /// 🚀 NOWA METODA: Pobiera wszystkie inwestycje grupowane po klientach (BULK OPTIMIZATION)
+  Future<Map<String, List<Investment>>> getAllInvestmentsGroupedByClient() async {
+    try {
+      debugPrint('🚀 [UniversalInvestment] Getting ALL investments grouped by client (BULK)...');
+
+      final querySnapshot = await _firestore
+          .collection(_collection)
+          .get();
+
+      debugPrint('✅ [UniversalInvestment] Retrieved ${querySnapshot.docs.length} total investments');
+
+      final Map<String, List<Investment>> investmentsByClient = {};
+
+      for (final doc in querySnapshot.docs) {
+        try {
+          final investment = Investment.fromFirestore(doc);
+          final clientId = investment.clientId;
+
+          if (clientId.isNotEmpty) {
+            investmentsByClient.putIfAbsent(clientId, () => []).add(investment);
+            
+            // Cache individual investment for future use
+            _cacheInvestment(investment);
+          }
+        } catch (e) {
+          debugPrint('⚠️ [UniversalInvestment] Error parsing investment ${doc.id}: $e');
+        }
+      }
+
+      debugPrint('✅ [UniversalInvestment] Grouped investments for ${investmentsByClient.length} clients');
+      return investmentsByClient;
+    } catch (e) {
+      debugPrint('❌ [UniversalInvestment] Error in bulk client investments: $e');
+      return {};
+    }
+  }
+
   /// Pobiera inwestycje dla konkretnego klienta
   Future<List<Investment>> getInvestmentsForClient(String clientId) async {
     try {
@@ -586,7 +633,11 @@ class UniversalInvestmentService extends BaseService {
 
   Future<Investment?> _fetchInvestmentFromFirebase(String investmentId) async {
     try {
-      // Strategia 1: Szukaj po logicznym ID w polu 'id'
+      debugPrint(
+        '🔍 [UniversalInvestment] Searching for investment by logical ID: $investmentId',
+      );
+
+      // Strategia 1: Szukaj po logicznym ID w polu 'id' (np. apartment_0089, bond_0001)
       final querySnapshot = await _firestore
           .collection(_collection)
           .where('id', isEqualTo: investmentId)
@@ -595,6 +646,9 @@ class UniversalInvestmentService extends BaseService {
 
       if (querySnapshot.docs.isNotEmpty) {
         final doc = querySnapshot.docs.first;
+        debugPrint(
+          '✅ [UniversalInvestment] Found by logical ID: $investmentId',
+        );
         return Investment.fromFirestore(doc);
       }
 
@@ -605,9 +659,13 @@ class UniversalInvestmentService extends BaseService {
           .get();
 
       if (docSnapshot.exists && docSnapshot.data() != null) {
+        debugPrint(
+          '✅ [UniversalInvestment] Found by document UUID: $investmentId',
+        );
         return Investment.fromFirestore(docSnapshot);
       }
 
+      debugPrint('❌ [UniversalInvestment] Investment not found: $investmentId');
       return null;
     } catch (e) {
       debugPrint('❌ [UniversalInvestment] Error fetching from Firebase: $e');

@@ -111,6 +111,9 @@ export 'services/investment_change_history_service.dart'; // 🚀 NOWE: Historia
 export 'services/product_change_history_service.dart'; // 🚀 NOWE: Historia zmian produktów
 export 'services/investment_change_calculator_service.dart'; // 🚀 NOWE: Obliczanie zmian procentowych z historii
 export 'services/investor_edit_service.dart'; // 🚀 NOWE: Serwis logiki biznesowej dla edycji inwestora
+export 'services/universal_investment_service.dart'
+    hide
+        ValidationResult; // 🚀 UNIWERSALNY: Centralny serwis wszystkich operacji na inwestycjach
 export 'services/smtp_service.dart'; // 🚀 NOWE: Serwis konfiguracji i testowania SMTP
 
 // Voting status change model

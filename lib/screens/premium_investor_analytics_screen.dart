@@ -4015,14 +4015,44 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   void _navigateToProductDetails(investment) {
-    // Sprawdź czy inwestycja ma właściwości potrzebne do nawigacji
-    if (investment.productName != null && investment.productName.isNotEmpty) {
+    print(
+      '🎯 [PremiumInvestorAnalyticsScreen] Nawigacja do szczegółów produktu:',
+    );
+    print('  - Investment ID (logiczne): ${investment.id}');
+    print('  - Investment proposalId (hash): ${investment.proposalId}');
+    print('  - Product Name: ${investment.productName}');
+    print('  - Product Type: ${investment.productType}');
+
+    // 🚀 NAPRAWIONE: Użyj TYLKO logicznego ID z Firebase (np. apartment_0089, bond_0001)
+    final logicalInvestmentId = investment.id;
+
+    // 🎯 Używaj TYLKO logicznego ID z Firebase dla products_management_screen
+    if (logicalInvestmentId != null && logicalInvestmentId.isNotEmpty) {
+      // Przekaż logiczne investmentId przez URL query parameter
+      final encodedInvestmentId = Uri.encodeComponent(logicalInvestmentId);
+      context.go('/products?investmentId=$encodedInvestmentId');
+
+      print(
+        '✅ [PremiumInvestorAnalyticsScreen] Nawigacja z logicznym ID: $encodedInvestmentId',
+      );
+    } else if (investment.productName != null &&
+        investment.productName.isNotEmpty) {
+      // Fallback - nawigacja po nazwie produktu (stara metoda)
+      final encodedProductName = Uri.encodeComponent(investment.productName);
       context.go(
-        '/products/${Uri.encodeComponent(investment.productName)}?productType=${investment.productType.name}',
+        '/products?productName=$encodedProductName&productType=${investment.productType.name}',
+      );
+
+      print(
+        '✅ [PremiumInvestorAnalyticsScreen] Fallback nawigacja po nazwie: $encodedProductName',
       );
     } else {
       // Fallback - przejdź do listy produktów z filtrem typu
       context.go('/products?productType=${investment.productType.name}');
+
+      print(
+        '⚠️ [PremiumInvestorAnalyticsScreen] Fallback nawigacja po typie produktu',
+      );
     }
   }
 
@@ -5558,57 +5588,27 @@ class _PremiumInvestorAnalyticsScreenState
       '👥 [Premium Analytics] ${allClients.length - productsByClient.length} klientów BEZ inwestycji',
     );
 
-    // KROK 3: Stwórz InvestorSummary dla WSZYSTKICH klientów
+    // KROK 3: 🚀 MEGA OPTYMALIZACJA: Użyj nowej bulk metody z UniversalInvestmentService
+    print('🚀 [Premium Analytics] Używam bulk metody UniversalInvestmentService...');
+    
+    final Map<String, List<Investment>> investmentsByClient = 
+        await UniversalInvestmentService.instance.getAllInvestmentsGroupedByClient();
+    
+    print('✅ [Premium Analytics] Otrzymano inwestycje dla ${investmentsByClient.length} klientów (bulk)');
+
+    // KROK 4: Stwórz InvestorSummary dla WSZYSTKICH klientów (szybko, bez dodatkowych zapytań)
     final List<InvestorSummary> investors = [];
 
     for (final client in allClients) {
       final clientId = client.id;
-      final clientProducts = productsByClient[clientId] ?? [];
+      
+      // Pobierz inwestycje dla tego klienta z przygotowanej mapy (bez zapytania Firebase)
+      final clientInvestments = investmentsByClient[clientId] ?? [];
 
-      // Jeśli klient ma inwestycje, stwórz je
-      final investments = <Investment>[];
-
-      if (clientProducts.isNotEmpty) {
-        for (final product in clientProducts) {
-          final investor = product.topInvestors.firstWhere(
-            (inv) => inv.clientId == clientId,
-          );
-
-          final investment = Investment(
-            id: '${product.id}_${clientId}',
-            clientId: clientId,
-            clientName: investor.clientName,
-            productName: product.name,
-            productType: _mapUnifiedToProductType(product.productType),
-            creditorCompany: product.companyName,
-            companyId: product.companyId,
-            investmentAmount: investor.totalAmount,
-            remainingCapital: investor.totalRemaining,
-            signedDate: product.earliestInvestmentDate,
-            employeeId: '',
-            employeeFirstName: '',
-            employeeLastName: '',
-            branchCode: '',
-            status: InvestmentStatus.active,
-            marketType: MarketType.primary,
-            proposalId: '',
-            paidAmount: investor.totalAmount,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-            additionalInfo: {
-              'fromOptimizedProduct': true,
-              'productId': product.id,
-            },
-          );
-
-          investments.add(investment);
-        }
-      }
-
-      // Stwórz InvestorSummary dla każdego klienta (z inwestycjami lub bez)
+      // Stwórz InvestorSummary dla klienta
       final investorSummary = InvestorSummary.fromInvestments(
         client,
-        investments, // Może być pusta lista dla klientów bez inwestycji
+        clientInvestments, // Prawdziwe inwestycje z Firebase z logicznymi ID
       );
 
       investors.add(investorSummary);

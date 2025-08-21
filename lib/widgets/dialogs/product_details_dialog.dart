@@ -9,11 +9,14 @@ import 'product_details_service.dart';
 class EnhancedProductDetailsDialog extends StatefulWidget {
   final UnifiedProduct product;
   final VoidCallback? onShowInvestors;
+  final String?
+  highlightInvestmentId; // 🚀 NOWE: ID inwestycji do podświetlenia
 
   const EnhancedProductDetailsDialog({
     super.key,
     required this.product,
     this.onShowInvestors,
+    this.highlightInvestmentId, // 🚀 NOWE: Opcjonalne ID inwestycji do podświetlenia
   });
 
   @override
@@ -40,6 +43,19 @@ class _EnhancedProductDetailsDialogState
     _tabController = TabController(length: 3, vsync: this);
     _service = ProductDetailsService();
     _loadInvestors();
+
+    // 🚀 NOWE: Jeśli mamy highlightInvestmentId, automatycznie przełącz na zakładkę "Inwestorzy" (index 1)
+    if (widget.highlightInvestmentId != null &&
+        widget.highlightInvestmentId!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _tabController.animateTo(1); // Przełącz na zakładkę "Inwestorzy"
+          print(
+            '🎯 [ProductDetailsDialog] Automatycznie przełączono na zakładkę "Inwestorzy" dla inwestycji: ${widget.highlightInvestmentId}',
+          );
+        }
+      });
+    }
   }
 
   @override
@@ -157,6 +173,8 @@ class _EnhancedProductDetailsDialogState
                 onRefreshInvestors: _loadInvestors,
                 isEditModeEnabled:
                     _isEditModeEnabled, // ⭐ NOWE: Przekazanie stanu edycji
+                highlightInvestmentId: widget
+                    .highlightInvestmentId, // 🚀 NOWE: Przekaż ID inwestycji do podświetlenia
               ),
             ),
           ],

@@ -2110,15 +2110,19 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
     Navigator.of(context).pop(); // Zamknij dialog
 
     print('🎯 [InvestorModal] Nawigacja do konkretnego produktu:');
-    print('🎯 [InvestorModal] - Investment ID: ${investment.id}');
+    print('🎯 [InvestorModal] - Investment ID (logiczne): ${investment.id}');
+    print('🎯 [InvestorModal] - Investment proposalId (hash): ${investment.proposalId}');
     print('🎯 [InvestorModal] - Product Name: ${investment.productName}');
     print('🎯 [InvestorModal] - Product Type: ${investment.productType.name}');
 
-    // Użyj nowego systemu nawigacji z konkretnym ID inwestycji
+    // 🚀 NAPRAWIONE: Użyj TYLKO logicznego ID z Firebase (np. apartment_0089, bond_0001)
+    final logicalInvestmentId = investment.id;
+
+    // Użyj logicznego ID z Firebase dla nawigacji
     final uri = Uri(
       path: '/products',
       queryParameters: {
-        'investmentId': investment.id,
+        'investmentId': logicalInvestmentId,
         // Dodatkowe parametry jako fallback dla debugowania
         'productName': investment.productName,
         'productType': investment.productType.name,

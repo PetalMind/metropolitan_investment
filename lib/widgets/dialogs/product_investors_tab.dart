@@ -16,6 +16,8 @@ class ProductInvestorsTab extends StatefulWidget {
   final String? error;
   final VoidCallback onRefresh;
   final bool isEditModeEnabled; // ⭐ NOWE: Stan edycji
+  final String?
+  highlightInvestmentId; // 🚀 NOWE: ID inwestycji do podświetlenia
 
   const ProductInvestorsTab({
     super.key,
@@ -25,6 +27,7 @@ class ProductInvestorsTab extends StatefulWidget {
     required this.error,
     required this.onRefresh,
     this.isEditModeEnabled = false, // ⭐ NOWE: Stan edycji (domyślnie false)
+    this.highlightInvestmentId, // 🚀 NOWE: Opcjonalne ID inwestycji do podświetlenia
   });
 
   @override
@@ -676,13 +679,22 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
   Widget _buildInvestorCard(InvestorSummary investor, int index) {
     final isTopInvestor = index < 3;
     final isEditMode = widget.isEditModeEnabled; // ⭐ NOWE: Sprawdź tryb edycji
+    final hasHighlightedInvestment = _hasHighlightedInvestment(
+      investor,
+    ); // 🚀 NOWE: Sprawdź czy ma podświetloną inwestycję
 
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: isEditMode
+          colors: hasHighlightedInvestment
+              ? [
+                  // 🚀 NOWE: Specjalne podświetlenie dla inwestora z konkretną inwestycją
+                  AppTheme.primaryColor.withOpacity(0.15),
+                  AppTheme.secondaryGold.withOpacity(0.1),
+                ]
+              : isEditMode
               ? [
                   // ⭐ NOWE: Podświetlenie w trybie edycji
                   AppTheme.warningPrimary.withOpacity(0.1),
@@ -700,14 +712,22 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isEditMode
+          color: hasHighlightedInvestment
+              ? AppTheme.primaryColor.withOpacity(
+                  0.6,
+                ) // 🚀 NOWE: Niebieska ramka dla podświetlonej inwestycji
+              : isEditMode
               ? AppTheme.warningPrimary.withOpacity(
                   0.5,
                 ) // ⭐ NOWE: Pomarańczowa ramka w trybie edycji
               : isTopInvestor
               ? AppTheme.secondaryGold.withOpacity(0.3)
               : AppTheme.borderPrimary.withOpacity(0.2),
-          width: isEditMode ? 2 : 1, // ⭐ NOWE: Grubsza ramka w trybie edycji
+          width: hasHighlightedInvestment
+              ? 3
+              : (isEditMode
+                    ? 2
+                    : 1), // 🚀 NOWE: Najgrubsza ramka dla podświetlonej inwestycji
         ),
         boxShadow: [
           BoxShadow(
@@ -715,7 +735,13 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
-          if (isTopInvestor)
+          if (hasHighlightedInvestment) // 🚀 NOWE: Specjalny cień dla podświetlonej inwestycji
+            BoxShadow(
+              color: AppTheme.primaryColor.withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            )
+          else if (isTopInvestor)
             BoxShadow(
               color: AppTheme.secondaryGold.withOpacity(0.1),
               blurRadius: 12,
@@ -742,8 +768,29 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
             ), // ⭐ Bez dodatkowego parametru
             onTap: () => _showInvestorDetails(investor),
           ),
-          // ⭐ NOWE: Ikona edycji w prawym górnym rogu
-          if (isEditMode)
+          // 🚀 NOWE: Ikona podświetlenia w prawym górnym rogu
+          if (hasHighlightedInvestment)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withOpacity(0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(Icons.star, size: 16, color: Colors.white),
+              ),
+            )
+          // ⭐ NOWE: Ikona edycji w prawym górnym rogu (tylko jeśli nie ma podświetlenia)
+          else if (isEditMode)
             Positioned(
               top: 8,
               right: 8,
@@ -860,10 +907,44 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
   }
 
   Widget _buildInvestorSubtitle(InvestorSummary investor) {
+    final hasHighlightedInvestment = _hasHighlightedInvestment(
+      investor,
+    ); // 🚀 NOWE: Sprawdź czy ma podświetloną inwestycję
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 4),
+
+        // 🚀 NOWE: Pokaż informację o podświetleniu
+        if (hasHighlightedInvestment)
+          Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppTheme.primaryColor.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.star, size: 14, color: AppTheme.primaryColor),
+                const SizedBox(width: 4),
+                Text(
+                  'Zawiera inwestycję: ${widget.highlightInvestmentId}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         if (investor.client.email.isNotEmpty)
           Row(
             children: [
@@ -1395,6 +1476,19 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       '📝 ProductInvestorsTab._getProductInvestments() - znaleziono ${matchingByName.length} inwestycji po nazwie',
     );
     return matchingByName;
+  }
+
+  /// 🚀 NOWA METODA: Sprawdza czy inwestor ma inwestycję o konkretnym ID (dla podświetlenia)
+  bool _hasHighlightedInvestment(InvestorSummary investor) {
+    if (widget.highlightInvestmentId == null ||
+        widget.highlightInvestmentId!.isEmpty) {
+      return false;
+    }
+
+    // Sprawdź czy którakolwiek z inwestycji inwestora ma to ID
+    return investor.investments.any(
+      (investment) => investment.id == widget.highlightInvestmentId,
+    );
   }
 
   /// 🔢 NOWA METODA: Formatuje kwoty w kompaktowy sposób
