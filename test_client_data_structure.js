@@ -17,9 +17,9 @@ async function testClientDataStructure() {
   try {
     // Pobierz pierwszych 5 klientów do analizy
     const snapshot = await db.collection('clients').limit(5).get();
-    
+
     console.log(`📋 Znaleziono ${snapshot.docs.length} klientów`);
-    
+
     snapshot.docs.forEach((doc, index) => {
       const data = doc.data();
       console.log(`\n👤 Klient ${index + 1}: ${doc.id}`);
@@ -31,12 +31,12 @@ async function testClientDataStructure() {
       console.log(`   - IsActive: ${data.isActive}`);
       console.log(`   - Type: ${data.type || '(brak)'}`);
       console.log(`   - VotingStatus: ${data.votingStatus || '(brak)'}`);
-      
+
       // Sprawdź additionalInfo
       if (data.additionalInfo) {
         console.log(`   - AdditionalInfo keys: ${Object.keys(data.additionalInfo).join(', ')}`);
       }
-      
+
       // Sprawdź wszystkie dostępne pola
       const allFields = Object.keys(data);
       console.log(`   - Wszystkie pola (${allFields.length}): ${allFields.join(', ')}`);
@@ -56,9 +56,9 @@ async function testSpecificClientIds() {
   try {
     // Pobierz kilka konkretnych IDs (jak w OptimizedInvestor)
     const testIds = ['1008', '1001', '1002']; // Przykładowe IDs
-    
+
     console.log(`📋 Szukam klientów o IDs: ${testIds.join(', ')}`);
-    
+
     // Test 1: Szukaj po document ID
     for (const id of testIds) {
       try {
@@ -73,7 +73,7 @@ async function testSpecificClientIds() {
         console.log(`❌ Błąd przy doc.id="${id}": ${error.message}`);
       }
     }
-    
+
     // Test 2: Szukaj po excelId
     for (const id of testIds) {
       try {
@@ -81,7 +81,7 @@ async function testSpecificClientIds() {
           .where('excelId', '==', id)
           .limit(1)
           .get();
-          
+
         if (!snapshot.empty) {
           const data = snapshot.docs[0].data();
           console.log(`✅ Znaleziono po excelId="${id}": ${data.fullName || data.name} (doc.id: ${snapshot.docs[0].id})`);

@@ -33,9 +33,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   final UnifiedDashboardStatisticsService _dashboardStatsService =
       UnifiedDashboardStatisticsService();
   final ClientService _clientService = ClientService(); // 🚀 DODATKOWY FALLBACK
-  final OptimizedProductService _optimizedProductService = 
+  final OptimizedProductService _optimizedProductService =
       OptimizedProductService(); // 🚀 GŁÓWNY SERWIS jak w Premium Analytics
-  final EnhancedClientService _enhancedClientService = 
+  final EnhancedClientService _enhancedClientService =
       EnhancedClientService(); // 🚀 NOWY: Server-side optimized service
 
   // Controllers
@@ -169,7 +169,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
       // 🚀 KROK 1: Spróbuj OptimizedProductService (jak Premium Analytics)
       print('🎯 [EnhancedClientsScreen] Próbując OptimizedProductService...');
-      
+
       try {
         final optimizedResult = await _optimizedProductService
             .getAllProductsOptimized(
@@ -190,10 +190,14 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           }
         }
 
-        print('📋 [KROK 1] Znaleziono ${uniqueClientIds.length} unikalnych ID klientów');
+        print(
+          '📋 [KROK 1] Znaleziono ${uniqueClientIds.length} unikalnych ID klientów',
+        );
 
         // Pobierz pełne dane klientów z Firestore za pomocą EnhancedClientService (SERVER-SIDE)
-        print('🚀 [KROK 1] Używam EnhancedClientService do pobierania ${uniqueClientIds.length} klientów...');
+        print(
+          '🚀 [KROK 1] Używam EnhancedClientService do pobierania ${uniqueClientIds.length} klientów...',
+        );
         final enhancedResult = await _enhancedClientService.getClientsByIds(
           uniqueClientIds.toList(),
           includeStatistics: true,
@@ -201,17 +205,22 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         );
 
         if (!enhancedResult.hasError && enhancedResult.clients.isNotEmpty) {
-          print('✅ [KROK 1] EnhancedClientService SUCCESS - pobrano ${enhancedResult.clients.length} klientów w ${enhancedResult.duration}');
-          
+          print(
+            '✅ [KROK 1] EnhancedClientService SUCCESS - pobrano ${enhancedResult.clients.length} klientów w ${enhancedResult.duration}',
+          );
+
           // Utwórz statystyki z OptimizedProductService + EnhancedClientService
           ClientStats? clientStats;
-          if (optimizedResult.statistics != null && enhancedResult.statistics != null) {
+          if (optimizedResult.statistics != null &&
+              enhancedResult.statistics != null) {
             clientStats = ClientStats(
               totalClients: enhancedResult.clients.length,
               totalInvestments: optimizedResult.statistics!.totalInvestors,
-              totalRemainingCapital: optimizedResult.statistics!.totalRemainingCapital,
+              totalRemainingCapital:
+                  optimizedResult.statistics!.totalRemainingCapital,
               averageCapitalPerClient: enhancedResult.clients.length > 0
-                  ? optimizedResult.statistics!.totalRemainingCapital / enhancedResult.clients.length
+                  ? optimizedResult.statistics!.totalRemainingCapital /
+                        enhancedResult.clients.length
                   : 0.0,
               lastUpdated: DateTime.now().toIso8601String(),
               source: 'OptimizedProductService+EnhancedClientService',
@@ -219,7 +228,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           }
 
           // Filtruj aktywnych klientów
-          final activeClients = enhancedResult.clients.where((client) => client.isActive).toList();
+          final activeClients = enhancedResult.clients
+              .where((client) => client.isActive)
+              .toList();
 
           // Aktualizuj state
           if (mounted) {
@@ -230,14 +241,20 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
               _isLoading = false;
             });
 
-            print('✅ [SUCCESS] Dane załadowane z OptimizedProductService+EnhancedClientService:');
-            print('   - ${enhancedResult.clients.length} klientów (${enhancedResult.foundCount}/${enhancedResult.requestedCount})');
+            print(
+              '✅ [SUCCESS] Dane załadowane z OptimizedProductService+EnhancedClientService:',
+            );
+            print(
+              '   - ${enhancedResult.clients.length} klientów (${enhancedResult.foundCount}/${enhancedResult.requestedCount})',
+            );
             print('   - ${activeClients.length} aktywnych');
             print('   - ${enhancedResult.notFoundCount} nie znalezionych');
             print('   - Czas: ${enhancedResult.duration}');
             if (clientStats != null) {
               print('   - ${clientStats.totalInvestments} inwestycji');
-              print('   - ${clientStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału');
+              print(
+                '   - ${clientStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału',
+              );
               print('   - Źródło: ${clientStats.source}');
             }
 
@@ -245,13 +262,19 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             return; // SUCCESS - zakończ tutaj
           }
         } else {
-          print('⚠️ [KROK 1] EnhancedClientService failed: ${enhancedResult.error}');
+          print(
+            '⚠️ [KROK 1] EnhancedClientService failed: ${enhancedResult.error}',
+          );
           print('🔄 [KROK 1] Przechodzę na fallback ClientService...');
         }
 
         // FALLBACK: Jeśli EnhancedClientService nie działa, użyj ClientService.getClientsByIds
-        final List<Client> fullClients = await _clientService.getClientsByIds(uniqueClientIds.toList());
-        print('✅ [KROK 1] FALLBACK: Pobrano ${fullClients.length} pełnych danych klientów z ClientService');
+        final List<Client> fullClients = await _clientService.getClientsByIds(
+          uniqueClientIds.toList(),
+        );
+        print(
+          '✅ [KROK 1] FALLBACK: Pobrano ${fullClients.length} pełnych danych klientów z ClientService',
+        );
 
         // Jeśli nie udało się pobrać wszystkich klientów, utwórz fallback z OptimizedInvestor
         final List<Client> allClientsFromOptimized = [];
@@ -272,7 +295,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
                 address: '', // Nie dostępne w OptimizedInvestor
                 type: ClientType.individual, // Domyślne
                 votingStatus: investor.votingStatus ?? VotingStatus.undecided,
-                isActive: investor.totalRemaining > 0, // Aktywny jeśli ma kapitał
+                isActive:
+                    investor.totalRemaining > 0, // Aktywny jeśli ma kapitał
                 createdAt: DateTime.now(),
                 updatedAt: DateTime.now(),
                 additionalInfo: {
@@ -282,27 +306,37 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
                   'totalRemaining': investor.totalRemaining,
                 },
               );
-              
+
               allClientsFromOptimized.add(client);
-              foundClientIds.add(investor.clientId); // Dodaj do zestawu aby uniknąć duplikatów
+              foundClientIds.add(
+                investor.clientId,
+              ); // Dodaj do zestawu aby uniknąć duplikatów
             }
           }
         }
 
-        print('✅ [KROK 1] FALLBACK: Łącznie ${allClientsFromOptimized.length} klientów (${fullClients.length} pełnych + ${allClientsFromOptimized.length - fullClients.length} fallback)');
+        print(
+          '✅ [KROK 1] FALLBACK: Łącznie ${allClientsFromOptimized.length} klientów (${fullClients.length} pełnych + ${allClientsFromOptimized.length - fullClients.length} fallback)',
+        );
 
         // Filtruj aktywnych klientów (mających inwestycje)
-        final activeClients = allClientsFromOptimized.where((client) => client.isActive).toList();
+        final activeClients = allClientsFromOptimized
+            .where((client) => client.isActive)
+            .toList();
 
         // Utwórz statystyki z OptimizedProductService
         ClientStats? clientStats;
         if (optimizedResult.statistics != null) {
           clientStats = ClientStats(
             totalClients: allClientsFromOptimized.length,
-            totalInvestments: optimizedResult.statistics!.totalInvestors, // Używa totalInvestors jako aproksymacji
-            totalRemainingCapital: optimizedResult.statistics!.totalRemainingCapital,
+            totalInvestments: optimizedResult
+                .statistics!
+                .totalInvestors, // Używa totalInvestors jako aproksymacji
+            totalRemainingCapital:
+                optimizedResult.statistics!.totalRemainingCapital,
             averageCapitalPerClient: allClientsFromOptimized.length > 0
-                ? optimizedResult.statistics!.totalRemainingCapital / allClientsFromOptimized.length
+                ? optimizedResult.statistics!.totalRemainingCapital /
+                      allClientsFromOptimized.length
                 : 0.0,
             lastUpdated: DateTime.now().toIso8601String(),
             source: 'OptimizedProductService+ClientService',
@@ -319,19 +353,22 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             _isLoading = false;
           });
 
-          print('✅ [SUCCESS] Dane załadowane z OptimizedProductService+ClientService:');
+          print(
+            '✅ [SUCCESS] Dane załadowane z OptimizedProductService+ClientService:',
+          );
           print('   - ${allClientsFromOptimized.length} klientów');
           print('   - ${activeClients.length} aktywnych');
           if (clientStats != null) {
             print('   - ${clientStats.totalInvestments} inwestycji');
-            print('   - ${clientStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału');
+            print(
+              '   - ${clientStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału',
+            );
             print('   - Źródło: ${clientStats.source}');
           }
 
           _applyCurrentFilters();
           return; // SUCCESS - nie potrzebujemy fallback
         }
-
       } catch (e) {
         print('❌ [KROK 1] OptimizedProductService failed: $e');
         print('🔄 [KROK 1] Przechodzę na fallback IntegratedClientService...');
@@ -346,16 +383,22 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           sortBy: _sortBy,
           forceRefresh: false,
         );
-        print('✅ [KROK 2] Pobrano ${allClients.length} klientów z IntegratedClientService');
+        print(
+          '✅ [KROK 2] Pobrano ${allClients.length} klientów z IntegratedClientService',
+        );
       } catch (e) {
         print('❌ [KROK 2] Błąd IntegratedClientService: $e');
         // Fallback do ClientService
         try {
           final stream = _clientService.getClients(limit: 10000);
           allClients = await stream.first;
-          print('🔄 [KROK 2 FALLBACK] Pobrano ${allClients.length} klientów z ClientService');
+          print(
+            '🔄 [KROK 2 FALLBACK] Pobrano ${allClients.length} klientów z ClientService',
+          );
         } catch (fallbackError) {
-          print('❌ [KROK 2 FALLBACK] ClientService też nie działa: $fallbackError');
+          print(
+            '❌ [KROK 2 FALLBACK] ClientService też nie działa: $fallbackError',
+          );
           allClients = [];
         }
       }
@@ -368,7 +411,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       } catch (e) {
         print('❌ [KROK 3] Błąd pobierania aktywnych klientów: $e');
         activeClients = allClients.where((client) => client.isActive).toList();
-        print('🔄 [KROK 3 FALLBACK] Lokalnie przefiltrowano do ${activeClients.length} aktywnych');
+        print(
+          '🔄 [KROK 3 FALLBACK] Lokalnie przefiltrowano do ${activeClients.length} aktywnych',
+        );
       }
 
       // KROK 4: Pobierz statystyki (opcjonalne)
@@ -379,7 +424,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       } catch (e) {
         print('❌ [KROK 4] Błąd pobierania statystyk klientów: $e');
         try {
-          final dashboardStats = await _dashboardStatsService.getStatisticsFromInvestments();
+          final dashboardStats = await _dashboardStatsService
+              .getStatisticsFromInvestments();
           clientStats = ClientStats(
             totalClients: allClients.length,
             totalInvestments: dashboardStats.totalInvestments,
@@ -392,7 +438,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           );
           print('🔄 [KROK 4 FALLBACK] Utworzono statystyki z dashboard stats');
         } catch (dashboardError) {
-          print('❌ [KROK 4 FALLBACK] Dashboard stats też nie działa: $dashboardError');
+          print(
+            '❌ [KROK 4 FALLBACK] Dashboard stats też nie działa: $dashboardError',
+          );
           // NIE TWORZYMY clientStats - zostaje null
           print('🔄 [KROK 4 FALLBACK FINAL] Pozostawiam clientStats jako null');
         }
@@ -418,7 +466,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         print('   - ${activeClients.length} aktywnych');
         if (clientStats != null) {
           print('   - ${clientStats.totalInvestments} inwestycji');
-          print('   - ${clientStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału');
+          print(
+            '   - ${clientStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału',
+          );
           print('   - Źródło: ${clientStats.source}');
         } else {
           print('   - Brak statystyk - wszystkie serwisy zawiodły');

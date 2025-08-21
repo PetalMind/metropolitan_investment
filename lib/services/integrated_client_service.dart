@@ -29,7 +29,9 @@ class IntegratedClientService extends BaseService {
       // 🔍 ENHANCED DEBUGGING
       print('   - Region: europe-west1');
       print('   - Funkcja: getAllClients');
-      print('   - Parametry: page=$page, pageSize=$pageSize, search="$searchQuery"');
+      print(
+        '   - Parametry: page=$page, pageSize=$pageSize, search="$searchQuery"',
+      );
 
       // Najpierw spróbuj Firebase Functions z zwiększonym timeout
       final result = await _functions
@@ -45,16 +47,19 @@ class IntegratedClientService extends BaseService {
           })
           .timeout(
             const Duration(seconds: 15), // Zwiększony timeout z 10s do 15s
-            onTimeout: () => throw Exception('Firebase Functions timeout po 15s'),
+            onTimeout: () =>
+                throw Exception('Firebase Functions timeout po 15s'),
           );
 
       print('   - Otrzymano odpowiedź z Firebase Functions');
       final data = result.data;
       print('   - Data type: ${data?.runtimeType}');
-      
+
       if (data == null || data['clients'] == null) {
         final dataStr = data?.toString() ?? 'null';
-        final preview = dataStr.length > 100 ? dataStr.substring(0, 100) : dataStr;
+        final preview = dataStr.length > 100
+            ? dataStr.substring(0, 100)
+            : dataStr;
         throw Exception('Brak danych z Firebase Functions - data=$preview...');
       }
 
@@ -80,7 +85,7 @@ class IntegratedClientService extends BaseService {
       print('   - Error type: ${e.runtimeType}');
       print('   - Error message: $e');
       print('   - Stack trace: ${StackTrace.current}');
-      
+
       logError(
         'getAllClients',
         'Firebase Functions FAILED: $e, przechodzę na fallback',
@@ -169,20 +174,23 @@ class IntegratedClientService extends BaseService {
       print('   - Próbuję Firebase Functions...');
       print('   - Region: europe-west1');
       print('   - Funkcja: getActiveClients');
-      
+
       final result = await _functions
           .httpsCallable('getActiveClients')
           .call({'forceRefresh': forceRefresh})
           .timeout(
             const Duration(seconds: 10),
-            onTimeout: () => throw Exception('Firebase Functions timeout po 10s'),
+            onTimeout: () =>
+                throw Exception('Firebase Functions timeout po 10s'),
           );
 
       print('   - Otrzymano odpowiedź z Firebase Functions');
       final data = result.data;
       print('   - Raw data type: ${data?.runtimeType}');
-      print('   - Raw data keys: ${data is Map ? data.keys.toList() : 'nie jest mapą'}');
-      
+      print(
+        '   - Raw data keys: ${data is Map ? data.keys.toList() : 'nie jest mapą'}',
+      );
+
       if (data == null || data['clients'] == null) {
         throw Exception('Brak danych z Firebase Functions - data=$data');
       }

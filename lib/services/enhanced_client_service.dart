@@ -2,13 +2,13 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../models_and_services.dart';
 
 /// 🚀 Enhanced Client Service - używa Firebase Functions do optymalizacji
-/// 
+///
 /// Przenosi ciężkie operacje pobierania klientów na serwer,
 /// co znacznie poprawia wydajność przy dużej liczbie klientów
 class EnhancedClientService extends BaseService {
-  
   // Singleton pattern
-  static final EnhancedClientService _instance = EnhancedClientService._internal();
+  static final EnhancedClientService _instance =
+      EnhancedClientService._internal();
   factory EnhancedClientService() => _instance;
   EnhancedClientService._internal();
 
@@ -20,19 +20,21 @@ class EnhancedClientService extends BaseService {
     bool forceRefresh = false,
   }) async {
     try {
-      final cacheKey = 'clients_by_ids_${clientIds.length}_${clientIds.take(5).join('_')}';
-      
+      final cacheKey =
+          'clients_by_ids_${clientIds.length}_${clientIds.take(5).join('_')}';
+
       if (!forceRefresh) {
         final cached = await getCachedData<EnhancedClientsResult>(
           cacheKey,
           () => _fetchClientsByIds(clientIds, includeStatistics, maxClients),
         );
-        print('🎯 [EnhancedClientService] Zwracam z cache: ${cached.clients.length} klientów');
+        print(
+          '🎯 [EnhancedClientService] Zwracam z cache: ${cached.clients.length} klientów',
+        );
         return cached;
       }
 
       return await _fetchClientsByIds(clientIds, includeStatistics, maxClients);
-      
     } catch (e) {
       logError('getClientsByIds', e);
       return EnhancedClientsResult.error('Błąd pobierania klientów: $e');
@@ -47,21 +49,24 @@ class EnhancedClientService extends BaseService {
   }) async {
     try {
       final cacheKey = 'all_active_clients_${limit}_$includeInactive';
-      
+
       if (!forceRefresh) {
         final cached = await getCachedData<EnhancedClientsResult>(
           cacheKey,
           () => _fetchAllActiveClients(limit, includeInactive),
         );
-        print('🎯 [EnhancedClientService] Zwracam wszystkich z cache: ${cached.clients.length} klientów');
+        print(
+          '🎯 [EnhancedClientService] Zwracam wszystkich z cache: ${cached.clients.length} klientów',
+        );
         return cached;
       }
 
       return await _fetchAllActiveClients(limit, includeInactive);
-      
     } catch (e) {
       logError('getAllActiveClients', e);
-      return EnhancedClientsResult.error('Błąd pobierania wszystkich klientów: $e');
+      return EnhancedClientsResult.error(
+        'Błąd pobierania wszystkich klientów: $e',
+      );
     }
   }
 
@@ -72,7 +77,9 @@ class EnhancedClientService extends BaseService {
     int? maxClients,
   ) async {
     final startTime = DateTime.now();
-    print('🚀 [EnhancedClientService] Rozpoczynam Firebase Functions getEnhancedClients...');
+    print(
+      '🚀 [EnhancedClientService] Rozpoczynam Firebase Functions getEnhancedClients...',
+    );
     print('   - Klient IDs: ${clientIds.length}');
     print('   - Max clients: $maxClients');
     print('   - Include stats: $includeStatistics');
@@ -81,32 +88,35 @@ class EnhancedClientService extends BaseService {
       final result = await FirebaseFunctions.instanceFor(region: 'europe-west1')
           .httpsCallable('getEnhancedClients')
           .call({
-        'clientIds': clientIds,
-        'options': {
-          'includeStatistics': includeStatistics,
-          'maxClients': maxClients ?? 1000,
-          'batchSize': 50,
-        }
-      });
+            'clientIds': clientIds,
+            'options': {
+              'includeStatistics': includeStatistics,
+              'maxClients': maxClients ?? 1000,
+              'batchSize': 50,
+            },
+          });
 
       final duration = DateTime.now().difference(startTime);
-      print('✅ [EnhancedClientService] Firebase Functions zakończone w ${duration.inMilliseconds}ms');
+      print(
+        '✅ [EnhancedClientService] Firebase Functions zakończone w ${duration.inMilliseconds}ms',
+      );
 
       if (result.data == null) {
         throw Exception('Brak danych z Firebase Functions');
       }
 
       final data = result.data as Map<String, dynamic>;
-      
+
       if (data['success'] != true) {
         throw Exception(data['error'] ?? 'Firebase Functions zwróciły błąd');
       }
 
       return EnhancedClientsResult.fromFirebaseFunction(data);
-
     } catch (e) {
       final duration = DateTime.now().difference(startTime);
-      print('❌ [EnhancedClientService] Błąd po ${duration.inMilliseconds}ms: $e');
+      print(
+        '❌ [EnhancedClientService] Błąd po ${duration.inMilliseconds}ms: $e',
+      );
       throw e;
     }
   }
@@ -117,7 +127,9 @@ class EnhancedClientService extends BaseService {
     bool includeInactive,
   ) async {
     final startTime = DateTime.now();
-    print('🚀 [EnhancedClientService] Rozpoczynam Firebase Functions getAllActiveClientsFunction...');
+    print(
+      '🚀 [EnhancedClientService] Rozpoczynam Firebase Functions getAllActiveClientsFunction...',
+    );
     print('   - Limit: $limit');
     print('   - Include inactive: $includeInactive');
 
@@ -125,30 +137,30 @@ class EnhancedClientService extends BaseService {
       final result = await FirebaseFunctions.instanceFor(region: 'europe-west1')
           .httpsCallable('getAllActiveClientsFunction')
           .call({
-        'options': {
-          'limit': limit,
-          'includeInactive': includeInactive,
-        }
-      });
+            'options': {'limit': limit, 'includeInactive': includeInactive},
+          });
 
       final duration = DateTime.now().difference(startTime);
-      print('✅ [EnhancedClientService] Firebase Functions zakończone w ${duration.inMilliseconds}ms');
+      print(
+        '✅ [EnhancedClientService] Firebase Functions zakończone w ${duration.inMilliseconds}ms',
+      );
 
       if (result.data == null) {
         throw Exception('Brak danych z Firebase Functions');
       }
 
       final data = result.data as Map<String, dynamic>;
-      
+
       if (data['success'] != true) {
         throw Exception(data['error'] ?? 'Firebase Functions zwróciły błąd');
       }
 
       return EnhancedClientsResult.fromFirebaseFunction(data);
-
     } catch (e) {
       final duration = DateTime.now().difference(startTime);
-      print('❌ [EnhancedClientService] Błąd po ${duration.inMilliseconds}ms: $e');
+      print(
+        '❌ [EnhancedClientService] Błąd po ${duration.inMilliseconds}ms: $e',
+      );
       throw e;
     }
   }
@@ -170,16 +182,23 @@ class EnhancedClientsResult {
     this.meta = const {},
   });
 
-  factory EnhancedClientsResult.fromFirebaseFunction(Map<String, dynamic> data) {
+  factory EnhancedClientsResult.fromFirebaseFunction(
+    Map<String, dynamic> data,
+  ) {
     try {
       final clientsData = data['clients'] as List<dynamic>? ?? [];
       final clients = clientsData
-          .map((clientData) => Client.fromServerMap(clientData as Map<String, dynamic>))
+          .map(
+            (clientData) =>
+                Client.fromServerMap(clientData as Map<String, dynamic>),
+          )
           .toList();
 
       EnhancedClientStatistics? statistics;
       if (data['statistics'] != null) {
-        statistics = EnhancedClientStatistics.fromMap(data['statistics'] as Map<String, dynamic>);
+        statistics = EnhancedClientStatistics.fromMap(
+          data['statistics'] as Map<String, dynamic>,
+        );
       }
 
       return EnhancedClientsResult(
@@ -199,15 +218,12 @@ class EnhancedClientsResult {
       success: false,
       clients: [],
       error: error,
-      meta: {
-        'timestamp': DateTime.now().toIso8601String(),
-        'source': 'error',
-      },
+      meta: {'timestamp': DateTime.now().toIso8601String(), 'source': 'error'},
     );
   }
 
   bool get hasError => !success || error != null;
-  
+
   int get foundCount => meta['foundCount'] as int? ?? clients.length;
   int get requestedCount => meta['requestedCount'] as int? ?? 0;
   int get notFoundCount => meta['notFoundCount'] as int? ?? 0;

@@ -38,17 +38,17 @@ async function getEnhancedClientsData(clientIds, options = {}) {
 
     // KROK 1: Pobierz klientów w batch'ach po excelId (najczęstszy przypadek)
     logInfo('Enhanced Clients Service', 'KROK 1: Szukam po excelId...');
-    
+
     for (let i = 0; i < limitedClientIds.length; i += batchSize) {
       const batch = limitedClientIds.slice(i, i + batchSize);
-      
+
       try {
         const snapshot = await db
-            .collection('clients')
-            .where(admin.firestore.FieldPath.documentId(), 'in', batch)
-            .get();
+          .collection('clients')
+          .where(admin.firestore.FieldPath.documentId(), 'in', batch)
+          .get();
 
-        logInfo('Enhanced Clients Service', `Batch ${Math.floor(i/batchSize) + 1}: znaleziono ${snapshot.docs.length}/${batch.length} po excelId`);
+        logInfo('Enhanced Clients Service', `Batch ${Math.floor(i / batchSize) + 1}: znaleziono ${snapshot.docs.length}/${batch.length} po excelId`);
 
         snapshot.docs.forEach(doc => {
           const clientData = doc.data();
@@ -65,7 +65,7 @@ async function getEnhancedClientsData(clientIds, options = {}) {
         notFoundIds.push(...missingInBatch);
 
       } catch (batchError) {
-        logError('Enhanced Clients Service', `Błąd batch ${Math.floor(i/batchSize) + 1}: ${batchError.message}`);
+        logError('Enhanced Clients Service', `Błąd batch ${Math.floor(i / batchSize) + 1}: ${batchError.message}`);
         notFoundIds.push(...batch);
       }
     }
@@ -73,16 +73,16 @@ async function getEnhancedClientsData(clientIds, options = {}) {
     // KROK 2: Dla brakujących ID, spróbuj przez document ID (UUID)
     if (notFoundIds.length > 0) {
       logInfo('Enhanced Clients Service', `KROK 2: Szukam ${notFoundIds.length} brakujących po document ID...`);
-      
+
       for (let i = 0; i < notFoundIds.length; i += batchSize) {
         const batch = notFoundIds.slice(i, i + batchSize);
-        
+
         try {
           const excelSnapshot = await db
-              .collection('clients')
-              .where('excelId', '==', missingId)
-              .limit(1)
-              .get();          logInfo('Enhanced Clients Service', `UUID Batch ${Math.floor(i/batchSize) + 1}: znaleziono ${snapshot.docs.length}/${batch.length} po document ID`);
+            .collection('clients')
+            .where('excelId', '==', missingId)
+            .limit(1)
+            .get(); logInfo('Enhanced Clients Service', `UUID Batch ${Math.floor(i / batchSize) + 1}: znaleziono ${snapshot.docs.length}/${batch.length} po document ID`);
 
           snapshot.docs.forEach(doc => {
             const clientData = doc.data();
@@ -94,7 +94,7 @@ async function getEnhancedClientsData(clientIds, options = {}) {
           });
 
         } catch (batchError) {
-          logError('Enhanced Clients Service', `Błąd UUID batch ${Math.floor(i/batchSize) + 1}: ${batchError.message}`);
+          logError('Enhanced Clients Service', `Błąd UUID batch ${Math.floor(i / batchSize) + 1}: ${batchError.message}`);
         }
       }
     }
@@ -103,7 +103,7 @@ async function getEnhancedClientsData(clientIds, options = {}) {
     let statistics = null;
     if (includeStatistics && clients.length > 0) {
       logInfo('Enhanced Clients Service', 'KROK 3: Obliczam statystyki...');
-      
+
       statistics = {
         totalClients: clients.length,
         activeClients: clients.filter(c => c.isActive !== false).length,
@@ -149,7 +149,7 @@ async function getEnhancedClientsData(clientIds, options = {}) {
   } catch (error) {
     const duration = Date.now() - startTime;
     logError('Enhanced Clients Service', `❌ Błąd po ${duration}ms: ${error.message}`);
-    
+
     return {
       success: false,
       error: error.message,
@@ -183,15 +183,15 @@ async function getAllActiveClients(options = {}) {
     } = options;
 
     let query = db.collection('clients');
-    
+
     if (!includeInactive) {
       query = query.where('isActive', '==', true);
     }
-    
+
     query = query.limit(limit);
-    
+
     const snapshot = await query.get();
-    
+
     const clients = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
@@ -219,7 +219,7 @@ async function getAllActiveClients(options = {}) {
     };
 
     const duration = Date.now() - startTime;
-    
+
     logInfo('Enhanced Clients Service', `✅ Pobrano ${clients.length} aktywnych klientów w ${duration}ms`);
 
     return {
@@ -237,7 +237,7 @@ async function getAllActiveClients(options = {}) {
   } catch (error) {
     const duration = Date.now() - startTime;
     logError('Enhanced Clients Service', `❌ Błąd pobierania wszystkich klientów po ${duration}ms: ${error.message}`);
-    
+
     return {
       success: false,
       error: error.message,
@@ -265,7 +265,7 @@ exports.getEnhancedClients = onCall({
 }, async (request) => {
   try {
     const { clientIds, options = {} } = request.data || {};
-    
+
     if (!clientIds || !Array.isArray(clientIds)) {
       throw new HttpsError('invalid-argument', 'clientIds musi być tablicą ID klientów');
     }
@@ -294,7 +294,7 @@ exports.getAllActiveClientsFunction = onCall({
 }, async (request) => {
   try {
     const { options = {} } = request.data || {};
-    
+
     const result = await getAllActiveClients(options);
     return result;
 
@@ -310,7 +310,7 @@ exports.getAllActiveClientsFunction = onCall({
 module.exports = {
   getEnhancedClientsData,
   getAllActiveClients,
-  
+
   // Firebase Functions exports
   getEnhancedClients: exports.getEnhancedClients,
   getAllActiveClientsFunction: exports.getAllActiveClientsFunction,
