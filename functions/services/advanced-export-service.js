@@ -258,6 +258,24 @@ async function fetchInvestorsData(clientIds) {
 function createInvestorSummary(clientId, investments) {
   if (!investments || investments.length === 0) return null;
 
+  /**
+   * Mapuje angielskie nazwy typów produktów na polskie
+   */
+  function mapProductTypeToPolish(englishType) {
+    const typeMapping = {
+      'bonds': 'Obligacje',
+      'shares': 'Akcje',
+      'loans': 'Pożyczki',
+      'apartments': 'Apartamenty',
+      'Bonds': 'Obligacje',
+      'Shares': 'Akcje',
+      'Loans': 'Pożyczki',
+      'Apartments': 'Apartamenty'
+    };
+
+    return typeMapping[englishType] || englishType || 'Nieznany typ';
+  }
+
   const firstInvestment = investments[0];
 
   // Podstawowe dane
@@ -271,7 +289,8 @@ function createInvestorSummary(clientId, investments) {
   // clientName - productName - investmentType
   const investmentDetails = investments.map(inv => {
     const productName = safeToString(inv.productName || inv.nazwa_produktu || 'Nieznany produkt');
-    const investmentType = safeToString(inv.productType || inv.typ_produktu || 'Nieznany typ');
+    const rawInvestmentType = safeToString(inv.productType || inv.typ_produktu || 'Nieznany typ');
+    const investmentType = mapProductTypeToPolish(rawInvestmentType); // Mapowanie na polskie nazwy
     const investmentEntryDate = inv.signingDate || inv.data_podpisania || inv.Data_podpisania || null;
     const investmentAmount = safeToDouble(inv.investmentAmount || inv.kwota_inwestycji || 0);
     const remainingCapital = safeToDouble(inv.remainingCapital || inv.kapital_pozostaly || 0);
@@ -352,6 +371,8 @@ async function generatePDFExport(investorsData, templateType, options, currentDa
 
   try {
     const PDFDocument = require('pdfkit');
+    const path = require('path');
+
     const doc = new PDFDocument({
       bufferPages: true,
       compress: false,
@@ -362,14 +383,66 @@ async function generatePDFExport(investorsData, templateType, options, currentDa
       }
     });
 
+    // Konfiguracja polskiego fontu dla obsługi znaków diakrytycznych
+    let fontRegistered = false;
+    try {
+      const fontBasePath = path.join(__dirname, '../assets/fonts');
+      const fs = require('fs');
+
+      // Sprawdź czy katalog fontów istnieje, jeśli nie - skopiuj z głównego projektu
+      if (!fs.existsSync(fontBasePath)) {
+        const sourceFontPath = path.join(__dirname, '../../assets/fonts');
+        if (fs.existsSync(sourceFontPath)) {
+          fs.mkdirSync(fontBasePath, { recursive: true });
+
+          // Skopiuj potrzebne fonty
+          const fontsToCopy = ['Montserrat-Regular.ttf', 'Montserrat-Bold.ttf', 'Montserrat-Medium.ttf'];
+          fontsToCopy.forEach(fontFile => {
+            const source = path.join(sourceFontPath, fontFile);
+            const target = path.join(fontBasePath, fontFile);
+            if (fs.existsSync(source)) {
+              fs.copyFileSync(source, target);
+            }
+          });
+          console.log('✅ [AdvancedExportService] Fonty Montserrat skopiowane do functions');
+        }
+      }
+
+      // Rejestruj różne style fontów
+      const regularFont = path.join(fontBasePath, 'Montserrat-Regular.ttf');
+      const boldFont = path.join(fontBasePath, 'Montserrat-Bold.ttf');
+      const mediumFont = path.join(fontBasePath, 'Montserrat-Medium.ttf');
+
+      if (fs.existsSync(regularFont)) {
+        doc.registerFont('Montserrat', regularFont);
+        if (fs.existsSync(boldFont)) {
+          doc.registerFont('Montserrat-Bold', boldFont);
+        }
+        if (fs.existsSync(mediumFont)) {
+          doc.registerFont('Montserrat-Medium', mediumFont);
+        }
+        doc.font('Montserrat');
+        fontRegistered = true;
+        console.log('✅ [AdvancedExportService] Fonty Montserrat zarejestrowane dla polskich znaków');
+      }
+    } catch (fontError) {
+      console.warn('⚠️ [AdvancedExportService] Błąd ładowania fontów:', fontError.message);
+    }
+
+    // Fallback na domyślny font jeśli Montserrat niedostępny
+    if (!fontRegistered) {
+      console.warn('⚠️ [AdvancedExportService] Używam domyślnego fontu Helvetica');
+      doc.font('Helvetica');
+    }
+
     // Buffer do zbierania danych PDF
     const buffers = [];
     doc.on('data', buffers.push.bind(buffers));
 
     // Nagłówek dokumentu
-    doc.fontSize(20).text('METROPOLITAN INVESTMENT', 50, 50);
-    doc.fontSize(16).text(`Raport Inwestorów - ${templateType.toUpperCase()}`, 50, 80);
-    doc.fontSize(12).text(`Data generowania: ${new Date().toLocaleString('pl-PL')}`, 50, 110);
+    doc.font(fontRegistered ? 'Montserrat-Bold' : 'Helvetica-Bold').fontSize(20).text('METROPOLITAN INVESTMENT', 50, 50);
+    doc.font(fontRegistered ? 'Montserrat-Medium' : 'Helvetica').fontSize(16).text(`Raport Inwestorów`, 50, 80);
+    doc.font(fontRegistered ? 'Montserrat' : 'Helvetica').fontSize(12).text(`Data generowania: ${new Date().toLocaleString('pl-PL')}`, 50, 110);
     doc.text(`Liczba inwestorów: ${investorsData.length}`, 50, 130);
 
     let yPosition = 160;
@@ -383,10 +456,10 @@ async function generatePDFExport(investorsData, templateType, options, currentDa
       }
 
       // Informacje o inwestorze
-      doc.fontSize(14).text(`${index + 1}. INWESTOR: ${investor.clientName}`, 50, yPosition);
+      doc.font(fontRegistered ? 'Montserrat-Medium' : 'Helvetica-Bold').fontSize(14).text(`${index + 1}. INWESTOR: ${investor.clientName}`, 50, yPosition);
       yPosition += 30;
 
-      doc.fontSize(12).text(`INWESTYCJE (${investor.investmentCount}):`, 50, yPosition);
+      doc.font(fontRegistered ? 'Montserrat' : 'Helvetica').fontSize(12).text(`INWESTYCJE (${investor.investmentCount}):`, 50, yPosition);
       yPosition += 20;
 
       // Szczegóły inwestycji
@@ -396,10 +469,10 @@ async function generatePDFExport(investorsData, templateType, options, currentDa
           yPosition = 50;
         }
 
-        doc.fontSize(11).text(`${idx + 1}. ${detail.displayName}`, 70, yPosition);
+        doc.font(fontRegistered ? 'Montserrat-Medium' : 'Helvetica').fontSize(11).text(`${idx + 1}. ${detail.displayName}`, 70, yPosition);
         yPosition += 15;
 
-        doc.fontSize(9)
+        doc.font(fontRegistered ? 'Montserrat' : 'Helvetica').fontSize(9)
           .text(`Data wejścia: ${detail.investmentEntryDate}`, 90, yPosition)
           .text(`Kwota inwestycji: ${detail.investmentAmount.toLocaleString('pl-PL')} PLN`, 90, yPosition + 12)
           .text(`Kapitał pozostały: ${detail.remainingCapital.toLocaleString('pl-PL')} PLN`, 90, yPosition + 24)
@@ -410,7 +483,7 @@ async function generatePDFExport(investorsData, templateType, options, currentDa
       });
 
       // Podsumowanie inwestora
-      doc.fontSize(10).text(`Łączna kwota: ${investor.totalInvestmentAmount.toLocaleString('pl-PL')} PLN`, 70, yPosition);
+      doc.font(fontRegistered ? 'Montserrat' : 'Helvetica').fontSize(10).text(`Łączna kwota: ${investor.totalInvestmentAmount.toLocaleString('pl-PL')} PLN`, 70, yPosition);
       yPosition += 30;
     });
 
@@ -466,7 +539,7 @@ async function generatePDFExport(investorsData, templateType, options, currentDa
 function generatePDFContent(investorsData, templateType, options) {
   const header = `
 === METROPOLITAN INVESTMENT ===
-Raport Inwestorów - ${templateType.toUpperCase()}
+Raport Inwestorów 
 Data generowania: ${new Date().toLocaleString('pl-PL')}
 Liczba inwestorów: ${investorsData.length}
 
@@ -519,14 +592,16 @@ async function generateExcelExport(investorsData, templateType, options, current
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Raport Inwestorów');
 
-    // Nagłówki kolumn
+    // Nagłówki kolumn - podzielone na osobne kolumny w języku polskim
     const headers = [
-      'Inwestor - Produkt - Typ',
+      'Nazwisko / Nazwa firmy',
+      'Nazwa produktu',
+      'Typ produktu',
       'Data wejścia',
-      'Kwota inwestycji',
-      'Kapitał pozostały',
-      'Kapitał zabezpieczony nieruchomością',
-      'Kapitał do restrukturyzacji'
+      'Kwota inwestycji (PLN)',
+      'Kapitał pozostały (PLN)',
+      'Kapitał zabezpieczony nieruchomością (PLN)',
+      'Kapitał do restrukturyzacji (PLN)'
     ];
 
     // Dodaj nagłówki
@@ -541,24 +616,41 @@ async function generateExcelExport(investorsData, templateType, options, current
       fgColor: { argb: 'FFE6E6FA' }
     };
 
-    // Dodaj dane
+    // Dodaj dane - każde pole w osobnej kolumnie
     investorsData.forEach(investor => {
       investor.investmentDetails.forEach(detail => {
         worksheet.addRow([
-          detail.displayName,
-          detail.investmentEntryDate,
-          detail.investmentAmount,
-          detail.remainingCapital,
-          detail.capitalSecuredByRealEstate,
-          detail.capitalForRestructuring
+          detail.clientName,           // Nazwisko / Nazwa firmy
+          detail.productName,          // Nazwa produktu  
+          detail.investmentType,       // Typ produktu
+          detail.investmentEntryDate,  // Data wejścia
+          detail.investmentAmount,     // Kwota inwestycji (PLN)
+          detail.remainingCapital,     // Kapitał pozostały (PLN)
+          detail.capitalSecuredByRealEstate, // Kapitał zabezpieczony nieruchomością (PLN)
+          detail.capitalForRestructuring     // Kapitał do restrukturyzacji (PLN)
         ]);
       });
     });
 
-    // Autowidth kolumn
-    worksheet.columns.forEach(column => {
-      column.width = 20;
-    });
+    // Konfiguruj szerokości i formatowanie kolumn
+    worksheet.columns = [
+      { width: 25 }, // Nazwisko / Nazwa firmy
+      { width: 30 }, // Nazwa produktu
+      { width: 20 }, // Typ produktu  
+      { width: 15 }, // Data wejścia
+      { width: 20 }, // Kwota inwestycji (PLN)
+      { width: 20 }, // Kapitał pozostały (PLN)
+      { width: 25 }, // Kapitał zabezpieczony nieruchomością (PLN)
+      { width: 25 }  // Kapitał do restrukturyzacji (PLN)
+    ];
+
+    // Formatowanie kolumn z kwotami jako waluty PLN
+    const currencyFormat = '#,##0.00 "PLN"';
+
+    // Zastosuj formatowanie waluty do kolumn z kwotami (kolumny 5-8)
+    for (let i = 5; i <= 8; i++) {
+      worksheet.getColumn(i).numFmt = currencyFormat;
+    }
 
     // Generuj buffer
     const buffer = await workbook.xlsx.writeBuffer();
@@ -594,16 +686,16 @@ async function generateExcelExport(investorsData, templateType, options, current
 }
 
 /**
- * Generuje zawartość Excel z nowym formatem
+ * Generuje zawartość Excel z nowym formatem - podzielone kolumny
  */
 function generateExcelContent(investorsData, templateType, options) {
-  // Nagłówki zgodne z nowym formatem
-  let csvContent = 'Inwestor - Produkt - Typ,Data wejścia,Kwota inwestycji,Kapitał pozostały,Kapitał zabezpieczony nieruchomością,Kapitał do restrukturyzacji\n';
+  // Nagłówki zgodne z nowym formatem - podzielone kolumny w języku polskim
+  let csvContent = 'Nazwisko / Nazwa firmy,Nazwa produktu,Typ produktu,Data wejścia,Kwota inwestycji (PLN),Kapitał pozostały (PLN),Kapitał zabezpieczony nieruchomością (PLN),Kapitał do restrukturyzacji (PLN)\n';
 
   investorsData.forEach(investor => {
-    // Dodaj każdą inwestycję jako osobny wiersz
+    // Dodaj każdą inwestycję jako osobny wiersz z podzielonymi polami
     investor.investmentDetails.forEach(detail => {
-      csvContent += `"${detail.displayName}","${detail.investmentEntryDate}",${detail.investmentAmount},${detail.remainingCapital},${detail.capitalSecuredByRealEstate},${detail.capitalForRestructuring}\n`;
+      csvContent += `"${detail.clientName}","${detail.productName}","${detail.investmentType}","${detail.investmentEntryDate}",${detail.investmentAmount},${detail.remainingCapital},${detail.capitalSecuredByRealEstate},${detail.capitalForRestructuring}\n`;
     });
   });
 
@@ -639,7 +731,7 @@ async function generateWordExport(investorsData, templateType, options, currentD
           new Paragraph({
             children: [
               new TextRun({
-                text: `Raport Inwestorów - ${templateType.toUpperCase()}`,
+                text: `Raport Inwestorów`,
                 bold: true,
                 size: 24
               })
@@ -785,7 +877,7 @@ async function generateWordExport(investorsData, templateType, options, currentD
  */
 function generateWordContent(investorsData, templateType, options) {
   let content = `METROPOLITAN INVESTMENT
-Raport Inwestorów - ${templateType.toUpperCase()}
+Raport Inwestorów
 Data: ${new Date().toLocaleString('pl-PL')}
 
 `;

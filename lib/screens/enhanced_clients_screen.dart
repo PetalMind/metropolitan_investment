@@ -157,8 +157,128 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     });
   }
 
-  /// Załaduj dane początkowe wykorzystując OptimizedProductService (jak Premium Analytics) z fallbackiem
+  /// 🚀 NOWA METODA: Załaduj WSZYSTKICH klientów bezpośrednio z bazy
   Future<void> _loadInitialData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      print(
+        '🔄 [EnhancedClientsScreen] Rozpoczynam ładowanie WSZYSTKICH klientów...',
+      );
+
+      // 🚀 KROK 1: Pobierz WSZYSTKICH klientów bezpośrednio z bazy
+      print(
+        '🎯 [EnhancedClientsScreen] Pobieranie WSZYSTKICH klientów z bazy...',
+      );
+
+      final enhancedResult = await _enhancedClientService.getAllActiveClients(
+        limit: 10000,
+        includeInactive: true, // Pobierz wszystkich, łącznie z nieaktywnymi
+        forceRefresh: true,
+      );
+
+      if (!enhancedResult.hasError && enhancedResult.clients.isNotEmpty) {
+        print(
+          '✅ [KROK 1] EnhancedClientService SUCCESS - pobrano ${enhancedResult.clients.length} WSZYSTKICH klientów',
+        );
+
+        // 🚀 KROK 2: Opcjonalnie wzbogać o dane inwestycyjne
+        try {
+          final optimizedResult = await _optimizedProductService
+              .getAllProductsOptimized(
+                forceRefresh: true,
+                includeStatistics: true,
+                maxProducts: 10000,
+              );
+
+          print(
+            '✅ [KROK 2] OptimizedProductService SUCCESS - ${optimizedResult.products.length} produktów',
+          );
+
+          // Utwórz statystyki kombinowane
+          ClientStats? clientStats;
+          if (optimizedResult.statistics != null &&
+              enhancedResult.statistics != null) {
+            clientStats = ClientStats(
+              totalClients: enhancedResult.clients.length,
+              totalInvestments: optimizedResult.statistics!.totalInvestors,
+              totalRemainingCapital:
+                  optimizedResult.statistics!.totalRemainingCapital,
+              averageCapitalPerClient: enhancedResult.clients.isNotEmpty
+                  ? optimizedResult.statistics!.totalRemainingCapital /
+                        enhancedResult.clients.length
+                  : 0.0,
+              lastUpdated: DateTime.now().toIso8601String(),
+              source: 'EnhancedClientService+OptimizedProductService',
+            );
+          }
+
+          setState(() {
+            _allClients = enhancedResult.clients;
+            _activeClients = enhancedResult.clients
+                .where((c) => c.isActive != false)
+                .toList();
+            _clientStats = clientStats;
+            _isLoading = false;
+          });
+
+          print(
+            '✅ [SUCCESS] Dane załadowane z EnhancedClientService+OptimizedProductService:',
+          );
+          print('    - ${enhancedResult.clients.length} klientów WSZYSTKICH');
+          print(
+            '    - ${enhancedResult.statistics?.activeClients ?? 0} aktywnych',
+          );
+          print('    - ${optimizedResult.products.length} produktów');
+          print(
+            '    - ${optimizedResult.statistics?.totalRemainingCapital.toStringAsFixed(2) ?? '0'} PLN kapitału',
+          );
+          print('    - Źródło: EnhancedClientService+OptimizedProductService');
+        } catch (productError) {
+          print('⚠️ [KROK 2] OptimizedProductService failed: $productError');
+
+          // Kontynuuj tylko z klientami bez danych inwestycyjnych
+          setState(() {
+            _allClients = enhancedResult.clients;
+            _activeClients = enhancedResult.clients
+                .where((c) => c.isActive != false)
+                .toList();
+            _clientStats = enhancedResult.statistics?.toClientStats();
+            _isLoading = false;
+          });
+
+          print(
+            '✅ [SUCCESS] Dane załadowane tylko z EnhancedClientService (bez inwestycji)',
+          );
+          print('    - ${enhancedResult.clients.length} klientów WSZYSTKICH');
+          print(
+            '    - ${enhancedResult.statistics?.activeClients ?? 0} aktywnych',
+          );
+        }
+      } else {
+        print(
+          '⚠️ [KROK 1] EnhancedClientService failed: ${enhancedResult.error}',
+        );
+
+        // FALLBACK: Stara metoda przez OptimizedProductService
+        await _loadDataViaProducts();
+      }
+    } catch (e) {
+      print('❌ [EnhancedClientsScreen] Krytyczny błąd ładowania: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Błąd podczas ładowania danych: $e';
+        });
+      }
+    }
+  }
+
+  /// Załaduj dane początkowe wykorzystując OptimizedProductService (jak Premium Analytics) z fallbackiem
+  Future<void> _loadInitialDataOLD() async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -1005,5 +1125,96 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         ],
       ),
     );
+  }
+
+  /// Fallback method - ładowanie przez produkty (stara metoda)
+  Future<void> _loadDataViaProducts() async {
+    print('🔄 [FALLBACK] Ładowanie przez OptimizedProductService...');
+
+    try {
+      final optimizedResult = await _optimizedProductService
+          .getAllProductsOptimized(
+            forceRefresh: true,
+            includeStatistics: true,
+            maxProducts: 10000,
+          );
+
+      print('✅ [FALLBACK] OptimizedProductService SUCCESS');
+      print('   - Produkty: ${optimizedResult.products.length}');
+
+      // Wyciągnij unikalnych klientów z produktów (tylko IDs)
+      final Set<String> uniqueClientIds = {};
+      for (final product in optimizedResult.products) {
+        for (final investor in product.topInvestors) {
+          uniqueClientIds.add(investor.clientId);
+        }
+      }
+
+      print(
+        '📋 [FALLBACK] Znaleziono ${uniqueClientIds.length} unikalnych ID klientów',
+      );
+
+      // Pobierz pełne dane klientów
+      final enhancedResult = await _enhancedClientService.getClientsByIds(
+        uniqueClientIds.toList(),
+        includeStatistics: true,
+        maxClients: 1000,
+      );
+
+      if (!enhancedResult.hasError && enhancedResult.clients.isNotEmpty) {
+        print(
+          '✅ [FALLBACK] EnhancedClientService SUCCESS - pobrano ${enhancedResult.clients.length} klientów',
+        );
+
+        // Utwórz mapę inwestycji per klient
+        final Map<String, dynamic> clientInvestments = {};
+        for (final product in optimizedResult.products) {
+          for (final investor in product.topInvestors) {
+            clientInvestments.putIfAbsent(investor.clientId, () => []);
+            clientInvestments[investor.clientId]!.add(product);
+          }
+        }
+
+        ClientStats? clientStats;
+        if (optimizedResult.statistics != null &&
+            enhancedResult.statistics != null) {
+          clientStats = ClientStats(
+            totalClients: enhancedResult.clients.length,
+            totalInvestments: optimizedResult.statistics!.totalInvestors,
+            totalRemainingCapital:
+                optimizedResult.statistics!.totalRemainingCapital,
+            averageCapitalPerClient: enhancedResult.clients.isNotEmpty
+                ? optimizedResult.statistics!.totalRemainingCapital /
+                      enhancedResult.clients.length
+                : 0.0,
+            lastUpdated: DateTime.now().toIso8601String(),
+            source: 'OptimizedProductService+EnhancedClientService (FALLBACK)',
+          );
+        }
+
+        setState(() {
+          _allClients = enhancedResult.clients;
+          _activeClients = enhancedResult.clients
+              .where((c) => c.isActive != false)
+              .toList();
+          _clientStats = clientStats;
+          _isLoading = false;
+        });
+
+        print(
+          '✅ [FALLBACK SUCCESS] ${enhancedResult.clients.length} klientów załadowanych przez produkty',
+        );
+      } else {
+        throw Exception(
+          'EnhancedClientService failed: ${enhancedResult.error}',
+        );
+      }
+    } catch (e) {
+      print('❌ [FALLBACK] Błąd: $e');
+      setState(() {
+        _errorMessage = 'Błąd ładowania danych: $e';
+        _isLoading = false;
+      });
+    }
   }
 }

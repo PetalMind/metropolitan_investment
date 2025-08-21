@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models_and_services.dart';
+import '../theme/app_theme_professional.dart';
 import 'client_notes_widget.dart';
 import 'optimized_voting_status_widget.dart';
 
@@ -249,100 +250,391 @@ class _ClientFormState extends State<ClientForm> {
 
             // Notatki zaawansowane - nowy system
             if (widget.client != null) ...[
-              const Divider(),
-              const SizedBox(height: 16),
-              Text(
-                'Notatki szczegółowe',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
               const SizedBox(height: 8),
-              Text(
-                'Zaawansowany system notatek z kategoriami, priorytetami i historią zmian.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 400,
-                child: ClientNotesWidget(
-                  clientId: widget.client!.id,
-                  clientName: widget.client!.name,
-                  currentUserId: 'current_user', // TODO: Pobierz z AuthProvider
-                  currentUserName:
-                      'Bieżący użytkownik', // TODO: Pobierz z AuthProvider
+              Container(
+                decoration: AppThemePro.elevatedSurfaceDecoration.copyWith(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ),
-              const SizedBox(height: 12),
-            ],
-
-            // Kolor (opcjonalnie możemy dodać selektor kolorów)
-            Row(
-              children: [
-                Text(
-                  'Kolor oznaczenia:',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(width: 12),
-                ...['#FFFFFF', '#E8F5E8', '#FFE8E8', '#E8E8FF', '#FFF8E8'].map(
-                  (color) => GestureDetector(
-                    onTap: () => setState(() => _colorCode = color),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: Color(
-                          int.parse('0xFF${color.replaceAll('#', '')}'),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppThemePro.accentGold.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: AppThemePro.accentGold.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.sticky_note_2_rounded,
+                            color: AppThemePro.accentGold,
+                            size: 20,
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(15),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Notatki szczegółowe',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppThemePro.textPrimary,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Zaawansowany system notatek z kategoriami, priorytetami i historią zmian',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppThemePro.textSecondary,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      height: 400,
+                      decoration: BoxDecoration(
+                        color: AppThemePro.backgroundSecondary,
+                        borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: _colorCode == color
-                              ? Theme.of(context).primaryColor
-                              : Colors.grey.shade300,
-                          width: _colorCode == color ? 3 : 1,
+                          color: AppThemePro.borderPrimary,
+                          width: 1,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: ClientNotesWidget(
+                          clientId: widget.client!.id,
+                          clientName: widget.client!.name,
+                          currentUserId:
+                              'current_user', // TODO: Pobierz z AuthProvider
+                          currentUserName:
+                              'Bieżący użytkownik', // TODO: Pobierz z AuthProvider
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
+              ),
+              const SizedBox(height: 16),
+            ],
 
-            // Status aktywności
-            SwitchListTile(
-              value: _isActive,
-              onChanged: (v) => setState(() => _isActive = v),
-              title: const Text('Aktywny'),
-              subtitle: const Text('Czy klient jest aktywny w systemie'),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Przyciski akcji
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (widget.onCancel != null)
-                  TextButton(
-                    onPressed: _isLoading ? null : widget.onCancel,
-                    child: const Text('Anuluj'),
+            // Kolor oznaczenia - profesjonalny selektor
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: AppThemePro.elevatedSurfaceDecoration,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppThemePro.accentGold.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(
+                          Icons.palette_rounded,
+                          color: AppThemePro.accentGold,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Kolor oznaczenia klienta',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppThemePro.textPrimary,
+                        ),
+                      ),
+                    ],
                   ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _handleSave,
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(widget.client == null ? 'Dodaj' : 'Zapisz'),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 12,
+                    children:
+                        [
+                              '#FFFFFF',
+                              '#E8F5E8',
+                              '#FFE8E8',
+                              '#E8E8FF',
+                              '#FFF8E8',
+                              '#F0E8FF',
+                              '#E8FFFF',
+                            ]
+                            .map(
+                              (color) => GestureDetector(
+                                onTap: () => setState(() => _colorCode = color),
+                                child: Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: Color(
+                                      int.parse(
+                                        '0xFF${color.replaceAll('#', '')}',
+                                      ),
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: _colorCode == color
+                                          ? AppThemePro.accentGold
+                                          : AppThemePro.borderSecondary,
+                                      width: _colorCode == color ? 3 : 1,
+                                    ),
+                                    boxShadow: _colorCode == color
+                                        ? [
+                                            BoxShadow(
+                                              color: AppThemePro.accentGold
+                                                  .withOpacity(0.3),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: _colorCode == color
+                                      ? const Icon(
+                                          Icons.check_rounded,
+                                          color: AppThemePro.primaryDark,
+                                          size: 20,
+                                        )
+                                      : null,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Status aktywności - profesjonalny przełącznik
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: AppThemePro.elevatedSurfaceDecoration,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _isActive
+                          ? AppThemePro.statusSuccess.withOpacity(0.1)
+                          : AppThemePro.statusError.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      _isActive
+                          ? Icons.check_circle_rounded
+                          : Icons.cancel_rounded,
+                      color: _isActive
+                          ? AppThemePro.statusSuccess
+                          : AppThemePro.statusError,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Status aktywności',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppThemePro.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _isActive
+                              ? 'Klient jest aktywny w systemie'
+                              : 'Klient jest nieaktywny w systemie',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppThemePro.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: _isActive,
+                    onChanged: (v) => setState(() => _isActive = v),
+                    activeColor: AppThemePro.statusSuccess,
+                    activeTrackColor: AppThemePro.statusSuccess.withOpacity(
+                      0.3,
+                    ),
+                    inactiveThumbColor: AppThemePro.statusError,
+                    inactiveTrackColor: AppThemePro.statusError.withOpacity(
+                      0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            // Profesjonalne przyciski akcji
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppThemePro.backgroundSecondary,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppThemePro.borderPrimary, width: 1),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (widget.onCancel != null) ...[
+                    // Przycisk anuluj
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppThemePro.surfaceInteractive,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppThemePro.borderSecondary,
+                          width: 1,
+                        ),
+                      ),
+                      child: TextButton(
+                        onPressed: _isLoading ? null : widget.onCancel,
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppThemePro.textSecondary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.close_rounded, size: 18),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Anuluj',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  // Przycisk zapisz/dodaj
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: _isLoading
+                            ? [
+                                AppThemePro.surfaceInteractive,
+                                AppThemePro.surfaceInteractive,
+                              ]
+                            : [
+                                AppThemePro.accentGold,
+                                AppThemePro.accentGoldDark,
+                              ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: !_isLoading
+                          ? [
+                              BoxShadow(
+                                color: AppThemePro.accentGold.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _handleSave,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: _isLoading
+                            ? AppThemePro.textMuted
+                            : AppThemePro.primaryDark,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_isLoading) ...[
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppThemePro.textMuted,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Zapisywanie...',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ] else ...[
+                            Icon(
+                              widget.client == null
+                                  ? Icons.person_add_rounded
+                                  : Icons.save_rounded,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              widget.client == null
+                                  ? 'Dodaj Klienta'
+                                  : 'Zapisz Zmiany',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

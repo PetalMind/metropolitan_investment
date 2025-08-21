@@ -40,6 +40,8 @@ class _PremiumInvestorAnalyticsScreenState
   // Serwisy - 🚀 UJEDNOLICONE Z DASHBOARD
   final OptimizedProductService _optimizedProductService =
       OptimizedProductService();
+  final EnhancedClientService _enhancedClientService =
+      EnhancedClientService(); // 🚀 DODANE: Do pobierania wszystkich klientów
   final AnalyticsMigrationService _migrationService =
       AnalyticsMigrationService();
   final FirebaseFunctionsPremiumAnalyticsService _premiumAnalyticsService =
@@ -5511,14 +5513,36 @@ class _PremiumInvestorAnalyticsScreenState
   // 🚀 NOWE METODY POMOCNICZE DLA UJEDNOLICENIA Z DASHBOARD
 
   /// Konwertuje OptimizedProduct na InvestorSummary używając server-side danych
+  /// 🚀 NOWA WERSJA: Pobiera WSZYSTKICH klientów, nie tylko tych z inwestycjami
   Future<List<InvestorSummary>> _convertOptimizedProductsToInvestorSummaries(
     List<OptimizedProduct> products,
   ) async {
     print(
-      '🚀 [Premium Analytics] Konwertuję ${products.length} OptimizedProducts na InvestorSummary',
+      '🚀 [Premium Analytics] Konwertuję ${products.length} OptimizedProducts na InvestorSummary (WSZYSCY KLIENCI)',
     );
 
-    // Grupuj produkty według clientId (z topInvestors)
+    // KROK 1: Pobierz WSZYSTKICH klientów z bazy
+    print('🎯 [Premium Analytics] Pobieram WSZYSTKICH klientów z bazy...');
+
+    final enhancedResult = await _enhancedClientService.getAllActiveClients(
+      limit: 10000,
+      includeInactive: true, // Pobierz wszystkich, łącznie z nieaktywnymi
+      forceRefresh: true,
+    );
+
+    if (enhancedResult.hasError || enhancedResult.clients.isEmpty) {
+      print(
+        '❌ [Premium Analytics] Błąd pobierania klientów: ${enhancedResult.error}',
+      );
+      throw Exception('Nie można pobrać klientów: ${enhancedResult.error}');
+    }
+
+    final allClients = enhancedResult.clients;
+    print(
+      '✅ [Premium Analytics] Pobrano ${allClients.length} WSZYSTKICH klientów z bazy',
+    );
+
+    // KROK 2: Grupuj produkty według clientId (z topInvestors)
     final Map<String, List<OptimizedProduct>> productsByClient = {};
 
     for (final product in products) {
@@ -5527,158 +5551,79 @@ class _PremiumInvestorAnalyticsScreenState
       }
     }
 
-    // 🔑 SPRAWDŹ czy OptimizedProduct już zawiera statusy głosowania
-    bool hasVotingStatuses = false;
-    if (products.isNotEmpty && products.first.topInvestors.isNotEmpty) {
-      hasVotingStatuses =
-          products.first.topInvestors.first.votingStatus != null;
-    }
+    print(
+      '💼 [Premium Analytics] ${productsByClient.length} klientów ma inwestycje',
+    );
+    print(
+      '👥 [Premium Analytics] ${allClients.length - productsByClient.length} klientów BEZ inwestycji',
+    );
 
-    Map<String, Client> clientsById = {};
-
-    if (hasVotingStatuses) {
-      // ✅ OptimizedProduct już ma statusy głosowania - użyj ich bezpośrednio
-      print(
-        '✅ [Premium Analytics] OptimizedProduct zawiera statusy głosowania - używam bezpośrednio bez dodatkowych zapytań!',
-      );
-
-      // Stwórz mapę klientów z danych OptimizedProduct
-      for (final product in products) {
-        for (final investor in product.topInvestors) {
-          if (!clientsById.containsKey(investor.clientId)) {
-            clientsById[investor.clientId] = Client(
-              id: investor.clientId,
-              name: investor.clientName,
-              type: ClientType.individual, // Domyślnie
-              email: '',
-              phone: '',
-              address: '',
-              votingStatus: investor.votingStatus ?? VotingStatus.undecided,
-              unviableInvestments: [],
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-              additionalInfo: {},
-            );
-          }
-        }
-      }
-
-      print(
-        '🗳️ [Premium Analytics] Utworzono ${clientsById.length} klientów z danych OptimizedProduct',
-      );
-    } else {
-      // ⚠️ OptimizedProduct nie ma statusów głosowania - pobierz z Firebase
-      print(
-        '🗳️ [Premium Analytics] OptimizedProduct nie zawiera statusów - pobieram z Firebase...',
-      );
-      final IntegratedClientService clientService = IntegratedClientService();
-      final allClients = await clientService.getAllClients();
-      clientsById = {for (final client in allClients) client.id: client};
-
-      print(
-        '🗳️ [Premium Analytics] Pobrano ${clientsById.length} klientów z Firebase',
-      );
-    }
-
+    // KROK 3: Stwórz InvestorSummary dla WSZYSTKICH klientów
     final List<InvestorSummary> investors = [];
 
-    for (final entry in productsByClient.entries) {
-      final clientId = entry.key;
-      final clientProducts = entry.value;
+    for (final client in allClients) {
+      final clientId = client.id;
+      final clientProducts = productsByClient[clientId] ?? [];
 
-      // 🔑 UŻYJ KLIENTA Z PRZYGOTOWANEJ MAPY (OptimizedProduct lub Firebase)
-      Client client;
-      if (clientsById.containsKey(clientId)) {
-        client = clientsById[clientId]!;
-        if (hasVotingStatuses) {
-          print(
-            '✅ [Premium Analytics] Klient ${client.name}: voting=${client.votingStatus} (z OptimizedProduct)',
-          );
-        } else {
-          print(
-            '✅ [Premium Analytics] Klient ${client.name}: voting=${client.votingStatus} (z Firebase)',
-          );
-        }
-      } else {
-        // To nie powinno się zdarzyć, ale jako zabezpieczenie
-        print(
-          '⚠️ [Premium Analytics] UWAGA: Brak klienta $clientId w mapie, tworzę awaryjnego',
-        );
-        client = Client(
-          id: clientId,
-          name: clientProducts.first.topInvestors
-              .firstWhere((inv) => inv.clientId == clientId)
-              .clientName,
-          type: ClientType.individual,
-          email: '',
-          phone: '',
-          address: '',
-          votingStatus: VotingStatus.undecided,
-          unviableInvestments: [],
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          additionalInfo: {},
-        );
-      }
-
-      // Stwórz tymczasowe inwestycje z OptimizedProduct
+      // Jeśli klient ma inwestycje, stwórz je
       final investments = <Investment>[];
 
-      for (final product in clientProducts) {
-        final investor = product.topInvestors.firstWhere(
-          (inv) => inv.clientId == clientId,
-        );
+      if (clientProducts.isNotEmpty) {
+        for (final product in clientProducts) {
+          final investor = product.topInvestors.firstWhere(
+            (inv) => inv.clientId == clientId,
+          );
 
-        final investment = Investment(
-          id: '${product.id}_${clientId}',
-          clientId: clientId,
-          clientName: investor.clientName,
-          productName: product.name,
-          productType: _mapUnifiedToProductType(product.productType),
-          creditorCompany: product.companyName,
-          companyId: product.companyId,
-          investmentAmount: investor.totalAmount,
-          remainingCapital: investor.totalRemaining,
-          signedDate: product.earliestInvestmentDate,
-          status: InvestmentStatus.active,
-          isAllocated: false,
-          marketType: MarketType.primary,
-          entryDate: product.earliestInvestmentDate,
-          proposalId: '',
-          employeeId: '',
-          employeeFirstName: '',
-          employeeLastName: '',
-          branchCode: '',
-          sharesCount: 0,
-          paidAmount: investor.totalAmount,
-          realizedCapital: 0.0,
-          realizedInterest: 0.0,
-          transferToOtherProduct: 0.0,
-          remainingInterest: 0.0,
-          capitalSecuredByRealEstate: 0.0,
-          capitalForRestructuring: 0.0,
-          plannedTax: 0.0,
-          realizedTax: 0.0,
-          currency: 'PLN',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          additionalInfo: {},
-        );
+          final investment = Investment(
+            id: '${product.id}_${clientId}',
+            clientId: clientId,
+            clientName: investor.clientName,
+            productName: product.name,
+            productType: _mapUnifiedToProductType(product.productType),
+            creditorCompany: product.companyName,
+            companyId: product.companyId,
+            investmentAmount: investor.totalAmount,
+            remainingCapital: investor.totalRemaining,
+            signedDate: product.earliestInvestmentDate,
+            employeeId: '',
+            employeeFirstName: '',
+            employeeLastName: '',
+            branchCode: '',
+            status: InvestmentStatus.active,
+            marketType: MarketType.primary,
+            proposalId: '',
+            paidAmount: investor.totalAmount,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            additionalInfo: {
+              'fromOptimizedProduct': true,
+              'productId': product.id,
+            },
+          );
 
-        investments.add(investment);
+          investments.add(investment);
+        }
       }
 
-      // Stwórz InvestorSummary
+      // Stwórz InvestorSummary dla każdego klienta (z inwestycjami lub bez)
       final investorSummary = InvestorSummary.fromInvestments(
         client,
-        investments,
+        investments, // Może być pusta lista dla klientów bez inwestycji
       );
+
       investors.add(investorSummary);
     }
 
     print(
-      '✅ [Premium Analytics] Skonwertowano na ${investors.length} InvestorSummary',
+      '✅ [Premium Analytics] Utworzono ${investors.length} InvestorSummary (wszyscy klienci)',
     );
+    print(
+      '   - ${investors.where((i) => i.investments.isNotEmpty).length} z inwestycjami',
+    );
+    print(
+      '   - ${investors.where((i) => i.investments.isEmpty).length} bez inwestycji',
+    );
+
     return investors;
   }
 

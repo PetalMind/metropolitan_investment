@@ -33,6 +33,10 @@ async function getEnhancedClientsData(clientIds, options = {}) {
       logInfo('Enhanced Clients Service', `Ograniczono do ${maxClients} klientów (było ${clientIds.length})`);
     }
 
+    // 🚀 DODAJ SZCZEGÓŁOWE LOGOWANIE
+    logInfo('Enhanced Clients Service', `🔍 DEBUG - Pierwsze 10 client IDs: ${limitedClientIds.slice(0, 10).join(', ')}`);
+    logInfo('Enhanced Clients Service', `🔍 DEBUG - Batch size: ${batchSize}, Max clients: ${maxClients}`);
+
     const clients = [];
     const notFoundIds = [];
 
@@ -43,6 +47,8 @@ async function getEnhancedClientsData(clientIds, options = {}) {
       const batch = limitedClientIds.slice(i, i + batchSize);
 
       try {
+        logInfo('Enhanced Clients Service', `🔍 Batch ${Math.floor(i / batchSize) + 1}: Szukam klientów o ID: ${batch.join(', ')}`);
+
         const snapshot = await db
           .collection('clients')
           .where(admin.firestore.FieldPath.documentId(), 'in', batch)
@@ -52,6 +58,7 @@ async function getEnhancedClientsData(clientIds, options = {}) {
 
         snapshot.docs.forEach(doc => {
           const clientData = doc.data();
+          logInfo('Enhanced Clients Service', `✅ Znaleziono klienta: ${doc.id} - ${clientData.imie_nazwisko || clientData.fullName || 'Brak nazwy'}`);
           clients.push({
             id: doc.id,
             ...clientData,
@@ -60,8 +67,9 @@ async function getEnhancedClientsData(clientIds, options = {}) {
         });
 
         // Znajdź brakujących klientów w tym batch'u
-        const foundExcelIds = snapshot.docs.map(doc => doc.data().excelId || doc.data().original_id);
-        const missingInBatch = batch.filter(id => !foundExcelIds.includes(id));
+        const foundIds = snapshot.docs.map(doc => doc.id);
+        const missingInBatch = batch.filter(id => !foundIds.includes(id));
+        logInfo('Enhanced Clients Service', `❌ Nie znaleziono w batch ${Math.floor(i / batchSize) + 1}: ${missingInBatch.join(', ')}`);
         notFoundIds.push(...missingInBatch);
 
       } catch (batchError) {
@@ -78,11 +86,13 @@ async function getEnhancedClientsData(clientIds, options = {}) {
         const batch = notFoundIds.slice(i, i + batchSize);
 
         try {
-          const excelSnapshot = await db
+          // Szukaj przez document ID (UUID)
+          const snapshot = await db
             .collection('clients')
-            .where('excelId', '==', missingId)
-            .limit(1)
-            .get(); logInfo('Enhanced Clients Service', `UUID Batch ${Math.floor(i / batchSize) + 1}: znaleziono ${snapshot.docs.length}/${batch.length} po document ID`);
+            .where(admin.firestore.FieldPath.documentId(), 'in', batch)
+            .get();
+
+          logInfo('Enhanced Clients Service', `UUID Batch ${Math.floor(i / batchSize) + 1}: znaleziono ${snapshot.docs.length}/${batch.length} po document ID`);
 
           snapshot.docs.forEach(doc => {
             const clientData = doc.data();
@@ -93,8 +103,62 @@ async function getEnhancedClientsData(clientIds, options = {}) {
             });
           });
 
+          // Usuń znalezionych klientów z listy notFoundIds
+          const foundInThisBatch = snapshot.docs.map(doc => doc.id);
+          const notFoundIndex = notFoundIds.findIndex(id => foundInThisBatch.includes(id));
+          if (notFoundIndex !== -1) {
+            notFoundIds.splice(notFoundIndex, foundInThisBatch.length);
+          }
+
         } catch (batchError) {
           logError('Enhanced Clients Service', `Błąd UUID batch ${Math.floor(i / batchSize) + 1}: ${batchError.message}`);
+        }
+      }
+
+      // KROK 2b: Dla nadal brakujących ID, spróbuj przez excelId lub original_id
+      if (notFoundIds.length > 0) {
+        logInfo('Enhanced Clients Service', `KROK 2b: Szukam ${notFoundIds.length} nadal brakujących po excelId/original_id...`);
+
+        for (const missingId of notFoundIds) {
+          try {
+            // Szukaj przez excelId
+            const excelSnapshot = await db
+              .collection('clients')
+              .where('excelId', '==', missingId)
+              .limit(1)
+              .get();
+
+            if (!excelSnapshot.empty) {
+              const doc = excelSnapshot.docs[0];
+              const clientData = doc.data();
+              clients.push({
+                id: doc.id,
+                ...clientData,
+                documentId: doc.id,
+              });
+              continue;
+            }
+
+            // Szukaj przez original_id
+            const originalSnapshot = await db
+              .collection('clients')
+              .where('original_id', '==', missingId)
+              .limit(1)
+              .get();
+
+            if (!originalSnapshot.empty) {
+              const doc = originalSnapshot.docs[0];
+              const clientData = doc.data();
+              clients.push({
+                id: doc.id,
+                ...clientData,
+                documentId: doc.id,
+              });
+            }
+
+          } catch (individualError) {
+            logError('Enhanced Clients Service', `Błąd wyszukiwania klienta ${missingId}: ${individualError.message}`);
+          }
         }
       }
     }
@@ -174,19 +238,21 @@ async function getEnhancedClientsData(clientIds, options = {}) {
  */
 async function getAllActiveClients(options = {}) {
   const startTime = Date.now();
-  logInfo('Enhanced Clients Service', 'Rozpoczynam pobieranie wszystkich aktywnych klientów');
+  logInfo('Enhanced Clients Service', 'Rozpoczynam pobieranie wszystkich klientów');
 
   try {
     const {
       limit = 10000,
-      includeInactive = false
+      includeInactive = true // 🚀 ZMIANA: Domyślnie pobierz wszystkich klientów
     } = options;
 
     let query = db.collection('clients');
 
-    if (!includeInactive) {
-      query = query.where('isActive', '==', true);
-    }
+    // 🚀 NOWA LOGIKA: Pobierz wszystkich klientów, potem filtruj w aplikacji
+    // Usuwamy filtr isActive, bo może być null/undefined dla wielu klientów
+    // if (!includeInactive) {
+    //   query = query.where('isActive', '==', true);
+    // }
 
     query = query.limit(limit);
 
@@ -198,10 +264,17 @@ async function getAllActiveClients(options = {}) {
       documentId: doc.id,
     }));
 
+    logInfo('Enhanced Clients Service', `📊 STATYSTYKI POBIERANIA:`);
+    logInfo('Enhanced Clients Service', `   - Wszystkich w snapshot: ${clients.length}`);
+    logInfo('Enhanced Clients Service', `   - Z isActive=true: ${clients.filter(c => c.isActive === true).length}`);
+    logInfo('Enhanced Clients Service', `   - Z isActive=false: ${clients.filter(c => c.isActive === false).length}`);
+    logInfo('Enhanced Clients Service', `   - Z isActive=null/undefined: ${clients.filter(c => c.isActive == null).length}`);
+
     // Oblicz statystyki
     const statistics = {
       totalClients: clients.length,
-      activeClients: clients.filter(c => c.isActive !== false).length,
+      activeClients: clients.filter(c => c.isActive !== false).length, // Liczy true i null jako aktywnych
+      inactiveClients: clients.filter(c => c.isActive === false).length,
       clientsWithEmail: clients.filter(c => c.email && c.email.trim() !== '').length,
       clientsWithPhone: clients.filter(c => (c.phone || c.telefon) && (c.phone || c.telefon).trim() !== '').length,
       clientTypes: {
@@ -220,7 +293,9 @@ async function getAllActiveClients(options = {}) {
 
     const duration = Date.now() - startTime;
 
-    logInfo('Enhanced Clients Service', `✅ Pobrano ${clients.length} aktywnych klientów w ${duration}ms`);
+    logInfo('Enhanced Clients Service', `✅ Pobrano ${clients.length} WSZYSTKICH klientów w ${duration}ms`);
+    logInfo('Enhanced Clients Service', `   - Aktywnych (isActive !== false): ${statistics.activeClients}`);
+    logInfo('Enhanced Clients Service', `   - Nieaktywnych (isActive === false): ${statistics.inactiveClients}`);
 
     return {
       success: true,

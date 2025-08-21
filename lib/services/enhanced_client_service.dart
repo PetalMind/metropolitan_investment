@@ -44,7 +44,7 @@ class EnhancedClientService extends BaseService {
   /// Pobiera wszystkich aktywnych klientów (server-side optimization)
   Future<EnhancedClientsResult> getAllActiveClients({
     int limit = 10000,
-    bool includeInactive = false,
+    bool includeInactive = true, // 🚀 ZMIANA: Domyślnie pobierz wszystkich
     bool forceRefresh = false,
   }) async {
     try {
@@ -83,18 +83,25 @@ class EnhancedClientService extends BaseService {
     print('   - Klient IDs: ${clientIds.length}');
     print('   - Max clients: $maxClients');
     print('   - Include stats: $includeStatistics');
+    print('   - 🔍 Pierwsze 10 ID: ${clientIds.take(10).join(', ')}');
 
     try {
-      final result = await FirebaseFunctions.instanceFor(region: 'europe-west1')
-          .httpsCallable('getEnhancedClients')
-          .call({
-            'clientIds': clientIds,
-            'options': {
-              'includeStatistics': includeStatistics,
-              'maxClients': maxClients ?? 1000,
-              'batchSize': 50,
-            },
-          });
+      final requestData = {
+        'clientIds': clientIds,
+        'options': {
+          'includeStatistics': includeStatistics,
+          'maxClients': maxClients ?? 1000,
+          'batchSize': 50,
+        },
+      };
+
+      print(
+        '🔧 [EnhancedClientService] Wysyłam request: ${requestData.toString().length > 500 ? requestData.toString().substring(0, 500) + '...' : requestData}',
+      );
+
+      final result = await FirebaseFunctions.instanceFor(
+        region: 'europe-west1',
+      ).httpsCallable('getEnhancedClients').call(requestData);
 
       final duration = DateTime.now().difference(startTime);
       print(
@@ -106,12 +113,23 @@ class EnhancedClientService extends BaseService {
       }
 
       final data = result.data as Map<String, dynamic>;
+      print(
+        '🔍 [EnhancedClientService] Otrzymane dane: success=${data['success']}, clients=${(data['clients'] as List?)?.length ?? 0}',
+      );
 
       if (data['success'] != true) {
         throw Exception(data['error'] ?? 'Firebase Functions zwróciły błąd');
       }
 
-      return EnhancedClientsResult.fromFirebaseFunction(data);
+      final result_obj = EnhancedClientsResult.fromFirebaseFunction(data);
+      print(
+        '🎯 [EnhancedClientService] Sparsowano ${result_obj.clients.length} klientów',
+      );
+      print(
+        '🎯 [EnhancedClientService] Meta: requested=${result_obj.requestedCount}, found=${result_obj.foundCount}, notFound=${result_obj.notFoundCount}',
+      );
+
+      return result_obj;
     } catch (e) {
       final duration = DateTime.now().difference(startTime);
       print(

@@ -84,17 +84,13 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
         widget.initialSubject ??
         'Aktualizacja portfela inwestycyjnego - Metropolitan Investment';
 
-    // Opóźnij inicjalizację treści i dodanie listener'a
+    // Dodaj listener od razu
+    _quillController.addListener(_updatePreview);
+    
+    // Opóźnij inicjalizację treści dla stabilności
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        if (widget.initialMessage != null) {
-          _insertInitialContent(widget.initialMessage!);
-        } else {
-          _insertDefaultTemplate();
-        }
-
-        // Dodaj listener dopiero po pełnej inicjalizacji
-        _quillController.addListener(_updatePreview);
+        _initializeEditorContent();
       }
     });
 
@@ -105,22 +101,43 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
     _loadSmtpEmail();
   }
 
+  /// Nowa metoda inicjalizacji edytora - bardziej stabilna
+  void _initializeEditorContent() {
+    try {
+      if (widget.initialMessage != null) {
+        _insertInitialContent(widget.initialMessage!);
+      } else {
+        _insertDefaultTemplate();
+      }
+    } catch (e) {
+      debugPrint('Błąd inicjalizacji edytora: $e');
+    }
+  }
+
   void _insertInitialContent(String content) {
     try {
-      // Wyczyść istniejącą treść
+      // Stabilniejsze wstawianie treści
       _quillController.clear();
-
-      // Dodaj nową treść
-      _quillController.document.insert(0, content);
-
-      // Ustaw kursor na końcu tekstu
-      _quillController.updateSelection(
-        TextSelection.collapsed(offset: content.length),
-        ChangeSource.local,
-      );
+      
+      // Poczekaj na stabilizację stanu
+      Future.delayed(const Duration(milliseconds: 50), () {
+        if (mounted) {
+          try {
+            _quillController.document.insert(0, content);
+            // Ustaw kursor na końcu tekstu
+            _quillController.updateSelection(
+              TextSelection.collapsed(offset: content.length),
+              ChangeSource.local,
+            );
+            setState(() {}); // Wymuś odświeżenie
+          } catch (e) {
+            debugPrint('Błąd opóźnionego wstawiania: $e');
+          }
+        }
+      });
     } catch (e) {
       debugPrint('Błąd podczas wstawiania treści: $e');
-      // Fallback - spróbuj prostszą metodę
+      // Fallback - prostsza metoda
       try {
         _quillController.clear();
         _quillController.document.insert(0, content);
@@ -168,25 +185,35 @@ Zespół Metropolitan Investment''';
 
     try {
       _quillController.clear();
-      _quillController.document.insert(0, defaultTemplate);
-
-      // Ustaw kursor na końcu
-      _quillController.updateSelection(
-        TextSelection.collapsed(offset: defaultTemplate.length),
-        ChangeSource.local,
-      );
-
-      // Force refresh
-      setState(() {});
+      
+      // Stabilne wstawianie szablonu
+      Future.delayed(const Duration(milliseconds: 50), () {
+        if (mounted) {
+          try {
+            _quillController.document.insert(0, defaultTemplate);
+            // Ustaw kursor na końcu
+            _quillController.updateSelection(
+              TextSelection.collapsed(offset: defaultTemplate.length),
+              ChangeSource.local,
+            );
+            setState(() {}); // Wymuś odświeżenie
+          } catch (e) {
+            debugPrint('Błąd opóźnionego wstawiania szablonu: $e');
+          }
+        }
+      });
     } catch (e) {
       debugPrint('Błąd podczas wstawiania szablonu: $e');
     }
   }
 
   void _updatePreview() {
-    setState(() {
-      // Aktualizacja podglądu - wywołane przy zmianie treści
-    });
+    // Bezpieczna aktualizacja podglądu
+    if (mounted) {
+      setState(() {
+        // Aktualizacja podglądu - wywołane przy zmianie treści
+      });
+    }
   }
 
   @override
@@ -207,13 +234,29 @@ Zespół Metropolitan Investment''';
   @override
   Widget build(BuildContext context) {
     final canEdit = Provider.of<AuthProvider>(context).isAdmin;
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 600;
+    final isMediumScreen = screenSize.width < 900;
+    
+    // Responsywne wymiary dialogu
+    final dialogWidth = isSmallScreen 
+        ? screenSize.width * 0.95  // 95% na mobile
+        : isMediumScreen 
+            ? screenSize.width * 0.85  // 85% na tablet
+            : screenSize.width * 0.8;  // 80% na desktop
+    
+    final dialogHeight = isSmallScreen 
+        ? screenSize.height * 0.95  // 95% na mobile
+        : screenSize.height * 0.9;  // 90% na desktop/tablet
+    
+    final dialogPadding = isSmallScreen ? 8.0 : 16.0;
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(16),
+      insetPadding: EdgeInsets.all(dialogPadding),
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: MediaQuery.of(context).size.height * 0.9,
+        width: dialogWidth,
+        height: dialogHeight,
         decoration: BoxDecoration(
           color: AppThemePro.backgroundPrimary,
           borderRadius: BorderRadius.circular(16),
@@ -241,8 +284,12 @@ Zespół Metropolitan Investment''';
   }
 
   Widget _buildHeader() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 600;
+    final headerPadding = isSmallScreen ? 16.0 : 24.0;
+    
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(headerPadding),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -265,17 +312,20 @@ Zespół Metropolitan Investment''';
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Zaawansowany Edytor Email',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: isSmallScreen ? 18 : 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
                   'Odbiorcy: ${widget.selectedInvestors.length} inwestorów',
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  style: TextStyle(
+                    color: Colors.white70, 
+                    fontSize: isSmallScreen ? 12 : 14,
+                  ),
                 ),
               ],
             ),
@@ -314,15 +364,19 @@ Zespół Metropolitan Investment''';
   }
 
   Widget _buildEditorTab() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 600;
+    final contentPadding = isSmallScreen ? 12.0 : 16.0;
+    
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(contentPadding),
       child: Column(
         children: [
           // Editor z zabezpieczeniami dla web
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[300]!),
+                border: Border.all(color: AppThemePro.borderSecondary),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -394,9 +448,7 @@ Zespół Metropolitan Investment''';
                             showHeaderStyle: true,
                             showListBullets: true,
                             showListNumbers: true,
-                            showIndent: kIsWeb
-                                ? false
-                                : true, // Wcięcia tylko na desktop/mobile
+                            showIndent: !kIsWeb, // Wcięcia tylko na desktop/mobile
                             showLink: false, // Wyłącz linki dla stabilności
                             showUndo: true,
                             showRedo: true,
@@ -406,9 +458,7 @@ Zespół Metropolitan Investment''';
                             showCenterAlignment: true,
                             showRightAlignment: true,
                             showJustifyAlignment: false,
-                            showBackgroundColorButton: kIsWeb
-                                ? false
-                                : true, // Kolor tła tylko na desktop/mobile
+                            showBackgroundColorButton: !kIsWeb, // Kolor tła tylko na desktop/mobile
                             showColorButton: true, // Kolor tekstu tylko na desktop/mobile
                             showBoldButton: true,
                             showItalicButton: true,
@@ -437,12 +487,22 @@ Zespół Metropolitan Investment''';
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
-                        // Focus editor when tapped
-                        _editorFocusNode.requestFocus();
+                        // Focus editor when tapped - z zabezpieczeniem
+                        try {
+                          _editorFocusNode.requestFocus();
+                          // Opóźnione wymuszenie focus dla stabilności
+                          Future.delayed(const Duration(milliseconds: 100), () {
+                            if (mounted && !_editorFocusNode.hasFocus) {
+                              _editorFocusNode.requestFocus();
+                            }
+                          });
+                        } catch (e) {
+                          debugPrint('Błąd focus edytora: $e');
+                        }
                       },
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppThemePro.backgroundPrimary,
                           border: Border.all(color: AppThemePro.borderPrimary),
                           borderRadius: const BorderRadius.only(
                             bottomLeft: Radius.circular(8),
@@ -457,11 +517,11 @@ Zespół Metropolitan Investment''';
                             ),
                             textTheme: TextTheme(
                               bodyLarge: TextStyle(
-                                color: AppThemePro.backgroundPrimary,
+                                color: AppThemePro.textPrimary,
                                 fontSize: 14,
                               ),
                               bodyMedium: TextStyle(
-                                color: AppThemePro.backgroundPrimary,
+                                color: AppThemePro.textPrimary,
                                 fontSize: 14,
                               ),
                             ),
@@ -475,15 +535,10 @@ Zespół Metropolitan Investment''';
                           ),
                           child: QuillEditor.basic(
                             controller: _quillController,
+                            focusNode: _editorFocusNode,
                             config: QuillEditorConfig(
                               placeholder: 'Wpisz treść swojego maila...',
-                              padding: const EdgeInsets.all(16),
-                              autoFocus: false,
-                              enableSelectionToolbar: true,
-                              scrollable: true,
-                              expands: false,
-                              // Web-specific optimizations
-                              maxContentWidth: kIsWeb ? 800 : null,
+                              padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
                             ),
                           ),
                         ),
@@ -497,19 +552,19 @@ Zespół Metropolitan Investment''';
 
           // Szybkie akcje z dodatkowymi opcjami dla web
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: isSmallScreen ? 4 : 8,
+            runSpacing: isSmallScreen ? 4 : 8,
             children: [
               ElevatedButton.icon(
                 onPressed: _insertGreeting,
                 icon: const Icon(Icons.waving_hand, size: 16),
                 label: const Text('Dodaj powitanie'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[100],
-                  foregroundColor: Colors.blue[800],
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                  backgroundColor: AppThemePro.statusInfo.withOpacity(0.2),
+                  foregroundColor: AppThemePro.statusInfo,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 8 : 12,
+                    vertical: isSmallScreen ? 6 : 8,
                   ),
                 ),
               ),
@@ -518,11 +573,11 @@ Zespół Metropolitan Investment''';
                 icon: const Icon(Icons.edit, size: 16),
                 label: const Text('Dodaj podpis'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[100],
-                  foregroundColor: Colors.green[800],
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                  backgroundColor: AppThemePro.statusSuccess.withOpacity(0.2),
+                  foregroundColor: AppThemePro.statusSuccess,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 8 : 12,
+                    vertical: isSmallScreen ? 6 : 8,
                   ),
                 ),
               ),
@@ -531,11 +586,11 @@ Zespół Metropolitan Investment''';
                 icon: const Icon(Icons.clear, size: 16),
                 label: const Text('Wyczyść'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red[100],
-                  foregroundColor: Colors.red[800],
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                  backgroundColor: AppThemePro.statusError.withOpacity(0.2),
+                  foregroundColor: AppThemePro.statusError,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 8 : 12,
+                    vertical: isSmallScreen ? 6 : 8,
                   ),
                 ),
               ),
@@ -545,11 +600,11 @@ Zespół Metropolitan Investment''';
                   icon: const Icon(Icons.article, size: 16),
                   label: const Text('Szablon'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple[100],
-                    foregroundColor: Colors.purple[800],
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                    backgroundColor: AppThemePro.accentGold.withOpacity(0.2),
+                    foregroundColor: AppThemePro.accentGold,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSmallScreen ? 8 : 12,
+                      vertical: isSmallScreen ? 6 : 8,
                     ),
                   ),
                 ),
@@ -561,15 +616,18 @@ Zespół Metropolitan Investment''';
           // Informacja o skrótach klawiszowych dla web
           if (kIsWeb)
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: AppThemePro.backgroundTertiary,
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.grey[300]!),
+                border: Border.all(color: AppThemePro.borderSecondary),
               ),
               child: Text(
                 'Skróty: Ctrl+B (pogrubienie), Ctrl+I (kursywa), Ctrl+U (podkreślenie), Ctrl+Z (cofnij)',
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: isSmallScreen ? 10 : 11, 
+                  color: AppThemePro.textMuted,
+                ),
               ),
             ),
         ],
@@ -578,8 +636,12 @@ Zespół Metropolitan Investment''';
   }
 
   Widget _buildSettingsTab() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 600;
+    final settingsPadding = isSmallScreen ? 16.0 : 24.0;
+    
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(settingsPadding),
       child: Form(
         key: _formKey,
         child: Column(
@@ -701,8 +763,11 @@ Zespół Metropolitan Investment''';
 
             // Informacja o edycji emaili
             Container(
-              margin: const EdgeInsets.only(top: 8, bottom: 12),
-              padding: const EdgeInsets.all(12),
+              margin: EdgeInsets.only(
+                top: isSmallScreen ? 6 : 8, 
+                bottom: isSmallScreen ? 8 : 12,
+              ),
+              padding: EdgeInsets.all(isSmallScreen ? 8 : 12),
               decoration: BoxDecoration(
                 color: AppThemePro.accentGold.withOpacity(0.1),
                 border: Border.all(
@@ -752,6 +817,9 @@ Zespół Metropolitan Investment''';
   }
 
   List<Widget> _buildRecipientsList() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 600;
+    
     return widget.selectedInvestors.map((investor) {
       final clientId = investor.client.id;
       final isEnabled = _recipientEnabled[clientId] ?? false;
@@ -761,7 +829,7 @@ Zespół Metropolitan Investment''';
           currentEmail != originalEmail && currentEmail.isNotEmpty;
 
       return Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: EdgeInsets.only(bottom: isSmallScreen ? 8 : 12),
         decoration: BoxDecoration(
           border: Border.all(
             color: isEnabled
@@ -784,7 +852,7 @@ Zespół Metropolitan Investment''';
               : null,
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -808,8 +876,8 @@ Zespół Metropolitan Investment''';
                       },
                       activeColor: AppThemePro.accentGold,
                       activeTrackColor: AppThemePro.accentGold.withOpacity(0.3),
-                      inactiveThumbColor: Colors.grey[400],
-                      inactiveTrackColor: Colors.grey[300],
+                      inactiveThumbColor: AppThemePro.textMuted,
+                      inactiveTrackColor: AppThemePro.borderSecondary,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -897,7 +965,7 @@ Zespół Metropolitan Investment''';
                   ),
                   filled: true,
                   fillColor: isEnabled
-                      ? Colors.white
+                      ? AppThemePro.surfaceCard
                       : AppThemePro.backgroundSecondary,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -1038,6 +1106,9 @@ Zespół Metropolitan Investment''';
   }
 
   List<Widget> _buildAdditionalEmailsList() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 600;
+    
     return _additionalEmails.asMap().entries.map((entry) {
       final index = entry.key;
       final email = entry.value;
@@ -1047,22 +1118,22 @@ Zespół Metropolitan Investment''';
 
       return Container(
         key: ValueKey('additional_email_$index'),
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: EdgeInsets.only(bottom: isSmallScreen ? 8 : 12),
         decoration: BoxDecoration(
           border: Border.all(
             color: isValidEmail
-                ? Colors.blue.withOpacity(0.3)
+                ? AppThemePro.statusInfo.withOpacity(0.5)
                 : AppThemePro.borderPrimary,
             width: isValidEmail ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(12),
           color: isValidEmail
-              ? Colors.blue.withOpacity(0.05)
+              ? AppThemePro.statusInfo.withOpacity(0.1)
               : AppThemePro.backgroundTertiary,
           boxShadow: isValidEmail
               ? [
                   BoxShadow(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: AppThemePro.statusInfo.withOpacity(0.2),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -1070,7 +1141,7 @@ Zespół Metropolitan Investment''';
               : null,
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1080,13 +1151,13 @@ Zespół Metropolitan Investment''';
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: AppThemePro.statusInfo.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       Icons.person_add_outlined,
                       size: 18,
-                      color: Colors.blue[700],
+                      color: AppThemePro.statusInfo,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1103,7 +1174,7 @@ Zespół Metropolitan Investment''';
                   IconButton(
                     icon: Icon(
                       Icons.delete_outline,
-                      color: Colors.red[600],
+                      color: AppThemePro.statusError,
                       size: 20,
                     ),
                     onPressed: () {
@@ -1133,7 +1204,7 @@ Zespół Metropolitan Investment''';
                     fontSize: 14,
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppThemePro.surfaceCard,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 12,
@@ -1146,26 +1217,26 @@ Zespół Metropolitan Investment''';
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(
                       color: isValidEmail
-                          ? Colors.blue.withOpacity(0.5)
+                          ? AppThemePro.statusInfo.withOpacity(0.5)
                           : AppThemePro.borderPrimary,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.blue, width: 2),
+                    borderSide: BorderSide(color: AppThemePro.statusInfo, width: 2),
                   ),
                   prefixIcon: Icon(
                     Icons.alternate_email,
                     size: 18,
                     color: isValidEmail
-                        ? Colors.blue[700]
+                        ? AppThemePro.statusInfo
                         : AppThemePro.textSecondary,
                   ),
                   suffixIcon: isValidEmail
                       ? Icon(
                           Icons.check_circle,
                           size: 18,
-                          color: Colors.green[600],
+                          color: AppThemePro.statusSuccess,
                         )
                       : null,
                 ),
@@ -1243,8 +1314,11 @@ Zespół Metropolitan Investment''';
   }
 
   Widget _buildPreviewTab() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 600;
+    
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1289,15 +1363,15 @@ Zespół Metropolitan Investment''';
           // Info o wybranym odbiorcy
           if (_selectedPreviewRecipient != null) ...[
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(isSmallScreen ? 8 : 12),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
+                color: AppThemePro.statusInfo.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue[200]!),
+                border: Border.all(color: AppThemePro.statusInfo.withOpacity(0.3)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                  Icon(Icons.info_outline, color: AppThemePro.statusInfo, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1318,12 +1392,12 @@ Zespół Metropolitan Investment''';
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey[300]!),
+                color: AppThemePro.backgroundSecondary,
+                border: Border.all(color: AppThemePro.borderPrimary),
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withOpacity(0.2),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -1389,6 +1463,9 @@ Zespół Metropolitan Investment''';
   }
 
   Widget _buildEmailPreview() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 600;
+    
     if (_selectedPreviewRecipient == null) {
       return Container(
         height: 300,
@@ -1419,10 +1496,10 @@ Zespół Metropolitan Investment''';
         children: [
           // Email header (jak w prawdziwym kliencie email)
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
-              border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+              color: AppThemePro.backgroundTertiary,
+              border: Border(bottom: BorderSide(color: AppThemePro.borderSecondary)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1433,7 +1510,7 @@ Zespół Metropolitan Investment''';
                       'Od: ',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
+                        color: AppThemePro.textSecondary,
                       ),
                     ),
                     Text(
@@ -1448,7 +1525,7 @@ Zespół Metropolitan Investment''';
                       'Do: ',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
+                        color: AppThemePro.textSecondary,
                       ),
                     ),
                     Expanded(child: Text(recipientInfo)),
@@ -1461,7 +1538,7 @@ Zespół Metropolitan Investment''';
                       'Temat: ',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
+                        color: AppThemePro.textSecondary,
                       ),
                     ),
                     Expanded(
@@ -1486,7 +1563,7 @@ Zespół Metropolitan Investment''';
                       'Data: ',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
+                        color: AppThemePro.textSecondary,
                       ),
                     ),
                     Text(DateTime.now().toString().split('.')[0]),
@@ -1498,20 +1575,26 @@ Zespół Metropolitan Investment''';
 
           // Email content
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Powitanie
                 if (_selectedPreviewRecipient!.startsWith('additional_'))
-                  const Text(
+                  Text(
                     'Szanowni Państwo,',
-                    style: TextStyle(fontSize: 16),
+                    style: TextStyle(
+                  fontSize: isSmallScreen ? 14 : 16, 
+                  color: AppThemePro.textPrimary,
+                ),
                   )
                 else
                   Text(
                     'Szanowny/a ${widget.selectedInvestors.firstWhere((inv) => inv.client.id == _selectedPreviewRecipient!).client.name},',
-                    style: const TextStyle(fontSize: 16),
+                    style: TextStyle(
+                  fontSize: isSmallScreen ? 14 : 16, 
+                  color: AppThemePro.textPrimary,
+                ),
                   ),
 
                 const SizedBox(height: 16),
@@ -1519,7 +1602,7 @@ Zespół Metropolitan Investment''';
                 // Treść z edytora - dokładnie 1:1 z zawartością edytora
                 if (plainText.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
                     decoration: BoxDecoration(
                       color: AppThemePro.backgroundTertiary,
                       borderRadius: BorderRadius.circular(8),
@@ -1554,7 +1637,7 @@ Zespół Metropolitan Investment''';
                   )
                 else
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
                     decoration: BoxDecoration(
                       color: AppThemePro.statusWarning.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -1577,12 +1660,12 @@ Zespół Metropolitan Investment''';
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Z poważaniem,'),
+                    Text('Z poważaniem,', style: TextStyle(color: AppThemePro.textPrimary)),
                     Text(
                       _senderNameController.text.isNotEmpty
                           ? _senderNameController.text
                           : 'Metropolitan Investment',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                      style: TextStyle(fontWeight: FontWeight.w600, color: AppThemePro.textPrimary),
                     ),
                   ],
                 ),
@@ -1593,13 +1676,13 @@ Zespół Metropolitan Investment''';
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.blue[50],
+                    color: AppThemePro.statusInfo.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     'Ten email został wygenerowany ${DateTime.now().toString().split('.')[0]}.\n'
                     'W razie pytań prosimy o kontakt z naszym działem obsługi klienta.',
-                    style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+                    style: TextStyle(fontSize: 12, color: AppThemePro.statusInfo),
                   ),
                 ),
               ],
@@ -1725,16 +1808,16 @@ Zespół Metropolitan Investment''';
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red[100],
+        color: AppThemePro.statusError.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red[300]!),
+        border: Border.all(color: AppThemePro.statusError.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: Colors.red[700]),
+          Icon(Icons.error_outline, color: AppThemePro.statusError),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(_error!, style: TextStyle(color: Colors.red[700])),
+            child: Text(_error!, style: TextStyle(color: AppThemePro.statusError)),
           ),
         ],
       ),
@@ -1797,7 +1880,7 @@ Zespół Metropolitan Investment''';
             const SizedBox(height: 8),
             LinearProgressIndicator(
               value: progress,
-              backgroundColor: Colors.grey[300],
+              backgroundColor: AppThemePro.borderSecondary,
               valueColor: AlwaysStoppedAnimation(AppThemePro.accentGold),
             ),
           ],
@@ -1835,13 +1918,13 @@ Zespół Metropolitan Investment''';
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: successful == _results!.length
-            ? Colors.green[50]
-            : Colors.orange[50],
+            ? AppThemePro.statusSuccess.withOpacity(0.1)
+            : AppThemePro.statusWarning.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: successful == _results!.length
-              ? Colors.green[300]!
-              : Colors.orange[300]!,
+              ? AppThemePro.statusSuccess.withOpacity(0.3)
+              : AppThemePro.statusWarning.withOpacity(0.3),
         ),
       ),
       child: Column(
@@ -1854,8 +1937,8 @@ Zespół Metropolitan Investment''';
                     ? Icons.check_circle_outline
                     : Icons.warning_outlined,
                 color: successful == _results!.length
-                    ? Colors.green[700]
-                    : Colors.orange[700],
+                    ? AppThemePro.statusSuccess
+                    : AppThemePro.statusWarning,
               ),
               const SizedBox(width: 8),
               Text(
@@ -1863,8 +1946,8 @@ Zespół Metropolitan Investment''';
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: successful == _results!.length
-                      ? Colors.green[700]
-                      : Colors.orange[700],
+                      ? AppThemePro.statusSuccess
+                      : AppThemePro.statusWarning,
                 ),
               ),
             ],
@@ -1888,8 +1971,12 @@ Zespół Metropolitan Investment''';
   }
 
   Widget _buildActions(bool canEdit) {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 600;
+    final actionsPadding = isSmallScreen ? 16.0 : 24.0;
+    
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(actionsPadding),
       decoration: BoxDecoration(
         color: AppThemePro.backgroundSecondary,
         borderRadius: const BorderRadius.only(
@@ -1898,14 +1985,19 @@ Zespół Metropolitan Investment''';
         ),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: isSmallScreen 
+            ? MainAxisAlignment.spaceEvenly 
+            : MainAxisAlignment.spaceBetween,
         children: [
-          TextButton(
-            onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-            child: const Text('Anuluj'),
-          ),
-          Row(
-            children: [
+          if (!isSmallScreen)
+            TextButton(
+              onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+              child: const Text('Anuluj'),
+            ),
+          Flexible(
+            child: Row(
+              mainAxisSize: isSmallScreen ? MainAxisSize.min : MainAxisSize.max,
+              children: [
               // 🚀 NOWY: Przycisk debug (tylko w trybie development)
               if (kDebugMode) ...[
                 ElevatedButton.icon(
@@ -1917,14 +2009,14 @@ Zespół Metropolitan Investment''';
                         _debugLogs.any(
                           (log) => log.contains('❌') || log.contains('💥'),
                         )
-                        ? Colors.red[100]
-                        : Colors.grey[100],
+                        ? AppThemePro.statusError.withOpacity(0.2)
+                        : AppThemePro.backgroundTertiary,
                     foregroundColor:
                         _debugLogs.any(
                           (log) => log.contains('❌') || log.contains('💥'),
                         )
-                        ? Colors.red[700]
-                        : Colors.grey[700],
+                        ? AppThemePro.statusError
+                        : AppThemePro.textMuted,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1934,8 +2026,8 @@ Zespół Metropolitan Investment''';
                 icon: const Icon(Icons.save_outlined),
                 label: const Text('Zapisz szablon'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[100],
-                  foregroundColor: Colors.blue[700],
+                  backgroundColor: AppThemePro.statusInfo.withOpacity(0.2),
+                  foregroundColor: AppThemePro.statusInfo,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1957,7 +2049,8 @@ Zespół Metropolitan Investment''';
                 ),
               ),
             ],
-          ),
+          )
+        ),
         ],
       ),
     );
@@ -1966,13 +2059,26 @@ Zespół Metropolitan Investment''';
   void _insertGreeting() {
     try {
       const greeting = 'Szanowni Państwo,\n\n';
+      final currentLength = _quillController.document.length;
+      
+      // Wstaw na początku dokumentu
       _quillController.document.insert(0, greeting);
 
-      // Ustaw kursor po pozdrowieniu
-      _quillController.updateSelection(
-        TextSelection.collapsed(offset: greeting.length),
-        ChangeSource.local,
-      );
+      // Ustaw kursor po pozdrowieniu z zabezpieczeniem
+      Future.delayed(const Duration(milliseconds: 10), () {
+        if (mounted) {
+          try {
+            _quillController.updateSelection(
+              TextSelection.collapsed(offset: greeting.length),
+              ChangeSource.local,
+            );
+            // Wymuś focus na edytorze
+            _editorFocusNode.requestFocus();
+          } catch (e) {
+            debugPrint('Błąd ustawiania kursora: $e');
+          }
+        }
+      });
 
       setState(() {}); // Force refresh
     } catch (e) {
@@ -1985,13 +2091,26 @@ Zespół Metropolitan Investment''';
       final signature =
           '\n\nZ poważaniem,\nZespół ${_senderNameController.text}\n';
       final length = _quillController.document.length;
-      _quillController.document.insert(length - 1, signature);
+      final insertPosition = length > 1 ? length - 1 : length;
+      
+      _quillController.document.insert(insertPosition, signature);
 
-      // Ustaw kursor po podpisie
-      _quillController.updateSelection(
-        TextSelection.collapsed(offset: length - 1 + signature.length),
-        ChangeSource.local,
-      );
+      // Ustaw kursor po podpisie z opóźnieniem
+      Future.delayed(const Duration(milliseconds: 10), () {
+        if (mounted) {
+          try {
+            final newPosition = insertPosition + signature.length;
+            _quillController.updateSelection(
+              TextSelection.collapsed(offset: newPosition),
+              ChangeSource.local,
+            );
+            // Wymuś focus na edytorze
+            _editorFocusNode.requestFocus();
+          } catch (e) {
+            debugPrint('Błąd ustawiania kursora po podpisie: $e');
+          }
+        }
+      });
 
       setState(() {}); // Force refresh
     } catch (e) {
@@ -2003,11 +2122,21 @@ Zespół Metropolitan Investment''';
     try {
       _quillController.clear();
 
-      // Reset kursora
-      _quillController.updateSelection(
-        const TextSelection.collapsed(offset: 0),
-        ChangeSource.local,
-      );
+      // Reset kursora z opóźnieniem dla stabilności
+      Future.delayed(const Duration(milliseconds: 10), () {
+        if (mounted) {
+          try {
+            _quillController.updateSelection(
+              const TextSelection.collapsed(offset: 0),
+              ChangeSource.local,
+            );
+            // Wymuś focus na edytorze
+            _editorFocusNode.requestFocus();
+          } catch (e) {
+            debugPrint('Błąd resetu kursora: $e');
+          }
+        }
+      });
 
       setState(() {}); // Force refresh
     } catch (e) {
@@ -2016,11 +2145,22 @@ Zespół Metropolitan Investment''';
   }
 
   bool _hasValidEmails() {
-    return widget.selectedInvestors.any(
+    // Sprawdź czy są aktywni inwestorzy z emailami
+    final hasValidInvestorEmails = widget.selectedInvestors.any(
       (investor) =>
+          _recipientEnabled[investor.client.id] == true &&
           investor.client.email.isNotEmpty &&
           RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(investor.client.email),
     );
+
+    // Sprawdź czy są ważne dodatkowe emaile
+    final hasValidAdditionalEmails = _additionalEmails.any(
+      (email) =>
+          email.isNotEmpty &&
+          RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email),
+    );
+
+    return hasValidInvestorEmails || hasValidAdditionalEmails;
   }
 
   Future<void> _saveTemplate() async {
@@ -2028,7 +2168,7 @@ Zespół Metropolitan Investment''';
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Funkcja zapisywania szablonów będzie dostępna wkrótce'),
-        backgroundColor: Colors.orange,
+        backgroundColor: AppThemePro.statusWarning,
       ),
     );
   }
@@ -2166,27 +2306,23 @@ Zespół Metropolitan Investment''';
         _currentEmailIndex = 1;
       });
 
-      List<EmailSendResult> results;
+      // 🚀 ENHANCED: Sprawdź czy mamy odbiorców do wysłania
+      if (recipientsWithInvestmentData.isEmpty && additionalEmailAddresses.isEmpty) {
+        _addDebugLog('❌ Brak odbiorców do wysłania maili');
+        setState(() {
+          _error = 'Brak wybranych odbiorców. Wybierz inwestorów lub dodaj dodatkowe emaile.';
+          _isLoading = false;
+          _loadingMessage = '';
+        });
+        return;
+      }
 
-      if (additionalEmailAddresses.isNotEmpty) {
-        // 🚀 ENHANCED: Użyj nowej metody dla mieszanych odbiorców z debugowaniem
-        _addDebugLog('📤 Wysyłam mieszane emaile (inwestorzy + dodatkowe)');
-        results = await _emailAndExportService
-            .sendCustomEmailsToMixedRecipients(
-              investors: recipientsWithInvestmentData,
-              additionalEmails: additionalEmailAddresses,
-              subject: _subjectController.text.isNotEmpty
-                  ? _subjectController.text
-                  : 'Wiadomość od ${_senderNameController.text}',
-              htmlContent: htmlContent,
-              includeInvestmentDetails: _includeInvestmentDetails,
-              senderEmail: _senderEmailController.text,
-              senderName: _senderNameController.text,
-            );
-      } else {
-        // 🚀 ENHANCED: Użyj oryginalnej metody tylko dla inwestorów z debugowaniem
-        _addDebugLog('📤 Wysyłam emaile tylko do inwestorów');
-        results = await _emailAndExportService
+      List<EmailSendResult> results = [];
+
+      // 🚀 ENHANCED: Wyślij emaile do inwestorów z szczegółami inwestycji (jeśli włączone)
+      if (recipientsWithInvestmentData.isNotEmpty) {
+        _addDebugLog('📤 Wysyłam emaile do ${recipientsWithInvestmentData.length} inwestorów z szczegółami inwestycji');
+        final investorResults = await _emailAndExportService
             .sendCustomEmailsToMultipleClients(
               investors: recipientsWithInvestmentData,
               subject: _subjectController.text.isNotEmpty
@@ -2197,6 +2333,25 @@ Zespół Metropolitan Investment''';
               senderEmail: _senderEmailController.text,
               senderName: _senderNameController.text,
             );
+        results.addAll(investorResults);
+      }
+
+      // 🚀 ENHANCED: Wyślij emaile do dodatkowych odbiorców BEZ szczegółów inwestycji
+      if (additionalEmailAddresses.isNotEmpty) {
+        _addDebugLog('📤 Wysyłam emaile do ${additionalEmailAddresses.length} dodatkowych odbiorców BEZ szczegółów inwestycji');
+        final additionalResults = await _emailAndExportService
+            .sendCustomEmailsToMixedRecipients(
+              investors: [], // Pusta lista inwestorów
+              additionalEmails: additionalEmailAddresses,
+              subject: _subjectController.text.isNotEmpty
+                  ? _subjectController.text
+                  : 'Wiadomość od ${_senderNameController.text}',
+              htmlContent: htmlContent,
+              includeInvestmentDetails: false, // Zawsze false dla dodatkowych emaili
+              senderEmail: _senderEmailController.text,
+              senderName: _senderNameController.text,
+            );
+        results.addAll(additionalResults);
       }
 
       // 🚀 ENHANCED: Analiza wyników z debugowaniem
@@ -2230,8 +2385,8 @@ Zespół Metropolitan Investment''';
                   : '⚠️ Wysłano $successful maili, błędów: $failed',
             ),
             backgroundColor: failed == 0
-                ? Colors.green[700]
-                : Colors.orange[700],
+                ? AppThemePro.statusSuccess
+                : AppThemePro.statusWarning,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -2263,7 +2418,7 @@ Zespół Metropolitan Investment''';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Błąd wysyłania: ${e.toString()}'),
-            backgroundColor: Colors.red[700],
+            backgroundColor: AppThemePro.statusError,
             duration: const Duration(seconds: 6),
           ),
         );
@@ -2475,13 +2630,13 @@ Zespół Metropolitan Investment''';
                   decoration: BoxDecoration(
                     color: Colors.black87,
                     borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.grey[300]!),
+                    border: Border.all(color: AppThemePro.borderSecondary),
                   ),
                   child: _debugLogs.isEmpty
                       ? Center(
                           child: Text(
                             'Brak logów - wyślij emaile aby zobaczyć debug info',
-                            style: TextStyle(color: Colors.grey[400]),
+                            style: TextStyle(color: AppThemePro.textMuted),
                           ),
                         )
                       : ListView.builder(
@@ -2492,17 +2647,17 @@ Zespół Metropolitan Investment''';
 
                             // Kolorowanie na podstawie typu logu
                             if (log.contains('✅')) {
-                              logColor = Colors.green[300]!;
+                              logColor = AppThemePro.statusSuccess;
                             } else if (log.contains('❌') ||
                                 log.contains('💥')) {
-                              logColor = Colors.red[300]!;
+                              logColor = AppThemePro.statusError;
                             } else if (log.contains('⚠️')) {
-                              logColor = Colors.orange[300]!;
+                              logColor = AppThemePro.statusWarning;
                             } else if (log.contains('🚀')) {
-                              logColor = Colors.blue[300]!;
+                              logColor = AppThemePro.statusInfo;
                             } else if (log.contains('📧') ||
                                 log.contains('📄')) {
-                              logColor = Colors.cyan[300]!;
+                              logColor = AppThemePro.accentGold;
                             }
 
                             return Container(
@@ -2644,7 +2799,7 @@ Zespół Metropolitan Investment''';
                     hintText: 'nowy@email.com',
                     hintStyle: TextStyle(color: AppThemePro.textMuted),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: AppThemePro.surfaceCard,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
@@ -2679,7 +2834,7 @@ Zespół Metropolitan Investment''';
                         ? Icon(
                             Icons.check_circle,
                             size: 18,
-                            color: Colors.green[600],
+                            color: AppThemePro.statusSuccess,
                           )
                         : null,
                   ),
@@ -2763,7 +2918,7 @@ Zespół Metropolitan Investment''';
                       Icon(
                         Icons.error_outline,
                         size: 16,
-                        color: Colors.red[600],
+                        color: AppThemePro.statusError,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -2771,7 +2926,7 @@ Zespół Metropolitan Investment''';
                           'Nieprawidłowy format email',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.red[600],
+                            color: AppThemePro.statusError,
                           ),
                         ),
                       ),
@@ -2825,7 +2980,7 @@ Zespół Metropolitan Investment''';
                                 ),
                               ],
                             ),
-                            backgroundColor: Colors.green[600],
+                            backgroundColor: AppThemePro.statusSuccess,
                             duration: const Duration(seconds: 3),
                           ),
                         );

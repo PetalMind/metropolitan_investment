@@ -873,18 +873,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          children: [
-            Icon(Icons.note, color: AppTheme.secondaryGold, size: 20),
-            const SizedBox(width: 8),
-            const Text(
-              'Notatki klienta',
-              style: TextStyle(
-                color: AppTheme.secondaryGold,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+          
         ),
         const SizedBox(height: 16),
         Expanded(
