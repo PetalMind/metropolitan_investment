@@ -6,7 +6,7 @@ import '../../services/calendar_service.dart';
 import '../../models_and_services.dart';
 import '../metropolitan_logo_widget.dart';
 
-/// Personalizowany nagłówek + karta z zadaniami na aktualny tydzień
+/// Personalizowany nagłówek + karta z zadaniami na dzisiaj i przyszłe dni
 class PersonalGreetingWeekWidget extends StatefulWidget {
   final UserProfile? userProfile;
 
@@ -38,13 +38,22 @@ class _PersonalGreetingWeekWidgetState
       });
 
       final now = DateTime.now();
-      // ISO week start: Monday
-      final monday = now.subtract(Duration(days: now.weekday - 1));
-      final sunday = monday.add(const Duration(days: 6));
+      final today = DateTime(now.year, now.month, now.day);
+
+      // Zamiast całego tygodnia, pobierz wydarzenia od dzisiaj do przyszłości
+      // Pobierz wydarzenia na następne 30 dni (zamiast tylko tego tygodnia)
+      final thirtyDaysFromNow = today.add(const Duration(days: 30));
 
       final events = await _calendarService.getEventsInRange(
-        startDate: DateTime(monday.year, monday.month, monday.day),
-        endDate: DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59),
+        startDate: today, // Zaczynaj od dzisiaj (nie wcześniej)
+        endDate: DateTime(
+          thirtyDaysFromNow.year,
+          thirtyDaysFromNow.month,
+          thirtyDaysFromNow.day,
+          23,
+          59,
+          59,
+        ),
       );
 
       if (mounted) {
@@ -111,31 +120,17 @@ class _PersonalGreetingWeekWidgetState
       result.add(todayEntry);
     }
 
-    // 2. Potem reszta tygodnia (poniedziałek-piątek), pomijając dzisiaj
-    final weekDays = entries
-        .where(
-          (e) =>
-              !e.key.isAtSameMomentAs(today) && // Nie dzisiaj
-              e.key.weekday >= 1 &&
-              e.key.weekday <= 5,
-        ) // Pon-Pią
+    // 2. Potem wszystkie przyszłe dni, posortowane chronologicznie
+    final futureEntries = entries
+        .where((e) => e.key.isAfter(today)) // Tylko przyszłe dni
         .toList();
 
-    // Sortuj od poniedziałku do piątku
-    weekDays.sort((a, b) => a.key.compareTo(b.key));
-    result.addAll(weekDays);
+    // Sortuj przyszłe dni chronologicznie (od najbliższych do najdalszych)
+    futureEntries.sort((a, b) => a.key.compareTo(b.key));
+    result.addAll(futureEntries);
 
-    // 3. Weekend na końcu (sobota-niedziela)
-    final weekendDays = entries
-        .where(
-          (e) =>
-              !e.key.isAtSameMomentAs(today) && // Nie dzisiaj
-              (e.key.weekday == 6 || e.key.weekday == 7),
-        ) // Sob-Nie
-        .toList();
-
-    weekendDays.sort((a, b) => a.key.compareTo(b.key));
-    result.addAll(weekendDays);
+    // Uwaga: Celowo pomijamy przeszłe dni (starsze niż dzisiaj)
+    // Nie dodajemy ich do wyniku
 
     return result;
   }
@@ -284,14 +279,14 @@ class _PersonalGreetingWeekWidgetState
               Icon(Icons.task_alt_outlined, color: AppThemePro.accentGold),
               const SizedBox(width: 8),
               Text(
-                'Wydarzenia',
+                'Wydarzenia z kalendarza',
                 style: Theme.of(
                   context,
                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
               const Spacer(),
               Text(
-                '${_events.length} zadań',
+                'Brak wydarzeń',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: AppThemePro.textMuted),
@@ -300,7 +295,7 @@ class _PersonalGreetingWeekWidgetState
           ),
           const SizedBox(height: 12),
           Text(
-            'Brak zaplanowanych zadań w tym tygodniu',
+            'Brak zaplanowanych wydarzeń na dzisiaj i najbliższe dni',
             style: Theme.of(
               context,
             ).textTheme.bodyMedium?.copyWith(color: AppThemePro.textSecondary),
@@ -327,12 +322,20 @@ class _PersonalGreetingWeekWidgetState
             ),
             const Spacer(),
             Text(
-              '${_events.length} zadań',
+              '${_events.length} wydarzeń',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: AppThemePro.textMuted),
             ),
           ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Dzisiejsze i nadchodzące wydarzenia',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppThemePro.textTertiary,
+            fontSize: 11,
+          ),
         ),
         const SizedBox(height: 12),
         ...sortedDays.map((entry) {
