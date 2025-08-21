@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:provider/provider.dart';
 import '../../models_and_services.dart';
@@ -50,6 +51,14 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
   bool _isGroupEmail = false; // Czy wysyłać jako jeden grupowy mail
   String? _error;
   List<EmailSendResult>? _results;
+
+  // 🚀 NOWE: Enhanced loading and debugging states
+  String _loadingMessage = 'Przygotowywanie...';
+  int _currentEmailIndex = 0;
+  int _totalEmailsToSend = 0;
+  bool _showDetailedProgress = false;
+  List<String> _debugLogs = [];
+  DateTime? _emailSendStartTime;
 
   // Mapy do zarządzania adresami email odbiorców
   Map<String, bool> _recipientEnabled = {};
@@ -198,6 +207,7 @@ Zespół Metropolitan Investment''';
             Expanded(child: _buildTabContent()),
             if (_error != null) _buildError(),
             if (_results != null) _buildResults(),
+            if (_showDetailedProgress) _buildProgressIndicator(),
             _buildActions(canEdit),
           ],
         ),
@@ -1306,6 +1316,89 @@ Zespół Metropolitan Investment''';
     );
   }
 
+  /// 🚀 NOWY: Szczegółowy wskaźnik postępu
+  Widget _buildProgressIndicator() {
+    if (!_showDetailedProgress || !_isLoading) {
+      return const SizedBox.shrink();
+    }
+
+    final progress = _totalEmailsToSend > 0
+        ? _currentEmailIndex / _totalEmailsToSend
+        : 0.0;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.accentGold.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppThemePro.accentGold.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(AppThemePro.accentGold),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _loadingMessage,
+                  style: TextStyle(
+                    color: AppThemePro.accentGold,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              if (_totalEmailsToSend > 0)
+                Text(
+                  '$_currentEmailIndex / $_totalEmailsToSend',
+                  style: TextStyle(
+                    color: AppThemePro.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+            ],
+          ),
+          if (_totalEmailsToSend > 0) ...[
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.grey[300],
+              valueColor: AlwaysStoppedAnimation(AppThemePro.accentGold),
+            ),
+          ],
+          if (_debugLogs.isNotEmpty && _debugLogs.length <= 3) ...[
+            const SizedBox(height: 8),
+            ...(_debugLogs
+                .take(3)
+                .map(
+                  (log) => Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      log.length > 60 ? '${log.substring(0, 60)}...' : log,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppThemePro.textMuted,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                )),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildResults() {
     if (_results == null) return const SizedBox.shrink();
 
@@ -1354,6 +1447,16 @@ Zespół Metropolitan Investment''';
           const SizedBox(height: 8),
           Text('✅ Wysłane pomyślnie: $successful'),
           if (failed > 0) Text('❌ Błędy: $failed'),
+          const SizedBox(height: 8),
+          if (kDebugMode && _debugLogs.isNotEmpty)
+            TextButton.icon(
+              onPressed: _showDebugDialog,
+              icon: Icon(Icons.info_outline, size: 16),
+              label: Text('Pokaż szczegóły debug'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppThemePro.accentGold,
+              ),
+            ),
         ],
       ),
     );
@@ -1378,6 +1481,29 @@ Zespół Metropolitan Investment''';
           ),
           Row(
             children: [
+              // 🚀 NOWY: Przycisk debug (tylko w trybie development)
+              if (kDebugMode) ...[
+                ElevatedButton.icon(
+                  onPressed: _debugLogs.isNotEmpty ? _showDebugDialog : null,
+                  icon: Icon(Icons.bug_report, size: 16),
+                  label: Text('Debug (${_debugLogs.length})'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        _debugLogs.any(
+                          (log) => log.contains('❌') || log.contains('💥'),
+                        )
+                        ? Colors.red[100]
+                        : Colors.grey[100],
+                    foregroundColor:
+                        _debugLogs.any(
+                          (log) => log.contains('❌') || log.contains('💥'),
+                        )
+                        ? Colors.red[700]
+                        : Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               ElevatedButton.icon(
                 onPressed: (!canEdit || _isLoading) ? null : _saveTemplate,
                 icon: const Icon(Icons.save_outlined),
@@ -1399,7 +1525,7 @@ Zespół Metropolitan Investment''';
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.send),
-                label: Text(_isLoading ? 'Wysyłam...' : 'Wyślij Email'),
+                label: Text(_isLoading ? _loadingMessage : 'Wyślij Email'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppThemePro.accentGold,
                   foregroundColor: Colors.white,
@@ -1464,59 +1590,103 @@ Zespół Metropolitan Investment''';
       return;
     }
 
+    // 🚀 ENHANCED: Reset debug state and start timing
+    _emailSendStartTime = DateTime.now();
+    _debugLogs.clear();
+    _addDebugLog('🚀 Rozpoczynam proces wysyłania maili');
+
     // Sprawdź czy istnieją konfiguracje SMTP
     setState(() {
       _isLoading = true;
+      _loadingMessage = 'Sprawdzam konfigurację SMTP...';
+      _currentEmailIndex = 0;
+      _totalEmailsToSend = 0;
+      _showDetailedProgress = true;
       _error = null;
       _results = null;
     });
 
     try {
-      // Sprawdź ustawienia SMTP przed wysyłaniem
+      // 🚀 ENHANCED: Sprawdź ustawienia SMTP przed wysyłaniem z debugowaniem
+      _addDebugLog('🔧 Sprawdzam ustawienia SMTP...');
       final smtpService = SmtpService();
       final smtpSettings = await smtpService.getSmtpSettings();
 
       if (smtpSettings == null) {
+        _addDebugLog('❌ Brak konfiguracji SMTP');
         setState(() {
           _error =
               'Brak konfiguracji serwera SMTP. Skonfiguruj ustawienia email w aplikacji.';
           _isLoading = false;
+          _loadingMessage = 'Przygotowywanie...';
         });
         return;
       }
 
-      // Walidacja email wysyłającego
+      _addDebugLog(
+        '✅ Konfiguracja SMTP znaleziona: ${smtpSettings.host}:${smtpSettings.port}',
+      );
+
+      // 🚀 ENHANCED: Walidacja email wysyłającego z debugowaniem
       if (_senderEmailController.text.trim().isEmpty) {
+        _addDebugLog('❌ Brak email wysyłającego');
         setState(() {
           _error = 'Podaj email wysyłającego';
           _isLoading = false;
+          _loadingMessage = 'Przygotowywanie...';
         });
         return;
       }
 
-      // Pobierz inwestorów z włączonymi emailami
+      _addDebugLog('📧 Email wysyłającego: ${_senderEmailController.text}');
+
+      // 🚀 ENHANCED: Pobierz inwestorów z włączonymi emailami z debugowaniem
+      setState(() {
+        _loadingMessage = 'Przygotowywanie listy odbiorców...';
+      });
+
       final enabledRecipients = _getEnabledRecipients();
+      _addDebugLog(
+        '👥 Znaleziono ${enabledRecipients.length} aktywnych odbiorców',
+      );
 
       if (enabledRecipients.isEmpty) {
+        _addDebugLog('❌ Brak prawidłowych odbiorców');
         setState(() {
           _error = 'Brak odbiorców z prawidłowymi adresami email';
           _isLoading = false;
+          _loadingMessage = 'Przygotowywanie...';
         });
         return;
       }
 
-      // Konwersja treści z Quill do HTML
+      setState(() {
+        _totalEmailsToSend = enabledRecipients.length;
+      });
+
+      // 🚀 ENHANCED: Konwersja treści z Quill do HTML z debugowaniem
+      setState(() {
+        _loadingMessage = 'Konwertuję treść na HTML...';
+      });
+
       final htmlContent = _convertDocumentToHtml(_quillController.document);
+      _addDebugLog('📝 Długość treści HTML: ${htmlContent.length} znaków');
 
       if (htmlContent.trim().isEmpty) {
+        _addDebugLog('❌ Brak treści emaila');
         setState(() {
           _error = 'Treść emaila nie może być pusta';
           _isLoading = false;
+          _loadingMessage = 'Przygotowywanie...';
         });
         return;
       }
 
-      // Przygotuj listę odbiorców
+      // 🚀 ENHANCED: Przygotuj listę odbiorców z debugowaniem
+      setState(() {
+        _loadingMessage = 'Przetwarzam odbiorców...';
+      });
+
       final recipientsWithInvestmentData = <InvestorSummary>[];
       final additionalEmailAddresses = <String>[];
 
@@ -1537,11 +1707,21 @@ Zespół Metropolitan Investment''';
         }
       }
 
-      // Wybierz odpowiednią metodę wysyłania na podstawie obecności dodatkowych emaili
+      // 🚀 ENHANCED: Wybierz odpowiednią metodę wysyłania z debugowaniem
+      _addDebugLog(
+        '📊 Inwestorów: ${recipientsWithInvestmentData.length}, Dodatkowych: ${additionalEmailAddresses.length}',
+      );
+
+      setState(() {
+        _loadingMessage = 'Wysyłam emaile...';
+        _currentEmailIndex = 1;
+      });
+
       List<EmailSendResult> results;
 
       if (additionalEmailAddresses.isNotEmpty) {
-        // Użyj nowej metody dla mieszanych odbiorców
+        // 🚀 ENHANCED: Użyj nowej metody dla mieszanych odbiorców z debugowaniem
+        _addDebugLog('📤 Wysyłam mieszane emaile (inwestorzy + dodatkowe)');
         results = await _emailAndExportService
             .sendCustomEmailsToMixedRecipients(
               investors: recipientsWithInvestmentData,
@@ -1555,7 +1735,8 @@ Zespół Metropolitan Investment''';
               senderName: _senderNameController.text,
             );
       } else {
-        // Użyj oryginalnej metody tylko dla inwestorów
+        // 🚀 ENHANCED: Użyj oryginalnej metody tylko dla inwestorów z debugowaniem
+        _addDebugLog('📤 Wysyłam emaile tylko do inwestorów');
         results = await _emailAndExportService
             .sendCustomEmailsToMultipleClients(
               investors: recipientsWithInvestmentData,
@@ -1569,14 +1750,27 @@ Zespół Metropolitan Investment''';
             );
       }
 
+      // 🚀 ENHANCED: Analiza wyników z debugowaniem
+      final successful = results.where((r) => r.success).length;
+      final failed = results.length - successful;
+      final duration = DateTime.now().difference(_emailSendStartTime!);
+
+      _addDebugLog('✅ Zakończono wysyłanie w ${duration.inSeconds}s');
+      _addDebugLog('📊 Podsumowanie: $successful sukces, $failed błędów');
+
+      // Dodaj szczegóły błędów do logów
+      for (final result in results.where((r) => !r.success)) {
+        _addDebugLog('❌ Błąd dla ${result.clientEmail}: ${result.error}');
+      }
+
       setState(() {
         _results = results;
         _isLoading = false;
+        _loadingMessage = 'Zakończono';
+        _showDetailedProgress = false;
       });
 
-      // Pokaż snackbar z podsumowaniem
-      final successful = results.where((r) => r.success).length;
-      final failed = results.length - successful;
+      // Pokaż snackbar z podsumowaniem - already calculated above
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1599,9 +1793,21 @@ Zespół Metropolitan Investment''';
         widget.onEmailSent();
       }
     } catch (e) {
+      // 🚀 ENHANCED: Szczegółowe debugowanie błędów
+      final duration = _emailSendStartTime != null
+          ? DateTime.now().difference(_emailSendStartTime!)
+          : Duration.zero;
+
+      _addDebugLog(
+        '💥 KRYTYCZNY BŁĄD po ${duration.inSeconds}s: ${e.toString()}',
+      );
+      _addDebugLog('📍 Stack trace: ${StackTrace.current}');
+
       setState(() {
         _error = 'Błąd podczas wysyłania maili: ${e.toString()}';
         _isLoading = false;
+        _loadingMessage = 'Przygotowywanie...';
+        _showDetailedProgress = false;
       });
 
       if (context.mounted) {
@@ -1758,5 +1964,152 @@ Zespół Metropolitan Investment''';
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#x27;');
+  }
+
+  // 🚀 NOWE: Metody debugowania
+  void _addDebugLog(String message) {
+    final timestamp = DateTime.now().toString().substring(11, 19);
+    final logEntry = '[$timestamp] $message';
+    _debugLogs.add(logEntry);
+
+    // Print to console for development
+    if (kDebugMode) {
+      print('📧 [EmailDebug] $logEntry');
+    }
+
+    // Update UI if showing progress
+    if (_showDetailedProgress && mounted) {
+      setState(() {}); // Trigger rebuild to show new log
+    }
+  }
+
+  /// Pokazuje dialog z debugowaniem
+  void _showDebugDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppThemePro.backgroundModal,
+        title: Row(
+          children: [
+            Icon(Icons.bug_report, color: AppThemePro.accentGold),
+            const SizedBox(width: 8),
+            Text(
+              'Debug Logs - Wysyłanie Email',
+              style: TextStyle(color: AppThemePro.textPrimary),
+            ),
+          ],
+        ),
+        content: Container(
+          width: 500,
+          height: 400,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppThemePro.accentGold.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Logi z ostatniego procesu wysyłania (${_debugLogs.length} wpisów)',
+                  style: TextStyle(
+                    color: AppThemePro.accentGold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: _debugLogs.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Brak logów - wyślij emaile aby zobaczyć debug info',
+                            style: TextStyle(color: Colors.grey[400]),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: _debugLogs.length,
+                          itemBuilder: (context, index) {
+                            final log = _debugLogs[index];
+                            Color logColor = Colors.white;
+
+                            // Kolorowanie na podstawie typu logu
+                            if (log.contains('✅')) {
+                              logColor = Colors.green[300]!;
+                            } else if (log.contains('❌') ||
+                                log.contains('💥')) {
+                              logColor = Colors.red[300]!;
+                            } else if (log.contains('⚠️')) {
+                              logColor = Colors.orange[300]!;
+                            } else if (log.contains('🚀')) {
+                              logColor = Colors.blue[300]!;
+                            } else if (log.contains('📧') ||
+                                log.contains('📄')) {
+                              logColor = Colors.cyan[300]!;
+                            }
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              child: Text(
+                                log,
+                                style: TextStyle(
+                                  fontFamily: 'monospace',
+                                  fontSize: 11,
+                                  color: logColor,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              // Kopiuj logi do schowka
+              Clipboard.setData(ClipboardData(text: _debugLogs.join('\n')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('📋 Logi skopiowane do schowka'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            icon: Icon(Icons.copy, size: 16),
+            label: Text('Kopiuj'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppThemePro.accentGold,
+            ),
+          ),
+          TextButton.icon(
+            onPressed: () {
+              _debugLogs.clear();
+              Navigator.pop(context);
+            },
+            icon: Icon(Icons.clear, size: 16),
+            label: Text('Wyczyść'),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Zamknij'),
+          ),
+        ],
+      ),
+    );
   }
 }

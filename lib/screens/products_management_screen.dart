@@ -19,7 +19,7 @@ import '../widgets/product_stats_widget.dart';
 import '../widgets/product_filter_widget.dart';
 import '../widgets/metropolitan_loading_system.dart';
 import '../widgets/dialogs/product_details_dialog.dart';
-import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
+import '../widgets/dialogs/enhanced_email_editor_dialog.dart'; // 🚀 ZMIENIONE: Używamy tego samego co premium_investor_analytics_screen
 import '../widgets/common/synchronized_product_values_widget.dart'; // 🚀 NOWY: Zsynchronizowane wartości
 
 // RBAC: wspólny tooltip dla braku uprawnień
@@ -106,6 +106,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
 
   // Email functionality
   bool _isSelectionMode = false;
+  bool _isEmailMode = false; // 🚀 NOWY: Tryb email
   Set<String> _selectedProductIds = <String>{};
 
   // Gettery dla wybranych produktów
@@ -114,6 +115,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         .where((product) => _selectedProductIds.contains(product.id))
         .toList();
   }
+
+  // Responsywność
+  bool get _isTablet => MediaQuery.of(context).size.width > 768;
 
   @override
   void initState() {
@@ -3893,13 +3897,71 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     );
   }
 
+  // 🚀 DODANE: Funkcje email dokładnie takie same jak w premium_investor_analytics_screen
+  void _toggleEmailMode() {
+    setState(() {
+      _isEmailMode = !_isEmailMode;
+      if (_isEmailMode) {
+        _isSelectionMode = true;
+        _selectedProductIds.clear();
+        // Wyłącz tryb eksportu jeśli był aktywny (jeśli istnieje)
+        // _isExportMode = false; // Nie ma takiej zmiennej w products_management
+      } else {
+        _isSelectionMode = false;
+        _selectedProductIds.clear();
+      }
+    });
+
+    if (_isEmailMode) {
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Tryb email aktywny - wybierz produkty do wysłania maili',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor:
+              AppTheme.secondaryGold, // Używamy AppTheme zamiast AppThemePro
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Anuluj',
+            textColor: AppTheme.backgroundPrimary,
+            onPressed: _toggleEmailMode,
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _showEmailDialog() async {
+    // Sprawdź czy wybrano produkty - dokładnie jak w premium_investor_analytics_screen
+    if (_selectedProductIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '❌ Najpierw wybierz produkty do maili\n💡 Użyj trybu email aby wybrać produkty',
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+
+      // Automatycznie włącz tryb email jeśli nie jest włączony - jak w premium_investor_analytics_screen
+      if (!_isEmailMode && !_isSelectionMode) {
+        print('🔧 [_showEmailDialog] Automatycznie włączam tryb email');
+        _toggleEmailMode();
+      }
+
+      return;
+    }
+
     if (_selectedProducts.isEmpty) {
       _showErrorSnackBar('Nie wybrano żadnych produktów');
       return;
     }
 
     // Konwertuj wybrane produkty na InvestorSummary dla kompatybilności
+    // Używamy tej samej logiki co w premium_investor_analytics_screen
     final List<InvestorSummary> investorSummaries = [];
 
     for (final product in _selectedProducts) {
@@ -3907,7 +3969,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       final client = Client(
         id: product.companyId,
         name: product.companyName,
-        email: '', // Będzie można edytować w dialogu
+        email:
+            '', // Będzie można edytować w dialogu - zgodnie z premium_investor_analytics_screen
         phone: '',
         pesel: null,
         companyName: product.companyName,
@@ -3918,7 +3981,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         updatedAt: DateTime.now(),
       );
 
-      // Tworzenie InvestorSummary z prawidłowymi parametrami
+      // Tworzenie InvestorSummary z prawidłowymi parametrami - jak w premium_investor_analytics_screen
       final investorSummary = InvestorSummary(
         client: client,
         investments: [], // Puste - dialog pozwoli na edycję
@@ -3934,20 +3997,41 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       investorSummaries.add(investorSummary);
     }
 
-    await showDialog(
+    // Używamy dokładnie tego samego dialogu co w premium_investor_analytics_screen
+    showDialog(
       context: context,
-      builder: (context) => EnhancedInvestorEmailDialog(
+      builder: (context) => EnhancedEmailEditorDialog(
         selectedInvestors: investorSummaries,
         onEmailSent: () {
-          // Wróć do normalnego trybu po wysłaniu email
-          setState(() {
-            _isSelectionMode = false;
-            _selectedProductIds.clear();
-          });
+          Navigator.of(context).pop();
+          _toggleEmailMode(); // 🚀 DODANE: Używamy tej samej logiki co premium_investor_analytics_screen
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Emaile zostały wysłane'),
+              backgroundColor: Colors.green,
+            ),
+          );
         },
       ),
     );
   }
+
+  // 🚀 DODANE: Funkcje selekcji jak w premium_investor_analytics_screen
+  void _selectAllProducts() {
+    setState(() {
+      _selectedProductIds = _filteredDeduplicatedProducts
+          .map((product) => product.id)
+          .toSet();
+    });
+  }
+
+  void _deselectAllProducts() {
+    setState(() {
+      _selectedProductIds.clear();
+    });
+  }
+
+  void _clearSelection() => _deselectAllProducts();
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(

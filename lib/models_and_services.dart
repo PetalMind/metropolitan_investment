@@ -154,6 +154,9 @@ export 'widgets/client_stats_debug_widget.dart';
 // Common reusable widgets
 export 'widgets/common/common_widgets.dart';
 
+// Enhanced Clients Components
+export 'widgets/enhanced_clients/enhanced_clients_header.dart'; // 🚀 NOWY: Responsywny header dla klientów
+
 // Dialog widgets
 export 'widgets/dialogs/investor_edit_dialog.dart'; // ⭐ NOWE: Dialog edycji inwestora (refaktoryzowany)
 export 'widgets/dialogs/investor_email_dialog.dart'; // ⭐ NOWE: Dialog wysyłania maili

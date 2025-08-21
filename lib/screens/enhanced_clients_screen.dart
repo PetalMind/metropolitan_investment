@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
-import '../widgets/dialogs/enhanced_investor_email_dialog.dart';
 import '../widgets/enhanced_clients/collapsible_search_header_fixed.dart'
     as CollapsibleHeader;
 import '../widgets/enhanced_clients/spectacular_clients_grid.dart';
+import '../widgets/enhanced_clients/enhanced_clients_header.dart';
 
 /// 🎨 SPEKTAKULARNY EKRAN KLIENTÓW Z EFEKTEM WOW
 ///
@@ -58,6 +59,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
   // Multi-selection
   bool _isSelectionMode = false;
+  bool _isEmailMode = false; // 🚀 NOWY: Tryb email
   Set<String> _selectedClientIds = <String>{};
 
   // Header collapse state
@@ -73,16 +75,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   // RBAC getter
   bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
 
-  void _handleMenuAction(String action) {
-    switch (action) {
-      case 'refresh':
-        _refreshData();
-        break;
-      case 'clear_cache':
-        _clearCache();
-        break;
-    }
-  }
+  // Responsywność
+  bool get _isTablet => MediaQuery.of(context).size.width > 768;
 
   void _loadMoreClients() async {
     if (_isLoadingMore || !_hasMoreData) return;
@@ -289,6 +283,68 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     _searchTimer?.cancel();
     _searchTimer = Timer(const Duration(milliseconds: 1000), () {
       _performSearch();
+    });
+  }
+
+  // 🚀 NOWE: Funkcje obsługi email
+  void _toggleEmailMode() {
+    setState(() {
+      _isEmailMode = !_isEmailMode;
+      if (_isEmailMode) {
+        _isSelectionMode = true;
+        _selectedClientIds.clear();
+      } else {
+        _isSelectionMode = false;
+        _selectedClientIds.clear();
+      }
+    });
+
+    if (_isEmailMode) {
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Tryb email aktywny - wybierz odbiorców wiadomości',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: AppTheme.secondaryGold,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Anuluj',
+            textColor: AppTheme.backgroundPrimary,
+            onPressed: _toggleEmailMode,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _enterSelectionMode() {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedClientIds.clear();
+    });
+    _selectionController.forward();
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _isEmailMode = false;
+      _selectedClientIds.clear();
+    });
+    _selectionController.reverse();
+  }
+
+  void _selectAllClients() {
+    setState(() {
+      _selectedClientIds = _displayedClients.map((client) => client.id).toSet();
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedClientIds.clear();
     });
   }
 
@@ -506,48 +562,38 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     );
   }
 
-  // 🚀 NOWE: Funkcje multi-selection dla email
-  void _enterSelectionMode() {
-    setState(() {
-      _isSelectionMode = true;
-      _selectedClientIds.clear();
-    });
-    _selectionController.forward();
-  }
-
-  void _exitSelectionMode() {
-    setState(() {
-      _isSelectionMode = false;
-      _selectedClientIds.clear();
-    });
-    _selectionController.reverse();
-  }
-
   Future<void> _showEmailDialog() async {
     if (_selectedClients.isEmpty) {
       _showErrorSnackBar('Nie wybrano żadnych klientów');
       return;
     }
 
-    // Konwertuj klientów na InvestorSummary (potrzebne dane inwestycji)
-    final investorAnalyticsService = InvestorAnalyticsService();
+    // Filtruj klientów z prawidłowymi emailami
+    final clientsWithEmail = _selectedClients
+        .where(
+          (client) =>
+              client.email.isNotEmpty &&
+              RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(client.email),
+        )
+        .toList();
+
+    if (clientsWithEmail.isEmpty) {
+      _showErrorSnackBar('Wybrani klienci nie mają prawidłowych adresów email');
+      return;
+    }
 
     try {
-      // Pobierz dane inwestycji dla wybranych klientów
-      final investorsData = await investorAnalyticsService
-          .getInvestorsByClientIds(_selectedClients.map((c) => c.id).toList());
+      // Konwertuj klientów na InvestorSummary (z pustymi inwestycjami)
+      final investorsData = clientsWithEmail
+          .map((client) => InvestorSummary.fromInvestments(client, []))
+          .toList();
 
       if (!mounted) return;
-
-      if (investorsData.isEmpty) {
-        _showErrorSnackBar('Wybrani klienci nie mają żadnych inwestycji');
-        return;
-      }
 
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => EnhancedInvestorEmailDialog(
+        builder: (context) => EnhancedEmailEditorDialog(
           selectedInvestors: investorsData,
           onEmailSent: () {
             _exitSelectionMode();
@@ -556,7 +602,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         ),
       );
     } catch (e) {
-      _showErrorSnackBar('Błąd podczas pobierania danych inwestycji: $e');
+      _showErrorSnackBar('Błąd podczas przygotowywania danych: $e');
     }
   }
 
@@ -572,7 +618,28 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       backgroundColor: AppTheme.backgroundPrimary,
       body: Column(
         children: [
-          // 🎨 FIXED COLLAPSIBLE SEARCH HEADER - ZAWSZE ZAJMUJE MIEJSCE
+          // 🚀 NOWY: Enhanced responsywny header z animacjami
+          EnhancedClientsHeader(
+            isTablet: _isTablet,
+            canEdit: canEdit,
+            totalCount: _allClients.length,
+            isLoading: _isLoading,
+            isRefreshing: _isLoading, // używamy tego samego stanu
+            isSelectionMode: _isSelectionMode,
+            isEmailMode: _isEmailMode,
+            selectedClientIds: _selectedClientIds,
+            displayedClients: _displayedClients,
+            onRefresh: _refreshData,
+            onAddClient: () => _showClientForm(),
+            onToggleEmail: _toggleEmailMode,
+            onEmailClients:
+                _showEmailDialog, // 🚀 NOWY: Callback do wysyłania email
+            onClearCache: _clearCache,
+            onSelectAll: _selectAllClients,
+            onClearSelection: _clearSelection,
+          ),
+
+          // 🎨 LEGACY COLLAPSIBLE SEARCH HEADER - TYLKO DLA WYSZUKIWANIA I FILTRÓW
           CollapsibleHeader.CollapsibleSearchHeader(
             searchController: _searchController,
             isCollapsed:
@@ -595,73 +662,14 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
                 _enterSelectionMode();
               }
             },
-            additionalActions: _buildHeaderActions(),
+            additionalActions:
+                null, // 🚀 USUNIĘTE: actions są teraz w nowym headerze
           ),
 
           // 🎨 SPECTACULAR CLIENTS GRID - POZOSTAŁA PRZESTRZEŃ
           Expanded(child: _buildContent()),
         ],
       ),
-    );
-  }
-
-  Widget _buildHeaderActions() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (_isSelectionMode && _selectedClientIds.isNotEmpty) ...[
-          ElevatedButton.icon(
-            onPressed: _showEmailDialog,
-            icon: const Icon(Icons.email),
-            label: Text('Email (${_selectedClientIds.length})'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.secondaryGold,
-              foregroundColor: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 12),
-        ],
-
-        if (canEdit && !_isSelectionMode) ...[
-          ElevatedButton.icon(
-            onPressed: () => _showClientForm(),
-            icon: const Icon(Icons.add),
-            label: const Text('Dodaj Klienta'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.secondaryGold,
-              foregroundColor: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 12),
-        ],
-
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, color: Colors.white),
-          onSelected: _handleMenuAction,
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'refresh',
-              child: Row(
-                children: [
-                  Icon(Icons.refresh),
-                  SizedBox(width: 12),
-                  Text('Odśwież'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'clear_cache',
-              child: Row(
-                children: [
-                  Icon(Icons.clear_all),
-                  SizedBox(width: 12),
-                  Text('Wyczyść cache'),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 
