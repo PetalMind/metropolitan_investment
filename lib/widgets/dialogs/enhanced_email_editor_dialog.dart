@@ -43,9 +43,16 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
   String _emailTemplate = 'custom';
   bool _isLoading = false;
   bool _includeInvestmentDetails = true;
+  bool _isGroupEmail = false; // Czy wysyłać jako jeden grupowy mail
   String? _error;
   List<EmailSendResult>? _results;
   String _previewHtml = '';
+  
+  // Mapy do zarządzania adresami email odbiorców
+  Map<String, bool> _recipientEnabled = {};
+  Map<String, String> _recipientEmails = {};
+  List<String> _additionalEmails = [];
+  String? _selectedPreviewRecipient;
 
   final _emailAndExportService = EmailAndExportService();
 
@@ -69,11 +76,25 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
     
     // Nasłuchiwanie zmian w edytorze dla aktualizacji podglądu
     _quillController.addListener(_updatePreview);
+    
+    // Inicjalizacja map odbiorców
+    _initializeRecipients();
   }
 
   void _insertInitialContent(String content) {
     final document = Document()..insert(0, content);
     _quillController.document = document;
+  }
+
+  void _initializeRecipients() {
+    for (final investor in widget.selectedInvestors) {
+      final clientId = investor.client.id;
+      final email = investor.client.email ?? '';
+      
+      _recipientEnabled[clientId] = email.isNotEmpty && 
+          RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
+      _recipientEmails[clientId] = email;
+    }
   }
 
   void _insertDefaultTemplate() {
@@ -291,7 +312,7 @@ Zespół Metropolitan Investment''';
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppThemePro.accentGold,
+            AppThemePro.backgroundPrimary,
             AppThemePro.accentGold.withOpacity(0.8),
           ],
           begin: Alignment.topLeft,
@@ -546,58 +567,216 @@ Zespół Metropolitan Investment''';
               activeColor: AppThemePro.accentGold,
             ),
             
+            // Typ wysyłki (jeśli więcej niż 1 odbiorca)
+            if (widget.selectedInvestors.length > 1) ...[
+              const SizedBox(height: 8),
+              SwitchListTile(
+                title: const Text('Email grupowy'),
+                subtitle: Text(_isGroupEmail 
+                    ? 'Jeden email do wszystkich odbiorców (TO/CC/BCC)'
+                    : 'Osobne emaile dla każdego odbiorcy'
+                ),
+                value: _isGroupEmail,
+                onChanged: (value) {
+                  setState(() {
+                    _isGroupEmail = value;
+                  });
+                },
+                activeColor: AppThemePro.accentGold,
+              ),
+            ],
+            
             // Lista odbiorców
             const SizedBox(height: 24),
-            Text(
-              'Odbiorcy (${widget.selectedInvestors.length})',
-              style: Theme.of(context).textTheme.titleMedium,
+            Row(
+              children: [
+                Text(
+                  'Odbiorcy',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: _addAdditionalEmail,
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Dodaj email'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppThemePro.accentGold,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             
-            Container(
-              constraints: const BoxConstraints(maxHeight: 200),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[300]!),
-                borderRadius: BorderRadius.circular(8),
+            // Lista inwestorów
+            ..._buildRecipientsList(),
+            
+            // Lista dodatkowych emaili
+            if (_additionalEmails.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Dodatkowe adresy',
+                style: Theme.of(context).textTheme.titleSmall,
               ),
-              child: ListView.builder(
-                itemCount: widget.selectedInvestors.length,
-                itemBuilder: (context, index) {
-                  final investor = widget.selectedInvestors[index];
-                  final hasValidEmail = investor.client.email != null && 
-                      investor.client.email!.isNotEmpty &&
-                      RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(investor.client.email!);
-                  
-                  return ListTile(
-                    dense: true,
-                    leading: Icon(
-                      hasValidEmail ? Icons.email : Icons.email_outlined,
-                      color: hasValidEmail ? Colors.green : Colors.red,
-                      size: 20,
-                    ),
-                    title: Text(
-                      investor.client.name,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    subtitle: Text(
-                      investor.client.email ?? 'Brak email',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: hasValidEmail ? Colors.grey[600] : Colors.red,
-                      ),
-                    ),
-                    trailing: Text(
-                      '${investor.investmentCount} inv.',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  );
-                },
-              ),
-            ),
+              const SizedBox(height: 8),
+              ..._buildAdditionalEmailsList(),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  List<Widget> _buildRecipientsList() {
+    return widget.selectedInvestors.map((investor) {
+      final clientId = investor.client.id;
+      final isEnabled = _recipientEnabled[clientId] ?? false;
+      final currentEmail = _recipientEmails[clientId] ?? '';
+      
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppThemePro.borderPrimary),
+          borderRadius: BorderRadius.circular(8),
+          color: isEnabled ? AppThemePro.profitGreenBg : AppThemePro.lossRedBg,
+        ),
+        child: ListTile(
+          leading: Switch(
+            value: isEnabled,
+            onChanged: (value) {
+              setState(() {
+                _recipientEnabled[clientId] = value;
+              });
+            },
+            activeColor: AppThemePro.accentGold,
+          ),
+          title: Text(
+            investor.client.name,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${investor.investmentCount} inwestycji',
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 4),
+              TextFormField(
+                initialValue: currentEmail,
+                enabled: isEnabled,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  hintText: 'adres@email.com',
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(4),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  prefixIcon: const Icon(Icons.email, size: 16),
+                ),
+                style: const TextStyle(fontSize: 12),
+                onChanged: (value) {
+                  _recipientEmails[clientId] = value;
+                  
+                  // Sprawdź czy email jest prawidłowy i automatycznie ustaw switch
+                  final isValid = value.isNotEmpty &&
+                      RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value);
+                  
+                  setState(() {
+                    if (isValid && !_recipientEnabled[clientId]!) {
+                      _recipientEnabled[clientId] = true;
+                    }
+                  });
+                },
+                validator: isEnabled ? (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Email jest wymagany';
+                  }
+                  if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value)) {
+                    return 'Nieprawidłowy format email';
+                  }
+                  return null;
+                } : null,
+              ),
+            ],
+          ),
+          trailing: isEnabled
+              ? Icon(Icons.check_circle, color: Colors.green[700], size: 20)
+              : Icon(Icons.cancel, color: Colors.red[700], size: 20),
+        ),
+      );
+    }).toList();
+  }
+
+  List<Widget> _buildAdditionalEmailsList() {
+    return _additionalEmails.asMap().entries.map((entry) {
+      final index = entry.key;
+      final email = entry.value;
+      
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppThemePro.borderPrimary),
+          borderRadius: BorderRadius.circular(8),
+          color: AppThemePro.backgroundTertiary,
+        ),
+        child: ListTile(
+          leading: const Icon(Icons.person_add, color: Colors.blue),
+          title: TextFormField(
+            initialValue: email,
+            keyboardType: TextInputType.emailAddress,
+            decoration: InputDecoration(
+              hintText: 'dodatkowy@email.com',
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              prefixIcon: const Icon(Icons.email, size: 16),
+            ),
+            onChanged: (value) {
+              _additionalEmails[index] = value;
+            },
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.check, color: AppThemePro.statusSuccess, size: 20),
+                onPressed: () {
+                  // Potwierdzenie dodania adresu
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Adres ${email.isNotEmpty ? email : "(pusty)"} został potwierdzony'),
+                      backgroundColor: AppThemePro.statusSuccess,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                tooltip: 'Potwierdź adres',
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: AppThemePro.statusError, size: 20),
+                onPressed: () {
+                  setState(() {
+                    _additionalEmails.removeAt(index);
+                  });
+                },
+                tooltip: 'Usuń adres',
+              ),
+            ],
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  void _addAdditionalEmail() {
+    setState(() {
+      _additionalEmails.add('');
+    });
   }
 
   Widget _buildPreviewTab() {
@@ -615,6 +794,26 @@ Zespół Metropolitan Investment''';
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const Spacer(),
+              DropdownButton<String>(
+                value: _selectedPreviewRecipient,
+                hint: const Text('Wybierz odbiorcę'),
+                items: _getEnabledRecipients().map((recipient) {
+                  return DropdownMenuItem(
+                    value: recipient['id'],
+                    child: Text(
+                      recipient['name'] ?? 'Nieznany',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedPreviewRecipient = value;
+                    _updatePreview();
+                  });
+                },
+              ),
+              const SizedBox(width: 8),
               ElevatedButton.icon(
                 onPressed: _updatePreview,
                 icon: const Icon(Icons.refresh, size: 16),
@@ -624,36 +823,534 @@ Zespół Metropolitan Investment''';
           ),
           const SizedBox(height: 16),
           
-          if (widget.selectedInvestors.isNotEmpty) ...[
-            Text(
-              'Przykład dla: ${widget.selectedInvestors.first.client.name}',
-              style: const TextStyle(fontStyle: FontStyle.italic),
+          // Info o wybranym odbiorcy
+          if (_selectedPreviewRecipient != null) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Podgląd dla: ${_getRecipientInfo(_selectedPreviewRecipient!)}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
           ],
           
+          // Faktyczny podgląd email
           Expanded(
             child: Container(
               decoration: BoxDecoration(
+                color: Colors.white,
                 border: Border.all(color: Colors.grey[300]!),
                 borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: _previewHtml.isNotEmpty
-                    ? SelectableText(
-                        _previewHtml,
-                        style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
-                      )
-                    : const Center(
-                        child: Text(
-                          'Brak treści do wyświetlenia.\nUżyj edytora, aby dodać treść.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
+                child: _buildEmailPreview(),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, String>> _getEnabledRecipients() {
+    final recipients = <Map<String, String>>[];
+    
+    // Dodaj aktywnych inwestorów
+    for (final investor in widget.selectedInvestors) {
+      final clientId = investor.client.id;
+      if (_recipientEnabled[clientId] == true) {
+        recipients.add({
+          'id': clientId,
+          'name': investor.client.name,
+          'email': _recipientEmails[clientId] ?? '',
+          'type': 'investor',
+        });
+      }
+    }
+    
+    // Dodaj dodatkowe emaile
+    for (int i = 0; i < _additionalEmails.length; i++) {
+      final email = _additionalEmails[i];
+      if (email.isNotEmpty && RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+        recipients.add({
+          'id': 'additional_$i',
+          'name': 'Dodatkowy: $email',
+          'email': email,
+          'type': 'additional',
+        });
+      }
+    }
+    
+    return recipients;
+  }
+
+  String _getRecipientInfo(String recipientId) {
+    if (recipientId.startsWith('additional_')) {
+      final index = int.tryParse(recipientId.split('_')[1]) ?? 0;
+      if (index < _additionalEmails.length) {
+        return _additionalEmails[index];
+      }
+      return 'Nieznany dodatkowy email';
+    }
+    
+    final investor = widget.selectedInvestors.firstWhere(
+      (inv) => inv.client.id == recipientId,
+      orElse: () => widget.selectedInvestors.first,
+    );
+    
+    final email = _recipientEmails[recipientId] ?? investor.client.email ?? '';
+    return '${investor.client.name} <$email>';
+  }
+
+  Widget _buildEmailPreview() {
+    if (_selectedPreviewRecipient == null) {
+      return Container(
+        height: 300,
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.email_outlined, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'Wybierz odbiorcę z listy powyżej\naby zobaczyć podgląd email',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final recipientInfo = _getRecipientInfo(_selectedPreviewRecipient!);
+    final plainText = _quillController.document.toPlainText();
+    
+    return Container(
+      color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Email header (jak w prawdziwym kliencie email)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Od: ',
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                    ),
+                    Text('${_senderNameController.text} <${_senderEmailController.text}>'),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      'Do: ',
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                    ),
+                    Expanded(child: Text(recipientInfo)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      'Temat: ',
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                    ),
+                    Expanded(
+                      child: Text(
+                        _subjectController.text.isNotEmpty 
+                            ? _subjectController.text
+                            : 'Brak tematu',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: _subjectController.text.isNotEmpty ? Colors.black : Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      'Data: ',
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                    ),
+                    Text(DateTime.now().toString().split('.')[0]),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // Email content
+          Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Powitanie
+                if (_selectedPreviewRecipient!.startsWith('additional_'))
+                  const Text(
+                    'Szanowni Państwo,',
+                    style: TextStyle(fontSize: 16),
+                  )
+                else
+                  Text(
+                    'Szanowny/a ${widget.selectedInvestors.firstWhere((inv) => inv.client.id == _selectedPreviewRecipient!).client.name},',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                
+                const SizedBox(height: 16),
+                
+                // Treść z edytora - dokładnie 1:1 z zawartością edytora
+                if (plainText.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppThemePro.backgroundTertiary,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppThemePro.borderPrimary),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          plainText,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 1.6,
+                            color: AppThemePro.textPrimary,
+                          ),
+                        ),
+                        
+                        // Dodanie szczegółów inwestycji jeśli włączone
+                        if (_includeInvestmentDetails && !_selectedPreviewRecipient!.startsWith('additional_')) ...[
+                          const SizedBox(height: 16),
+                          const Divider(color: AppThemePro.borderSecondary),
+                          const SizedBox(height: 16),
+                          _buildInvestmentDetailsInline(_selectedPreviewRecipient!),
+                        ],
+                      ],
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppThemePro.statusWarning.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppThemePro.statusWarning),
+                    ),
+                    child: const Text(
+                      'Brak treści wiadomości. Użyj edytora aby dodać treść.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontStyle: FontStyle.italic,
+                        color: AppThemePro.statusWarning,
+                      ),
+                    ),
+                  ),
+                
+                // Szczegóły inwestycji są już wbudowane w treść powyżej
+                
+                const SizedBox(height: 24),
+                
+                // Podpis
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Z poważaniem,'),
+                    Text(
+                      _senderNameController.text.isNotEmpty 
+                          ? _senderNameController.text
+                          : 'Metropolitan Investment',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Footer
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Ten email został wygenerowany ${DateTime.now().toString().split('.')[0]}.\n'
+                    'W razie pytań prosimy o kontakt z naszym działem obsługi klienta.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue[700],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvestmentDetailsPreview(String clientId) {
+    final investor = widget.selectedInvestors.firstWhere(
+      (inv) => inv.client.id == clientId,
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.assessment, color: Colors.blue[700], size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Podsumowanie Twojego Portfela',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue[700],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Statystyki
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatItem(
+                  'Liczba inwestycji',
+                  investor.investmentCount.toString(),
+                  Icons.account_balance_wallet,
+                ),
+              ),
+              Expanded(
+                child: _buildStatItem(
+                  'Kapitał pozostały',
+                  '${investor.totalRemainingCapital.toStringAsFixed(2)} PLN',
+                  Icons.monetization_on,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Lista inwestycji (pierwsze 3)
+          if (investor.investments.isNotEmpty) ...[
+            Text(
+              'Ostatnie inwestycje:',
+              style: TextStyle(fontWeight: FontWeight.w500, color: Colors.blue[700]),
+            ),
+            const SizedBox(height: 8),
+            ...investor.investments.take(3).map((investment) => Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.blue[100]!),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      investment.productName,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  Text(
+                    '${investment.remainingCapital.toStringAsFixed(2)} PLN',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            )),
+            if (investor.investments.length > 3)
+              Text(
+                '... i ${investor.investments.length - 3} więcej',
+                style: TextStyle(fontSize: 12, color: Colors.blue[600], fontStyle: FontStyle.italic),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Inline version of investment details for editor synchronization
+  Widget _buildInvestmentDetailsInline(String clientId) {
+    final investor = widget.selectedInvestors.firstWhere(
+      (inv) => inv.client.id == clientId,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '📊 Podsumowanie Twojego Portfela',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppThemePro.accentGold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Statystyki
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppThemePro.backgroundSecondary,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: AppThemePro.borderSecondary),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Liczba inwestycji: ${investor.investmentCount}',
+                style: const TextStyle(color: AppThemePro.textSecondary, fontSize: 12),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Kapitał pozostały: ${investor.totalRemainingCapital.toStringAsFixed(2)} PLN',
+                style: const TextStyle(
+                  color: AppThemePro.accentGold,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Lista inwestycji (pierwsze 3)
+        if (investor.investments.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            'Szczegóły inwestycji:',
+            style: const TextStyle(
+              fontWeight: FontWeight.w500,
+              color: AppThemePro.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...investor.investments.take(3).map((investment) => Container(
+            margin: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppThemePro.backgroundSecondary,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: AppThemePro.borderSecondary),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    investment.productName,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppThemePro.textPrimary,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${investment.remainingCapital.toStringAsFixed(2)} PLN',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppThemePro.accentGold,
+                  ),
+                ),
+              ],
+            ),
+          )),
+          if (investor.investments.length > 3)
+            Text(
+              '... i ${investor.investments.length - 3} więcej',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppThemePro.textMuted,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.blue[100]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: Colors.blue[600]),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(fontSize: 10, color: Colors.blue[600]),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -741,7 +1438,7 @@ Zespół Metropolitan Investment''';
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: AppThemePro.backgroundSecondary,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(16),
           bottomRight: Radius.circular(16),

@@ -15,6 +15,7 @@ export 'models/excel_import_models.dart';
 export 'models/voting_status_change.dart';
 export 'models/investment_change_history.dart'; // 🚀 NOWE: Historia zmian inwestycji
 export 'models/investor_edit_models.dart'; // 🚀 NOWE: Modele dla edycji inwestora
+export 'models/email_history.dart'; // 🚀 NOWE: Historia wysłanych emaili
 
 // Analytics models exports
 export 'models/analytics/overview_analytics_models.dart';

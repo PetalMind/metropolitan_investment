@@ -108,7 +108,7 @@ const exportInvestorsAdvanced = onCall({
     // 🔍 SPRAWDŹ DOSTĘPNOŚĆ BIBLIOTEK DLA DANEGO FORMATU
     const formatLibraryMap = {
       'excel': 'excel',
-      'pdf': 'pdf', 
+      'pdf': 'pdf',
       'word': 'word'
     };
 
@@ -361,17 +361,17 @@ async function generatePDFExport(investorsData, templateType, options, currentDa
         CreationDate: new Date()
       }
     });
-    
+
     // Buffer do zbierania danych PDF
     const buffers = [];
     doc.on('data', buffers.push.bind(buffers));
-    
+
     // Nagłówek dokumentu
     doc.fontSize(20).text('METROPOLITAN INVESTMENT', 50, 50);
     doc.fontSize(16).text(`Raport Inwestorów - ${templateType.toUpperCase()}`, 50, 80);
     doc.fontSize(12).text(`Data generowania: ${new Date().toLocaleString('pl-PL')}`, 50, 110);
     doc.text(`Liczba inwestorów: ${investorsData.length}`, 50, 130);
-    
+
     let yPosition = 160;
 
     // Dane inwestorów
@@ -405,7 +405,7 @@ async function generatePDFExport(investorsData, templateType, options, currentDa
           .text(`Kapitał pozostały: ${detail.remainingCapital.toLocaleString('pl-PL')} PLN`, 90, yPosition + 24)
           .text(`Kapitał zabezpieczony: ${detail.capitalSecuredByRealEstate.toLocaleString('pl-PL')} PLN`, 90, yPosition + 36)
           .text(`Do restrukturyzacji: ${detail.capitalForRestructuring.toLocaleString('pl-PL')} PLN`, 90, yPosition + 48);
-        
+
         yPosition += 70;
       });
 
@@ -444,7 +444,7 @@ async function generatePDFExport(investorsData, templateType, options, currentDa
 
   } catch (error) {
     console.error(`❌ [AdvancedExportService] Błąd generowania PDF:`, error);
-    
+
     // FALLBACK: Użyj tekstowy format z poprawnym content-type
     const textContent = generatePDFContent(investorsData, templateType, options);
     const base64Content = Buffer.from(textContent, 'utf8').toString('base64');
@@ -577,7 +577,7 @@ async function generateExcelExport(investorsData, templateType, options, current
 
   } catch (error) {
     console.error(`❌ [AdvancedExportService] Błąd generowania Excel:`, error);
-    
+
     // FALLBACK: Użyj CSV z poprawnym content-type
     const csvContent = generateExcelContent(investorsData, templateType, options);
     const base64Content = Buffer.from(csvContent, 'utf8').toString('base64');
@@ -635,7 +635,7 @@ async function generateWordExport(investorsData, templateType, options, currentD
               })
             ]
           }),
-          
+
           new Paragraph({
             children: [
               new TextRun({
@@ -764,7 +764,7 @@ async function generateWordExport(investorsData, templateType, options, currentD
 
   } catch (error) {
     console.error(`❌ [AdvancedExportService] Błąd generowania Word:`, error);
-    
+
     // FALLBACK: Użyj tekstowy format z poprawnym content-type
     const textContent = generateWordContent(investorsData, templateType, options);
     const base64Content = Buffer.from(textContent, 'utf8').toString('base64');

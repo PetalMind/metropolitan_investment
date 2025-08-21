@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import '../models/smtp_settings.dart';
 import 'base_service.dart';
@@ -42,6 +43,62 @@ class SmtpService extends BaseService {
     } catch (e) {
       logError('saveSmtpSettings', e);
       throw Exception('Nie udało się zapisać ustawień SMTP: $e');
+    }
+  }
+
+  // Sprawdź połączenie SMTP
+  Future<Map<String, dynamic>> testSmtpConnection(SmtpSettings settings) async {
+    try {
+      final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
+          .httpsCallable('testSmtpConnection');
+      
+      final result = await callable.call({
+        'host': settings.host,
+        'port': settings.port,
+        'username': settings.username,
+        'password': settings.password,
+        'security': settings.security.name,
+      });
+
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      logError('testSmtpConnection', e);
+      return {
+        'success': false,
+        'error': 'Błąd podczas testowania połączenia: $e',
+      };
+    }
+  }
+
+  // Wyślij testowy email
+  Future<Map<String, dynamic>> sendTestEmail({
+    required SmtpSettings settings,
+    required String testEmail,
+    String? customMessage,
+  }) async {
+    try {
+      final callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
+          .httpsCallable('sendTestEmail');
+      
+      final result = await callable.call({
+        'smtpSettings': {
+          'host': settings.host,
+          'port': settings.port,
+          'username': settings.username,
+          'password': settings.password,
+          'security': settings.security.name,
+        },
+        'testEmail': testEmail,
+        'customMessage': customMessage ?? 'To jest testowy email z systemu Metropolitan Investment.',
+      });
+
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      logError('sendTestEmail', e);
+      return {
+        'success': false,
+        'error': 'Błąd podczas wysyłania testowego emaila: $e',
+      };
     }
   }
 }

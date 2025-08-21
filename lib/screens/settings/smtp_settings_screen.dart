@@ -25,11 +25,16 @@ class _SmtpSettingsScreenState extends State<SmtpSettingsScreen> {
   String? _errorMessage;
   bool _isSaving = false;
   bool _obscurePassword = true;
+  bool _isTesting = false;
+  bool _isSendingTest = false;
+  String? _testResult;
+  String? _testEmail;
 
   final _hostController = TextEditingController();
   final _portController = TextEditingController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _testEmailController = TextEditingController();
   SmtpSecurity _selectedSecurity = SmtpSecurity.tls;
 
   @override
@@ -109,12 +114,142 @@ class _SmtpSettingsScreenState extends State<SmtpSettingsScreen> {
     }
   }
 
+  Future<void> _testConnection() async {
+    final isAdmin = Provider.of<AuthProvider>(context, listen: false).isAdmin;
+    if (!isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Brak uprawnień do testowania połączenia.'),
+        ),
+      );
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isTesting = true;
+      _testResult = null;
+    });
+
+    final settings = SmtpSettings(
+      host: _hostController.text.trim(),
+      port: int.parse(_portController.text.trim()),
+      username: _usernameController.text.trim(),
+      password: _passwordController.text,
+      security: _selectedSecurity,
+    );
+
+    try {
+      final result = await _smtpService.testSmtpConnection(settings);
+      
+      setState(() {
+        if (result['success'] == true) {
+          _testResult = '✅ Połączenie pomyślne! Czas odpowiedzi: ${result['details']['responseTime']}ms';
+        } else {
+          _testResult = '❌ Błąd połączenia: ${result['error']}';
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_testResult!),
+          backgroundColor: result['success'] == true 
+            ? Colors.green 
+            : Colors.red,
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _testResult = '❌ Błąd podczas testowania: $e';
+      });
+    } finally {
+      setState(() {
+        _isTesting = false;
+      });
+    }
+  }
+
+  Future<void> _sendTestEmail() async {
+    final isAdmin = Provider.of<AuthProvider>(context, listen: false).isAdmin;
+    if (!isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Brak uprawnień do wysyłania testowego maila.'),
+        ),
+      );
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_testEmailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Podaj adres email dla testu.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSendingTest = true;
+      _testResult = null;
+    });
+
+    final settings = SmtpSettings(
+      host: _hostController.text.trim(),
+      port: int.parse(_portController.text.trim()),
+      username: _usernameController.text.trim(),
+      password: _passwordController.text,
+      security: _selectedSecurity,
+    );
+
+    try {
+      final result = await _smtpService.sendTestEmail(
+        settings: settings,
+        testEmail: _testEmailController.text.trim(),
+      );
+      
+      setState(() {
+        if (result['success'] == true) {
+          _testResult = '✅ Email testowy wysłany! ID: ${result['details']['messageId']}';
+        } else {
+          _testResult = '❌ Błąd wysyłania: ${result['error']}';
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_testResult!),
+          backgroundColor: result['success'] == true 
+            ? Colors.green 
+            : Colors.red,
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _testResult = '❌ Błąd podczas wysyłania: $e';
+      });
+    } finally {
+      setState(() {
+        _isSendingTest = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _hostController.dispose();
     _portController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
+    _testEmailController.dispose();
     super.dispose();
   }
 
@@ -233,6 +368,136 @@ class _SmtpSettingsScreenState extends State<SmtpSettingsScreen> {
                             ),
                           ),
                           const SizedBox(height: 32),
+                          
+                          // Sekcja testowania
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(8),
+                              color: AppThemePro.backgroundSecondary,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Testowanie konfiguracji',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Sprawdź połączenie SMTP i wyślij testowy email przed zapisaniem.',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey.shade400,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                
+                                // Przycisk testowania połączenia
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed: (!canEdit || _isTesting || _isSendingTest)
+                                            ? null
+                                            : _testConnection,
+                                        icon: _isTesting
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child: CircularProgressIndicator(strokeWidth: 2),
+                                              )
+                                            : const Icon(Icons.wifi_protected_setup),
+                                        label: Text(_isTesting ? 'Testowanie...' : 'Test połączenia'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.blue.shade600,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                
+                                const SizedBox(height: 12),
+                                
+                                // Pole email testowy
+                                CustomTextFormField(
+                                  controller: _testEmailController,
+                                  labelText: 'Email do testu',
+                                  hintText: 'np. admin@example.com',
+                                  validator: (value) {
+                                    if (value != null && value.isNotEmpty) {
+                                      if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value)) {
+                                        return 'Nieprawidłowy format email';
+                                      }
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                
+                                const SizedBox(height: 12),
+                                
+                                // Przycisk wysyłania testu
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed: (!canEdit || _isTesting || _isSendingTest)
+                                            ? null
+                                            : _sendTestEmail,
+                                        icon: _isSendingTest
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child: CircularProgressIndicator(strokeWidth: 2),
+                                              )
+                                            : const Icon(Icons.email),
+                                        label: Text(_isSendingTest ? 'Wysyłanie...' : 'Wyślij test email'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.green.shade600,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                
+                                // Wynik testów
+                                if (_testResult != null) ...[
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: _testResult!.startsWith('✅') 
+                                        ? Colors.green.withOpacity(0.1)
+                                        : Colors.red.withOpacity(0.1),
+                                      border: Border.all(
+                                        color: _testResult!.startsWith('✅') 
+                                          ? Colors.green 
+                                          : Colors.red,
+                                      ),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      _testResult!,
+                                      style: TextStyle(
+                                        color: _testResult!.startsWith('✅') 
+                                          ? Colors.green.shade700
+                                          : Colors.red.shade700,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 24),
+                          
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
