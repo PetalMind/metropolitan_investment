@@ -303,87 +303,168 @@ Zespół Metropolitan Investment''';
               child: Column(
                 children: [
                   // Pasek narzędzi Quill - ZAWSZE widoczny (również na web)
-                  QuillSimpleToolbar(
-                    controller: _quillController,
-                    config: QuillSimpleToolbarConfig(
-                      multiRowsDisplay: false,
-                      showFontFamily: false,
-                      showFontSize: kIsWeb
-                          ? false
-                          : true, // Rozmiar czcionki tylko na desktop/mobile
-                      showStrikeThrough: false,
-                      showInlineCode: false,
-                      showCodeBlock: false,
-                      showSubscript: false,
-                      showSuperscript: false,
-                      showSearchButton: false,
-                      showListCheck: false,
-                      showHeaderStyle: true,
-                      showListBullets: true,
-                      showListNumbers: true,
-                      showIndent: kIsWeb
-                          ? false
-                          : true, // Wcięcia tylko na desktop/mobile
-                      showLink: false, // Wyłącz linki dla stabilności
-                      showUndo: true,
-                      showRedo: true,
-                      showDirection: false,
-                      showAlignmentButtons: true,
-                      showLeftAlignment: true,
-                      showCenterAlignment: true,
-                      showRightAlignment: true,
-                      showJustifyAlignment: false,
-                      showBackgroundColorButton: kIsWeb
-                          ? false
-                          : true, // Kolor tła tylko na desktop/mobile
-                      showColorButton: kIsWeb
-                          ? false
-                          : true, // Kolor tekstu tylko na desktop/mobile
-                      showBoldButton: true,
-                      showItalicButton: true,
-                      showUnderLineButton: true,
-                      showClearFormat: true,
-                      showQuote: true,
-                      // Web-specific optimizations
-                      decoration: kIsWeb
-                          ? BoxDecoration(
-                              color: Colors.grey[50],
-                              border: Border(
-                                bottom: BorderSide(color: Colors.grey[300]!),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppThemePro.backgroundSecondary,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8),
+                      ),
+                      border: Border(
+                        bottom: BorderSide(color: AppThemePro.borderPrimary),
+                      ),
+                    ),
+                    child: Theme(
+                      data: Theme.of(context).copyWith(
+                        iconTheme: IconThemeData(
+                          color: AppThemePro.textPrimary,
+                          size: 18,
+                        ),
+                        dividerColor: AppThemePro.borderPrimary,
+                        tooltipTheme: TooltipThemeData(
+                          decoration: BoxDecoration(
+                            color: AppThemePro.backgroundModal,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: AppThemePro.borderPrimary,
+                            ),
+                          ),
+                          textStyle: TextStyle(
+                            color: AppThemePro.textPrimary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          // Poprawiona kolorystyka dla toolbara
+                          iconTheme: IconThemeData(
+                            color: AppThemePro.textPrimary,
+                            size: 20,
+                          ),
+                          textTheme: TextTheme(
+                            bodySmall: TextStyle(
+                              color: AppThemePro.textPrimary,
+                              fontSize: 12,
+                            ),
+                          ),
+                          dividerTheme: DividerThemeData(
+                            color: AppThemePro.borderSecondary,
+                            thickness: 1,
+                          ),
+                        ),
+                        child: QuillSimpleToolbar(
+                          controller: _quillController,
+                          config: QuillSimpleToolbarConfig(
+                            multiRowsDisplay: false,
+                            showFontFamily: false,
+                            showFontSize: kIsWeb
+                                ? false
+                                : true, // Rozmiar czcionki tylko na desktop/mobile
+                            showStrikeThrough: false,
+                            showInlineCode: false,
+                            showCodeBlock: false,
+                            showSubscript: false,
+                            showSuperscript: false,
+                            showSearchButton: false,
+                            showListCheck: false,
+                            showHeaderStyle: true,
+                            showListBullets: true,
+                            showListNumbers: true,
+                            showIndent: kIsWeb
+                                ? false
+                                : true, // Wcięcia tylko na desktop/mobile
+                            showLink: false, // Wyłącz linki dla stabilności
+                            showUndo: true,
+                            showRedo: true,
+                            showDirection: false,
+                            showAlignmentButtons: true,
+                            showLeftAlignment: true,
+                            showCenterAlignment: true,
+                            showRightAlignment: true,
+                            showJustifyAlignment: false,
+                            showBackgroundColorButton: kIsWeb
+                                ? false
+                                : true, // Kolor tła tylko na desktop/mobile
+                            showColorButton: kIsWeb
+                                ? false
+                                : true, // Kolor tekstu tylko na desktop/mobile
+                            showBoldButton: true,
+                            showItalicButton: true,
+                            showUnderLineButton: true,
+                            showClearFormat: true,
+                            showQuote: true,
+                            // Improved styling for dark theme compatibility
+                            decoration: BoxDecoration(
+                              color: AppThemePro.backgroundTertiary,
+                              border: Border.all(
+                                color: AppThemePro.borderPrimary,
+                                width: 1,
                               ),
-                            )
-                          : null,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
 
-                  // Separator
-                  if (kIsWeb)
-                    Container(
-                      height: 1,
-                      color: Colors.grey[300],
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                    )
-                  else
-                    const Divider(height: 16),
+                  // Separator między toolbar a edytorem
+                  Container(height: 1, color: AppThemePro.borderPrimary),
 
-                  // Edytor Quill
+                  // Edytor Quill z lepszą kolorystyką
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[300]!),
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white,
+                        border: Border.all(color: AppThemePro.borderPrimary),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(8),
+                          bottomRight: Radius.circular(8),
+                        ),
                       ),
-                      child: QuillEditor.basic(
-                        controller: _quillController,
-                        config: QuillEditorConfig(
-                          placeholder: 'Wpisz treść swojego maila...',
-                          padding: const EdgeInsets.all(16),
-                          autoFocus: false,
-                          enableSelectionToolbar: true,
-                          scrollable: true,
-                          expands: false,
-                          // Web-specific optimizations
-                          maxContentWidth: kIsWeb ? 800 : null,
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          // Nadpisanie kolorów dla lepszej widoczności
+                          iconTheme: IconThemeData(
+                            color: AppThemePro.textPrimary,
+                          ),
+                          textTheme: TextTheme(
+                            bodyLarge: TextStyle(
+                              color: AppThemePro.textPrimary,
+                              fontSize: 14,
+                            ),
+                            bodyMedium: TextStyle(
+                              color: AppThemePro.textPrimary,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        child: QuillEditor.basic(
+                          controller: _quillController,
+                          config: QuillEditorConfig(
+                            placeholder: 'Wpisz treść swojego maila...',
+                            padding: const EdgeInsets.all(16),
+                            autoFocus: false,
+                            enableSelectionToolbar: true,
+                            scrollable: true,
+                            expands: false,
+                            // Web-specific optimizations
+                            maxContentWidth: kIsWeb ? 800 : null,
+                            // Kolorystyka edytora dla ciemnego motywu
+                            customStyles: DefaultStyles(
+                              placeHolder: DefaultTextBlockStyle(
+                                TextStyle(
+                                  color: AppThemePro.textMuted,
+                                  fontSize: 14,
+                                ),
+                                HorizontalSpacing.zero,
+                                VerticalSpacing.zero,
+                                VerticalSpacing.zero,
+                                null,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -596,6 +677,38 @@ Zespół Metropolitan Investment''';
                 ),
               ],
             ),
+
+            // Informacja o edycji emaili
+            Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppThemePro.accentGold.withOpacity(0.1),
+                border: Border.all(
+                  color: AppThemePro.accentGold.withOpacity(0.3),
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline,
+                    size: 18,
+                    color: AppThemePro.accentGold,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Możesz edytować adresy email inwestorów klikając przycisk edycji. Email zostanie wysłany na nowy adres zamiast na adres przypisany do klienta.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppThemePro.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 8),
 
             // Lista inwestorów
@@ -622,56 +735,226 @@ Zespół Metropolitan Investment''';
       final clientId = investor.client.id;
       final isEnabled = _recipientEnabled[clientId] ?? false;
       final currentEmail = _recipientEmails[clientId] ?? '';
+      final originalEmail = investor.client.email;
+      final hasCustomEmail =
+          currentEmail != originalEmail && currentEmail.isNotEmpty;
 
       return Container(
-        margin: const EdgeInsets.only(bottom: 8),
+        margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          border: Border.all(color: AppThemePro.borderPrimary),
-          borderRadius: BorderRadius.circular(8),
-          color: isEnabled ? AppThemePro.profitGreenBg : AppThemePro.lossRedBg,
+          border: Border.all(
+            color: isEnabled
+                ? AppThemePro.accentGold.withOpacity(0.3)
+                : AppThemePro.borderPrimary,
+            width: isEnabled ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          color: isEnabled
+              ? AppThemePro.accentGold.withOpacity(0.05)
+              : AppThemePro.backgroundTertiary,
+          boxShadow: isEnabled
+              ? [
+                  BoxShadow(
+                    color: AppThemePro.accentGold.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
-        child: ListTile(
-          leading: Switch(
-            value: isEnabled,
-            onChanged: (value) {
-              setState(() {
-                _recipientEnabled[clientId] = value;
-              });
-            },
-            activeColor: AppThemePro.accentGold,
-          ),
-          title: Text(
-            investor.client.name,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          ),
-          subtitle: Column(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '${investor.investmentCount} inwestycji',
-                style: const TextStyle(fontSize: 12),
+              // Header z przełącznikiem i nazwą inwestora
+              Row(
+                children: [
+                  Transform.scale(
+                    scale: 0.9,
+                    child: Switch(
+                      value: isEnabled,
+                      onChanged: (value) {
+                        setState(() {
+                          _recipientEnabled[clientId] = value;
+                          // Jeśli włączamy i nie ma emaila, ustaw oryginalny
+                          if (value &&
+                              currentEmail.isEmpty &&
+                              originalEmail.isNotEmpty) {
+                            _recipientEmails[clientId] = originalEmail;
+                          }
+                        });
+                      },
+                      activeColor: AppThemePro.accentGold,
+                      activeTrackColor: AppThemePro.accentGold.withOpacity(0.3),
+                      inactiveThumbColor: Colors.grey[400],
+                      inactiveTrackColor: Colors.grey[300],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          investor.client.name,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: isEnabled
+                                ? AppThemePro.textPrimary
+                                : AppThemePro.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.account_balance_wallet,
+                              size: 14,
+                              color: AppThemePro.textMuted,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${investor.investmentCount} inwestycji',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppThemePro.textMuted,
+                              ),
+                            ),
+                            if (hasCustomEmail) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppThemePro.accentGold.withOpacity(
+                                    0.2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'WŁASNY EMAIL',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppThemePro.accentGold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
+
+              const SizedBox(height: 12),
+
+              // Pole email z lepszym designem
               TextFormField(
                 initialValue: currentEmail,
                 enabled: isEnabled,
                 keyboardType: TextInputType.emailAddress,
                 autocorrect: false,
                 enableSuggestions: false,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isEnabled
+                      ? AppThemePro.textPrimary
+                      : AppThemePro.textMuted,
+                ),
                 decoration: InputDecoration(
                   hintText: 'adres@email.com',
-                  isDense: true,
+                  hintStyle: TextStyle(
+                    color: AppThemePro.textMuted,
+                    fontSize: 14,
+                  ),
+                  filled: true,
+                  fillColor: isEnabled
+                      ? Colors.white
+                      : AppThemePro.backgroundSecondary,
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: AppThemePro.borderPrimary),
                   ),
-                  prefixIcon: const Icon(Icons.email, size: 16),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: hasCustomEmail
+                          ? AppThemePro.accentGold.withOpacity(0.5)
+                          : AppThemePro.borderPrimary,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: AppThemePro.accentGold,
+                      width: 2,
+                    ),
+                  ),
+                  disabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: AppThemePro.borderPrimary.withOpacity(0.5),
+                    ),
+                  ),
+                  prefixIcon: Icon(
+                    hasCustomEmail ? Icons.edit_outlined : Icons.email_outlined,
+                    size: 18,
+                    color: isEnabled
+                        ? (hasCustomEmail
+                              ? AppThemePro.accentGold
+                              : AppThemePro.textSecondary)
+                        : AppThemePro.textMuted,
+                  ),
+                  suffixIcon: isEnabled
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (hasCustomEmail) ...[
+                              IconButton(
+                                icon: Icon(
+                                  Icons.refresh,
+                                  size: 18,
+                                  color: AppThemePro.textSecondary,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _recipientEmails[clientId] = originalEmail;
+                                  });
+                                },
+                                tooltip: 'Przywróć oryginalny email',
+                              ),
+                            ],
+                            IconButton(
+                              icon: Icon(
+                                Icons.edit_outlined,
+                                size: 18,
+                                color: AppThemePro.accentGold,
+                              ),
+                              onPressed: () {
+                                _showEmailEditDialog(
+                                  clientId,
+                                  investor.client.name,
+                                  currentEmail,
+                                  originalEmail,
+                                );
+                              },
+                              tooltip: 'Edytuj email',
+                            ),
+                          ],
+                        )
+                      : null,
                 ),
-                style: const TextStyle(fontSize: 12),
                 onChanged: (value) {
                   _recipientEmails[clientId] = value;
 
@@ -700,11 +983,34 @@ Zespół Metropolitan Investment''';
                       }
                     : null,
               ),
+
+              // Footer z informacją o oryginalnym emailu
+              if (originalEmail.isNotEmpty &&
+                  originalEmail != currentEmail) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: AppThemePro.textMuted,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Oryginalny email: $originalEmail',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppThemePro.textMuted,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
-          trailing: isEnabled
-              ? Icon(Icons.check_circle, color: Colors.green[700], size: 20)
-              : Icon(Icons.cancel, color: Colors.red[700], size: 20),
         ),
       );
     }).toList();
@@ -714,95 +1020,193 @@ Zespół Metropolitan Investment''';
     return _additionalEmails.asMap().entries.map((entry) {
       final index = entry.key;
       final email = entry.value;
-
-      // Użyj klucza GlobalKey dla stabilności na web
-      final key = GlobalKey();
+      final isValidEmail =
+          email.isNotEmpty &&
+          RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
 
       return Container(
-        key: key,
-        margin: const EdgeInsets.only(bottom: 8),
+        key: ValueKey('additional_email_$index'),
+        margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          border: Border.all(color: AppThemePro.borderPrimary),
-          borderRadius: BorderRadius.circular(8),
-          color: AppThemePro.backgroundTertiary,
-        ),
-        child: ListTile(
-          leading: const Icon(Icons.person_add, color: Colors.blue),
-          title: TextFormField(
-            key: ValueKey(
-              'additional_email_$index',
-            ), // Dodatkowy klucz dla stabilności
-            initialValue: email,
-            keyboardType: TextInputType.emailAddress,
-            autocorrect: false,
-            enableSuggestions: false,
-            decoration: InputDecoration(
-              hintText: 'dodatkowy@email.com',
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 4,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(4),
-                borderSide: BorderSide(color: Colors.grey[300]!),
-              ),
-              prefixIcon: const Icon(Icons.email, size: 16),
-            ),
-            onChanged: (value) {
-              if (index < _additionalEmails.length) {
-                // Zabezpieczenie przed błędami indeksu
-                _additionalEmails[index] = value;
-              }
-            },
+          border: Border.all(
+            color: isValidEmail
+                ? Colors.blue.withOpacity(0.3)
+                : AppThemePro.borderPrimary,
+            width: isValidEmail ? 2 : 1,
           ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
+          borderRadius: BorderRadius.circular(12),
+          color: isValidEmail
+              ? Colors.blue.withOpacity(0.05)
+              : AppThemePro.backgroundTertiary,
+          boxShadow: isValidEmail
+              ? [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.check,
-                  color: AppThemePro.statusSuccess,
-                  size: 20,
-                ),
-                onPressed: () {
-                  // Pobierz aktualną wartość z listy _additionalEmails
-                  final currentValue = index < _additionalEmails.length
-                      ? _additionalEmails[index].trim()
-                      : '';
-
-                  // Potwierdzenie dodania adresu
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        currentValue.isNotEmpty
-                            ? 'Adres $currentValue został potwierdzony'
-                            : 'Adres jest pusty - wprowadź poprawny email',
-                      ),
-                      backgroundColor: currentValue.isNotEmpty
-                          ? AppThemePro.statusSuccess
-                          : Colors.orange,
-                      duration: const Duration(seconds: 2),
+              // Header z ikoną i etykietą
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  );
-                },
-                tooltip: 'Potwierdź adres',
+                    child: Icon(
+                      Icons.person_add_outlined,
+                      size: 18,
+                      color: Colors.blue[700],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Dodatkowy odbiorca ${index + 1}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppThemePro.textPrimary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: Colors.red[600],
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _additionalEmails.removeAt(index);
+                      });
+                    },
+                    tooltip: 'Usuń tego odbiorcę',
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(
-                  Icons.delete,
-                  color: AppThemePro.statusError,
-                  size: 20,
+
+              const SizedBox(height: 12),
+
+              // Pole email
+              TextFormField(
+                key: ValueKey('additional_email_field_$index'),
+                initialValue: email,
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                enableSuggestions: false,
+                style: TextStyle(fontSize: 14, color: AppThemePro.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'dodatkowy@email.com',
+                  hintStyle: TextStyle(
+                    color: AppThemePro.textMuted,
+                    fontSize: 14,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: AppThemePro.borderPrimary),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: isValidEmail
+                          ? Colors.blue.withOpacity(0.5)
+                          : AppThemePro.borderPrimary,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.blue, width: 2),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.alternate_email,
+                    size: 18,
+                    color: isValidEmail
+                        ? Colors.blue[700]
+                        : AppThemePro.textSecondary,
+                  ),
+                  suffixIcon: isValidEmail
+                      ? Icon(
+                          Icons.check_circle,
+                          size: 18,
+                          color: Colors.green[600],
+                        )
+                      : null,
                 ),
-                onPressed: () {
-                  setState(() {
-                    if (index < _additionalEmails.length) {
-                      // Zabezpieczenie przed błędami indeksu
-                      _additionalEmails.removeAt(index);
-                    }
-                  });
+                onChanged: (value) {
+                  if (index < _additionalEmails.length) {
+                    // Zabezpieczenie przed błędami indeksu
+                    _additionalEmails[index] = value;
+                  }
                 },
-                tooltip: 'Usuń adres',
+              ),
+
+              // Dodanie przycisków akcji - przeniesienie z niepoprawnego atrybutu trailing
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.check,
+                      color: AppThemePro.statusSuccess,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      // Pobierz aktualną wartość z listy _additionalEmails
+                      final currentValue = index < _additionalEmails.length
+                          ? _additionalEmails[index].trim()
+                          : '';
+
+                      // Potwierdzenie dodania adresu
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            currentValue.isNotEmpty
+                                ? 'Adres $currentValue został potwierdzony'
+                                : 'Adres jest pusty - wprowadź poprawny email',
+                          ),
+                          backgroundColor: currentValue.isNotEmpty
+                              ? AppThemePro.statusSuccess
+                              : Colors.orange,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    tooltip: 'Potwierdź adres',
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.delete,
+                      color: AppThemePro.statusError,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        if (index < _additionalEmails.length) {
+                          // Zabezpieczenie przed błędami indeksu
+                          _additionalEmails.removeAt(index);
+                        }
+                      });
+                    },
+                    tooltip: 'Usuń adres',
+                  ),
+                ],
               ),
             ],
           ),
@@ -1216,8 +1620,8 @@ Zespół Metropolitan Investment''';
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Liczba inwestycji: ${investor.investmentCount}',
-                style: const TextStyle(
+                'Całkowita wartość inwestycji: ${investor.totalInvestmentAmount.toStringAsFixed(2)} PLN',
+                style: TextStyle(
                   color: AppThemePro.textSecondary,
                   fontSize: 12,
                 ),
@@ -2107,6 +2511,291 @@ Zespół Metropolitan Investment''';
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
             child: Text('Zamknij'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Pokazuje dialog do edycji emaila inwestora
+  void _showEmailEditDialog(
+    String clientId,
+    String clientName,
+    String currentEmail,
+    String originalEmail,
+  ) {
+    String tempEmail = currentEmail;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppThemePro.backgroundSecondary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppThemePro.accentGold.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.edit_outlined,
+                color: AppThemePro.accentGold,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Edytuj Email',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppThemePro.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    clientName,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppThemePro.textSecondary,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isValidEmail =
+                tempEmail.isNotEmpty &&
+                RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(tempEmail);
+            final hasCustomEmail =
+                tempEmail != originalEmail && tempEmail.isNotEmpty;
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Pole do edycji emaila
+                TextFormField(
+                  initialValue: tempEmail,
+                  autofocus: true,
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppThemePro.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Adres email',
+                    hintText: 'nowy@email.com',
+                    hintStyle: TextStyle(color: AppThemePro.textMuted),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppThemePro.borderPrimary),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: isValidEmail
+                            ? AppThemePro.accentGold.withOpacity(0.5)
+                            : AppThemePro.borderPrimary,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: AppThemePro.accentGold,
+                        width: 2,
+                      ),
+                    ),
+                    prefixIcon: Icon(
+                      Icons.alternate_email,
+                      size: 18,
+                      color: isValidEmail
+                          ? AppThemePro.accentGold
+                          : AppThemePro.textSecondary,
+                    ),
+                    suffixIcon: isValidEmail
+                        ? Icon(
+                            Icons.check_circle,
+                            size: 18,
+                            color: Colors.green[600],
+                          )
+                        : null,
+                  ),
+                  onChanged: (value) {
+                    setDialogState(() {
+                      tempEmail = value;
+                    });
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // Informacje dodatkowe
+                if (originalEmail.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppThemePro.backgroundTertiary,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppThemePro.borderSecondary),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: AppThemePro.textMuted,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Oryginalny email:',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: AppThemePro.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          originalEmail,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppThemePro.textSecondary,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        if (hasCustomEmail) ...[
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: () {
+                              setDialogState(() {
+                                tempEmail = originalEmail;
+                              });
+                            },
+                            icon: Icon(Icons.refresh, size: 16),
+                            label: Text('Przywróć oryginalny'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppThemePro.accentGold,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Status walidacji
+                if (tempEmail.isNotEmpty && !isValidEmail) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 16,
+                        color: Colors.red[600],
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Nieprawidłowy format email',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red[600],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Anuluj',
+              style: TextStyle(color: AppThemePro.textMuted),
+            ),
+          ),
+          StatefulBuilder(
+            builder: (context, setButtonState) {
+              final isValidEmail =
+                  tempEmail.isNotEmpty &&
+                  RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(tempEmail);
+
+              return ElevatedButton.icon(
+                onPressed: isValidEmail
+                    ? () {
+                        setState(() {
+                          _recipientEmails[clientId] = tempEmail;
+                          // Automatycznie włącz odbiorcę przy prawidłowym emailu
+                          _recipientEnabled[clientId] = true;
+                        });
+                        Navigator.pop(context);
+
+                        // Pokaż potwierdzenie
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                Icon(
+                                  Icons.check_circle,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Email dla $clientName został zaktualizowany',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            backgroundColor: Colors.green[600],
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    : null,
+                icon: Icon(Icons.save, size: 16),
+                label: Text('Zapisz email'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isValidEmail
+                      ? AppThemePro.accentGold
+                      : Colors.grey,
+                  foregroundColor: Colors.black,
+                ),
+              );
+            },
           ),
         ],
       ),
