@@ -288,6 +288,14 @@ class _PremiumInvestorAnalyticsScreenState
         }
 
         // Procesuj dane
+        // 🚀 UJEDNOLICENIE Z DASHBOARD: Używaj totalRemainingCapital z serwera
+        final totalRemainingCapitalFromServer =
+            optimizedResult.statistics?.totalRemainingCapital ?? 0.0;
+
+        print(
+          '✅ [Premium Analytics] Używam totalRemainingCapital z OptimizedProductService: ${totalRemainingCapitalFromServer.toStringAsFixed(2)}',
+        );
+
         final enhanced = InvestorAnalyticsResult(
           investors: convertedInvestors,
           allInvestors: convertedInvestors,
@@ -296,10 +304,8 @@ class _PremiumInvestorAnalyticsScreenState
           pageSize: convertedInvestors.length,
           hasNextPage: false,
           hasPreviousPage: false,
-          totalViableCapital: convertedInvestors.fold<double>(
-            0.0,
-            (sum, inv) => sum + inv.viableRemainingCapital,
-          ),
+          // 🚀 KLUCZ: Używaj totalRemainingCapital z serwera zamiast viableRemainingCapital
+          totalViableCapital: totalRemainingCapitalFromServer,
           votingDistribution:
               {}, // Zostanie obliczone w _calculateVotingAnalysis
           executionTimeMs: 0, // Placeholder
@@ -612,7 +618,8 @@ class _PremiumInvestorAnalyticsScreenState
     // Apply capital range filter
     if (_minCapitalFilter > 0 || _maxCapitalFilter < double.infinity) {
       filtered = filtered.where((investor) {
-        final capital = investor.viableRemainingCapital;
+        final capital =
+            investor.totalRemainingCapital; // 🚀 UJEDNOLICENIE z Dashboard
         return capital >= _minCapitalFilter && capital <= _maxCapitalFilter;
       }).toList();
     }
@@ -711,18 +718,18 @@ class _PremiumInvestorAnalyticsScreenState
       totalCapital = _currentResult!.totalViableCapital;
       print('   - Używam totalViableCapital z serwera: ${totalCapital}');
     } else {
-      // Jako ostateczny fallback, oblicz lokalnie
+      // Jako ostateczny fallback, oblicz lokalnie używając totalRemainingCapital
       totalCapital = _allInvestors.fold<double>(
         0.0,
-        (sum, investor) => sum + investor.viableRemainingCapital,
+        (sum, investor) => sum + investor.totalRemainingCapital,
       );
       print('   - Obliczam lokalnie totalCapital: ${totalCapital}');
     }
 
-    // Sortuj inwestorów według kapitału malejąco
+    // Sortuj inwestorów według kapitału pozostałego malejąco (zgodnie z Dashboard)
     final sortedInvestors = List<InvestorSummary>.from(_allInvestors);
     sortedInvestors.sort(
-      (a, b) => b.viableRemainingCapital.compareTo(a.viableRemainingCapital),
+      (a, b) => b.totalRemainingCapital.compareTo(a.totalRemainingCapital),
     );
 
     // Znajdź minimalną grupę która tworzy większość (≥51%)
@@ -731,7 +738,8 @@ class _PremiumInvestorAnalyticsScreenState
 
     for (final investor in sortedInvestors) {
       _majorityHolders.add(investor);
-      accumulatedCapital += investor.viableRemainingCapital;
+      // 🚀 UJEDNOLICENIE: używaj totalRemainingCapital zamiast viableRemainingCapital
+      accumulatedCapital += investor.totalRemainingCapital;
 
       final accumulatedPercentage = totalCapital > 0
           ? (accumulatedCapital / totalCapital) * 100
@@ -885,13 +893,14 @@ class _PremiumInvestorAnalyticsScreenState
           break;
         case 'viableCapital':
         case 'viableRemainingCapital':
-          comparison = a.viableRemainingCapital.compareTo(
-            b.viableRemainingCapital,
+          // 🚀 UJEDNOLICENIE: używaj totalRemainingCapital dla spójności z Dashboard
+          comparison = a.totalRemainingCapital.compareTo(
+            b.totalRemainingCapital,
           );
           break;
         case 'totalValue':
-          comparison = a.viableRemainingCapital.compareTo(
-            b.viableRemainingCapital,
+          comparison = a.totalRemainingCapital.compareTo(
+            b.totalRemainingCapital,
           );
           break;
         case 'investmentCount':
@@ -1971,7 +1980,7 @@ class _PremiumInvestorAnalyticsScreenState
       );
     }
 
-    // � KLUCZOWE METRYKI SYSTEMU - używa danych z premium analytics
+    // � KLUCZOWE METRYKI SYSTEMU - używa danych zgodnych z Dashboard
     double totalViableCapital = 0.0;
     double totalCapital = 0.0;
 
@@ -1983,42 +1992,30 @@ class _PremiumInvestorAnalyticsScreenState
         '🚀 [StatsGrid] Używam Premium Analytics: Capital ${totalCapital.toStringAsFixed(2)}',
       );
     } else if (_currentResult != null) {
-      // Fallback na standardowe dane - ale zawsze preferuj serwer
+      // 🚀 UJEDNOLICENIE Z DASHBOARD: Używaj totalViableCapital z serwera (teraz równe totalRemainingCapital)
       totalViableCapital = _currentResult!.totalViableCapital;
 
-      // WAŻNE: Używamy _totalInvestmentAmount_ zamiast sumy _viableRemainingCapital_ dla zgodności z serwerem
+      // Dla total capital również używaj wartości z serwera dla spójności
+      totalCapital = _currentResult!.totalViableCapital;
+
+      print('✅ [StatsGrid] Używam dane z serwera - zgodne z Dashboard!');
+      print(
+        '   - Total/Viable Capital z serwera: ${totalViableCapital.toStringAsFixed(2)}',
+      );
+    } else {
+      // Ostateczny fallback - lokalne obliczenia
+      // Lokalny fallback - używaj totalRemainingCapital dla spójności z Dashboard
+      totalViableCapital = _allInvestors.fold<double>(
+        0.0,
+        (sum, investor) => sum + investor.totalRemainingCapital,
+      );
       totalCapital = _allInvestors.fold<double>(
         0.0,
         (sum, investor) => sum + investor.totalInvestmentAmount,
       );
 
-      print('⚠️ [StatsGrid] Używam fallback - może być mniej dokładny!');
-      print(
-        '   - Viable Capital z serwera: ${totalViableCapital.toStringAsFixed(2)}',
-      );
+      print('⚠️ [StatsGrid] Używam lokalnych obliczeń jako ostatni fallback');
       print('   - Total Capital: ${totalCapital.toStringAsFixed(2)}');
-
-      // Sprawdź czy wartość lokalna jest zgodna z wartością z serwera
-      final localViableCapital = _allInvestors.fold<double>(
-        0.0,
-        (sum, investor) => sum + investor.viableRemainingCapital,
-      );
-
-      if ((localViableCapital - totalViableCapital).abs() > 100000) {
-        // Jeśli różnica jest duża, pokaż szczegóły
-        print(
-          '⚠️ [StatsGrid] UWAGA: Znacząca różnica między lokalnym a serwerowym kapitałem!',
-        );
-        print(
-          '   - Lokalne viableRemainingCapital: ${localViableCapital.toStringAsFixed(2)}',
-        );
-        print(
-          '   - Z serwera totalViableCapital: ${totalViableCapital.toStringAsFixed(2)}',
-        );
-        print(
-          '   - Różnica: ${(localViableCapital - totalViableCapital).toStringAsFixed(2)}',
-        );
-      }
     }
 
     // Oblicz próg 51% kapitału
@@ -5431,19 +5428,58 @@ class _PremiumInvestorAnalyticsScreenState
       }
     }
 
-    // 🔑 POBIERZ RZECZYWISTE DANE KLIENTÓW Z FIREBASE (status głosowania!)
-    print(
-      '🗳️ [Premium Analytics] Pobieram rzeczywiste dane klientów z Firebase...',
-    );
-    final IntegratedClientService clientService = IntegratedClientService();
-    final allClients = await clientService.getAllClients();
-    final Map<String, Client> clientsById = {
-      for (final client in allClients) client.id: client,
-    };
+    // 🔑 SPRAWDŹ czy OptimizedProduct już zawiera statusy głosowania
+    bool hasVotingStatuses = false;
+    if (products.isNotEmpty && products.first.topInvestors.isNotEmpty) {
+      hasVotingStatuses =
+          products.first.topInvestors.first.votingStatus != null;
+    }
 
-    print(
-      '🗳️ [Premium Analytics] Pobrano ${clientsById.length} klientów z Firebase',
-    );
+    Map<String, Client> clientsById = {};
+
+    if (hasVotingStatuses) {
+      // ✅ OptimizedProduct już ma statusy głosowania - użyj ich bezpośrednio
+      print(
+        '✅ [Premium Analytics] OptimizedProduct zawiera statusy głosowania - używam bezpośrednio bez dodatkowych zapytań!',
+      );
+
+      // Stwórz mapę klientów z danych OptimizedProduct
+      for (final product in products) {
+        for (final investor in product.topInvestors) {
+          if (!clientsById.containsKey(investor.clientId)) {
+            clientsById[investor.clientId] = Client(
+              id: investor.clientId,
+              name: investor.clientName,
+              type: ClientType.individual, // Domyślnie
+              email: '',
+              phone: '',
+              address: '',
+              votingStatus: investor.votingStatus ?? VotingStatus.undecided,
+              unviableInvestments: [],
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+              additionalInfo: {},
+            );
+          }
+        }
+      }
+
+      print(
+        '🗳️ [Premium Analytics] Utworzono ${clientsById.length} klientów z danych OptimizedProduct',
+      );
+    } else {
+      // ⚠️ OptimizedProduct nie ma statusów głosowania - pobierz z Firebase
+      print(
+        '🗳️ [Premium Analytics] OptimizedProduct nie zawiera statusów - pobieram z Firebase...',
+      );
+      final IntegratedClientService clientService = IntegratedClientService();
+      final allClients = await clientService.getAllClients();
+      clientsById = {for (final client in allClients) client.id: client};
+
+      print(
+        '🗳️ [Premium Analytics] Pobrano ${clientsById.length} klientów z Firebase',
+      );
+    }
 
     final List<InvestorSummary> investors = [];
 
@@ -5451,16 +5487,23 @@ class _PremiumInvestorAnalyticsScreenState
       final clientId = entry.key;
       final clientProducts = entry.value;
 
-      // 🔑 UŻYJ RZECZYWISTEGO KLIENTA Z FIREBASE LUB STWÓRZ TYMCZASOWEGO
+      // 🔑 UŻYJ KLIENTA Z PRZYGOTOWANEJ MAPY (OptimizedProduct lub Firebase)
       Client client;
       if (clientsById.containsKey(clientId)) {
         client = clientsById[clientId]!;
-        print(
-          '✅ [Premium Analytics] Klient ${client.name}: voting=${client.votingStatus}',
-        );
+        if (hasVotingStatuses) {
+          print(
+            '✅ [Premium Analytics] Klient ${client.name}: voting=${client.votingStatus} (z OptimizedProduct)',
+          );
+        } else {
+          print(
+            '✅ [Premium Analytics] Klient ${client.name}: voting=${client.votingStatus} (z Firebase)',
+          );
+        }
       } else {
+        // To nie powinno się zdarzyć, ale jako zabezpieczenie
         print(
-          '⚠️ [Premium Analytics] Brak klienta $clientId w Firebase, tworzę tymczasowego',
+          '⚠️ [Premium Analytics] UWAGA: Brak klienta $clientId w mapie, tworzę awaryjnego',
         );
         client = Client(
           id: clientId,
@@ -5471,7 +5514,7 @@ class _PremiumInvestorAnalyticsScreenState
           email: '',
           phone: '',
           address: '',
-          votingStatus: VotingStatus.undecided, // Tylko dla nieznanych klientów
+          votingStatus: VotingStatus.undecided,
           unviableInvestments: [],
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),

@@ -107,15 +107,26 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
 
   void _insertInitialContent(String content) {
     try {
-      if (_quillController.document.length > 1) {
-        _quillController.clear(); // Wyczyść istniejącą treść
-      }
-      final document = Document()..insert(0, content);
-      _quillController.document = document;
+      // Wyczyść istniejącą treść
+      _quillController.clear();
+      
+      // Dodaj nową treść
+      _quillController.document.insert(0, content);
+      
+      // Ustaw kursor na końcu tekstu
+      _quillController.updateSelection(
+        TextSelection.collapsed(offset: content.length), 
+        ChangeSource.local
+      );
     } catch (e) {
       debugPrint('Błąd podczas wstawiania treści: $e');
       // Fallback - spróbuj prostszą metodę
-      _quillController.document.insert(0, content);
+      try {
+        _quillController.clear();
+        _quillController.document.insert(0, content);
+      } catch (fallbackError) {
+        debugPrint('Błąd fallback: $fallbackError');
+      }
     }
   }
 
@@ -155,7 +166,21 @@ W razie pytań prosimy o kontakt z naszym działem obsługi klienta.
 Z poważaniem,
 Zespół Metropolitan Investment''';
 
-    _insertInitialContent(defaultTemplate);
+    try {
+      _quillController.clear();
+      _quillController.document.insert(0, defaultTemplate);
+      
+      // Ustaw kursor na końcu
+      _quillController.updateSelection(
+        TextSelection.collapsed(offset: defaultTemplate.length), 
+        ChangeSource.local
+      );
+      
+      // Force refresh
+      setState(() {});
+    } catch (e) {
+      debugPrint('Błąd podczas wstawiania szablonu: $e');
+    }
   }
 
   void _updatePreview() {
@@ -414,30 +439,41 @@ Zespół Metropolitan Investment''';
 
                   // Edytor Quill z lepszą kolorystyką
                   Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: AppThemePro.borderPrimary),
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(8),
-                          bottomRight: Radius.circular(8),
+                    child: GestureDetector(
+                      onTap: () {
+                        // Focus editor when tapped
+                        _editorFocusNode.requestFocus();
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: AppThemePro.borderPrimary),
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(8),
+                            bottomRight: Radius.circular(8),
+                          ),
                         ),
-                      ),
                       child: Theme(
                         data: Theme.of(context).copyWith(
-                          // Nadpisanie kolorów dla lepszej widoczności
-                          iconTheme: IconThemeData(
-                            color: AppThemePro.textPrimary,
+                          // Nadpisanie kolorów dla lepszej widoczności na białym tle
+                          iconTheme: const IconThemeData(
+                            color: Colors.black87,
                           ),
-                          textTheme: TextTheme(
+                          textTheme: const TextTheme(
                             bodyLarge: TextStyle(
-                              color: AppThemePro.dividerColor,
+                              color: Colors.black87,
                               fontSize: 14,
                             ),
                             bodyMedium: TextStyle(
-                              color: AppThemePro.dividerColor,
+                              color: Colors.black87,
                               fontSize: 14,
                             ),
+                          ),
+                          // Dodaj konfigurację selection
+                          textSelectionTheme: TextSelectionThemeData(
+                            cursorColor: AppThemePro.accentGold,
+                            selectionColor: AppThemePro.accentGold.withOpacity(0.3),
+                            selectionHandleColor: AppThemePro.accentGold,
                           ),
                         ),
                         child: QuillEditor.basic(
@@ -451,30 +487,8 @@ Zespół Metropolitan Investment''';
                             expands: false,
                             // Web-specific optimizations
                             maxContentWidth: kIsWeb ? 800 : null,
-                            // Kolorystyka edytora dla ciemnego motywu
-                            customStyles: DefaultStyles(
-                              paragraph: DefaultTextBlockStyle(
-                                TextStyle(
-                                  color: AppThemePro.surfaceCard,
-                                  fontSize: 14,
-                                ),
-                                HorizontalSpacing.zero,
-                                VerticalSpacing.zero,
-                                VerticalSpacing.zero,
-                                null,
-                              ),
-                              placeHolder: DefaultTextBlockStyle(
-                                TextStyle(
-                                  color: AppThemePro.backgroundModal,
-                                  fontSize: 14,
-                                ),
-                                HorizontalSpacing.zero,
-                                VerticalSpacing.zero,
-                                VerticalSpacing.zero,
-                                null,
-                              ),
-                            ),
                           ),
+                        ),
                         ),
                       ),
                     ),
@@ -1956,6 +1970,14 @@ Zespół Metropolitan Investment''';
     try {
       const greeting = 'Szanowni Państwo,\n\n';
       _quillController.document.insert(0, greeting);
+      
+      // Ustaw kursor po pozdrowieniu
+      _quillController.updateSelection(
+        TextSelection.collapsed(offset: greeting.length), 
+        ChangeSource.local
+      );
+      
+      setState(() {}); // Force refresh
     } catch (e) {
       debugPrint('Błąd podczas wstawiania powitania: $e');
     }
@@ -1967,6 +1989,14 @@ Zespół Metropolitan Investment''';
           '\n\nZ poważaniem,\nZespół ${_senderNameController.text}\n';
       final length = _quillController.document.length;
       _quillController.document.insert(length - 1, signature);
+      
+      // Ustaw kursor po podpisie
+      _quillController.updateSelection(
+        TextSelection.collapsed(offset: length - 1 + signature.length), 
+        ChangeSource.local
+      );
+      
+      setState(() {}); // Force refresh
     } catch (e) {
       debugPrint('Błąd podczas wstawiania podpisu: $e');
     }
@@ -1975,6 +2005,14 @@ Zespół Metropolitan Investment''';
   void _clearEditor() {
     try {
       _quillController.clear();
+      
+      // Reset kursora
+      _quillController.updateSelection(
+        const TextSelection.collapsed(offset: 0), 
+        ChangeSource.local
+      );
+      
+      setState(() {}); // Force refresh
     } catch (e) {
       debugPrint('Błąd podczas czyszczenia edytora: $e');
     }
