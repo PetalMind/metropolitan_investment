@@ -20,6 +20,8 @@ class ProductDetailsHeader extends StatefulWidget {
   final Function(int)? onTabChanged; // ⭐ NOWE: Callback dla zmiany tabu
   final Future<void> Function()?
   onDataChanged; // ⭐ NOWE: Callback dla odświeżenia danych po edycji kapitału
+  final bool isCollapsed; // ⭐ NOWE: Czy header jest zwinięty
+  final double collapseFactor; // ⭐ NOWE: Współczynnik zwinięcia (0.0 - 1.0)
 
   const ProductDetailsHeader({
     super.key,
@@ -31,6 +33,8 @@ class ProductDetailsHeader extends StatefulWidget {
     this.onEditModeChanged, // ⭐ NOWE: Callback dla zmiany trybu edycji
     this.onTabChanged, // ⭐ NOWE: Callback dla zmiany tabu
     this.onDataChanged, // ⭐ NOWE: Callback dla odświeżenia danych po edycji kapitału
+    this.isCollapsed = false, // ⭐ NOWE: Domyślnie nie zwinięty
+    this.collapseFactor = 1.0, // ⭐ NOWE: Domyślnie pełny rozmiar
   });
   @override
   State<ProductDetailsHeader> createState() => _ProductDetailsHeaderState();
@@ -130,18 +134,29 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
+    
+    // ⭐ NOWE: Oblicz padding i wysokość na podstawie stanu zwijania
+    final basePadding = isMobile ? 16.0 : 20.0;
+    final padding = basePadding * widget.collapseFactor;
+    final opacity = (0.3 + 0.7 * widget.collapseFactor).clamp(0.0, 1.0);
+    
+    // ⭐ DEBUG: Dodaj debug info
+    debugPrint('🔍 [ProductDetailsHeader] Building header for: ${widget.product.name}');
+    debugPrint('   - isCollapsed: ${widget.isCollapsed}');
+    debugPrint('   - collapseFactor: ${widget.collapseFactor}');
+    debugPrint('   - investors count: ${widget.investors.length}');
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 16 : 20),
+      padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.primaryColor,
-            AppTheme.primaryLight,
-            AppTheme.primaryAccent,
+            AppTheme.primaryColor.withOpacity(opacity),
+            AppTheme.primaryLight.withOpacity(opacity),
+            AppTheme.primaryAccent.withOpacity(opacity),
           ],
         ),
         borderRadius: const BorderRadius.only(
@@ -150,8 +165,8 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.3),
-            blurRadius: 15,
+            color: AppTheme.primaryColor.withOpacity(0.3 * widget.collapseFactor),
+            blurRadius: 15 * widget.collapseFactor,
             offset: const Offset(0, 5),
           ),
         ],
@@ -162,10 +177,17 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildCloseButton(),
-            SizedBox(height: isMobile ? 6 : 8),
+            SizedBox(height: (isMobile ? 6 : 8) * widget.collapseFactor),
             _buildMainInfo(),
-            SizedBox(height: isMobile ? 16 : 20),
-            _buildFinancialMetrics(),
+            // ⭐ NOWE: Statystyki znikają gdy header jest zwinięty
+            if (!widget.isCollapsed) ...[
+              SizedBox(height: (isMobile ? 16 : 20) * widget.collapseFactor),
+              AnimatedOpacity(
+                opacity: widget.collapseFactor,
+                duration: const Duration(milliseconds: 300),
+                child: _buildFinancialMetrics(),
+              ),
+            ],
           ],
         ),
       ),
@@ -240,24 +262,43 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   }
 
   Widget _buildMobileLoadingGrid() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isVerySmall = screenWidth < 400; // ⭐ NOWE: Wykryj bardzo małe ekrany
+    final spacing = isVerySmall ? 8.0 : 12.0;
+    
+    if (isVerySmall) {
+      // ⭐ NOWE: Na bardzo małych ekranach pokaż w jednej kolumnie
+      return Column(
+        children: [
+          _buildMetricLoadingCard(),
+          SizedBox(height: spacing),
+          _buildMetricLoadingCard(),
+          SizedBox(height: spacing),
+          _buildMetricLoadingCard(),
+          SizedBox(height: spacing),
+          _buildMetricLoadingCard(),
+        ],
+      );
+    }
+    
     return Column(
       children: [
         // Pierwszy wiersz - dwa loading cards
         Row(
           children: [
             Expanded(child: _buildMetricLoadingCard()),
-            const SizedBox(width: 12),
+            SizedBox(width: spacing),
             Expanded(child: _buildMetricLoadingCard()),
           ],
         ),
 
-        const SizedBox(height: 12),
+        SizedBox(height: spacing),
 
         // Drugi wiersz - dwa loading cards
         Row(
           children: [
             Expanded(child: _buildMetricLoadingCard()),
-            const SizedBox(width: 12),
+            SizedBox(width: spacing),
             Expanded(child: _buildMetricLoadingCard()),
           ],
         ),
@@ -266,13 +307,20 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   }
 
   Widget _buildDesktopLoadingRow() {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      children: List.generate(
-        4,
-        (i) => SizedBox(width: 220, child: _buildMetricLoadingCard()),
-      ),
+    final screenWidth = MediaQuery.of(context).size.width;
+    // ⭐ NOWE: Spacing dostosowany do układu w jednej linii
+    final spacing = screenWidth < 800 ? 12.0 : 16.0;
+    
+    return Row(
+      children: [
+        Expanded(child: _buildMetricLoadingCard()),
+        SizedBox(width: spacing),
+        Expanded(child: _buildMetricLoadingCard()),
+        SizedBox(width: spacing),
+        Expanded(child: _buildMetricLoadingCard()),
+        SizedBox(width: spacing),
+        Expanded(child: _buildMetricLoadingCard()),
+      ],
     );
   }
 
@@ -282,6 +330,52 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     double totalCapitalSecured,
     double totalCapitalForRestructuring,
   ) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isVerySmall = screenWidth < 400; // ⭐ NOWE: Wykryj bardzo małe ekrany
+    
+    if (isVerySmall) {
+      // ⭐ NOWE: Na bardzo małych ekranach pokaż w jednej kolumnie
+      return Column(
+        children: [
+          _buildCompactMetricCard(
+            title: 'Suma inwestycji',
+            value: CurrencyFormatter.formatCurrency(totalInvestmentAmount),
+            subtitle: 'PLN',
+            icon: Icons.trending_up,
+            color: AppTheme.infoPrimary,
+          ),
+          const SizedBox(height: 8),
+          _buildCompactMetricCard(
+            title: 'Kapitał pozostały',
+            value: CurrencyFormatter.formatCurrency(totalRemainingCapital),
+            subtitle: 'PLN',
+            icon: Icons.account_balance_wallet,
+            color: AppTheme.successPrimary,
+            onTap: _isEditModeEnabled ? _openTotalCapitalEditDialog : null,
+          ),
+          const SizedBox(height: 8),
+          _buildCompactMetricCard(
+            title: 'Kapitał zabezpieczony',
+            value: CurrencyFormatter.formatCurrency(totalCapitalSecured),
+            subtitle: 'PLN',
+            icon: Icons.security,
+            color: AppTheme.warningPrimary,
+          ),
+          const SizedBox(height: 8),
+          _buildCompactMetricCard(
+            title: 'Kapitał do restrukturyzacji',
+            value: CurrencyFormatter.formatCurrency(
+              totalCapitalForRestructuring,
+            ),
+            subtitle: 'PLN',
+            icon: Icons.build,
+            color: AppTheme.errorPrimary,
+          ),
+        ],
+      );
+    }
+    
+    // ⭐ ULEPSZONY: Grid 2x2 dla normalnych rozmiarów mobile
     return Column(
       children: [
         // Pierwszy wiersz - dwie karty
@@ -296,7 +390,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                 color: AppTheme.infoPrimary,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8), // ⭐ ZMNIEJSZONE: z 12 na 8
             Expanded(
               child: _buildCompactMetricCard(
                 title: 'Kapitał pozostały',
@@ -310,7 +404,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
           ],
         ),
 
-        const SizedBox(height: 12),
+        const SizedBox(height: 8), // ⭐ ZMNIEJSZONE: z 12 na 8
 
         // Drugi wiersz - dwie karty
         Row(
@@ -324,7 +418,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                 color: AppTheme.warningPrimary,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8), // ⭐ ZMNIEJSZONE: z 12 na 8
             Expanded(
               child: _buildCompactMetricCard(
                 title: 'Kapitał do restrukturyzacji',
@@ -348,12 +442,13 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     double totalCapitalSecured,
     double totalCapitalForRestructuring,
   ) {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
+    final screenWidth = MediaQuery.of(context).size.width;
+    // ⭐ NOWE: Spacing dostosowany do układu w jednej linii
+    final spacing = screenWidth < 800 ? 12.0 : 16.0;
+    
+    return Row(
       children: [
-        SizedBox(
-          width: 220,
+        Expanded(
           child: _buildMetricCard(
             title: 'Suma inwestycji',
             value: CurrencyFormatter.formatCurrency(totalInvestmentAmount),
@@ -362,8 +457,8 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             color: AppTheme.infoPrimary,
           ),
         ),
-        SizedBox(
-          width: 220,
+        SizedBox(width: spacing),
+        Expanded(
           child: _buildMetricCard(
             title: 'Kapitał pozostały',
             value: CurrencyFormatter.formatCurrency(totalRemainingCapital),
@@ -373,8 +468,8 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             onTap: _isEditModeEnabled ? _openTotalCapitalEditDialog : null,
           ),
         ),
-        SizedBox(
-          width: 220,
+        SizedBox(width: spacing),
+        Expanded(
           child: _buildMetricCard(
             title: 'Kapitał zabezpieczony',
             value: CurrencyFormatter.formatCurrency(totalCapitalSecured),
@@ -383,8 +478,8 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             color: AppTheme.warningPrimary,
           ),
         ),
-        SizedBox(
-          width: 220,
+        SizedBox(width: spacing),
+        Expanded(
           child: _buildMetricCard(
             title: 'Kapitał do restrukturyzacji',
             value: CurrencyFormatter.formatCurrency(
@@ -556,8 +651,14 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   Widget _buildMainInfo() {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
+    
+    debugPrint('🔍 [ProductDetailsHeader] Building main info:');
+    debugPrint('   - Product name: ${widget.product.name}');
+    debugPrint('   - Product type: ${widget.product.productType}');
+    debugPrint('   - Is mobile: $isMobile');
+    debugPrint('   - Is collapsed: ${widget.isCollapsed}');
 
-    if (isMobile) {
+    if (isMobile || widget.isCollapsed) {
       return _buildMobileMainInfo();
     } else {
       return _buildDesktopMainInfo();
@@ -565,6 +666,87 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   }
 
   Widget _buildMobileMainInfo() {
+    // ⭐ NOWE: Skaluj rozmiary na podstawie współczynnika zwijania
+    final iconSize = (widget.isCollapsed ? 32.0 : 48.0) * widget.collapseFactor;
+    final titleFontSize = (widget.isCollapsed ? 16.0 : 20.0) * widget.collapseFactor;
+    final spacing = 12.0 * widget.collapseFactor;
+    
+    if (widget.isCollapsed) {
+      // Układ poziomy dla zwiniętego stanu
+      return Row(
+        children: [
+          // Ikona produktu (mniejsza)
+          TweenAnimationBuilder(
+            duration: const Duration(milliseconds: 800),
+            tween: Tween<double>(begin: 0, end: 1),
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: value,
+                child: Container(
+                  width: iconSize,
+                  height: iconSize,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppTheme.getProductTypeColor(
+                          widget.product.productType.collectionName,
+                        ).withOpacity(0.8),
+                        AppTheme.getProductTypeColor(
+                          widget.product.productType.collectionName,
+                        ),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(iconSize * 0.33),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.getProductTypeColor(
+                          widget.product.productType.collectionName,
+                        ).withOpacity(0.4),
+                        blurRadius: 15,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    _getProductIcon(widget.product.productType),
+                    color: Colors.white,
+                    size: iconSize * 0.5,
+                  ),
+                ),
+              );
+            },
+          ),
+          
+          SizedBox(width: 12),
+          
+          // Nazwa produktu w trybie zwiniętym
+          Expanded(
+            child: Text(
+              widget.product.name,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: -0.3,
+                fontSize: titleFontSize,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          
+          // Status badge
+          _buildStatusBadge(),
+        ],
+      );
+    }
+    
+    // Układ pionowy dla normalnego stanu
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -572,7 +754,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Ikona produktu (mniejsza na mobile)
+            // Ikona produktu (normalna)
             TweenAnimationBuilder(
               duration: const Duration(milliseconds: 800),
               tween: Tween<double>(begin: 0, end: 1),
@@ -580,8 +762,8 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                 return Transform.scale(
                   scale: value,
                   child: Container(
-                    width: 48,
-                    height: 48,
+                    width: iconSize,
+                    height: iconSize,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
@@ -595,7 +777,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                           ),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(iconSize * 0.33),
                       border: Border.all(
                         color: Colors.white.withOpacity(0.3),
                         width: 2,
@@ -613,7 +795,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                     child: Icon(
                       _getProductIcon(widget.product.productType),
                       color: Colors.white,
-                      size: 24,
+                      size: iconSize * 0.5,
                     ),
                   ),
                 );
@@ -625,7 +807,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
           ],
         ),
 
-        const SizedBox(height: 12),
+        SizedBox(height: spacing),
 
         // Nazwa produktu
         Text(
@@ -634,17 +816,20 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             color: Colors.white,
             fontWeight: FontWeight.bold,
             letterSpacing: -0.5,
-            fontSize: 20,
+            fontSize: titleFontSize,
           ),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
 
-        const SizedBox(height: 8),
+        SizedBox(height: spacing * 0.67),
 
         // Typ produktu
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: EdgeInsets.symmetric(
+            horizontal: 10 * widget.collapseFactor,
+            vertical: 4 * widget.collapseFactor,
+          ),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.15),
             borderRadius: BorderRadius.circular(16),
@@ -656,7 +841,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
               color: Colors.white,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
-              fontSize: 12,
+              fontSize: 12 * widget.collapseFactor,
             ),
           ),
         ),
@@ -665,6 +850,10 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   }
 
   Widget _buildDesktopMainInfo() {
+    // ⭐ NOWE: Skaluj rozmiary na podstawie współczynnika zwijania
+    final iconSize = (widget.isCollapsed ? 48.0 : 64.0) * widget.collapseFactor;
+    final spacing = 20.0 * widget.collapseFactor;
+    
     return Row(
       children: [
         // Ikona produktu z animacją
@@ -675,8 +864,8 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             return Transform.scale(
               scale: value,
               child: Container(
-                width: 64,
-                height: 64,
+                width: iconSize,
+                height: iconSize,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -690,7 +879,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                       ),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(iconSize * 0.31),
                   border: Border.all(
                     color: Colors.white.withOpacity(0.3),
                     width: 2,
@@ -708,14 +897,14 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                 child: Icon(
                   _getProductIcon(widget.product.productType),
                   color: Colors.white,
-                  size: 32,
+                  size: iconSize * 0.5,
                 ),
               ),
             );
           },
         ),
 
-        const SizedBox(width: 20),
+        SizedBox(width: spacing),
 
         // Informacje o produkcie
         Expanded(
@@ -728,33 +917,37 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   letterSpacing: -0.5,
+                  fontSize: widget.isCollapsed ? 18 : 24,
                 ),
-                maxLines: 2,
+                maxLines: widget.isCollapsed ? 1 : 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
-                    width: 1,
+              if (!widget.isCollapsed) ...[
+                SizedBox(height: 8 * widget.collapseFactor),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12 * widget.collapseFactor,
+                    vertical: 6 * widget.collapseFactor,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    widget.product.productType.displayName,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                      fontSize: 12 * widget.collapseFactor,
+                    ),
                   ),
                 ),
-                child: Text(
-                  widget.product.productType.displayName,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
+              ],
             ],
           ),
         ),
@@ -769,6 +962,12 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     final color = AppTheme.getStatusColor(widget.product.status.displayName);
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
+    
+    // ⭐ NOWE: Skaluj padding na podstawie stanu zwijania
+    final horizontalPadding = ((isMobile ? 12 : 16) * widget.collapseFactor).clamp(8.0, 16.0);
+    final verticalPadding = ((isMobile ? 6 : 8) * widget.collapseFactor).clamp(4.0, 8.0);
+    final fontSize = ((isMobile ? 11 : 12) * widget.collapseFactor).clamp(9.0, 12.0);
+    final dotSize = ((isMobile ? 6 : 8) * widget.collapseFactor).clamp(4.0, 8.0);
 
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 600),
@@ -778,8 +977,8 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
           scale: value,
           child: Container(
             padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 12 : 16,
-              vertical: isMobile ? 6 : 8,
+              horizontal: horizontalPadding,
+              vertical: verticalPadding,
             ),
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -795,7 +994,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
               boxShadow: [
                 BoxShadow(
                   color: color.withOpacity(0.3),
-                  blurRadius: isMobile ? 10 : 15,
+                  blurRadius: (isMobile ? 10 : 15) * widget.collapseFactor,
                   spreadRadius: 1,
                 ),
               ],
@@ -804,11 +1003,11 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: isMobile ? 6 : 8,
-                  height: isMobile ? 6 : 8,
+                  width: dotSize,
+                  height: dotSize,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(isMobile ? 3 : 4),
+                    borderRadius: BorderRadius.circular(dotSize / 2),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.white.withOpacity(0.5),
@@ -818,14 +1017,14 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                     ],
                   ),
                 ),
-                SizedBox(width: isMobile ? 6 : 8),
+                SizedBox(width: (isMobile ? 6 : 8) * widget.collapseFactor),
                 Text(
                   widget.product.status.displayName,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
-                    fontSize: isMobile ? 11 : 12,
+                    fontSize: fontSize,
                   ),
                 ),
               ],
@@ -838,9 +1037,22 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
 
   /// Widget loading state dla metryk podczas ładowania z serwera
   Widget _buildMetricLoadingCard() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isVerySmall = screenWidth < 400; // ⭐ NOWE: Wykryj bardzo małe ekrany
+    
+    // ⭐ ULEPSZONY: Responsywne rozmiary
+    final cardHeight = isVerySmall ? 70.0 : 80.0;
+    final padding = isVerySmall ? 8.0 : 16.0;
+    final iconSize = isVerySmall ? 14.0 : 16.0;
+    final titleWidth = isVerySmall ? 50.0 : 60.0;
+    final valueWidth = isVerySmall ? 60.0 : 80.0;
+    final valueHeight = isVerySmall ? 16.0 : 20.0;
+    final subtitleWidth = isVerySmall ? 25.0 : 30.0;
+    final subtitleHeight = isVerySmall ? 10.0 : 12.0;
+    
     return Container(
-      height: 80, // Stała wysokość odpowiadająca compact metric card
-      padding: const EdgeInsets.all(16),
+      height: cardHeight,
+      padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
@@ -860,17 +1072,17 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 16,
-                height: 16,
+                width: iconSize,
+                height: iconSize,
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(iconSize / 2),
                 ),
               ),
               const SizedBox(width: 6),
               Container(
-                width: 60,
-                height: 12,
+                width: titleWidth,
+                height: subtitleHeight,
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(6),
@@ -878,19 +1090,19 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: isVerySmall ? 6 : 8),
           Container(
-            width: 80,
-            height: 20,
+            width: valueWidth,
+            height: valueHeight,
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.4),
               borderRadius: BorderRadius.circular(10),
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: isVerySmall ? 2 : 4),
           Container(
-            width: 30,
-            height: 12,
+            width: subtitleWidth,
+            height: subtitleHeight,
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.3),
               borderRadius: BorderRadius.circular(6),
@@ -1000,10 +1212,22 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     required Color color,
     VoidCallback? onTap,
   }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isVerySmall = screenWidth < 400; // ⭐ NOWE: Wykryj bardzo małe ekrany
+    
     // Sprawdź czy to karta "Kapitał pozostały" w trybie edycji
     final isCapitalRemaining = title == 'Kapitał pozostały';
     final showGoldBorder =
         isCapitalRemaining && _isEditModeEnabled && onTap != null;
+        
+    // ⭐ ULEPSZONY: Responsywne rozmiary
+    final cardHeight = isVerySmall ? 70.0 : 80.0;
+    final padding = isVerySmall ? 8.0 : 12.0;
+    final iconSize = isVerySmall ? 14.0 : 16.0;
+    final titleFontSize = isVerySmall ? 10.0 : 11.0;
+    final valueFontSize = isVerySmall ? 12.0 : 14.0;
+    final subtitleFontSize = isVerySmall ? 9.0 : 10.0;
+    
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 1000),
       tween: Tween<double>(begin: 0, end: 1),
@@ -1016,8 +1240,8 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
               onTap: onTap,
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                height: 80, // Stała wysokość dla lepszego layoutu
-                padding: const EdgeInsets.all(12),
+                height: cardHeight,
+                padding: EdgeInsets.all(padding),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
@@ -1040,51 +1264,112 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(icon, color: color, size: 16),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            title,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: Colors.white.withOpacity(0.8),
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.2,
-                                  fontSize: 11,
+                    // ⭐ ULEPSZONY: Lepszy layout dla bardzo małych ekranów
+                    if (isVerySmall) ...[
+                      // Kompaktowy layout - ikona i tytuł w jednej linii
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(icon, color: color, size: iconSize),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              title,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.1,
+                                    fontSize: titleFontSize,
+                                  ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      // Wartość i waluta w jednej linii
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                value,
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: -0.2,
+                                  fontSize: valueFontSize,
                                 ),
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          if (subtitle.isNotEmpty) ...[
+                            const SizedBox(width: 2),
+                            Text(
+                              subtitle,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: color,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                                fontSize: subtitleFontSize,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ] else ...[
+                      // Normalny layout
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(icon, color: color, size: iconSize),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              title,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.2,
+                                    fontSize: titleFontSize,
+                                  ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          value,
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.2,
+                            fontSize: valueFontSize,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        value,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.2,
-                          fontSize: 14,
-                        ),
                       ),
-                    ),
-                    if (subtitle.isNotEmpty)
-                      Text(
-                        subtitle,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: color,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.3,
-                          fontSize: 10,
+                      if (subtitle.isNotEmpty)
+                        Text(
+                          subtitle,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
+                            fontSize: subtitleFontSize,
+                          ),
                         ),
-                      ),
+                    ],
                   ],
                 ),
               ),

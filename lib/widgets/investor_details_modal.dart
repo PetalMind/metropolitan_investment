@@ -872,9 +872,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          
-        ),
+        Row(),
         const SizedBox(height: 16),
         Expanded(
           child: Container(
@@ -2111,7 +2109,9 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
     print('🎯 [InvestorModal] Nawigacja do konkretnego produktu:');
     print('🎯 [InvestorModal] - Investment ID (logiczne): ${investment.id}');
-    print('🎯 [InvestorModal] - Investment proposalId (hash): ${investment.proposalId}');
+    print(
+      '🎯 [InvestorModal] - Investment proposalId (hash): ${investment.proposalId}',
+    );
     print('🎯 [InvestorModal] - Product Name: ${investment.productName}');
     print('🎯 [InvestorModal] - Product Type: ${investment.productType.name}');
 

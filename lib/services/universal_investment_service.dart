@@ -528,15 +528,18 @@ class UniversalInvestmentService extends BaseService {
   }
 
   /// 🚀 NOWA METODA: Pobiera wszystkie inwestycje grupowane po klientach (BULK OPTIMIZATION)
-  Future<Map<String, List<Investment>>> getAllInvestmentsGroupedByClient() async {
+  Future<Map<String, List<Investment>>>
+  getAllInvestmentsGroupedByClient() async {
     try {
-      debugPrint('🚀 [UniversalInvestment] Getting ALL investments grouped by client (BULK)...');
+      debugPrint(
+        '🚀 [UniversalInvestment] Getting ALL investments grouped by client (BULK)...',
+      );
 
-      final querySnapshot = await _firestore
-          .collection(_collection)
-          .get();
+      final querySnapshot = await _firestore.collection(_collection).get();
 
-      debugPrint('✅ [UniversalInvestment] Retrieved ${querySnapshot.docs.length} total investments');
+      debugPrint(
+        '✅ [UniversalInvestment] Retrieved ${querySnapshot.docs.length} total investments',
+      );
 
       final Map<String, List<Investment>> investmentsByClient = {};
 
@@ -547,19 +550,25 @@ class UniversalInvestmentService extends BaseService {
 
           if (clientId.isNotEmpty) {
             investmentsByClient.putIfAbsent(clientId, () => []).add(investment);
-            
+
             // Cache individual investment for future use
             _cacheInvestment(investment);
           }
         } catch (e) {
-          debugPrint('⚠️ [UniversalInvestment] Error parsing investment ${doc.id}: $e');
+          debugPrint(
+            '⚠️ [UniversalInvestment] Error parsing investment ${doc.id}: $e',
+          );
         }
       }
 
-      debugPrint('✅ [UniversalInvestment] Grouped investments for ${investmentsByClient.length} clients');
+      debugPrint(
+        '✅ [UniversalInvestment] Grouped investments for ${investmentsByClient.length} clients',
+      );
       return investmentsByClient;
     } catch (e) {
-      debugPrint('❌ [UniversalInvestment] Error in bulk client investments: $e');
+      debugPrint(
+        '❌ [UniversalInvestment] Error in bulk client investments: $e',
+      );
       return {};
     }
   }

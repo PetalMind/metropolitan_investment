@@ -5589,19 +5589,24 @@ class _PremiumInvestorAnalyticsScreenState
     );
 
     // KROK 3: 🚀 MEGA OPTYMALIZACJA: Użyj nowej bulk metody z UniversalInvestmentService
-    print('🚀 [Premium Analytics] Używam bulk metody UniversalInvestmentService...');
-    
-    final Map<String, List<Investment>> investmentsByClient = 
-        await UniversalInvestmentService.instance.getAllInvestmentsGroupedByClient();
-    
-    print('✅ [Premium Analytics] Otrzymano inwestycje dla ${investmentsByClient.length} klientów (bulk)');
+    print(
+      '🚀 [Premium Analytics] Używam bulk metody UniversalInvestmentService...',
+    );
+
+    final Map<String, List<Investment>> investmentsByClient =
+        await UniversalInvestmentService.instance
+            .getAllInvestmentsGroupedByClient();
+
+    print(
+      '✅ [Premium Analytics] Otrzymano inwestycje dla ${investmentsByClient.length} klientów (bulk)',
+    );
 
     // KROK 4: Stwórz InvestorSummary dla WSZYSTKICH klientów (szybko, bez dodatkowych zapytań)
     final List<InvestorSummary> investors = [];
 
     for (final client in allClients) {
       final clientId = client.id;
-      
+
       // Pobierz inwestycje dla tego klienta z przygotowanej mapy (bez zapytania Firebase)
       final clientInvestments = investmentsByClient[clientId] ?? [];
 

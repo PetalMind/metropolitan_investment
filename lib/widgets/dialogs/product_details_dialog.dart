@@ -42,6 +42,7 @@ class _EnhancedProductDetailsDialogState
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _service = ProductDetailsService();
+    
     _loadInvestors();
 
     // 🚀 NOWE: Jeśli mamy highlightInvestmentId, automatycznie przełącz na zakładkę "Inwestorzy" (index 1)
@@ -50,7 +51,7 @@ class _EnhancedProductDetailsDialogState
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _tabController.animateTo(1); // Przełącz na zakładkę "Inwestorzy"
-          print(
+          debugPrint(
             '🎯 [ProductDetailsDialog] Automatycznie przełączono na zakładkę "Inwestorzy" dla inwestycji: ${widget.highlightInvestmentId}',
           );
         }
@@ -66,6 +67,8 @@ class _EnhancedProductDetailsDialogState
 
   Future<void> _loadInvestors() async {
     try {
+      debugPrint('🔄 [ProductDetailsDialog] Loading investors for product: ${widget.product.name}');
+      
       setState(() {
         _isLoadingInvestors = true;
         _investorsError = null;
@@ -73,13 +76,18 @@ class _EnhancedProductDetailsDialogState
 
       final investors = await _service.getInvestorsForProduct(widget.product);
 
+      debugPrint('✅ [ProductDetailsDialog] Loaded ${investors.length} investors');
+      
       if (mounted) {
         setState(() {
           _investors = investors;
           _isLoadingInvestors = false;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ [ProductDetailsDialog] Error loading investors: $e');
+      debugPrint('Stack trace: $stackTrace');
+      
       if (mounted) {
         setState(() {
           _investorsError = 'Błąd podczas ładowania inwestorów: $e';
@@ -129,55 +137,49 @@ class _EnhancedProductDetailsDialogState
             ),
           ],
         ),
-        child: Column(
-          children: [
-            // Header z gradientem i przyciskiem zamknięcia
-            ProductDetailsHeader(
-              product: widget.product,
-              investors: _investors,
-              isLoadingInvestors: _isLoadingInvestors,
-              onClose: () => Navigator.of(context).pop(),
-              onShowInvestors: widget.onShowInvestors,
-              onEditModeChanged: (editMode) {
-                setState(() {
-                  _isEditModeEnabled = editMode;
-                });
-              },
-              onTabChanged: (tabIndex) {
-                // ⭐ NOWE: Przełącz na wybrany tab
-                _tabController.animateTo(tabIndex);
-              },
-              onDataChanged: () async {
-                // 🚀 UNIFIED DATA: Po skalowaniu przez TotalCapitalEditDialog, odśwież wszystkie dane
-                print(
-                  '🔄 [ProductDetailsDialog] onDataChanged wywołane - odświeżanie wszystkich danych po skalowaniu...',
-                );
-
-                // Odśwież inwestorów w głównym dialogu
-                await _loadInvestors();
-
-                print(
-                  '✅ [ProductDetailsDialog] Wszystkie dane odświeżone po skalowaniu produktu',
-                );
-              },
-            ),
-
-            // Tab Content
-            Expanded(
-              child: ProductDetailsTabs(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Column(
+            children: [
+              // Header z gradientem i przyciskiem zamknięcia - UPROSZCZONA WERSJA
+              ProductDetailsHeader(
                 product: widget.product,
-                tabController: _tabController,
                 investors: _investors,
                 isLoadingInvestors: _isLoadingInvestors,
-                investorsError: _investorsError,
-                onRefreshInvestors: _loadInvestors,
-                isEditModeEnabled:
-                    _isEditModeEnabled, // ⭐ NOWE: Przekazanie stanu edycji
-                highlightInvestmentId: widget
-                    .highlightInvestmentId, // 🚀 NOWE: Przekaż ID inwestycji do podświetlenia
+                onClose: () => Navigator.of(context).pop(),
+                onShowInvestors: widget.onShowInvestors,
+                isCollapsed: false, // ⭐ TYMCZASOWO: Wyłącz zwijanie dla debugowania
+                collapseFactor: 1.0, // ⭐ TYMCZASOWO: Pełny rozmiar
+                onEditModeChanged: (editMode) {
+                  setState(() {
+                    _isEditModeEnabled = editMode;
+                  });
+                },
+                onTabChanged: (tabIndex) {
+                  _tabController.animateTo(tabIndex);
+                },
+                onDataChanged: () async {
+                  debugPrint('🔄 [ProductDetailsDialog] onDataChanged wywołane...');
+                  await _loadInvestors();
+                  debugPrint('✅ [ProductDetailsDialog] Dane odświeżone');
+                },
               ),
-            ),
-          ],
+
+              // Tab Content - UPROSZCZONA WERSJA BEZ NOTIFICATION LISTENER
+              Expanded(
+                child: ProductDetailsTabs(
+                  product: widget.product,
+                  tabController: _tabController,
+                  investors: _investors,
+                  isLoadingInvestors: _isLoadingInvestors,
+                  investorsError: _investorsError,
+                  onRefreshInvestors: _loadInvestors,
+                  isEditModeEnabled: _isEditModeEnabled,
+                  highlightInvestmentId: widget.highlightInvestmentId,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
