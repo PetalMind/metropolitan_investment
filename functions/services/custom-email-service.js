@@ -102,7 +102,7 @@ const sendCustomHtmlEmailsToMultipleClients = onCall(async (request) => {
 
     for (const recipient of recipients) {
       const recipientStartTime = Date.now();
-      
+
       try {
         // Walidacja danych odbiorcy
         if (!recipient.clientEmail || !emailRegex.test(recipient.clientEmail)) {
@@ -163,7 +163,7 @@ const sendCustomHtmlEmailsToMultipleClients = onCall(async (request) => {
 
       } catch (recipientError) {
         console.error(`❌ [CustomEmailService] Błąd wysyłania do ${recipient.clientName}:`, recipientError);
-        
+
         results.push({
           success: false,
           messageId: '',
@@ -505,7 +505,7 @@ async function createEmailTransporter() {
     };
 
     console.log(`✅ [CustomEmailService] Konfiguracja SMTP załadowana z Firestore: ${config.host}:${config.port}`);
-    return nodemailer.createTransporter(config);
+    return nodemailer.createTransport(config);
   } catch (error) {
     console.error("❌ [CustomEmailService] Błąd podczas pobierania konfiguracji SMTP z Firestore. Używam fallback.", error);
     return createTransporterFromEnv();
@@ -518,7 +518,7 @@ async function createEmailTransporter() {
 function createTransporterFromEnv() {
   const functions = require('firebase-functions');
   const emailConfig = functions.config().email || {};
-  
+
   const config = {
     host: process.env.SMTP_HOST || emailConfig.smtp_host || 'smtp.office365.com',
     port: parseInt(process.env.SMTP_PORT || emailConfig.smtp_port) || 587,

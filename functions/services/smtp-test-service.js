@@ -94,7 +94,7 @@ const testSmtpConnection = onCall({ cors: corsOptions }, async (request) => {
       authUser: transportConfig.auth.user
     });
 
-    const transporter = nodemailer.createTransporter(transportConfig);
+    const transporter = nodemailer.createTransport(transportConfig);
 
     // 🧪 TEST POŁĄCZENIA
     console.log(`🔄 [SmtpTestService] Weryfikuję połączenie...`);
@@ -218,11 +218,11 @@ const sendTestEmail = onCall({ cors: corsOptions }, async (request) => {
       };
     }
 
-    const transporter = nodemailer.createTransporter(transportConfig);
+    const transporter = nodemailer.createTransport(transportConfig);
 
     // 📧 PRZYGOTOWANIE TREŚCI MAILA
     const subject = 'Test konfiguracji SMTP - Metropolitan Investment';
-    
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>

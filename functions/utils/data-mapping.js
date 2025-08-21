@@ -210,6 +210,14 @@ function mapProductStatus(status) {
   return 'active'; // default to active
 }
 
+/**
+ * Formats currency for display
+ */
+function formatCurrency(value, currency = 'PLN') {
+  const amount = safeToDouble(value);
+  return `${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} ${currency}`;
+}
+
 module.exports = {
   safeToDouble,
   safeToInt,
@@ -218,4 +226,5 @@ module.exports = {
   parseDate,
   mapProductType,
   mapProductStatus,
+  formatCurrency,
 };
