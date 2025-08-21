@@ -1840,7 +1840,11 @@ class _PremiumInvestorAnalyticsScreenState
         ),
         child: Row(
           children: [
-            Icon(Icons.sort_rounded, color: AppThemePro.textSecondary, size: 20),
+            Icon(
+              Icons.sort_rounded,
+              color: AppThemePro.textSecondary,
+              size: 20,
+            ),
             const SizedBox(width: 12),
             Text(
               'Sortuj według:',
@@ -1914,7 +1918,9 @@ class _PremiumInvestorAnalyticsScreenState
       backgroundColor: AppThemePro.backgroundTertiary,
       checkmarkColor: AppThemePro.backgroundPrimary,
       side: BorderSide(
-        color: isSelected ? AppThemePro.accentGold : AppThemePro.borderSecondary,
+        color: isSelected
+            ? AppThemePro.accentGold
+            : AppThemePro.borderSecondary,
         width: 1,
       ),
       onSelected: (selected) {
@@ -2533,7 +2539,10 @@ class _PremiumInvestorAnalyticsScreenState
               Expanded(
                 child: Text(
                   insight.text,
-                  style: TextStyle(color: AppThemePro.textSecondary, height: 1.4),
+                  style: TextStyle(
+                    color: AppThemePro.textSecondary,
+                    height: 1.4,
+                  ),
                 ),
               ),
             ],
@@ -2594,22 +2603,8 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildLoadingSliver() {
-    return SliverFillRemaining(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation(AppThemePro.accentGold),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Ładowanie danych...',
-              style: TextStyle(color: AppThemePro.textSecondary),
-            ),
-          ],
-        ),
-      ),
+    return const SliverFillRemaining(
+      child: Center(child: PremiumShimmerLoadingWidget.fullScreen()),
     );
   }
 
@@ -2682,14 +2677,10 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildLoadingMoreSliver() {
-    return SliverToBoxAdapter(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        child: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation(AppThemePro.accentGold),
-          ),
-        ),
+    return const SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.all(20),
+        child: PremiumShimmerLoadingWidget.listItem(),
       ),
     );
   }
@@ -4224,7 +4215,10 @@ class _PremiumInvestorAnalyticsScreenState
                 const SizedBox(width: 8),
                 Text(
                   status.displayName,
-                  style: TextStyle(color: AppThemePro.textPrimary, fontSize: 12),
+                  style: TextStyle(
+                    color: AppThemePro.textPrimary,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -4435,7 +4429,10 @@ class _PremiumInvestorAnalyticsScreenState
   void _showErrorSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppThemePro.statusError),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppThemePro.statusError,
+      ),
     );
   }
 
@@ -4875,9 +4872,7 @@ class _PremiumInvestorAnalyticsScreenState
 
       // Automatycznie włącz tryb email jeśli nie jest włączony
       if (!_isEmailMode && !_isSelectionMode) {
-        print(
-          '🔧 [_showEmailDialog] Automatycznie włączam tryb email',
-        );
+        print('🔧 [_showEmailDialog] Automatycznie włączam tryb email');
         _toggleEmailMode();
       }
 
@@ -4886,10 +4881,14 @@ class _PremiumInvestorAnalyticsScreenState
 
     // Filtruj inwestorów z prawidłowymi emailami
     final investorsWithEmail = _selectedInvestors
-        .where((investor) => 
-            investor.client.email != null && 
-            investor.client.email!.isNotEmpty &&
-            RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(investor.client.email!))
+        .where(
+          (investor) =>
+              investor.client.email != null &&
+              investor.client.email!.isNotEmpty &&
+              RegExp(
+                r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+              ).hasMatch(investor.client.email!),
+        )
         .toList();
 
     if (investorsWithEmail.isEmpty) {
@@ -5510,7 +5509,9 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
                   : AppThemePro.backgroundTertiary,
               borderRadius: BorderRadius.circular(8),
               border: hasUnviable
-                  ? Border.all(color: AppThemePro.statusWarning.withOpacity(0.3))
+                  ? Border.all(
+                      color: AppThemePro.statusWarning.withOpacity(0.3),
+                    )
                   : null,
             ),
             child: Row(
@@ -5624,7 +5625,9 @@ extension _PremiumInvestorAnalyticsScreenDeduplication
                   : AppThemePro.backgroundTertiary,
               borderRadius: BorderRadius.circular(8),
               border: isUnviable
-                  ? Border.all(color: AppThemePro.statusWarning.withOpacity(0.3))
+                  ? Border.all(
+                      color: AppThemePro.statusWarning.withOpacity(0.3),
+                    )
                   : null,
             ),
             child: Row(

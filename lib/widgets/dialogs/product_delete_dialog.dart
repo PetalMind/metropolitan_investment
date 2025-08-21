@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../models/unified_product.dart';
 import '../../services/unified_product_management_service.dart';
-import '../premium_loading_widget.dart';
+import '../../models_and_services.dart';
 import '../premium_error_widget.dart';
 
 /// Dialog do potwierdzenia usunięcia produktu z dodatkowymi funkcjonalnościami
@@ -334,9 +334,7 @@ class _ProductDeleteDialogState extends State<ProductDeleteDialog>
                     ? const SizedBox(
                         height: 300,
                         child: Center(
-                          child: PremiumLoadingWidget(
-                            message: 'Sprawdzanie możliwości usunięcia...',
-                          ),
+                          child: PremiumShimmerLoadingWidget.analyticsCard(),
                         ),
                       )
                     : _buildContent(),

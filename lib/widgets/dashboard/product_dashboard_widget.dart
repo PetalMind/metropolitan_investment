@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../theme/app_theme_professional.dart';
 import '../../models_and_services.dart';
-import '../premium_loading_widget.dart';
 import '../premium_error_widget.dart';
 import 'personal_greeting_week_widget.dart';
 
@@ -394,9 +393,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
-        child: PremiumLoadingWidget(message: 'Ładowanie danych produktów...'),
-      );
+      return const Center(child: PremiumShimmerLoadingWidget.fullScreen());
     }
 
     if (_error != null) {

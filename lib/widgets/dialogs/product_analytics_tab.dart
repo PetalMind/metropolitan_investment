@@ -5,7 +5,7 @@ import '../../theme/app_theme.dart';
 import '../../models/unified_product.dart';
 import '../../models/investor_summary.dart';
 import '../../models/client.dart';
-import '../premium_loading_widget.dart';
+import '../../models_and_services.dart';
 import '../premium_error_widget.dart';
 import 'product_details_service.dart';
 
@@ -71,9 +71,7 @@ class _ProductAnalyticsTabState extends State<ProductAnalyticsTab>
   @override
   Widget build(BuildContext context) {
     if (widget.isLoading) {
-      return const Center(
-        child: PremiumLoadingWidget(message: 'Analiza produktu...'),
-      );
+      return const Center(child: PremiumShimmerLoadingWidget.chart());
     }
 
     if (widget.error != null) {

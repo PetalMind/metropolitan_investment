@@ -143,6 +143,7 @@ export 'widgets/capital_calculation_management_screen.dart';
 export 'widgets/capital_calculation_widgets.dart';
 export 'widgets/client_dialog.dart';
 export 'widgets/custom_loading_widget.dart';
+export 'widgets/premium_shimmer_loading_widget.dart'; // 🚀 NOWE: Professional shimmer loading widget
 export 'widgets/data_table_widget.dart';
 export 'widgets/client_form.dart';
 export 'widgets/client_stats_widget.dart';

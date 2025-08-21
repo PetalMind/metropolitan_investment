@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models_and_services.dart';
-import '../premium_loading_widget.dart';
 import '../premium_error_widget.dart';
 
 /// Dialog do wyświetlania historii zmian produktu
 class ProductHistoryDialog extends StatefulWidget {
   final UnifiedProduct product;
 
-  const ProductHistoryDialog({
-    super.key,
-    required this.product,
-  });
+  const ProductHistoryDialog({super.key, required this.product});
 
   @override
   State<ProductHistoryDialog> createState() => _ProductHistoryDialogState();
@@ -112,10 +108,7 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: [
-                  _buildHistoryTab(),
-                  _buildStatsTab(),
-                ],
+                children: [_buildHistoryTab(), _buildStatsTab()],
               ),
             ),
           ],
@@ -174,18 +167,20 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog>
                       children: [
                         Text(
                           'Historia zmian',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           widget.product.name,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withOpacity(0.9),
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Colors.white.withOpacity(0.9),
+                                fontWeight: FontWeight.w500,
+                              ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -250,10 +245,7 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog>
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -315,16 +307,11 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog>
 
   Widget _buildHistoryTab() {
     if (_isLoading) {
-      return const Center(
-        child: PremiumLoadingWidget(message: 'Ładowanie historii zmian...'),
-      );
+      return const Center(child: PremiumShimmerLoadingWidget.fullScreen());
     }
 
     if (_error != null) {
-      return PremiumErrorWidget(
-        error: _error!,
-        onRetry: _loadHistory,
-      );
+      return PremiumErrorWidget(error: _error!, onRetry: _loadHistory);
     }
 
     if (_history.isEmpty) {
@@ -335,23 +322,21 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog>
       padding: const EdgeInsets.all(24),
       itemCount: _history.length,
       itemBuilder: (context, index) {
-        return _buildHistoryEntry(_history[index], index == _history.length - 1);
+        return _buildHistoryEntry(
+          _history[index],
+          index == _history.length - 1,
+        );
       },
     );
   }
 
   Widget _buildStatsTab() {
     if (_isLoading) {
-      return const Center(
-        child: PremiumLoadingWidget(message: 'Ładowanie statystyk...'),
-      );
+      return const Center(child: PremiumShimmerLoadingWidget.analyticsCard());
     }
 
     if (_error != null) {
-      return PremiumErrorWidget(
-        error: _error!,
-        onRetry: _loadHistory,
-      );
+      return PremiumErrorWidget(error: _error!, onRetry: _loadHistory);
     }
 
     if (_stats == null || !_stats!.hasHistory) {
@@ -442,7 +427,9 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog>
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      InvestmentChangeType.fromValue(entry.changeType).displayName,
+                      InvestmentChangeType.fromValue(
+                        entry.changeType,
+                      ).displayName,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: _getChangeTypeColor(entry.changeType),
                         fontWeight: FontWeight.w600,
@@ -454,9 +441,9 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog>
               const Spacer(),
               Text(
                 DateFormat('dd.MM.yyyy HH:mm').format(entry.changedAt),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.textTertiary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
               ),
             ],
           ),
@@ -483,9 +470,9 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog>
               const SizedBox(width: 8),
               Text(
                 '(${entry.userEmail})',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.textTertiary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
               ),
             ],
           ),
@@ -508,15 +495,17 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog>
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ...entry.fieldChanges.map((change) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      '• ${change.changeDescription}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textPrimary,
+                  ...entry.fieldChanges.map(
+                    (change) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        '• ${change.changeDescription}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.textPrimary,
+                        ),
                       ),
                     ),
-                  )),
+                  ),
                 ],
               ),
             ),
@@ -651,7 +640,10 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog>
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: _getChangeTypeColor(entry.key),
                       borderRadius: BorderRadius.circular(12),
@@ -784,10 +776,7 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog>
           const SizedBox(height: 4),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 12,
-              color: AppTheme.textSecondary,
-            ),
+            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
             textAlign: TextAlign.center,
           ),
         ],

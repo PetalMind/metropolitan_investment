@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
 import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
@@ -13,9 +14,6 @@ import '../services/product_management_service.dart'; // 🚀 NOWY: Centralny se
 import '../services/cache_management_service.dart'; // 🚀 NOWY: Zarządzanie cache
 import '../services/unified_investor_count_service.dart'; // 🚀 NOWY: Serwis liczby inwestorów
 import '../adapters/product_statistics_adapter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../widgets/premium_loading_widget.dart';
-import '../widgets/premium_error_widget.dart';
 import '../widgets/product_card_widget.dart';
 import '../widgets/product_stats_widget.dart';
 import '../widgets/product_filter_widget.dart';
@@ -1861,10 +1859,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFF1A1B23),
-                      Color(0xFF2A2D3A),
-                    ],
+                    colors: [Color(0xFF1A1B23), Color(0xFF2A2D3A)],
                   ),
                 ),
                 child: const Center(
@@ -1879,10 +1874,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFF1A1B23),
-                      Color(0xFF2A2D3A),
-                    ],
+                    colors: [Color(0xFF1A1B23), Color(0xFF2A2D3A)],
                   ),
                 ),
                 child: Center(
@@ -1897,19 +1889,19 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                       const SizedBox(height: 16),
                       Text(
                         '⚠️ Wystąpił błąd',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: AppTheme.textSecondary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              color: AppTheme.textSecondary,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                       const SizedBox(height: 8),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 32),
                         child: Text(
                           _error!,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: AppTheme.textTertiary,
-                          ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(color: AppTheme.textTertiary),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -1957,11 +1949,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF1A1B23),
-                Color(0xFF2A2D3A),
-                Color(0xFF1A1B23),
-              ],
+              colors: [Color(0xFF1A1B23), Color(0xFF2A2D3A), Color(0xFF1A1B23)],
               stops: [0.0, 0.5, 1.0],
             ),
           ),
@@ -2002,7 +1990,10 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.secondaryGold.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
@@ -2038,11 +2029,14 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
               icon: const Icon(Icons.email, size: 18),
               label: Text('${_selectedProducts.length}'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _selectedProducts.isNotEmpty 
-                    ? AppTheme.secondaryGold 
+                backgroundColor: _selectedProducts.isNotEmpty
+                    ? AppTheme.secondaryGold
                     : AppTheme.textSecondary.withValues(alpha: 0.3),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -2060,7 +2054,11 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                   color: AppTheme.errorColor.withValues(alpha: 0.3),
                 ),
               ),
-              child: const Icon(Icons.close, color: AppTheme.errorColor, size: 18),
+              child: const Icon(
+                Icons.close,
+                color: AppTheme.errorColor,
+                size: 18,
+              ),
             ),
             onPressed: () {
               setState(() {
@@ -2082,7 +2080,11 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                   color: AppTheme.secondaryGold.withValues(alpha: 0.3),
                 ),
               ),
-              child: const Icon(Icons.email, color: AppTheme.secondaryGold, size: 18),
+              child: const Icon(
+                Icons.email,
+                color: AppTheme.secondaryGold,
+                size: 18,
+              ),
             ),
             onPressed: () {
               setState(() {
@@ -2100,20 +2102,24 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             icon: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: _showDeduplicatedView 
+                color: _showDeduplicatedView
                     ? AppTheme.secondaryGold.withValues(alpha: 0.2)
                     : AppTheme.primaryColor.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: _showDeduplicatedView 
+                  color: _showDeduplicatedView
                       ? AppTheme.secondaryGold.withValues(alpha: 0.4)
                       : AppTheme.primaryColor.withValues(alpha: 0.4),
                   width: 1.5,
                 ),
               ),
               child: Icon(
-                _showDeduplicatedView ? Icons.filter_vintage : Icons.all_inclusive,
-                color: _showDeduplicatedView ? AppTheme.secondaryGold : AppTheme.primaryColor,
+                _showDeduplicatedView
+                    ? Icons.filter_vintage
+                    : Icons.all_inclusive,
+                color: _showDeduplicatedView
+                    ? AppTheme.secondaryGold
+                    : AppTheme.primaryColor,
                 size: 18,
               ),
             ),
@@ -2132,7 +2138,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                   '✅ [ProductsManagement] Cache liczby inwestorów wyczyszczony',
                 );
               } catch (e) {
-                debugPrint('⚠️ [ProductsManagement] Błąd czyszczenia cache: $e');
+                debugPrint(
+                  '⚠️ [ProductsManagement] Błąd czyszczenia cache: $e',
+                );
               }
 
               // Odśwież statystyki po przełączeniu trybu
@@ -2150,19 +2158,21 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             icon: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: _showStatistics 
+                color: _showStatistics
                     ? AppTheme.successColor.withValues(alpha: 0.2)
                     : AppTheme.textSecondary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: _showStatistics 
+                  color: _showStatistics
                       ? AppTheme.successColor.withValues(alpha: 0.4)
                       : AppTheme.textSecondary.withValues(alpha: 0.3),
                 ),
               ),
               child: Icon(
                 _showStatistics ? Icons.analytics : Icons.analytics_outlined,
-                color: _showStatistics ? AppTheme.successColor : AppTheme.textSecondary,
+                color: _showStatistics
+                    ? AppTheme.successColor
+                    : AppTheme.textSecondary,
                 size: 18,
               ),
             ),
@@ -2172,7 +2182,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
               });
               HapticFeedback.lightImpact();
             },
-            tooltip: _showStatistics ? '📊 Ukryj statystyki' : '📈 Pokaż statystyki',
+            tooltip: _showStatistics
+                ? '📊 Ukryj statystyki'
+                : '📈 Pokaż statystyki',
           ),
         ),
         // View mode toggle - Enhanced UI
@@ -2205,12 +2217,12 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             icon: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: _isRefreshing 
+                color: _isRefreshing
                     ? AppTheme.warningColor.withValues(alpha: 0.2)
                     : AppTheme.secondaryGold.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: _isRefreshing 
+                  color: _isRefreshing
                       ? AppTheme.warningColor.withValues(alpha: 0.4)
                       : AppTheme.secondaryGold.withValues(alpha: 0.4),
                 ),
@@ -2354,7 +2366,10 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                   ),
                   child: TextField(
                     controller: _searchController,
-                    style: const TextStyle(color: AppTheme.textPrimary, fontSize: 16),
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 16,
+                    ),
                     decoration: InputDecoration(
                       hintText: '🔍 Wyszukaj produkty...',
                       hintStyle: TextStyle(
@@ -2380,7 +2395,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                               icon: Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.errorColor.withValues(alpha: 0.2),
+                                  color: AppTheme.errorColor.withValues(
+                                    alpha: 0.2,
+                                  ),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
@@ -2398,8 +2415,12 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
                                   color: _showFilters
-                                      ? AppTheme.successColor.withValues(alpha: 0.2)
-                                      : AppTheme.secondaryGold.withValues(alpha: 0.2),
+                                      ? AppTheme.successColor.withValues(
+                                          alpha: 0.2,
+                                        )
+                                      : AppTheme.secondaryGold.withValues(
+                                          alpha: 0.2,
+                                        ),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
@@ -2722,7 +2743,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
-              color: canEdit 
+              color: canEdit
                   ? AppTheme.secondaryGold.withValues(alpha: 0.3)
                   : Colors.grey.withValues(alpha: 0.2),
               blurRadius: 12,
@@ -2732,7 +2753,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         ),
         child: FloatingActionButton.extended(
           onPressed: canEdit ? _showAddProductDialog : null,
-          backgroundColor: canEdit ? AppTheme.secondaryGold : Colors.grey.shade600,
+          backgroundColor: canEdit
+              ? AppTheme.secondaryGold
+              : Colors.grey.shade600,
           foregroundColor: Colors.white,
           icon: Container(
             padding: const EdgeInsets.all(2),
@@ -2744,10 +2767,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           ),
           label: Text(
             'Dodaj Produkt',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
           ),
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -3162,8 +3182,12 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) =>
-            const PremiumLoadingWidget(message: 'Wyszukiwanie inwestorów...'),
+        builder: (context) => const Dialog(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: PremiumShimmerLoadingWidget.fullScreen(),
+          ),
+        ),
       );
 
       // 🚀 UŻYJ ULTRA-PRECYZYJNEGO SERWISU z productId jeśli dostępne
@@ -3489,8 +3513,12 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) =>
-            const PremiumLoadingWidget(message: 'Fallback wyszukiwanie...'),
+        builder: (context) => const Dialog(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: PremiumShimmerLoadingWidget.fullScreen(),
+          ),
+        ),
       );
 
       final ultraResult = await _ultraPreciseInvestorsService.getByProductName(

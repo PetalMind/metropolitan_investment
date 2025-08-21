@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
 import '../../models_and_services.dart'; // Centralized import
-import '../premium_loading_widget.dart';
 import '../premium_error_widget.dart';
 import 'product_details_service.dart';
 import 'investor_edit_dialog.dart'; // ⭐ NOWE: Import dialogu edycji
@@ -107,9 +106,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
     final currentInvestors = _localInvestors;
 
     if (widget.isLoading && !_isRefreshingData) {
-      return const Center(
-        child: PremiumLoadingWidget(message: 'Ładowanie inwestorów...'),
-      );
+      return const Center(child: PremiumShimmerLoadingWidget.fullScreen());
     }
 
     if (widget.error != null) {

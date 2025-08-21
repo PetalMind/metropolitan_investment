@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models_and_services.dart'; // Centralny import z ultra-precyzyjnym serwisem
 import '../providers/auth_provider.dart';
-import 'premium_loading_widget.dart';
+import '../models_and_services.dart';
 import 'premium_error_widget.dart';
 import 'dialogs/product_delete_dialog.dart';
 
@@ -331,9 +331,7 @@ class _EnhancedProductDetailsDialogState
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: const Center(
-                  child: PremiumLoadingWidget(
-                    message: 'Przetwarzanie żądania...',
-                  ),
+                  child: PremiumShimmerLoadingWidget.analyticsCard(),
                 ),
               ),
           ],
@@ -1096,7 +1094,7 @@ class _EnhancedProductDetailsDialogState
   Widget _buildInvestorsTab() {
     if (_isLoadingInvestors) {
       return const Center(
-        child: PremiumLoadingWidget(message: 'Ładowanie inwestorów...'),
+        child: PremiumShimmerLoadingWidget.listItem(),
       );
     }
 
