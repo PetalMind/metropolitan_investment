@@ -36,6 +36,7 @@ export 'services/data_cache_service.dart'; // 🚀 DODANE: Serwis cache'owania d
 export 'services/client_service.dart';
 export 'services/firebase_functions_client_service.dart' show ClientStats;
 export 'services/integrated_client_service.dart';
+export 'services/enhanced_client_service.dart'; // 🚀 NOWE: Server-side optimized client service
 export 'services/client_notes_service.dart';
 export 'services/client_id_mapping_service.dart';
 export 'services/enhanced_client_id_mapping_service.dart';

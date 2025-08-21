@@ -27,6 +27,7 @@ const advancedExportService = require("./services/advanced-export-service"); // 
 const premiumAnalyticsService = require("./services/premium-analytics-service"); // 🚀 DODANE: Premium Analytics Service
 const customEmailService = require("./services/custom-email-service"); // 🚀 DODANE: Niestandardowe maile HTML
 const smtpTestService = require("./services/smtp-test-service"); // 🚀 DODANE: Testowanie SMTP
+const enhancedClientsService = require("./services/enhanced-clients-service"); // 🚀 DODANE: Enhanced Clients Service
 
 // Import nowych analityk - tylko funkcje pomocnicze
 const employeesAnalytics = require('./analytics/employees_analytics');
@@ -192,6 +193,9 @@ module.exports = {
 
   // Funkcje testowania SMTP - 🚀 NOWE
   ...smtpTestService,
+
+  // Funkcje Enhanced Clients - 🚀 NOWE
+  ...enhancedClientsService,
 
   // Funkcje batch produktów - 🚀 NOWE OPTYMALIZACJA
   ...require("./services/product-batch-service"),

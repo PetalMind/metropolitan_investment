@@ -436,5 +436,93 @@ class ClientService extends BaseService {
         );
   }
 
+  /// Pobiera dane klientów na podstawie listy ID
+  Future<List<Client>> getClientsByIds(List<String> clientIds) async {
+    try {
+      print('🔍 [ClientService] Szukam klientów o ID: $clientIds');
+      final List<Client> clients = [];
+
+      // KROK 1: Najpierw szukaj po excelId (większość clientId z OptimizedInvestor to excelId)
+      print('🔄 [ClientService] KROK 1: Szukam po excelId...');
+      for (final clientId in clientIds) {
+        final excelSnapshot = await firestore
+            .collection('clients')
+            .where('excelId', isEqualTo: clientId)
+            .limit(1)
+            .get();
+
+        if (excelSnapshot.docs.isNotEmpty) {
+          final client = Client.fromFirestore(excelSnapshot.docs.first);
+          clients.add(client);
+          print('✅ [ClientService] Znaleziono po excelId: $clientId -> ${client.name} (doc.id: ${client.id})');
+        }
+      }
+
+      // KROK 2: Dla nie znalezionych, szukaj po UUID (document ID)
+      final foundExcelIds = clientIds.where((id) => 
+        clients.any((client) => client.excelId == id)).toSet();
+      final missingClientIds = clientIds
+          .where((id) => !foundExcelIds.contains(id))
+          .toList();
+
+      if (missingClientIds.isNotEmpty) {
+        print('🔄 [ClientService] KROK 2: Szukam brakujących ${missingClientIds.length} po UUID...');
+        
+        const batchSize = 10;
+        for (int i = 0; i < missingClientIds.length; i += batchSize) {
+          final batch = missingClientIds.skip(i).take(batchSize).toList();
+          print('📦 [ClientService] Przetwarzam batch UUID: $batch');
+
+          final snapshot = await firestore
+              .collection('clients')
+              .where(FieldPath.documentId, whereIn: batch)
+              .get();
+
+          print('📋 [ClientService] Znaleziono ${snapshot.docs.length} dokumentów klientów w batch UUID');
+
+          final batchClients = snapshot.docs.map((doc) {
+            print('👤 [ClientService] Przetwarzam klienta UUID: ${doc.id}');
+            return Client.fromFirestore(doc);
+          }).toList();
+
+          clients.addAll(batchClients);
+        }
+      }
+
+      // KROK 3: Dla nadal nie znalezionych, spróbuj po original_id  
+      final allFoundIds = clients.map((c) => c.excelId ?? c.id).toSet();
+      final stillMissingIds = clientIds
+          .where((id) => !allFoundIds.contains(id))
+          .toList();
+
+      if (stillMissingIds.isNotEmpty) {
+        print('🔄 [ClientService] KROK 3: Szukam ${stillMissingIds.length} po original_id...');
+        
+        for (final missingId in stillMissingIds) {
+          final originalIdSnapshot = await firestore
+              .collection('clients')
+              .where('original_id', isEqualTo: missingId)
+              .limit(1)
+              .get();
+
+          if (originalIdSnapshot.docs.isNotEmpty) {
+            final client = Client.fromFirestore(originalIdSnapshot.docs.first);
+            clients.add(client);
+            print('✅ [ClientService] Znaleziono po original_id: $missingId -> ${client.name}');
+          } else {
+            print('❌ [ClientService] Nie znaleziono klienta o ID: $missingId');
+          }
+        }
+      }
+
+      print('🎯 [ClientService] WYNIK: Łącznie załadowano ${clients.length}/${clientIds.length} klientów');
+      return clients;
+    } catch (e) {
+      logError('getClientsByIds', e);
+      print('❌ [ClientService] Błąd pobierania klientów: $e');
+      return [];
+    }
+  }
+
   // Usuwam duplikat metody getClientsPaginated - zostaje ta z góry
 }

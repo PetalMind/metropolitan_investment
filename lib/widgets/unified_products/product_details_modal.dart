@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import '../../models_and_services.dart';
 import '../../providers/auth_provider.dart';
-import '../../utils/currency_formatter.dart';
 import '../dialogs/product_investors_tab.dart';
 import '../dialogs/product_details_header.dart';
 
@@ -34,6 +33,7 @@ class ProductDetailsModal extends StatefulWidget {
 class _ProductDetailsModalState extends State<ProductDetailsModal>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
+  late ScrollController _nestedScrollController;
 
   // 🎯 NOWY: Jeden centralny serwis zamiast trzech
   final UnifiedProductModalService _modalService = UnifiedProductModalService();
@@ -46,6 +46,13 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   // 🚀 NOWA OCHRONA: Flaga przeciw rekurencyjnemu odświeżaniu
   bool _isRefreshing = false;
 
+  // 🎯 NOWE: Kontrola stanu headera - dynamiczne zwijanie
+  bool _isHeaderExpanded = true;
+  double _scrollOffset = 0.0;
+  final double _headerCollapseThreshold = 100.0; // Próg zwijania headera
+  final double _maxHeaderHeight = 250.0;
+  final double _minHeaderHeight = 80.0;
+
   // RBAC: sprawdzenie uprawnień
   bool get canEdit => context.read<AuthProvider>().isAdmin;
 
@@ -55,6 +62,8 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_onTabChanged);
+    _nestedScrollController = ScrollController();
+    _nestedScrollController.addListener(_onScrollChanged);
     _loadModalData(); // 🎯 NOWY: Jedyne wywołanie ładowania danych
   }
 
@@ -77,6 +86,8 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     WidgetsBinding.instance.removeObserver(this);
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
+    _nestedScrollController.removeListener(_onScrollChanged);
+    _nestedScrollController.dispose();
     super.dispose();
   }
 
@@ -94,6 +105,42 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     if (_modalData == null && !_isLoadingModalData) {
       _loadModalData();
     }
+    // 🎯 NOWE: Resetuj scroll position przy zmianie tabu
+    if (_nestedScrollController.hasClients) {
+      _nestedScrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  // 🎯 NOWA METODA: Obsługa scrollowania dla dynamicznego headera
+  void _onScrollChanged() {
+    if (!_nestedScrollController.hasClients) return;
+
+    final scrollOffset = _nestedScrollController.offset;
+    final shouldCollapseHeader = scrollOffset > _headerCollapseThreshold;
+
+    if (shouldCollapseHeader != !_isHeaderExpanded || 
+        (_scrollOffset - scrollOffset).abs() > 5) {
+      setState(() {
+        _isHeaderExpanded = !shouldCollapseHeader;
+        _scrollOffset = scrollOffset;
+      });
+    }
+  }
+
+  // 🎯 NOWA METODA: Oblicz wysokość headera na podstawie scroll offset
+  double _calculateHeaderHeight(bool isMobile) {
+    final baseHeight = isMobile ? 200.0 : _maxHeaderHeight;
+    final minHeight = isMobile ? 60.0 : _minHeaderHeight;
+    
+    if (_scrollOffset <= 0) return baseHeight;
+    if (_scrollOffset >= _headerCollapseThreshold) return minHeight;
+    
+    final progress = _scrollOffset / _headerCollapseThreshold;
+    return baseHeight - (baseHeight - minHeight) * progress;
   }
 
   // 🎯 NOWY: Pomocnicze gettery z centralnych danych
@@ -234,17 +281,17 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           color: AppTheme.backgroundPrimary,
           borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
           border: Border.all(
-            color: AppTheme.borderPrimary.withOpacity(0.3),
+            color: AppTheme.borderPrimary.withValues(alpha:0.3),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha:0.1),
               blurRadius: isMobile ? 20 : 40,
               offset: const Offset(0, 8),
             ),
             BoxShadow(
-              color: AppTheme.primaryAccent.withOpacity(0.05),
+              color: AppTheme.primaryAccent.withValues(alpha:0.05),
               blurRadius: isMobile ? 10 : 20,
               offset: const Offset(0, 4),
             ),
@@ -253,50 +300,43 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         child: ClipRRect(
           borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
           child: NestedScrollView(
+            controller: _nestedScrollController,
             headerSliverBuilder: (context, innerBoxIsScrolled) {
+              final headerHeight = _calculateHeaderHeight(isMobile);
+              final headerOpacity = _isHeaderExpanded ? 1.0 : 
+                  (1.0 - (_scrollOffset / _headerCollapseThreshold)).clamp(0.3, 1.0);
+
               return [
-                // Header, który się zwija
+                // 🎯 NOWY: Dynamiczny header reagujący na scroll
                 SliverAppBar(
-                  expandedHeight: isMobile
-                      ? 200
-                      : 250, // Wysokość rozwiniętego headera
-                  collapsedHeight: 0, // Kompletnie zwinięty header
+                  expandedHeight: headerHeight,
+                  collapsedHeight: isMobile ? 60 : _minHeaderHeight,
                   toolbarHeight: 0,
-                  pinned: false, // Header się całkowicie chowa
-                  floating: true, // Header pojawia się gdy przewijamy w górę
-                  snap: true, // Szybkie animacje zwijania/rozwijania
+                  pinned: true, // Header pozostaje widoczny w zminiaturowanej formie
+                  floating: false,
+                  snap: false,
                   backgroundColor: Colors.transparent,
                   elevation: 0,
                   flexibleSpace: FlexibleSpaceBar(
-                    background: Container(
-                      decoration: BoxDecoration(
-                        color: AppTheme.backgroundPrimary,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(isMobile ? 16 : 20),
-                          topRight: Radius.circular(isMobile ? 16 : 20),
+                    background: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: headerOpacity,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.backgroundPrimary,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(isMobile ? 16 : 20),
+                            topRight: Radius.circular(isMobile ? 16 : 20),
+                          ),
                         ),
-                      ),
-                      child: ProductDetailsHeader(
-                        product: widget.product,
-                        investors: _investors,
-                        isLoadingInvestors: _isLoadingInvestors,
-                        onClose: () => Navigator.of(context).pop(),
-                        onDataChanged: () async {
-                          // 🎯 NOWY: Callback do pełnego odświeżenia danych modalu po edycji kapitału
-                          debugPrint(
-                            '🔄 [ProductDetailsModal] Header data changed - refreshing all data',
-                          );
-                          try {
-                            await _modalService.clearAllCache();
-                            await _loadModalData(forceRefresh: true);
-                          } catch (e) {
-                            debugPrint(
-                              '⚠️ [ProductDetailsModal] Error refreshing after header change: $e',
-                            );
-                          }
-                        },
+                        child: _buildDynamicHeader(isMobile, isTablet, headerHeight),
                       ),
                     ),
+                  ),
+                  // 🎯 NOWY: Kompaktowy header gdy zwinięty
+                  bottom: _isHeaderExpanded ? null : PreferredSize(
+                    preferredSize: Size.fromHeight(isMobile ? 60 : _minHeaderHeight),
+                    child: _buildCompactHeader(isMobile),
                   ),
                 ),
                 // Taby - zawsze widoczne na górze
@@ -316,6 +356,239 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     );
   }
 
+  /// 🎯 NOWA METODA: Dynamiczny header dostosowujący się do scroll
+  Widget _buildDynamicHeader(bool isMobile, bool isTablet, double headerHeight) {
+    // Używamy oryginalnego ProductDetailsHeader gdy header rozwinięty
+    if (_isHeaderExpanded || headerHeight > (isMobile ? 150 : 180)) {
+      return ProductDetailsHeader(
+        product: widget.product,
+        investors: _investors,
+        isLoadingInvestors: _isLoadingInvestors,
+        onClose: () => Navigator.of(context).pop(),
+        onDataChanged: () async {
+          // 🎯 NOWY: Callback do pełnego odświeżenia danych modalu po edycji kapitału
+          debugPrint(
+            '🔄 [ProductDetailsModal] Header data changed - refreshing all data',
+          );
+          try {
+            await _modalService.clearAllCache();
+            await _loadModalData(forceRefresh: true);
+          } catch (e) {
+            debugPrint(
+              '⚠️ [ProductDetailsModal] Error refreshing after header change: $e',
+            );
+          }
+        },
+      );
+    }
+    
+    // Gdy header się zwija, pokazujemy skróconą wersję
+    return _buildTransitionHeader(isMobile, headerHeight);
+  }
+
+  /// 🎯 NOWA METODA: Header przejściowy podczas zwijania
+  Widget _buildTransitionHeader(bool isMobile, double headerHeight) {
+    final progress = (headerHeight - (isMobile ? 60 : _minHeaderHeight)) / 
+                     ((isMobile ? 200 : _maxHeaderHeight) - (isMobile ? 60 : _minHeaderHeight));
+    final clampedProgress = progress.clamp(0.0, 1.0);
+    
+    return Container(
+      height: headerHeight,
+      padding: EdgeInsets.all(isMobile ? 16 : 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.primaryColor,
+            AppTheme.primaryLight,
+            AppTheme.primaryAccent,
+          ],
+        ),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(isMobile ? 16 : 20),
+          topRight: Radius.circular(isMobile ? 16 : 20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withValues(alpha:0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Przycisk zamknięcia - zawsze widoczny
+          Positioned(
+            top: 0,
+            right: 0,
+            child: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close, color: Colors.white, size: 20),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white.withValues(alpha:0.15),
+                padding: const EdgeInsets.all(8),
+                minimumSize: const Size(36, 36),
+              ),
+              tooltip: 'Zamknij',
+            ),
+          ),
+          
+          // Treść headera z płynną animacją
+          Positioned.fill(
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: clampedProgress,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 40), // Przestrzeń na przycisk zamknięcia
+                  
+                  // Nazwa produktu - skaluje się z progressem
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 200),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: (isMobile ? 16 : 20) + (clampedProgress * (isMobile ? 4 : 8)),
+                    ) ?? const TextStyle(),
+                    child: Text(
+                      widget.product.name,
+                      maxLines: clampedProgress > 0.5 ? 2 : 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  
+                  if (clampedProgress > 0.3) ...[
+                    const SizedBox(height: 8),
+                    // Typ produktu
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha:0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        widget.product.productType.displayName,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 🎯 NOWA METODA: Kompaktowy header gdy całkowicie zwinięty
+  Widget _buildCompactHeader(bool isMobile) {
+    return Container(
+      height: isMobile ? 60 : _minHeaderHeight,
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 20, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppTheme.primaryColor, AppTheme.primaryAccent],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha:0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Ikona produktu
+          Container(
+            width: isMobile ? 32 : 36,
+            height: isMobile ? 32 : 36,
+            decoration: BoxDecoration(
+              color: AppTheme.getProductTypeColor(
+                widget.product.productType.collectionName,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              _getProductIcon(widget.product.productType),
+              color: Colors.white,
+              size: isMobile ? 16 : 18,
+            ),
+          ),
+          
+          const SizedBox(width: 12),
+          
+          // Nazwa produktu
+          Expanded(
+            child: Text(
+              widget.product.name,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: isMobile ? 14 : 16,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          
+          // Status badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.getStatusColor(widget.product.status.displayName),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              widget.product.status.displayName,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: isMobile ? 10 : 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          
+          const SizedBox(width: 8),
+          
+          // Przycisk zamknięcia
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close, color: Colors.white, size: 18),
+            style: IconButton.styleFrom(
+              padding: const EdgeInsets.all(4),
+              minimumSize: Size(isMobile ? 32 : 36, isMobile ? 32 : 36),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🎯 POMOCNICZA METODA: Ikona produktu
+  IconData _getProductIcon(UnifiedProductType productType) {
+    switch (productType) {
+      case UnifiedProductType.bonds:
+        return Icons.account_balance;
+      case UnifiedProductType.shares:
+        return Icons.trending_up;
+      case UnifiedProductType.loans:
+        return Icons.monetization_on;
+      case UnifiedProductType.apartments:
+        return Icons.home;
+      case UnifiedProductType.other:
+        return Icons.inventory;
+    }
+  }
+
   /// 📱 RESPONSIVE: Responsywny TabBar z lepszym designem
   Widget _buildResponsiveTabBar(
     BuildContext context,
@@ -328,13 +601,13 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         color: AppTheme.backgroundSecondary,
         border: Border(
           bottom: BorderSide(
-            color: AppTheme.borderSecondary.withOpacity(0.5),
+            color: AppTheme.borderSecondary.withValues(alpha:0.5),
             width: 1,
           ),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha:0.03),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -352,16 +625,16 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           unselectedLabelColor: AppTheme.textSecondary,
           dividerColor: Colors.transparent,
           // Lepszy efekt hover i aktywnego tabu
-          overlayColor: MaterialStateProperty.resolveWith((states) {
-            if (states.contains(MaterialState.selected)) {
-              return AppTheme.primaryAccent.withOpacity(0.15);
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return AppTheme.primaryAccent.withValues(alpha:0.15);
             }
-            return AppTheme.primaryAccent.withOpacity(0.05);
+            return AppTheme.primaryAccent.withValues(alpha:0.05);
           }),
           // Ulepszony indicator z zaokrąglonymi rogami
           indicator: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            color: AppTheme.primaryAccent.withOpacity(0.1),
+            color: AppTheme.primaryAccent.withValues(alpha:0.1),
             border: Border(
               bottom: BorderSide(color: AppTheme.primaryAccent, width: 3),
             ),
@@ -650,15 +923,15 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         vertical: verticalPadding,
       ),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundSecondary.withOpacity(0.5),
+        color: AppTheme.backgroundSecondary.withValues(alpha:0.5),
         borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
         border: Border.all(
-          color: AppTheme.borderPrimary.withOpacity(0.3),
+          color: AppTheme.borderPrimary.withValues(alpha:0.3),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha:0.02),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1793,7 +2066,7 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
         boxShadow: [
           if (shrinkOffset > 0) // Dodaj cień tylko gdy header jest zwinięty
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha:0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
