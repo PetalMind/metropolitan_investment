@@ -136,7 +136,11 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
       });
 
       _applyFilters();
-      _animationController.forward();
+
+      // 🚀 FIX: Uruchom animację zawsze po załadowaniu, niezależnie od liczby wydarzeń
+      if (_animationController.status == AnimationStatus.dismissed) {
+        _animationController.forward();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -177,6 +181,9 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
   void _navigateWeek(int direction) {
     if (!mounted) return;
 
+    // 🚀 FIX: Reset głównej animacji przed ładowaniem nowego tygodnia
+    _animationController.reset();
+
     // Uruchom animację zmiany tygodnia
     _weekNavigationController.reset();
     _weekNavigationController.forward();
@@ -195,6 +202,9 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
   }
 
   void _goToToday() {
+    // 🚀 FIX: Reset głównej animacji przy przejściu do dzisiaj
+    _animationController.reset();
+
     _triggerMicroInteraction();
     _triggerHapticFeedback();
     _calculateWeekStart();
@@ -451,34 +461,9 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
               if (isMobile) // 🚀 Na mobile dodaj kompaktowy przycisk filtrów
                 _buildMobileFilterButton(),
               Expanded(
-                child: Row(
-                  children: [
-                    // 🚀 NOWE: Lewa strzałka nawigacji - DUŻA I WIDOCZNA
-                    _buildMainNavigationArrow(
-                      onTap: () => _navigateWeek(-1),
-                      icon: Icons.chevron_left,
-                      tooltip: 'Poprzedni tydzień',
-                      isLeft: true,
-                      isMobile: isMobile,
-                    ),
-
-                    // Główny obszar kalendarza
-                    Expanded(
-                      child: _buildResponsiveWeeklyCalendar(
-                        isMobile: isMobile,
-                        isTablet: isTablet,
-                      ),
-                    ),
-
-                    // 🚀 NOWE: Prawa strzałka nawigacji - DUŻA I WIDOCZNA
-                    _buildMainNavigationArrow(
-                      onTap: () => _navigateWeek(1),
-                      icon: Icons.chevron_right,
-                      tooltip: 'Następny tydzień',
-                      isLeft: false,
-                      isMobile: isMobile,
-                    ),
-                  ],
+                child: _buildResponsiveWeeklyCalendar(
+                  isMobile: isMobile,
+                  isTablet: isTablet,
                 ),
               ),
             ],
@@ -929,148 +914,6 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
           ),
         ),
       ),
-    );
-  }
-
-  /// 🚀 NOWE: Duże strzałki nawigacji po bokach głównego widoku
-  Widget _buildMainNavigationArrow({
-    required VoidCallback onTap,
-    required IconData icon,
-    required String tooltip,
-    required bool isLeft,
-    bool isMobile = false,
-  }) {
-    // 🚀 NOWE: Responsywne rozmiary dla mobile
-    final arrowSize = isMobile ? 40.0 : 52.0;
-    final iconSize = isMobile ? 22.0 : 28.0;
-    final containerWidth = isMobile ? 48.0 : 60.0;
-    final horizontalMargin = isMobile ? 4.0 : 8.0;
-
-    return AnimatedBuilder(
-      animation: _scaleAnimation,
-      builder: (context, child) {
-        return Container(
-          width: containerWidth,
-          margin: EdgeInsets.symmetric(
-            horizontal: horizontalMargin,
-            vertical: 16,
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Główna strzałka
-              GestureDetector(
-                onTap: () {
-                  onTap();
-                  _triggerMicroInteraction();
-                  _triggerHapticFeedback();
-                  _triggerBounce();
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  width: arrowSize,
-                  height: arrowSize,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: isLeft
-                          ? Alignment.centerLeft
-                          : Alignment.centerRight,
-                      end: isLeft
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      colors: [
-                        AppThemePro.accentGold.withValues(alpha: 0.2),
-                        AppThemePro.accentGoldMuted.withValues(alpha: 0.15),
-                        AppThemePro.accentGold.withValues(alpha: 0.1),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
-                    border: Border.all(
-                      color: AppThemePro.accentGold.withValues(alpha: 0.6),
-                      width: 2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppThemePro.accentGold.withValues(alpha: 0.25),
-                        blurRadius: isMobile ? 8 : 12,
-                        offset: const Offset(0, 4),
-                        spreadRadius: 1,
-                      ),
-                      BoxShadow(
-                        color: AppThemePro.accentGold.withValues(alpha: 0.1),
-                        blurRadius: isMobile ? 16 : 24,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: ScaleTransition(
-                    scale: _bounceAnimation,
-                    child: Icon(
-                      icon,
-                      size: iconSize,
-                      color: AppThemePro.accentGold,
-                      shadows: [
-                        Shadow(
-                          color: AppThemePro.accentGold.withValues(alpha: 0.6),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              if (!isMobile) ...[
-                const SizedBox(height: 12),
-
-                // Tooltip pod strzałką (tylko na desktop)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppThemePro.surfaceCard.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: AppThemePro.accentGold.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    isLeft ? 'Poprz.' : 'Nast.',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppThemePro.textSecondary,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                // Dodatkowe wskaźniki nawigacji (mniejsze kropki - tylko na desktop)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(3, (index) {
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 1),
-                      width: 3,
-                      height: 3,
-                      decoration: BoxDecoration(
-                        color: AppThemePro.accentGold.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(1.5),
-                      ),
-                    );
-                  }),
-                ),
-              ],
-            ],
-          ),
-        );
-      },
     );
   }
 

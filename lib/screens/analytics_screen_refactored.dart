@@ -35,6 +35,10 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
+  // Services - Individual tabs handle their own data loading
+  // Data state
+  String? _error;
+
   // RBAC getter
   bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
 
@@ -55,16 +59,31 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
   void initState() {
     super.initState();
     _initializeAnimations();
-    _simulateAnalyticsLoading();
+    _loadAnalyticsData();
   }
 
-  void _simulateAnalyticsLoading() async {
-    // Symulacja ładowania danych analitycznych
-    await Future.delayed(const Duration(seconds: 3));
-    if (mounted) {
+  Future<void> _loadAnalyticsData() async {
+    try {
       setState(() {
-        _isLoading = false;
+        _isLoading = true;
+        _error = null;
       });
+
+      // Basic analytics loading - individual tabs will handle their own data
+      // This method can be extended later to preload common data if needed
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -92,6 +111,47 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
       body: _isLoading
           ? const Center(
               child: MetropolitanLoadingWidget.analytics(showProgress: true),
+            )
+          : _error != null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: AppThemePro.statusError,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Błąd podczas ładowania danych analitycznych',
+                    style: TextStyle(
+                      color: AppThemePro.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: AppThemePro.textSecondary,
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: _loadAnalyticsData,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Spróbuj ponownie'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppThemePro.accentGold,
+                      foregroundColor: AppThemePro.primaryDark,
+                    ),
+                  ),
+                ],
+              ),
             )
           : Column(
               children: [

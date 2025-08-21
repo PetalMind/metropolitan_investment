@@ -4,13 +4,12 @@ import '../models/investor_summary.dart';
 import 'base_service.dart';
 
 /// Serwis obsługi email i eksportu danych
-/// 
-/// Zapewnia funkcjonalności wysyłania maili do klientów 
+///
+/// Zapewnia funkcjonalności wysyłania maili do klientów
 /// oraz eksportu danych inwestorów do różnych formatów.
 class EmailAndExportService extends BaseService {
-  
   /// Wysyła email z listą inwestycji do klienta
-  /// 
+  ///
   /// @param clientId ID klienta
   /// @param clientEmail Email klienta
   /// @param clientName Nazwa klienta
@@ -32,7 +31,7 @@ class EmailAndExportService extends BaseService {
     String senderName = 'Metropolitan Investment',
   }) async {
     const String cacheKey = 'send_investment_email';
-    
+
     try {
       // 🔍 Walidacja danych wejściowych
       if (clientId.isEmpty || clientEmail.isEmpty || clientName.isEmpty) {
@@ -57,46 +56,58 @@ class EmailAndExportService extends BaseService {
         'clientId': clientId,
         'clientEmail': clientEmail,
         'clientName': clientName,
-        if (investmentIds != null && investmentIds.isNotEmpty) 'investmentIds': investmentIds,
+        if (investmentIds != null && investmentIds.isNotEmpty)
+          'investmentIds': investmentIds,
         'emailTemplate': emailTemplate,
         if (subject != null && subject.isNotEmpty) 'subject': subject,
-        if (customMessage != null && customMessage.isNotEmpty) 'customMessage': customMessage,
+        if (customMessage != null && customMessage.isNotEmpty)
+          'customMessage': customMessage,
         'senderEmail': senderEmail,
         'senderName': senderName,
       };
 
-      logDebug('sendInvestmentEmailToClient', 'Wysyłam email przez Firebase Functions: ${functionData.keys}');
+      logDebug(
+        'sendInvestmentEmailToClient',
+        'Wysyłam email przez Firebase Functions: ${functionData.keys}',
+      );
 
       // 🔥 Wywołaj Firebase Functions
-      final result = await FirebaseFunctions.instanceFor(region: 'europe-west1')
-          .httpsCallable('sendInvestmentEmailToClient')
-          .call(functionData);
+      final result = await FirebaseFunctions.instanceFor(
+        region: 'europe-west1',
+      ).httpsCallable('sendInvestmentEmailToClient').call(functionData);
 
       logDebug('sendInvestmentEmailToClient', 'Email wysłany pomyślnie');
 
       // 🎯 Przetwórz wynik
       final data = result.data as Map<String, dynamic>;
-      
+
       if (data['success'] == true) {
         // ♻️ Wyczyść cache po pomyślnej operacji
         clearCache(cacheKey);
-        
+
         return EmailSendResult.fromJson(data);
       } else {
-        throw Exception('Wysyłanie maila nie powiodło się: ${data['error'] ?? 'Nieznany błąd'}');
+        throw Exception(
+          'Wysyłanie maila nie powiodło się: ${data['error'] ?? 'Nieznany błąd'}',
+        );
       }
-
     } catch (e) {
       logError('sendInvestmentEmailToClient', e);
-      
-      if (e.toString().contains('PERMISSION_DENIED') || e.toString().contains('unauthenticated')) {
-        throw Exception('Brak uprawnień do wysyłania maili. Zaloguj się ponownie.');
+
+      if (e.toString().contains('PERMISSION_DENIED') ||
+          e.toString().contains('unauthenticated')) {
+        throw Exception(
+          'Brak uprawnień do wysyłania maili. Zaloguj się ponownie.',
+        );
       } else if (e.toString().contains('not-found')) {
         throw Exception('Nie znaleziono inwestycji dla podanego klienta.');
       } else if (e.toString().contains('invalid-argument')) {
         throw Exception('Nieprawidłowe dane wejściowe: ${e.toString()}');
-      } else if (e.toString().contains('EAUTH') || e.toString().contains('ENOTFOUND')) {
-        throw Exception('Błąd konfiguracji serwera email. Skontaktuj się z administratorem.');
+      } else if (e.toString().contains('EAUTH') ||
+          e.toString().contains('ENOTFOUND')) {
+        throw Exception(
+          'Błąd konfiguracji serwera email. Skontaktuj się z administratorem.',
+        );
       } else {
         throw Exception('Błąd podczas wysyłania maila: $e');
       }
@@ -104,7 +115,7 @@ class EmailAndExportService extends BaseService {
   }
 
   /// Eksportuje dane wybranych inwestorów
-  /// 
+  ///
   /// @param clientIds Lista ID klientów do eksportu
   /// @param exportFormat Format eksportu ('csv'|'json'|'excel')
   /// @param includeFields Pola do uwzględnienia w eksporcie
@@ -117,7 +128,12 @@ class EmailAndExportService extends BaseService {
   Future<ExportResult> exportInvestorsData({
     required List<String> clientIds,
     String exportFormat = 'csv',
-    List<String> includeFields = const ['clientName', 'totalInvestmentAmount', 'totalRemainingCapital', 'investmentCount'],
+    List<String> includeFields = const [
+      'clientName',
+      'totalInvestmentAmount',
+      'totalRemainingCapital',
+      'investmentCount',
+    ],
     Map<String, dynamic>? filters,
     String sortBy = 'totalRemainingCapital',
     bool sortDescending = true,
@@ -126,7 +142,7 @@ class EmailAndExportService extends BaseService {
     bool includePersonalData = false,
   }) async {
     const String cacheKey = 'export_investors_data';
-    
+
     try {
       // 🔍 Walidacja danych wejściowych
       if (clientIds.isEmpty) {
@@ -143,7 +159,9 @@ class EmailAndExportService extends BaseService {
 
       const supportedFormats = ['csv', 'json', 'excel'];
       if (!supportedFormats.contains(exportFormat)) {
-        throw Exception('Nieprawidłowy format eksportu. Dostępne: ${supportedFormats.join(', ')}');
+        throw Exception(
+          'Nieprawidłowy format eksportu. Dostępne: ${supportedFormats.join(', ')}',
+        );
       }
 
       // 🔄 Przygotuj dane do wysłania do Firebase Functions
@@ -159,34 +177,43 @@ class EmailAndExportService extends BaseService {
         'includePersonalData': includePersonalData,
       };
 
-      logDebug('exportInvestorsData', 'Eksportuję ${clientIds.length} klientów w formacie $exportFormat');
+      logDebug(
+        'exportInvestorsData',
+        'Eksportuję ${clientIds.length} klientów w formacie $exportFormat',
+      );
 
       // 🔥 Wywołaj Firebase Functions
-      final result = await FirebaseFunctions.instanceFor(region: 'europe-west1')
-          .httpsCallable('exportInvestorsData')
-          .call(functionData);
+      final result = await FirebaseFunctions.instanceFor(
+        region: 'europe-west1',
+      ).httpsCallable('exportInvestorsData').call(functionData);
 
       logDebug('exportInvestorsData', 'Eksport zakończony pomyślnie');
 
       // 🎯 Przetwórz wynik
       final data = result.data as Map<String, dynamic>;
-      
+
       if (data['success'] == true) {
         // ♻️ Wyczyść cache po pomyślnej operacji
         clearCache(cacheKey);
-        
+
         return ExportResult.fromJson(data);
       } else {
-        throw Exception('Eksport nie powiódł się: ${data['error'] ?? 'Nieznany błąd'}');
+        throw Exception(
+          'Eksport nie powiódł się: ${data['error'] ?? 'Nieznany błąd'}',
+        );
       }
-
     } catch (e) {
       logError('exportInvestorsData', e);
-      
-      if (e.toString().contains('PERMISSION_DENIED') || e.toString().contains('unauthenticated')) {
-        throw Exception('Brak uprawnień do eksportu danych. Zaloguj się ponownie.');
+
+      if (e.toString().contains('PERMISSION_DENIED') ||
+          e.toString().contains('unauthenticated')) {
+        throw Exception(
+          'Brak uprawnień do eksportu danych. Zaloguj się ponownie.',
+        );
       } else if (e.toString().contains('not-found')) {
-        throw Exception('Nie znaleziono danych spełniających kryteria eksportu.');
+        throw Exception(
+          'Nie znaleziono danych spełniających kryteria eksportu.',
+        );
       } else if (e.toString().contains('invalid-argument')) {
         throw Exception('Nieprawidłowe dane wejściowe: ${e.toString()}');
       } else {
@@ -199,13 +226,20 @@ class EmailAndExportService extends BaseService {
   Future<ExportResult> exportSelectedInvestors(
     List<InvestorSummary> selectedInvestors, {
     String exportFormat = 'csv',
-    List<String> includeFields = const ['clientName', 'totalInvestmentAmount', 'totalRemainingCapital', 'investmentCount'],
+    List<String> includeFields = const [
+      'clientName',
+      'totalInvestmentAmount',
+      'totalRemainingCapital',
+      'investmentCount',
+    ],
     String exportTitle = 'Wybrani Inwestorzy',
     required String requestedBy,
     bool includePersonalData = false,
   }) async {
-    final clientIds = selectedInvestors.map((investor) => investor.client.id).toList();
-    
+    final clientIds = selectedInvestors
+        .map((investor) => investor.client.id)
+        .toList();
+
     return exportInvestorsData(
       clientIds: clientIds,
       exportFormat: exportFormat,
@@ -226,7 +260,7 @@ class EmailAndExportService extends BaseService {
     String senderName = 'Metropolitan Investment',
   }) async {
     final results = <EmailSendResult>[];
-    
+
     for (final investor in investors) {
       try {
         final result = await sendInvestmentEmailToClient(
@@ -241,22 +275,27 @@ class EmailAndExportService extends BaseService {
         );
         results.add(result);
       } catch (e) {
-        logError('sendEmailsToMultipleClients', 'Błąd wysyłania do ${investor.client.name}: $e');
+        logError(
+          'sendEmailsToMultipleClients',
+          'Błąd wysyłania do ${investor.client.name}: $e',
+        );
         // Dodaj wynik błędu
-        results.add(EmailSendResult(
-          success: false,
-          messageId: '',
-          clientEmail: investor.client.email ?? '',
-          clientName: investor.client.name,
-          investmentCount: 0,
-          totalAmount: 0,
-          executionTimeMs: 0,
-          template: emailTemplate,
-          error: e.toString(),
-        ));
+        results.add(
+          EmailSendResult(
+            success: false,
+            messageId: '',
+            clientEmail: investor.client.email ?? '',
+            clientName: investor.client.name,
+            investmentCount: 0,
+            totalAmount: 0,
+            executionTimeMs: 0,
+            template: emailTemplate,
+            error: e.toString(),
+          ),
+        );
       }
     }
-    
+
     return results;
   }
 
@@ -270,7 +309,7 @@ class EmailAndExportService extends BaseService {
     String senderName = 'Metropolitan Investment',
   }) async {
     const String cacheKey = 'send_custom_emails';
-    
+
     try {
       // Walidacja danych wejściowych
       if (investors.isEmpty) {
@@ -287,13 +326,17 @@ class EmailAndExportService extends BaseService {
 
       // Przygotuj dane do wysłania do Firebase Functions
       final functionData = {
-        'recipients': investors.map((investor) => {
-          'clientId': investor.client.id,
-          'clientEmail': investor.client.email ?? '',
-          'clientName': investor.client.name,
-          'investmentCount': investor.investmentCount,
-          'totalAmount': investor.totalRemainingCapital,
-        }).toList(),
+        'recipients': investors
+            .map(
+              (investor) => {
+                'clientId': investor.client.id,
+                'clientEmail': investor.client.email ?? '',
+                'clientName': investor.client.name,
+                'investmentCount': investor.investmentCount,
+                'totalAmount': investor.totalRemainingCapital,
+              },
+            )
+            .toList(),
         'htmlContent': htmlContent,
         'subject': subject ?? 'Wiadomość od $senderName',
         'includeInvestmentDetails': includeInvestmentDetails,
@@ -301,48 +344,201 @@ class EmailAndExportService extends BaseService {
         'senderName': senderName,
       };
 
-      logDebug('sendCustomEmailsToMultipleClients', 'Wysyłam ${investors.length} niestandardowych maili');
+      logDebug(
+        'sendCustomEmailsToMultipleClients',
+        'Wysyłam ${investors.length} niestandardowych maili',
+      );
 
       // Wywołaj Firebase Functions
       final result = await FirebaseFunctions.instanceFor(region: 'europe-west1')
           .httpsCallable('sendCustomHtmlEmailsToMultipleClients')
           .call(functionData);
 
-      logDebug('sendCustomEmailsToMultipleClients', 'Maile niestandardowe wysłane pomyślnie');
+      logDebug(
+        'sendCustomEmailsToMultipleClients',
+        'Maile niestandardowe wysłane pomyślnie',
+      );
 
       // Przetwórz wynik
       final data = result.data as Map<String, dynamic>;
-      
+
       if (data['success'] == true) {
         clearCache(cacheKey);
-        
+
         final results = <EmailSendResult>[];
         final resultsList = data['results'] as List<dynamic>? ?? [];
-        
+
         for (final resultData in resultsList) {
-          results.add(EmailSendResult.fromJson(resultData as Map<String, dynamic>));
+          results.add(
+            EmailSendResult.fromJson(resultData as Map<String, dynamic>),
+          );
         }
-        
+
         return results;
       } else {
-        throw Exception('Wysyłanie maili nie powiodło się: ${data['error'] ?? 'Nieznany błąd'}');
+        throw Exception(
+          'Wysyłanie maili nie powiodło się: ${data['error'] ?? 'Nieznany błąd'}',
+        );
       }
-
     } catch (e) {
       logError('sendCustomEmailsToMultipleClients', e);
-      
+
       // Zwróć listę błędów dla każdego inwestora
-      return investors.map((investor) => EmailSendResult(
-        success: false,
-        messageId: '',
-        clientEmail: investor.client.email ?? '',
-        clientName: investor.client.name,
-        investmentCount: investor.investmentCount,
-        totalAmount: investor.totalRemainingCapital,
-        executionTimeMs: 0,
-        template: 'custom_html',
-        error: e.toString(),
-      )).toList();
+      return investors
+          .map(
+            (investor) => EmailSendResult(
+              success: false,
+              messageId: '',
+              clientEmail: investor.client.email ?? '',
+              clientName: investor.client.name,
+              investmentCount: investor.investmentCount,
+              totalAmount: investor.totalRemainingCapital,
+              executionTimeMs: 0,
+              template: 'custom_html',
+              error: e.toString(),
+            ),
+          )
+          .toList();
+    }
+  }
+
+  /// 📧 Wysyła niestandardowe maile HTML do mieszanych odbiorców (inwestorzy + dodatkowe emaile)
+  Future<List<EmailSendResult>> sendCustomEmailsToMixedRecipients({
+    required List<InvestorSummary> investors,
+    required List<String> additionalEmails,
+    String? subject,
+    required String htmlContent,
+    bool includeInvestmentDetails = false,
+    required String senderEmail,
+    String senderName = 'Metropolitan Investment',
+  }) async {
+    const String cacheKey = 'send_mixed_emails';
+
+    try {
+      // Walidacja danych wejściowych
+      if (investors.isEmpty && additionalEmails.isEmpty) {
+        throw Exception(
+          'Lista odbiorców (inwestorzy + dodatkowe emaile) nie może być pusta',
+        );
+      }
+
+      if (senderEmail.isEmpty) {
+        throw Exception('Wymagany jest email wysyłającego');
+      }
+
+      if (htmlContent.isEmpty) {
+        throw Exception('Treść email nie może być pusta');
+      }
+
+      // Przygotuj dane do wysłania do Firebase Functions
+      final functionData = {
+        'recipients': investors
+            .map(
+              (investor) => {
+                'clientId': investor.client.id,
+                'clientEmail': investor.client.email ?? '',
+                'clientName': investor.client.name,
+                'investmentCount': investor.investmentCount,
+                'totalAmount': investor.totalRemainingCapital,
+              },
+            )
+            .toList(),
+        'additionalEmails': additionalEmails,
+        'htmlContent': htmlContent,
+        'subject': subject ?? 'Wiadomość od $senderName',
+        'includeInvestmentDetails': includeInvestmentDetails,
+        'senderEmail': senderEmail,
+        'senderName': senderName,
+      };
+
+      logDebug(
+        'sendCustomEmailsToMixedRecipients',
+        'Wysyłam do ${investors.length} inwestorów + ${additionalEmails.length} dodatkowych maili',
+      );
+
+      // Wywołaj nową Firebase Functions dla mieszanych odbiorców
+      final result = await FirebaseFunctions.instanceFor(
+        region: 'europe-west1',
+      ).httpsCallable('sendEmailsToMixedRecipients').call(functionData);
+
+      logDebug(
+        'sendCustomEmailsToMixedRecipients',
+        'Maile do mieszanych odbiorców wysłane pomyślnie',
+      );
+
+      // Przetwórz wynik
+      final data = result.data as Map<String, dynamic>;
+
+      if (data['success'] == true) {
+        clearCache(cacheKey);
+
+        final results = <EmailSendResult>[];
+        final resultsList = data['results'] as List<dynamic>? ?? [];
+
+        for (final resultData in resultsList) {
+          final result = resultData as Map<String, dynamic>;
+          results.add(
+            EmailSendResult(
+              success: result['success'] ?? false,
+              messageId: result['messageId'] ?? '',
+              clientEmail: result['recipientEmail'] ?? '',
+              clientName: result['recipientName'] ?? '',
+              investmentCount: result['investmentCount'] ?? 0,
+              totalAmount: (result['totalAmount'] ?? 0).toDouble(),
+              executionTimeMs: result['executionTimeMs'] ?? 0,
+              template: result['template'] ?? 'mixed_html',
+              error: result['error'],
+            ),
+          );
+        }
+
+        return results;
+      } else {
+        throw Exception(
+          'Wysyłanie maili do mieszanych odbiorców nie powiodło się: ${data['error'] ?? 'Nieznany błąd'}',
+        );
+      }
+    } catch (e) {
+      logError('sendCustomEmailsToMixedRecipients', e);
+
+      // Zwróć listę błędów dla wszystkich odbiorców
+      final results = <EmailSendResult>[];
+
+      // Błędy dla inwestorów
+      for (final investor in investors) {
+        results.add(
+          EmailSendResult(
+            success: false,
+            messageId: '',
+            clientEmail: investor.client.email ?? '',
+            clientName: investor.client.name,
+            investmentCount: investor.investmentCount,
+            totalAmount: investor.totalRemainingCapital,
+            executionTimeMs: 0,
+            template: 'mixed_html',
+            error: e.toString(),
+          ),
+        );
+      }
+
+      // Błędy dla dodatkowych emaili
+      for (final email in additionalEmails) {
+        results.add(
+          EmailSendResult(
+            success: false,
+            messageId: '',
+            clientEmail: email,
+            clientName: email,
+            investmentCount: 0,
+            totalAmount: 0.0,
+            executionTimeMs: 0,
+            template: 'mixed_html',
+            error: e.toString(),
+          ),
+        );
+      }
+
+      return results;
     }
   }
 }
@@ -467,10 +663,11 @@ class ExportResult {
 
   /// Formatowane podsumowanie eksportu
   String get formattedSummary {
-    final successRate = totalProcessed > 0 
-        ? ((totalProcessed - totalErrors) / totalProcessed * 100).toStringAsFixed(1)
+    final successRate = totalProcessed > 0
+        ? ((totalProcessed - totalErrors) / totalProcessed * 100)
+              .toStringAsFixed(1)
         : '0.0';
-    
+
     return '''
 Eksport: $exportTitle
 • Format: ${format.toUpperCase()}
@@ -479,12 +676,13 @@ Eksport: $exportTitle
 • Plik: $filename
 • Rozmiar: ${size != null ? '${(size! / 1024).toStringAsFixed(1)} KB' : 'nieznany'}
 • Czas wykonania: ${executionTimeMs}ms
-'''.trim();
+'''
+        .trim();
   }
 
   /// Czy eksport miał błędy
   bool get hasErrors => totalErrors > 0;
-  
+
   /// Czy eksport był w pełni udany
   bool get isFullySuccessful => success && totalErrors == 0;
 }

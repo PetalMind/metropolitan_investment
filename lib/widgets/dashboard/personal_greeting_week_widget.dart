@@ -234,7 +234,7 @@ class _PersonalGreetingWeekWidgetState
               ),
               const SizedBox(height: 6),
               Text(
-                'Jak mogę Ci pomóc dziś?',
+                'Jak mogę Ci dziś pomóc?',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: AppThemePro.accentGold,
                   fontWeight: FontWeight.w600,
@@ -320,7 +320,7 @@ class _PersonalGreetingWeekWidgetState
             Icon(Icons.task_alt_outlined, color: AppThemePro.accentGold),
             const SizedBox(width: 8),
             Text(
-              'Moje zadania',
+              'Wydarzenia z kalendarza',
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:provider/provider.dart';
 import '../../models_and_services.dart';
@@ -35,6 +36,7 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
     with TickerProviderStateMixin {
   late TabController _tabController;
   late QuillController _quillController;
+  late FocusNode _editorFocusNode;
 
   final _formKey = GlobalKey<FormState>();
   final _senderEmailController = TextEditingController();
@@ -43,18 +45,11 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
   );
   final _subjectController = TextEditingController();
 
-  String _emailTemplate = 'custom';
   bool _isLoading = false;
   bool _includeInvestmentDetails = true;
   bool _isGroupEmail = false; // Czy wysyłać jako jeden grupowy mail
   String? _error;
   List<EmailSendResult>? _results;
-  String _previewHtml = '';
-
-  // Zmienne dla testowania SMTP
-  bool _isTesting = false;
-  bool _isSendingTest = false;
-  String? _testResult;
 
   // Mapy do zarządzania adresami email odbiorców
   Map<String, bool> _recipientEnabled = {};
@@ -69,41 +64,73 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
 
-    // Inicjalizacja QuillController z początkową treścią
+    // Inicjalizacja QuillController z podstawową konfiguracją bezpieczną dla web
     _quillController = QuillController.basic();
+
+    // Inicjalizacja FocusNode dla edytora
+    _editorFocusNode = FocusNode();
 
     // Ustawienie początkowych wartości
     _subjectController.text =
         widget.initialSubject ??
         'Aktualizacja portfela inwestycyjnego - Metropolitan Investment';
 
-    if (widget.initialMessage != null) {
-      _insertInitialContent(widget.initialMessage!);
-    } else {
-      _insertDefaultTemplate();
-    }
+    // Opóźnij inicjalizację treści i dodanie listener'a
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        if (widget.initialMessage != null) {
+          _insertInitialContent(widget.initialMessage!);
+        } else {
+          _insertDefaultTemplate();
+        }
 
-    // Nasłuchiwanie zmian w edytorze dla aktualizacji podglądu
-    _quillController.addListener(_updatePreview);
+        // Dodaj listener dopiero po pełnej inicjalizacji
+        _quillController.addListener(_updatePreview);
+      }
+    });
 
     // Inicjalizacja map odbiorców
     _initializeRecipients();
+
+    // Pobierz email z ustawień SMTP
+    _loadSmtpEmail();
   }
 
   void _insertInitialContent(String content) {
-    final document = Document()..insert(0, content);
-    _quillController.document = document;
+    try {
+      if (_quillController.document.length > 1) {
+        _quillController.clear(); // Wyczyść istniejącą treść
+      }
+      final document = Document()..insert(0, content);
+      _quillController.document = document;
+    } catch (e) {
+      debugPrint('Błąd podczas wstawiania treści: $e');
+      // Fallback - spróbuj prostszą metodę
+      _quillController.document.insert(0, content);
+    }
   }
 
   void _initializeRecipients() {
     for (final investor in widget.selectedInvestors) {
       final clientId = investor.client.id;
-      final email = investor.client.email ?? '';
+      final email = investor.client.email;
 
       _recipientEnabled[clientId] =
           email.isNotEmpty &&
           RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
       _recipientEmails[clientId] = email;
+    }
+  }
+
+  Future<void> _loadSmtpEmail() async {
+    try {
+      final smtpService = SmtpService();
+      final smtpSettings = await smtpService.getSmtpSettings();
+      if (smtpSettings != null && smtpSettings.username.isNotEmpty) {
+        _senderEmailController.text = smtpSettings.username;
+      }
+    } catch (e) {
+      // Ignoruj błąd - użytkownik może wprowadzić email ręcznie
     }
   }
 
@@ -124,161 +151,19 @@ Zespół Metropolitan Investment''';
 
   void _updatePreview() {
     setState(() {
-      _previewHtml = _generateEmailPreview();
+      // Aktualizacja podglądu - wywołane przy zmianie treści
     });
   }
 
-  String _generateEmailPreview() {
-    if (widget.selectedInvestors.isEmpty) return '';
-
-    final investor = widget.selectedInvestors.first;
-    final deltaToHtml = _convertDocumentToHtml(_quillController.document);
-
-    // Generowanie podstawowego HTML z Quill content
-    return '''
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { 
-      font-family: Arial, sans-serif; 
-      line-height: 1.6; 
-      color: #333; 
-      max-width: 600px; 
-      margin: 0 auto; 
-      padding: 20px; 
-    }
-    .header { 
-      background: linear-gradient(135deg, #1a237e, #3949ab); 
-      color: white; 
-      padding: 30px 20px; 
-      text-align: center; 
-      border-radius: 8px 8px 0 0; 
-    }
-    .content { 
-      background: white; 
-      padding: 30px; 
-      border: 1px solid #e0e0e0; 
-    }
-    .summary { 
-      background: #f8f9fa; 
-      padding: 20px; 
-      margin: 20px 0; 
-      border-radius: 8px; 
-      border-left: 4px solid #1a237e; 
-    }
-    .footer { 
-      background: #f5f5f5; 
-      padding: 20px; 
-      text-align: center; 
-      font-size: 14px; 
-      color: #666; 
-      border-radius: 0 0 8px 8px; 
-    }
-    .investment-item { 
-      border: 1px solid #e0e0e0; 
-      padding: 15px; 
-      margin: 10px 0; 
-      border-radius: 8px; 
-      background: #fafafa; 
-    }
-    .total { 
-      font-weight: bold; 
-      color: #1a237e; 
-      font-size: 18px; 
-    }
-    table { 
-      width: 100%; 
-      border-collapse: collapse; 
-      margin: 20px 0; 
-    }
-    th, td { 
-      border: 1px solid #ddd; 
-      padding: 12px; 
-      text-align: left; 
-    }
-    th { 
-      background-color: #1a237e; 
-      color: white; 
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>${_senderNameController.text}</h1>
-    <h2>Twój Portfel Inwestycyjny</h2>
-  </div>
-  
-  <div class="content">
-    <p><strong>Szanowny/a ${investor.client.name},</strong></p>
-    
-    <div class="message-content">
-      $deltaToHtml
-    </div>
-    
-    ${_includeInvestmentDetails ? _generateInvestmentDetailsHtml(investor) : ''}
-  </div>
-  
-  <div class="footer">
-    <p>Ten email został wygenerowany automatycznie ${DateTime.now().toLocal().toString().split('.')[0]}.</p>
-    <p><strong>${_senderNameController.text}</strong> - Profesjonalne Zarządzanie Kapitałem</p>
-  </div>
-</body>
-</html>''';
-  }
-
-  String _generateInvestmentDetailsHtml(InvestorSummary investor) {
-    if (investor.investments.isEmpty) return '';
-
-    final totalInvestment = investor.investments.fold<double>(
-      0.0,
-      (sum, inv) => sum + inv.investmentAmount,
-    );
-
-    String details =
-        '''
-    <div class="summary">
-      <h3>📊 Podsumowanie Twojego Portfela</h3>
-      <p><strong>Liczba inwestycji:</strong> ${investor.investments.length}</p>
-      <p><strong>Całkowita kwota inwestycji:</strong> <span class="total">${totalInvestment.toStringAsFixed(2)} PLN</span></p>
-      <p><strong>Kapitał pozostały:</strong> <span class="total">${investor.totalRemainingCapital.toStringAsFixed(2)} PLN</span></p>
-    </div>
-    
-    <h3>📋 Szczegóły Inwestycji</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Produkt</th>
-          <th>Kwota Inwestycji</th>
-          <th>Kapitał Pozostały</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>''';
-
-    for (final investment in investor.investments) {
-      details +=
-          '''
-        <tr>
-          <td>${investment.productName}</td>
-          <td>${investment.investmentAmount.toStringAsFixed(2)} PLN</td>
-          <td>${investment.remainingCapital.toStringAsFixed(2)} PLN</td>
-          <td>${investment.status ?? 'Aktywna'}</td>
-        </tr>''';
-    }
-
-    details += '''
-      </tbody>
-    </table>''';
-
-    return details;
-  }
-
+  @override
   @override
   void dispose() {
+    // Usuń listener przed dispose
+    _quillController.removeListener(_updatePreview);
+
     _tabController.dispose();
     _quillController.dispose();
+    _editorFocusNode.dispose();
     _senderEmailController.dispose();
     _senderNameController.dispose();
     _subjectController.dispose();
@@ -398,58 +283,110 @@ Zespół Metropolitan Investment''';
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Toolbar
-          QuillSimpleToolbar(
-            controller: _quillController,
-            config: const QuillSimpleToolbarConfig(
-              multiRowsDisplay: false,
-              showBoldButton: true,
-              showItalicButton: true,
-              showUnderLineButton: true,
-              showStrikeThrough: true,
-              showColorButton: true,
-              showBackgroundColorButton: true,
-              showListNumbers: true,
-              showListBullets: true,
-              showCodeBlock: false,
-              showQuote: true,
-              showLink: true,
-              showDirection: false,
-              showSearchButton: false,
-              showFontFamily: false,
-              showFontSize: true,
-              showHeaderStyle: true,
-              showAlignmentButtons: true,
-              showCenterAlignment: true,
-              showLeftAlignment: true,
-              showRightAlignment: true,
-              showJustifyAlignment: true,
-            ),
-          ),
-
-          const Divider(),
-
-          // Editor
+          // Editor z zabezpieczeniami dla web
           Expanded(
             child: Container(
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.grey[300]!),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: QuillEditor.basic(
-                controller: _quillController,
-                config: const QuillEditorConfig(
-                  placeholder: 'Wpisz treść swojego maila...',
-                  padding: EdgeInsets.all(16),
-                ),
+              child: Column(
+                children: [
+                  // Pasek narzędzi Quill - ZAWSZE widoczny (również na web)
+                  QuillSimpleToolbar(
+                    controller: _quillController,
+                    config: QuillSimpleToolbarConfig(
+                      multiRowsDisplay: false,
+                      showFontFamily: false,
+                      showFontSize: kIsWeb
+                          ? false
+                          : true, // Rozmiar czcionki tylko na desktop/mobile
+                      showStrikeThrough: false,
+                      showInlineCode: false,
+                      showCodeBlock: false,
+                      showSubscript: false,
+                      showSuperscript: false,
+                      showSearchButton: false,
+                      showListCheck: false,
+                      showHeaderStyle: true,
+                      showListBullets: true,
+                      showListNumbers: true,
+                      showIndent: kIsWeb
+                          ? false
+                          : true, // Wcięcia tylko na desktop/mobile
+                      showLink: false, // Wyłącz linki dla stabilności
+                      showUndo: true,
+                      showRedo: true,
+                      showDirection: false,
+                      showAlignmentButtons: true,
+                      showLeftAlignment: true,
+                      showCenterAlignment: true,
+                      showRightAlignment: true,
+                      showJustifyAlignment: false,
+                      showBackgroundColorButton: kIsWeb
+                          ? false
+                          : true, // Kolor tła tylko na desktop/mobile
+                      showColorButton: kIsWeb
+                          ? false
+                          : true, // Kolor tekstu tylko na desktop/mobile
+                      showBoldButton: true,
+                      showItalicButton: true,
+                      showUnderLineButton: true,
+                      showClearFormat: true,
+                      showQuote: true,
+                      // Web-specific optimizations
+                      decoration: kIsWeb
+                          ? BoxDecoration(
+                              color: Colors.grey[50],
+                              border: Border(
+                                bottom: BorderSide(color: Colors.grey[300]!),
+                              ),
+                            )
+                          : null,
+                    ),
+                  ),
+
+                  // Separator
+                  if (kIsWeb)
+                    Container(
+                      height: 1,
+                      color: Colors.grey[300],
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                    )
+                  else
+                    const Divider(height: 16),
+
+                  // Edytor Quill
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: QuillEditor.basic(
+                        controller: _quillController,
+                        config: QuillEditorConfig(
+                          placeholder: 'Wpisz treść swojego maila...',
+                          padding: const EdgeInsets.all(16),
+                          autoFocus: false,
+                          enableSelectionToolbar: true,
+                          scrollable: true,
+                          expands: false,
+                          // Web-specific optimizations
+                          maxContentWidth: kIsWeb ? 800 : null,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
 
-          const SizedBox(height: 16),
-
-          // Szybkie akcje
-          Row(
+          // Szybkie akcje z dodatkowymi opcjami dla web
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               ElevatedButton.icon(
                 onPressed: _insertGreeting,
@@ -457,31 +394,72 @@ Zespół Metropolitan Investment''';
                 label: const Text('Dodaj powitanie'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue[100],
-                  foregroundColor: Colors.blue[700],
+                  foregroundColor: Colors.blue[800],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
               ElevatedButton.icon(
                 onPressed: _insertSignature,
-                icon: const Icon(Icons.edit_note, size: 16),
+                icon: const Icon(Icons.edit, size: 16),
                 label: const Text('Dodaj podpis'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green[100],
-                  foregroundColor: Colors.green[700],
+                  foregroundColor: Colors.green[800],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
               ElevatedButton.icon(
                 onPressed: _clearEditor,
                 icon: const Icon(Icons.clear, size: 16),
                 label: const Text('Wyczyść'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red[100],
-                  foregroundColor: Colors.red[700],
+                  foregroundColor: Colors.red[800],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                 ),
               ),
+              if (kIsWeb) // Dodatkowe opcje dla web
+                ElevatedButton.icon(
+                  onPressed: _insertDefaultTemplate,
+                  icon: const Icon(Icons.article, size: 16),
+                  label: const Text('Szablon'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple[100],
+                    foregroundColor: Colors.purple[800],
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                ),
             ],
           ),
+
+          const SizedBox(height: 12),
+
+          // Informacja o skrótach klawiszowych dla web
+          if (kIsWeb)
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Text(
+                'Skróty: Ctrl+B (pogrubienie), Ctrl+I (kursywa), Ctrl+U (podkreślenie), Ctrl+Z (cofnij)',
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              ),
+            ),
         ],
       ),
     );
@@ -506,6 +484,8 @@ Zespół Metropolitan Investment''';
             TextFormField(
               controller: _senderEmailController,
               keyboardType: TextInputType.emailAddress,
+              autocorrect: false,
+              enableSuggestions: false,
               decoration: const InputDecoration(
                 labelText: 'Twój Email *',
                 hintText: 'your@company.com',
@@ -543,115 +523,6 @@ Zespół Metropolitan Investment''';
                 labelText: 'Temat Email',
                 hintText: 'Twoje inwestycje - podsumowanie',
                 prefixIcon: Icon(Icons.subject_outlined),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Sekcja testowania SMTP
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.blue[300]!),
-                borderRadius: BorderRadius.circular(8),
-                color: Colors.blue[50],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.settings_remote, color: Colors.blue[700]),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Test Połączenia SMTP',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: Colors.blue[700],
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Sprawdź czy serwer email jest poprawnie skonfigurowany przed wysyłaniem maili.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _isTesting ? null : _testSmtpConnection,
-                          icon: _isTesting
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.wifi_tethering),
-                          label: Text(
-                            _isTesting ? 'Testowanie...' : 'Test Połączenia',
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue[100],
-                            foregroundColor: Colors.blue[700],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed:
-                              (_isSendingTest ||
-                                  _senderEmailController.text.trim().isEmpty)
-                              ? null
-                              : _sendTestEmail,
-                          icon: _isSendingTest
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.email_outlined),
-                          label: Text(
-                            _isSendingTest ? 'Wysyłanie...' : 'Wyślij Test',
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green[100],
-                            foregroundColor: Colors.green[700],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_testResult != null) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        color: _testResult!.startsWith('✅')
-                            ? Colors.green[100]
-                            : Colors.red[100],
-                      ),
-                      child: Text(
-                        _testResult!,
-                        style: TextStyle(
-                          color: _testResult!.startsWith('✅')
-                              ? Colors.green[700]
-                              : Colors.red[700],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
               ),
             ),
 
@@ -775,6 +646,8 @@ Zespół Metropolitan Investment''';
                 initialValue: currentEmail,
                 enabled: isEnabled,
                 keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                enableSuggestions: false,
                 decoration: InputDecoration(
                   hintText: 'adres@email.com',
                   isDense: true,
@@ -832,7 +705,11 @@ Zespół Metropolitan Investment''';
       final index = entry.key;
       final email = entry.value;
 
+      // Użyj klucza GlobalKey dla stabilności na web
+      final key = GlobalKey();
+
       return Container(
+        key: key,
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
           border: Border.all(color: AppThemePro.borderPrimary),
@@ -842,8 +719,13 @@ Zespół Metropolitan Investment''';
         child: ListTile(
           leading: const Icon(Icons.person_add, color: Colors.blue),
           title: TextFormField(
+            key: ValueKey(
+              'additional_email_$index',
+            ), // Dodatkowy klucz dla stabilności
             initialValue: email,
             keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            enableSuggestions: false,
             decoration: InputDecoration(
               hintText: 'dodatkowy@email.com',
               isDense: true,
@@ -858,7 +740,10 @@ Zespół Metropolitan Investment''';
               prefixIcon: const Icon(Icons.email, size: 16),
             ),
             onChanged: (value) {
-              _additionalEmails[index] = value;
+              if (index < _additionalEmails.length) {
+                // Zabezpieczenie przed błędami indeksu
+                _additionalEmails[index] = value;
+              }
             },
           ),
           trailing: Row(
@@ -871,13 +756,22 @@ Zespół Metropolitan Investment''';
                   size: 20,
                 ),
                 onPressed: () {
+                  // Pobierz aktualną wartość z listy _additionalEmails
+                  final currentValue = index < _additionalEmails.length
+                      ? _additionalEmails[index].trim()
+                      : '';
+
                   // Potwierdzenie dodania adresu
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Adres ${email.isNotEmpty ? email : "(pusty)"} został potwierdzony',
+                        currentValue.isNotEmpty
+                            ? 'Adres $currentValue został potwierdzony'
+                            : 'Adres jest pusty - wprowadź poprawny email',
                       ),
-                      backgroundColor: AppThemePro.statusSuccess,
+                      backgroundColor: currentValue.isNotEmpty
+                          ? AppThemePro.statusSuccess
+                          : Colors.orange,
                       duration: const Duration(seconds: 2),
                     ),
                   );
@@ -892,7 +786,10 @@ Zespół Metropolitan Investment''';
                 ),
                 onPressed: () {
                   setState(() {
-                    _additionalEmails.removeAt(index);
+                    if (index < _additionalEmails.length) {
+                      // Zabezpieczenie przed błędami indeksu
+                      _additionalEmails.removeAt(index);
+                    }
                   });
                 },
                 tooltip: 'Usuń adres',
@@ -1052,7 +949,7 @@ Zespół Metropolitan Investment''';
       orElse: () => widget.selectedInvestors.first,
     );
 
-    final email = _recipientEmails[recipientId] ?? investor.client.email ?? '';
+    final email = _recipientEmails[recipientId] ?? investor.client.email;
     return '${investor.client.name} <$email>';
   }
 
@@ -1278,114 +1175,6 @@ Zespół Metropolitan Investment''';
     );
   }
 
-  Widget _buildInvestmentDetailsPreview(String clientId) {
-    final investor = widget.selectedInvestors.firstWhere(
-      (inv) => inv.client.id == clientId,
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.assessment, color: Colors.blue[700], size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Podsumowanie Twojego Portfela',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue[700],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Statystyki
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatItem(
-                  'Liczba inwestycji',
-                  investor.investmentCount.toString(),
-                  Icons.account_balance_wallet,
-                ),
-              ),
-              Expanded(
-                child: _buildStatItem(
-                  'Kapitał pozostały',
-                  '${investor.totalRemainingCapital.toStringAsFixed(2)} PLN',
-                  Icons.monetization_on,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Lista inwestycji (pierwsze 3)
-          if (investor.investments.isNotEmpty) ...[
-            Text(
-              'Ostatnie inwestycje:',
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.blue[700],
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...investor.investments
-                .take(3)
-                .map(
-                  (investment) => Container(
-                    margin: const EdgeInsets.only(bottom: 4),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.blue[100]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            investment.productName,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '${investment.remainingCapital.toStringAsFixed(2)} PLN',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            if (investor.investments.length > 3)
-              Text(
-                '... i ${investor.investments.length - 3} więcej',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.blue[600],
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-
   /// Inline version of investment details for editor synchronization
   Widget _buildInvestmentDetailsInline(String clientId) {
     final investor = widget.selectedInvestors.firstWhere(
@@ -1493,38 +1282,6 @@ Zespół Metropolitan Investment''';
             ),
         ],
       ],
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, IconData icon) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.blue[100]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 14, color: Colors.blue[600]),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(fontSize: 10, color: Colors.blue[600]),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1656,29 +1413,38 @@ Zespół Metropolitan Investment''';
   }
 
   void _insertGreeting() {
-    final greeting = 'Szanowni Państwo,\n\n';
-    _quillController.document.insert(0, greeting);
+    try {
+      const greeting = 'Szanowni Państwo,\n\n';
+      _quillController.document.insert(0, greeting);
+    } catch (e) {
+      debugPrint('Błąd podczas wstawiania powitania: $e');
+    }
   }
 
   void _insertSignature() {
-    final signature =
-        '\n\nZ poważaniem,\nZespół ${_senderNameController.text}\n';
-    final length = _quillController.document.length;
-    _quillController.document.insert(length - 1, signature);
+    try {
+      final signature =
+          '\n\nZ poważaniem,\nZespół ${_senderNameController.text}\n';
+      final length = _quillController.document.length;
+      _quillController.document.insert(length - 1, signature);
+    } catch (e) {
+      debugPrint('Błąd podczas wstawiania podpisu: $e');
+    }
   }
 
   void _clearEditor() {
-    _quillController.clear();
+    try {
+      _quillController.clear();
+    } catch (e) {
+      debugPrint('Błąd podczas czyszczenia edytora: $e');
+    }
   }
 
   bool _hasValidEmails() {
     return widget.selectedInvestors.any(
       (investor) =>
-          investor.client.email != null &&
-          investor.client.email!.isNotEmpty &&
-          RegExp(
-            r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
-          ).hasMatch(investor.client.email!),
+          investor.client.email.isNotEmpty &&
+          RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(investor.client.email),
     );
   }
 
@@ -1752,14 +1518,14 @@ Zespół Metropolitan Investment''';
 
       // Przygotuj listę odbiorców
       final recipientsWithInvestmentData = <InvestorSummary>[];
+      final additionalEmailAddresses = <String>[];
 
       for (final recipient in enabledRecipients) {
         final recipientId = recipient['id']!;
 
         if (recipientId.startsWith('additional_')) {
-          // Dla dodatkowych emaili nie dodajemy ich do głównej listy
-          // Będą obsługiwane osobno w przyszłych wersjach
-          continue;
+          // Dodaj dodatkowe emaile do osobnej listy
+          additionalEmailAddresses.add(recipient['email']!);
         } else {
           // Znajdź prawdziwego inwestora
           final investor = widget.selectedInvestors.firstWhere(
@@ -1767,30 +1533,41 @@ Zespół Metropolitan Investment''';
             orElse: () => widget.selectedInvestors.first,
           );
 
-          // Aktualizuj email jeśli został zmieniony
-          final updatedEmail =
-              _recipientEmails[recipientId] ?? investor.client.email;
-          if (updatedEmail != investor.client.email) {
-            // Tworzy kopię inwestora z zaktualizowanym emailem
-            // W rzeczywistej implementacji możesz potrzebować bardziej zaawansowanej logiki
-          }
-
           recipientsWithInvestmentData.add(investor);
         }
       }
 
-      // Wywołaj zintegrowaną funkcję wysyłania
-      final results = await _emailAndExportService
-          .sendCustomEmailsToMultipleClients(
-            investors: recipientsWithInvestmentData,
-            subject: _subjectController.text.isNotEmpty
-                ? _subjectController.text
-                : 'Wiadomość od ${_senderNameController.text}',
-            htmlContent: htmlContent,
-            includeInvestmentDetails: _includeInvestmentDetails,
-            senderEmail: _senderEmailController.text,
-            senderName: _senderNameController.text,
-          );
+      // Wybierz odpowiednią metodę wysyłania na podstawie obecności dodatkowych emaili
+      List<EmailSendResult> results;
+
+      if (additionalEmailAddresses.isNotEmpty) {
+        // Użyj nowej metody dla mieszanych odbiorców
+        results = await _emailAndExportService
+            .sendCustomEmailsToMixedRecipients(
+              investors: recipientsWithInvestmentData,
+              additionalEmails: additionalEmailAddresses,
+              subject: _subjectController.text.isNotEmpty
+                  ? _subjectController.text
+                  : 'Wiadomość od ${_senderNameController.text}',
+              htmlContent: htmlContent,
+              includeInvestmentDetails: _includeInvestmentDetails,
+              senderEmail: _senderEmailController.text,
+              senderName: _senderNameController.text,
+            );
+      } else {
+        // Użyj oryginalnej metody tylko dla inwestorów
+        results = await _emailAndExportService
+            .sendCustomEmailsToMultipleClients(
+              investors: recipientsWithInvestmentData,
+              subject: _subjectController.text.isNotEmpty
+                  ? _subjectController.text
+                  : 'Wiadomość od ${_senderNameController.text}',
+              htmlContent: htmlContent,
+              includeInvestmentDetails: _includeInvestmentDetails,
+              senderEmail: _senderEmailController.text,
+              senderName: _senderNameController.text,
+            );
+      }
 
       setState(() {
         _results = results;
@@ -1842,107 +1619,144 @@ Zespół Metropolitan Investment''';
   // Pomocnicza metoda konwersji dokumentu Quill na HTML
   String _convertDocumentToHtml(Document document) {
     try {
-      // Pobierz plain text z dokumentu
-      final plainText = document.toPlainText();
+      // Użyj niestandardowej implementacji konwersji
+      return _customDocumentToHtml(document);
+    } catch (e) {
+      debugPrint('Błąd konwersji Quill do HTML: $e');
 
-      // Podstawowa konwersja na HTML
+      // Ostateczny fallback - prosty plain text z <br>
+      final plainText = document.toPlainText();
       return plainText
           .replaceAll('\n', '<br>')
-          .replaceAll('  ', '&nbsp;&nbsp;'); // Zachowaj podwójne spacje
-    } catch (e) {
-      // Fallback w przypadku błędu
-      return 'Błąd konwersji treści: $e';
+          .replaceAll('  ', '&nbsp;&nbsp;');
     }
   }
 
-  /// Testuje połączenie SMTP
-  Future<void> _testSmtpConnection() async {
-    setState(() {
-      _isTesting = true;
-      _testResult = null;
-    });
-
+  /// Niestandardowa konwersja dokumentu Quill do HTML (fallback)
+  String _customDocumentToHtml(Document document) {
     try {
-      final smtpService = SmtpService();
-      final smtpSettings = await smtpService.getSmtpSettings();
+      final buffer = StringBuffer();
+      buffer.write('<div>');
 
-      if (smtpSettings == null) {
-        setState(() {
-          _testResult =
-              '❌ Brak konfiguracji SMTP. Skonfiguruj ustawienia w aplikacji.';
-        });
-        return;
+      // Iteruj przez operacje delta
+      final ops = document.toDelta().operations;
+
+      for (final op in ops) {
+        if (op.isInsert) {
+          String text = op.data?.toString() ?? '';
+
+          // Sprawdź czy jest to zwykły tekst czy znak nowej linii
+          if (text == '\n') {
+            buffer.write('<br>');
+          } else {
+            // Aplikuj formatowanie na podstawie atrybutów
+            String formattedText = _applyFormattingToText(text, op.attributes);
+            buffer.write(formattedText);
+          }
+        }
       }
 
-      final result = await smtpService.testSmtpConnection(smtpSettings);
-
-      setState(() {
-        if (result['success'] == true) {
-          _testResult =
-              '✅ Połączenie pomyślne! Czas odpowiedzi: ${result['details']['responseTime']}ms';
-        } else {
-          _testResult = '❌ Błąd połączenia: ${result['error']}';
-        }
-      });
+      buffer.write('</div>');
+      return buffer.toString();
     } catch (e) {
-      setState(() {
-        _testResult = '❌ Błąd podczas testowania: $e';
-      });
-    } finally {
-      setState(() {
-        _isTesting = false;
-      });
+      debugPrint('Błąd niestandardowej konwersji do HTML: $e');
+
+      // Ostateczny fallback - prosty plain text z <br>
+      final plainText = document.toPlainText();
+      return plainText
+          .replaceAll('\n', '<br>')
+          .replaceAll('  ', '&nbsp;&nbsp;');
     }
   }
 
-  /// Wysyła testowy email
-  Future<void> _sendTestEmail() async {
-    if (_senderEmailController.text.trim().isEmpty) {
-      setState(() {
-        _testResult = '❌ Podaj email wysyłającego przed testem';
-      });
-      return;
+  /// Aplikuje formatowanie HTML na podstawie atrybutów Quill
+  String _applyFormattingToText(String text, Map<String, dynamic>? attributes) {
+    if (attributes == null || attributes.isEmpty) {
+      return _escapeHtml(text);
     }
 
-    setState(() {
-      _isSendingTest = true;
-      _testResult = null;
-    });
+    String result = _escapeHtml(text);
 
-    try {
-      final smtpService = SmtpService();
-      final smtpSettings = await smtpService.getSmtpSettings();
+    // Formatowanie tekstu
+    if (attributes['bold'] == true) {
+      result = '<strong>$result</strong>';
+    }
 
-      if (smtpSettings == null) {
-        setState(() {
-          _testResult =
-              '❌ Brak konfiguracji SMTP. Skonfiguruj ustawienia w aplikacji.';
-        });
-        return;
+    if (attributes['italic'] == true) {
+      result = '<em>$result</em>';
+    }
+
+    if (attributes['underline'] == true) {
+      result = '<u>$result</u>';
+    }
+
+    // Kolor tekstu
+    if (attributes['color'] != null) {
+      final color = attributes['color'].toString();
+      result = '<span style="color: $color">$result</span>';
+    }
+
+    // Kolor tła
+    if (attributes['background'] != null) {
+      final bgColor = attributes['background'].toString();
+      result = '<span style="background-color: $bgColor">$result</span>';
+    }
+
+    // Rozmiar czcionki
+    if (attributes['size'] != null) {
+      final size = attributes['size'].toString();
+      result = '<span style="font-size: $size">$result</span>';
+    }
+
+    // Wyrównanie (zastosowane na poziomie akapitu)
+    if (attributes['align'] != null) {
+      final align = attributes['align'].toString();
+      result = '<div style="text-align: $align">$result</div>';
+    }
+
+    // Nagłówki
+    if (attributes['header'] != null) {
+      final level = attributes['header'].toString();
+      switch (level) {
+        case '1':
+          result = '<h1>$result</h1>';
+          break;
+        case '2':
+          result = '<h2>$result</h2>';
+          break;
+        case '3':
+          result = '<h3>$result</h3>';
+          break;
+        default:
+          result = '<h4>$result</h4>';
       }
-
-      final result = await smtpService.sendTestEmail(
-        settings: smtpSettings,
-        testEmail: _senderEmailController.text.trim(),
-        customMessage: 'Test z edytora email - Metropolitan Investment',
-      );
-
-      setState(() {
-        if (result['success'] == true) {
-          _testResult =
-              '✅ Email testowy wysłany! ID: ${result['details']['messageId']}';
-        } else {
-          _testResult = '❌ Błąd wysyłania: ${result['error']}';
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _testResult = '❌ Błąd podczas wysyłania: $e';
-      });
-    } finally {
-      setState(() {
-        _isSendingTest = false;
-      });
     }
+
+    // Listy
+    if (attributes['list'] != null) {
+      final listType = attributes['list'].toString();
+      if (listType == 'ordered') {
+        result = '<li>$result</li>'; // Będzie opakowane w <ol> później
+      } else if (listType == 'bullet') {
+        result = '<li>$result</li>'; // Będzie opakowane w <ul> później
+      }
+    }
+
+    // Cytaty
+    if (attributes['blockquote'] == true) {
+      result = '<blockquote>$result</blockquote>';
+    }
+
+    return result;
+  }
+
+  /// Escape HTML w tekście
+  String _escapeHtml(String text) {
+    return text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#x27;');
   }
 }
