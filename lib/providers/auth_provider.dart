@@ -20,7 +20,9 @@ class AuthProvider extends ChangeNotifier {
   bool get isInitializing => _isInitializing;
   String? get error => _error;
   bool get isLoggedIn => _user != null;
-  bool get isAdmin => _userProfile?.role == 'admin';
+  bool get isAdmin => _userProfile?.isAdmin ?? false;
+  bool get isSuperAdmin => _userProfile?.isSuperAdmin ?? false;
+  bool get isVisibleAdmin => _userProfile?.isVisibleAdmin ?? false;
 
   AuthProvider() {
     _initializeAuth();

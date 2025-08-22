@@ -41,7 +41,7 @@ class CalendarEvent {
   /// Tworzy wydarzenie z mapy danych z Firestore
   factory CalendarEvent.fromMap(Map<String, dynamic> map) {
     return CalendarEvent(
-      id: map['id'] ?? '',
+      id: map['id']?.toString() ?? '', // 🚀 FIX: Konwertuj na string, ale pozwól na puste
       title: map['title'] ?? '',
       startDate: (map['startDate'] as Timestamp).toDate(),
       endDate: (map['endDate'] as Timestamp).toDate(),

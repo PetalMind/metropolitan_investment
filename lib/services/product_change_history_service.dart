@@ -7,10 +7,11 @@ class ProductChangeHistoryService extends BaseService {
   final InvestmentChangeHistoryService _investmentHistoryService =
       InvestmentChangeHistoryService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final UserDisplayFilterService _userFilterService = UserDisplayFilterService();
 
   /// Pobiera historię zmian dla produktu
   /// Wyszukuje wszystkie inwestycje z danym productId/productName
-  /// i zwraca ich historię zmian
+  /// i zwraca ich historię zmian (ukrywając zmiany od super-adminów)
   Future<List<InvestmentChangeHistory>> getProductHistory(
     String productId, {
     String? productName,
@@ -47,13 +48,16 @@ class ProductChangeHistoryService extends BaseService {
         allHistory.addAll(batchHistory);
       }
 
-      // Posortuj według daty (najnowsze pierwsz)
-      allHistory.sort((a, b) => b.changedAt.compareTo(a.changedAt));
+      // 🔒 UKRYJ SUPER-ADMINÓW: Filtruj historię zmian
+      final filteredHistory = await _userFilterService.filterHistoryBySuperAdmin(allHistory);
+
+      // Posortuj według daty (najnowsze pierwsze)
+      filteredHistory.sort((a, b) => b.changedAt.compareTo(a.changedAt));
 
       // Ogranicz do podanej liczby wyników
-      final limitedHistory = allHistory.take(limit).toList();
+      final limitedHistory = filteredHistory.take(limit).toList();
 
-      print('✅ [ProductChangeHistory] Pobrano ${limitedHistory.length} wpisów historii');
+      print('✅ [ProductChangeHistory] Pobrano ${limitedHistory.length} wpisów historii (${allHistory.length - filteredHistory.length} ukryto)');
       return limitedHistory;
 
     } catch (e) {
@@ -155,7 +159,8 @@ class ProductChangeHistoryService extends BaseService {
         limit: 1000, // Pobierz więcej dla statystyk
       );
 
-      final stats = ProductHistoryStats.fromHistory(history);
+      // 🔒 UKRYJ SUPER-ADMINÓW: Użyj filtrowanej historii do statystyk
+      final stats = await _userFilterService.filterProductStats(history);
       return stats;
 
     } catch (e) {

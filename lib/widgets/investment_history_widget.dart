@@ -26,6 +26,7 @@ class InvestmentHistoryWidget extends StatefulWidget {
 class _InvestmentHistoryWidgetState extends State<InvestmentHistoryWidget> {
   final InvestmentChangeHistoryService _historyService =
       InvestmentChangeHistoryService();
+  final UserDisplayFilterService _userFilterService = UserDisplayFilterService();
   List<InvestmentChangeHistory> _history = [];
   bool _isLoading = true;
   String? _error;
@@ -344,12 +345,21 @@ class _InvestmentHistoryWidgetState extends State<InvestmentHistoryWidget> {
                           )),
                 ],
                 const SizedBox(height: 2),
-                Text(
-                  entry.userName,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppThemePro.textMuted,
-                    fontSize: 11,
+                FutureBuilder<String>(
+                  future: _userFilterService.maskUserNameIfSuperAdmin(
+                    entry.userId,
+                    entry.userEmail,
+                    entry.userName,
                   ),
+                  builder: (context, snapshot) {
+                    return Text(
+                      snapshot.data ?? entry.userName,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppThemePro.textMuted,
+                        fontSize: 11,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -437,12 +447,21 @@ class _InvestmentHistoryWidgetState extends State<InvestmentHistoryWidget> {
             children: [
               Icon(Icons.person, size: 14, color: AppThemePro.textMuted),
               const SizedBox(width: 6),
-              Text(
-                entry.userName,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppThemePro.textSecondary,
-                  fontWeight: FontWeight.w500,
+              FutureBuilder<String>(
+                future: _userFilterService.maskUserNameIfSuperAdmin(
+                  entry.userId,
+                  entry.userEmail,
+                  entry.userName,
                 ),
+                builder: (context, snapshot) {
+                  return Text(
+                    snapshot.data ?? entry.userName,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppThemePro.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: 8),
               Text(

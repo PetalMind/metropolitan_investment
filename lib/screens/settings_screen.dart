@@ -2163,8 +2163,14 @@ class _AdminSettingsTabState extends State<AdminSettingsTab> {
         return data;
       }).toList();
 
+      // 🔒 UKRYJ SUPER-ADMINÓW: Filtruj użytkowników - nie pokazuj super-admin
+      final filteredUsers = users.where((user) {
+        final role = user['role'] ?? 'user';
+        return role != 'super-admin' && role != 'superadmin';
+      }).toList();
+
       setState(() {
-        _allUsers = users;
+        _allUsers = filteredUsers;
         _isLoading = false;
       });
     } catch (e) {
@@ -2283,7 +2289,11 @@ class _AdminSettingsTabState extends State<AdminSettingsTab> {
   }
 
   Widget _buildUserStats() {
-    final adminCount = _allUsers.where((u) => u['role'] == 'admin').length;
+    // 🔒 UKRYJ SUPER-ADMINÓW: Statystyki nie uwzględniają super-admin
+    final adminCount = _allUsers.where((u) {
+      final role = u['role'] ?? 'user';
+      return role == 'admin'; // Tylko zwykli adminowie, bez super-admin
+    }).length;
     final userCount = _allUsers.where((u) => u['role'] == 'user').length;
     final activeCount = _allUsers.where((u) => u['isActive'] == true).length;
 

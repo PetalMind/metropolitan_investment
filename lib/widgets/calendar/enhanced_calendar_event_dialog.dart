@@ -62,7 +62,7 @@ class _EnhancedCalendarEventDialogState extends State<EnhancedCalendarEventDialo
   late List<String> _participants;
 
   bool _isLoading = false;
-  bool get _isEditing => widget.event != null;
+  bool get _isEditing => widget.event != null && widget.event!.id.isNotEmpty; // 🚀 FIX: Sprawdź też czy ma ID
 
   @override
   void initState() {
@@ -664,7 +664,7 @@ class _EnhancedCalendarEventDialogState extends State<EnhancedCalendarEventDialo
       }
 
       final eventData = CalendarEvent(
-        id: widget.event?.id ?? '',
+        id: widget.event?.id ?? '', // 🚀 Puste ID dla nowych wydarzeń - zostanie wygenerowane przez serwis
         title: _titleController.text.trim(),
         startDate: startDateTime,
         endDate: endDateTime,
@@ -684,10 +684,17 @@ class _EnhancedCalendarEventDialogState extends State<EnhancedCalendarEventDialo
 
       CalendarEvent savedEvent;
       
-      if (_isEditing) {
+      if (_isEditing && widget.event != null && widget.event!.id.isNotEmpty) {
+        // 🚀 FIX: Edytuj tylko gdy mamy ID wydarzenia
         savedEvent = await _calendarService.updateEvent(eventData);
       } else {
+        // 🚀 FIX: Zawsze twórz nowe wydarzenie gdy brak ID
         savedEvent = await _calendarService.createEvent(eventData);
+      }
+
+      // 🚀 WALIDACJA: Sprawdź czy zapisane wydarzenie ma ID
+      if (savedEvent.id.isEmpty) {
+        throw Exception('Wydarzenie zostało zapisane ale nie otrzymało ID');
       }
 
       widget.onEventChanged?.call(savedEvent);

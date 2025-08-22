@@ -40,15 +40,32 @@ class CalendarService extends BaseService {
       }
 
       final snapshot = await query.get();
-      return snapshot.docs
-          .map(
-            (doc) => CalendarEvent.fromMap({
-              'id': doc.id,
-              ...doc.data() as Map<String, dynamic>,
-            }),
-          )
-          .toList();
+      final events = <CalendarEvent>[];
+      
+      // 🚀 FIX: Bezpieczne przetwarzanie dokumentów
+      for (final doc in snapshot.docs) {
+        try {
+          final event = CalendarEvent.fromMap({
+            'id': doc.id,
+            ...doc.data() as Map<String, dynamic>,
+          });
+          
+          // 🚀 Sprawdź czy wydarzenie ma ID
+          if (event.id.isNotEmpty) {
+            events.add(event);
+          } else {
+            print('CalendarService: Pominięto wydarzenie bez ID: ${doc.id}');
+          }
+        } catch (e) {
+          // 🚀 Loguj błędne dokumenty ale nie przerywaj
+          print('CalendarService: Błąd parsowania dokumentu ${doc.id}: $e');
+        }
+      }
+      
+      return events;
     } catch (e) {
+      // 🚀 DEBUG: Loguj błąd w trybie debug
+      print('CalendarService.getEventsInRange error: $e');
       throw Exception('Błąd podczas pobierania wydarzeń: $e');
     }
   }
@@ -84,18 +101,37 @@ class CalendarService extends BaseService {
       if (user == null) throw Exception('Użytkownik nie jest zalogowany');
 
       final now = DateTime.now();
-      final newEvent = event.copyWith(
+      
+      // 🚀 FIX: Przygotuj dane wydarzenia do zapisu (bez ID)
+      final eventData = event.copyWith(
+        id: '', // Wyczyść ID - Firestore wygeneruje nowe
+        createdBy: user.uid,
+        createdAt: now,
+        updatedAt: now,
+      ).toMap();
+      
+      // Usuń ID z mapy - Firestore automatycznie wygeneruje
+      eventData.remove('id');
+
+      final docRef = await _firestore
+          .collection(_collectionName)
+          .add(eventData);
+
+      // 🚀 FIX: Zwróć wydarzenie z nowo wygenerowanym ID
+      final finalEvent = event.copyWith(
+        id: docRef.id,
         createdBy: user.uid,
         createdAt: now,
         updatedAt: now,
       );
-
-      final docRef = await _firestore
-          .collection(_collectionName)
-          .add(newEvent.toMap());
-
-      return newEvent.copyWith(id: docRef.id);
+      
+      // 🚀 DEBUG: Loguj utworzone wydarzenie
+      print('CalendarService.createEvent: Created event with ID: ${finalEvent.id}');
+      
+      return finalEvent;
     } catch (e) {
+      // 🚀 DEBUG: Loguj błąd tworzenia
+      print('CalendarService.createEvent error: $e');
       throw Exception('Błąd podczas tworzenia wydarzenia: $e');
     }
   }

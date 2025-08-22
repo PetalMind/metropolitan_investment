@@ -1177,7 +1177,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         totalInvestmentAmount += product.totalValue;
         totalRemainingCapital += product.totalRemainingCapital;
 
-        // 🚀 NOWE: Lepsze obliczenie kapitału zabezpieczonego dla deduplikowanych produktów
+        // 🚀 POPRAWIONE: Kapitał zabezpieczony = suma capitalSecuredByRealEstate z inwestycji
         // Szukamy powiązanych inwestycji dla tego produktu
         final relatedInvestments = _investments
             .where(
@@ -1188,15 +1188,13 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
             .toList();
 
         double productCapitalForRestructuring = 0;
+        double productCapitalSecured = 0;
         for (final inv in relatedInvestments) {
           productCapitalForRestructuring += _getCapitalForRestructuring(inv);
+          productCapitalSecured += inv.capitalSecuredByRealEstate;
         }
 
         totalCapitalForRestructuring += productCapitalForRestructuring;
-        // Zunifikowany wzór: secured = max(remaining - restructuring, 0)
-        final productCapitalSecured =
-            (product.totalRemainingCapital - productCapitalForRestructuring)
-                .clamp(0, double.infinity);
         totalCapitalSecured += productCapitalSecured;
 
         if (product.status == ProductStatus.active) {
@@ -1204,7 +1202,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         }
       }
     } else {
-      // 🚀 ULEPSZONY: Oblicz dla inwestycji używając zunifikowanego wzoru
+      // 🚀 POPRAWIONE: Kapitał zabezpieczony = suma capitalSecuredByRealEstate z inwestycji
       for (final investment in selectedItems.cast<Investment>()) {
         totalInvestmentAmount += investment.investmentAmount;
         totalRemainingCapital += investment.remainingCapital;
@@ -1214,11 +1212,8 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         );
         totalCapitalForRestructuring += investmentCapitalForRestructuring;
 
-        // Zunifikowany wzór: secured = max(remaining - restructuring, 0)
-        final investmentCapitalSecured =
-            (investment.remainingCapital - investmentCapitalForRestructuring)
-                .clamp(0, double.infinity);
-        totalCapitalSecured += investmentCapitalSecured;
+        // Używaj pola capitalSecuredByRealEstate zamiast wzoru
+        totalCapitalSecured += investment.capitalSecuredByRealEstate;
 
         if (investment.status == InvestmentStatus.active) {
           activeItems++;
@@ -2434,22 +2429,24 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     }
   }
 
-  /// 🚀 FIXED: Konwertuje GlobalProductStatistics na UnifiedDashboardStatistics
+  /// 🚀 POPRAWIONE: Konwertuje GlobalProductStatistics na UnifiedDashboardStatistics
+  /// Używa rzeczywistego kapitału zabezpieczonego zamiast szacunkowego
   UnifiedDashboardStatistics _convertGlobalStatsToUnified(
     GlobalProductStatistics globalStats,
   ) {
+    // Oblicz rzeczywisty kapitał zabezpieczony z inwestycji
+    double realCapitalSecured = 0;
+    for (final investment in _investments) {
+      realCapitalSecured += investment.capitalSecuredByRealEstate;
+    }
+
     // Szacuj kapitał do restrukturyzacji jako 5% całkowitej wartości (benchmark)
     final estimatedCapitalForRestructuring = globalStats.totalValue * 0.05;
-
-    // Szacuj kapitał zabezpieczony jako pozostały kapitał minus do restrukturyzacji
-    final estimatedCapitalSecured =
-        (globalStats.totalRemainingCapital - estimatedCapitalForRestructuring)
-            .clamp(0.0, double.infinity);
 
     return UnifiedDashboardStatistics(
       totalInvestmentAmount: globalStats.totalValue,
       totalRemainingCapital: globalStats.totalRemainingCapital,
-      totalCapitalSecured: estimatedCapitalSecured.toDouble(),
+      totalCapitalSecured: realCapitalSecured,
       totalCapitalForRestructuring: estimatedCapitalForRestructuring,
       totalViableCapital:
           globalStats.totalRemainingCapital, // Całość jako viable

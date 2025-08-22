@@ -7,7 +7,7 @@
     "upload": "node upload.js",
     "upload-clients": "node upload_clients_to_firebase.js",
     "split-investments": "node tools/split_json_by_investment_type.js",
-    "upload-investments": "node tools/upload_split_investments.js",
+    "upload-investments": "node upload_normalized_investments_to_firebase.js",
     "process-investments": "./tools/process_investments.sh",
     "install-deps": "npm install firebase-admin",
     "upload-normalized": "node upload_normalized_data_to_firebase.js",
@@ -25,7 +25,6 @@
     "upload-all": "node upload_to_firebase.js",
     "upload-from-json": "node upload_clients_from_normalized_json.js",
     "verify-json-data": "node upload_clients_from_normalized_json.js --verify",
-    "upload-investments": "node upload_normalized_investments_to_firebase.js",
     "backup-investments": "node backup_investments.js",
     "validate-investments": "node validate_investment_data.js",
     "add-apartment-ids": "node add_apartment_ids.js",
@@ -39,6 +38,7 @@
     "abort-controller": "^3.0.0",
     "firebase": "^12.0.0",
     "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.4.0",
     "uuid": "^11.1.0"
   }
 }

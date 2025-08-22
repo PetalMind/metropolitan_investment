@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum UserRole { admin, user, unknown }
+enum UserRole { admin, user, superAdmin, unknown }
 
 UserRole userRoleFromString(String? role) {
   switch (role?.toLowerCase()) {
@@ -8,6 +8,9 @@ UserRole userRoleFromString(String? role) {
       return UserRole.admin;
     case 'user':
       return UserRole.user;
+    case 'super-admin':
+    case 'superadmin':
+      return UserRole.superAdmin;
     default:
       return UserRole.unknown;
   }
@@ -49,7 +52,9 @@ class UserProfile {
     return displayName ?? email;
   }
 
-  bool get isAdmin => role == UserRole.admin;
+  bool get isAdmin => role == UserRole.admin || role == UserRole.superAdmin;
+  bool get isSuperAdmin => role == UserRole.superAdmin;
+  bool get isVisibleAdmin => role == UserRole.admin; // Admin widoczny w interfejsach
 
   factory UserProfile.fromMap(Map<String, dynamic> map, String uid) {
     return UserProfile(

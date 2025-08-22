@@ -18,6 +18,10 @@ export 'models/investor_edit_models.dart'; // 🚀 NOWE: Modele dla edycji inwes
 export 'models/email_history.dart'; // 🚀 NOWE: Historia wysłanych emaili
 export 'models/smtp_settings.dart'; // 🚀 NOWE: Modele ustawień SMTP
 
+// Calendar models exports  
+export 'models/calendar/calendar_event.dart'; // 🚀 NOWE: Model wydarzeń kalendarza
+export 'models/calendar/calendar_models.dart'; // 🚀 NOWE: Dodatkowe modele kalendarza
+
 // Analytics models exports
 export 'models/analytics/overview_analytics_models.dart';
 
@@ -109,12 +113,15 @@ export 'services/analytics_migration_service.dart'; // 🚀 NOWE: Serwis migracj
 export 'services/debug_firestore_service.dart';
 export 'services/investment_change_history_service.dart'; // 🚀 NOWE: Historia zmian inwestycji
 export 'services/product_change_history_service.dart'; // 🚀 NOWE: Historia zmian produktów
+export 'services/user_display_filter_service.dart'; // 🔒 NOWE: Filtrowanie super-adminów w interfejsach
 export 'services/investment_change_calculator_service.dart'; // 🚀 NOWE: Obliczanie zmian procentowych z historii
 export 'services/investor_edit_service.dart'; // 🚀 NOWE: Serwis logiki biznesowej dla edycji inwestora
 export 'services/universal_investment_service.dart'
     hide
         ValidationResult; // 🚀 UNIWERSALNY: Centralny serwis wszystkich operacji na inwestycjach
 export 'services/smtp_service.dart'; // 🚀 NOWE: Serwis konfiguracji i testowania SMTP
+export 'services/calendar_service.dart'; // 🚀 NOWE: Serwis kalendarza
+export 'services/calendar_notification_service.dart'; // 🚀 NOWE: Serwis powiadomień kalendarza
 
 // Voting status change model
 // VotingStatusChange is exported via models/voting_status_change.dart above
@@ -161,6 +168,10 @@ export 'widgets/common/common_widgets.dart';
 // Enhanced Clients Components
 export 'widgets/enhanced_clients/enhanced_clients_header.dart'; // 🚀 NOWY: Responsywny header dla klientów
 
+// Calendar widgets exports
+export 'widgets/calendar/enhanced_calendar_event_dialog.dart'; // 🚀 NOWE: Dialog wydarzeń kalendarza
+export 'widgets/calendar/premium_calendar_event_dialog.dart'; // 🚀 NOWE: Premium dialog wydarzeń kalendarza z AppThemePro
+
 // Dialog widgets
 export 'widgets/dialogs/investor_edit_dialog.dart'; // ⭐ NOWE: Dialog edycji inwestora (refaktoryzowany)
 export 'widgets/dialogs/investor_email_dialog.dart'; // ⭐ NOWE: Dialog wysyłania maili
@@ -188,6 +199,9 @@ export 'widgets/investor_analytics/investor_export_helper.dart';
 
 // Theme exports
 export 'theme/app_theme.dart';
+
+// Provider exports
+export 'providers/auth_provider.dart'; // 🚀 NOWE: Provider autentykacji
 
 // Utils exports
 export 'utils/currency_formatter.dart';

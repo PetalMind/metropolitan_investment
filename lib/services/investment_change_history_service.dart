@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/investment_change_history.dart';
 import '../models/investment.dart';
 import 'base_service.dart';
+import 'user_display_filter_service.dart';
 
 /// Serwis do zarządzania historią zmian inwestycji
 class InvestmentChangeHistoryService extends BaseService {
@@ -10,6 +11,7 @@ class InvestmentChangeHistoryService extends BaseService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final UserDisplayFilterService _userFilterService = UserDisplayFilterService();
 
   /// Zapisuje historię zmian inwestycji
   Future<void> recordChange({
@@ -78,9 +80,14 @@ class InvestmentChangeHistoryService extends BaseService {
           .limit(100) // Ograniczenie do 100 ostatnich zmian
           .get();
 
-      return snapshot.docs
+      final allHistory = snapshot.docs
           .map((doc) => InvestmentChangeHistory.fromFirestore(doc))
           .toList();
+
+      // 🔒 UKRYJ SUPER-ADMINÓW: Filtruj historię zmian
+      final filteredHistory = await _userFilterService.filterHistoryBySuperAdmin(allHistory);
+      
+      return filteredHistory;
     } catch (e) {
       logError(
         'getInvestmentHistory',
@@ -117,9 +124,14 @@ class InvestmentChangeHistoryService extends BaseService {
           .limit(200)
           .get();
 
-      return historySnapshot.docs
+      final allHistory = historySnapshot.docs
           .map((doc) => InvestmentChangeHistory.fromFirestore(doc))
           .toList();
+
+      // 🔒 UKRYJ SUPER-ADMINÓW: Filtruj historię zmian
+      final filteredHistory = await _userFilterService.filterHistoryBySuperAdmin(allHistory);
+      
+      return filteredHistory;
     } catch (e) {
       logError(
         'getClientHistory',
@@ -140,9 +152,14 @@ class InvestmentChangeHistoryService extends BaseService {
           .limit(limit)
           .get();
 
-      return snapshot.docs
+      final allHistory = snapshot.docs
           .map((doc) => InvestmentChangeHistory.fromFirestore(doc))
           .toList();
+
+      // 🔒 UKRYJ SUPER-ADMINÓW: Filtruj historię zmian
+      final filteredHistory = await _userFilterService.filterHistoryBySuperAdmin(allHistory);
+      
+      return filteredHistory;
     } catch (e) {
       logError(
         'getRecentChanges',
@@ -165,9 +182,14 @@ class InvestmentChangeHistoryService extends BaseService {
           .limit(limit)
           .get();
 
-      return snapshot.docs
+      final allHistory = snapshot.docs
           .map((doc) => InvestmentChangeHistory.fromFirestore(doc))
           .toList();
+
+      // 🔒 UKRYJ SUPER-ADMINÓW: Filtruj historię zmian
+      final filteredHistory = await _userFilterService.filterHistoryBySuperAdmin(allHistory);
+      
+      return filteredHistory;
     } catch (e) {
       logError(
         'getUserHistory',

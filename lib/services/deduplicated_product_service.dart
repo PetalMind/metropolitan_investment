@@ -127,15 +127,11 @@ class DeduplicatedProductService extends BaseService {
         final inactiveProducts = totalProducts - activeProducts;
 
         final totalValue = products.fold(0.0, (sum, p) => sum + p.totalValue);
-        final totalInvestmentAmount = products.fold(
-          0.0,
-          (sum, p) => sum + p.totalValue,
-        ); // Dla deduplikowanych to samo
+        final totalInvestmentAmount = totalValue; // ⭐ ZMIANA: totalInvestmentAmount = suma wszystkich investmentAmount
         final averageValue = totalProducts > 0
             ? totalValue / totalProducts
             : 0.0;
-        final averageInvestmentAmount =
-            averageValue; // Dla deduplikowanych to samo
+        final averageInvestmentAmount = totalInvestmentAmount / totalProducts; // ⭐ ZMIANA: Oblicz na podstawie totalInvestmentAmount
 
         // Dystrybucja typów produktów
         final Map<UnifiedProductType, int> typeDistribution = {};
@@ -350,7 +346,7 @@ class DeduplicatedProductService extends BaseService {
     final firstInvestment = investments.first;
 
     // Oblicz agregowane statystyki
-    double totalValue = 0.0;
+    double totalValue = 0.0; // ⭐ SUMA investmentAmount - nie będzie zastępowana
     double totalRemainingCapital = 0.0;
     int totalInvestors = investments.length;
     Set<String> uniqueClientIds = {};
@@ -404,25 +400,21 @@ class DeduplicatedProductService extends BaseService {
 
       actualInvestorCount = result.totalCount;
 
-      // 🚀 NOWE: Oblicz kwoty na podstawie rzeczywistych danych inwestorów
+      // 🚀 NOWE: Pobierz rzeczywistą liczbę inwestorów z Firebase Functions (ale zachowaj lokalną totalValue)
       if (result.investors.isNotEmpty) {
-        double realTotalInvestmentAmount = 0.0;
         double realTotalRemainingCapital = 0.0;
 
         for (final investor in result.investors) {
-          realTotalInvestmentAmount += investor.totalInvestmentAmount;
           realTotalRemainingCapital += investor.totalRemainingCapital;
         }
 
-        // Zastąp lokalne obliczenia rzeczywistymi danymi
-        totalValue = realTotalInvestmentAmount;
+        // Zastąp TYLKO kapitał pozostały rzeczywistymi danymi (totalValue pozostaje lokalna)
         totalRemainingCapital = realTotalRemainingCapital;
 
-        print('💰 [DeduplicatedProduct] Kwoty finansowe zsynchronizowane:');
-        print('   - Lokalna suma inwestycji: $totalValue');
-        print('   - Rzeczywista suma: $realTotalInvestmentAmount');
-        print('   - Lokalny kapitał pozostały: $totalRemainingCapital');
+        print('💰 [DeduplicatedProduct] Kapitał pozostały zsynchronizowany:');
+        print('   - Lokalny kapitał pozostały: -> zastąpiony');
         print('   - Rzeczywisty kapitał: $realTotalRemainingCapital');
+        print('   - TotalValue (zachowana lokalna): $totalValue');
       }
 
       print('✅ [DeduplicatedProduct] $productName:');
@@ -650,7 +642,7 @@ class DeduplicatedProduct {
   final UnifiedProductType productType;
   final String companyId;
   final String companyName;
-  final double totalValue;
+  final double totalValue; // ⭐ Suma investmentAmount ze wszystkich inwestycji
   final double totalRemainingCapital;
   final int totalInvestments;
   final int uniqueInvestors;

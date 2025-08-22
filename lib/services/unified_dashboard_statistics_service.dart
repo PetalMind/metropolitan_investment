@@ -185,6 +185,7 @@ class UnifiedDashboardStatisticsService extends BaseService {
     double totalInvestmentAmount = 0;
     double totalRemainingCapital = 0;
     double totalCapitalForRestructuring = 0;
+    double totalCapitalSecured = 0;
     double totalViableCapital = 0;
     int totalInvestments = 0;
     int activeInvestors = 0;
@@ -194,7 +195,12 @@ class UnifiedDashboardStatisticsService extends BaseService {
       totalRemainingCapital += investor.totalRemainingCapital;
       totalCapitalForRestructuring += investor.capitalForRestructuring;
 
-      // KLUCZOWA RÓŻNICA: używamy viableRemainingCapital (bez niewykonalnych inwestycji)
+      // KLUCZOWA ZMIANA: używamy sumy capitalSecuredByRealEstate z inwestycji
+      for (final investment in investor.investments) {
+        totalCapitalSecured += investment.capitalSecuredByRealEstate;
+      }
+
+      // Używamy viableRemainingCapital (bez niewykonalnych inwestycji)
       totalViableCapital += investor.viableRemainingCapital;
 
       totalInvestments += investor.investmentCount;
@@ -204,12 +210,8 @@ class UnifiedDashboardStatisticsService extends BaseService {
       }
     }
 
-    // ZUNIFIKOWANY WZÓR: kapitał zabezpieczony = max(pozostały - restrukturyzacja, 0)
-    final double totalCapitalSecured =
-        (totalRemainingCapital - totalCapitalForRestructuring).clamp(
-          0,
-          double.infinity,
-        );
+    // Kapitał zabezpieczony już obliczony jako suma pól z inwestycji
+    // (usunięto poprzedni wzór matematyczny)
 
     print('   - Kwota inwestycji: ${totalInvestmentAmount.toStringAsFixed(2)}');
     print('   - Wykonalny kapitał: ${totalViableCapital.toStringAsFixed(2)}');

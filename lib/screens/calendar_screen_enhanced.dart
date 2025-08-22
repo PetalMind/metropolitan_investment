@@ -2,14 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import '../models/calendar/calendar_event.dart';
-import '../services/calendar_service.dart';
-import '../services/calendar_notification_service.dart'; // 🚀 NOWE
-import '../widgets/calendar/enhanced_calendar_event_dialog.dart';
+import 'package:provider/provider.dart';
+import '../models_and_services.dart'; // 🚀 UNIFIED IMPORT
 import '../widgets/metropolitan_loading_system.dart';
 import '../theme/app_theme_professional.dart';
-import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
 
 /// 🗓 PROFESSIONAL ENHANCED CALENDAR SCREEN
 /// Kompletnie przeprojektowany kalendarz z Firebase integration
@@ -56,6 +52,14 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     _initializeAnimations();
     _initializeDateFormatting();
     _calculateWeekStart();
+    
+    // 🚀 FIX: Uruchom animację headera od razu, niezależnie od stanu ładowania
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _animationController.status == AnimationStatus.dismissed) {
+        _animationController.forward();
+      }
+    });
+    
     _loadEvents();
   }
 
@@ -137,7 +141,11 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
 
       _applyFilters();
 
-      // 🚀 FIX: Uruchom animację zawsze po załadowaniu, niezależnie od liczby wydarzeń
+      // 🚀 DEBUG: Loguj liczbę wydarzeń
+      print('CalendarScreen: Loaded ${_events.length} events, filtered to ${_filteredEvents.length}');
+      
+      // 🚀 FIX: Nie resetuj głównej animacji - header powinien być już widoczny
+      // Uruchom tylko animację tygodnia jeśli główna animacja nie jest aktywna
       if (_animationController.status == AnimationStatus.dismissed) {
         _animationController.forward();
       }
@@ -154,6 +162,11 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     if (!mounted) return;
     setState(() {
       _filteredEvents = _events.where((event) {
+        // 🚀 NOWE: Filtruj wydarzenia bez ID - nie wyświetlaj ich
+        if (event.id.isEmpty) {
+          return false;
+        }
+
         // Category filter
         if (_selectedCategory != 'all' &&
             event.category.name != _selectedCategory) {
@@ -181,9 +194,9 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
   void _navigateWeek(int direction) {
     if (!mounted) return;
 
-    // 🚀 FIX: Reset głównej animacji przed ładowaniem nowego tygodnia
-    _animationController.reset();
-
+    // 🚀 FIX: Nie resetuj głównej animacji przy nawigacji tygodnia
+    // Header powinien pozostać widoczny
+    
     // Uruchom animację zmiany tygodnia
     _weekNavigationController.reset();
     _weekNavigationController.forward();
@@ -202,8 +215,8 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
   }
 
   void _goToToday() {
-    // 🚀 FIX: Reset głównej animacji przy przejściu do dzisiaj
-    _animationController.reset();
+    // 🚀 FIX: Nie resetuj głównej animacji przy przejściu do dzisiaj
+    // Header powinien pozostać widoczny
 
     _triggerMicroInteraction();
     _triggerHapticFeedback();
@@ -229,7 +242,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
 
   void _showEventDetails(CalendarEvent event) {
     _triggerHapticFeedback();
-    EnhancedCalendarEventDialog.show(
+    PremiumCalendarEventDialog.show(
       context,
       event: event,
       onEventChanged: (updatedEvent) {
@@ -241,7 +254,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
 
   void _showAddEventDialog({DateTime? initialDate}) {
     _triggerHapticFeedback();
-    EnhancedCalendarEventDialog.show(
+    PremiumCalendarEventDialog.show(
       context,
       initialDate: initialDate ?? DateTime.now(),
       onEventChanged: (newEvent) {
@@ -266,6 +279,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     final authProvider = Provider.of<AuthProvider>(context, listen: true);
     final canEdit =
         authProvider.isLoggedIn; // Zmieniono z isAdmin na isLoggedIn
+    
     return Scaffold(
       backgroundColor: AppThemePro.backgroundPrimary,
       body: Focus(
@@ -291,6 +305,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
         },
         child: Column(
           children: [
+            // 🚀 FIX: Header zawsze widoczny, nie zależny od animacji body
             _buildProfessionalHeader(),
             Expanded(child: _buildBody()),
           ],
@@ -326,23 +341,16 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
       ),
       child: Row(
         children: [
-          AnimatedBuilder(
-            animation: _bounceAnimation,
-            builder: (context, child) {
-              return Tooltip(
-                message:
-                    'Skróty klawiszowe:\n← → A D - Nawigacja tygodniowa\nT Home - Dzisiaj',
-                textStyle: TextStyle(fontSize: 12),
-                child: Transform.scale(
-                  scale: _bounceAnimation.value,
-                  child: Icon(
-                    Icons.calendar_today,
-                    color: AppThemePro.accentGold,
-                    size: 24, // 🚀 Zmniejszono rozmiar ikony
-                  ),
-                ),
-              );
-            },
+          // 🚀 FIX: Usuń animację bounce z headera - header powinien być stabilny
+          Tooltip(
+            message:
+                'Skróty klawiszowe:\n← → A D - Nawigacja tygodniowa\nT Home - Dzisiaj',
+            textStyle: const TextStyle(fontSize: 12),
+            child: Icon(
+              Icons.calendar_today,
+              color: AppThemePro.accentGold,
+              size: 24, // 🚀 Zmniejszono rozmiar ikony
+            ),
           ),
           const SizedBox(width: 12), // 🚀 Zmniejszono odstęp
           Expanded(

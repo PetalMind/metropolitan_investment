@@ -76,6 +76,9 @@ class _PremiumInvestorAnalyticsScreenState
   Map<VotingStatus, double> _votingDistribution = {};
   Map<VotingStatus, int> _votingCounts = {};
 
+  // Dashboard statistics for unified calculations
+  UnifiedDashboardStatistics? _dashboardStatistics;
+
   // Stany ładowania
   bool _isLoading = true;
   final bool _isLoadingMore = false;
@@ -278,14 +281,14 @@ class _PremiumInvestorAnalyticsScreenState
 
         // Zachowaj statystyki z OptimizedProduct dla spójności z Dashboard
         if (optimizedResult.statistics != null) {
-          final dashboardStats = _convertGlobalStatsToUnified(
+          _dashboardStatistics = _convertGlobalStatsToUnified(
             optimizedResult.statistics!,
           );
           print(
             '✅ [Premium Analytics] Zachowuję statystyki z OptimizedProductService',
           );
           print(
-            '💰 [Premium Analytics] totalRemainingCapital: ${dashboardStats.totalRemainingCapital}',
+            '💰 [Premium Analytics] totalInvestmentAmount: ${_dashboardStatistics!.totalInvestmentAmount}',
           );
         }
 
@@ -336,14 +339,14 @@ class _PremiumInvestorAnalyticsScreenState
 
         // Zachowaj statystyki z OptimizedProduct dla spójności z Dashboard
         if (optimizedResult.statistics != null) {
-          final dashboardStats = _convertGlobalStatsToUnified(
+          _dashboardStatistics = _convertGlobalStatsToUnified(
             optimizedResult.statistics!,
           );
           print(
             '✅ [Premium Analytics] Zachowuję statystyki z OptimizedProductService',
           );
           print(
-            '💰 [Premium Analytics] totalRemainingCapital: ${dashboardStats.totalRemainingCapital}',
+            '💰 [Premium Analytics] totalInvestmentAmount: ${_dashboardStatistics!.totalInvestmentAmount}',
           );
         }
 
@@ -720,12 +723,12 @@ class _PremiumInvestorAnalyticsScreenState
       totalCapital = _currentResult!.totalViableCapital;
       print('   - Używam totalViableCapital z serwera: $totalCapital');
     } else {
-      // Jako ostateczny fallback, oblicz lokalnie używając totalRemainingCapital
+      // ⭐ FALLBACK: używaj totalRemainingCapital (dla analizy większości właściwe)
       totalCapital = _allInvestors.fold<double>(
         0.0,
         (sum, investor) => sum + investor.totalRemainingCapital,
       );
-      print('   - Obliczam lokalnie totalCapital: $totalCapital');
+      print('   - Obliczam lokalnie totalCapital (remainingCapital): $totalCapital');
     }
 
     // Sortuj inwestorów według kapitału pozostałego malejąco (zgodnie z Dashboard)
@@ -1983,22 +1986,51 @@ class _PremiumInvestorAnalyticsScreenState
     }
 
     // � KLUCZOWE METRYKI SYSTEMU - używa danych zgodnych z Dashboard
-    double totalViableCapital = 0.0;
-    double totalCapital = 0.0;
+    double totalViableCapital = 0.0; // Kapitał pozostały (remainingCapital) - dla głosowania
+    double totalCapital = 0.0; // ⭐ Kapitał całkowity (investmentAmount) - suma początkowych inwestycji
 
     if (_premiumResult != null) {
       // Używamy danych z premium analytics (preferowane)
       totalViableCapital = _premiumResult!.performanceMetrics.totalCapital;
-      totalCapital = _premiumResult!.performanceMetrics.totalCapital;
+      // ⭐ ZMIANA: Używaj totalValue z OptimizedProductService (tak jak Product Dashboard)
+      if (_dashboardStatistics != null) {
+        totalCapital = _dashboardStatistics!.totalInvestmentAmount;
+        print(
+          '🚀 [StatsGrid] Total Capital z OptimizedProductService: ${totalCapital.toStringAsFixed(2)}',
+        );
+      } else {
+        // Fallback: suma investmentAmount lokalnie
+        totalCapital = _allInvestors.fold<double>(
+          0.0,
+          (sum, investor) => sum + investor.totalInvestmentAmount,
+        );
+        print(
+          '⚠️ [StatsGrid] Fallback Premium - Total Capital lokalnie: ${totalCapital.toStringAsFixed(2)}',
+        );
+      }
       print(
-        '🚀 [StatsGrid] Używam Premium Analytics: Capital ${totalCapital.toStringAsFixed(2)}',
+        '🚀 [StatsGrid] Używam Premium Analytics: Viable Capital ${totalViableCapital.toStringAsFixed(2)}',
       );
     } else if (_currentResult != null) {
       // 🚀 UJEDNOLICENIE Z DASHBOARD: Używaj totalViableCapital z serwera (teraz równe totalRemainingCapital)
       totalViableCapital = _currentResult!.totalViableCapital;
 
-      // Dla total capital również używaj wartości z serwera dla spójności
-      totalCapital = _currentResult!.totalViableCapital;
+      // ⭐ ZMIANA: Używaj totalValue z OptimizedProductService (tak jak Product Dashboard)
+      if (_dashboardStatistics != null) {
+        totalCapital = _dashboardStatistics!.totalInvestmentAmount;
+        print(
+          '✅ [StatsGrid] Total Capital z OptimizedProductService: ${totalCapital.toStringAsFixed(2)}',
+        );
+      } else {
+        // Fallback: oblicz lokalnie sumę investmentAmount
+        totalCapital = _allInvestors.fold<double>(
+          0.0,
+          (sum, investor) => sum + investor.totalInvestmentAmount,
+        );
+        print(
+          '⚠️ [StatsGrid] Fallback - Total Capital lokalnie: ${totalCapital.toStringAsFixed(2)}',
+        );
+      }
 
       print('✅ [StatsGrid] Używam dane z serwera - zgodne z Dashboard!');
       print(
