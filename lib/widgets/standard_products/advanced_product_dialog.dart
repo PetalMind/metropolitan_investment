@@ -16,8 +16,7 @@ import 'standard_product_performance_tab.dart';
 class AdvancedProductDialog extends StatefulWidget {
   final Product product;
 
-  const AdvancedProductDialog({Key? key, required this.product})
-    : super(key: key);
+  const AdvancedProductDialog({super.key, required this.product});
 
   /// Wyświetla dialog w kontekście
   static Future<void> show(BuildContext context, Product product) {
@@ -219,7 +218,7 @@ class _AdvancedProductDialogState extends State<AdvancedProductDialog>
             icon: const Icon(Icons.close),
             tooltip: 'Zamknij',
             style: IconButton.styleFrom(
-              backgroundColor: theme.colorScheme.surfaceVariant.withOpacity(
+              backgroundColor: theme.colorScheme.surfaceContainerHighest.withOpacity(
                 0.5,
               ),
               foregroundColor: theme.colorScheme.onSurfaceVariant,

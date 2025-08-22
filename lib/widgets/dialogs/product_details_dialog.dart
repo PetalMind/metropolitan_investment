@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
 import '../../models_and_services.dart'; // Centralized import
 import 'product_details_header.dart';
 import 'product_details_tabs.dart';

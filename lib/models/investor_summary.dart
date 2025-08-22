@@ -71,7 +71,7 @@ class InvestorSummary {
         );
 
     print(
-      '🎯 [InvestorSummary.fromInvestments] ${client.name}: remaining=${totalRemainingCapital}, restructuring=${capitalForRestructuring}, secured=${capitalSecuredByRealEstate}',
+      '🎯 [InvestorSummary.fromInvestments] ${client.name}: remaining=$totalRemainingCapital, restructuring=$capitalForRestructuring, secured=$capitalSecuredByRealEstate',
     );
 
     // ⭐ WARTOŚĆ CAŁKOWITA = TYLKO kapitał pozostały
@@ -127,7 +127,7 @@ class InvestorSummary {
     }
 
     print(
-      '  💰 Zebrane kwoty: remainingCapital=${totalRemainingCapital}, capitalForRestructuring=${capitalForRestructuring}',
+      '  💰 Zebrane kwoty: remainingCapital=$totalRemainingCapital, capitalForRestructuring=$capitalForRestructuring',
     );
 
     // Automatyczne obliczenie jako fallback
@@ -173,12 +173,12 @@ class InvestorSummary {
         );
 
     print('  📊 WYNIKI OBLICZEŃ:');
-    print('    - Zsumowany remainingCapital: ${totalRemainingCapital}');
+    print('    - Zsumowany remainingCapital: $totalRemainingCapital');
     print(
-      '    - Zsumowany capitalForRestructuring: ${totalCapitalForRestructuring}',
+      '    - Zsumowany capitalForRestructuring: $totalCapitalForRestructuring',
     );
     print(
-      '    - 🎯 Obliczony capitalSecuredByRealEstate: ${totalCapitalSecuredByRealEstate}',
+      '    - 🎯 Obliczony capitalSecuredByRealEstate: $totalCapitalSecuredByRealEstate',
     );
 
     // Teraz oblicz proporcjonalnie dla każdego inwestora

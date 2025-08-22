@@ -59,7 +59,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   String _errorMessage = '';
 
   // Filtering & sorting
-  String _sortBy = 'fullName';
+  final String _sortBy = 'fullName';
   String _currentSearchQuery = '';
 
   // Multi-selection
@@ -338,7 +338,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
               totalInvestments: optimizedResult.statistics!.totalInvestors,
               totalRemainingCapital:
                   optimizedResult.statistics!.totalRemainingCapital,
-              averageCapitalPerClient: enhancedResult.clients.length > 0
+              averageCapitalPerClient: enhancedResult.clients.isNotEmpty
                   ? optimizedResult.statistics!.totalRemainingCapital /
                         enhancedResult.clients.length
                   : 0.0,
@@ -454,7 +454,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
                 .totalInvestors, // Używa totalInvestors jako aproksymacji
             totalRemainingCapital:
                 optimizedResult.statistics!.totalRemainingCapital,
-            averageCapitalPerClient: allClientsFromOptimized.length > 0
+            averageCapitalPerClient: allClientsFromOptimized.isNotEmpty
                 ? optimizedResult.statistics!.totalRemainingCapital /
                       allClientsFromOptimized.length
                 : 0.0,
@@ -550,7 +550,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             totalClients: allClients.length,
             totalInvestments: dashboardStats.totalInvestments,
             totalRemainingCapital: dashboardStats.totalRemainingCapital,
-            averageCapitalPerClient: allClients.length > 0
+            averageCapitalPerClient: allClients.isNotEmpty
                 ? dashboardStats.totalRemainingCapital / allClients.length
                 : 0.0,
             lastUpdated: DateTime.now().toIso8601String(),

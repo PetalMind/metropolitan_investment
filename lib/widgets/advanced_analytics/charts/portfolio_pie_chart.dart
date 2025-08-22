@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../theme/app_theme.dart';
-import '../../../models/product.dart';
 
 /// 🥧 PORTFOLIO PIE CHART COMPONENT
 /// Displays portfolio distribution by product type or status

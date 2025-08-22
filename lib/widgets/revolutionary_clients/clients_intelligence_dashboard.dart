@@ -383,7 +383,7 @@ class _ClientsIntelligenceDashboardState
             padding: const EdgeInsets.only(bottom: 12),
             child: _buildInsightCard(insight),
           );
-        }).toList(),
+        }),
       ],
     );
   }

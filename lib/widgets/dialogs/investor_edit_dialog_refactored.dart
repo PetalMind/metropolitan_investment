@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import '../../models_and_services.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme_professional.dart';
-import '../investor_edit/currency_controls.dart';
-import '../investor_edit/investment_edit_card.dart';
 
 /// 📝 Dialog edycji inwestora - Wersja refaktoryzowana
 ///

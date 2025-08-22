@@ -62,9 +62,7 @@ class _CustomTextFieldState extends State<CustomTextField>
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = _animationController;
 
     _colorAnimation =
         ColorTween(
@@ -102,7 +100,7 @@ class _CustomTextFieldState extends State<CustomTextField>
       animation: _animationController,
       builder: (context, child) {
         return Transform.scale(
-          scale: _scaleAnimation.value,
+          scale: 1.0 + (_scaleAnimation.value * 0.02),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../models_and_services.dart';
-import '../../../theme/app_theme.dart';
-import '../../../utils/currency_formatter.dart';
 import '../../optimized_voting_status_widget.dart';
 
 /// Dialog szczegółów inwestora z możliwością edycji

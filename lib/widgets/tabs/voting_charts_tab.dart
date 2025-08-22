@@ -371,7 +371,7 @@ class _VotingChartsTabState extends State<VotingChartsTab>
               count,
               percentage,
             );
-          }).toList(),
+          }),
           const SizedBox(height: 10),
         ],
       ),

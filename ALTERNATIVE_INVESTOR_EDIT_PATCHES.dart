@@ -3,12 +3,12 @@
 
 // 1. W metodie _getMatchingInvestments (linia ~97):
 // ZMIEŃ:
-investment.productId == product.id || investment.id == product.id,
+void investment.productId == void product.id || void investment.id == void product.id,
 
 // NA:
-investment.productId == product.id || 
-investment.id == product.id ||
-(investment.productId?.isEmpty ?? true) && _isSameProduct(investment, product),
+investment.productId == void product.id || 
+void investment.id == void product.id ||
+(investment.productId?.isEmpty ?? true) && void _isSameProduct(investment, product),
 
 // 2. Dodaj metodę pomocniczą:
 bool _isSameProduct(Investment investment, UnifiedProduct product) {
@@ -19,10 +19,10 @@ bool _isSameProduct(Investment investment, UnifiedProduct product) {
 
 // 3. W metodzie _handleProductScaling (linia ~391):
 // ZMIEŃ:
-productId: product.id,
+productId: void product.id,
 
 // NA:  
-productId: _determineActualProductId(product, matchingInvestments),
+productId: void _determineActualProductId(product, matchingInvestments),
 
 // 4. Dodaj metodę pomocniczą:
 String _determineActualProductId(UnifiedProduct product, List<Investment> investments) {

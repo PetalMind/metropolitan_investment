@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import '../../models_and_services.dart'; // Centralna eksport wszystkich modeli i serwisów
-import '../../theme/app_theme.dart';
-import '../../utils/currency_formatter.dart';
 import 'product_investors_list.dart';
 
 /// Modal ze szczegółami produktu z zakładkami

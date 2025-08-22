@@ -202,7 +202,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       while (freshInvestments.isEmpty && retryCount < maxRetries) {
         if (retryCount > 0) {
           print(
-            '🔄 [ProductInvestorsTab] Retry ${retryCount}/${maxRetries} po ${500 * retryCount}ms...',
+            '🔄 [ProductInvestorsTab] Retry $retryCount/$maxRetries po ${500 * retryCount}ms...',
           );
           await Future.delayed(Duration(milliseconds: 500 * retryCount));
           await universalService.clearAllCache(); // Kolejne czyszczenie cache
@@ -215,7 +215,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
 
         if (freshInvestments.isEmpty) {
           print(
-            '⚠️ [ProductInvestorsTab] Próba ${retryCount}: Nie otrzymano świeżych danych',
+            '⚠️ [ProductInvestorsTab] Próba $retryCount: Nie otrzymano świeżych danych',
           );
         }
       }
@@ -231,7 +231,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       }
 
       print(
-        '✅ [ProductInvestorsTab] Otrzymano ${freshInvestments.length} świeżych inwestycji po ${retryCount} próbach',
+        '✅ [ProductInvestorsTab] Otrzymano ${freshInvestments.length} świeżych inwestycji po $retryCount próbach',
       );
 
       // 📊 DEBUG: Pokaż szczegóły świeżych danych po skalowaniu

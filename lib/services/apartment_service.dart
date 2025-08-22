@@ -1,4 +1,3 @@
-import 'base_service.dart';
 import '../models_and_services.dart';
 
 /// Legacy ApartmentService - używa teraz unified investments collection

@@ -12,7 +12,7 @@ class RiskTab extends StatefulWidget {
 }
 
 class _RiskTabState extends State<RiskTab> with TickerProviderStateMixin {
-  bool _isLoading = false;
+  final bool _isLoading = false;
   String? _error;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;

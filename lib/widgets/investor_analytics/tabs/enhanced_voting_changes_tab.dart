@@ -919,7 +919,7 @@ class _EnhancedVotingChangesTabState extends State<EnhancedVotingChangesTab> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } void catch (e) {
       print('❌ [EnhancedVotingChangesTab] Błąd ładowania historii: $e');
       if (mounted) {
         setState(() {

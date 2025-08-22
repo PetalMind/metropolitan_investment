@@ -26,7 +26,7 @@ class InvestorAnalyticsService extends BaseService {
   }) async {
     final startTime = DateTime.now();
     print(
-      '📊 [MajorityControl] Rozpoczynam analizę kontroli ${controlThreshold}%...',
+      '📊 [MajorityControl] Rozpoczynam analizę kontroli $controlThreshold%...',
     );
 
     try {
@@ -64,7 +64,7 @@ class InvestorAnalyticsService extends BaseService {
           totalViableCapital * (controlThreshold / 100);
 
       print(
-        '📊 [MajorityControl] Próg kontrolny: ${controlThresholdAmount.toStringAsFixed(2)} PLN (${controlThreshold}%)',
+        '📊 [MajorityControl] Próg kontrolny: ${controlThresholdAmount.toStringAsFixed(2)} PLN ($controlThreshold%)',
       );
 
       for (final investor in allInvestors) {
@@ -567,7 +567,7 @@ class InvestorAnalyticsService extends BaseService {
           );
 
       print(
-        '🎯 [InvestorAnalytics] ${client.name}: remaining=${totalRemainingCapital}, restructuring=${capitalForRestructuring}, secured=${capitalSecuredByRealEstate}',
+        '🎯 [InvestorAnalytics] ${client.name}: remaining=$totalRemainingCapital, restructuring=$capitalForRestructuring, secured=$capitalSecuredByRealEstate',
       );
 
       // Używamy standardowego konstruktora InvestorSummary

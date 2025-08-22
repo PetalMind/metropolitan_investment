@@ -57,13 +57,13 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
   int _currentEmailIndex = 0;
   int _totalEmailsToSend = 0;
   bool _showDetailedProgress = false;
-  List<String> _debugLogs = [];
+  final List<String> _debugLogs = [];
   DateTime? _emailSendStartTime;
 
   // Mapy do zarządzania adresami email odbiorców
-  Map<String, bool> _recipientEnabled = {};
-  Map<String, String> _recipientEmails = {};
-  List<String> _additionalEmails = [];
+  final Map<String, bool> _recipientEnabled = {};
+  final Map<String, String> _recipientEmails = {};
+  final List<String> _additionalEmails = [];
   String? _selectedPreviewRecipient;
 
   final _emailAndExportService = EmailAndExportService();
@@ -1467,7 +1467,7 @@ Zespół Metropolitan Investment''';
     final isSmallScreen = screenSize.width < 600;
     
     if (_selectedPreviewRecipient == null) {
-      return Container(
+      return SizedBox(
         height: 300,
         child: const Center(
           child: Column(
@@ -2603,7 +2603,7 @@ Zespół Metropolitan Investment''';
             ),
           ],
         ),
-        content: Container(
+        content: SizedBox(
           width: 500,
           height: 400,
           child: Column(

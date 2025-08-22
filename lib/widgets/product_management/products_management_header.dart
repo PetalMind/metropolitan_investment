@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
-import '../../theme/app_theme_professional.dart';
 import '../../models_and_services.dart';
 
 // Enum for view modes in products management

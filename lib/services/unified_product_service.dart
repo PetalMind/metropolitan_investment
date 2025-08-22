@@ -187,7 +187,7 @@ class UnifiedProductService extends BaseService {
       }
     }
 
-    UnifiedProductType _mapProductType(dynamic productType) {
+    UnifiedProductType mapProductType(dynamic productType) {
       if (productType == null) return UnifiedProductType.bonds;
       
       print('🔧 [UnifiedProductService] Mapowanie typu produktu: $productType (${productType.runtimeType})');
@@ -211,39 +211,51 @@ class UnifiedProductService extends BaseService {
       final typeStr = productType.toString().toLowerCase();
 
       // Sprawdź angielskie nazwy
-      if (typeStr == 'loans' || typeStr == 'loan' || typeStr.contains('loans'))
+      if (typeStr == 'loans' || typeStr == 'loan' || typeStr.contains('loans')) {
         return UnifiedProductType.loans;
-      if (typeStr == 'shares' || typeStr == 'share' || typeStr.contains('shares'))
+      }
+      if (typeStr == 'shares' || typeStr == 'share' || typeStr.contains('shares')) {
         return UnifiedProductType.shares;
-      if (typeStr == 'apartments' || typeStr == 'apartment' || typeStr.contains('apartments'))
+      }
+      if (typeStr == 'apartments' || typeStr == 'apartment' || typeStr.contains('apartments')) {
         return UnifiedProductType.apartments;
-      if (typeStr == 'bonds' || typeStr == 'bond' || typeStr.contains('bonds'))
+      }
+      if (typeStr == 'bonds' || typeStr == 'bond' || typeStr.contains('bonds')) {
         return UnifiedProductType.bonds;
+      }
         
       // Sprawdź polskie nazwy
-      if (typeStr.contains('pożyczk') || typeStr.contains('pozyczk'))
+      if (typeStr.contains('pożyczk') || typeStr.contains('pozyczk')) {
         return UnifiedProductType.loans;
-      if (typeStr.contains('udział') || typeStr.contains('udzial'))
+      }
+      if (typeStr.contains('udział') || typeStr.contains('udzial')) {
         return UnifiedProductType.shares;
-      if (typeStr.contains('apartament'))
+      }
+      if (typeStr.contains('apartament')) {
         return UnifiedProductType.apartments;
-      if (typeStr.contains('obligacj'))
+      }
+      if (typeStr.contains('obligacj')) {
         return UnifiedProductType.bonds;
+      }
         
       // Sprawdź enum toString format (ProductType.bonds -> bonds)
-      if (typeStr.contains('.bonds'))
+      if (typeStr.contains('.bonds')) {
         return UnifiedProductType.bonds;
-      if (typeStr.contains('.shares'))
+      }
+      if (typeStr.contains('.shares')) {
         return UnifiedProductType.shares;
-      if (typeStr.contains('.loans'))
+      }
+      if (typeStr.contains('.loans')) {
         return UnifiedProductType.loans;
-      if (typeStr.contains('.apartments'))
+      }
+      if (typeStr.contains('.apartments')) {
         return UnifiedProductType.apartments;
+      }
 
       return UnifiedProductType.bonds;
     }
 
-    ProductStatus _mapProductStatus(dynamic status) {
+    ProductStatus mapProductStatus(dynamic status) {
       if (status == null) return ProductStatus.active;
       final statusStr = status.toString().toLowerCase();
 
@@ -262,7 +274,7 @@ class UnifiedProductService extends BaseService {
           data['produkt_nazwa']?.toString() ??
           data['clientName']?.toString() ??
           'Unnamed Product',
-      productType: _mapProductType(data['productType']),
+      productType: mapProductType(data['productType']),
       investmentAmount: () {
         final value = safeToDouble(data['kwota_inwestycji'] ?? data['investmentAmount']);
         debugPrint('🔍 [UnifiedProductService] Investment amount for $id: kwota_inwestycji=${data['kwota_inwestycji']}, investmentAmount=${data['investmentAmount']}, result=$value');
@@ -272,7 +284,7 @@ class UnifiedProductService extends BaseService {
       uploadedAt: parseDate(data['updatedAt']) ?? DateTime.now(),
       sourceFile:
           data['additionalInfo']?['source_file']?.toString() ?? 'investments',
-      status: _mapProductStatus(data['status']),
+      status: mapProductStatus(data['status']),
       additionalInfo: {
         'clientId': data['clientId']?.toString() ?? '',
         'clientName': data['clientName']?.toString() ?? '',

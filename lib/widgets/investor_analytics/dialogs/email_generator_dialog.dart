@@ -110,7 +110,7 @@ class _EmailGeneratorDialogState extends State<EmailGeneratorDialog> {
     return Dialog(
       backgroundColor: AppTheme.surfaceCard,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
+      child: SizedBox(
         width: isTablet ? 700 : MediaQuery.of(context).size.width * 0.95,
         height: isTablet ? 600 : MediaQuery.of(context).size.height * 0.8,
         child: Column(

@@ -12,12 +12,12 @@ class StandardProductAnalyticsTab extends StatefulWidget {
   final Function(String?) onError;
 
   const StandardProductAnalyticsTab({
-    Key? key,
+    super.key,
     required this.product,
     required this.investorsService,
     required this.onLoading,
     required this.onError,
-  }) : super(key: key);
+  });
 
   @override
   State<StandardProductAnalyticsTab> createState() =>

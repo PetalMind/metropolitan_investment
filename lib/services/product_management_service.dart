@@ -1,9 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'deduplicated_product_service.dart';
-import 'optimized_product_service.dart';
 import '../models_and_services.dart'; // Centralny import z ultra-precyzyjnym serwisem
-import '../models/unified_product.dart';
-import '../models/investor_summary.dart';
 import '../services/firebase_functions_products_service.dart' as fb;
 import '../services/unified_product_service.dart' as unified;
 import '../adapters/product_statistics_adapter.dart';

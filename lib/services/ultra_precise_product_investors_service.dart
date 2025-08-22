@@ -486,12 +486,15 @@ ProductType _parseProductTypeForInvestment(String type) {
   final lowerType = type.toLowerCase();
 
   if (lowerType.contains('apartament')) return ProductType.apartments;
-  if (lowerType.contains('obligacje') || lowerType.contains('bonds'))
+  if (lowerType.contains('obligacje') || lowerType.contains('bonds')) {
     return ProductType.bonds;
-  if (lowerType.contains('udziały') || lowerType.contains('shares'))
+  }
+  if (lowerType.contains('udziały') || lowerType.contains('shares')) {
     return ProductType.shares;
-  if (lowerType.contains('pożyczki') || lowerType.contains('loans'))
+  }
+  if (lowerType.contains('pożyczki') || lowerType.contains('loans')) {
     return ProductType.loans;
+  }
 
   // Fallback
   return ProductType.bonds;

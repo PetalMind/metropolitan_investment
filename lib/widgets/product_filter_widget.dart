@@ -346,7 +346,7 @@ class _ProductFilterWidgetState extends State<ProductFilterWidget>
                 ),
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );

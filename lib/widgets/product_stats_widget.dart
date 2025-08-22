@@ -308,7 +308,7 @@ class _ProductStatsWidgetState extends State<ProductStatsWidget>
                   0.1,
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }

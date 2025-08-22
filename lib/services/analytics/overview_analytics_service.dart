@@ -15,7 +15,7 @@ class OverviewAnalyticsService extends BaseService {
   Future<OverviewAnalytics> getOverviewAnalytics({
     int timeRangeMonths = 12,
   }) async {
-    final cacheKey = 'overview_analytics_${timeRangeMonths}';
+    final cacheKey = 'overview_analytics_$timeRangeMonths';
 
     return getCachedData(
       cacheKey,
@@ -429,9 +429,9 @@ class OverviewAnalyticsService extends BaseService {
 
     // Określ poziom ryzyka
     String riskLevel = 'medium';
-    if (volatility < 5)
+    if (volatility < 5) {
       riskLevel = 'low';
-    else if (volatility > 15)
+    } else if (volatility > 15)
       riskLevel = 'high';
 
     return RiskMetricsData(

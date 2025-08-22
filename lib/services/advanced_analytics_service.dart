@@ -950,7 +950,7 @@ class AdvancedAnalyticsService extends BaseService {
       }
     }
 
-    InvestmentStatus _mapInvestmentStatus(dynamic status) {
+    InvestmentStatus mapInvestmentStatus(dynamic status) {
       if (status == null) return InvestmentStatus.active;
       final statusStr = status.toString().toLowerCase();
 
@@ -962,7 +962,7 @@ class AdvancedAnalyticsService extends BaseService {
       return InvestmentStatus.active;
     }
 
-    MarketType _mapMarketType(dynamic marketType) {
+    MarketType mapMarketType(dynamic marketType) {
       if (marketType == null) return MarketType.primary;
       final typeStr = marketType.toString().toLowerCase();
 
@@ -972,14 +972,15 @@ class AdvancedAnalyticsService extends BaseService {
       return MarketType.primary;
     }
 
-    ProductType _mapProductType(dynamic productType) {
+    ProductType mapProductType(dynamic productType) {
       if (productType == null) return ProductType.bonds;
       final typeStr = productType.toString().toLowerCase();
 
       if (typeStr == 'loans' || typeStr == 'loan') return ProductType.loans;
       if (typeStr == 'shares' || typeStr == 'share') return ProductType.shares;
-      if (typeStr == 'apartments' || typeStr == 'apartment')
+      if (typeStr == 'apartments' || typeStr == 'apartment') {
         return ProductType.apartments;
+      }
       if (typeStr == 'bonds' || typeStr == 'bond') return ProductType.bonds;
 
       return ProductType.bonds;
@@ -993,14 +994,14 @@ class AdvancedAnalyticsService extends BaseService {
       employeeFirstName: data['employeeFirstName']?.toString() ?? '',
       employeeLastName: data['employeeLastName']?.toString() ?? '',
       branchCode: data['branchCode']?.toString() ?? '',
-      status: _mapInvestmentStatus(data['status']),
+      status: mapInvestmentStatus(data['status']),
       isAllocated: data['isAllocated'] == true,
-      marketType: _mapMarketType(data['marketType']),
+      marketType: mapMarketType(data['marketType']),
       signedDate: parseDate(data['signedDate']) ?? DateTime.now(),
       entryDate: parseDate(data['entryDate']),
       exitDate: parseDate(data['exitDate']),
       proposalId: data['proposalId']?.toString() ?? '',
-      productType: _mapProductType(data['productType']),
+      productType: mapProductType(data['productType']),
       productName: data['productName']?.toString() ?? '',
       creditorCompany: data['creditorCompany']?.toString() ?? '',
       companyId: data['companyId']?.toString() ?? '',

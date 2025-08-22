@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../models_and_services.dart';
-import '../../../theme/app_theme.dart';
-import '../../../utils/currency_formatter.dart';
 
 /// Karta inwestora - główny komponent wyświetlający dane inwestora
 class InvestorCard extends StatelessWidget {

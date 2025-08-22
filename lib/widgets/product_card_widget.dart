@@ -53,9 +53,7 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
       vsync: this,
     );
 
-    _hoverAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
-      CurvedAnimation(parent: _hoverController, curve: Curves.easeOutCubic),
-    );
+    _hoverAnimation = _hoverController;
 
     _pressAnimation = Tween<double>(begin: 1.0, end: 0.98).animate(
       CurvedAnimation(parent: _pressController, curve: Curves.easeInOut),
@@ -113,7 +111,7 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
       animation: Listenable.merge([_hoverAnimation, _pressAnimation]),
       builder: (context, child) {
         return Transform.scale(
-          scale: _hoverAnimation.value * _pressAnimation.value,
+          scale: (1.0 + (_hoverAnimation.value * 0.02)) * _pressAnimation.value,
           child: MouseRegion(
             onEnter: (_) => _onHoverEnter(),
             onExit: (_) => _onHoverExit(),
@@ -173,7 +171,7 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
       animation: Listenable.merge([_hoverAnimation, _pressAnimation]),
       builder: (context, child) {
         return Transform.scale(
-          scale: _hoverAnimation.value * _pressAnimation.value,
+          scale: (1.0 + (_hoverAnimation.value * 0.02)) * _pressAnimation.value,
           child: MouseRegion(
             onEnter: (_) => _onHoverEnter(),
             onExit: (_) => _onHoverExit(),

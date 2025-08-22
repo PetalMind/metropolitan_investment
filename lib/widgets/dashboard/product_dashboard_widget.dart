@@ -50,7 +50,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   List<OptimizedProduct> _filteredOptimizedProducts = []; // 🚀 NOWY TYP
   Investment? _selectedInvestment;
   Set<String> _selectedProductIds = {};
-  bool _showOptimizedView =
+  final bool _showOptimizedView =
       true; // 🚀 NOWA FLAGA - domyślnie zoptymalizowany widok
   UnifiedDashboardStatistics?
   _dashboardStatistics; // 🚀 NOWE: Zunifikowane statystyki
@@ -1653,7 +1653,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -2701,7 +2701,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );

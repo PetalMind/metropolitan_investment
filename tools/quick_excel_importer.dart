@@ -246,11 +246,11 @@ class QuickExcelImporter {
     print('\n📊 Generuję raport podsumowujący...');
 
     // Przeczytaj wszystkie pliki JSON
-    final clientsData = await _readJsonFile('clients_data.json');
-    final investmentsData = await _readJsonFile('investments_data.json');
-    final sharesData = await _readJsonFile('shares_data.json');
-    final bondsData = await _readJsonFile('bonds_data.json');
-    final loansData = await _readJsonFile('loans_data.json');
+    final clientsData = _readJsonFile('clients_data.json');
+    final investmentsData = _readJsonFile('investments_data.json');
+    final sharesData = _readJsonFile('shares_data.json');
+    final bondsData = _readJsonFile('bonds_data.json');
+    final loansData = _readJsonFile('loans_data.json');
 
     Map<String, dynamic> summary = {
       'import_date': DateTime.now().toIso8601String(),

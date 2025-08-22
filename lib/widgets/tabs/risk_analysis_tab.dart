@@ -32,7 +32,7 @@ class _RiskAnalysisTabState extends State<RiskAnalysisTab>
   // Risk analysis settings
   String _riskMetric = 'concentration'; // concentration, volatility, exposure
   bool _showAdvancedMetrics = false;
-  List<String> _selectedRiskFactors = ['capital', 'voting', 'liquidity'];
+  final List<String> _selectedRiskFactors = ['capital', 'voting', 'liquidity'];
 
   @override
   void initState() {

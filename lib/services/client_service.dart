@@ -108,7 +108,7 @@ class ClientService extends BaseService {
     return firestore
         .collection(_collection)
         .where('fullName', isGreaterThanOrEqualTo: query)
-        .where('fullName', isLessThanOrEqualTo: query + '\uf8ff')
+        .where('fullName', isLessThanOrEqualTo: '$query\uf8ff')
         .orderBy('fullName')
         .limit(limit)
         .snapshots()

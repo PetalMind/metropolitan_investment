@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../models_and_services.dart';
-import '../../theme/app_theme.dart';
 import 'product_overview_tab.dart';
 import 'product_investors_tab.dart';
 import 'product_analytics_tab.dart';

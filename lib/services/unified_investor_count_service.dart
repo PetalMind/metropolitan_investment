@@ -3,6 +3,15 @@ import '../models_and_services.dart';
 
 /// 🎯 UJEDNOLICONY SERWIS LICZBY INWESTORÓW
 ///
+/// ⚠️ PROBLEM ROZWIĄZANY: Synchronizacja z ProductDetailsService
+/// 
+/// PRZED: UnifiedInvestorCountService używał _findRealProductId() aby znaleźć "prawdziwy" 
+/// productId z Firebase, podczas gdy ProductDetailsService używał bezpośrednio product.id.
+/// To powodowało rozbieżności w liczbie inwestorów między kartą produktu a modalem.
+///
+/// PO: Oba serwisy używają tej samej logiki - bezpośrednio product.id bez dodatkowego
+/// mapowania, co zapewnia spójność danych.
+///
 /// Centralizuje logikę pobierania liczby inwestorów dla produktów
 /// Zapewnia spójność między różnymi miejscami w aplikacji
 class UnifiedInvestorCountService extends BaseService {
@@ -60,26 +69,38 @@ class UnifiedInvestorCountService extends BaseService {
         print(
           '[UnifiedInvestorCount] Pobieranie liczby inwestorów dla: ${product.name}',
         );
+        print('[UnifiedInvestorCount] ⭐ ZSYNCHRONIZOWANE: Używam tej samej logiki co ProductDetailsService');
       }
 
-      // 🎯 NOWE: Znajdź prawdziwy productId tak samo jak w UnifiedProductModalService
-      String realProductId = await _findRealProductId(product);
+      // ⭐ ZSYNCHRONIZOWANE: Używaj bezpośrednio product.id tak jak ProductDetailsService
+      // Sprawdź czy to deduplikowany produkt
+      final isDeduplicated = product.additionalInfo['isDeduplicated'] == true;
+      
+      if (kDebugMode) {
+        if (isDeduplicated) {
+          print('[UnifiedInvestorCount] Produkt deduplikowany - szukam po ID pierwszej inwestycji: ${product.id}');
+        } else {
+          print('[UnifiedInvestorCount] Produkt pojedynczy - szukam po ID: ${product.id}');
+        }
+      }
 
-      // Strategia 1: Użyj UltraPreciseProductInvestorsService z prawdziwym productId
+      // Strategia 1: Użyj UltraPreciseProductInvestorsService z tym samym ID co ProductDetailsService
       try {
         final result = await _ultraPreciseService.getProductInvestors(
-          productId: realProductId,
+          productId: product.id, // ⭐ ZSYNCHRONIZOWANE: Używamy product.id bezpośrednio
           productName: product.name,
-          searchStrategy: 'productId',
+          searchStrategy: 'productId', // Ultra-precyzyjne wyszukiwanie po ID
         );
 
         final count = result.investors.length;
 
         if (kDebugMode) {
           print(
-            '[UnifiedInvestorCount] UltraPrecise zwrócił: $count inwestorów',
+            '[UnifiedInvestorCount] ✅ UltraPrecise zwrócił: $count inwestorów (zsynchronizowane z ProductDetailsService)',
           );
-          print('[UnifiedInvestorCount] Użyty productId: $realProductId');
+          print('[UnifiedInvestorCount] Użyty productId: ${product.id}');
+          print('[UnifiedInvestorCount] Search strategy: ${result.searchStrategy}');
+          print('[UnifiedInvestorCount] From cache: ${result.fromCache}');
         }
 
         return count;
@@ -127,51 +148,6 @@ class UnifiedInvestorCountService extends BaseService {
   /// Czyści cache dla konkretnego produktu
   void clearProductCache(String productId) {
     clearCache('$_cacheKeyPrefix$productId');
-  }
-
-  /// 🎯 NOWE: Znajdź prawdziwy productId w Firebase (skopiowane z UnifiedProductModalService)
-  Future<String> _findRealProductId(UnifiedProduct product) async {
-    try {
-      if (kDebugMode) {
-        print('[UnifiedInvestorCount] Szukam prawdziwego productId...');
-      }
-
-      // Użyj Firebase bezpośrednio
-      final snapshot = await firestore
-          .collection('investments')
-          .where('productName', isEqualTo: product.name)
-          .where('companyId', isEqualTo: product.companyId)
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isNotEmpty) {
-        final doc = snapshot.docs.first;
-        final data = doc.data();
-        final productId = data['productId'] as String?;
-
-        if (productId?.isNotEmpty == true) {
-          if (kDebugMode) {
-            print('[UnifiedInvestorCount] Prawdziwy productId: $productId');
-          }
-          return productId!;
-        } else {
-          if (kDebugMode) {
-            print('[UnifiedInvestorCount] Używam ID dokumentu: ${doc.id}');
-          }
-          return doc.id;
-        }
-      } else {
-        if (kDebugMode) {
-          print('[UnifiedInvestorCount] Fallback na oryginalny ID');
-        }
-        return product.id;
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('[UnifiedInvestorCount] Błąd szukania productId: $e');
-      }
-      return product.id;
-    }
   }
 
   /// Czyści cały cache

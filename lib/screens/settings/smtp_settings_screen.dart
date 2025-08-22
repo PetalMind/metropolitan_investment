@@ -312,8 +312,9 @@ class _SmtpSettingsScreenState extends State<SmtpSettingsScreen> {
                             ],
                             validator: (value) {
                               if (value!.isEmpty) return 'Pole jest wymagane';
-                              if (int.tryParse(value) == null)
+                              if (int.tryParse(value) == null) {
                                 return 'Nieprawidłowy numer portu';
+                              }
                               return null;
                             },
                           ),

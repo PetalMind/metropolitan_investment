@@ -81,9 +81,9 @@ class _ModernProductsManagementScreenState extends State<ModernProductsManagemen
 
   // Kontrolery wyszukiwania i filtrowania
   final TextEditingController _searchController = TextEditingController();
-  ProductFilterCriteria _filterCriteria = const ProductFilterCriteria();
-  ProductSortField _sortField = ProductSortField.createdAt;
-  SortDirection _sortDirection = SortDirection.descending;
+  final ProductFilterCriteria _filterCriteria = const ProductFilterCriteria();
+  final ProductSortField _sortField = ProductSortField.createdAt;
+  final SortDirection _sortDirection = SortDirection.descending;
 
   // Kontrola wyświetlania
   bool _showFilters = false;

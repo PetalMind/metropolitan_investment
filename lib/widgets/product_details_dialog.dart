@@ -1484,7 +1484,7 @@ class _EnhancedProductDetailsDialogState
           ],
         ],
       ),
-    );
+    )
   }
 
   Widget _buildAnalyticsCard(

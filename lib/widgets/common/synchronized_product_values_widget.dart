@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../models_and_services.dart';
-import '../../utils/currency_formatter.dart';
 
 /// Widget wyświetlający zsynchronizowane wartości produktu
 /// Używa tego samego UnifiedProductModalService co ProductDetailsModal

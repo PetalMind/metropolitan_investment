@@ -198,11 +198,8 @@ class AppTheme {
 
         surface: surfaceContainer,
         onSurface: textPrimary,
-        surfaceVariant: surfaceCard,
+        surfaceContainerHighest: surfaceCard,
         onSurfaceVariant: textSecondary,
-
-        background: backgroundPrimary,
-        onBackground: textPrimary,
 
         error: errorPrimary,
         onError: textOnPrimary,
@@ -528,7 +525,7 @@ class AppTheme {
 
       // Data Table Theme
       dataTableTheme: DataTableThemeData(
-        headingRowColor: MaterialStateProperty.all(surfaceElevated),
+        headingRowColor: WidgetStateProperty.all(surfaceElevated),
         headingRowHeight: 56,
         dataRowMinHeight: 48,
         dataRowMaxHeight: 64,
@@ -656,14 +653,14 @@ class AppTheme {
 
       // Switch Theme
       switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return secondaryGold;
           }
           return textTertiary;
         }),
-        trackColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return secondaryGold.withOpacity(0.3);
           }
           return surfaceInteractive;
@@ -672,21 +669,21 @@ class AppTheme {
 
       // Checkbox Theme
       checkboxTheme: CheckboxThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return secondaryGold;
           }
           return Colors.transparent;
         }),
-        checkColor: MaterialStateProperty.all(textOnSecondary),
+        checkColor: WidgetStateProperty.all(textOnSecondary),
         side: const BorderSide(color: borderPrimary, width: 1.5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
 
       // Radio Theme
       radioTheme: RadioThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return secondaryGold;
           }
           return borderPrimary;

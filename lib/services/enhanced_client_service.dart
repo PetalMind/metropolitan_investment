@@ -96,7 +96,7 @@ class EnhancedClientService extends BaseService {
       };
 
       print(
-        '🔧 [EnhancedClientService] Wysyłam request: ${requestData.toString().length > 500 ? requestData.toString().substring(0, 500) + '...' : requestData}',
+        '🔧 [EnhancedClientService] Wysyłam request: ${requestData.toString().length > 500 ? '${requestData.toString().substring(0, 500)}...' : requestData}',
       );
 
       final result = await FirebaseFunctions.instanceFor(
@@ -121,21 +121,21 @@ class EnhancedClientService extends BaseService {
         throw Exception(data['error'] ?? 'Firebase Functions zwróciły błąd');
       }
 
-      final result_obj = EnhancedClientsResult.fromFirebaseFunction(data);
+      final resultObj = EnhancedClientsResult.fromFirebaseFunction(data);
       print(
-        '🎯 [EnhancedClientService] Sparsowano ${result_obj.clients.length} klientów',
+        '🎯 [EnhancedClientService] Sparsowano ${resultObj.clients.length} klientów',
       );
       print(
-        '🎯 [EnhancedClientService] Meta: requested=${result_obj.requestedCount}, found=${result_obj.foundCount}, notFound=${result_obj.notFoundCount}',
+        '🎯 [EnhancedClientService] Meta: requested=${resultObj.requestedCount}, found=${resultObj.foundCount}, notFound=${resultObj.notFoundCount}',
       );
 
-      return result_obj;
+      return resultObj;
     } catch (e) {
       final duration = DateTime.now().difference(startTime);
       print(
         '❌ [EnhancedClientService] Błąd po ${duration.inMilliseconds}ms: $e',
       );
-      throw e;
+      rethrow;
     }
   }
 
@@ -179,7 +179,7 @@ class EnhancedClientService extends BaseService {
       print(
         '❌ [EnhancedClientService] Błąd po ${duration.inMilliseconds}ms: $e',
       );
-      throw e;
+      rethrow;
     }
   }
 }

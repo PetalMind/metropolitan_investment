@@ -55,7 +55,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
   List<Investment> _productInvestments = [];
 
   // Modified investments
-  Map<String, Investment> _modifiedInvestments = {};
+  final Map<String, Investment> _modifiedInvestments = {};
 
   // 🚀 NOWE: Ultra-precise product investor data
   UltraPreciseProductInvestorsResult? _ultraPreciseResult;
@@ -186,8 +186,12 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     _fadeController.dispose();
     _scrollController.dispose();
 
-    _controllers.values.forEach((controller) => controller.dispose());
-    _focusNodes.values.forEach((node) => node.dispose());
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
+    for (var node in _focusNodes.values) {
+      node.dispose();
+    }
 
     super.dispose();
   }
@@ -1503,7 +1507,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
 
   /// 🔍 NOWA METODA: Buduje przycisk do wyświetlania historii zmian
   Widget _buildHistoryButton(Investment investment) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       child: TextButton.icon(
         onPressed: () => _showInvestmentHistory(investment),
@@ -2320,8 +2324,12 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
         _modifiedInvestments.clear();
 
         // Dispose old controllers
-        _controllers.values.forEach((controller) => controller.dispose());
-        _focusNodes.values.forEach((node) => node.dispose());
+        for (var controller in _controllers.values) {
+          controller.dispose();
+        }
+        for (var node in _focusNodes.values) {
+          node.dispose();
+        }
         _controllers.clear();
         _focusNodes.clear();
 

@@ -248,7 +248,7 @@ class OptimizedDataCacheService extends BaseService {
         );
 
     print(
-      '🎯 [OptimizedDataCache] ${client.name}: remaining=${totalRemainingCapital}, restructuring=${capitalForRestructuring}, secured=${capitalSecuredByRealEstate}',
+      '🎯 [OptimizedDataCache] ${client.name}: remaining=$totalRemainingCapital, restructuring=$capitalForRestructuring, secured=$capitalSecuredByRealEstate',
     );
 
     return InvestorSummary(
@@ -366,6 +366,7 @@ class OptimizedDataCacheService extends BaseService {
   }
 
   /// Czyści cały cache
+  @override
   void clearAllCache() {
     clearCache('all');
   }

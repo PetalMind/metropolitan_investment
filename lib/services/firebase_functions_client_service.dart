@@ -170,7 +170,7 @@ class FirebaseFunctionsClientService extends BaseService {
 
       logError(
         'searchClients',
-        'Wyszukiwanie "${query}" zwróciło ${result.clients.length} wyników',
+        'Wyszukiwanie "$query" zwróciło ${result.clients.length} wyników',
       );
 
       return result.clients;

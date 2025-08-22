@@ -5,16 +5,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart';
 
 // Dodaj ścieżkę do modeli aplikacji
-import '../lib/models/client.dart';
-import '../lib/models/investment.dart';
-import '../lib/models/product.dart';
-import '../lib/models/company.dart';
-import '../lib/models/employee.dart';
-import '../lib/firebase_options.dart';
+import 'package:metropolitan_investment/models/client.dart';
+import 'package:metropolitan_investment/models/investment.dart';
+import 'package:metropolitan_investment/models/product.dart';
+import 'package:metropolitan_investment/models/company.dart';
+import 'package:metropolitan_investment/models/employee.dart';
+import 'package:metropolitan_investment/firebase_options.dart';
 
 class FirestoreExcelImporter {
   static FirebaseFirestore? _firestore;
-  static int _batchSize = 500; // Firestore batch limit
+  static final int _batchSize = 500; // Firestore batch limit
 
   static Future<void> initializeFirebase() async {
     try {
@@ -25,7 +25,7 @@ class FirestoreExcelImporter {
       print('✅ Firebase zainicjalizowany pomyślnie');
     } catch (e) {
       print('❌ Błąd inicjalizacji Firebase: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -106,7 +106,7 @@ class FirestoreExcelImporter {
           if (batchCount >= _batchSize) {
             await batch.commit();
             totalImported += batchCount;
-            print('  📝 Zapisano ${totalImported} klientów...');
+            print('  📝 Zapisano $totalImported klientów...');
             batchCount = 0;
           }
         }
@@ -123,7 +123,7 @@ class FirestoreExcelImporter {
       'client_name_to_id_mapping.json',
     ).writeAsString(JsonEncoder.withIndent('  ').convert(clientNameToId));
 
-    print('✅ Zaimportowano ${totalImported} klientów do Firestore');
+    print('✅ Zaimportowano $totalImported klientów do Firestore');
   }
 
   static Future<void> importCompaniesToFirestore() async {
@@ -447,7 +447,7 @@ class FirestoreExcelImporter {
           if (batchCount >= _batchSize) {
             await batch.commit();
             totalImported += batchCount;
-            print('  💰 Zapisano ${totalImported} inwestycji...');
+            print('  💰 Zapisano $totalImported inwestycji...');
             batchCount = 0;
           }
         } catch (e) {
@@ -461,7 +461,7 @@ class FirestoreExcelImporter {
       totalImported += batchCount;
     }
 
-    print('✅ Zaimportowano ${totalImported} inwestycji do Firestore');
+    print('✅ Zaimportowano $totalImported inwestycji do Firestore');
   }
 
   static Future<void> importInvestmentSummariesToFirestore() async {

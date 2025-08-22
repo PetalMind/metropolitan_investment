@@ -147,7 +147,7 @@ class _DataTableWidgetState<T> extends State<DataTableWidget<T>> {
               child: Theme(
                 data: Theme.of(context).copyWith(
                   dataTableTheme: DataTableThemeData(
-                    headingRowColor: MaterialStateProperty.all(
+                    headingRowColor: WidgetStateProperty.all(
                       isDarkTheme
                           ? AppTheme.surfaceElevated
                           : AppTheme.primaryColor.withOpacity(0.05),
@@ -239,13 +239,13 @@ class _DataTableWidgetState<T> extends State<DataTableWidget<T>> {
                               : null,
                         );
                       }).toList(),
-                      color: MaterialStateProperty.resolveWith((states) {
-                        if (states.contains(MaterialState.hovered)) {
+                      color: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.hovered)) {
                           return isDarkTheme
                               ? AppTheme.secondaryGold.withOpacity(0.08)
                               : AppTheme.primaryColor.withOpacity(0.08);
                         }
-                        if (states.contains(MaterialState.selected)) {
+                        if (states.contains(WidgetState.selected)) {
                           return isDarkTheme
                               ? AppTheme.secondaryGold.withOpacity(0.15)
                               : AppTheme.primaryColor.withOpacity(0.12);

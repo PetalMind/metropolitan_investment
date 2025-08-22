@@ -1,5 +1,4 @@
 import '../models_and_services.dart';
-import 'enhanced_analytics_service.dart';
 import 'investor_analytics_service.dart' as legacy;
 
 /// 🚀 SERWIS MIGRACJI ANALITYKI

@@ -9,8 +9,8 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
-import '../lib/services/statistics_diagnostic_service.dart';
-import '../lib/firebase_options.dart';
+import 'package:metropolitan_investment/services/statistics_diagnostic_service.dart';
+import 'package:metropolitan_investment/firebase_options.dart';
 
 Future<void> main(List<String> args) async {
   print('🔍 DIAGNOZA STATYSTYK METROPOLITAN INVESTMENT');

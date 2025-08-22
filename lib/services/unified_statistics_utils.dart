@@ -1,5 +1,6 @@
 /// Zunifikowane narzędzia statystyczne zgodnie z STATISTICS_UNIFICATION_GUIDE
 /// Zapewnia jedną prawdę dla wszystkich statystyk w systemie
+library;
 
 /// Zunifikowane definicje statystyk zgodnie z STATISTICS_UNIFICATION_GUIDE
 class UnifiedStatisticsDefinitions {

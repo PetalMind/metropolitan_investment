@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../lib/models/voting_status_change.dart';
+import 'package:metropolitan_investment/models/voting_status_change.dart';
 
 void main() {
   group('VotingStatusChange Tests', () {

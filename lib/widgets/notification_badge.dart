@@ -10,14 +10,14 @@ class NotificationBadge extends StatefulWidget {
   final Color? textColor;
 
   const NotificationBadge({
-    Key? key,
+    super.key,
     required this.count,
     required this.child,
     this.showZero = false,
     this.size = 16.0,
     this.backgroundColor,
     this.textColor,
-  }) : super(key: key);
+  });
 
   @override
   State<NotificationBadge> createState() => _NotificationBadgeState();
@@ -146,14 +146,14 @@ class NavigationIconWithBadge extends StatelessWidget {
   final Color? selectedColor;
 
   const NavigationIconWithBadge({
-    Key? key,
+    super.key,
     required this.icon,
     required this.notificationCount,
     this.isSelected = false,
     this.onTap,
     this.iconColor,
     this.selectedColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

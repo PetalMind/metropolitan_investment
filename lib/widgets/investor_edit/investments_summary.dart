@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
-import '../../utils/currency_formatter.dart';
 
 /// Widget wyświetlający podsumowanie inwestycji
 class InvestmentsSummaryWidget extends StatelessWidget {

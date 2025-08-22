@@ -985,7 +985,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
           ),
 
           // Widget historii dla tej inwestycji
-          Container(
+          SizedBox(
             height: 300, // Ograniczona wysokość dla lepszego UX
             child: InvestmentHistoryWidget(
               investmentId: investment.id,

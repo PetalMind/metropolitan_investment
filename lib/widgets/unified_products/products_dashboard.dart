@@ -487,8 +487,9 @@ class _ProductsDashboardState extends State<ProductsDashboard> {
   }
 
   static String _compactCurrency(double value) {
-    if (value >= 1000000000)
+    if (value >= 1000000000) {
       return '${(value / 1000000000).toStringAsFixed(1)}B';
+    }
     if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
     if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}k';
     return value.toStringAsFixed(0);
@@ -752,7 +753,7 @@ class _ValueByTypeList extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${e.key.displayName} (${count})',
+                    '${e.key.displayName} ($count)',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppTheme.textSecondary,
                       fontWeight: FontWeight.w500,
@@ -782,8 +783,9 @@ class _ValueByTypeList extends StatelessWidget {
   }
 
   String _compactCurrency(double value) {
-    if (value >= 1000000000)
+    if (value >= 1000000000) {
       return '${(value / 1000000000).toStringAsFixed(1)}B';
+    }
     if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
     if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}k';
     return value.toStringAsFixed(0);

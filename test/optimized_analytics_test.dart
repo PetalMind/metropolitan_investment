@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:metropolitan_investment/services/optimized_data_cache_service.dart' as cache;
-import 'package:metropolitan_investment/services/enhanced_analytics_service.dart';
 import 'package:metropolitan_investment/models_and_services.dart';
 
 /// 🧪 TESTY ZOPTYMALIZOWANYCH SERWISÓW ANALITYKI

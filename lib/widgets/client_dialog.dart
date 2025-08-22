@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models_and_services.dart';
 import '../theme/app_theme_professional.dart';
-import 'client_form.dart';
 
 class ClientDialog extends StatelessWidget {
   final Client? client;

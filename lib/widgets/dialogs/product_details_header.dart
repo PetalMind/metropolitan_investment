@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
-import '../../models/unified_product.dart';
-import '../../models/investor_summary.dart';
 import '../../models_and_services.dart';
-import '../../utils/currency_formatter.dart';
 import 'total_capital_edit_dialog.dart';
 
 // ⭐ UJEDNOLICONY WZORZEC: Używamy UnifiedDashboardStatisticsService

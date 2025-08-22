@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../models_and_services.dart';
-import '../../../theme/app_theme.dart';
 
 /// Panel filtrów dla analityki inwestorów
 class InvestorFilterPanel extends StatelessWidget {

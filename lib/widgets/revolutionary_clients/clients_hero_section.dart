@@ -60,7 +60,7 @@ class _ClientsHeroSectionState extends State<ClientsHeroSection>
   );
 
   List<Particle> _particles = [];
-  bool _showInsights = true;
+  final bool _showInsights = true;
 
   @override
   void initState() {

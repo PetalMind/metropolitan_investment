@@ -385,10 +385,10 @@ class _PersonalGreetingWeekWidgetState
                 ],
               ),
               const SizedBox(height: 6),
-              ...items.map((ev) => _buildTaskRow(ev)).toList(),
+              ...items.map((ev) => _buildTaskRow(ev)),
             ],
           );
-        }).toList(),
+        }),
       ],
     );
   }

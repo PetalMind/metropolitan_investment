@@ -104,13 +104,7 @@ class _ScrollAwareProductHeaderState extends State<ScrollAwareProductHeader>
       curve: Curves.easeOutBack,
     );
     
-    _pulseAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.05,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
+    _pulseAnimation = _pulseController;
     
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -0.5),

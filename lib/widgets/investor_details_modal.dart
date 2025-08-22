@@ -60,7 +60,7 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
   final Map<String, TextEditingController> _investmentControllers = {};
   final Map<String, FocusNode> _investmentFocusNodes = {};
   bool _isEditingInvestments = false;
-  Map<String, Investment> _modifiedInvestments = {};
+  final Map<String, Investment> _modifiedInvestments = {};
 
   // 🚀 NOWE: Serwisy do obsługi edycji inwestycji
   final DataCacheService _cacheService = DataCacheService();
@@ -128,8 +128,12 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
     _notesController.dispose();
 
     // 🚀 NOWE: Dispose kontrolerów inwestycji
-    _investmentControllers.values.forEach((controller) => controller.dispose());
-    _investmentFocusNodes.values.forEach((node) => node.dispose());
+    for (var controller in _investmentControllers.values) {
+      controller.dispose();
+    }
+    for (var node in _investmentFocusNodes.values) {
+      node.dispose();
+    }
 
     super.dispose();
   }
@@ -2491,8 +2495,12 @@ class _InvestorDetailsModalState extends State<InvestorDetailsModal>
 
   /// Usuwa kontrolery edycji inwestycji
   void _disposeInvestmentControllers() {
-    _investmentControllers.values.forEach((controller) => controller.dispose());
-    _investmentFocusNodes.values.forEach((node) => node.dispose());
+    for (var controller in _investmentControllers.values) {
+      controller.dispose();
+    }
+    for (var node in _investmentFocusNodes.values) {
+      node.dispose();
+    }
     _investmentControllers.clear();
     _investmentFocusNodes.clear();
   }

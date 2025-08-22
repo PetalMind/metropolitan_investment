@@ -231,11 +231,8 @@ class AppThemePro {
 
         surface: backgroundSecondary,
         onSurface: textPrimary,
-        surfaceVariant: backgroundTertiary,
+        surfaceContainerHighest: backgroundTertiary,
         onSurfaceVariant: textSecondary,
-
-        background: backgroundPrimary,
-        onBackground: textPrimary,
 
         error: statusError,
         onError: textPrimary,

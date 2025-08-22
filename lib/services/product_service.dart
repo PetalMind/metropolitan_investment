@@ -80,7 +80,7 @@ class ProductService extends BaseService {
         .where('isActive', isEqualTo: true)
         .orderBy('name')
         .startAt([query])
-        .endAt([query + '\uf8ff'])
+        .endAt(['$query\uf8ff'])
         .snapshots()
         .map(
           (snapshot) =>

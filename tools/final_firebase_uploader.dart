@@ -4,7 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Import prawdziwego config
-import '../lib/firebase_options.dart';
+import 'package:metropolitan_investment/firebase_options.dart';
 
 class FinalFirebaseUploader {
   static FirebaseFirestore? _firestore;
@@ -101,13 +101,13 @@ class FinalFirebaseUploader {
         uploaded += (endIndex - i);
 
         final percent = ((uploaded / data.length) * 100).toStringAsFixed(1);
-        print('  ⏳ ${uploaded}/${data.length} ($percent%) wgrane...');
+        print('  ⏳ $uploaded/${data.length} ($percent%) wgrane...');
 
         // Krótka pauza
         await Future.delayed(Duration(milliseconds: 200));
       }
 
-      print('  ✅ SUKCES! ${uploaded} rekordów w Firebase/$collectionName');
+      print('  ✅ SUKCES! $uploaded rekordów w Firebase/$collectionName');
     } catch (e) {
       print('  ❌ BŁĄD: $e');
       rethrow;

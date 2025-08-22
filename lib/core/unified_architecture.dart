@@ -9,6 +9,7 @@
 /// - Centralne zarządzanie cache
 /// - Automatyczne konwersje między typami
 /// - Fallback hierarchy dla różnych formatów danych
+library;
 
 import 'package:flutter/foundation.dart';
 import '../models_and_services.dart';

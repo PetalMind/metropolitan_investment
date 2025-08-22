@@ -78,7 +78,7 @@ class _PremiumInvestorAnalyticsScreenState
 
   // Stany ładowania
   bool _isLoading = true;
-  bool _isLoadingMore = false;
+  final bool _isLoadingMore = false;
   bool _isRefreshing = false;
   bool _dataWasUpdated = false;
   String? _error;
@@ -114,7 +114,7 @@ class _PremiumInvestorAnalyticsScreenState
   bool _isSelectionMode = false;
   bool _isExportMode = false; // 🚀 NOWY: Tryb eksportu
   bool _isEmailMode = false; // 🚀 NOWY: Tryb email
-  Set<String> _selectedInvestorIds = <String>{};
+  final Set<String> _selectedInvestorIds = <String>{};
   List<InvestorSummary> get _selectedInvestors => _allInvestors
       .where((i) => _selectedInvestorIds.contains(i.client.id))
       .toList();
@@ -718,14 +718,14 @@ class _PremiumInvestorAnalyticsScreenState
     double totalCapital;
     if (_currentResult != null) {
       totalCapital = _currentResult!.totalViableCapital;
-      print('   - Używam totalViableCapital z serwera: ${totalCapital}');
+      print('   - Używam totalViableCapital z serwera: $totalCapital');
     } else {
       // Jako ostateczny fallback, oblicz lokalnie używając totalRemainingCapital
       totalCapital = _allInvestors.fold<double>(
         0.0,
         (sum, investor) => sum + investor.totalRemainingCapital,
       );
-      print('   - Obliczam lokalnie totalCapital: ${totalCapital}');
+      print('   - Obliczam lokalnie totalCapital: $totalCapital');
     }
 
     // Sortuj inwestorów według kapitału pozostałego malejąco (zgodnie z Dashboard)
@@ -754,7 +754,7 @@ class _PremiumInvestorAnalyticsScreenState
     }
 
     print(
-      '   - Znaleziono ${_majorityHolders.length} większościowych posiadaczy (>${_majorityThreshold}%)',
+      '   - Znaleziono ${_majorityHolders.length} większościowych posiadaczy (>$_majorityThreshold%)',
     );
   }
 
@@ -2047,7 +2047,7 @@ class _PremiumInvestorAnalyticsScreenState
       ),
       _StatItem(
         'Większość osobowa (51%)',
-        '${majorityInvestorCount} z ${_totalCount}',
+        '$majorityInvestorCount z $_totalCount',
         Icons.people_rounded,
         AppThemePro.accentGold,
       ),
@@ -2494,7 +2494,7 @@ class _PremiumInvestorAnalyticsScreenState
           textAlign: TextAlign.center,
         ),
         Text(
-          '${_totalCount} inwestorów',
+          '$_totalCount inwestorów',
           style: TextStyle(fontSize: 12, color: AppThemePro.textSecondary),
         ),
       ],
@@ -4087,7 +4087,7 @@ class _PremiumInvestorAnalyticsScreenState
             ),
           ],
         ),
-        content: Container(
+        content: SizedBox(
           width: _isTablet ? 500 : 300,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -4329,7 +4329,7 @@ class _PremiumInvestorAnalyticsScreenState
             ),
           ],
         ),
-        content: Container(
+        content: SizedBox(
           width: _isTablet ? 600 : 350,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -4573,7 +4573,7 @@ class _PremiumInvestorAnalyticsScreenState
                   ),
                 ),
               )
-              .toList(),
+              ,
         ],
       ),
     );
@@ -4642,7 +4642,7 @@ class _PremiumInvestorAnalyticsScreenState
           final count = _votingCounts[status] ?? 0;
           final capital = _getVotingCapitalForStatus(status);
 
-          return '${status.displayName};${capital.toStringAsFixed(2)};${percentage.toStringAsFixed(2)}%;${count}';
+          return '${status.displayName};${capital.toStringAsFixed(2)};${percentage.toStringAsFixed(2)}%;$count';
         })
         .join('\n');
 

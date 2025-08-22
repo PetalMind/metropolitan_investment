@@ -278,7 +278,7 @@ class _PerformanceChartState extends State<PerformanceChart> {
     if (_showVolume) {
       return '${(value / 1000000).toStringAsFixed(1)}M ';
     } else {
-      return '${value.toStringAsFixed(1)}';
+      return value.toStringAsFixed(1);
     }
   }
 

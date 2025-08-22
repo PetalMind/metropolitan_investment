@@ -486,7 +486,7 @@ class _ProductAnalyticsTabState extends State<ProductAnalyticsTab>
               ],
             ),
           );
-        }).toList(),
+        }),
         if (sortedInvestors.length > 5) ...[
           const Divider(color: AppTheme.borderPrimary),
           Row(

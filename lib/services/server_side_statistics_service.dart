@@ -70,14 +70,14 @@ class ServerSideStatisticsService {
       for (final investor in investors) {
         processedInvestors++;
         print(
-          '  🧑‍💼 Investor ${processedInvestors}: ${investor.client.name} (${investor.investments.length} inwestycji)',
+          '  🧑‍💼 Investor $processedInvestors: ${investor.client.name} (${investor.investments.length} inwestycji)',
         );
 
         for (final investment in investor.investments) {
           if (investment.productName == productName) {
             processedInvestments++;
             print(
-              '    ✅ Inwestycja ${processedInvestments}: ${investment.id} - ${investment.productName}',
+              '    ✅ Inwestycja $processedInvestments: ${investment.id} - ${investment.productName}',
             );
 
             // Konwertuj Investment na Map zgodnie z oczekiwaniami serwera

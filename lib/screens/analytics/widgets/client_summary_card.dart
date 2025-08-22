@@ -69,7 +69,7 @@ class ClientSummaryCard extends StatelessWidget {
             ...clientMetrics.topClients
                 .take(3)
                 .map((client) => _buildTopClientItem(client))
-                .toList(),
+                ,
           ],
         ],
       ),

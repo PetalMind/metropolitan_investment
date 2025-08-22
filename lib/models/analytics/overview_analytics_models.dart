@@ -1,5 +1,6 @@
 /// Modele danych dla analityki przeglądu
 /// Zawiera wszystkie struktury danych dla taba Overview
+library;
 
 /// Główna klasa przeglądu analityki
 class OverviewAnalytics {

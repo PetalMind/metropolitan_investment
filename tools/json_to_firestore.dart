@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class JsonToFirestore {
   static FirebaseFirestore? _firestore;
-  static int _batchSize = 500;
+  static final int _batchSize = 500;
 
   static Future<void> initFirebase() async {
     try {
@@ -86,7 +86,7 @@ class JsonToFirestore {
         if (batchCount >= _batchSize) {
           await batch.commit();
           totalUploaded += batchCount;
-          print('  📝 Wgrano ${totalUploaded}/${data.length} rekordów...');
+          print('  📝 Wgrano $totalUploaded/${data.length} rekordów...');
           batchCount = 0;
         }
       }
@@ -97,7 +97,7 @@ class JsonToFirestore {
         totalUploaded += batchCount;
       }
 
-      print('✅ SUKCES! Wgrano ${totalUploaded} rekordów do $collectionName');
+      print('✅ SUKCES! Wgrano $totalUploaded rekordów do $collectionName');
     } catch (e) {
       print('❌ BŁĄD podczas wgrywania $fileName: $e');
     }

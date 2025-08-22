@@ -163,8 +163,9 @@ class DebugFirestoreService {
         tests['clients_read'] = true;
       } catch (e) {
         tests['clients_read'] = false;
-        if (kDebugMode)
+        if (kDebugMode) {
           print('❌ [DebugFirestore] Clients read access denied: $e');
+        }
       }
 
       // Test read access to investments
@@ -173,8 +174,9 @@ class DebugFirestoreService {
         tests['investments_read'] = true;
       } catch (e) {
         tests['investments_read'] = false;
-        if (kDebugMode)
+        if (kDebugMode) {
           print('❌ [DebugFirestore] Investments read access denied: $e');
+        }
       }
 
       return {

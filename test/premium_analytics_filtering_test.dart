@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import '../lib/widgets/premium_analytics_dashboard.dart';
-import '../lib/widgets/premium_analytics_filter_panel.dart';
-import '../lib/widgets/premium_analytics_floating_controls.dart';
-import '../lib/models/investor_summary.dart';
-import '../lib/models/client.dart';
-import '../lib/models/investment.dart';
+import 'package:metropolitan_investment/widgets/premium_analytics_dashboard.dart';
+import 'package:metropolitan_investment/widgets/premium_analytics_filter_panel.dart';
+import 'package:metropolitan_investment/widgets/premium_analytics_floating_controls.dart';
+import 'package:metropolitan_investment/models/investor_summary.dart';
+import 'package:metropolitan_investment/models/client.dart';
+import 'package:metropolitan_investment/models/investment.dart';
 
 /// 🧪 TESTY SYSTEMU PREMIUM ANALYTICS FILTERING
 ///

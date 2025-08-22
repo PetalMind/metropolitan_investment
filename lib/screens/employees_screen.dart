@@ -254,7 +254,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                               value: branch,
                               child: Text(branch),
                             );
-                          }).toList(),
+                          }),
                         ],
                         onChanged: _onBranchFilterChanged,
                       ),

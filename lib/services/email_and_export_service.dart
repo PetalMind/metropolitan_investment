@@ -598,9 +598,9 @@ class EmailSendResult {
   /// Formatowany opis wyniku
   String get formattedResult {
     if (success) {
-      return '✅ ${clientName} (${clientEmail}): ${investmentCount} inwestycji, ${totalAmount.toStringAsFixed(2)} PLN - ${executionTimeMs}ms';
+      return '✅ $clientName ($clientEmail): $investmentCount inwestycji, ${totalAmount.toStringAsFixed(2)} PLN - ${executionTimeMs}ms';
     } else {
-      return '❌ ${clientName} (${clientEmail}): ${error ?? 'Nieznany błąd'}';
+      return '❌ $clientName ($clientEmail): ${error ?? 'Nieznany błąd'}';
     }
   }
 }

@@ -18,6 +18,11 @@ class CalendarService extends BaseService {
     CalendarEventFilter? filter,
   }) async {
     try {
+      // Sprawdź czy użytkownik jest zalogowany
+      if (_auth.currentUser == null) {
+        return [];
+      }
+
       Query query = _firestore
           .collection(_collectionName)
           .where('startDate', isLessThan: endDate)
@@ -127,6 +132,11 @@ class CalendarService extends BaseService {
   /// Pobiera pojedyncze wydarzenie po ID
   Future<CalendarEvent?> getEvent(String eventId) async {
     try {
+      // Sprawdź czy użytkownik jest zalogowany
+      if (_auth.currentUser == null) {
+        return null;
+      }
+
       final doc = await _firestore
           .collection(_collectionName)
           .doc(eventId)
@@ -151,6 +161,11 @@ class CalendarService extends BaseService {
     int limit = 50,
   }) async {
     try {
+      // Sprawdź czy użytkownik jest zalogowany
+      if (_auth.currentUser == null) {
+        return [];
+      }
+
       Query firestoreQuery = _firestore
           .collection(_collectionName)
           .orderBy('startDate', descending: true)
@@ -326,7 +341,7 @@ class CalendarService extends BaseService {
       if (currentStart.isAfter(startDate) || currentStart == startDate) {
         events.add(
           baseEvent.copyWith(
-            id: '${baseEvent.id}_${occurrenceCount}',
+            id: '${baseEvent.id}_$occurrenceCount',
             startDate: currentStart,
             endDate: currentEnd,
           ),

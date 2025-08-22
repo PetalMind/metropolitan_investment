@@ -10,11 +10,11 @@ class StandardProductDetailsTab extends StatelessWidget {
   final Function(String?) onError;
 
   const StandardProductDetailsTab({
-    Key? key,
+    super.key,
     required this.product,
     required this.onLoading,
     required this.onError,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -372,7 +372,7 @@ class StandardProductDetailsTab extends StatelessWidget {
               icon: const Icon(Icons.copy, size: 18),
               tooltip: 'Skopiuj',
               style: IconButton.styleFrom(
-                backgroundColor: theme.colorScheme.surfaceVariant.withOpacity(
+                backgroundColor: theme.colorScheme.surfaceContainerHighest.withOpacity(
                   0.5,
                 ),
                 foregroundColor: theme.colorScheme.onSurfaceVariant,

@@ -984,7 +984,7 @@ extension FirebaseFunctionsProductsServiceFallback
 
       if (kDebugMode) {
         print(
-          '[FirebaseFunctionsProductsService] Fallback zakończony: ${paginatedProducts.length} z ${totalCount} produktów',
+          '[FirebaseFunctionsProductsService] Fallback zakończony: ${paginatedProducts.length} z $totalCount produktów',
         );
       }
 

@@ -144,7 +144,7 @@ class _PerformanceTabState extends State<PerformanceTab> {
 
   Widget _buildViewButton(Map<String, dynamic> view, {bool isExpanded = true}) {
     final isSelected = _selectedView == view['id'];
-    return Container(
+    return SizedBox(
       width: isExpanded ? null : 120,
       child: Material(
         color: Colors.transparent,
@@ -401,7 +401,7 @@ class _PerformanceTabState extends State<PerformanceTab> {
           ...topPerformers
               .take(10)
               .map((investment) => _buildTopPerformerItem(investment))
-              .toList(),
+              ,
         ],
       ),
     );
@@ -500,7 +500,7 @@ class _PerformanceTabState extends State<PerformanceTab> {
           const SizedBox(height: 20),
           ...analytics.benchmarkComparison
               .map((comparison) => _buildBenchmarkItem(comparison))
-              .toList(),
+              ,
         ],
       ),
     );
@@ -520,7 +520,7 @@ class _PerformanceTabState extends State<PerformanceTab> {
       ),
       child: Row(
         children: [
-          Container(
+          SizedBox(
             width: 60,
             child: Text(
               comparison.period,
@@ -607,7 +607,7 @@ class _PerformanceTabState extends State<PerformanceTab> {
           const SizedBox(height: 20),
           ...analytics.productPerformance
               .map((product) => _buildProductItem(product))
-              .toList(),
+              ,
         ],
       ),
     );

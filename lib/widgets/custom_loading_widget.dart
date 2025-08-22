@@ -96,7 +96,7 @@ class _CustomLoadingWidgetState extends State<CustomLoadingWidget>
                 builder: (context, child) {
                   return Transform.rotate(
                     angle: _rotationAnimation.value,
-                    child: Container(
+                    child: SizedBox(
                       width: 80,
                       height: 80,
                       child: CustomPaint(

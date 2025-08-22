@@ -111,7 +111,7 @@ class EmployeeService extends BaseService {
         .where('isActive', isEqualTo: true)
         .orderBy('lastName')
         .startAt([query])
-        .endAt([query + '\uf8ff'])
+        .endAt(['$query\uf8ff'])
         .limit(limit)
         .snapshots()
         .map(

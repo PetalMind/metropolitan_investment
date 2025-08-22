@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../models_and_services.dart';
 import '../firebase_functions_analytics_service.dart' as premium;
-import '../../utils/voting_analysis_manager.dart';
 
 /// 🚀 ENHANCED INVESTOR ANALYTICS SERVICE
 /// Serwis zarządzający zaawansowaną analityką inwestorów z funkcjami premium

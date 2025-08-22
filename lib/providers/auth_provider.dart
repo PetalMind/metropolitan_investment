@@ -59,9 +59,7 @@ class AuthProvider extends ChangeNotifier {
 
   // Get saved login data for auto-filling forms
   Future<Map<String, dynamic>> getSavedLoginData() async {
-    if (_preferencesService == null) {
-      _preferencesService = await UserPreferencesService.getInstance();
-    }
+    _preferencesService ??= await UserPreferencesService.getInstance();
     return _preferencesService!.getSavedLoginData();
   }
 

@@ -70,8 +70,9 @@ class UnifiedVotingStatusService extends BaseService {
 
       // Add user tracking fields
       if (editedBy != null) updateFields['lastEditedBy'] = editedBy;
-      if (editedByEmail != null)
+      if (editedByEmail != null) {
         updateFields['lastEditedByEmail'] = editedByEmail;
+      }
       if (editedByName != null) updateFields['lastEditedByName'] = editedByName;
       if (userId != null) updateFields['lastEditedByUserId'] = userId;
 
@@ -96,7 +97,7 @@ class UnifiedVotingStatusService extends BaseService {
       clearCache('voting_statistics');
       clearCache('voting_status_statistics');
       clearCache('voting_status_change_stats');
-      clearCache('client_${clientId}');
+      clearCache('client_$clientId');
 
       print(
         '✅ [UnifiedVotingStatus] Pomyślnie zaktualizowano status głosowania',

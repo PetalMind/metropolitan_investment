@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../models_and_services.dart';
-import '../../theme/app_theme.dart';
 
 /// Zaawansowana karta produktu z obsługą selekcji i szczegółowych informacji
 class ProductCardAdvanced extends StatelessWidget {

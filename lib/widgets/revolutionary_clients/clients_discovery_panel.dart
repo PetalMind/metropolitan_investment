@@ -110,13 +110,7 @@ class _ClientsDiscoveryPanelState extends State<ClientsDiscoveryPanel>
       vsync: this,
     );
 
-    _searchScaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.05,
-    ).animate(CurvedAnimation(
-      parent: _searchController,
-      curve: Curves.easeOutBack,
-    ));
+    _searchScaleAnimation = _searchController;
     
     _filterSlideAnimation = Tween<double>(
       begin: 0.0,
@@ -428,7 +422,7 @@ class _ClientsDiscoveryPanelState extends State<ClientsDiscoveryPanel>
                 ),
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );

@@ -399,7 +399,7 @@ class IntegratedClientService extends BaseService {
 
         logError(
           'getClientStats',
-          'Zaawansowany fallback: ${totalClients} klientów, ${totalInvestments} inwestycji, ${totalRemainingCapital.toStringAsFixed(0)} PLN',
+          'Zaawansowany fallback: $totalClients klientów, $totalInvestments inwestycji, ${totalRemainingCapital.toStringAsFixed(0)} PLN',
         );
         return stats;
       } catch (fallbackError) {
@@ -431,7 +431,7 @@ class IntegratedClientService extends BaseService {
 
           logError(
             'getClientStats',
-            'Podstawowy fallback: ${totalClients} klientów',
+            'Podstawowy fallback: $totalClients klientów',
           );
           return stats;
         } catch (basicError) {

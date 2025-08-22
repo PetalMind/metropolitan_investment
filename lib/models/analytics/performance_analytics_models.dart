@@ -1,5 +1,6 @@
 /// Modele danych dla analityki wydajności
 /// Zawiera struktury danych dla taba Performance
+library;
 
 /// Główna klasa analityki wydajności
 class PerformanceAnalytics {

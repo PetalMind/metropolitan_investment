@@ -11,12 +11,12 @@ class StandardProductPerformanceTab extends StatefulWidget {
   final Function(String?) onError;
 
   const StandardProductPerformanceTab({
-    Key? key,
+    super.key,
     required this.product,
     required this.investorsService,
     required this.onLoading,
     required this.onError,
-  }) : super(key: key);
+  });
 
   @override
   State<StandardProductPerformanceTab> createState() =>
@@ -408,7 +408,7 @@ class _StandardProductPerformanceTabState
                 Container(
                   height: 20,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceVariant,
+                    color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: FractionallySizedBox(
@@ -902,11 +902,13 @@ class _StandardProductPerformanceTabState
     final realizationRate = (realizedCapital / totalValue * 100);
     final activeRate = (activeInvestments / totalInvestments * 100);
 
-    if (realizationRate >= 75 && activeRate >= 75)
+    if (realizationRate >= 75 && activeRate >= 75) {
       return 'Silnie rekomendowany';
+    }
     if (realizationRate >= 50 && activeRate >= 50) return 'Rekomendowany';
-    if (realizationRate >= 25 || activeRate >= 25)
+    if (realizationRate >= 25 || activeRate >= 25) {
       return 'Ostrożnie rekomendowany';
+    }
     return 'Nie rekomendowany';
   }
 

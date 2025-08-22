@@ -29,7 +29,7 @@ class _EmployeeFormState extends State<EmployeeForm> {
   bool _isLoading = false;
   bool _isActive = true;
 
-  List<String> _positions = [
+  final List<String> _positions = [
     'Dyrektor Generalny',
     'Dyrektor Zarządzający',
     'Dyrektor Finansowy',

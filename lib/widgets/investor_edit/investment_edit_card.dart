@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
 import '../../providers/auth_provider.dart';
-import 'currency_controls.dart';
 
 /// Widget karty edycji pojedynczej inwestycji
 class InvestmentEditCard extends StatelessWidget {

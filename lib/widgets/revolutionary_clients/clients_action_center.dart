@@ -46,7 +46,7 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
 
   bool _isActionCenterExpanded = false;
   bool _isDashboardVisible = false;
-  bool _isSelectionMode = false;
+  final bool _isSelectionMode = false;
   bool _isExpanded = false;
 
   @override
@@ -89,9 +89,7 @@ class _ClientsActionCenterState extends State<ClientsActionCenter>
       curve: Curves.easeOutBack,
     );
 
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
+    _pulseAnimation = _pulseController;
 
     _pulseController.repeat(reverse: true);
   }
@@ -704,7 +702,7 @@ class _ClientsIntelligenceDashboardState
             padding: const EdgeInsets.only(bottom: 12),
             child: _buildInsightCard(insight),
           );
-        }).toList(),
+        }),
       ],
     );
   }

@@ -13,7 +13,7 @@ class EmployeesTab extends StatefulWidget {
 
 class _EmployeesTabState extends State<EmployeesTab>
     with TickerProviderStateMixin {
-  bool _isLoading = false;
+  final bool _isLoading = false;
   String? _error;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;

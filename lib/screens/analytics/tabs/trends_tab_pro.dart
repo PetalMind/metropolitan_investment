@@ -12,7 +12,7 @@ class TrendsTab extends StatefulWidget {
 }
 
 class _TrendsTabState extends State<TrendsTab> with TickerProviderStateMixin {
-  bool _isLoading = false;
+  final bool _isLoading = false;
   String? _error;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;

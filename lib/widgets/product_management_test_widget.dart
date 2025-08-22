@@ -1,5 +1,6 @@
 /// Test widget dla funkcjonalności zarządzania produktami
 /// Użyj tego w development mode do testowania nowych dialogów
+library;
 
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
@@ -100,7 +101,7 @@ class ProductManagementTestWidget extends StatelessWidget {
     IconData icon,
     VoidCallback onPressed,
   ) {
-    return Container(
+    return SizedBox(
       width: 280,
       height: 56,
       child: ElevatedButton.icon(

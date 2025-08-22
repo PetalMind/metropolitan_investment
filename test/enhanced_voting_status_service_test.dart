@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/services/enhanced_voting_status_service.dart';
-import '../lib/models/client.dart';
+import 'package:metropolitan_investment/services/enhanced_voting_status_service.dart';
+import 'package:metropolitan_investment/models/client.dart';
 
 void main() {
   group('EnhancedVotingStatusService Tests', () {

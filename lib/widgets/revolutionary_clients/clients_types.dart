@@ -2,6 +2,7 @@
 ///
 /// Definicje typów używanych w systemie rewolucyjnych klientów
 /// Współdzielone między wszystkimi komponentami
+library;
 
 import 'package:flutter/material.dart';
 

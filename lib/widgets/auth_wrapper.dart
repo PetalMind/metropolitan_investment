@@ -76,9 +76,7 @@ class _AuthLoadingScreenState extends State<AuthLoadingScreen>
       CurvedAnimation(parent: _rotationController, curve: Curves.linear),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = _scaleController;
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
@@ -124,7 +122,7 @@ class _AuthLoadingScreenState extends State<AuthLoadingScreen>
                   ]),
                   builder: (context, child) {
                     return Transform.scale(
-                      scale: _scaleAnimation.value,
+                      scale: 0.8 + (_scaleAnimation.value * 0.4),
                       child: Transform.rotate(
                         angle: _rotationAnimation.value * 2 * 3.14159,
                         child: Container(

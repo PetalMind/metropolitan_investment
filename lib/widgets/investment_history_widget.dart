@@ -282,7 +282,7 @@ class _InvestmentHistoryWidgetState extends State<InvestmentHistoryWidget> {
       child: Row(
         children: [
           // Date and time
-          Container(
+          SizedBox(
             width: 60,
             child: Text(
               DateFormat('dd.MM\nHH:mm').format(entry.changedAt),

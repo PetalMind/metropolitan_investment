@@ -113,7 +113,7 @@ class InvestorListWidget extends StatelessWidget {
                 children: [
                   // Selection checkbox or position number
                   if (isSelectionMode)
-                    Container(
+                    SizedBox(
                       width: 48,
                       height: 48,
                       child: Center(

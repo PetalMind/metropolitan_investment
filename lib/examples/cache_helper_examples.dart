@@ -68,8 +68,8 @@ class _AnalyticsScreenWithCacheState extends State<AnalyticsScreenWithCache> {
           : const Center(child: Text('Analytics Content')),
       floatingActionButton: FloatingActionButton(
         onPressed: _clearCacheAndReload,
-        child: const Icon(Icons.cleaning_services),
         tooltip: 'Wyczyść cache',
+        child: const Icon(Icons.cleaning_services),
       ),
     );
   }

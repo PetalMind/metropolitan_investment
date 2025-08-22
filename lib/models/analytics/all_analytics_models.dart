@@ -1,5 +1,6 @@
 /// Modele danych dla wszystkich pozostałych tabów analityki
 /// Risk Tab, Employees Tab, Geographic Tab, Trends Tab
+library;
 
 // ============= RISK ANALYTICS MODELS =============
 

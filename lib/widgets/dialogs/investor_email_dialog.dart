@@ -455,9 +455,8 @@ class _InvestorEmailDialogState extends State<InvestorEmailDialog> {
 
   bool _hasValidEmails() {
     return widget.selectedInvestors.any((investor) => 
-        investor.client.email != null && 
-        investor.client.email!.isNotEmpty &&
-        RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(investor.client.email!)
+        investor.client.email.isNotEmpty &&
+        RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(investor.client.email)
     );
   }
 
@@ -467,9 +466,8 @@ class _InvestorEmailDialogState extends State<InvestorEmailDialog> {
     // Filtruj inwestorów z prawidłowymi emailami
     final investorsWithEmail = widget.selectedInvestors
         .where((investor) => 
-            investor.client.email != null && 
-            investor.client.email!.isNotEmpty &&
-            RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(investor.client.email!))
+            investor.client.email.isNotEmpty &&
+            RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(investor.client.email))
         .toList();
     
     if (investorsWithEmail.isEmpty) {

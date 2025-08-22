@@ -115,9 +115,7 @@ class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget>
       CurvedAnimation(parent: _rotationController, curve: Curves.linear),
     );
 
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = _scaleController;
 
     _glowAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
@@ -164,7 +162,7 @@ class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget>
           ]),
           builder: (context, child) {
             return Transform.scale(
-              scale: _scaleAnimation.value,
+              scale: 1.0 + (_scaleAnimation.value * 0.05),
               child: Transform.rotate(
                 angle: widget.animated ? _rotationAnimation.value * 0.1 : 0,
                 child: _buildLogoContainer(logoColor),

@@ -57,6 +57,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   late final FirebaseFunctionsProductsService _productService;
   late final UltraPreciseProductInvestorsService
   _ultraPreciseInvestorsService; // 🚀 NOWY: Ultra-precyzyjny serwis
+  late final UnifiedInvestorCountService _unifiedInvestorCountService; // 🚀 NOWY: Serwis liczby inwestorów
   late final DeduplicatedProductService _deduplicatedProductService;
   late final OptimizedProductService _optimizedProductService; // 🚀 NOWY SERWIS
   late final ProductManagementService
@@ -100,7 +101,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   bool _showDeduplicatedView = true; // Domyślnie pokazuj deduplikowane produkty
   bool _useOptimizedMode =
       true; // 🚀 NOWA FLAGA - używaj zoptymalizowanego trybu
-  bool _useProductManagementService =
+  final bool _useProductManagementService =
       false; // 🚀 NOWA FLAGA - używaj centralnego serwisu
 
   // Email functionality
@@ -111,8 +112,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   // 🚀 NOWY: Stan dla wykresu kołowego typów produktów
   int _hoveredSectionIndex = -1;
   UnifiedProductType? _selectedProductType;
-  Map<UnifiedProductType, double> _typeDistribution = {};
-  Map<UnifiedProductType, int> _typeCounts = {};
+  final Map<UnifiedProductType, double> _typeDistribution = {};
+  final Map<UnifiedProductType, int> _typeCounts = {};
 
   // Gettery dla wybranych produktów
   List<DeduplicatedProduct> get _selectedProducts {
@@ -555,14 +556,14 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           final p = _allProducts[i];
           if (p.originalProduct is Investment) {
             final inv = p.originalProduct as Investment;
-            print('  - [${i}] Investment ID: ${inv.id}, Name: ${p.name}');
+            print('  - [$i] Investment ID: ${inv.id}, Name: ${p.name}');
           } else if (p.originalProduct is Map<String, dynamic>) {
             final data = p.originalProduct as Map<String, dynamic>;
             print(
-              '  - [${i}] Server Data ID: ${data['id']}, ClientID: ${data['clientId']}, Name: ${p.name}',
+              '  - [$i] Server Data ID: ${data['id']}, ClientID: ${data['clientId']}, Name: ${p.name}',
             );
           } else {
-            print('  - [${i}] UnifiedProduct ID: ${p.id}, Name: ${p.name}');
+            print('  - [$i] UnifiedProduct ID: ${p.id}, Name: ${p.name}');
           }
         }
       }
@@ -621,6 +622,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     _productService = FirebaseFunctionsProductsService();
     _ultraPreciseInvestorsService =
         UltraPreciseProductInvestorsService(); // 🚀 NOWY: Ultra-precyzyjny serwis
+    _unifiedInvestorCountService = UnifiedInvestorCountService(); // 🚀 NOWY: Serwis liczby inwestorów
     _deduplicatedProductService = DeduplicatedProductService();
     _optimizedProductService = OptimizedProductService(); // 🚀 NOWY SERWIS
     _productManagementService =
@@ -1563,7 +1565,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return matches;
       }).toList();
       print(
-        '🔧 [ProductsManagement] Filtr typów: ${beforeCount} → ${filtered.length}',
+        '🔧 [ProductsManagement] Filtr typów: $beforeCount → ${filtered.length}',
       );
     }
 
@@ -1575,7 +1577,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return matches;
       }).toList();
       print(
-        '🔧 [ProductsManagement] Filtr statusów: ${beforeCount} → ${filtered.length}',
+        '🔧 [ProductsManagement] Filtr statusów: $beforeCount → ${filtered.length}',
       );
     }
 
@@ -1589,7 +1591,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return matches;
       }).toList();
       print(
-        '🔧 [ProductsManagement] Filtr firmy: ${beforeCount} → ${filtered.length}',
+        '🔧 [ProductsManagement] Filtr firmy: $beforeCount → ${filtered.length}',
       );
     }
 
@@ -1601,7 +1603,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return matches;
       }).toList();
       print(
-        '🔧 [ProductsManagement] Filtr min kwoty: ${beforeCount} → ${filtered.length}',
+        '🔧 [ProductsManagement] Filtr min kwoty: $beforeCount → ${filtered.length}',
       );
     }
 
@@ -1613,7 +1615,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return matches;
       }).toList();
       print(
-        '🔧 [ProductsManagement] Filtr max kwoty: ${beforeCount} → ${filtered.length}',
+        '🔧 [ProductsManagement] Filtr max kwoty: $beforeCount → ${filtered.length}',
       );
     }
 
@@ -1625,7 +1627,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return matches;
       }).toList();
       print(
-        '🔧 [ProductsManagement] Filtr min oprocentowania: ${beforeCount} → ${filtered.length}',
+        '🔧 [ProductsManagement] Filtr min oprocentowania: $beforeCount → ${filtered.length}',
       );
     }
 
@@ -1637,7 +1639,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return matches;
       }).toList();
       print(
-        '🔧 [ProductsManagement] Filtr max oprocentowania: ${beforeCount} → ${filtered.length}',
+        '🔧 [ProductsManagement] Filtr max oprocentowania: $beforeCount → ${filtered.length}',
       );
     }
 
@@ -1654,7 +1656,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return matches;
       }).toList();
       print(
-        '🔧 [ProductsManagement] Filtr daty początkowej: ${beforeCount} → ${filtered.length}',
+        '🔧 [ProductsManagement] Filtr daty początkowej: $beforeCount → ${filtered.length}',
       );
     }
 
@@ -1671,7 +1673,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return matches;
       }).toList();
       print(
-        '🔧 [ProductsManagement] Filtr daty końcowej: ${beforeCount} → ${filtered.length}',
+        '🔧 [ProductsManagement] Filtr daty końcowej: $beforeCount → ${filtered.length}',
       );
     }
 
@@ -1684,7 +1686,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     );
 
     // Debug: wypisz pierwsze 3 produkty przed sortowaniem
-    if (filtered.length > 0) {
+    if (filtered.isNotEmpty) {
       print('🔧 [ProductsManagement] PRZED sortowaniem:');
       for (int i = 0; i < filtered.length && i < 3; i++) {
         final product = filtered[i];
@@ -1956,7 +1958,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             _buildProductsList(),
         ],
       ),
-      floatingActionButton: _buildFloatingActionButton(),
     );
   }
 
@@ -2337,8 +2338,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   }
 
   Widget _buildStatisticsSection() {
-    if (_statistics == null)
+    if (_statistics == null) {
       return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
 
     return SliverToBoxAdapter(
       child: SlideTransition(
@@ -2801,49 +2803,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     );
   }
 
-  Widget _buildFloatingActionButton() {
-    return Tooltip(
-      message: canEdit ? '🎆 Dodaj Produkt' : kRbacNoPermissionTooltip,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: canEdit
-                  ? AppTheme.secondaryGold.withValues(alpha: 0.3)
-                  : Colors.grey.withValues(alpha: 0.2),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: canEdit ? _showAddProductDialog : null,
-          backgroundColor: canEdit
-              ? AppTheme.secondaryGold
-              : Colors.grey.shade600,
-          foregroundColor: Colors.white,
-          icon: Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.add, size: 20),
-          ),
-          label: Text(
-            'Dodaj Produkt',
-            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
-          ),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildDeduplicatedProductCard(DeduplicatedProduct product, int index) {
     final isSelected = _selectedProductIds.contains(product.id);
 
@@ -2966,11 +2925,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                     ),
                   ),
                   Expanded(
-                    child: _buildStatColumn(
-                      'Inwestorów',
-                      '${product.investorCount}', // ⭐ Używa getter z DeduplicatedProduct
-                      Icons.people,
-                    ),
+                    child: _buildInvestorCountColumn(product), // 🚀 ZMIENIONE: Używa UnifiedInvestorCountService
                   ),
                   Expanded(
                     child: _buildStatColumnWithSyncWidget(
@@ -3956,17 +3911,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     print('📊 [Products] Cache ProductManagementService sprawdzony');
   }
 
-  void _showAddProductDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AddProductDialog(
-        onProductAdded: () {
-          _refreshData();
-        },
-      ),
-    );
-  }
-
   // 🚀 DODANE: Funkcje email dokładnie takie same jak w premium_investor_analytics_screen
   void _toggleEmailMode() {
     setState(() {
@@ -4443,42 +4387,58 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         return '📦';
     }
   }
-}
 
-enum ViewMode { grid, list }
+  /// 🚀 NOWY: Widget do wyświetlania liczby inwestorów z UnifiedInvestorCountService
+  Widget _buildInvestorCountColumn(DeduplicatedProduct product) {
+    // Konwertuj DeduplicatedProduct na UnifiedProduct dla UnifiedInvestorCountService
+    final unifiedProduct = _convertDeduplicatedToUnified(product);
 
-/// Dialog do dodawania nowego produktu
-class AddProductDialog extends StatefulWidget {
-  final VoidCallback onProductAdded;
+    return FutureBuilder<int>(
+      future: _unifiedInvestorCountService.getProductInvestorCount(unifiedProduct),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Column(
+            children: [
+              Icon(Icons.people, color: AppTheme.secondaryGold, size: 20),
+              const SizedBox(height: 4),
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.secondaryGold),
+                ),
+              ),
+              Text(
+                'Inwestorów',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          );
+        }
 
-  const AddProductDialog({super.key, required this.onProductAdded});
+        if (snapshot.hasError) {
+          // Fallback na statyczną wartość w przypadku błędu
+          return _buildStatColumn(
+            'Inwestorów',
+            '${product.investorCount}*', // * oznacza fallback
+            Icons.people,
+          );
+        }
 
-  @override
-  State<AddProductDialog> createState() => _AddProductDialogState();
-}
-
-class _AddProductDialogState extends State<AddProductDialog> {
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppTheme.backgroundSecondary,
-      title: const Text(
-        'Dodaj Nowy Produkt',
-        style: TextStyle(color: AppTheme.textPrimary),
-      ),
-      content: const Text(
-        'Funkcjonalność dodawania produktów będzie dostępna wkrótce.',
-        style: TextStyle(color: AppTheme.textSecondary),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text(
-            'Zamknij',
-            style: TextStyle(color: AppTheme.secondaryGold),
-          ),
-        ),
-      ],
+        final count = snapshot.data ?? 0;
+        return _buildStatColumn(
+          'Inwestorów',
+          '$count',
+          Icons.people,
+        );
+      },
     );
   }
 }
+
+enum ViewMode { grid, list }

@@ -68,13 +68,13 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
   bool _isSelectionMode = false;
 
   // 🎪 View Modes & Display
-  double _cardAnimationProgress = 0.0;
+  final double _cardAnimationProgress = 0.0;
   bool _showIntelligenceDashboard = true;
   bool _isCompactMode = false;
 
   // 🚀 Smart Features
   List<ClientInsight> _clientInsights = [];
-  Map<String, ClientMetrics> _clientMetrics = {};
+  final Map<String, ClientMetrics> _clientMetrics = {};
   Timer? _searchDebouncer;
   Timer? _metricsUpdater;
 
@@ -226,7 +226,7 @@ class _RevolutionaryClientsScreenState extends State<RevolutionaryClientsScreen>
   void _updateRealtimeMetrics() async {
     try {
       final newStats = await _integratedClientService.getClientStats();
-      if (mounted && newStats != null) {
+      if (mounted) {
         setState(() {
           _clientStats = newStats;
         });

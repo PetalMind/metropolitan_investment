@@ -83,7 +83,7 @@ class ApartmentProductsMigrator {
           investment['wierzyciel_spolka']?.toString() ?? companyName;
 
       // Klucz unikalny dla produktu
-      final productKey = '${productName}_${companyName}'
+      final productKey = '${productName}_$companyName'
           .replaceAll(RegExp(r'[^\w\s-]'), '')
           .replaceAll(' ', '_');
 
@@ -517,7 +517,7 @@ module.exports = { ApartmentProductsUploader };
   }
 
   static String _generateProductId(String productName, String companyName) {
-    final normalized = '${productName}_${companyName}'
+    final normalized = '${productName}_$companyName'
         .toLowerCase()
         .replaceAll(RegExp(r'[^\w\s-]'), '')
         .replaceAll(RegExp(r'\s+'), '_')

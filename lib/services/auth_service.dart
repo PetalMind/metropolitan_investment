@@ -27,17 +27,13 @@ class AuthService {
 
   // Check if auto login should be performed
   Future<bool> shouldAutoLogin() async {
-    if (_preferencesService == null) {
-      _preferencesService = await UserPreferencesService.getInstance();
-    }
+    _preferencesService ??= await UserPreferencesService.getInstance();
     return _preferencesService!.shouldAutoLogin() && isLoggedIn;
   }
 
   // Get last saved email for convenience
   Future<String?> getLastSavedEmail() async {
-    if (_preferencesService == null) {
-      _preferencesService = await UserPreferencesService.getInstance();
-    }
+    _preferencesService ??= await UserPreferencesService.getInstance();
     return _preferencesService!.getLastEmail();
   }
 
@@ -58,9 +54,7 @@ class AuthService {
         await _updateUserLastLogin(result.user!.uid);
 
         // Save login preferences if remember me is enabled
-        if (_preferencesService == null) {
-          _preferencesService = await UserPreferencesService.getInstance();
-        }
+        _preferencesService ??= await UserPreferencesService.getInstance();
         await _preferencesService!.saveLoginPreferences(
           rememberMe: rememberMe,
           email: email.trim(),
@@ -138,9 +132,7 @@ class AuthService {
       await _auth.signOut();
 
       // Clear auth preferences if requested or if remember me is disabled
-      if (_preferencesService == null) {
-        _preferencesService = await UserPreferencesService.getInstance();
-      }
+      _preferencesService ??= await UserPreferencesService.getInstance();
 
       if (clearRememberMe || !_preferencesService!.getRememberMe()) {
         await _preferencesService!.clearAuthPreferences();

@@ -53,7 +53,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   String _errorMessage = '';
 
   // Filtering & sorting
-  String _sortBy = 'fullName';
+  final String _sortBy = 'fullName';
   String _currentSearchQuery = '';
 
   // Multi-selection

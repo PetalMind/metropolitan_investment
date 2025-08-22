@@ -56,7 +56,7 @@ class FirebaseFunctionsDialogsUpdated {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${breakdown.typeName}',
+                              breakdown.typeName,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),

@@ -332,9 +332,7 @@ class _MetropolitanLoadingLogoState extends State<MetropolitanLoadingLogo>
       CurvedAnimation(parent: _progressController, curve: Curves.easeInOut),
     );
 
-    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
+    _pulseAnimation = _pulseController;
 
     _textFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _textController, curve: Curves.easeInOut),
@@ -372,7 +370,7 @@ class _MetropolitanLoadingLogoState extends State<MetropolitanLoadingLogo>
           animation: _pulseAnimation,
           builder: (context, child) {
             return Transform.scale(
-              scale: _pulseAnimation.value,
+              scale: 0.95 + (_pulseAnimation.value * 0.1),
               child: AnimatedMetropolitanLogo(
                 size: widget.size,
                 variant: LogoVariant.svg,

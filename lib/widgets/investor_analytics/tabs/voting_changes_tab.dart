@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../models_and_services.dart';
-import '../../../theme/app_theme.dart';
 
 /// Voting changes tab that displays voting status history for an investor
 class VotingChangesTab extends StatefulWidget {

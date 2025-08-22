@@ -187,7 +187,7 @@ class InvestmentService extends BaseService {
     return firestore
         .collection(_collection)
         .where('klient', isGreaterThanOrEqualTo: query)
-        .where('klient', isLessThan: query + '\uf8ff')
+        .where('klient', isLessThan: '$query\uf8ff')
         .orderBy('klient')
         .limit(30) // Dodany limit dla wydajności
         .snapshots()
@@ -203,8 +203,9 @@ class InvestmentService extends BaseService {
   Stream<List<Investment>> getInvestmentsByStatus(InvestmentStatus status) {
     String statusStr = 'Aktywny';
     if (status == InvestmentStatus.inactive) statusStr = 'Nieaktywny';
-    if (status == InvestmentStatus.earlyRedemption)
+    if (status == InvestmentStatus.earlyRedemption) {
       statusStr = 'Wykup wczesniejszy';
+    }
 
     return firestore
         .collection(_collection)
@@ -767,8 +768,9 @@ class InvestmentService extends BaseService {
   }) {
     String statusStr = 'Aktywny';
     if (status == InvestmentStatus.inactive) statusStr = 'Nieaktywny';
-    if (status == InvestmentStatus.earlyRedemption)
+    if (status == InvestmentStatus.earlyRedemption) {
       statusStr = 'Wykup wczesniejszy';
+    }
 
     return firestore
         .collection(_collection)

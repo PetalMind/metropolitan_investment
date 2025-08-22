@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models_and_services.dart';
-import 'base_service.dart';
 
 /// Service for managing voting status changes and history
 class VotingStatusChangeService extends BaseService {

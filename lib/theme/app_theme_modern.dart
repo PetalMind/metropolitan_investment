@@ -506,11 +506,8 @@ class ModernAppTheme {
 
         surface: surfacePrimary,
         onSurface: textPrimary,
-        surfaceVariant: surfaceSecondary,
+        surfaceContainerHighest: surfaceSecondary,
         onSurfaceVariant: textSecondary,
-
-        background: backgroundDeep,
-        onBackground: textPrimary,
 
         error: errorModern,
         onError: textOnDark,

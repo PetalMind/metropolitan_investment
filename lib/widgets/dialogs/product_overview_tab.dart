@@ -266,52 +266,59 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
   /// Szczegóły dla obligacji
   Widget _buildBondsDetails(UnifiedProduct product) {
     final children = <Widget>[];
-    if (product.realizedCapital != null)
+    if (product.realizedCapital != null) {
       children.add(
         _buildDetailRow(
           'Zrealizowany kapitał',
           CurrencyFormatter.formatCurrency(product.realizedCapital!),
         ),
       );
-    if (product.remainingCapital != null)
+    }
+    if (product.remainingCapital != null) {
       children.add(
         _buildDetailRow(
           'Pozostały kapitał',
           CurrencyFormatter.formatCurrency(product.remainingCapital!),
         ),
       );
-    if (product.realizedInterest != null)
+    }
+    if (product.realizedInterest != null) {
       children.add(
         _buildDetailRow(
           'Zrealizowane odsetki',
           CurrencyFormatter.formatCurrency(product.realizedInterest!),
         ),
       );
-    if (product.remainingInterest != null)
+    }
+    if (product.remainingInterest != null) {
       children.add(
         _buildDetailRow(
           'Pozostałe odsetki',
           CurrencyFormatter.formatCurrency(product.remainingInterest!),
         ),
       );
-    if (product.interestRate != null)
+    }
+    if (product.interestRate != null) {
       children.add(
         _buildDetailRow(
           'Oprocentowanie',
           '${product.interestRate!.toStringAsFixed(2)}%',
         ),
       );
-    if (product.maturityDate != null)
+    }
+    if (product.maturityDate != null) {
       children.add(
         _buildDetailRow(
           'Data zapadalności',
           product.maturityDate!.toString().split(' ')[0],
         ),
       );
+    }
     if (product.companyName != null &&
         product.companyName!.isNotEmpty &&
-        product.companyName?.toLowerCase() != 'nieznana firma')
+        product.companyName?.toLowerCase() != 'nieznana firma') {
       children.add(_buildDetailRow('Emitent', product.companyName!));
+    }
     if (children.isEmpty) return const SizedBox.shrink();
     return _buildProductTypeContainer(
       title: 'Szczegóły Obligacji',
@@ -329,21 +336,24 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
   /// Szczegóły dla udziałów
   Widget _buildSharesDetails(UnifiedProduct product) {
     final children = <Widget>[];
-    if (product.sharesCount != null)
+    if (product.sharesCount != null) {
       children.add(
         _buildDetailRow('Liczba udziałów', product.sharesCount.toString()),
       );
-    if (product.pricePerShare != null)
+    }
+    if (product.pricePerShare != null) {
       children.add(
         _buildDetailRow(
           'Cena za udział',
           CurrencyFormatter.formatCurrency(product.pricePerShare!),
         ),
       );
+    }
     if (product.companyName != null &&
         product.companyName!.isNotEmpty &&
-        product.companyName?.toLowerCase() != 'nieznana firma')
+        product.companyName?.toLowerCase() != 'nieznana firma') {
       children.add(_buildDetailRow('Nazwa spółki', product.companyName!));
+    }
     children.add(
       _buildDetailRow(
         'Wartość całkowita',

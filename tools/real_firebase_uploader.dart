@@ -97,7 +97,7 @@ class RealFirebaseUploader {
         totalUploaded += (end - i);
 
         print(
-          '  ⏳ Wgrano ${totalUploaded}/${data.length} (${((totalUploaded / data.length) * 100).toStringAsFixed(1)}%)',
+          '  ⏳ Wgrano $totalUploaded/${data.length} (${((totalUploaded / data.length) * 100).toStringAsFixed(1)}%)',
         );
 
         // Krótka pauza między batches
@@ -105,7 +105,7 @@ class RealFirebaseUploader {
       }
 
       print(
-        '✅ SUKCES! ${totalUploaded} rekordów wgrane do Firebase/$collectionName',
+        '✅ SUKCES! $totalUploaded rekordów wgrane do Firebase/$collectionName',
       );
     } catch (e) {
       print('❌ KURWA BŁĄD podczas wgrywania $fileName: $e');

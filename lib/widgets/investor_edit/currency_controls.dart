@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../utils/currency_input_formatter.dart';
 import '../../theme/app_theme_professional.dart';
 import '../../models_and_services.dart';
 

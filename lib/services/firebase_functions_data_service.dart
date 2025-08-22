@@ -608,12 +608,13 @@ class FirebaseFunctionsDataService extends BaseService {
     String safeToString(dynamic value, [String defaultValue = '']) {
       if (value == null) return defaultValue;
       if (value is String) return value;
-      if (value is Map || value is List)
+      if (value is Map || value is List) {
         return defaultValue; // Don't convert complex objects
+      }
       return value.toString();
     }
 
-    Map<String, dynamic> _buildSafeAdditionalInfo(Map<String, dynamic> data) {
+    Map<String, dynamic> buildSafeAdditionalInfo(Map<String, dynamic> data) {
       final additionalInfo = <String, dynamic>{};
 
       // Safely add basic fields
@@ -701,7 +702,7 @@ class FirebaseFunctionsDataService extends BaseService {
       exchangeRate: null,
       createdAt: parseDate(data['created_at']) ?? DateTime.now(),
       updatedAt: parseDate(data['uploaded_at']) ?? DateTime.now(),
-      additionalInfo: _buildSafeAdditionalInfo(data),
+      additionalInfo: buildSafeAdditionalInfo(data),
     );
   }
 

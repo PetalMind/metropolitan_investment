@@ -258,7 +258,7 @@ class ClientStatsWidget extends StatelessWidget {
     } else if (capital >= 1000) {
       return '${(capital / 1000).toStringAsFixed(1)}K';
     } else {
-      return '${capital.toStringAsFixed(0)}';
+      return capital.toStringAsFixed(0);
     }
   }
 

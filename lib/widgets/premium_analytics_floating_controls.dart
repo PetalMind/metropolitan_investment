@@ -419,8 +419,9 @@ class _PremiumAnalyticsFloatingControlsState
     if (widget.currentFilter.votingStatusFilter != null) count++;
     if (widget.currentFilter.clientTypeFilter != null) count++;
     if (widget.currentFilter.minCapital > 0 ||
-        widget.currentFilter.maxCapital < double.infinity)
+        widget.currentFilter.maxCapital < double.infinity) {
       count++;
+    }
     if (widget.currentFilter.showOnlyMajorityHolders) count++;
     if (widget.currentFilter.showOnlyLargeInvestors) count++;
     if (widget.currentFilter.includeActiveOnly) count++;

@@ -419,16 +419,16 @@ class DeduplicatedProductService extends BaseService {
         totalRemainingCapital = realTotalRemainingCapital;
 
         print('💰 [DeduplicatedProduct] Kwoty finansowe zsynchronizowane:');
-        print('   - Lokalna suma inwestycji: ${totalValue}');
-        print('   - Rzeczywista suma: ${realTotalInvestmentAmount}');
-        print('   - Lokalny kapitał pozostały: ${totalRemainingCapital}');
-        print('   - Rzeczywisty kapitał: ${realTotalRemainingCapital}');
+        print('   - Lokalna suma inwestycji: $totalValue');
+        print('   - Rzeczywista suma: $realTotalInvestmentAmount');
+        print('   - Lokalny kapitał pozostały: $totalRemainingCapital');
+        print('   - Rzeczywisty kapitał: $realTotalRemainingCapital');
       }
 
-      print('✅ [DeduplicatedProduct] ${productName}:');
+      print('✅ [DeduplicatedProduct] $productName:');
       print('   - ProductId: $productId');
-      print('   - Lokalne liczenie: ${uniqueInvestorsCount}');
-      print('   - Firebase Functions: ${actualInvestorCount}');
+      print('   - Lokalne liczenie: $uniqueInvestorsCount');
+      print('   - Firebase Functions: $actualInvestorCount');
       print('   - Różnica: ${actualInvestorCount - uniqueInvestorsCount}');
       print('   - Strategia: ${result.searchStrategy}');
       print('   - Z cache: ${result.fromCache}');

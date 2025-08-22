@@ -114,7 +114,7 @@ class OptimizedProductService extends BaseService {
   }
 
   T? _getCacheData<T>(String key) {
-    final entry = _cache[key] as _CacheEntry?;
+    final entry = _cache[key];
     if (entry != null && DateTime.now().isBefore(entry.expiryTime)) {
       return entry.data as T?;
     }

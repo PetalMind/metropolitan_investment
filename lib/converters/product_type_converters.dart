@@ -5,6 +5,7 @@
 /// - Wsparcie dla dwukierunkowej konwersji
 /// - Zachowanie wszystkich danych podczas konwersji
 /// - Zgodność z `models_and_services.dart`
+library;
 
 import '../models_and_services.dart';
 
@@ -322,8 +323,9 @@ class ProductTypeConverters {
     dynamic product,
   ) {
     if (product is DeduplicatedProduct) return product;
-    if (product is OptimizedProduct)
+    if (product is OptimizedProduct) {
       return optimizedToDeduplicatedProduct(product);
+    }
     if (product is UnifiedProduct) return unifiedToDeduplicatedProduct(product);
 
     return null;

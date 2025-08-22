@@ -10,7 +10,7 @@ class PerformanceAnalyticsService extends BaseService {
   Future<PerformanceAnalytics> getPerformanceAnalytics({
     int timeRangeMonths = 12,
   }) async {
-    final cacheKey = 'performance_analytics_${timeRangeMonths}';
+    final cacheKey = 'performance_analytics_$timeRangeMonths';
 
     return getCachedData(
       cacheKey,
@@ -660,8 +660,9 @@ class PerformanceAnalyticsService extends BaseService {
     final typeStr = productType.toString().toLowerCase();
     if (typeStr == 'loans' || typeStr == 'loan') return ProductType.loans;
     if (typeStr == 'shares' || typeStr == 'share') return ProductType.shares;
-    if (typeStr == 'apartments' || typeStr == 'apartment')
+    if (typeStr == 'apartments' || typeStr == 'apartment') {
       return ProductType.apartments;
+    }
     if (typeStr == 'bonds' || typeStr == 'bond') return ProductType.bonds;
     return ProductType.bonds;
   }

@@ -47,10 +47,10 @@ class _EnhancedInvestorEmailDialogState
   List<EmailSendResult>? _results;
 
   // Enhanced features
-  Map<String, bool> _selectedInvestorIds = {};
-  Map<String, String> _customEmails =
+  final Map<String, bool> _selectedInvestorIds = {};
+  final Map<String, String> _customEmails =
       {}; // Możliwość edycji emaili per inwestor
-  Map<String, List<String>> _selectedInvestmentIds =
+  final Map<String, List<String>> _selectedInvestmentIds =
       {}; // Wybrane inwestycje per inwestor
   bool _personalizeForEachInvestor = true;
   bool _includeInvestmentDetails = true;
@@ -109,7 +109,7 @@ W razie pytań prosimy o kontakt.
     return Dialog(
       backgroundColor: AppTheme.surfaceCard,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
+      child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.95,
         height: MediaQuery.of(context).size.height * 0.9,
         child: Column(
@@ -367,7 +367,7 @@ W razie pytań prosimy o kontakt.
                                 activeColor: AppTheme.secondaryGold,
                                 dense: true,
                               );
-                            }).toList(),
+                            }),
                           ],
                         ),
                       ),
