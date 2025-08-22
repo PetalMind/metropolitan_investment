@@ -1191,7 +1191,10 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         double productCapitalSecured = 0;
         for (final inv in relatedInvestments) {
           productCapitalForRestructuring += _getCapitalForRestructuring(inv);
-          productCapitalSecured += inv.capitalSecuredByRealEstate;
+          // 🚀 FIX: Oblicz kapitał zabezpieczony po stronie frontendu
+          // Backend zwraca zawsze 0, więc obliczamy: remainingCapital - capitalForRestructuring
+          final calculatedSecured = (inv.remainingCapital - _getCapitalForRestructuring(inv)).clamp(0.0, double.infinity);
+          productCapitalSecured += calculatedSecured;
         }
 
         totalCapitalForRestructuring += productCapitalForRestructuring;
@@ -1212,8 +1215,15 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         );
         totalCapitalForRestructuring += investmentCapitalForRestructuring;
 
-        // Używaj pola capitalSecuredByRealEstate zamiast wzoru
-        totalCapitalSecured += investment.capitalSecuredByRealEstate;
+        // 🚀 FIX: Oblicz kapitał zabezpieczony po stronie frontendu
+        // Backend zwraca zawsze 0, więc obliczamy: remainingCapital - capitalForRestructuring
+        final calculatedSecured = (investment.remainingCapital - investmentCapitalForRestructuring).clamp(0.0, double.infinity);
+        totalCapitalSecured += calculatedSecured;
+        
+        // 🔍 DEBUG: Log dla wybranych inwestycji
+        if (investment.remainingCapital > 0) {
+          print('🔍 [Selected] ${investment.id}: remaining=${investment.remainingCapital}, restructuring=${investmentCapitalForRestructuring}, secured=${calculatedSecured}');
+        }
 
         if (investment.status == InvestmentStatus.active) {
           activeItems++;
@@ -2434,11 +2444,23 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   UnifiedDashboardStatistics _convertGlobalStatsToUnified(
     GlobalProductStatistics globalStats,
   ) {
-    // Oblicz rzeczywisty kapitał zabezpieczony z inwestycji
+    // 🚀 FIX: Oblicz rzeczywisty kapitał zabezpieczony z inwestycji
+    // Backend zwraca zawsze 0, więc obliczamy po stronie frontendu
     double realCapitalSecured = 0;
+    print('🔍 [ProductDashboard] Obliczanie kapitału zabezpieczonego dla ${_investments.length} inwestycji');
+    
     for (final investment in _investments) {
-      realCapitalSecured += investment.capitalSecuredByRealEstate;
+      final investmentCapitalForRestructuring = _getCapitalForRestructuring(investment);
+      final calculatedSecured = investment.calculatedCapitalSecuredByRealEstate; // 🚀 Użyj nowego gettera
+      realCapitalSecured += calculatedSecured;
+      
+      // 🔍 DEBUG: Log szczegółów obliczenia
+      if (investment.remainingCapital > 0) {
+        print('  • ${investment.id}: remainingCapital=${investment.remainingCapital}, capitalForRestructuring=${investmentCapitalForRestructuring}, secured=${calculatedSecured}');
+      }
     }
+    
+    print('🔍 [ProductDashboard] Łączny kapitał zabezpieczony: $realCapitalSecured PLN');
 
     // Szacuj kapitał do restrukturyzacji jako 5% całkowitej wartości (benchmark)
     final estimatedCapitalForRestructuring = globalStats.totalValue * 0.05;

@@ -116,6 +116,13 @@ class Investment {
   double get profitLossPercentage =>
       investmentAmount > 0 ? (profitLoss / investmentAmount) * 100 : 0.0;
 
+  // 🚀 NOWE: Obliczony kapitał zabezpieczony (frontend calculation)
+  // Backend zwraca zawsze 0, więc obliczamy: remainingCapital - capitalForRestructuring
+  double get calculatedCapitalSecuredByRealEstate {
+    final secured = (remainingCapital - capitalForRestructuring).clamp(0.0, double.infinity);
+    return secured;
+  }
+
   factory Investment.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
 

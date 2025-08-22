@@ -298,6 +298,11 @@ class UserProfile {
   });
 
   String get fullName => '$firstName $lastName';
+  
+  // 🔒 ROLE MANAGEMENT: Support for super-admin role
+  bool get isAdmin => role == 'admin' || role == 'super-admin' || role == 'superadmin';
+  bool get isSuperAdmin => role == 'super-admin' || role == 'superadmin';
+  bool get isVisibleAdmin => role == 'admin'; // Admin visible in interfaces
 
   factory UserProfile.fromMap(Map<String, dynamic> map) {
     return UserProfile(

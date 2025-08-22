@@ -84,10 +84,8 @@ class _MainLayoutState extends State<MainLayout> {
             final route = MainNavigationItems.items[index].route;
             context.go(route);
 
-            // Wyczyść powiadomienia kalendarza po kliknięciu
-            if (route == '/calendar') {
-              notificationService.clearCalendarNotifications();
-            }
+            // 🚀 USUNIĘTO: Powiadomienia kalendarza nie znikają natychmiast
+            // Powinny pozostać aktywne do dnia po zakończeniu wydarzenia
           },
           extended: _isRailExtended,
           minExtendedWidth: 220,
@@ -313,10 +311,8 @@ class _MainLayoutState extends State<MainLayout> {
                     Navigator.of(context).pop(); // Zamknij drawer
                     context.go(item.route);
 
-                    // Wyczyść powiadomienia kalendarza po kliknięciu
-                    if (item.route == '/calendar') {
-                      notificationService.clearCalendarNotifications();
-                    }
+                    // 🚀 USUNIĘTO: Powiadomienia kalendarza nie znikają natychmiast
+                    // Powinny pozostać aktywne do dnia po zakończeniu wydarzenia
                   },
                 );
               }).toList(),

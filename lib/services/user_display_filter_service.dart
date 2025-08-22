@@ -104,7 +104,20 @@ class UserDisplayFilterService extends BaseService {
   }
   
   /// Czyści cache (przydatne po zmianach ról)
-  void clearCache() {
+  @override
+  void clearCache(String key) {
+    if (key == 'all' || key.isEmpty) {
+      _superAdminCache.clear();
+      _emailSuperAdminCache.clear();
+    } else if (key.startsWith('uid:')) {
+      _superAdminCache.remove(key.substring(4));
+    } else if (key.startsWith('email:')) {
+      _emailSuperAdminCache.remove(key.substring(6));
+    }
+  }
+  
+  /// Czyści cały cache
+  void clearAllCache() {
     _superAdminCache.clear();
     _emailSuperAdminCache.clear();
   }

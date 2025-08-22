@@ -6,6 +6,12 @@ import '../models/calendar/calendar_event.dart';
 /// Service do zarządzania powiadomieniami kalendarza
 /// Integruje się z CalendarService i NotificationService
 /// 🚀 ENHANCED: Real-time notifications with smart caching
+/// 
+/// LOGIKA POWIADOMIEŃ:
+/// - Powiadomienia pokazują się dla aktywnych wydarzeń (nie wygasłych)
+/// - Wydarzenie jest "wygasłe" dopiero dzień po jego zakończeniu
+/// - Badge'y znikają automatycznie gdy minął dzień od endDate wydarzenia
+/// - Nie ma automatycznego czyszczenia przy kliknięciu w kalendarz
 class CalendarNotificationService {
   static final CalendarNotificationService _instance =
       CalendarNotificationService._internal();
@@ -76,29 +82,49 @@ class CalendarNotificationService {
     
     // Pobierz wydarzenia z nadchodzącego tygodnia
     final upcomingEvents = await _calendarService.getEventsInRange(
-      startDate: today,
+      startDate: today.subtract(const Duration(days: 7)), // Sprawdź też ostatni tydzień
       endDate: nextWeek,
     );
 
-    // Liczy wydarzenia wymagające uwagi
-    final importantEvents = upcomingEvents.where((event) {
-      // Wydarzenia dzisiejsze z wysokim priorytetem
-      final isToday = _isSameDay(event.startDate, today);
-      final isUrgent = event.priority == CalendarEventPriority.urgent;
-      final isHighPriority = event.priority == CalendarEventPriority.high;
-      final isPending = event.status == CalendarEventStatus.pending;
-      final isTentative = event.status == CalendarEventStatus.tentative;
+    // 🚀 FIX: Liczy WSZYSTKIE aktywne wydarzenia (nie wygasłe)
+    // Badge ma pokazywać się dla każdego wydarzenia, które jeszcze nie minęło
+    final activeEvents = upcomingEvents.where((event) {
+      // Sprawdź czy wydarzenie nie jest już wygasłe (minął dzień od endDate)
+      if (_isEventExpired(event)) {
+        return false; // Nie liczę wygasłych wydarzeń
+      }
 
-      // Logika liczenia:
-      // 1. Wszystkie pilne wydarzenia
-      // 2. Wydarzenia dzisiejsze z wysokim priorytetem
-      // 3. Wydarzenia oczekujące lub wstępne z tego tygodnia
-      return isUrgent || 
-             (isToday && isHighPriority) || 
-             (isPending || isTentative);
+      // Sprawdź czy nie jest anulowane
+      if (event.status == CalendarEventStatus.cancelled) {
+        return false; // Nie liczę anulowanych wydarzeń
+      }
+
+      // Wszystkie inne wydarzenia (nie wygasłe, nie anulowane) są liczone
+      return true;
     }).toList();
 
-    return importantEvents.length;
+    // 🚀 DEBUG: Log dla debugowania
+    print('📅 CalendarNotificationService: Znaleziono ${upcomingEvents.length} wydarzeń, aktywnych: ${activeEvents.length}');
+    for (final event in activeEvents) {
+      print('   • ${event.title} (${event.startDate.day}/${event.startDate.month}) - ${event.status.name} - ${event.priority.name}');
+    }
+
+    return activeEvents.length;
+  }
+
+  /// 🚀 NOWE: Sprawdza czy wydarzenie jest wygasłe (minął dzień od endDate)
+  bool _isEventExpired(CalendarEvent event) {
+    final now = DateTime.now();
+    final eventEndDate = event.endDate;
+    
+    // Wydarzenie jest wygasłe jeśli minął co najmniej dzień od jego zakończenia
+    final dayAfterEvent = DateTime(
+      eventEndDate.year,
+      eventEndDate.month,
+      eventEndDate.day + 1,
+    );
+    
+    return now.isAfter(dayAfterEvent);
   }
 
   /// Helper method do sprawdzania czy daty to ten sam dzień
@@ -120,21 +146,20 @@ class CalendarNotificationService {
       final nextWeek = now.add(const Duration(days: 7));
 
       final upcomingEvents = await _calendarService.getEventsInRange(
-        startDate: now,
+        startDate: now.subtract(const Duration(days: 7)), // Sprawdź też ostatni tydzień
         endDate: nextWeek,
       );
 
-      // Liczy wydarzenia wymagające uwagi
-      final importantEvents = upcomingEvents
+      // 🚀 FIX: Liczy WSZYSTKIE aktywne wydarzenia (nie wygasłe, nie anulowane)
+      final activeEvents = upcomingEvents
           .where(
             (event) =>
-                event.status == CalendarEventStatus.pending ||
-                event.status == CalendarEventStatus.tentative ||
-                event.priority == CalendarEventPriority.urgent,
+                !_isEventExpired(event) && // Sprawdź czy nie wygasłe
+                event.status != CalendarEventStatus.cancelled, // Sprawdź czy nie anulowane
           )
           .toList();
 
-      _notificationService.updateCalendarNotifications(importantEvents.length);
+      _notificationService.updateCalendarNotifications(activeEvents.length);
     } catch (e) {
       print('Błąd podczas sprawdzania nadchodzących wydarzeń: $e');
       // Fallback do symulacji tylko jeśli nie ma danych
@@ -275,15 +300,20 @@ class CalendarNotificationService {
   Future<List<CalendarNotification>> getCalendarNotifications() async {
     try {
       final today = DateTime.now();
-      final todayEvents = await _calendarService.getEventsForDate(today);
+      final nextWeek = today.add(const Duration(days: 7));
+      
+      // Pobierz wydarzenia z szerszego zakresu (ostatni tydzień + przyszły tydzień)
+      final events = await _calendarService.getEventsInRange(
+        startDate: today.subtract(const Duration(days: 7)),
+        endDate: nextWeek,
+      );
 
-      // Konwertuj wydarzenia na powiadomienia
-      return todayEvents
+      // 🚀 FIX: Konwertuj WSZYSTKIE aktywne wydarzenia na powiadomienia (nie wygasłe, nie anulowane)
+      return events
           .where(
             (event) =>
-                event.status == CalendarEventStatus.pending ||
-                event.priority == CalendarEventPriority.urgent ||
-                event.priority == CalendarEventPriority.high,
+                !_isEventExpired(event) && // Sprawdź czy nie wygasłe
+                event.status != CalendarEventStatus.cancelled, // Sprawdź czy nie anulowane
           )
           .map(
             (event) => CalendarNotification(
