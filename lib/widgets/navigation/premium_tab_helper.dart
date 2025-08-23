@@ -5,54 +5,13 @@ import '../../theme/app_theme_professional.dart';
 /// Helper dla łatwego konfigurowania nawigacji w Premium Analytics
 class PremiumTabHelper {
   /// Zwraca listę standardowych zakładek dla Analytics
-  static List<PremiumTabItem> getAnalyticsTabItems({
-    bool showBadges = false,
-    int? investorsCount,
-    int? majorityCount,
-    int? alertsCount,
-  }) {
+  static List<PremiumTabItem> getAnalyticsTabItems() {
     return [
       PremiumTabExtensions.overview,
-      showBadges && investorsCount != null
-          ? PremiumTabItem(
-              label: 'Inwestorzy',
-              icon: Icons.people_rounded,
-              tooltip: 'Lista inwestorów ($investorsCount)',
-            )
-          : PremiumTabExtensions.investors,
+      PremiumTabExtensions.investors,
       PremiumTabExtensions.analytics,
-      showBadges && majorityCount != null
-          ? PremiumTabItem(
-              label: 'Większość',
-              icon: Icons.groups_rounded,
-              tooltip: 'Grupy większościowe ($majorityCount)',
-            )
-          : PremiumTabExtensions.majority,
+      PremiumTabExtensions.majority,
     ];
-  }
-
-  /// Zwraca mapę z liczbami badge'ów dla każdej zakładki
-  static Map<int, int> getBadgeCounts({
-    int? investorsCount,
-    int? majorityCount,
-    int? alertsCount,
-    int? analyticsAlerts,
-  }) {
-    final badges = <int, int>{};
-
-    if (investorsCount != null && investorsCount > 0) {
-      badges[1] = investorsCount;
-    }
-
-    if (analyticsAlerts != null && analyticsAlerts > 0) {
-      badges[2] = analyticsAlerts;
-    }
-
-    if (majorityCount != null && majorityCount > 0) {
-      badges[3] = majorityCount;
-    }
-
-    return badges;
   }
 
   /// Buduje tryb eksportu z informacją o wybranych elementach

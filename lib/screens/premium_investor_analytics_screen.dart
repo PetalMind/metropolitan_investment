@@ -23,8 +23,8 @@ import '../widgets/premium_analytics/performance_metrics_widget.dart';
 import '../widgets/premium_analytics/trend_analysis_widget.dart';
 import '../widgets/navigation/premium_tab_navigation.dart';
 import '../widgets/navigation/premium_tab_helper.dart';
-
-// RBAC wspólna stała tooltip
+import '../widgets/majority_analysis/majority_analysis_view.dart'
+    as majority_widget;
 const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
 
 // === Przywrócona definicja widgetu i stanu ===
@@ -1026,20 +1026,10 @@ class _PremiumInvestorAnalyticsScreenState
   Widget _buildTabBar() {
     return PremiumTabNavigation(
       tabController: _tabController,
-      tabs: PremiumTabHelper.getAnalyticsTabItems(
-        showBadges: true,
-        investorsCount: _displayedInvestors.length,
-        majorityCount: _majorityHolders.length,
-      ),
+      tabs: PremiumTabHelper.getAnalyticsTabItems(),
       isTablet: _isTablet,
       isExportMode: _isExportMode,
       isEmailMode: _isEmailMode,
-      showBadges: true,
-      badgeCounts: PremiumTabHelper.getBadgeCounts(
-        investorsCount: _displayedInvestors.length,
-        majorityCount: _majorityHolders.length,
-        analyticsAlerts: 0, // Placeholder dla przyszłych alertów
-      ),
       customExportBar: _isExportMode
           ? PremiumTabHelper.buildExportModeBar(
               selectedCount: _selectedInvestorIds.length,
@@ -1189,19 +1179,30 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildMajorityTab() {
-    return CustomScrollView(
-      controller: _scrollController,
-      slivers: [
-        if (_isFilterVisible) _buildFilterPanel(),
-        if (_isLoading)
-          _buildLoadingSliver()
-        else if (_error != null)
-          _buildErrorSliver()
-        else ...[
-          _buildMajorityControlSliver(),
-          _buildMajorityHoldersContent(),
-        ],
-      ],
+    if (_isLoading) {
+      return _buildLoadingSliver();
+    }
+
+    if (_error != null) {
+      return _buildErrorSliver();
+    }
+
+    // Oblicz całkowity kapitał z wszystkich inwestorów
+    final totalCapital = _majorityHolders.fold<double>(
+      0.0,
+      (sum, investor) => sum + investor.totalRemainingCapital,
+    );
+
+    return majority_widget.MajorityAnalysisView(
+      majorityHolders: _majorityHolders,
+      majorityThreshold: _majorityThreshold,
+      totalCapital: totalCapital,
+      isTablet: _isTablet,
+      viewMode: majority_widget.ViewMode.cards, // Domyślny tryb widoku
+      onInvestorTap: (investor) {
+        // Tutaj można dodać nawigację do szczegółów inwestora
+        print('Tapped investor: ${investor.client.name}');
+      },
     );
   }
 
@@ -1426,160 +1427,6 @@ class _PremiumInvestorAnalyticsScreenState
           label: Text('Zastosuj'),
         ),
       ],
-    );
-  }
-
-  Widget _buildSearchBar() {
-    final hasInitialSearch =
-        widget.initialSearchQuery != null &&
-        widget.initialSearchQuery!.isNotEmpty;
-
-    return SliverToBoxAdapter(
-      child: Column(
-        children: [
-          // Info banner gdy wyszukiwanie przez link
-          if (hasInitialSearch &&
-              _searchQuery == widget.initialSearchQuery) ...[
-            Container(
-              margin: EdgeInsets.all(_isTablet ? 16 : 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppThemePro.accentGold.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppThemePro.accentGold.withOpacity(0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: AppThemePro.accentGold,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Wyszukano inwestora: "${widget.initialSearchQuery}"',
-                      style: TextStyle(
-                        color: AppThemePro.accentGold,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() => _searchQuery = '');
-                      _applyFiltersAndSort();
-                    },
-                    child: Text(
-                      'Wyczyść',
-                      style: TextStyle(color: AppThemePro.accentGold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          // Search bar
-          Container(
-            margin: EdgeInsets.all(_isTablet ? 16 : 12),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Szukaj inwestorów...',
-                prefixIcon: Icon(Icons.search_rounded),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear_rounded),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                          _applyFiltersAndSort();
-                        },
-                      )
-                    : null,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInvestorsSortBar() {
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: EdgeInsets.symmetric(
-          horizontal: _isTablet ? 16 : 12,
-          vertical: 8,
-        ),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppThemePro.surfaceCard,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppThemePro.borderSecondary),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.sort_rounded,
-              color: AppThemePro.textSecondary,
-              size: 20,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Sortuj według:',
-              style: TextStyle(
-                color: AppThemePro.textSecondary,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildSortChip('name', 'Nazwa'),
-                  _buildSortChip('viableRemainingCapital', 'Kapitał pozostały'),
-                  _buildSortChip('investmentCount', 'Liczba inwestycji'),
-                  _buildSortChip('votingStatus', 'Status głosowania'),
-                  _buildSortChip('totalInvestmentAmount', 'Kwota inwestycji'),
-                  _buildSortChip(
-                    'capitalSecuredByRealEstate',
-                    'Kapitał zabezpieczony nieruchomościami',
-                  ),
-                  _buildSortChip(
-                    'capitalForRestructuring',
-                    'Kapitał do restrukturyzacji',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            IconButton(
-              onPressed: () {
-                setState(() {
-                  _sortAscending = !_sortAscending;
-                });
-                _applyFiltersAndSort();
-              },
-              icon: Icon(
-                _sortAscending
-                    ? Icons.arrow_upward_rounded
-                    : Icons.arrow_downward_rounded,
-                color: AppThemePro.accentGold,
-                size: 20,
-              ),
-              tooltip: _sortAscending ? 'Rosnąco' : 'Malejąco',
-            ),
-          ],
-        ),
-      ),
     );
   }
 

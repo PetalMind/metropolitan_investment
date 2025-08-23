@@ -15,8 +15,6 @@ class PremiumTabNavigation extends StatefulWidget {
   final Widget? customEmailBar;
   final EdgeInsets? padding;
   final double? height;
-  final bool showBadges;
-  final Map<int, int>? badgeCounts;
 
   const PremiumTabNavigation({
     super.key,
@@ -31,8 +29,6 @@ class PremiumTabNavigation extends StatefulWidget {
     this.customEmailBar,
     this.padding,
     this.height,
-    this.showBadges = false,
-    this.badgeCounts,
   });
 
   @override
@@ -226,9 +222,6 @@ class _PremiumTabNavigationState extends State<PremiumTabNavigation>
   Widget _buildAnimatedTab(PremiumTabItem tab) {
     final index = widget.tabs.indexOf(tab);
     final isSelected = widget.tabController.index == index;
-    final badgeCount = widget.showBadges && widget.badgeCounts != null
-        ? widget.badgeCounts![index]
-        : null;
 
     return AnimatedBuilder(
       animation: widget.tabController.animation!,
@@ -247,7 +240,7 @@ class _PremiumTabNavigationState extends State<PremiumTabNavigation>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildTabIcon(tab, isSelected, animationValue, badgeCount),
+                  _buildTabIcon(tab, isSelected, animationValue),
                   const SizedBox(height: 6),
                   _buildTabLabel(tab, isSelected, animationValue),
                 ],
@@ -263,75 +256,36 @@ class _PremiumTabNavigationState extends State<PremiumTabNavigation>
     PremiumTabItem tab,
     bool isSelected,
     double animationValue,
-    int? badgeCount,
   ) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            color: isSelected
-                ? AppThemePro.accentGold.withValues(alpha: 0.15)
-                : Colors.transparent,
-            border: Border.all(
-              color: isSelected
-                  ? AppThemePro.accentGold.withValues(alpha: 0.4)
-                  : Colors.transparent,
-              width: 1.5,
-            ),
-          ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: Icon(
-              tab.icon,
-              key: ValueKey(isSelected),
-              size: widget.isTablet ? 22 : 20,
-              color: Color.lerp(
-                AppThemePro.textSecondary,
-                AppThemePro.accentGold,
-                animationValue,
-              ),
-            ),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: isSelected
+            ? AppThemePro.accentGold.withValues(alpha: 0.15)
+            : Colors.transparent,
+        border: Border.all(
+          color: isSelected
+              ? AppThemePro.accentGold.withValues(alpha: 0.4)
+              : Colors.transparent,
+          width: 1.5,
+        ),
+      ),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: Icon(
+          tab.icon,
+          key: ValueKey(isSelected),
+          size: widget.isTablet ? 22 : 20,
+          color: Color.lerp(
+            AppThemePro.textSecondary,
+            AppThemePro.accentGold,
+            animationValue,
           ),
         ),
-
-        // Badge z liczbą
-        if (badgeCount != null && badgeCount > 0)
-          Positioned(
-            right: -2,
-            top: -2,
-            child: AnimatedScale(
-              scale: isSelected ? 1.1 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppThemePro.statusError,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppThemePro.statusError.withValues(alpha: 0.4),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  badgeCount > 99 ? '99+' : badgeCount.toString(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
+      ),
     );
   }
 

@@ -99,10 +99,14 @@ class _TrendAnalysisWidgetState extends State<TrendAnalysisWidget>
   }
 
   void _startAnimations() {
-    _primaryAnimationController.forward();
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _chartAnimationController.forward();
-    });
+    if (mounted) {
+      _primaryAnimationController.forward();
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _chartAnimationController.forward();
+        }
+      });
+    }
   }
 
   @override
