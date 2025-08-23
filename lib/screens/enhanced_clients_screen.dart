@@ -927,15 +927,23 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
       if (!mounted) return;
 
+      // 🚀 NOWY: Używamy modułowego EmailEditorWidget
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => EnhancedEmailEditorDialog(
-          selectedInvestors: investorsData,
-          onEmailSent: () {
-            _exitSelectionMode();
-            _showSuccessSnackBar('Email został wysłany pomyślnie');
-          },
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(16),
+          child: EmailEditorWidget(
+            investors: investorsData,
+            onEmailSent: () {
+              Navigator.of(context).pop();
+              _exitSelectionMode();
+              _showSuccessSnackBar('Email został wysłany pomyślnie');
+            },
+            initialSubject: 'Wiadomość dla klientów - Metropolitan Investment',
+            showAsDialog: true,
+          ),
         ),
       );
     } catch (e) {

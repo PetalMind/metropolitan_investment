@@ -18,7 +18,8 @@ import '../widgets/product_card_widget.dart';
 import '../widgets/product_filter_widget.dart';
 import '../widgets/metropolitan_loading_system.dart';
 import '../widgets/dialogs/product_details_dialog.dart';
-import '../widgets/dialogs/enhanced_email_editor_dialog.dart'; // 🚀 ZMIENIONE: Używamy tego samego co premium_investor_analytics_screen
+// Zastąpiono starymi dialogami modułowy system email
+// import '../widgets/dialogs/enhanced_email_editor_dialog.dart'; // 🚀 ZMIENIONE: Używamy tego samego co premium_investor_analytics_screen
 import '../widgets/common/synchronized_product_values_widget.dart'; // 🚀 NOWY: Zsynchronizowane wartości
 
 // RBAC: wspólny tooltip dla braku uprawnień
@@ -4011,21 +4012,28 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       investorSummaries.add(investorSummary);
     }
 
-    // Używamy dokładnie tego samego dialogu co w premium_investor_analytics_screen
+    // 🚀 NOWY: Używamy modułowego EmailEditorWidget
     showDialog(
       context: context,
-      builder: (context) => EnhancedEmailEditorDialog(
-        selectedInvestors: investorSummaries,
-        onEmailSent: () {
-          Navigator.of(context).pop();
-          _toggleEmailMode(); // 🚀 DODANE: Używamy tej samej logiki co premium_investor_analytics_screen
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Emaile zostały wysłane'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        },
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: EmailEditorWidget(
+          investors: investorSummaries,
+          onEmailSent: () {
+            Navigator.of(context).pop();
+            _toggleEmailMode(); // 🚀 DODANE: Używamy tej samej logiki co premium_investor_analytics_screen
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Emaile zostały wysłane'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          },
+          initialSubject: 'Informacje o produktach - Metropolitan Investment',
+          showAsDialog: true,
+        ),
       ),
     );
   }

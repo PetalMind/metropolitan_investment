@@ -35,7 +35,6 @@ class PremiumAnalyticsHeader extends StatefulWidget {
   final bool canEdit;
   final int totalCount;
   final bool isLoading;
-  final bool isRefreshing;
 
   // === STATE PROPS ===
   final bool isSelectionMode;
@@ -45,16 +44,10 @@ class PremiumAnalyticsHeader extends StatefulWidget {
   final Set<String> selectedInvestorIds;
   final List<InvestorSummary> displayedInvestors;
 
-  // === VIEW MODE ===
-  final ViewMode currentViewMode;
-  final bool isMajorityTab;
-
   // === CALLBACKS ===
-  final VoidCallback onRefresh;
   final VoidCallback onToggleExport;
   final VoidCallback onToggleEmail;
   final VoidCallback onToggleFilter;
-  final ValueChanged<ViewMode> onViewModeChanged;
   final VoidCallback onSelectAll;
   final VoidCallback onClearSelection;
 
@@ -64,20 +57,15 @@ class PremiumAnalyticsHeader extends StatefulWidget {
     required this.canEdit,
     required this.totalCount,
     required this.isLoading,
-    required this.isRefreshing,
     required this.isSelectionMode,
     required this.isExportMode,
     required this.isEmailMode,
     required this.isFilterVisible,
     required this.selectedInvestorIds,
     required this.displayedInvestors,
-    required this.currentViewMode,
-    required this.isMajorityTab,
-    required this.onRefresh,
     required this.onToggleExport,
     required this.onToggleEmail,
     required this.onToggleFilter,
-    required this.onViewModeChanged,
     required this.onSelectAll,
     required this.onClearSelection,
   });
@@ -190,10 +178,6 @@ class _PremiumAnalyticsHeaderState extends State<PremiumAnalyticsHeader>
                 _buildSelectionControls(),
               ] else ...[
                 _buildActionButtons(),
-                if (!widget.isTablet) ...[
-                  const SizedBox(width: 4),
-                  _buildViewModeToggle(),
-                ],
               ],
               const SizedBox(width: 8),
               _buildFilterButton(),
@@ -416,8 +400,6 @@ class _PremiumAnalyticsHeaderState extends State<PremiumAnalyticsHeader>
             _buildSelectionButton(),
             const SizedBox(width: 8),
           ],
-          _buildViewModeToggle(),
-          const SizedBox(width: 8),
         ],
       ),
     );
@@ -470,13 +452,9 @@ class _PremiumAnalyticsHeaderState extends State<PremiumAnalyticsHeader>
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildRefreshButton(),
-                const SizedBox(width: 8),
                 _buildExportButton(),
                 const SizedBox(width: 8),
                 _buildEmailButton(),
-                const SizedBox(width: 8),
-                _buildViewModeToggle(),
                 const SizedBox(width: 8),
               ],
             )
@@ -488,9 +466,6 @@ class _PremiumAnalyticsHeaderState extends State<PremiumAnalyticsHeader>
               tooltip: 'Więcej opcji',
               onSelected: (value) {
                 switch (value) {
-                  case 'refresh':
-                    if (widget.canEdit && !widget.isLoading) widget.onRefresh();
-                    break;
                   case 'export':
                     if (widget.canEdit) widget.onToggleExport();
                     break;
@@ -500,28 +475,6 @@ class _PremiumAnalyticsHeaderState extends State<PremiumAnalyticsHeader>
                 }
               },
               itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'refresh',
-                  enabled: widget.canEdit && !widget.isLoading,
-                  child: Row(
-                    children: [
-                      widget.isRefreshing
-                          ? SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(
-                                  AppThemePro.accentGold,
-                                ),
-                              ),
-                            )
-                          : Icon(Icons.refresh_rounded, size: 16),
-                      const SizedBox(width: 8),
-                      Text('Odśwież'),
-                    ],
-                  ),
-                ),
                 PopupMenuItem(
                   value: 'export',
                   enabled: widget.canEdit,
@@ -569,82 +522,102 @@ class _PremiumAnalyticsHeaderState extends State<PremiumAnalyticsHeader>
     );
   }
 
-  Widget _buildRefreshButton() {
-    const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
-
-    return Tooltip(
-      message: widget.canEdit ? 'Odśwież dane' : kRbacNoPermissionTooltip,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: widget.isRefreshing
-              ? AppThemePro.statusWarning.withOpacity(0.1)
-              : Colors.transparent,
-        ),
-        child: IconButton(
-          onPressed: (!widget.canEdit || widget.isLoading)
-              ? null
-              : widget.onRefresh,
-          icon: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: widget.isRefreshing
-                ? SizedBox(
-                    key: const ValueKey('loading'),
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(
-                        AppThemePro.accentGold,
-                      ),
-                    ),
-                  )
-                : Icon(
-                    key: const ValueKey('refresh'),
-                    Icons.refresh_rounded,
-                    color: widget.canEdit
-                        ? AppThemePro.textSecondary
-                        : Colors.grey,
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildExportButton() {
     const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
 
     return Tooltip(
       message: widget.canEdit
-          ? (widget.isExportMode ? 'Zakończ eksport' : 'Eksportuj dane')
+          ? (widget.isExportMode ? 'Zakończ eksport' : 'Eksportuj wybrane dane')
           : kRbacNoPermissionTooltip,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          color: widget.isExportMode
-              ? AppThemePro.statusError.withOpacity(0.1)
-              : Colors.transparent,
+          gradient: widget.isExportMode
+              ? LinearGradient(
+                  colors: [
+                    AppThemePro.statusError.withOpacity(0.15),
+                    AppThemePro.statusError.withOpacity(0.05),
+                  ],
+                )
+              : (widget.canEdit
+                    ? LinearGradient(
+                        colors: [
+                          AppThemePro.accentGold.withOpacity(0.1),
+                          AppThemePro.accentGold.withOpacity(0.05),
+                        ],
+                      )
+                    : null),
           border: widget.isExportMode
-              ? Border.all(color: AppThemePro.statusError.withOpacity(0.3))
-              : null,
+              ? Border.all(
+                  color: AppThemePro.statusError.withOpacity(0.4),
+                  width: 1.5,
+                )
+              : (widget.canEdit
+                    ? Border.all(
+                        color: AppThemePro.accentGold.withOpacity(0.3),
+                        width: 1,
+                      )
+                    : Border.all(
+                        color: Colors.grey.withOpacity(0.2),
+                        width: 1,
+                      )),
+          boxShadow: widget.isExportMode
+              ? [
+                  BoxShadow(
+                    color: AppThemePro.statusError.withOpacity(0.2),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : (widget.canEdit
+                    ? [
+                        BoxShadow(
+                          color: AppThemePro.accentGold.withOpacity(0.1),
+                          blurRadius: 6,
+                          spreadRadius: 0.5,
+                        ),
+                      ]
+                    : null),
         ),
-        child: IconButton(
-          onPressed: !widget.canEdit ? null : widget.onToggleExport,
-          icon: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: Icon(
-              widget.isExportMode
-                  ? Icons.close_rounded
-                  : Icons.download_rounded,
-              key: ValueKey(widget.isExportMode),
-              color: widget.isExportMode
-                  ? AppThemePro.statusError
-                  : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
+        child: Stack(
+          children: [
+            IconButton(
+              onPressed: !widget.canEdit ? null : widget.onToggleExport,
+              icon: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Icon(
+                  widget.isExportMode
+                      ? Icons.close_rounded
+                      : Icons.download_rounded,
+                  key: ValueKey(widget.isExportMode),
+                  color: widget.isExportMode
+                      ? AppThemePro.statusError
+                      : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
+                  size: 20,
+                ),
+              ),
             ),
-          ),
+            if (widget.isExportMode)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: AppThemePro.statusError,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppThemePro.statusError.withOpacity(0.5),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -655,71 +628,182 @@ class _PremiumAnalyticsHeaderState extends State<PremiumAnalyticsHeader>
 
     return Tooltip(
       message: widget.canEdit
-          ? (widget.isEmailMode ? 'Zakończ wysyłanie' : 'Wyślij emaile')
+          ? (widget.isEmailMode
+                ? 'Zakończ wysyłanie email'
+                : 'Wyślij email do wybranych')
           : kRbacNoPermissionTooltip,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          color: widget.isEmailMode
-              ? AppThemePro.statusError.withOpacity(0.1)
-              : Colors.transparent,
+          gradient: widget.isEmailMode
+              ? LinearGradient(
+                  colors: [
+                    AppThemePro.statusError.withOpacity(0.15),
+                    AppThemePro.statusError.withOpacity(0.05),
+                  ],
+                )
+              : (widget.canEdit
+                    ? LinearGradient(
+                        colors: [
+                          AppThemePro.accentGold.withOpacity(0.1),
+                          AppThemePro.accentGold.withOpacity(0.05),
+                        ],
+                      )
+                    : null),
           border: widget.isEmailMode
-              ? Border.all(color: AppThemePro.statusError.withOpacity(0.3))
-              : null,
+              ? Border.all(
+                  color: AppThemePro.statusError.withOpacity(0.4),
+                  width: 1.5,
+                )
+              : (widget.canEdit
+                    ? Border.all(
+                        color: AppThemePro.accentGold.withOpacity(0.3),
+                        width: 1,
+                      )
+                    : Border.all(
+                        color: Colors.grey.withOpacity(0.2),
+                        width: 1,
+                      )),
+          boxShadow: widget.isEmailMode
+              ? [
+                  BoxShadow(
+                    color: AppThemePro.statusError.withOpacity(0.2),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : (widget.canEdit
+                    ? [
+                        BoxShadow(
+                          color: AppThemePro.accentGold.withOpacity(0.1),
+                          blurRadius: 6,
+                          spreadRadius: 0.5,
+                        ),
+                      ]
+                    : null),
         ),
-        child: IconButton(
-          onPressed: !widget.canEdit ? null : widget.onToggleEmail,
-          icon: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: Icon(
-              widget.isEmailMode ? Icons.close_rounded : Icons.email_rounded,
-              key: ValueKey(widget.isEmailMode),
-              color: widget.isEmailMode
-                  ? AppThemePro.statusError
-                  : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
+        child: Stack(
+          children: [
+            IconButton(
+              onPressed: !widget.canEdit ? null : widget.onToggleEmail,
+              icon: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Icon(
+                  widget.isEmailMode
+                      ? Icons.close_rounded
+                      : Icons.email_rounded,
+                  key: ValueKey(widget.isEmailMode),
+                  color: widget.isEmailMode
+                      ? AppThemePro.statusError
+                      : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
+                  size: 20,
+                ),
+              ),
             ),
-          ),
+            if (widget.isEmailMode)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: AppThemePro.statusError,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppThemePro.statusError.withOpacity(0.5),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
-    );
-  }
-
-  Widget _buildViewModeToggle() {
-    return ViewModeSelector(
-      currentMode: widget.currentViewMode,
-      onModeChanged: widget.onViewModeChanged,
-      isTablet: widget.isTablet,
     );
   }
 
   Widget _buildFilterButton() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: widget.isFilterVisible
-            ? AppThemePro.accentGold.withOpacity(0.1)
-            : Colors.transparent,
-        border: widget.isFilterVisible
-            ? Border.all(color: AppThemePro.accentGold.withOpacity(0.3))
-            : null,
-      ),
-      child: IconButton(
-        onPressed: widget.onToggleFilter,
-        icon: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: Icon(
-            widget.isFilterVisible
-                ? Icons.filter_list_off_rounded
-                : Icons.filter_list_rounded,
-            key: ValueKey(widget.isFilterVisible),
-            color: widget.isFilterVisible
-                ? AppThemePro.accentGold
-                : AppThemePro.textSecondary,
-          ),
+    return Tooltip(
+      message: widget.isFilterVisible ? 'Ukryj filtry' : 'Pokaż filtry',
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: widget.isFilterVisible
+              ? LinearGradient(
+                  colors: [
+                    AppThemePro.accentGold.withOpacity(0.15),
+                    AppThemePro.accentGold.withOpacity(0.05),
+                  ],
+                )
+              : LinearGradient(
+                  colors: [
+                    AppThemePro.backgroundTertiary.withOpacity(0.1),
+                    AppThemePro.backgroundTertiary.withOpacity(0.05),
+                  ],
+                ),
+          border: widget.isFilterVisible
+              ? Border.all(
+                  color: AppThemePro.accentGold.withOpacity(0.4),
+                  width: 1.5,
+                )
+              : Border.all(
+                  color: AppThemePro.borderSecondary.withOpacity(0.3),
+                  width: 1,
+                ),
+          boxShadow: widget.isFilterVisible
+              ? [
+                  BoxShadow(
+                    color: AppThemePro.accentGold.withOpacity(0.15),
+                    blurRadius: 6,
+                    spreadRadius: 0.5,
+                  ),
+                ]
+              : null,
         ),
-        tooltip: 'Filtry',
+        child: Stack(
+          children: [
+            IconButton(
+              onPressed: widget.onToggleFilter,
+              icon: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Icon(
+                  widget.isFilterVisible
+                      ? Icons.filter_list_off_rounded
+                      : Icons.filter_list_rounded,
+                  key: ValueKey(widget.isFilterVisible),
+                  color: widget.isFilterVisible
+                      ? AppThemePro.accentGold
+                      : AppThemePro.textSecondary,
+                  size: 20,
+                ),
+              ),
+            ),
+            if (widget.isFilterVisible)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: AppThemePro.accentGold,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppThemePro.accentGold.withOpacity(0.5),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

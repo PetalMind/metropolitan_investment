@@ -13,6 +13,10 @@ import 'dart:html' as html show Blob, Url, AnchorElement;
 // import '../theme/app_theme.dart'; // Replaced with app_theme_professional.dart
 import '../theme/app_theme_professional.dart';
 import '../models_and_services.dart'; // Centralny export wszystkich modeli i serwisów
+// Zamieniam na istniejące dialogi zamiast nowych komponentów
+// Zastąpiono starymi dialogami modułowy system email
+// import '../widgets/dialogs/investor_email_dialog.dart';
+// import '../widgets/dialogs/investor_export_dialog.dart';
 import '../services/investor_analytics_service.dart'
     as ia_service; // Tylko dla InvestorAnalyticsResult conflict resolution
 import '../widgets/premium_analytics/system_stats_widget.dart';
@@ -87,7 +91,7 @@ class _PremiumInvestorAnalyticsScreenState
   // Stany ładowania
   bool _isLoading = true;
   final bool _isLoadingMore = false;
-  bool _isRefreshing = false;
+  // Brak zmiennej _isRefreshing już nie potrzebujemy
   bool _dataWasUpdated = false;
   String? _error;
 
@@ -411,14 +415,10 @@ class _PremiumInvestorAnalyticsScreenState
   Future<void> _refreshData() async {
     if (!mounted) return;
 
-    setState(() => _isRefreshing = true);
-
     try {
       await _loadInitialData();
     } finally {
-      if (mounted) {
-        setState(() => _isRefreshing = false);
-      }
+      // Refresh zakończony
     }
   }
 
@@ -994,30 +994,15 @@ class _PremiumInvestorAnalyticsScreenState
       canEdit: canEdit,
       totalCount: _totalCount,
       isLoading: _isLoading,
-      isRefreshing: _isRefreshing,
       isSelectionMode: _isSelectionMode,
       isExportMode: _isExportMode,
       isEmailMode: _isEmailMode,
       isFilterVisible: _isFilterVisible,
       selectedInvestorIds: _selectedInvestorIds,
       displayedInvestors: _displayedInvestors,
-      currentViewMode: _tabController.index == 3
-          ? _majorityViewMode
-          : _investorsViewMode,
-      isMajorityTab: _tabController.index == 3,
-      onRefresh: _refreshData,
       onToggleExport: _toggleExportMode,
       onToggleEmail: _toggleEmailMode,
       onToggleFilter: _toggleFilterPanel,
-      onViewModeChanged: (mode) {
-        setState(() {
-          if (_tabController.index == 3) {
-            _majorityViewMode = mode;
-          } else {
-            _investorsViewMode = mode;
-          }
-        });
-      },
       onSelectAll: _selectAllVisibleInvestors,
       onClearSelection: _clearSelection,
     );
@@ -4180,7 +4165,6 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   void _showEmailDialog() {
-    // Sprawdź czy wybrano odbiorców
     if (_selectedInvestorIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -4192,23 +4176,13 @@ class _PremiumInvestorAnalyticsScreenState
         ),
       );
 
-      // Automatycznie włącz tryb email jeśli nie jest włączony
       if (!_isEmailMode && !_isSelectionMode) {
-        print('🔧 [_showEmailDialog] Automatycznie włączam tryb email');
         _toggleEmailMode();
       }
-
       return;
     }
 
-    // 🔄 Upewnij się, że mamy pełne dane klientów przed pokazaniem dialogu email
-    _ensureFullClientDataThenShowEmailDialog();
-  }
-
-  Future<void> _ensureFullClientDataThenShowEmailDialog() async {
-    await _ensureFullClientData();
-
-    // Filtruj inwestorów z prawidłowymi emailami po doładowaniu danych
+    // Filtruj inwestorów z prawidłowymi emailami
     final investorsWithEmail = _selectedInvestors
         .where(
           (investor) =>
@@ -4232,34 +4206,36 @@ class _PremiumInvestorAnalyticsScreenState
       return;
     }
 
+    // 🚀 NOWY: Używamy modułowego EmailEditorWidget
     showDialog(
       context: context,
-      builder: (context) => EnhancedEmailEditorDialog(
-        selectedInvestors: investorsWithEmail,
-        onEmailSent: () {
-          Navigator.of(context).pop();
-          _toggleEmailMode(); // Zakończ tryb email
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Emaile zostały wysłane'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        },
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: EmailEditorWidget(
+          investors: investorsWithEmail,
+          onEmailSent: () {
+            Navigator.of(context).pop();
+            _toggleEmailMode();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('✅ Emaile zostały wysłane'),
+                backgroundColor: AppThemePro.statusSuccess,
+              ),
+            );
+          },
+          initialSubject:
+              'Aktualizacja portfela inwestycyjnego - Metropolitan Investment',
+          showAsDialog: true,
+        ),
       ),
     );
   }
 
-  void _showExportFormatDialog() {
-    // DODAJ SZCZEGÓŁOWE DEBUGOWANIE STANU PRZED EKSPORTEM
-    print('🔍 [_showExportFormatDialog] Stan aplikacji:');
-    print('   - _selectedInvestorIds.length: ${_selectedInvestorIds.length}');
-    print('   - _selectedInvestorIds: ${_selectedInvestorIds.toList()}');
-    print('   - _isSelectionMode: $_isSelectionMode');
-    print('   - _isExportMode: $_isExportMode');
-    print('   - _displayedInvestors.length: ${_displayedInvestors.length}');
-    print('   - _allInvestors.length: ${_allInvestors.length}');
+  // Usunięto niepotrzebną metodę _ensureFullClientDataThenShowEmailDialog - zastąpiono modułowym systemem
 
+  void _showExportFormatDialog() {
     if (_selectedInvestorIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -4271,19 +4247,29 @@ class _PremiumInvestorAnalyticsScreenState
         ),
       );
 
-      // Automatycznie włącz tryb eksportu jeśli nie jest włączony
       if (!_isExportMode && !_isSelectionMode) {
-        print(
-          '🔧 [_showExportFormatDialog] Automatycznie włączam tryb eksportu',
-        );
         _toggleExportMode();
       }
-
       return;
     }
 
-    // 🔄 Upewnij się, że mamy pełne dane klientów przed eksportem
-    _ensureFullClientDataThenShowExportDialog();
+    // Używamy istniejącego InvestorExportDialog
+    showDialog(
+      context: context,
+      builder: (context) => InvestorExportDialog(
+        selectedInvestors: _selectedInvestors,
+        onExportComplete: () {
+          Navigator.pop(context);
+          _toggleExportMode();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Eksport zakończony pomyślnie'),
+              backgroundColor: AppThemePro.statusSuccess,
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _ensureFullClientDataThenShowExportDialog() async {

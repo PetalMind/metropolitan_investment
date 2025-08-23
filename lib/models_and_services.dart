@@ -79,6 +79,8 @@ export 'services/firebase_functions_capital_calculation_service.dart';
 export 'services/auth_service.dart';
 export 'services/email_service.dart';
 export 'services/email_and_export_service.dart'; // 🚀 NOWE: Email i eksport danych
+export 'services/email_editor_service_v2.dart'
+    hide EmailTemplate; // 🚀 NOWE: Modularny serwis edytora emaili
 export 'services/user_preferences_service.dart';
 export 'services/advanced_analytics_service.dart'
     hide AdvancedDashboardMetrics, RiskMetrics, PerformanceMetrics;
@@ -179,8 +181,14 @@ export 'widgets/dialogs/enhanced_email_editor_dialog.dart'; // 🚀 NOWE: Zaawan
 export 'widgets/dialogs/investor_export_dialog.dart'; // ⭐ NOWE: Dialog eksportu danych
 export 'widgets/dialogs/product_history_dialog.dart'; // ⭐ NOWE: Dialog historii zmian produktu
 
+// Email system widgets
+export 'widgets/email_editor_widget.dart'; // 🚀 NOWE: Reusable widget edytora emaili
+
 // Premium Analytics Components
 export 'widgets/premium_analytics/premium_analytics_header.dart'; // 🚀 NOWE: Nowoczesny responsywny header
+
+// Export System Components - Modular export/email functionality
+// export 'widgets/export_system/export_system.dart'; // USUNIĘTE: Używamy istniejących dialogów
 
 // Investor Edit Components - UI Components for editing investors
 export 'widgets/investor_edit/currency_controls.dart'; // 🚀 NOWE: Kontrolki walutowe

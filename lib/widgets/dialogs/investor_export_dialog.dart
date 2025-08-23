@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
 
 /// Widget do eksportu danych inwestorów
 /// 
-/// Pozwala na wybór formatu eksportu (CSV, JSON, Excel), 
+/// Pozwala na wybór formatu eksportu (Excel, PDF, Word), 
 /// filtrowanie i sortowanie danych przed eksportem.
 class InvestorExportDialog extends StatefulWidget {
   final List<InvestorSummary> selectedInvestors;
@@ -22,7 +23,7 @@ class InvestorExportDialog extends StatefulWidget {
 }
 
 class _InvestorExportDialogState extends State<InvestorExportDialog> {
-  String _exportFormat = 'csv';
+  String _exportFormat = 'excel';
   String _sortBy = 'name';
   String _sortOrder = 'asc';
   double _minInvestmentAmount = 0;
@@ -283,28 +284,28 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
           children: [
             Expanded(
               child: _buildFormatOption(
-                'csv',
-                'CSV',
-                'Arkusz kalkulacyjny',
-                Icons.table_chart_outlined,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildFormatOption(
-                'json',
-                'JSON',
-                'Dane strukturalne',
-                Icons.code_outlined,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildFormatOption(
                 'excel',
                 'Excel',
                 'Microsoft Excel',
-                Icons.description_outlined,
+                Icons.table_chart_rounded,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildFormatOption(
+                'pdf',
+                'PDF',
+                'Dokument PDF',
+                Icons.picture_as_pdf_rounded,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildFormatOption(
+                'word',
+                'Word',
+                'Microsoft Word',
+                Icons.description_rounded,
               ),
             ),
           ],
@@ -578,14 +579,45 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
     });
 
     try {
-      final result = await _emailAndExportService.exportInvestorsData(
-        clientIds: widget.selectedInvestors.map((i) => i.client.id).toList(),
-        exportFormat: _exportFormat,
-        sortBy: _sortBy,
-        sortDescending: _sortOrder == 'desc',
-        requestedBy: 'system@metropolitan.pl', // Tymczasowo
-        includePersonalData: _includeContactInfo,
-      );
+      ExportResult result;
+
+      // Dla formatów PDF i Word używamy zaawansowanego eksportu
+      if (['pdf', 'word'].contains(_exportFormat)) {
+        // Wywołaj bezpośrednio Firebase Function exportInvestorsAdvanced
+        final functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
+        final callable = functions.httpsCallable('exportInvestorsAdvanced');
+
+        final functionResult = await callable.call({
+          'clientIds': widget.selectedInvestors
+              .map((i) => i.client.id)
+              .toList(),
+          'exportFormat': _exportFormat,
+          'templateType': 'summary',
+          'requestedBy': 'system@metropolitan.pl', // Tymczasowo
+          'options': {
+            'includePersonalData': _includeContactInfo,
+            'includeInvestmentDetails': _includeInvestmentDetails,
+            'includeFinancialSummary': _includeFinancialSummary,
+          },
+        });
+
+        final data = functionResult.data as Map<String, dynamic>;
+        if (data['success'] == true) {
+          result = ExportResult.fromJson(data);
+        } else {
+          throw Exception(data['error'] ?? 'Nieznany błąd podczas eksportu');
+        }
+      } else {
+        // Dla Excel używamy standardowego eksportu
+        result = await _emailAndExportService.exportInvestorsData(
+          clientIds: widget.selectedInvestors.map((i) => i.client.id).toList(),
+          exportFormat: _exportFormat,
+          sortBy: _sortBy,
+          sortDescending: _sortOrder == 'desc',
+          requestedBy: 'system@metropolitan.pl', // Tymczasowo
+          includePersonalData: _includeContactInfo,
+        );
+      }
 
       setState(() {
         _result = result;
