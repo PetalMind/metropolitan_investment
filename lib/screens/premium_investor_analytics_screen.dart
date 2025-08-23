@@ -9,15 +9,20 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'dart:html' as html show Blob, Url, AnchorElement;
 // import '../theme/app_theme.dart'; // Replaced with app_theme_professional.dart
 import '../theme/app_theme_professional.dart';
 import '../models_and_services.dart'; // Centralny export wszystkich modeli i serwisów
-import '../providers/auth_provider.dart';
 import '../services/investor_analytics_service.dart'
     as ia_service; // Tylko dla InvestorAnalyticsResult conflict resolution
-import '../widgets/dialogs/investor_export_dialog.dart';
+import '../widgets/premium_analytics/system_stats_widget.dart';
+import '../widgets/premium_analytics/voting_distribution_widget.dart';
+import '../widgets/premium_analytics/investors_list_widget.dart';
+import '../widgets/premium_analytics/investors_search_filter_widget.dart';
+import '../widgets/premium_analytics/performance_metrics_widget.dart';
+import '../widgets/premium_analytics/trend_analysis_widget.dart';
+import '../widgets/navigation/premium_tab_navigation.dart';
+import '../widgets/navigation/premium_tab_helper.dart';
 
 // RBAC wspólna stała tooltip
 const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
@@ -109,9 +114,6 @@ class _PremiumInvestorAnalyticsScreenState
   ViewMode _investorsViewMode = ViewMode.list;
   ViewMode _majorityViewMode = ViewMode.list;
 
-  // Pie Chart Interactive States
-  int _hoveredSectionIndex = -1;
-  VotingStatus? _selectedSection;
 
   // Selekcja
   bool _isSelectionMode = false;
@@ -1022,328 +1024,36 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildTabBar() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppThemePro.backgroundSecondary,
-            AppThemePro.backgroundPrimary,
-          ],
-        ),
-        border: Border(
-          bottom: BorderSide(
-            color: AppThemePro.accentGold.withValues(alpha: 0.2),
-            width: 1,
-          ),
-        ),
+    return PremiumTabNavigation(
+      tabController: _tabController,
+      tabs: PremiumTabHelper.getAnalyticsTabItems(
+        showBadges: true,
+        investorsCount: _displayedInvestors.length,
+        majorityCount: _majorityHolders.length,
       ),
-      child: _isExportMode
-          ? _buildExportModeTabBar()
-          : _isEmailMode
-          ? _buildEmailModeTabBar()
-          : TabBar(
-              controller: _tabController,
-              tabs: [
-                Tab(
-                  text: 'Przegląd',
-                  icon: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: AppThemePro.accentGold.withValues(alpha: 0.1),
-                    ),
-                    child: Icon(Icons.dashboard_rounded),
-                  ),
-                ),
-                Tab(
-                  text: 'Inwestorzy',
-                  icon: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: AppThemePro.accentGold.withValues(alpha: 0.1),
-                    ),
-                    child: Icon(Icons.people_rounded),
-                  ),
-                ),
-                Tab(
-                  text: 'Analityka',
-                  icon: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: AppThemePro.accentGold.withValues(alpha: 0.1),
-                    ),
-                    child: Icon(Icons.analytics_rounded),
-                  ),
-                ),
-                Tab(
-                  text: 'Większość',
-                  icon: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: AppThemePro.accentGold.withValues(alpha: 0.1),
-                    ),
-                    child: Icon(Icons.gavel_rounded),
-                  ),
-                ),
-              ],
-              labelColor: AppThemePro.accentGold,
-              unselectedLabelColor: AppThemePro.textTertiary,
-              indicatorColor: AppThemePro.accentGold,
-              indicatorWeight: 3,
-              indicator: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                gradient: LinearGradient(
-                  colors: [
-                    AppThemePro.accentGold.withValues(alpha: 0.3),
-                    AppThemePro.accentGold.withValues(alpha: 0.1),
-                  ],
-                ),
-              ),
-              labelStyle: TextStyle(
-                fontSize: _isTablet ? 14 : 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-              ),
-              unselectedLabelStyle: TextStyle(
-                fontSize: _isTablet ? 14 : 12,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-    );
-  }
-
-  Widget _buildExportModeTabBar() {
-    return Container(
-      height: 80,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          // Info o trybie eksportu
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppThemePro.accentGold.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppThemePro.accentGold.withOpacity(0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.download_rounded,
-                    color: AppThemePro.accentGold,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Tryb eksportu',
-                          style: TextStyle(
-                            color: AppThemePro.accentGold,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          'Wybierz inwestorów do eksportu',
-                          style: TextStyle(
-                            color: AppThemePro.textSecondary,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_selectedInvestorIds.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppThemePro.accentGold,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${_selectedInvestorIds.length}',
-                        style: TextStyle(
-                          color: AppThemePro.primaryDark,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // Przycisk dokończ eksport
-          ElevatedButton.icon(
-            onPressed: _selectedInvestorIds.isEmpty
-                ? null
-                : () => _showExportFormatDialog(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _selectedInvestorIds.isEmpty
-                  ? AppThemePro.surfaceInteractive
-                  : AppThemePro.accentGold,
-              foregroundColor: _selectedInvestorIds.isEmpty
-                  ? AppThemePro.textMuted
-                  : AppThemePro.primaryDark,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            icon: Icon(Icons.check_rounded, size: 18),
-            label: Text(
-              'Dokończ eksport',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-          ),
-
-          const SizedBox(width: 8),
-
-          // Przycisk X do wyjścia z trybu eksportu
-          IconButton(
-            onPressed: _toggleExportMode,
-            style: IconButton.styleFrom(
-              backgroundColor: AppThemePro.statusError.withOpacity(0.1),
-              foregroundColor: AppThemePro.statusError,
-              padding: const EdgeInsets.all(12),
-            ),
-            icon: Icon(Icons.close_rounded, size: 20),
-            tooltip: 'Wyjdź z trybu eksportu',
-          ),
-        ],
+      isTablet: _isTablet,
+      isExportMode: _isExportMode,
+      isEmailMode: _isEmailMode,
+      showBadges: true,
+      badgeCounts: PremiumTabHelper.getBadgeCounts(
+        investorsCount: _displayedInvestors.length,
+        majorityCount: _majorityHolders.length,
+        analyticsAlerts: 0, // Placeholder dla przyszłych alertów
       ),
-    );
-  }
-
-  Widget _buildEmailModeTabBar() {
-    return Container(
-      height: 80,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          // Info o trybie email
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppThemePro.accentGold.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppThemePro.accentGold.withOpacity(0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.email_rounded,
-                    color: AppThemePro.accentGold,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Tryb email',
-                          style: TextStyle(
-                            color: AppThemePro.accentGold,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          'Wybierz odbiorców maili',
-                          style: TextStyle(
-                            color: AppThemePro.textSecondary,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_selectedInvestorIds.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppThemePro.accentGold,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${_selectedInvestorIds.length}',
-                        style: TextStyle(
-                          color: AppThemePro.primaryDark,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // Przycisk wyślij emaile
-          ElevatedButton.icon(
-            onPressed: _selectedInvestorIds.isEmpty
-                ? null
-                : () => _showEmailDialog(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _selectedInvestorIds.isEmpty
-                  ? AppThemePro.surfaceInteractive
-                  : AppThemePro.accentGold,
-              foregroundColor: _selectedInvestorIds.isEmpty
-                  ? AppThemePro.textMuted
-                  : AppThemePro.primaryDark,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            icon: Icon(Icons.send_rounded, size: 18),
-            label: Text(
-              'Wyślij emaile',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-          ),
-
-          const SizedBox(width: 8),
-
-          // Przycisk X do wyjścia z trybu email
-          IconButton(
-            onPressed: _toggleEmailMode,
-            style: IconButton.styleFrom(
-              backgroundColor: AppThemePro.statusError.withOpacity(0.1),
-              foregroundColor: AppThemePro.statusError,
-              padding: const EdgeInsets.all(12),
-            ),
-            icon: Icon(Icons.close_rounded, size: 20),
-            tooltip: 'Wyjdź z trybu email',
-          ),
-        ],
-      ),
+      customExportBar: _isExportMode
+          ? PremiumTabHelper.buildExportModeBar(
+              selectedCount: _selectedInvestorIds.length,
+              onComplete: () => _showExportFormatDialog(),
+              onClose: _toggleExportMode,
+            )
+          : null,
+      customEmailBar: _isEmailMode
+          ? PremiumTabHelper.buildEmailModeBar(
+              selectedCount: _selectedInvestorIds.length,
+              onSendEmails: () => _showEmailDialog(),
+              onClose: _toggleEmailMode,
+            )
+          : null,
     );
   }
 
@@ -1448,15 +1158,13 @@ class _PremiumInvestorAnalyticsScreenState
       controller: _scrollController,
       slivers: [
         if (_isExportMode) _buildExportModeBanner(),
-        if (_isFilterVisible) _buildFilterPanel(),
-        _buildSearchBar(),
-        _buildInvestorsSortBar(),
+        _buildEnhancedSearchFilterSection(),
         if (_isLoading)
           _buildLoadingSliver()
         else if (_error != null)
           _buildErrorSliver()
         else
-          _buildInvestorsContent(),
+          _buildEnhancedInvestorsContent(),
         if (_isLoadingMore) _buildLoadingMoreSliver(),
       ],
     );
@@ -1914,30 +1622,12 @@ class _PremiumInvestorAnalyticsScreenState
 
   SliverToBoxAdapter _buildSystemStatsSliver() {
     return SliverToBoxAdapter(
-      child: Container(
-        margin: EdgeInsets.all(_isTablet ? 16 : 12),
-        padding: const EdgeInsets.all(20),
-        decoration: AppThemePro.premiumCardDecoration,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.insights_rounded, color: AppThemePro.accentGold),
-                const SizedBox(width: 8),
-                Text(
-                  'Statystyki systemowe',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppThemePro.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildStatsGrid(),
-          ],
-        ),
+      child: SystemStatsWidget(
+        isLoading: _isLoading,
+        isTablet: _isTablet,
+        allInvestors: _allInvestors,
+        dashboardStatistics: _dashboardStatistics,
+        premiumResult: _premiumResult,
       ),
     );
   }
@@ -1967,179 +1657,6 @@ class _PremiumInvestorAnalyticsScreenState
     );
   }
 
-  Widget _buildStatsGrid() {
-    // Podczas ładowania pokaż shimmer
-    if (_isLoading) {
-      return GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: _isTablet ? 4 : 2,
-          childAspectRatio: _isTablet ? 1.5 : 1.2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
-        itemCount: 4,
-        itemBuilder: (context, index) =>
-            const PremiumShimmerLoadingWidget.analyticsCard(),
-      );
-    }
-
-    // � KLUCZOWE METRYKI SYSTEMU - używa danych zgodnych z Dashboard
-    double totalViableCapital = 0.0; // Kapitał pozostały (remainingCapital) - dla głosowania
-    double totalCapital = 0.0; // ⭐ Kapitał całkowity (investmentAmount) - suma początkowych inwestycji
-
-    if (_premiumResult != null) {
-      // Używamy danych z premium analytics (preferowane)
-      totalViableCapital = _premiumResult!.performanceMetrics.totalCapital;
-      // ⭐ ZMIANA: Używaj totalValue z OptimizedProductService (tak jak Product Dashboard)
-      if (_dashboardStatistics != null) {
-        totalCapital = _dashboardStatistics!.totalInvestmentAmount;
-        print(
-          '🚀 [StatsGrid] Total Capital z OptimizedProductService: ${totalCapital.toStringAsFixed(2)}',
-        );
-      } else {
-        // Fallback: suma investmentAmount lokalnie
-        totalCapital = _allInvestors.fold<double>(
-          0.0,
-          (sum, investor) => sum + investor.totalInvestmentAmount,
-        );
-        print(
-          '⚠️ [StatsGrid] Fallback Premium - Total Capital lokalnie: ${totalCapital.toStringAsFixed(2)}',
-        );
-      }
-      print(
-        '🚀 [StatsGrid] Używam Premium Analytics: Viable Capital ${totalViableCapital.toStringAsFixed(2)}',
-      );
-    } else if (_currentResult != null) {
-      // 🚀 UJEDNOLICENIE Z DASHBOARD: Używaj totalViableCapital z serwera (teraz równe totalRemainingCapital)
-      totalViableCapital = _currentResult!.totalViableCapital;
-
-      // ⭐ ZMIANA: Używaj totalValue z OptimizedProductService (tak jak Product Dashboard)
-      if (_dashboardStatistics != null) {
-        totalCapital = _dashboardStatistics!.totalInvestmentAmount;
-        print(
-          '✅ [StatsGrid] Total Capital z OptimizedProductService: ${totalCapital.toStringAsFixed(2)}',
-        );
-      } else {
-        // Fallback: oblicz lokalnie sumę investmentAmount
-        totalCapital = _allInvestors.fold<double>(
-          0.0,
-          (sum, investor) => sum + investor.totalInvestmentAmount,
-        );
-        print(
-          '⚠️ [StatsGrid] Fallback - Total Capital lokalnie: ${totalCapital.toStringAsFixed(2)}',
-        );
-      }
-
-      print('✅ [StatsGrid] Używam dane z serwera - zgodne z Dashboard!');
-      print(
-        '   - Total/Viable Capital z serwera: ${totalViableCapital.toStringAsFixed(2)}',
-      );
-    } else {
-      // Ostateczny fallback - lokalne obliczenia
-      // Lokalny fallback - używaj totalRemainingCapital dla spójności z Dashboard
-      totalViableCapital = _allInvestors.fold<double>(
-        0.0,
-        (sum, investor) => sum + investor.totalRemainingCapital,
-      );
-      totalCapital = _allInvestors.fold<double>(
-        0.0,
-        (sum, investor) => sum + investor.totalInvestmentAmount,
-      );
-
-      print('⚠️ [StatsGrid] Używam lokalnych obliczeń jako ostatni fallback');
-      print('   - Total Capital: ${totalCapital.toStringAsFixed(2)}');
-    }
-
-    // Oblicz próg 51% kapitału
-    final majorityCapitalThreshold = totalViableCapital * 0.51;
-
-    // Oblicz próg 51% liczby inwestorów
-    final majorityInvestorCount = (_totalCount * 0.51).ceil();
-
-    final stats = [
-      _StatItem(
-        'Kapitał pozostały',
-        CurrencyFormatter.formatCurrency(
-          totalViableCapital,
-          showDecimals: false,
-        ),
-        Icons.account_balance_wallet_rounded,
-        AppThemePro.statusSuccess,
-      ),
-      _StatItem(
-        'Większość kapitału (51%)',
-        CurrencyFormatter.formatCurrency(
-          majorityCapitalThreshold,
-          showDecimals: false,
-        ),
-        Icons.gavel_rounded,
-        AppThemePro.accentGold,
-      ),
-      _StatItem(
-        'Większość osobowa (51%)',
-        '$majorityInvestorCount z $_totalCount',
-        Icons.people_rounded,
-        AppThemePro.accentGold,
-      ),
-      _StatItem(
-        'Kapitał całkowity',
-        CurrencyFormatter.formatCurrency(totalCapital, showDecimals: false),
-        Icons.trending_up_rounded,
-        AppThemePro.statusWarning,
-      ),
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: _isTablet ? 4 : 2,
-        childAspectRatio: _isTablet ? 1.5 : 1.2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: stats.length,
-      itemBuilder: (context, index) => _buildStatCard(stats[index]),
-    );
-  }
-
-  Widget _buildStatCard(_StatItem stat) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppThemePro.surfaceCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: stat.color.withOpacity(0.2), width: 1),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(stat.icon, color: stat.color, size: _isTablet ? 32 : 24),
-          const SizedBox(height: 8),
-          Text(
-            stat.value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppThemePro.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            stat.label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppThemePro.textSecondary),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
 
   // Pozostałe metody UI... (ze względu na limit długości)
   // Implementuj resztę metod analogicznie
@@ -2385,333 +1902,16 @@ class _PremiumInvestorAnalyticsScreenState
   // Stub implementations for missing methods
   Widget _buildVotingOverviewSliver() {
     return SliverToBoxAdapter(
-      child: Container(
-        margin: EdgeInsets.all(_isTablet ? 16 : 12),
-        padding: const EdgeInsets.all(20),
-        decoration: AppThemePro.premiumCardDecoration,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.how_to_vote_rounded, color: AppThemePro.accentGold),
-                const SizedBox(width: 8),
-                Text(
-                  'Rozkład głosowania',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppThemePro.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildVotingStatusChart(),
-            const SizedBox(height: 20),
-            _buildVotingLegend(),
-          ],
-        ),
+      child: VotingDistributionWidget(
+        isLoading: _isLoading,
+        isTablet: _isTablet,
+        votingDistribution: _votingDistribution,
+        votingCounts: _votingCounts,
+        totalCount: _totalCount,
       ),
     );
   }
 
-  Widget _buildVotingStatusChart() {
-    // Podczas ładowania pokaż shimmer chart
-    if (_isLoading) {
-      return const PremiumShimmerLoadingWidget.chart(height: 300);
-    }
-
-    return AnimatedContainer(
-      duration: Duration(milliseconds: 300),
-      height: 300,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Pie Chart with hover effects
-          PieChart(
-            PieChartData(
-              sectionsSpace: _hoveredSectionIndex >= 0 ? 6 : 4,
-              centerSpaceRadius: _hoveredSectionIndex >= 0 ? 75 : 80,
-              startDegreeOffset: -90,
-              sections: _buildPieChartSections(),
-              pieTouchData: PieTouchData(
-                enabled: true,
-                touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                  setState(() {
-                    if (!event.isInterestedForInteractions ||
-                        pieTouchResponse == null ||
-                        pieTouchResponse.touchedSection == null) {
-                      _hoveredSectionIndex = -1;
-                      _selectedSection = null;
-                      return;
-                    }
-
-                    final touchedIndex =
-                        pieTouchResponse.touchedSection!.touchedSectionIndex;
-                    final votingStatuses = VotingStatus.values;
-
-                    if (touchedIndex >= 0 &&
-                        touchedIndex < votingStatuses.length) {
-                      _hoveredSectionIndex = touchedIndex;
-                      _selectedSection = votingStatuses[touchedIndex];
-                    }
-                  });
-                },
-              ),
-            ),
-          ),
-          // Center content with emoji and dynamic info
-          AnimatedSwitcher(
-            duration: Duration(milliseconds: 300),
-            child: _buildCenterContent(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCenterContent() {
-    if (_hoveredSectionIndex >= 0 && _selectedSection != null) {
-      // Show detailed info for hovered section
-      final percentage = _votingDistribution[_selectedSection] ?? 0.0;
-      final count = _votingCounts[_selectedSection] ?? 0;
-      final emoji = _getVotingStatusEmoji(_selectedSection!);
-
-      return Column(
-        key: ValueKey('detailed_${_selectedSection.toString()}'),
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: TextStyle(fontSize: 40)),
-          SizedBox(height: 4),
-          Text(
-            _selectedSection!.displayName,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppThemePro.textPrimary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 2),
-          Text(
-            '${percentage.toStringAsFixed(1)}%',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: _getVotingStatusColor(_selectedSection!),
-            ),
-          ),
-          Text(
-            '$count osób',
-            style: TextStyle(fontSize: 12, color: AppThemePro.textSecondary),
-          ),
-        ],
-      );
-    }
-
-    // Default center content
-    return Column(
-      key: ValueKey('default'),
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('📊', style: TextStyle(fontSize: 32)),
-        SizedBox(height: 8),
-        Text(
-          'Rozkład głosów',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppThemePro.textPrimary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        Text(
-          '$_totalCount inwestorów',
-          style: TextStyle(fontSize: 12, color: AppThemePro.textSecondary),
-        ),
-      ],
-    );
-  }
-
-  List<PieChartSectionData> _buildPieChartSections() {
-    return VotingStatus.values.asMap().entries.map((entry) {
-      final index = entry.key;
-      final status = entry.value;
-      final percentage = _votingDistribution[status] ?? 0.0;
-      final color = _getVotingStatusColor(status);
-      final emoji = _getVotingStatusEmoji(status);
-      final isHovered = index == _hoveredSectionIndex;
-
-      return PieChartSectionData(
-        color: color,
-        value: percentage,
-        title: percentage > 5 && !isHovered
-            ? '$emoji\n${percentage.toStringAsFixed(1)}%'
-            : '',
-        radius: isHovered ? 75 : 60,
-        titleStyle: TextStyle(
-          fontSize: isHovered ? 14 : 12,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-          shadows: [
-            Shadow(color: Colors.black54, offset: Offset(1, 1), blurRadius: 2),
-          ],
-        ),
-        badgeWidget: (percentage > 15 && !isHovered)
-            ? Container(
-                padding: EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 4,
-                      offset: Offset(2, 2),
-                    ),
-                  ],
-                ),
-                child: Text(emoji, style: TextStyle(fontSize: 16)),
-              )
-            : null,
-        badgePositionPercentageOffset: isHovered ? 1.4 : 1.2,
-        borderSide: isHovered
-            ? BorderSide(color: Colors.white, width: 3)
-            : BorderSide.none,
-      );
-    }).toList();
-  }
-
-  String _getVotingStatusEmoji(VotingStatus status) {
-    switch (status) {
-      case VotingStatus.yes:
-        return '😊'; // Uśmiechnięta buźka dla "Tak"
-      case VotingStatus.no:
-        return '😔'; // Smutna buźka dla "Nie"
-      case VotingStatus.abstain:
-        return '😐'; // Neutralna buźka dla "Wstrzymuje się"
-      case VotingStatus.undecided:
-        return '🤔'; // Myśląca buźka dla "Niezdecydowany"
-    }
-  }
-
-  Widget _buildVotingLegend() {
-    // Podczas ładowania pokaż shimmer legend items
-    if (_isLoading) {
-      return Wrap(
-        spacing: 16,
-        runSpacing: 12,
-        children: List.generate(
-          4,
-          (index) => const PremiumShimmerLoadingWidget(
-            height: 40,
-            width: 120,
-            borderRadius: BorderRadius.all(Radius.circular(20)),
-          ),
-        ),
-      );
-    }
-
-    return Wrap(
-      spacing: 16,
-      runSpacing: 12,
-      children: VotingStatus.values.asMap().entries.map((entry) {
-        final index = entry.key;
-        final status = entry.value;
-        final percentage = _votingDistribution[status] ?? 0.0;
-        final count = _votingCounts[status] ?? 0;
-        final color = _getVotingStatusColor(status);
-        final emoji = _getVotingStatusEmoji(status);
-        final isHighlighted =
-            _hoveredSectionIndex == index || _selectedSection == status;
-
-        return MouseRegion(
-          onEnter: (_) {
-            setState(() {
-              _hoveredSectionIndex = index;
-              _selectedSection = status;
-            });
-          },
-          onExit: (_) {
-            setState(() {
-              _hoveredSectionIndex = -1;
-              _selectedSection = null;
-            });
-          },
-          child: AnimatedContainer(
-            duration: Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            padding: EdgeInsets.symmetric(
-              horizontal: isHighlighted ? 16 : 12,
-              vertical: isHighlighted ? 12 : 8,
-            ),
-            decoration: BoxDecoration(
-              color: isHighlighted
-                  ? color.withOpacity(0.2)
-                  : color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isHighlighted
-                    ? color.withOpacity(0.6)
-                    : color.withOpacity(0.3),
-                width: isHighlighted ? 2 : 1,
-              ),
-              boxShadow: isHighlighted
-                  ? [
-                      BoxShadow(
-                        color: color.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: Offset(0, 4),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedDefaultTextStyle(
-                  duration: Duration(milliseconds: 200),
-                  style: TextStyle(fontSize: isHighlighted ? 22 : 18),
-                  child: Text(emoji),
-                ),
-                SizedBox(width: isHighlighted ? 12 : 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedDefaultTextStyle(
-                      duration: Duration(milliseconds: 200),
-                      style: TextStyle(
-                        color: AppThemePro.textPrimary,
-                        fontWeight: isHighlighted
-                            ? FontWeight.w700
-                            : FontWeight.w600,
-                        fontSize: isHighlighted ? 13 : 12,
-                      ),
-                      child: Text(status.displayName),
-                    ),
-                    AnimatedDefaultTextStyle(
-                      duration: Duration(milliseconds: 200),
-                      style: TextStyle(
-                        color: AppThemePro.textSecondary,
-                        fontSize: isHighlighted ? 12 : 11,
-                        fontWeight: isHighlighted
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                      child: Text(
-                        '$count osób (${percentage.toStringAsFixed(1)}%)',
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
 
   Color _getVotingStatusColor(VotingStatus status) {
     switch (status) {
@@ -2909,6 +2109,54 @@ class _PremiumInvestorAnalyticsScreenState
     );
   }
 
+  // 🎨 ENHANCED INVESTORS TAB COMPONENTS
+
+  Widget _buildEnhancedSearchFilterSection() {
+    return InvestorsSearchFilterWidget(
+      searchController: _searchController,
+      searchQuery: _searchQuery,
+      onSearchChanged: (query) {
+        setState(() => _searchQuery = query);
+        _applyFiltersAndSort();
+      },
+      initialSearchQuery: widget.initialSearchQuery,
+      isFilterVisible: _isFilterVisible,
+      onToggleFilter: _toggleFilterPanel,
+      onResetFilters: _resetFilters,
+      isTablet: _isTablet,
+      selectedVotingStatus: _selectedVotingStatus,
+      onVotingStatusChanged: (status) {
+        setState(() => _selectedVotingStatus = status);
+        _applyFiltersAndSort();
+      },
+      sortBy: _sortBy,
+      sortAscending: _sortAscending,
+      onSortChanged: (sortKey) {
+        setState(() => _sortBy = sortKey);
+        _applyFiltersAndSort();
+      },
+      onSortDirectionChanged: () {
+        setState(() => _sortAscending = !_sortAscending);
+        _applyFiltersAndSort();
+      },
+    );
+  }
+
+  Widget _buildEnhancedInvestorsContent() {
+    return InvestorsListWidget(
+      investors: _displayedInvestors,
+      majorityHolders: _majorityHolders,
+      totalViableCapital: _votingManager.totalViableCapital,
+      isTablet: _isTablet,
+      onInvestorTap: (_isSelectionMode || _isExportMode)
+          ? (investor) => _toggleInvestorSelection(investor.client.id)
+          : _showInvestorDetails,
+      isSelectionMode: _isSelectionMode || _isExportMode,
+      selectedInvestorIds: _selectedInvestorIds,
+      onInvestorSelectionToggle: _toggleInvestorSelection,
+    );
+  }
+
   // 🎨 SYSTEM STATS AND ANALYTICS
 
   TextStyle _getTableHeaderStyle() {
@@ -2929,94 +2177,30 @@ class _PremiumInvestorAnalyticsScreenState
   }
 
   Widget _buildPerformanceMetricsSliver() => SliverToBoxAdapter(
-    child: Container(
-      margin: EdgeInsets.all(_isTablet ? 16 : 12),
-      padding: const EdgeInsets.all(20),
-      decoration: AppThemePro.premiumCardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.speed_rounded, color: AppThemePro.accentGold),
-              const SizedBox(width: 12),
-              Text(
-                'Metryki wydajności',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppThemePro.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _isLoading
-              ? const PremiumShimmerLoadingWidget.chart(height: 200)
-              : _buildPerformanceGrid(),
-          const SizedBox(height: 16),
-          _buildPerformanceChart(),
-        ],
-      ),
+    child: PerformanceMetricsWidget(
+      isLoading: _isLoading,
+      isTablet: _isTablet,
+      allInvestors: _allInvestors,
+      totalViableCapital: _votingManager.totalViableCapital,
     ),
   );
 
   Widget _buildVotingDistributionSliver() => SliverToBoxAdapter(
-    child: Container(
-      margin: EdgeInsets.all(_isTablet ? 16 : 12),
-      padding: const EdgeInsets.all(20),
-      decoration: AppThemePro.premiumCardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Rozkład głosowania',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: AppThemePro.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _isLoading
-              ? const PremiumShimmerLoadingWidget.chart(height: 300)
-              : _buildVotingStatusChart(),
-        ],
-      ),
+    child: VotingDistributionWidget(
+      isLoading: _isLoading,
+      isTablet: _isTablet,
+      votingDistribution: _votingDistribution,
+      votingCounts: _votingCounts,
+      totalCount: _totalCount,
     ),
   );
 
   Widget _buildTrendAnalysisSliver() => SliverToBoxAdapter(
-    child: Container(
-      margin: EdgeInsets.all(_isTablet ? 16 : 12),
-      padding: const EdgeInsets.all(20),
-      decoration: AppThemePro.premiumCardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.trending_up_rounded, color: AppThemePro.accentGold),
-              const SizedBox(width: 12),
-              Text(
-                'Analiza trendów',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppThemePro.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          if (_isLoading) ...[
-            const PremiumShimmerLoadingWidget.chart(height: 120),
-            const SizedBox(height: 16),
-            const PremiumShimmerLoadingWidget.chart(height: 200),
-          ] else ...[
-            _buildTrendMetrics(),
-            const SizedBox(height: 16),
-            _buildTrendChart(),
-          ],
-        ],
-      ),
+    child: TrendAnalysisWidget(
+      isLoading: _isLoading,
+      isTablet: _isTablet,
+      allInvestors: _allInvestors,
+      totalViableCapital: _votingManager.totalViableCapital,
     ),
   );
 
@@ -5714,14 +4898,6 @@ class _PremiumInvestorAnalyticsScreenState
 
 // ================== HELPER DATA CLASSES (Top-level) ==================
 
-class _StatItem {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  _StatItem(this.label, this.value, this.icon, this.color);
-}
 
 class _Insight {
   final String text;
