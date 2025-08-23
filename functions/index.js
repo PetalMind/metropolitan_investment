@@ -272,6 +272,7 @@ module.exports = {
   // 🚀 SERWISY SKALOWANIA INWESTYCJI
   ...investmentScalingService, // Export wszystkich funkcji z investment-scaling-service
 
-  // 🚀 ZAAWANSOWANY SERWIS EKSPORTU
+  // 🚀 SERWISY EKSPORTU DANYCH
+  ...exportService, // Export wszystkich funkcji z export-service
   ...advancedExportService, // Export wszystkich funkcji z advanced-export-service
 };

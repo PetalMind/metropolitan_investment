@@ -71,6 +71,11 @@ class _EmailEditorWidgetState extends State<EmailEditorWidget>
   bool _showDetailedProgress = false;
   final List<String> _debugLogs = [];
 
+  // Export states
+  bool _exportInProgress = false;
+  String _currentExportFormat = '';
+  AdvancedExportResult? _lastExportResult;
+
   @override
   void initState() {
     super.initState();
@@ -80,7 +85,7 @@ class _EmailEditorWidgetState extends State<EmailEditorWidget>
     _emailService.initializeRecipients(widget.investors);
 
     // Inicjalizacja kontrolerów
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _quillController = QuillController.basic();
     _editorFocusNode = FocusNode();
 
@@ -308,6 +313,7 @@ Zespół Metropolitan Investment''';
           Tab(text: 'Edytor', icon: Icon(Icons.edit)),
           Tab(text: 'Ustawienia', icon: Icon(Icons.settings)),
           Tab(text: 'Podgląd', icon: Icon(Icons.preview)),
+          Tab(text: 'Eksport', icon: Icon(Icons.download)),
         ],
         labelColor: AppThemePro.accentGold,
         unselectedLabelColor: AppThemePro.textSecondary,
@@ -320,7 +326,12 @@ Zespół Metropolitan Investment''';
   Widget _buildTabContent() {
     return TabBarView(
       controller: _tabController,
-      children: [_buildEditorTab(), _buildSettingsTab(), _buildPreviewTab()],
+      children: [
+        _buildEditorTab(),
+        _buildSettingsTab(),
+        _buildPreviewTab(),
+        _buildExportTab(),
+      ],
     );
   }
 
@@ -795,6 +806,190 @@ Zespół Metropolitan Investment''';
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Zakładka eksportu do PDF, Excel, Word
+  Widget _buildExportTab() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 600;
+
+    return Container(
+      padding: EdgeInsets.all(isSmallScreen ? 16.0 : 24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Nagłówek
+          Row(
+            children: [
+              const Icon(
+                Icons.download,
+                color: AppThemePro.accentGold,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Eksport do plików',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppThemePro.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Eksportuj dane ${widget.investors.length} inwestorów do plików PDF, Excel lub Word',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppThemePro.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // Opcje eksportu
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // PDF Export
+                  _buildExportOption(
+                    icon: Icons.picture_as_pdf,
+                    title: 'Eksport do PDF',
+                    description:
+                        'Profesjonalny raport z brandingiem Metropolitan Investment',
+                    format: 'pdf',
+                    color: Colors.red,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Excel Export
+                  _buildExportOption(
+                    icon: Icons.table_chart,
+                    title: 'Eksport do Excel',
+                    description:
+                        'Zaawansowany arkusz z formatowaniem i formułami',
+                    format: 'excel',
+                    color: Colors.green,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Word Export
+                  _buildExportOption(
+                    icon: Icons.description,
+                    title: 'Eksport do Word',
+                    description: 'Dokument biznesowy z pełnym formatowaniem',
+                    format: 'word',
+                    color: Colors.blue,
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Status eksportu
+                  if (_exportInProgress) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppThemePro.surfaceCard,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppThemePro.borderPrimary),
+                      ),
+                      child: Column(
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Generowanie pliku $_currentExportFormat...',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          Text(
+                            'To może potrwać kilka sekund',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppThemePro.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // Ostatni eksport
+                  if (_lastExportResult != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _lastExportResult!.isSuccessful
+                            ? AppThemePro.statusSuccess.withValues(alpha: 0.1)
+                            : AppThemePro.statusError.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _lastExportResult!.isSuccessful
+                              ? AppThemePro.statusSuccess
+                              : AppThemePro.statusError,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                _lastExportResult!.isSuccessful
+                                    ? Icons.check_circle
+                                    : Icons.error,
+                                color: _lastExportResult!.isSuccessful
+                                    ? AppThemePro.statusSuccess
+                                    : AppThemePro.statusError,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _lastExportResult!.isSuccessful
+                                      ? 'Eksport zakończony pomyślnie'
+                                      : 'Eksport niepowodzenie',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _lastExportResult!.summaryText,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          if (_lastExportResult!.isSuccessful &&
+                              _lastExportResult!.downloadUrl != null) ...[
+                            const SizedBox(height: 12),
+                            ElevatedButton.icon(
+                              onPressed: () => _downloadFile(
+                                _lastExportResult!.downloadUrl!,
+                              ),
+                              icon: const Icon(Icons.download),
+                              label: const Text('Pobierz plik'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppThemePro.accentGold,
+                                foregroundColor: AppThemePro.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1328,6 +1523,181 @@ Zespół Metropolitan Investment''';
           _isLoading = false;
           _showDetailedProgress = false;
         });
+      }
+    }
+  }
+
+  /// Buduje opcję eksportu
+  Widget _buildExportOption({
+    required IconData icon,
+    required String title,
+    required String description,
+    required String format,
+    required Color color,
+  }) {
+    final isSelected = _currentExportFormat == format;
+
+    return Card(
+      elevation: isSelected ? 4 : 2,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: isSelected
+              ? Border.all(color: AppThemePro.accentGold, width: 2)
+              : null,
+        ),
+        child: ListTile(
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          title: Text(
+            title,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            description,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppThemePro.textSecondary),
+          ),
+          trailing: _exportInProgress && _currentExportFormat == format
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.arrow_forward_ios),
+          onTap: _exportInProgress ? null : () => _startExport(format),
+        ),
+      ),
+    );
+  }
+
+  /// Rozpoczyna eksport w wybranym formacie
+  Future<void> _startExport(String format) async {
+    if (_exportInProgress) return;
+
+    setState(() {
+      _exportInProgress = true;
+      _currentExportFormat = format;
+      _lastExportResult = null;
+    });
+
+    try {
+      // Pobierz ID klientów
+      final clientIds = widget.investors.map((inv) => inv.client.id).toList();
+
+      // Sprawdź czy użytkownik jest zalogowany
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final currentUser = authProvider.user;
+
+      if (currentUser == null) {
+        throw Exception('Użytkownik nie jest zalogowany');
+      } // Wywołaj serwis eksportu
+      final exportService = EmailAndExportService();
+      final result = await exportService.exportInvestorsAdvanced(
+        clientIds: clientIds,
+        exportFormat: format,
+        templateType: 'summary',
+        options: {
+          'includeKontakty': true,
+          'includeInvestycje': true,
+          'includeStatystyki': true,
+        },
+        requestedBy: currentUser.uid,
+      );
+
+      setState(() {
+        _lastExportResult = result;
+        _exportInProgress = false;
+        _currentExportFormat = '';
+      });
+
+      if (result.isSuccessful) {
+        // Pokazuj sukces
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Eksport $format zakończony pomyślnie!'),
+              backgroundColor: AppThemePro.statusSuccess,
+              action: result.downloadUrl != null
+                  ? SnackBarAction(
+                      label: 'Pobierz',
+                      textColor: Colors.white,
+                      onPressed: () => _downloadFile(result.downloadUrl!),
+                    )
+                  : null,
+            ),
+          );
+        }
+      } else {
+        // Pokazuj błąd
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Błąd eksportu: ${result.errorMessage}'),
+              backgroundColor: AppThemePro.statusError,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _lastExportResult = AdvancedExportResult(
+          success: false,
+          downloadUrl: null,
+          fileName: null,
+          fileSize: 0,
+          exportFormat: format,
+          errorMessage: e.toString(),
+          processingTimeMs: 0,
+          totalRecords: widget.investors.length,
+        );
+        _exportInProgress = false;
+        _currentExportFormat = '';
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd podczas eksportu: $e'),
+            backgroundColor: AppThemePro.statusError,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Otwiera plik do pobrania
+  Future<void> _downloadFile(String url) async {
+    try {
+      // W przypadku aplikacji mobilnej - otwórz w przeglądarce
+      if (kIsWeb) {
+        // Dla wersji web
+        // ignore: avoid_web_libraries_in_flutter
+        // html.window.open(url, '_blank');
+      } else {
+        // Dla wersji mobilnej - możesz użyć url_launcher
+        if (kDebugMode) {
+          print('Pobieranie pliku: $url');
+        }
+        // await launch(url); // Jeśli masz url_launcher
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd podczas otwierania pliku: $e'),
+            backgroundColor: AppThemePro.statusError,
+          ),
+        );
       }
     }
   }

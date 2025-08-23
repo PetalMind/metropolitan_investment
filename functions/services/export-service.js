@@ -36,6 +36,7 @@ const { safeToDouble, safeToString } = require("../utils/data-mapping");
 const exportInvestorsData = onCall({
   memory: "2GiB",
   timeoutSeconds: 540,
+  cors: true, // Enable CORS explicitly
 }, async (request) => {
   const startTime = Date.now();
   console.log(`📤 [ExportService] Rozpoczynam eksport danych inwestorów`);

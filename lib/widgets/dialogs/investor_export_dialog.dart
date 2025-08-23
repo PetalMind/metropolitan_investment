@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:provider/provider.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
 
@@ -34,8 +34,6 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
   bool _isLoading = false;
   String? _error;
   ExportResult? _result;
-
-  final _emailAndExportService = EmailAndExportService();
 
   @override
   Widget build(BuildContext context) {
@@ -78,8 +76,8 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppTheme.primaryAccent,
-            AppTheme.primaryAccent.withOpacity(0.8),
+            AppThemePro.primaryMedium,
+            AppThemePro.primaryMedium.withValues(alpha: 0.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -93,7 +91,7 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
         children: [
           const Icon(
             Icons.file_download_outlined,
-            color: Colors.white,
+            color: AppThemePro.textPrimary,
             size: 28,
           ),
           const SizedBox(width: 16),
@@ -104,7 +102,7 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
                 const Text(
                   'Eksport Danych Inwestorów',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppThemePro.textPrimary,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -112,7 +110,7 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
                 Text(
                   'Eksportuj ${widget.selectedInvestors.length} inwestorów',
                   style: const TextStyle(
-                    color: Colors.white70,
+                    color: AppThemePro.textSecondary,
                     fontSize: 14,
                   ),
                 ),
@@ -123,7 +121,7 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(
               Icons.close,
-              color: Colors.white,
+              color: AppThemePro.textPrimary,
             ),
           ),
         ],
@@ -160,18 +158,20 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red[100],
+                color: AppThemePro.statusError.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red[300]!),
+                border: Border.all(
+                  color: AppThemePro.statusError.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error_outline, color: Colors.red[700]),
+                  Icon(Icons.error_outline, color: AppThemePro.statusError),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _error!,
-                      style: TextStyle(color: Colors.red[700]),
+                      style: const TextStyle(color: AppThemePro.statusError),
                     ),
                   ),
                 ],
@@ -194,14 +194,16 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppTheme.secondaryGold.withOpacity(0.1),
-            AppTheme.secondaryGold.withOpacity(0.05),
+            AppThemePro.accentGold.withValues(alpha: 0.1),
+            AppThemePro.accentGold.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.secondaryGold.withOpacity(0.3)),
+        border: Border.all(
+          color: AppThemePro.accentGold.withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,21 +249,21 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
   Widget _buildStatItem(String label, String value, IconData icon) {
     return Column(
       children: [
-        Icon(icon, color: AppTheme.secondaryGold, size: 24),
+        Icon(icon, color: AppThemePro.accentGold, size: 24),
         const SizedBox(height: 4),
         Text(
           value,
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: AppTheme.secondaryGold,
+            color: AppThemePro.accentGold,
           ),
         ),
         Text(
           label,
           style: const TextStyle(
             fontSize: 12,
-            color: Colors.grey,
+            color: AppThemePro.textMuted,
           ),
         ),
       ],
@@ -322,10 +324,14 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryAccent.withOpacity(0.1) : Colors.grey[50],
+          color: isSelected
+              ? AppThemePro.primaryMedium.withValues(alpha: 0.3)
+              : AppThemePro.backgroundSecondary,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? AppTheme.primaryAccent : Colors.grey[300]!,
+            color: isSelected
+                ? AppThemePro.accentGold
+                : AppThemePro.borderPrimary,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -333,7 +339,9 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
           children: [
             Icon(
               icon,
-              color: isSelected ? AppTheme.primaryAccent : Colors.grey[600],
+              color: isSelected
+                  ? AppThemePro.accentGold
+                  : AppThemePro.textMuted,
               size: 24,
             ),
             const SizedBox(height: 8),
@@ -341,14 +349,16 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
               title,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: isSelected ? AppTheme.primaryAccent : Colors.grey[800],
+                color: isSelected
+                    ? AppThemePro.textPrimary
+                    : AppThemePro.textSecondary,
               ),
             ),
             Text(
               subtitle,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: AppThemePro.textMuted,
               ),
               textAlign: TextAlign.center,
             ),
@@ -476,10 +486,14 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _result!.success ? Colors.green[50] : Colors.red[50],
+        color: _result!.success
+            ? AppThemePro.statusSuccess.withValues(alpha: 0.1)
+            : AppThemePro.statusError.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: _result!.success ? Colors.green[300]! : Colors.red[300]!,
+          color: _result!.success
+              ? AppThemePro.statusSuccess.withValues(alpha: 0.3)
+              : AppThemePro.statusError.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -489,14 +503,18 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
             children: [
               Icon(
                 _result!.success ? Icons.check_circle_outline : Icons.error_outline,
-                color: _result!.success ? Colors.green[700] : Colors.red[700],
+                color: _result!.success
+                    ? AppThemePro.statusSuccess
+                    : AppThemePro.statusError,
               ),
               const SizedBox(width: 8),
               Text(
                 _result!.success ? 'Eksport zakończony pomyślnie' : 'Błąd eksportu',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: _result!.success ? Colors.green[700] : Colors.red[700],
+                  color: _result!.success
+                      ? AppThemePro.statusSuccess
+                      : AppThemePro.statusError,
                 ),
               ),
             ],
@@ -514,8 +532,8 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
                   icon: const Icon(Icons.copy, size: 16),
                   label: const Text('Kopiuj Dane'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green[700],
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppThemePro.statusSuccess,
+                    foregroundColor: AppThemePro.textPrimary,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -530,7 +548,7 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
           ] else ...[
             Text(
               _result!.totalErrors > 0 ? 'Błędów: ${_result!.totalErrors}' : 'Nieznany błąd',
-              style: TextStyle(color: Colors.red[700]),
+              style: const TextStyle(color: AppThemePro.statusError),
             ),
           ],
         ],
@@ -542,7 +560,7 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: AppThemePro.backgroundSecondary,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(16),
           bottomRight: Radius.circular(16),
@@ -579,59 +597,96 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
     });
 
     try {
-      ExportResult result;
+      // Używaj EmailAndExportService dla wszystkich formatów
+      final emailService = EmailAndExportService();
+
+      // Sprawdź dostępność użytkownika - używamy kontekstu Provider
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final requestedBy = authProvider.user?.uid ?? 'anonymous@metropolitan.pl';
+
+      AdvancedExportResult advancedResult;
 
       // Dla formatów PDF i Word używamy zaawansowanego eksportu
       if (['pdf', 'word'].contains(_exportFormat)) {
-        // Wywołaj bezpośrednio Firebase Function exportInvestorsAdvanced
-        final functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
-        final callable = functions.httpsCallable('exportInvestorsAdvanced');
-
-        final functionResult = await callable.call({
-          'clientIds': widget.selectedInvestors
-              .map((i) => i.client.id)
-              .toList(),
-          'exportFormat': _exportFormat,
-          'templateType': 'summary',
-          'requestedBy': 'system@metropolitan.pl', // Tymczasowo
-          'options': {
+        advancedResult = await emailService.exportInvestorsAdvanced(
+          clientIds: widget.selectedInvestors.map((i) => i.client.id).toList(),
+          exportFormat: _exportFormat,
+          templateType: 'summary',
+          options: {
             'includePersonalData': _includeContactInfo,
             'includeInvestmentDetails': _includeInvestmentDetails,
             'includeFinancialSummary': _includeFinancialSummary,
           },
+          requestedBy: requestedBy,
+        );
+
+        // Konwertuj AdvancedExportResult do ExportResult
+        final result = ExportResult(
+          success: advancedResult.isSuccessful,
+          format: _exportFormat,
+          recordCount: widget.selectedInvestors.length,
+          totalProcessed: widget.selectedInvestors.length,
+          totalErrors: advancedResult.isSuccessful ? 0 : 1,
+          executionTimeMs: advancedResult.processingTimeMs,
+          exportTitle: 'Eksport inwestorów',
+          data: advancedResult.downloadUrl ?? '',
+          filename: advancedResult.fileName ?? 'export.$_exportFormat',
+          size: advancedResult.fileSize,
+        );
+
+        setState(() {
+          _result = result;
+          _isLoading = false;
         });
 
-        final data = functionResult.data as Map<String, dynamic>;
-        if (data['success'] == true) {
-          result = ExportResult.fromJson(data);
-        } else {
-          throw Exception(data['error'] ?? 'Nieznany błąd podczas eksportu');
+        if (result.success && context.mounted) {
+          // Pokaż snackbar z opcją pobierania pliku
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '✅ Eksport zakończony: ${result.recordCount} rekordów',
+              ),
+              backgroundColor: AppThemePro.statusSuccess,
+              action: advancedResult.downloadUrl != null
+                  ? SnackBarAction(
+                      label: 'Pobierz',
+                      textColor: AppThemePro.textPrimary,
+                      onPressed: () =>
+                          _copyToClipboard(advancedResult.downloadUrl!),
+                    )
+                  : null,
+            ),
+          );
         }
       } else {
         // Dla Excel używamy standardowego eksportu
-        result = await _emailAndExportService.exportInvestorsData(
+        final result = await emailService.exportInvestorsData(
           clientIds: widget.selectedInvestors.map((i) => i.client.id).toList(),
           exportFormat: _exportFormat,
           sortBy: _sortBy,
           sortDescending: _sortOrder == 'desc',
-          requestedBy: 'system@metropolitan.pl', // Tymczasowo
+          requestedBy: requestedBy,
           includePersonalData: _includeContactInfo,
         );
+
+        setState(() {
+          _result = result;
+          _isLoading = false;
+        });
+
+        if (result.success && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '✅ Eksport zakończony: ${result.recordCount} rekordów',
+              ),
+              backgroundColor: AppThemePro.statusSuccess,
+            ),
+          );
+        }
       }
 
-      setState(() {
-        _result = result;
-        _isLoading = false;
-      });
-
-      if (result.success && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Eksport zakończony: ${result.recordCount} rekordów'),
-            backgroundColor: Colors.green[700],
-          ),
-        );
-        
+      if (context.mounted) {
         widget.onExportComplete();
       }
 

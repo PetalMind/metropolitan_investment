@@ -159,7 +159,7 @@ class ProductCardAdvanced extends StatelessWidget {
         Expanded(
           child: _buildStatColumn(
             'Wartość całkowita',
-            AppTheme.formatCurrency(product.totalValue),
+            CurrencyFormatter.formatCurrency(product.totalValue),
             Icons.account_balance_wallet,
             context,
           ),
@@ -167,7 +167,7 @@ class ProductCardAdvanced extends StatelessWidget {
         Expanded(
           child: _buildStatColumn(
             'Kapitał pozostały',
-            AppTheme.formatCurrency(product.totalRemainingCapital),
+            CurrencyFormatter.formatCurrency(product.totalRemainingCapital),
             Icons.savings,
             context,
           ),
@@ -241,7 +241,7 @@ class ProductCardAdvanced extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            'Śr. ${AppTheme.formatShortCurrency(product.averageInvestment)}',
+            'Śr. ${CurrencyFormatter.formatCurrencyShort(product.averageInvestment)}',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: AppTheme.textSecondary.withValues(alpha: 0.7),
             ),

@@ -250,6 +250,74 @@ class EmailAndExportService extends BaseService {
     );
   }
 
+  /// Eksportuje inwestorów do zaawansowanych formatów (PDF, Excel, Word)
+  ///
+  /// @param clientIds Lista ID klientów do eksportu
+  /// @param exportFormat Format eksportu ('pdf'|'excel'|'word')
+  /// @param templateType Typ szablonu ('summary'|'detailed'|'custom')
+  /// @param options Opcje eksportu (includingKontakty, includeInvestycje, etc.)
+  /// @param requestedBy ID użytkownika wywołującego eksport
+  Future<AdvancedExportResult> exportInvestorsAdvanced({
+    required List<String> clientIds,
+    required String exportFormat, // 'pdf', 'excel', 'word'
+    String templateType = 'summary',
+    Map<String, dynamic> options = const {},
+    required String requestedBy,
+  }) async {
+    try {
+      // 🔍 Walidacja danych wejściowych
+      if (clientIds.isEmpty) {
+        throw Exception('Lista clientIds nie może być pusta');
+      }
+
+      if (!['pdf', 'excel', 'word'].contains(exportFormat)) {
+        throw Exception('Nieobsługiwany format eksportu: $exportFormat');
+      }
+
+      if (requestedBy.isEmpty) {
+        throw Exception('Wymagane jest requestedBy');
+      }
+
+      // Przygotuj dane dla funkcji Firebase
+      final functionData = {
+        'clientIds': clientIds,
+        'exportFormat': exportFormat,
+        'templateType': templateType,
+        'options': options,
+        'requestedBy': requestedBy,
+      };
+
+      logDebug(
+        'exportInvestorsAdvanced',
+        'Wywołuję funkcję: clientIds=${clientIds.length}, format=$exportFormat',
+      );
+
+      // 🔥 Wywołaj funkcję Firebase Functions
+      final result = await FirebaseFunctions.instanceFor(
+        region: 'europe-west1',
+      ).httpsCallable('exportInvestorsAdvanced').call(functionData);
+
+      logDebug(
+        'exportInvestorsAdvanced',
+        'Eksport zaawansowany zakończony pomyślnie',
+      );
+
+      return AdvancedExportResult.fromMap(result.data);
+    } catch (e) {
+      logError('exportInvestorsAdvanced', e);
+      return AdvancedExportResult(
+        success: false,
+        downloadUrl: null,
+        fileName: null,
+        fileSize: 0,
+        exportFormat: exportFormat,
+        errorMessage: e.toString(),
+        processingTimeMs: 0,
+        totalRecords: clientIds.length,
+      );
+    }
+  }
+
   /// Helper: Wysyłaj email do wielu klientów (batch)
   Future<List<EmailSendResult>> sendEmailsToMultipleClients({
     required List<InvestorSummary> investors,
@@ -680,9 +748,139 @@ Eksport: $exportTitle
         .trim();
   }
 
+  /// Eksportuje inwestorów do zaawansowanych formatów (PDF, Excel, Word)
+  ///
+  /// @param clientIds Lista ID klientów do eksportu
+  /// @param exportFormat Format eksportu ('pdf'|'excel'|'word')
+  /// @param templateType Typ szablonu ('summary'|'detailed'|'custom')
+  /// @param options Opcje eksportu (includingKontakty, includeInvestycje, etc.)
+  /// @param requestedBy ID użytkownika wywołującego eksport
+  Future<AdvancedExportResult> exportInvestorsAdvanced({
+    required List<String> clientIds,
+    required String exportFormat, // 'pdf', 'excel', 'word'
+    String templateType = 'summary',
+    Map<String, dynamic> options = const {},
+    required String requestedBy,
+  }) async {
+    try {
+      // 🔍 Walidacja danych wejściowych
+      if (clientIds.isEmpty) {
+        throw Exception('Lista clientIds nie może być pusta');
+      }
+
+      if (!['pdf', 'excel', 'word'].contains(exportFormat)) {
+        throw Exception('Nieobsługiwany format eksportu: $exportFormat');
+      }
+
+      if (requestedBy.isEmpty) {
+        throw Exception('Wymagane jest requestedBy');
+      }
+
+      // Przygotuj dane dla funkcji Firebase
+      final functionData = {
+        'clientIds': clientIds,
+        'exportFormat': exportFormat,
+        'templateType': templateType,
+        'options': options,
+        'requestedBy': requestedBy,
+      };
+
+      if (kDebugMode) {
+        print(
+          '[EmailAndExportService] exportInvestorsAdvanced: '
+          'clientIds=${clientIds.length}, format=$exportFormat',
+        );
+      }
+
+      // 🔥 Wywołaj funkcję Firebase Functions
+      final result = await FirebaseFunctions.instanceFor(
+        region: 'europe-west1',
+      ).httpsCallable('exportInvestorsAdvanced').call(functionData);
+
+      if (kDebugMode) {
+        print(
+          '[EmailAndExportService] Eksport zaawansowany zakończony pomyślnie',
+        );
+      }
+
+      return AdvancedExportResult.fromMap(result.data);
+    } catch (e) {
+      if (kDebugMode) {
+        print('[EmailAndExportService] Błąd exportInvestorsAdvanced: $e');
+      }
+      return AdvancedExportResult(
+        success: false,
+        downloadUrl: null,
+        fileName: null,
+        fileSize: 0,
+        exportFormat: exportFormat,
+        errorMessage: e.toString(),
+        processingTimeMs: 0,
+        totalRecords: clientIds.length,
+      );
+    }
+  }
+
   /// Czy eksport miał błędy
   bool get hasErrors => totalErrors > 0;
 
   /// Czy eksport był w pełni udany
   bool get isFullySuccessful => success && totalErrors == 0;
+}
+
+/// Wynik zaawansowanego eksportu (PDF, Excel, Word)
+class AdvancedExportResult {
+  final bool success;
+  final String? downloadUrl;
+  final String? fileName;
+  final int fileSize;
+  final String exportFormat;
+  final String? errorMessage;
+  final int processingTimeMs;
+  final int totalRecords;
+
+  const AdvancedExportResult({
+    required this.success,
+    required this.downloadUrl,
+    required this.fileName,
+    required this.fileSize,
+    required this.exportFormat,
+    this.errorMessage,
+    required this.processingTimeMs,
+    required this.totalRecords,
+  });
+
+  factory AdvancedExportResult.fromMap(Map<String, dynamic> map) {
+    return AdvancedExportResult(
+      success: map['success'] ?? false,
+      downloadUrl: map['downloadUrl'],
+      fileName: map['fileName'],
+      fileSize: map['fileSize'] ?? 0,
+      exportFormat: map['exportFormat'] ?? '',
+      errorMessage: map['errorMessage'],
+      processingTimeMs: map['processingTimeMs'] ?? 0,
+      totalRecords: map['totalRecords'] ?? 0,
+    );
+  }
+
+  /// Formatowane info o wyniku
+  String get summaryText {
+    if (!success) {
+      return 'Eksport niepowodzenie: ${errorMessage ?? "Nieznany błąd"}';
+    }
+
+    final sizeText = _formatFileSize(fileSize);
+    final timeText = '${processingTimeMs}ms';
+
+    return 'Eksport $exportFormat zakończony: $fileName ($sizeText) - $totalRecords rekordów w $timeText';
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '${bytes}B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
+  }
+
+  /// Czy eksport zakończył się sukcesem
+  bool get isSuccessful => success && downloadUrl != null;
 }
