@@ -732,13 +732,7 @@ class _EnhancedInvestorDetailsDialogState
         AppThemePro.statusWarning,
         description: 'Kwota do restrukturyzacji',
       ),
-      _StatItem(
-        'Wartość udziałów',
-        CurrencyFormatter.formatCurrency(widget.investor.totalSharesValue),
-        Icons.pie_chart,
-        AppThemePro.sharesGreen,
-        description: 'Wartość posiadanych udziałów',
-      ),
+  
       _StatItem(
         'Łączna wartość',
         CurrencyFormatter.formatCurrency(widget.investor.totalValue),
@@ -825,150 +819,169 @@ class _EnhancedInvestorDetailsDialogState
         ),
         const SizedBox(height: 20),
         
-        // Grid z kartami statystyk
-        if (_isSmallScreen)
-          Column(
-            children: stats
-                .map((stat) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _buildStatCard(stat),
-                    ))
-                .toList(),
-          )
-        else
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: _isMediumScreen ? 2 : 3, // 3 kolumny dla lepszego układu 6 kart
-              childAspectRatio: _isMediumScreen ? 2.2 : 2.8, // Dostosowany aspect ratio
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+        // Lista statystyk
+        Container(
+          decoration: BoxDecoration(
+            color: AppThemePro.surfaceCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppThemePro.borderPrimary,
+              width: 1,
             ),
-            itemCount: stats.length,
-            itemBuilder: (context, index) => _buildStatCard(stats[index]),
           ),
+          child: Column(
+            children: stats.asMap().entries.map((entry) {
+              final index = entry.key;
+              final stat = entry.value;
+              final isLast = index == stats.length - 1;
+              
+              return _buildStatListItem(stat, isLast);
+            }).toList(),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildStatCard(_StatItem stat) {
-    return AnimatedContainer(
+  Widget _buildStatListItem(_StatItem stat, bool isLast) {
+    return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      padding: EdgeInsets.all(stat.isHighlighted ? 24 : 20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: stat.isHighlighted 
-            ? [
-                stat.color.withOpacity(0.15),
-                stat.color.withOpacity(0.08),
-                stat.color.withOpacity(0.03),
-              ]
-            : [
-                stat.color.withOpacity(0.08),
-                stat.color.withOpacity(0.03),
-              ],
-        ),
-        borderRadius: BorderRadius.circular(stat.isHighlighted ? 20 : 16),
-        border: Border.all(
-          color: stat.color.withOpacity(stat.isHighlighted ? 0.3 : 0.2),
-          width: stat.isHighlighted ? 2 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: stat.color.withOpacity(stat.isHighlighted ? 0.15 : 0.08),
-            blurRadius: stat.isHighlighted ? 12 : 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Header z ikoną i oznaczeniem
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(stat.isHighlighted ? 10 : 8),
-                decoration: BoxDecoration(
-                  color: stat.color.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(stat.isHighlighted ? 10 : 8),
-                ),
-                child: Icon(
-                  stat.icon,
-                  color: stat.color,
-                  size: stat.isHighlighted ? 24 : 20,
-                ),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Curves.easeOutCubic,
+      builder: (context, animationValue, child) {
+        return Transform.translate(
+          offset: Offset(0, 20 * (1 - animationValue)),
+          child: Opacity(
+            opacity: animationValue,
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: _isSmallScreen ? 16 : 20,
+                vertical: _isSmallScreen ? 14 : 16,
               ),
-              const Spacer(),
-              if (stat.isHighlighted)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: stat.color.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
+              decoration: BoxDecoration(
+                border: !isLast ? Border(
+                  bottom: BorderSide(
+                    color: AppThemePro.borderSecondary,
+                    width: 0.5,
                   ),
-                  child: Text(
-                    'SUMA',
-                    style: TextStyle(
+                ) : null,
+                color: stat.isHighlighted 
+                  ? stat.color.withOpacity(0.05) 
+                  : Colors.transparent,
+              ),
+              child: Row(
+                children: [
+                  // Ikona z kolorowym tłem
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          stat.color.withOpacity(0.15),
+                          stat.color.withOpacity(0.08),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: stat.color.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Icon(
+                      stat.icon,
                       color: stat.color,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
+                      size: _isSmallScreen ? 18 : 20,
                     ),
                   ),
-                ),
-            ],
-          ),
-          
-          SizedBox(height: stat.isHighlighted ? 16 : 12),
-          
-          // Tytuł
-          Text(
-            stat.label,
-            style: TextStyle(
-              color: stat.color.withOpacity(0.9),
-              fontSize: stat.isHighlighted ? 14 : 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.3,
-            ),
-          ),
-          
-          const SizedBox(height: 4),
-          
-          // Wartość
-          Text(
-            stat.value,
-            style: TextStyle(
-              color: stat.color,
-              fontSize: stat.isHighlighted ? 24 : (_isSmallScreen ? 18 : 20),
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.5,
-              height: 1.1,
-            ),
-          ),
-          
-          // Opis (jeśli dostępny)
-          if (stat.description != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              stat.description!,
-              style: TextStyle(
-                color: stat.color.withOpacity(0.6),
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                height: 1.2,
+                  
+                  SizedBox(width: _isSmallScreen ? 12 : 16),
+                  
+                  // Teksty
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                stat.label,
+                                style: TextStyle(
+                                  color: AppThemePro.textPrimary,
+                                  fontSize: _isSmallScreen ? 13 : 14,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ),
+                            if (stat.isHighlighted)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: stat.color.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: stat.color.withOpacity(0.3),
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Text(
+                                  'SUMA',
+                                  style: TextStyle(
+                                    color: stat.color,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (stat.description != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            stat.description!,
+                            style: TextStyle(
+                              color: AppThemePro.textMuted,
+                              fontSize: _isSmallScreen ? 11 : 12,
+                              fontWeight: FontWeight.w400,
+                              height: 1.2,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  
+                  SizedBox(width: _isSmallScreen ? 8 : 12),
+                  
+                  // Wartość (po prawej stronie)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          stat.value,
+                          style: TextStyle(
+                            color: stat.color,
+                            fontSize: _isSmallScreen ? 16 : (stat.isHighlighted ? 18 : 16),
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
-          ],
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 

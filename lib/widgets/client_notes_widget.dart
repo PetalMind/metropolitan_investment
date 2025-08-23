@@ -26,26 +26,46 @@ class ClientNotesWidget extends StatefulWidget {
 class _ClientNotesWidgetState extends State<ClientNotesWidget> {
   final ClientNotesService _notesService = ClientNotesService();
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  
   List<ClientNote> _notes = [];
   List<ClientNote> _filteredNotes = [];
   bool _isLoading = false;
+  bool _isSearchBarVisible = true;
+  double _scrollOffset = 0.0;
+  
   NoteCategory? _selectedCategory;
   NotePriority? _selectedPriority;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadNotes();
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _searchController.dispose();
     // Żeby upewnić się, że żadne pending operacje nie wywołają setState() po dispose
     print(
       '🔧 [ClientNotesWidget] Widget disposed for client: ${widget.clientId}',
     );
     super.dispose();
+  }
+
+  void _onScroll() {
+    final currentOffset = _scrollController.offset;
+    final shouldHideSearchBar = currentOffset > 50; // Zwiń po przesunięciu 50px
+    
+    if (shouldHideSearchBar != !_isSearchBarVisible) {
+      setState(() {
+        _isSearchBarVisible = !shouldHideSearchBar;
+        _scrollOffset = currentOffset;
+      });
+    }
   }
 
   Future<void> _loadNotes() async {
@@ -226,13 +246,152 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
             _buildProfessionalHeader(),
             const SizedBox(height: 24),
 
-            // Zaawansowane filtry i wyszukiwanie
-            _buildAdvancedFilters(),
-            const SizedBox(height: 20),
+            // Zwijane filtry i wyszukiwanie z animacją
+            _buildCollapsibleFilters(),
 
             // Lista notatek lub stan pusty
-            _buildNotesContent(),
+            Expanded(child: _buildNotesContent()),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCollapsibleFilters() {
+    return Column(
+      children: [
+        // Zawsze widoczny pasek z miniaturką wyszukiwania i przyciskiem rozwijania
+        _buildCompactSearchBar(),
+        
+        // Rozwijalne filtry
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          height: _isSearchBarVisible ? null : 0,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: _isSearchBarVisible ? 1.0 : 0.0,
+            child: _isSearchBarVisible 
+              ? Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    _buildAdvancedFilters(),
+                  ],
+                )
+              : const SizedBox.shrink(),
+          ),
+        ),
+        
+        SizedBox(height: _isSearchBarVisible ? 20 : 12),
+      ],
+    );
+  }
+
+  Widget _buildCompactSearchBar() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: !_isSearchBarVisible ? () {
+          setState(() {
+            _isSearchBarVisible = true;
+          });
+        } : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppThemePro.accentGold.withOpacity(0.1),
+                AppThemePro.accentGold.withOpacity(0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppThemePro.accentGold.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.search_rounded,
+                color: AppThemePro.accentGold,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              
+              Expanded(
+                child: _isSearchBarVisible 
+                  ? Text(
+                      'Wyszukaj notatki...',
+                      style: TextStyle(
+                        color: AppThemePro.textMuted,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    )
+                  : Text(
+                      _searchController.text.isEmpty 
+                        ? 'Stuknij aby wyszukać...'
+                        : 'Szukasz: "${_searchController.text}"',
+                      style: TextStyle(
+                        color: AppThemePro.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+              ),
+              
+              // Informacja o filtrach aktywnych
+              if (!_isSearchBarVisible && (_selectedCategory != null || _selectedPriority != null))
+                Container(
+                  margin: const EdgeInsets.only(left: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.accentGold.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${(_selectedCategory != null ? 1 : 0) + (_selectedPriority != null ? 1 : 0)}',
+                    style: TextStyle(
+                      color: AppThemePro.accentGold,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              
+              const SizedBox(width: 8),
+              
+              // Przycisk rozwijania/zwijania
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () {
+                    setState(() {
+                      _isSearchBarVisible = !_isSearchBarVisible;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: AnimatedRotation(
+                      duration: const Duration(milliseconds: 300),
+                      turns: _isSearchBarVisible ? 0.5 : 0,
+                      child: Icon(
+                        Icons.keyboard_arrow_down,
+                        color: AppThemePro.accentGold,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -535,26 +694,25 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
       return _buildEmptyState();
     }
 
-    return Flexible(
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppThemePro.backgroundSecondary,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppThemePro.borderPrimary, width: 1),
-        ),
-        child: ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: _filteredNotes.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final note = _filteredNotes[index];
-            return ProfessionalNoteListItem(
-              note: note,
-              onEdit: widget.isReadOnly ? null : () => _showNoteDialog(note),
-              onDelete: widget.isReadOnly ? null : () => _deleteNote(note),
-            );
-          },
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundSecondary,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppThemePro.borderPrimary, width: 1),
+      ),
+      child: ListView.separated(
+        controller: _scrollController, // Dodano ScrollController
+        padding: const EdgeInsets.all(16),
+        itemCount: _filteredNotes.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final note = _filteredNotes[index];
+          return ProfessionalNoteListItem(
+            note: note,
+            onEdit: widget.isReadOnly ? null : () => _showNoteDialog(note),
+            onDelete: widget.isReadOnly ? null : () => _deleteNote(note),
+          );
+        },
       ),
     );
   }
