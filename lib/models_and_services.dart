@@ -177,6 +177,9 @@ export 'widgets/calendar/premium_calendar_event_dialog.dart'; // 🚀 NOWE: Prem
 // Dialog widgets
 export 'widgets/dialogs/investor_edit_dialog.dart'; // ⭐ NOWE: Dialog edycji inwestora (refaktoryzowany)
 export 'widgets/dialogs/investor_email_dialog.dart'; // ⭐ NOWE: Dialog wysyłania maili
+
+// Enhanced investor analytics dialogs
+export 'widgets/investor_analytics/dialogs/enhanced_investor_details_dialog.dart'; // 🚀 ENHANCED: Najnowocześniejszy dialog inwestora z tab navigation, history, voting, responsive design
 export 'widgets/dialogs/enhanced_email_editor_dialog.dart'; // 🚀 NOWE: Zaawansowany edytor maili z Quill
 export 'widgets/dialogs/investor_export_dialog.dart'; // ⭐ NOWE: Dialog eksportu danych
 export 'widgets/dialogs/product_history_dialog.dart'; // ⭐ NOWE: Dialog historii zmian produktu

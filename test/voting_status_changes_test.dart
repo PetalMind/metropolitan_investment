@@ -1,5 +1,16 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_test/flutter_test.dart';    test('should format date correctly', () {
+      final testDate = DateTime(2024, 1, 15, 14, 30);
+      final change = VotingStatusChange(
+        id: 'test-id',
+        investorId: 'investor-123',
+        clientId: 'client-123',
+        clientName: 'Test Client',
+        changeType: VotingStatusChangeType.statusChanged,
+        editedBy: 'Test User',
+        editedByEmail: 'test@example.com',
+        timestamp: testDate,
+        metadata: {},
+      );kage:cloud_firestore/cloud_firestore.dart';
 import 'package:metropolitan_investment/models/voting_status_change.dart';
 
 void main() {
@@ -10,12 +21,13 @@ void main() {
         investorId: 'investor-123',
         clientId: 'client-123',
         clientName: 'Test Client',
-        previousVotingStatus: 'Za',
-        newVotingStatus: 'Przeciw',
+        oldStatus: VotingStatus.yes,
+        newStatus: VotingStatus.no,
         changeType: VotingStatusChangeType.statusChanged,
         editedBy: 'Test User',
         editedByEmail: 'test@example.com',
-        changedAt: DateTime.now(),
+        timestamp: DateTime.now(),
+        metadata: {},
         reason: 'Test reason',
       );
 
@@ -31,12 +43,13 @@ void main() {
         investorId: 'investor-123',
         clientId: 'client-123',
         clientName: 'Test Client',
-        previousVotingStatus: 'Za',
-        newVotingStatus: 'Przeciw',
+        oldStatus: VotingStatus.yes,
+        newStatus: VotingStatus.no,
         changeType: VotingStatusChangeType.statusChanged,
         editedBy: 'Test User',
         editedByEmail: 'test@example.com',
-        changedAt: DateTime.now(),
+        timestamp: DateTime.now(),
+        metadata: {},
       );
 
       expect(change.changeDescription, contains('Zmieniono status głosowania'));
@@ -54,7 +67,8 @@ void main() {
         changeType: VotingStatusChangeType.created,
         editedBy: 'Test User',
         editedByEmail: 'test@example.com',
-        changedAt: testDate,
+        timestamp: testDate,
+        metadata: {},
       );
 
       expect(change.formattedDate, equals('15.01.2024 14:30'));
@@ -67,12 +81,13 @@ void main() {
         investorId: 'investor-123',
         clientId: 'client-123',
         clientName: 'Test Client',
-        previousVotingStatus: 'Za',
-        newVotingStatus: 'Przeciw',
+        oldStatus: VotingStatus.yes,
+        newStatus: VotingStatus.no,
         changeType: VotingStatusChangeType.statusChanged,
         editedBy: 'Test User',
         editedByEmail: 'test@example.com',
-        changedAt: testDate,
+        timestamp: testDate,
+        metadata: {},
         reason: 'Test reason',
       );
 
@@ -81,12 +96,12 @@ void main() {
       expect(firestoreData['investorId'], equals('investor-123'));
       expect(firestoreData['clientId'], equals('client-123'));
       expect(firestoreData['clientName'], equals('Test Client'));
-      expect(firestoreData['previousVotingStatus'], equals('Za'));
-      expect(firestoreData['newVotingStatus'], equals('Przeciw'));
+      expect(firestoreData['oldStatus'], equals('Za'));
+      expect(firestoreData['newStatus'], equals('Przeciw'));
       expect(firestoreData['changeType'], equals('statusChanged'));
       expect(firestoreData['editedBy'], equals('Test User'));
       expect(firestoreData['editedByEmail'], equals('test@example.com'));
-      expect(firestoreData['changedAt'], isA<Timestamp>());
+      expect(firestoreData['timestamp'], isA<Timestamp>());
       expect(firestoreData['reason'], equals('Test reason'));
     });
   });

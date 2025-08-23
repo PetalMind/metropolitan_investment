@@ -2406,6 +2406,7 @@ class _EnhancedProductDetailsDialogState
   }
 
   /// Buduje chip z amenity dla apartamentów
+}
 
 // --- Helpers for modern information card ---------------------------------
 class _InfoItem {

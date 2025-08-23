@@ -379,8 +379,7 @@ class _ClientsDiscoveryPanelState extends State<ClientsDiscoveryPanel>
               ),
             ),
           ),
-          ...._searchSuggestions.map((suggestion) {
-            return Material(
+          for (final suggestion in _searchSuggestions) Material(
               color: Colors.transparent,
               child: InkWell(
                 onTap: () {
@@ -421,8 +420,7 @@ class _ClientsDiscoveryPanelState extends State<ClientsDiscoveryPanel>
                   ),
                 ),
               ),
-            );
-          }),
+            ),
         ],
       ),
     );

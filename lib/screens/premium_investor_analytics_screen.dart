@@ -29,7 +29,6 @@ import '../widgets/navigation/premium_tab_navigation.dart';
 import '../widgets/navigation/premium_tab_helper.dart';
 import '../widgets/majority_analysis/majority_analysis_view.dart'
     as majority_widget;
-import '../widgets/investor_analytics/dialogs/investor_details_dialog.dart';
 const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
 
 // === Przywrócona definicja widgetu i stanu ===
@@ -2741,7 +2740,7 @@ class _PremiumInvestorAnalyticsScreenState
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) => InvestorDetailsDialog(
+      builder: (context) => EnhancedInvestorDetailsDialog(
         investor: investor,
         onInvestorUpdated: (updatedInvestor) {
         // 📍 Oznacz że dane zostały zaktualizowane

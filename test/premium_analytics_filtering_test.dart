@@ -346,10 +346,13 @@ InvestorSummary _createTestInvestor(
     name: name,
     email: email,
     phone: '+48 123 456 789',
+    address: 'Test Address',
     isActive: isActive,
     votingStatus: votingStatus,
     type: ClientType.individual,
     unviableInvestments: [],
+    createdAt: DateTime.now(),
+    updatedAt: DateTime.now(),
   );
 
   return InvestorSummary.fromInvestments(client, investments);
@@ -358,15 +361,26 @@ InvestorSummary _createTestInvestor(
 Investment _createTestInvestment(double amount, String productType) {
   return Investment(
     id: 'inv_${DateTime.now().millisecondsSinceEpoch}',
+    clientId: 'client_123',
     clientName: 'Test Client',
+    employeeId: 'emp_123',
+    employeeFirstName: 'Jan',
+    employeeLastName: 'Kowalski',
+    branchCode: 'WAR01',
+    status: InvestmentStatus.active,
+    marketType: MarketType.primary,
+    signedDate: DateTime.now().subtract(const Duration(days: 30)),
+    proposalId: 'prop_123',
     productType: _parseProductType(productType),
+    productName: 'Test Product',
+    creditorCompany: 'Test Company',
+    companyId: 'comp_123',
     investmentAmount: amount,
+    paidAmount: amount,
+    createdAt: DateTime.now().subtract(const Duration(days: 30)),
+    updatedAt: DateTime.now(),
     remainingCapital: amount * 0.8, // 80% remaining
     realizedCapital: amount * 0.2, // 20% realized
-    contractDate: DateTime.now().subtract(const Duration(days: 30)),
-    maturityDate: DateTime.now().add(const Duration(days: 365)),
-    interestRate: 5.0,
-    status: InvestmentStatus.active,
   );
 }
 
@@ -377,7 +391,7 @@ ProductType _parseProductType(String type) {
     case 'Obligacje':
       return ProductType.bonds;
     case 'Pożyczka':
-      return ProductType.loan;
+      return ProductType.loans;
     default:
       return ProductType.other;
   }

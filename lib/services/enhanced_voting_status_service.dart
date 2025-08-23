@@ -296,6 +296,15 @@ class VotingStatusStatistics {
     required this.lastUpdated,
   });
 
+  /// Creates empty statistics
+  factory VotingStatusStatistics.empty() {
+    return VotingStatusStatistics(
+      totalClients: 0,
+      statusCounts: {},
+      lastUpdated: DateTime.now(),
+    );
+  }
+
   int getCount(VotingStatus status) => statusCounts[status] ?? 0;
 
   double getPercentage(VotingStatus status) {
@@ -363,6 +372,11 @@ class VotingStatusChangeResult {
     required this.isSuccess,
   });
 
+  /// Returns true if the voting status actually changed
+  bool get hasChanged => 
+      isSuccess && previousStatus != null && newStatus != null && 
+      previousStatus != newStatus;
+
   factory VotingStatusChangeResult.success({
     required String clientId,
     required String clientName,
@@ -397,11 +411,29 @@ class VotingStatusChangeResult {
   factory VotingStatusChangeResult.error({
     required String clientId,
     required String error,
+    String? clientName,
   }) {
     return VotingStatusChangeResult._(
       clientId: clientId,
+      clientName: clientName,
       error: error,
       isSuccess: false,
     );
   }
+}
+
+/// Exception thrown when voting status operations fail
+class VotingStatusException implements Exception {
+  final String message;
+  final String? clientId;
+  final dynamic originalError;
+
+  const VotingStatusException(
+    this.message, {
+    this.clientId,
+    this.originalError,
+  });
+
+  @override
+  String toString() => 'VotingStatusException: $message';
 }

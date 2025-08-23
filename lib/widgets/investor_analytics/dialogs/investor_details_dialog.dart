@@ -7,14 +7,18 @@ import '../../optimized_voting_status_widget.dart';
 class InvestorDetailsDialog extends StatefulWidget {
   final InvestorSummary investor;
   final InvestorAnalyticsService analyticsService;
-  final VoidCallback onUpdate;
+  // Legacy nullable callback (kept for backward compatibility)
+  final VoidCallback? onUpdate;
+  // New callback used by callers expecting the updated investor object
+  final void Function(InvestorSummary updatedInvestor)? onInvestorUpdated;
 
-  const InvestorDetailsDialog({
+  InvestorDetailsDialog({
     super.key,
     required this.investor,
-    required this.analyticsService,
-    required this.onUpdate,
-  });
+    InvestorAnalyticsService? analyticsService,
+    this.onUpdate,
+    this.onInvestorUpdated,
+  }) : analyticsService = analyticsService ?? InvestorAnalyticsService();
 
   @override
   State<InvestorDetailsDialog> createState() => _InvestorDetailsDialogState();
@@ -35,6 +39,19 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
   final UnifiedVotingStatusService _votingService =
       UnifiedVotingStatusService();
 
+  // Focus nodes & microinteraction state for keyboard/Tab navigation
+  late FocusNode _dedupeSwitchFocusNode;
+  late FocusNode _editButtonFocusNode;
+  late FocusNode _closeButtonFocusNode;
+  late FocusNode _votingSelectorFocusNode;
+  late FocusNode _notesFocusNode;
+  late FocusNode _saveButtonFocusNode;
+  late FocusNode _cancelButtonFocusNode;
+
+  // Track focused investment indices for animated focus styling
+  final Set<int> _focusedInvestmentIndices = <int>{};
+  final Set<int> _hoveredInvestmentIndices = <int>{};
+
   @override
   void initState() {
     super.initState();
@@ -46,11 +63,27 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
     _selectedUnviableInvestments = List.from(
       widget.investor.client.unviableInvestments,
     );
+
+    // init focus nodes
+    _dedupeSwitchFocusNode = FocusNode(debugLabel: 'dedupeSwitch');
+    _editButtonFocusNode = FocusNode(debugLabel: 'editButton');
+    _closeButtonFocusNode = FocusNode(debugLabel: 'closeButton');
+    _votingSelectorFocusNode = FocusNode(debugLabel: 'votingSelector');
+    _notesFocusNode = FocusNode(debugLabel: 'notesField');
+    _saveButtonFocusNode = FocusNode(debugLabel: 'saveButton');
+    _cancelButtonFocusNode = FocusNode(debugLabel: 'cancelButton');
   }
 
   @override
   void dispose() {
     _notesController.dispose();
+    _dedupeSwitchFocusNode.dispose();
+    _editButtonFocusNode.dispose();
+    _closeButtonFocusNode.dispose();
+    _votingSelectorFocusNode.dispose();
+    _notesFocusNode.dispose();
+    _saveButtonFocusNode.dispose();
+    _cancelButtonFocusNode.dispose();
     super.dispose();
   }
 
@@ -102,7 +135,35 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        widget.onUpdate();
+
+        // Przygotuj zaktualizowany obiekt InvestorSummary (nie modyfikujemy oryginalnego)
+        final updatedClient = widget.investor.client.copyWith(
+          notes: _notesController.text,
+          votingStatus: _selectedVotingStatus,
+          colorCode: _selectedColor,
+          unviableInvestments: List<String>.from(_selectedUnviableInvestments),
+          updatedAt: DateTime.now(),
+        );
+
+        final updatedInvestor = InvestorSummary(
+          client: updatedClient,
+          investments: widget.investor.investments,
+          totalRemainingCapital: widget.investor.totalRemainingCapital,
+          totalSharesValue: widget.investor.totalSharesValue,
+          totalValue: widget.investor.totalValue,
+          totalInvestmentAmount: widget.investor.totalInvestmentAmount,
+          totalRealizedCapital: widget.investor.totalRealizedCapital,
+          capitalSecuredByRealEstate: widget.investor.capitalSecuredByRealEstate,
+          capitalForRestructuring: widget.investor.capitalForRestructuring,
+          investmentCount: widget.investor.investmentCount,
+        );
+
+        // Preferowane wywołanie nowego callbacku z aktualnym obiektem
+        if (widget.onInvestorUpdated != null) {
+          widget.onInvestorUpdated!(updatedInvestor);
+        } else if (widget.onUpdate != null) {
+          widget.onUpdate!();
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -137,8 +198,11 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
       child: Container(
         width: MediaQuery.of(context).size.width * 0.9,
         constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
-        child: Column(
-          children: [
+        // Group traversal so Tab order follows logical ordering we provide
+        child: FocusTraversalGroup(
+          policy: OrderedTraversalPolicy(),
+          child: Column(
+            children: [
             // Header
             Container(
               padding: const EdgeInsets.all(24),
@@ -212,57 +276,108 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Switch(
-                        value: _showDeduplicatedProducts,
-                        onChanged: (value) {
-                          setState(() {
-                            _showDeduplicatedProducts = value;
-                          });
-                        },
-                        activeColor: AppTheme.secondaryGold,
-                        inactiveThumbColor: AppTheme.textTertiary,
-                        inactiveTrackColor: AppTheme.backgroundSecondary,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      // Make the switch focusable and part of Tab order
+                      FocusTraversalOrder(
+                        order: NumericFocusOrder(1.0),
+                        child: Focus(
+                          focusNode: _dedupeSwitchFocusNode,
+                          child: FocusableActionDetector(
+                            autofocus: false,
+                            onShowFocusHighlight: (_) => setState(() {}),
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: AnimatedScale(
+                                scale: _dedupeSwitchFocusNode.hasFocus ? 1.04 : 1,
+                                duration: const Duration(milliseconds: 160),
+                                child: Switch(
+                                  value: _showDeduplicatedProducts,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _showDeduplicatedProducts = value;
+                                    });
+                                  },
+                                  activeColor: AppTheme.secondaryGold,
+                                  inactiveThumbColor: AppTheme.textTertiary,
+                                  inactiveTrackColor: AppTheme.backgroundSecondary,
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(width: 12),
 
-                  // 🆕 Przycisk edycji inwestycji
-                  IconButton(
-                    onPressed: () => setState(() {
-                      _isEditMode = !_isEditMode;
-                    }),
-                    icon: Icon(
-                      _isEditMode ? Icons.edit_off : Icons.edit,
-                      color: _isEditMode
-                          ? AppTheme.warningColor
-                          : AppTheme.textSecondary,
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor: _isEditMode
-                          ? AppTheme.warningColor.withOpacity(0.1)
-                          : AppTheme.backgroundSecondary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  // 🆕 Przycisk edycji inwestycji (focus + microanimation)
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(2.0),
+                    child: Focus(
+                      focusNode: _editButtonFocusNode,
+                      child: FocusableActionDetector(
+                        onShowFocusHighlight: (_) => setState(() {}),
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: AnimatedScale(
+                            scale: _editButtonFocusNode.hasFocus ? 1.06 : 1,
+                            duration: const Duration(milliseconds: 140),
+                            child: IconButton(
+                              onPressed: () => setState(() {
+                                _isEditMode = !_isEditMode;
+                              }),
+                              icon: Icon(
+                                _isEditMode ? Icons.edit_off : Icons.edit,
+                                color: _isEditMode
+                                    ? AppTheme.warningColor
+                                    : AppTheme.textSecondary,
+                              ),
+                              style: IconButton.styleFrom(
+                                backgroundColor: _isEditMode
+                                    ? AppTheme.warningColor.withOpacity(0.1)
+                                    : AppTheme.backgroundSecondary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              tooltip: _isEditMode
+                                  ? 'Wyłącz edycję'
+                                  : 'Włącz edycję inwestycji',
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    tooltip: _isEditMode
-                        ? 'Wyłącz edycję'
-                        : 'Włącz edycję inwestycji',
                   ),
                   const SizedBox(width: 8),
 
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(
-                      Icons.close,
-                      color: AppTheme.textSecondary,
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppTheme.backgroundSecondary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  // Close button with focus and animation
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(3.0),
+                    child: Focus(
+                      focusNode: _closeButtonFocusNode,
+                      child: FocusableActionDetector(
+                        onShowFocusHighlight: (_) => setState(() {}),
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: AnimatedScale(
+                            scale: _closeButtonFocusNode.hasFocus ? 1.06 : 1,
+                            duration: const Duration(milliseconds: 140),
+                            child: IconButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(
+                                Icons.close,
+                                color: AppTheme.textSecondary,
+                              ),
+                              style: IconButton.styleFrom(
+                                backgroundColor: AppTheme.backgroundSecondary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -314,31 +429,58 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
                     onPressed: _isLoading
                         ? null
                         : () => Navigator.of(context).pop(),
-                    child: const Text('Anuluj'),
+                    child: FocusTraversalOrder(
+                      order: NumericFocusOrder(1000.0),
+                      child: Focus(
+                        focusNode: _cancelButtonFocusNode,
+                        child: FocusableActionDetector(
+                          onShowFocusHighlight: (_) => setState(() {}),
+                          child: AnimatedScale(
+                            scale: _cancelButtonFocusNode.hasFocus ? 1.04 : 1,
+                            duration: const Duration(milliseconds: 130),
+                            child: const Text('Anuluj'),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _saveChanges,
-                    icon: _isLoading
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(1001.0),
+                    child: Focus(
+                      focusNode: _saveButtonFocusNode,
+                      child: FocusableActionDetector(
+                        onShowFocusHighlight: (_) => setState(() {}),
+                        child: AnimatedScale(
+                          scale: _saveButtonFocusNode.hasFocus ? 1.04 : 1,
+                          duration: const Duration(milliseconds: 130),
+                          child: ElevatedButton.icon(
+                            onPressed: _isLoading ? null : _saveChanges,
+                            icon: _isLoading
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                                    ),
+                                  )
+                                : const Icon(Icons.save),
+                            label: Text(_isLoading ? 'Zapisywanie...' : 'Zapisz'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.secondaryGold,
+                              foregroundColor: Colors.white,
                             ),
-                          )
-                        : const Icon(Icons.save),
-                    label: Text(_isLoading ? 'Zapisywanie...' : 'Zapisz'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.secondaryGold,
-                      foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
           ],
+        ),
         ),
       ),
     );
@@ -373,23 +515,47 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
           Row(
             children: [
               Expanded(
-                child: _buildStatItem(
-                  'Łączna wartość',
-                  CurrencyFormatter.formatCurrency(
-                    widget.investor.totalValue,
-                    showDecimals: false,
+                child: FocusTraversalOrder(
+                  order: NumericFocusOrder(6.0),
+                  child: FocusableActionDetector(
+                    onShowFocusHighlight: (_) => setState(() {}),
+                    child: Focus(
+                      child: AnimatedScale(
+                        scale: 1.0,
+                        duration: const Duration(milliseconds: 120),
+                        child: _buildStatItem(
+                          'Łączna wartość',
+                          CurrencyFormatter.formatCurrency(
+                            widget.investor.totalValue,
+                            showDecimals: false,
+                          ),
+                          Icons.account_balance_wallet,
+                          AppTheme.successColor,
+                        ),
+                      ),
+                    ),
                   ),
-                  Icons.account_balance_wallet,
-                  AppTheme.successColor,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: _buildStatItem(
-                  'Liczba inwestycji',
-                  '${widget.investor.investmentCount}',
-                  Icons.pie_chart,
-                  AppTheme.primaryColor,
+                child: FocusTraversalOrder(
+                  order: NumericFocusOrder(7.0),
+                  child: FocusableActionDetector(
+                    onShowFocusHighlight: (_) => setState(() {}),
+                    child: Focus(
+                      child: AnimatedScale(
+                        scale: 1.0,
+                        duration: const Duration(milliseconds: 120),
+                        child: _buildStatItem(
+                          'Liczba inwestycji',
+                          '${widget.investor.investmentCount}',
+                          Icons.pie_chart,
+                          AppTheme.primaryColor,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -398,26 +564,50 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
           Row(
             children: [
               Expanded(
-                child: _buildStatItem(
-                  'Kapitał pozostały',
-                  CurrencyFormatter.formatCurrency(
-                    widget.investor.totalRemainingCapital,
-                    showDecimals: false,
+                child: FocusTraversalOrder(
+                  order: NumericFocusOrder(8.0),
+                  child: FocusableActionDetector(
+                    onShowFocusHighlight: (_) => setState(() {}),
+                    child: Focus(
+                      child: AnimatedScale(
+                        scale: 1.0,
+                        duration: const Duration(milliseconds: 120),
+                        child: _buildStatItem(
+                          'Kapitał pozostały',
+                          CurrencyFormatter.formatCurrency(
+                            widget.investor.totalRemainingCapital,
+                            showDecimals: false,
+                          ),
+                          Icons.monetization_on,
+                          AppTheme.warningColor,
+                        ),
+                      ),
+                    ),
                   ),
-                  Icons.monetization_on,
-                  AppTheme.warningColor,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: _buildStatItem(
-                  'Wartość udziałów',
-                  CurrencyFormatter.formatCurrency(
-                    widget.investor.totalSharesValue,
-                    showDecimals: false,
+                child: FocusTraversalOrder(
+                  order: NumericFocusOrder(9.0),
+                  child: FocusableActionDetector(
+                    onShowFocusHighlight: (_) => setState(() {}),
+                    child: Focus(
+                      child: AnimatedScale(
+                        scale: 1.0,
+                        duration: const Duration(milliseconds: 120),
+                        child: _buildStatItem(
+                          'Wartość udziałów',
+                          CurrencyFormatter.formatCurrency(
+                            widget.investor.totalSharesValue,
+                            showDecimals: false,
+                          ),
+                          Icons.trending_up,
+                          AppTheme.infoColor,
+                        ),
+                      ),
+                    ),
                   ),
-                  Icons.trending_up,
-                  AppTheme.infoColor,
                 ),
               ),
             ],
@@ -486,23 +676,38 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
         ),
         const SizedBox(height: 16),
 
-        // Status głosowania
-        OptimizedVotingStatusSelector(
-          currentStatus: _selectedVotingStatus,
-          onStatusChanged: (VotingStatus newStatus) {
-            setState(() => _selectedVotingStatus = newStatus);
-          },
-          isCompact: false,
-          showLabels: true,
+        // Status głosowania (focusable wrapper so it has a Tab stop)
+        FocusTraversalOrder(
+          order: NumericFocusOrder(4.0),
+          child: Focus(
+            focusNode: _votingSelectorFocusNode,
+            child: FocusableActionDetector(
+              onShowFocusHighlight: (_) => setState(() {}),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: OptimizedVotingStatusSelector(
+                  currentStatus: _selectedVotingStatus,
+                  onStatusChanged: (VotingStatus newStatus) {
+                    setState(() => _selectedVotingStatus = newStatus);
+                  },
+                  isCompact: false,
+                  showLabels: true,
+                ),
+              ),
+            ),
+          ),
         ),
 
         const SizedBox(height: 16),
 
         // Notatki
-        TextField(
-          controller: _notesController,
-          style: const TextStyle(color: AppTheme.textPrimary),
-          decoration: InputDecoration(
+        FocusTraversalOrder(
+          order: NumericFocusOrder(5.0),
+          child: TextField(
+            focusNode: _notesFocusNode,
+            controller: _notesController,
+            style: const TextStyle(color: AppTheme.textPrimary),
+            decoration: InputDecoration(
             labelText: 'Notatki',
             labelStyle: const TextStyle(color: AppTheme.textSecondary),
             hintText: 'Dodaj notatki o kliencie...',
@@ -521,6 +726,7 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
             ),
           ),
           maxLines: 3,
+          ),
         ),
       ],
     );
@@ -734,53 +940,80 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
       itemCount: products.length,
       itemBuilder: (context, index) {
         final product = products[index];
-        return Card(
-          color: AppTheme.surfaceCard,
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: product.productType.color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                _getProductTypeIcon(product.productType),
-                color: product.productType.color,
-                size: 20,
-              ),
-            ),
-            title: Text(
-              product.name,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${CurrencyFormatter.formatCurrency(product.totalRemainingCapital, showDecimals: false)} - ${product.companyName}',
-                  style: const TextStyle(color: AppTheme.textSecondary),
-                ),
-                if (product.totalInvestments > 1)
-                  Text(
-                    '${product.totalInvestments} inwestycji',
-                    style: TextStyle(
-                      color: AppTheme.secondaryGold,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+        return FocusTraversalOrder(
+          order: NumericFocusOrder(10 + index.toDouble()),
+          child: Focus(
+            onFocusChange: (focused) {
+              setState(() {
+                if (focused) {
+                  _focusedInvestmentIndices.add(index);
+                } else {
+                  _focusedInvestmentIndices.remove(index);
+                }
+              });
+            },
+            child: FocusableActionDetector(
+              mouseCursor: SystemMouseCursors.click,
+              onShowFocusHighlight: (_) => setState(() {}),
+              child: MouseRegion(
+                onEnter: (_) => setState(() => _hoveredInvestmentIndices.add(index)),
+                onExit: (_) => setState(() => _hoveredInvestmentIndices.remove(index)),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  transform: Matrix4.identity()
+                    ..scale(_focusedInvestmentIndices.contains(index) ? 1.02 : (_hoveredInvestmentIndices.contains(index) ? 1.01 : 1)),
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: Card(
+                    color: AppTheme.surfaceCard,
+                    child: ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: product.productType.color.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          _getProductTypeIcon(product.productType),
+                          color: product.productType.color,
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        product.name,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${CurrencyFormatter.formatCurrency(product.totalRemainingCapital, showDecimals: false)} - ${product.companyName}',
+                            style: const TextStyle(color: AppTheme.textSecondary),
+                          ),
+                          if (product.totalInvestments > 1)
+                            Text(
+                              '${product.totalInvestments} inwestycji',
+                              style: TextStyle(
+                                color: AppTheme.secondaryGold,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
+                      trailing: Icon(
+                        Icons.arrow_forward_ios,
+                        color: AppTheme.textTertiary,
+                        size: 16,
+                      ),
+                      onTap: () => _navigateToProductDetails(product),
                     ),
                   ),
-              ],
+                ),
+              ),
             ),
-            trailing: Icon(
-              Icons.arrow_forward_ios,
-              color: AppTheme.textTertiary,
-              size: 16,
-            ),
-            onTap: () => _navigateToProductDetails(product),
           ),
         );
       },
@@ -807,53 +1040,80 @@ class _InvestorDetailsDialogState extends State<InvestorDetailsDialog> {
         final investment = widget.investor.investments[index];
         final isUnviable = _selectedUnviableInvestments.contains(investment.id);
 
-        return Card(
-          color: AppTheme.surfaceCard,
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          child: InkWell(
-            onTap: () => _navigateToProductDetails(investment),
-            child: CheckboxListTile(
-              title: Text(
-                investment.productName,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w500,
+        return FocusTraversalOrder(
+          order: NumericFocusOrder(200 + index.toDouble()),
+          child: Focus(
+            onFocusChange: (focused) {
+              setState(() {
+                if (focused) {
+                  _focusedInvestmentIndices.add(index);
+                } else {
+                  _focusedInvestmentIndices.remove(index);
+                }
+              });
+            },
+            child: FocusableActionDetector(
+              mouseCursor: SystemMouseCursors.click,
+              onShowFocusHighlight: (_) => setState(() {}),
+              child: MouseRegion(
+                onEnter: (_) => setState(() => _hoveredInvestmentIndices.add(index)),
+                onExit: (_) => setState(() => _hoveredInvestmentIndices.remove(index)),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  transform: Matrix4.identity()
+                    ..scale(_focusedInvestmentIndices.contains(index) ? 1.02 : (_hoveredInvestmentIndices.contains(index) ? 1.01 : 1)),
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: Card(
+                    color: AppTheme.surfaceCard,
+                    child: InkWell(
+                      onTap: () => _navigateToProductDetails(investment),
+                      child: CheckboxListTile(
+                        title: Text(
+                          investment.productName,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${CurrencyFormatter.formatCurrency(investment.remainingCapital, showDecimals: false)} - ${investment.creditorCompany}',
+                          style: const TextStyle(color: AppTheme.textSecondary),
+                        ),
+                        value: isUnviable,
+                        onChanged: (value) {
+                          setState(() {
+                            if (value == true) {
+                              _selectedUnviableInvestments.add(investment.id);
+                            } else {
+                              _selectedUnviableInvestments.remove(investment.id);
+                            }
+                          });
+                        },
+                        secondary: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color:
+                                (isUnviable
+                                        ? AppTheme.warningColor
+                                        : AppTheme.successColor)
+                                    .withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            isUnviable ? Icons.warning : Icons.check_circle,
+                            color: isUnviable
+                                ? AppTheme.warningColor
+                                : AppTheme.successColor,
+                            size: 20,
+                          ),
+                        ),
+                        activeColor: AppTheme.warningColor,
+                        checkColor: Colors.white,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              subtitle: Text(
-                '${CurrencyFormatter.formatCurrency(investment.remainingCapital, showDecimals: false)} - ${investment.creditorCompany}',
-                style: const TextStyle(color: AppTheme.textSecondary),
-              ),
-              value: isUnviable,
-              onChanged: (value) {
-                setState(() {
-                  if (value == true) {
-                    _selectedUnviableInvestments.add(investment.id);
-                  } else {
-                    _selectedUnviableInvestments.remove(investment.id);
-                  }
-                });
-              },
-              secondary: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color:
-                      (isUnviable
-                              ? AppTheme.warningColor
-                              : AppTheme.successColor)
-                          .withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  isUnviable ? Icons.warning : Icons.check_circle,
-                  color: isUnviable
-                      ? AppTheme.warningColor
-                      : AppTheme.successColor,
-                  size: 20,
-                ),
-              ),
-              activeColor: AppTheme.warningColor,
-              checkColor: Colors.white,
             ),
           ),
         );

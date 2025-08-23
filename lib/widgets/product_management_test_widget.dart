@@ -5,9 +5,9 @@ library;
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../models/unified_product.dart';
-import '../dialogs/product_edit_dialog.dart';
-import '../dialogs/product_delete_dialog.dart';
-import '../product_details_dialog.dart';
+import 'dialogs/product_edit_dialog.dart';
+import 'dialogs/product_delete_dialog.dart';
+import 'product_details_dialog.dart';
 
 class ProductManagementTestWidget extends StatelessWidget {
   const ProductManagementTestWidget({super.key});
