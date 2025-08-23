@@ -21,7 +21,8 @@
       "Bash(npm install)",
       "Bash(flutter pub:*)",
       "WebSearch",
-      "Bash(flutter compile:*)"
+      "Bash(flutter compile:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

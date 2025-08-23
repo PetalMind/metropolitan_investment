@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test Eksportu Metropolitan Investment</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Test Eksportu Metropolitan Investment</h1>
+    <p>Ta strona testuje funkcjonalność eksportu danych Firebase Functions.</p>
+
+    <form id="exportForm">
+        <div class="form-group">
+            <label>Format eksportu:</label>
+            <select id="exportFormat">
+                <option value="csv">CSV</option>
+                <option value="excel">Excel</option>
+                <option value="pdf">PDF</option>
+                <option value="word">Word</option>
+                <option value="json">JSON</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Client IDs (rozdzielone przecinkami):</label>
+            <textarea id="clientIds" rows="3"
+                placeholder="client_001,client_002,client_003">client_001,client_002,client_003</textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Email wysyłającego:</label>
+            <input type="email" id="requestedBy" value="test@metropolitan.pl" required>
+        </div>
+
+        <div class="form-group">
+            <label>Tytuł eksportu:</label>
+            <input type="text" id="exportTitle" value="Test Eksportu" required>
+        </div>
+
+        <button type="button" onclick="testBasicExport()">Test Basic Export</button>
+        <button type="button" onclick="testAdvancedExport()">Test Advanced Export</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+        const BASE_URL = 'https://europe-west1-metropolitan-investment.cloudfunctions.net';
+
+        async function testBasicExport() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Testowanie basic export...</p>';
+
+            try {
+                const format = document.getElementById('exportFormat').value;
+                const clientIds = document.getElementById('clientIds').value.split(',').map(id => id.trim());
+                const requestedBy = document.getElementById('requestedBy').value;
+                const exportTitle = document.getElementById('exportTitle').value;
+
+                const requestData = {
+                    data: {
+                        clientIds,
+                        exportFormat: format,
+                        exportTitle,
+                        requestedBy,
+                        includeFields: ['clientName', 'totalInvestmentAmount', 'totalRemainingCapital']
+                    }
+                };
+
+                console.log('Sending basic export request:', requestData);
+
+                const response = await fetch(`${BASE_URL}/exportInvestorsDataHttp`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                const responseText = await response.text();
+                console.log('Raw response:', responseText);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${responseText}`);
+                }
+
+                const result = JSON.parse(responseText);
+                console.log('Parsed result:', result);
+
+                if (result.result && result.result.success) {
+                    const exportResult = result.result;
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <h3>✅ Basic Export Sukces!</h3>
+                            <p><strong>Format:</strong> ${exportResult.format}</p>
+                            <p><strong>Rekordów:</strong> ${exportResult.recordCount}</p>
+                            <p><strong>Plik:</strong> ${exportResult.filename}</p>
+                            <p><strong>Rozmiar:</strong> ${exportResult.size || 'nieznany'} bajtów</p>
+                            <p><strong>Czas:</strong> ${exportResult.executionTimeMs}ms</p>
+                            ${exportResult.data ? '<button onclick="downloadFile(\'' + exportResult.data + '\', \'' + exportResult.filename + '\', \'' + format + '\')">Pobierz plik</button>' : ''}
+                        </div>
+                    `;
+                } else {
+                    throw new Error(result.error?.message || 'Nieznany błąd');
+                }
+
+            } catch (error) {
+                console.error('Basic export error:', error);
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Basic Export Błąd</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testAdvancedExport() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Testowanie advanced export...</p>';
+
+            try {
+                const format = document.getElementById('exportFormat').value;
+                const clientIds = document.getElementById('clientIds').value.split(',').map(id => id.trim());
+                const requestedBy = document.getElementById('requestedBy').value;
+
+                // Tylko dla formatów PDF i Word
+                if (!['pdf', 'word'].includes(format)) {
+                    throw new Error('Advanced export obsługuje tylko PDF i Word');
+                }
+
+                const requestData = {
+                    data: {
+                        clientIds,
+                        exportFormat: format,
+                        templateType: 'summary',
+                        options: {},
+                        requestedBy
+                    }
+                };
+
+                console.log('Sending advanced export request:', requestData);
+
+                // Wywołanie Cloud Function (callable)
+                const response = await fetch(`${BASE_URL}/exportInvestorsAdvanced`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                const responseText = await response.text();
+                console.log('Raw response:', responseText);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${responseText}`);
+                }
+
+                const result = JSON.parse(responseText);
+                console.log('Parsed result:', result);
+
+                if (result.success) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <h3>✅ Advanced Export Sukces!</h3>
+                            <p><strong>Format:</strong> ${result.format}</p>
+                            <p><strong>Rekordów:</strong> ${result.recordCount}</p>
+                            <p><strong>Plik:</strong> ${result.filename}</p>
+                            <p><strong>Rozmiar:</strong> ${result.fileSize || 'nieznany'} bajtów</p>
+                            <p><strong>Czas:</strong> ${result.executionTimeMs}ms</p>
+                            ${result.fileData ? '<button onclick="downloadFile(\'' + result.fileData + '\', \'' + result.filename + '\', \'' + format + '\')">Pobierz plik</button>' : ''}
+                        </div>
+                    `;
+                } else {
+                    throw new Error(result.errorMessage || 'Nieznany błąd');
+                }
+
+            } catch (error) {
+                console.error('Advanced export error:', error);
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Advanced Export Błąd</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function downloadFile(base64Data, filename, format) {
+            try {
+                // Konwertuj base64 do blob
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+
+                // Określ content type
+                let contentType = 'application/octet-stream';
+                switch (format) {
+                    case 'pdf':
+                        contentType = 'application/pdf';
+                        break;
+                    case 'excel':
+                        contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                        break;
+                    case 'word':
+                        contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                        break;
+                    case 'csv':
+                        contentType = 'text/csv';
+                        break;
+                    case 'json':
+                        contentType = 'application/json';
+                        break;
+                }
+
+                const blob = new Blob([byteArray], { type: contentType });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                console.log('Plik został pobrany:', filename);
+            } catch (error) {
+                console.error('Błąd pobierania pliku:', error);
+                alert('Błąd pobierania pliku: ' + error.message);
+            }
+        }
+    </script>
+</body>
+
+</html>

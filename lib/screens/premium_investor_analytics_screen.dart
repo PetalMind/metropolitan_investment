@@ -29,6 +29,7 @@ import '../widgets/navigation/premium_tab_navigation.dart';
 import '../widgets/navigation/premium_tab_helper.dart';
 import '../widgets/majority_analysis/majority_analysis_view.dart'
     as majority_widget;
+import '../widgets/investor_analytics/dialogs/investor_details_dialog.dart';
 const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
 
 // === Przywrócona definicja widgetu i stanu ===
@@ -2737,24 +2738,20 @@ class _PremiumInvestorAnalyticsScreenState
     // 📍 Resetuj flagę przed otwarciem modalu
     _dataWasUpdated = false;
 
-    InvestorDetailsModalHelper.show(
+    showDialog(
       context: context,
-      investor: investor,
-      analyticsService: _updateService,
-      onEditInvestor: () {
-        // Możliwość dodania dodatkowej logiki edycji
-      },
-      onViewInvestments: () {
-        // Funkcjonalność przeniesiona do wnętrza modalu - przycisk automatycznie przełączy na zakładkę
-      },
-      onUpdateInvestor: (updatedInvestor) {
+      barrierDismissible: true,
+      builder: (context) => InvestorDetailsDialog(
+        investor: investor,
+        onInvestorUpdated: (updatedInvestor) {
         // 📍 Oznacz że dane zostały zaktualizowane
         _dataWasUpdated = true;
         // 📍 Odśwież dane po aktualizacji z wymuszeniem przeładowania z serwera
         // TYLKO gdy rzeczywiście były zapisane zmiany w danych inwestora
         // Pozycja scroll zostanie automatycznie zachowana i przywrócona
         _refreshDataAfterUpdate();
-      },
+        },
+      ),
     ).then((_) {
       // 📍 Po zamknięciu modalu - sprawdź czy potrzebne jest odświeżenie
       if (!_dataWasUpdated) {

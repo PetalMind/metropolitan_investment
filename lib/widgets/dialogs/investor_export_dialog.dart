@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
+import '../../utils/download_helper.dart';
 
 /// Widget do eksportu danych inwestorów
 /// 
@@ -44,7 +46,7 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
         width: MediaQuery.of(context).size.width * 0.7,
         constraints: BoxConstraints(
           maxWidth: 600,
-          maxHeight: MediaQuery.of(context).size.height * 0.8,
+          maxHeight: MediaQuery.of(context).size.height * 0.9, // Zwiększ maksymalną wysokość
         ),
         decoration: BoxDecoration(
           color: AppThemePro.backgroundPrimary,
@@ -61,7 +63,7 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildHeader(),
-            Flexible(child: _buildContent()),
+            Expanded(child: _buildContent()), // Użyj Expanded zamiast Flexible
             if (_result != null) _buildResult(),
             _buildActions(),
           ],
@@ -134,6 +136,7 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min, // Dodane dla lepszego układu
         children: [
           // Statystyki wybranych inwestorów
           _buildStatisticsCard(),
@@ -521,22 +524,26 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
           ),
           const SizedBox(height: 8),
           if (_result!.success) ...[
-            Text('📄 Plik: ${_result!.filename}'),
+            Wrap(
+              children: [
+                Text('📄 Plik: ${_result!.filename}'),
+              ],
+            ),
             Text('📊 Eksportowano: ${_result!.recordCount} rekordów'),
-            Text('💾 Rozmiar: ${_result!.size ?? 'nieznany'} bajtów'),
+            Text('💾 Rozmiar: ${_formatFileSize(_result!.size ?? 0)}'),
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
               children: [
                 ElevatedButton.icon(
                   onPressed: () => _copyToClipboard(_result!.data),
                   icon: const Icon(Icons.copy, size: 16),
-                  label: const Text('Kopiuj Dane'),
+                  label: const Text('Kopiuj'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppThemePro.statusSuccess,
                     foregroundColor: AppThemePro.textPrimary,
                   ),
                 ),
-                const SizedBox(width: 8),
                 TextButton.icon(
                   onPressed: () => _result!.data.isNotEmpty ? 
                       _openDownloadUrl(_result!.data) : null,
@@ -604,10 +611,23 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final requestedBy = authProvider.user?.uid ?? 'anonymous@metropolitan.pl';
 
-      AdvancedExportResult advancedResult;
+      late AdvancedExportResult advancedResult;
 
-      // Dla formatów PDF i Word używamy zaawansowanego eksportu
-      if (['pdf', 'word'].contains(_exportFormat)) {
+      if (_exportFormat == 'excel') {
+        // Dla Excel używamy dedykowanego serwisu
+        final result = await _exportExcelDedicated(requestedBy);
+        advancedResult = AdvancedExportResult(
+          success: result['success'] ?? false,
+          downloadUrl: result['fileData'],
+          fileName: result['filename'],
+          fileSize: result['fileSize'] ?? 0,
+          exportFormat: 'excel',
+          errorMessage: result['success'] != true ? 'Błąd eksportu Excel' : null,
+          processingTimeMs: result['executionTimeMs'] ?? 0,
+          totalRecords: result['recordCount'] ?? 0,
+        );
+      } else {
+        // Dla PDF i Word używamy zaawansowanego eksportu
         advancedResult = await emailService.exportInvestorsAdvanced(
           clientIds: widget.selectedInvestors.map((i) => i.client.id).toList(),
           exportFormat: _exportFormat,
@@ -616,79 +636,42 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
             'includePersonalData': _includeContactInfo,
             'includeInvestmentDetails': _includeInvestmentDetails,
             'includeFinancialSummary': _includeFinancialSummary,
+            'sortBy': _sortBy,
+            'sortDescending': _sortOrder == 'desc',
           },
           requestedBy: requestedBy,
         );
-
-        // Konwertuj AdvancedExportResult do ExportResult
-        final result = ExportResult(
-          success: advancedResult.isSuccessful,
-          format: _exportFormat,
-          recordCount: widget.selectedInvestors.length,
-          totalProcessed: widget.selectedInvestors.length,
-          totalErrors: advancedResult.isSuccessful ? 0 : 1,
-          executionTimeMs: advancedResult.processingTimeMs,
-          exportTitle: 'Eksport inwestorów',
-          data: advancedResult.downloadUrl ?? '',
-          filename: advancedResult.fileName ?? 'export.$_exportFormat',
-          size: advancedResult.fileSize,
-        );
-
-        setState(() {
-          _result = result;
-          _isLoading = false;
-        });
-
-        if (result.success && context.mounted) {
-          // Pokaż snackbar z opcją pobierania pliku
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '✅ Eksport zakończony: ${result.recordCount} rekordów',
-              ),
-              backgroundColor: AppThemePro.statusSuccess,
-              action: advancedResult.downloadUrl != null
-                  ? SnackBarAction(
-                      label: 'Pobierz',
-                      textColor: AppThemePro.textPrimary,
-                      onPressed: () =>
-                          _copyToClipboard(advancedResult.downloadUrl!),
-                    )
-                  : null,
-            ),
-          );
-        }
-      } else {
-        // Dla Excel używamy standardowego eksportu
-        final result = await emailService.exportInvestorsData(
-          clientIds: widget.selectedInvestors.map((i) => i.client.id).toList(),
-          exportFormat: _exportFormat,
-          sortBy: _sortBy,
-          sortDescending: _sortOrder == 'desc',
-          requestedBy: requestedBy,
-          includePersonalData: _includeContactInfo,
-        );
-
-        setState(() {
-          _result = result;
-          _isLoading = false;
-        });
-
-        if (result.success && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '✅ Eksport zakończony: ${result.recordCount} rekordów',
-              ),
-              backgroundColor: AppThemePro.statusSuccess,
-            ),
-          );
-        }
       }
 
-      if (context.mounted) {
-        widget.onExportComplete();
+      // Konwertuj AdvancedExportResult do ExportResult
+      final result = ExportResult(
+        success: advancedResult.isSuccessful,
+        format: _exportFormat,
+        recordCount: widget.selectedInvestors.length,
+        totalProcessed: widget.selectedInvestors.length,
+        totalErrors: advancedResult.isSuccessful ? 0 : 1,
+        executionTimeMs: advancedResult.processingTimeMs,
+        exportTitle: 'Eksport inwestorów',
+        data: advancedResult.downloadUrl ?? '',
+        filename: advancedResult.fileName ?? 'export.$_exportFormat',
+        size: advancedResult.fileSize,
+      );
+
+      setState(() {
+        _result = result;
+        _isLoading = false;
+      });
+
+      if (result.success && context.mounted) {
+        // Pokaż dialog potwierdzenia pobierania dla wszystkich formatów
+        _showDownloadConfirmationDialog(result);
       }
+
+      // NIE wywołuj onExportComplete() tutaj - zostaw dialog otwarty
+      // aby użytkownik mógł pobrać plik
+      // if (context.mounted) {
+      //   widget.onExportComplete();
+      // }
 
     } catch (e) {
       setState(() {
@@ -696,6 +679,13 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
         _isLoading = false;
       });
     }
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes == 0) return 'nieznany';
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   void _copyToClipboard(String text) {
@@ -710,9 +700,291 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
     }
   }
 
+  /// Eksport Excel przez dedykowany serwis
+  Future<Map<String, dynamic>> _exportExcelDedicated(String requestedBy) async {
+    try {
+      final result = await FirebaseFunctions.instanceFor(
+        region: 'europe-west1',
+      ).httpsCallable('exportSelectedInvestorsToExcel').call({
+        'clientIds': widget.selectedInvestors.map((i) => i.client.id).toList(),
+        'requestedBy': requestedBy,
+        'exportTitle': 'Eksport_Inwestorow_${DateTime.now().toIso8601String().split('T')[0]}',
+      });
+
+      return result.data as Map<String, dynamic>;
+    } catch (e) {
+      throw Exception('Błąd dedykowanego eksportu Excel: $e');
+    }
+  }
+
   void _openDownloadUrl(String url) {
-    // W prawdziwej aplikacji otworzyłbyś URL w przeglądarce
-    // Na razie po prostu kopiujemy do schowka
-    _copyToClipboard(url);
+    // Sprawdź czy to base64 z nowego zaawansowanego eksportu
+    if (_result != null && 
+        ['pdf', 'word'].contains(_exportFormat) && 
+        _result!.data.isNotEmpty && 
+        !_result!.data.startsWith('http')) {
+      
+      // To jest base64 data z zaawansowanego eksportu
+      final contentType = _getContentTypeForFormat(_exportFormat);
+      downloadBase64File(_result!.data, _result!.filename, contentType).then((_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('📥 Plik został pobrany')),
+          );
+        }
+      }).catchError((e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('❌ Błąd pobierania: $e')),
+          );
+        }
+      });
+      return;
+    }
+
+    // Jeśli to wygląda jak bezpośredni link (http/https) -> otwórz / pobierz
+    final isUrl = url.startsWith('http://') || url.startsWith('https://');
+
+    if (isUrl) {
+      downloadFileFromUrl(url, filename: _result?.filename).then((_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('📥 Pobieranie rozpoczęte')),
+          );
+        }
+      }).catchError((e) {
+        // Fallback: skopiuj do schowka
+        _copyToClipboard(url);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Nie udało się automatycznie pobrać pliku. Link skopiowany.')),
+          );
+        }
+      });
+      return;
+    }
+
+    // Jeśli to nie jest URL, możemy traktować to jako surowe dane (CSV/JSON)
+    final filename = _result?.filename ?? 'export.${_exportFormat}';
+    downloadRawData(url, filename).then((_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('📥 Plik zapisany (tymczasowo) i otwarty')),
+        );
+      }
+    }).catchError((e) {
+      // Jeśli nic nie zadziałało, skopiuj zawartość
+      _copyToClipboard(url);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nie udało się zapisać pliku; dane skopiowane do schowka')),
+        );
+      }
+    });
+  }
+
+  String _getContentTypeForFormat(String format) {
+    switch (format) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'excel':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'word':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  /// Pokazuje dialog potwierdzenia pobierania pliku
+  void _showDownloadConfirmationDialog(ExportResult result) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppThemePro.backgroundPrimary,
+        title: Row(
+          children: [
+            Icon(
+              Icons.check_circle,
+              color: AppThemePro.statusSuccess,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Eksport Zakończony',
+              style: TextStyle(
+                color: AppThemePro.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Plik został wygenerowany pomyślnie:',
+              style: TextStyle(color: AppThemePro.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppThemePro.backgroundSecondary,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppThemePro.borderPrimary,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        _getIconForFormat(_exportFormat),
+                        color: AppThemePro.accentGold,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          result.filename,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppThemePro.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Rekordów: ${result.recordCount}',
+                    style: TextStyle(color: AppThemePro.textMuted),
+                  ),
+                  if (result.size != null)
+                    Text(
+                      'Rozmiar: ${_formatFileSize(result.size!)}',
+                      style: TextStyle(color: AppThemePro.textMuted),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Czy chcesz pobrać plik teraz?',
+              style: TextStyle(
+                color: AppThemePro.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Zamknij dialog potwierdzenia
+              // Nie zamykamy dialog eksportu - użytkownik może go zamknąć ręcznie
+            },
+            child: Text(
+              'Później',
+              style: TextStyle(color: AppThemePro.textMuted),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop(); // Zamknij dialog potwierdzenia
+              _downloadGeneratedFile(result);
+              // Dialog eksportu zostanie zamknięty w _downloadGeneratedFile po pomyślnym pobraniu
+            },
+            icon: const Icon(Icons.download, size: 20),
+            label: const Text('Pobierz Teraz'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppThemePro.statusSuccess,
+              foregroundColor: AppThemePro.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getIconForFormat(String format) {
+    switch (format) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'excel':
+        return Icons.table_chart;
+      case 'word':
+        return Icons.description;
+      default:
+        return Icons.file_present;
+    }
+  }
+
+  /// Pobiera wygenerowany plik
+  void _downloadGeneratedFile(ExportResult result) {
+    try {
+      if (['pdf', 'word'].contains(_exportFormat) && result.data.isNotEmpty) {
+        // Pobierz plik binarny z base64
+        final contentType = _getContentTypeForFormat(_exportFormat);
+        downloadBase64File(result.data, result.filename, contentType).then((_) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('✅ Plik ${result.filename} został pobrany'),
+                backgroundColor: AppThemePro.statusSuccess,
+              ),
+            );
+            // Wywołaj callback po pomyślnym pobraniu
+            widget.onExportComplete();
+          }
+        }).catchError((e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('❌ Błąd pobierania: $e'),
+                backgroundColor: AppThemePro.statusError,
+              ),
+            );
+          }
+        });
+      } else {
+        // Pobierz jako raw data (CSV/JSON)
+        downloadRawData(result.data, result.filename).then((_) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('✅ Plik ${result.filename} został pobrany'),
+                backgroundColor: AppThemePro.statusSuccess,
+              ),
+            );
+            // Wywołaj callback po pomyślnym pobraniu
+            widget.onExportComplete();
+          }
+        }).catchError((e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('❌ Błąd pobierania: $e'),
+                backgroundColor: AppThemePro.statusError,
+              ),
+            );
+          }
+        });
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Błąd pobierania pliku: $e'),
+            backgroundColor: AppThemePro.statusError,
+          ),
+        );
+      }
+    }
   }
 }

@@ -255,7 +255,7 @@ Zespół Metropolitan Investment''';
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppThemePro.accentGold,
+            AppThemePro.backgroundPrimary,
             AppThemePro.accentGold.withOpacity(0.8),
           ],
           begin: Alignment.topLeft,

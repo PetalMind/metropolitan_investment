@@ -275,4 +275,10 @@ module.exports = {
   // 🚀 SERWISY EKSPORTU DANYCH
   ...exportService, // Export wszystkich funkcji z export-service
   ...advancedExportService, // Export wszystkich funkcji z advanced-export-service
+
+  // 🚀 DEBUG EXCEL TEST
+  ...require('./test-excel-debug'),
+
+  // 🚀 DEDICATED EXCEL EXPORT
+  ...require('./services/dedicated-excel-export-service'),
 };

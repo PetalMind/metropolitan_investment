@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models_and_services.dart'; // Centralny import z ultra-precyzyjnym serwisem
 import '../providers/auth_provider.dart';
@@ -2084,83 +2085,190 @@ class _EnhancedProductDetailsDialogState
 
   /// Buduje podstawowe informacje o produkcie
   Widget _buildBasicInformation() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.surfaceElevated.withOpacity(0.6),
-            AppTheme.surfaceCard,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppTheme.borderPrimary.withOpacity(0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppTheme.secondaryGold.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
+    // Nowoczesna, responsywna karta "Informacje" z mikrointerakcjami
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+      builder: (context, animValue, child) {
+        return Transform.translate(
+          offset: Offset(0, 12 * (1 - animValue)),
+          child: Opacity(
+            opacity: animValue,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeInOut,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppTheme.surfaceElevated.withOpacity(0.5),
+                    AppTheme.surfaceCard,
+                  ],
                 ),
-                child: Icon(
-                  Icons.info_outline,
-                  color: AppTheme.secondaryGold,
-                  size: 20,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppTheme.borderPrimary.withOpacity(0.18),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Text(
-                'Podstawowe Informacje',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppTheme.secondaryGold,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.3,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondaryGold.withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.info_outline,
+                          color: AppTheme.secondaryGold,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Informacje',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                      ),
+                      // Small action buttons
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Tooltip(
+                            message: 'Kopiuj ID',
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () {
+                                Clipboard.setData(ClipboardData(text: widget.product.id));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text('ID skopiowane do schowka'),
+                                    backgroundColor: AppTheme.infoPrimary,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.backgroundSecondary.withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(Icons.copy, size: 18),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Tooltip(
+                            message: 'Pokaż więcej',
+                            child: InkWell(
+                              onTap: () {
+                                // Subtelna mikrointerakcja: expanduj/scroll do sekcji opisu
+                                // Używamy fabrycznego zachowania: scroll to top of overview handled by parent scroll controller
+                                // Jeśli potrzebne, można dodać callback do otwierania odpowiedniej sekcji.
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text('Przejdź do szczegółów produktu'),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.backgroundSecondary.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(Icons.more_horiz, size: 18),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Responsive grid of key/value pairs with microinteractions
+                  LayoutBuilder(builder: (context, constraints) {
+                    final isWide = constraints.maxWidth > 700;
+                    final isMedium = constraints.maxWidth > 420 && constraints.maxWidth <= 700;
+
+                    final infoItems = <_InfoItem>[
+                      _InfoItem(label: 'ID Produktu', value: widget.product.id),
+                      _InfoItem(label: 'Typ', value: widget.product.productType.displayName),
+                      _InfoItem(label: 'Status', value: widget.product.isActive ? 'Aktywny' : 'Nieaktywny'),
+                      _InfoItem(label: 'Kwota inwestycji', value: _formatCurrency(widget.product.investmentAmount)),
+                      _InfoItem(label: 'Data utworzenia', value: _formatDate(widget.product.createdAt)),
+                      _InfoItem(label: 'Ostatnia aktualizacja', value: _formatDate(widget.product.uploadedAt)),
+                      _InfoItem(label: 'Waluta', value: widget.product.currency ?? 'PLN'),
+                    ];
+
+                    if (isWide) {
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: infoItems.length,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 4.2,
+                        ),
+                        itemBuilder: (context, index) {
+                          final item = infoItems[index];
+                          return _AnimatedInfoTile(item: item);
+                        },
+                      );
+                    } else if (isMedium) {
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: infoItems.length,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 5,
+                        ),
+                        itemBuilder: (context, index) {
+                          final item = infoItems[index];
+                          return _AnimatedInfoTile(item: item);
+                        },
+                      );
+                    } else {
+                      return Column(
+                        children: infoItems.map((i) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _AnimatedInfoTile(item: i),
+                        )).toList(),
+                      );
+                    }
+                  }),
+                ],
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 20),
-          _buildDetailRow('ID Produktu', widget.product.id),
-          _buildDetailRow(
-            'Typ produktu',
-            widget.product.productType.displayName,
-          ),
-          _buildDetailRow(
-            'Status',
-            widget.product.isActive ? 'Aktywny' : 'Nieaktywny',
-          ),
-          _buildDetailRow(
-            'Kwota inwestycji',
-            _formatCurrency(widget.product.investmentAmount),
-          ),
-          _buildDetailRow(
-            'Data utworzenia',
-            _formatDate(widget.product.createdAt),
-          ),
-          _buildDetailRow(
-            'Ostatnia aktualizacja',
-            _formatDate(widget.product.uploadedAt),
-          ),
-          _buildDetailRow('Waluta', widget.product.currency ?? 'PLN'),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -2298,6 +2406,117 @@ class _EnhancedProductDetailsDialogState
   }
 
   /// Buduje chip z amenity dla apartamentów
+
+// --- Helpers for modern information card ---------------------------------
+class _InfoItem {
+  final String label;
+  final String value;
+  _InfoItem({required this.label, required this.value});
+}
+
+class _AnimatedInfoTile extends StatefulWidget {
+  final _InfoItem item;
+  const _AnimatedInfoTile({Key? key, required this.item}) : super(key: key);
+
+  @override
+  State<_AnimatedInfoTile> createState() => _AnimatedInfoTileState();
+}
+
+class _AnimatedInfoTileState extends State<_AnimatedInfoTile> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(duration: const Duration(milliseconds: 160), vsync: this);
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.985).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) => _controller.reverse(),
+      onTapCancel: () => _controller.reverse(),
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppTheme.backgroundSecondary.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.borderSecondary.withOpacity(0.08)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.item.label,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textTertiary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.item.value,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppTheme.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Copy action
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () async {
+                  await Clipboard.setData(ClipboardData(text: widget.item.value));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${widget.item.label} skopiowane'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.backgroundSecondary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.copy, size: 16, color: AppTheme.textTertiary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
   Widget _buildAmenityChip(String label, IconData icon) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
