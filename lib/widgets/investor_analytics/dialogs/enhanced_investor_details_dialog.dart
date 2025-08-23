@@ -3,9 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../models_and_services.dart';
 import '../../../theme/app_theme_professional.dart';
-import '../../../utils/currency_formatter.dart';
 import '../../optimized_voting_status_widget.dart';
-import '../../investment_history_widget.dart';
+import '../../client_notes_widget.dart';
 import '../tabs/voting_changes_tab.dart';
 
 /// 🚀 ENHANCED INVESTOR DETAILS DIALOG
@@ -62,7 +61,6 @@ class _EnhancedInvestorDetailsDialogState
 
   // === STATE VARIABLES ===
   // Investor data
-  late InvestorSummary _currentInvestor;
   late VotingStatus _selectedVotingStatus;
   String _selectedColor = '#FFFFFF';
   List<String> _selectedUnviableInvestments = [];
@@ -72,12 +70,10 @@ class _EnhancedInvestorDetailsDialogState
   bool _isLoading = false;
   bool _isEditing = false;
   bool _hasChanges = false;
-  String? _error;
 
   // Investment filtering and search
   String _investmentSearchQuery = '';
   ProductType? _selectedProductTypeFilter;
-  InvestmentStatus? _selectedStatusFilter;
   bool _showOnlyUnviable = false;
 
   // History data
@@ -117,10 +113,10 @@ class _EnhancedInvestorDetailsDialogState
       tooltip: 'Historia statusów głosowania',
     ),
     _TabDefinition(
-      icon: Icons.settings_outlined,
-      activeIcon: Icons.settings,
-      label: 'Ustawienia',
-      tooltip: 'Notatki i konfiguracja',
+      icon: Icons.note_outlined,
+      activeIcon: Icons.note,
+      label: 'Notatki',
+      tooltip: 'Notatki klienta',
     ),
   ];
 
@@ -151,7 +147,6 @@ class _EnhancedInvestorDetailsDialogState
 
   void _initializeState() {
     _analyticsService = widget.analyticsService ?? InvestorAnalyticsService();
-    _currentInvestor = widget.investor;
     _selectedVotingStatus = widget.investor.client.votingStatus;
     _selectedColor = widget.investor.client.colorCode;
     _selectedUnviableInvestments =
@@ -226,9 +221,11 @@ class _EnhancedInvestorDetailsDialogState
     try {
       setState(() => _historyLoading = true);
 
+      debugPrint('[ENHANCED_DIALOG] Loading history for clientId: ${widget.investor.client.id}');
       final history = await _historyService.getClientHistory(
         widget.investor.client.id,
       );
+      debugPrint('[ENHANCED_DIALOG] Received ${history.length} history records');
 
       if (mounted) {
         setState(() {
@@ -239,9 +236,9 @@ class _EnhancedInvestorDetailsDialogState
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Błąd podczas ładowania historii inwestycji: $e';
           _historyLoading = false;
         });
+        debugPrint('Błąd podczas ładowania historii inwestycji: $e');
       }
     }
   }
@@ -682,7 +679,7 @@ class _EnhancedInvestorDetailsDialogState
         _buildInvestmentsTab(),
         _buildInvestmentHistoryTab(),
         _buildVotingHistoryTab(),
-        _buildSettingsTab(),
+        _buildNotesTab(),
       ],
     );
   }
@@ -708,43 +705,127 @@ class _EnhancedInvestorDetailsDialogState
   Widget _buildOverviewStats() {
     final stats = [
       _StatItem(
-        'Łączna wartość',
-        CurrencyFormatter.formatCurrency(widget.investor.totalValue),
-        Icons.account_balance_wallet,
-        AppThemePro.profitGreen,
+        'Kwota inwestycji',
+        CurrencyFormatter.formatCurrency(widget.investor.totalInvestmentAmount),
+        Icons.trending_up,
+        AppThemePro.accentGold,
+        description: 'Początkowa wartość inwestycji',
       ),
       _StatItem(
         'Kapitał pozostały',
         CurrencyFormatter.formatCurrency(widget.investor.totalRemainingCapital),
-        Icons.savings,
+        Icons.account_balance_wallet,
+        AppThemePro.profitGreen,
+        description: 'Aktualna wartość inwestycji',
+      ),
+      _StatItem(
+        'Kapitał zabezpieczony',
+        CurrencyFormatter.formatCurrency(widget.investor.capitalSecuredByRealEstate),
+        Icons.security,
         AppThemePro.bondsBlue,
+        description: 'Zabezpieczony nieruchomościami',
+      ),
+      _StatItem(
+        'Kapitał do restrukturyzacji',
+        CurrencyFormatter.formatCurrency(widget.investor.capitalForRestructuring),
+        Icons.construction,
+        AppThemePro.statusWarning,
+        description: 'Kwota do restrukturyzacji',
       ),
       _StatItem(
         'Wartość udziałów',
         CurrencyFormatter.formatCurrency(widget.investor.totalSharesValue),
-        Icons.trending_up,
+        Icons.pie_chart,
         AppThemePro.sharesGreen,
+        description: 'Wartość posiadanych udziałów',
       ),
       _StatItem(
-        'Liczba inwestycji',
-        '${widget.investor.investmentCount}',
-        Icons.pie_chart,
+        'Łączna wartość',
+        CurrencyFormatter.formatCurrency(widget.investor.totalValue),
+        Icons.savings,
         AppThemePro.accentGold,
+        description: 'Kapitał pozostały + udziały',
+        isHighlighted: true,
       ),
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Podsumowanie finansowe',
-          style: TextStyle(
-            color: AppThemePro.textPrimary,
-            fontSize: _isSmallScreen ? 18 : 20,
-            fontWeight: FontWeight.bold,
+        // Header z ulepszoną ikoną i opisem
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppThemePro.accentGold.withOpacity(0.1),
+                AppThemePro.primaryLight.withOpacity(0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppThemePro.accentGold.withOpacity(0.2),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppThemePro.accentGold.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.analytics,
+                  color: AppThemePro.accentGold,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Podsumowanie finansowe',
+                      style: TextStyle(
+                        color: AppThemePro.textPrimary,
+                        fontSize: _isSmallScreen ? 18 : 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Szczegółowa analiza kapitałów i inwestycji',
+                      style: TextStyle(
+                        color: AppThemePro.textMuted,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppThemePro.statusSuccess.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${widget.investor.investmentCount} inwestycji',
+                  style: TextStyle(
+                    color: AppThemePro.statusSuccess,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
+        
+        // Grid z kartami statystyk
         if (_isSmallScreen)
           Column(
             children: stats
@@ -759,8 +840,8 @@ class _EnhancedInvestorDetailsDialogState
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: _isMediumScreen ? 2 : 4,
-              childAspectRatio: 2.5,
+              crossAxisCount: _isMediumScreen ? 2 : 3, // 3 kolumny dla lepszego układu 6 kart
+              childAspectRatio: _isMediumScreen ? 2.2 : 2.8, // Dostosowany aspect ratio
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
             ),
@@ -772,26 +853,34 @@ class _EnhancedInvestorDetailsDialogState
   }
 
   Widget _buildStatCard(_StatItem stat) {
-    return Container(
-      padding: const EdgeInsets.all(20),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      padding: EdgeInsets.all(stat.isHighlighted ? 24 : 20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            stat.color.withOpacity(0.1),
-            stat.color.withOpacity(0.05),
-          ],
+          colors: stat.isHighlighted 
+            ? [
+                stat.color.withOpacity(0.15),
+                stat.color.withOpacity(0.08),
+                stat.color.withOpacity(0.03),
+              ]
+            : [
+                stat.color.withOpacity(0.08),
+                stat.color.withOpacity(0.03),
+              ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(stat.isHighlighted ? 20 : 16),
         border: Border.all(
-          color: stat.color.withOpacity(0.2),
-          width: 1,
+          color: stat.color.withOpacity(stat.isHighlighted ? 0.3 : 0.2),
+          width: stat.isHighlighted ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: stat.color.withOpacity(0.1),
-            blurRadius: 8,
+            color: stat.color.withOpacity(stat.isHighlighted ? 0.15 : 0.08),
+            blurRadius: stat.isHighlighted ? 12 : 8,
             offset: const Offset(0, 4),
           ),
         ],
@@ -800,48 +889,84 @@ class _EnhancedInvestorDetailsDialogState
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // Header z ikoną i oznaczeniem
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(stat.isHighlighted ? 10 : 8),
                 decoration: BoxDecoration(
                   color: stat.color.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(stat.isHighlighted ? 10 : 8),
                 ),
                 child: Icon(
                   stat.icon,
                   color: stat.color,
-                  size: 20,
+                  size: stat.isHighlighted ? 24 : 20,
                 ),
               ),
               const Spacer(),
-              Icon(
-                Icons.trending_up,
-                color: stat.color.withOpacity(0.6),
-                size: 16,
-              ),
+              if (stat.isHighlighted)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: stat.color.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'SUMA',
+                    style: TextStyle(
+                      color: stat.color,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 12),
+          
+          SizedBox(height: stat.isHighlighted ? 16 : 12),
+          
+          // Tytuł
           Text(
             stat.label,
             style: TextStyle(
-              color: stat.color.withOpacity(0.8),
-              fontSize: 12,
+              color: stat.color.withOpacity(0.9),
+              fontSize: stat.isHighlighted ? 14 : 12,
               fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
+              letterSpacing: 0.3,
             ),
           ),
+          
           const SizedBox(height: 4),
+          
+          // Wartość
           Text(
             stat.value,
             style: TextStyle(
               color: stat.color,
-              fontSize: _isSmallScreen ? 18 : 20,
+              fontSize: stat.isHighlighted ? 24 : (_isSmallScreen ? 18 : 20),
               fontWeight: FontWeight.bold,
               letterSpacing: -0.5,
+              height: 1.1,
             ),
           ),
+          
+          // Opis (jeśli dostępny)
+          if (stat.description != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              stat.description!,
+              style: TextStyle(
+                color: stat.color.withOpacity(0.6),
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                height: 1.2,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ],
       ),
     );
@@ -1426,175 +1551,517 @@ class _EnhancedInvestorDetailsDialogState
   }
 
   Widget _buildInvestmentHistoryTab() {
-    return InvestmentHistoryWidget(
-      investmentId: '', // Will load client history instead
-      title: 'Historia zmian inwestycji',
-      isCompact: false,
+    // Używamy już załadowanych danych z _investmentHistory zamiast InvestmentHistoryWidget
+    return _buildClientHistoryView();
+  }
+
+  Widget _buildClientHistoryView() {
+    if (_historyLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+            SizedBox(height: 16),
+            Text('Ładowanie historii zmian...'),
+          ],
+        ),
+      );
+    }
+
+    if (_investmentHistory.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.history,
+              size: 64,
+              color: AppThemePro.textMuted,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Brak historii zmian',
+              style: TextStyle(
+                color: AppThemePro.textSecondary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ten klient nie ma jeszcze żadnych zapisanych zmian inwestycji.',
+              style: TextStyle(
+                color: AppThemePro.textMuted,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(_isSmallScreen ? 16 : 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppThemePro.accentGold.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.history,
+                  size: 20,
+                  color: AppThemePro.accentGold,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Historia zmian inwestycji',
+                      style: TextStyle(
+                        color: AppThemePro.textPrimary,
+                        fontSize: _isSmallScreen ? 18 : 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${_investmentHistory.length} ${_getHistoryCountText(_investmentHistory.length)}',
+                      style: TextStyle(
+                        color: AppThemePro.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: _loadInvestmentHistory,
+                icon: Icon(
+                  Icons.refresh,
+                  color: AppThemePro.textSecondary,
+                ),
+                tooltip: 'Odśwież historię',
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 20),
+
+          // History entries
+          ..._investmentHistory.map((entry) => _buildClientHistoryEntry(entry)),
+        ],
+      ),
     );
+  }
+
+  Widget _buildClientHistoryEntry(InvestmentChangeHistory entry) {
+    final changeTypeColor = _getChangeTypeColor(entry.changeType);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppThemePro.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: changeTypeColor.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: changeTypeColor.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with change type and date
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: changeTypeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: changeTypeColor.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _getChangeTypeIcon(entry.changeType),
+                      size: 16,
+                      color: changeTypeColor,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      InvestmentChangeType.fromValue(entry.changeType).displayName,
+                      style: TextStyle(
+                        color: changeTypeColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const Spacer(),
+              
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppThemePro.backgroundSecondary,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _formatHistoryDate(entry.changedAt),
+                  style: TextStyle(
+                    color: AppThemePro.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Investment info
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppThemePro.backgroundSecondary,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.account_balance_wallet,
+                  size: 16,
+                  color: AppThemePro.accentGold,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Inwestycja: ${_getProductNameFromInvestmentId(entry.investmentId)}',
+                  style: TextStyle(
+                    color: AppThemePro.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Change description
+          Text(
+            entry.changeDescription,
+            style: TextStyle(
+              color: AppThemePro.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              height: 1.4,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // User info
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppThemePro.accentGold.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.person,
+                  size: 14,
+                  color: AppThemePro.accentGold,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.userName,
+                      style: TextStyle(
+                        color: AppThemePro.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      entry.userEmail,
+                      style: TextStyle(
+                        color: AppThemePro.textMuted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Field changes
+          if (entry.fieldChanges.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppThemePro.backgroundSecondary,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppThemePro.borderSecondary,
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.list_alt,
+                        size: 16,
+                        color: AppThemePro.accentGold,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Szczegóły zmian (${entry.fieldChanges.length})',
+                        style: TextStyle(
+                          color: AppThemePro.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Show amount changes first with highlighting
+                  ...entry.fieldChanges
+                      .where((change) => _isAmountField(change.fieldName))
+                      .map((change) => Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppThemePro.accentGold.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: AppThemePro.accentGold.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.account_balance_wallet,
+                                  size: 12,
+                                  color: AppThemePro.accentGold,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    change.changeDescription,
+                                    style: TextStyle(
+                                      color: AppThemePro.textPrimary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )),
+                  
+                  // Show other changes
+                  ...entry.fieldChanges
+                      .where((change) => !_isAmountField(change.fieldName))
+                      .map((change) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.only(top: 6),
+                                  width: 4,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: AppThemePro.textSecondary,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    change.changeDescription,
+                                    style: TextStyle(
+                                      color: AppThemePro.textPrimary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // Helper methods for history display
+  String _getHistoryCountText(int count) {
+    if (count == 1) return 'wpis';
+    if (count >= 2 && count <= 4) return 'wpisy';
+    return 'wpisów';
+  }
+
+  String _getProductNameFromInvestmentId(String investmentId) {
+    // Znajdź inwestycję po ID w aktualnych inwestycjach inwestora
+    try {
+      final investment = widget.investor.investments.firstWhere(
+        (inv) => inv.id == investmentId,
+      );
+      
+      // Jeśli ma productName, użyj go
+      if (investment.productName.isNotEmpty) {
+        return investment.productName;
+      }
+      
+      // Fallback: spróbuj utworzyć czytelną nazwę z typu i firmy
+      String productName = investment.productType.displayName;
+      if (investment.creditorCompany.isNotEmpty) {
+        productName += ' (${investment.creditorCompany})';
+      }
+      
+      return productName;
+    } catch (e) {
+      // Jeśli nie znaleziono inwestycji, zwróć samo ID
+      debugPrint('🔍 [EnhancedInvestorDetailsDialog] Nie można znaleźć nazwy produktu dla ID: $investmentId');
+      return investmentId;
+    }
+  }
+
+  String _formatHistoryDate(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inDays == 0) {
+      return 'Dziś ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays == 1) {
+      return 'Wczoraj ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} dni temu';
+    } else {
+      return '${dateTime.day}.${dateTime.month}.${dateTime.year}';
+    }
+  }
+
+  Color _getChangeTypeColor(String changeType) {
+    switch (changeType) {
+      case 'field_update':
+        return AppThemePro.accentGold;
+      case 'bulk_update':
+        return AppThemePro.profitGreen;
+      case 'import':
+        return AppThemePro.sharesGreen;
+      case 'manual_entry':
+        return AppThemePro.bondsBlue;
+      case 'system_update':
+        return AppThemePro.neutralGray;
+      case 'correction':
+        return AppThemePro.lossRed;
+      default:
+        return AppThemePro.textSecondary;
+    }
+  }
+
+  IconData _getChangeTypeIcon(String changeType) {
+    switch (changeType) {
+      case 'field_update':
+        return Icons.edit;
+      case 'bulk_update':
+        return Icons.batch_prediction;
+      case 'import':
+        return Icons.upload_file;
+      case 'manual_entry':
+        return Icons.create;
+      case 'system_update':
+        return Icons.system_update;
+      case 'correction':
+        return Icons.build_circle;
+      default:
+        return Icons.change_history;
+    }
+  }
+
+  bool _isAmountField(String fieldName) {
+    const amountFields = {
+      'investmentAmount',
+      'paidAmount', 
+      'remainingCapital',
+      'realizedCapital',
+      'realizedInterest',
+      'remainingInterest',
+      'capitalForRestructuring',
+      'capitalSecuredByRealEstate',
+      'plannedTax',
+      'realizedTax',
+      'totalProductAmount',
+      'transferToOtherProduct',
+    };
+    return amountFields.contains(fieldName);
   }
 
   Widget _buildVotingHistoryTab() {
     return VotingChangesTab(investor: widget.investor);
   }
 
-  Widget _buildSettingsTab() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(_isSmallScreen ? 16 : 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildNotesSection(),
-          const SizedBox(height: 24),
-          _buildClientSettingsSection(),
-        ],
-      ),
+  Widget _buildNotesTab() {
+    return ClientNotesWidget(
+      clientId: widget.investor.client.id,
+      clientName: widget.investor.client.name,
+      currentUserId: 'current_user_id', // TODO: Get from AuthProvider
+      currentUserName: 'Current User', // TODO: Get from AuthProvider
     );
   }
 
-  Widget _buildNotesSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppThemePro.premiumCardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.note_outlined,
-                color: AppThemePro.accentGold,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Notatki',
-                style: TextStyle(
-                  color: AppThemePro.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _notesController,
-            style: TextStyle(color: AppThemePro.textPrimary),
-            maxLines: 5,
-            decoration: InputDecoration(
-              hintText: 'Dodaj notatki o kliencie...',
-              hintStyle: TextStyle(color: AppThemePro.textMuted),
-              filled: true,
-              fillColor: AppThemePro.surfaceInteractive,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: AppThemePro.accentGold,
-                  width: 2,
-                ),
-              ),
-            ),
-            onChanged: (value) {
-              setState(() {
-                _hasChanges = true;
-              });
-            },
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildClientSettingsSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppThemePro.premiumCardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.settings_outlined,
-                color: AppThemePro.accentGold,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Ustawienia klienta',
-                style: TextStyle(
-                  color: AppThemePro.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildClientInfoDisplay(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildClientInfoDisplay() {
-    final client = widget.investor.client;
-
-    return Column(
-      children: [
-        _buildInfoRow('ID klienta', client.id),
-        _buildInfoRow('Excel ID', client.excelId ?? 'Brak'),
-        _buildInfoRow('Email', client.email),
-        _buildInfoRow('Telefon', client.phone),
-        _buildInfoRow('Typ klienta', client.type.displayName),
-        _buildInfoRow('Status', client.isActive ? 'Aktywny' : 'Nieaktywny'),
-        _buildInfoRow(
-          'Data utworzenia',
-          '${client.createdAt.day}.${client.createdAt.month}.${client.createdAt.year}',
-        ),
-        _buildInfoRow(
-          'Ostatnia aktualizacja',
-          '${client.updatedAt.day}.${client.updatedAt.month}.${client.updatedAt.year}',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              label,
-              style: TextStyle(
-                color: AppThemePro.textMuted,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                color: AppThemePro.textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildActionBar() {
     return Container(
@@ -1754,7 +2221,6 @@ class _EnhancedInvestorDetailsDialogState
 
         // Update state
         setState(() {
-          _currentInvestor = updatedInvestor;
           _hasChanges = false;
         });
 
@@ -1802,8 +2268,6 @@ class _EnhancedInvestorDetailsDialogState
         return Icons.handshake;
       case ProductType.apartments:
         return Icons.home;
-      default:
-        return Icons.category;
     }
   }
 
@@ -1844,6 +2308,15 @@ class _StatItem {
   final String value;
   final IconData icon;
   final Color color;
+  final String? description;
+  final bool isHighlighted;
 
-  const _StatItem(this.label, this.value, this.icon, this.color);
+  const _StatItem(
+    this.label, 
+    this.value, 
+    this.icon, 
+    this.color, {
+    this.description,
+    this.isHighlighted = false,
+  });
 }

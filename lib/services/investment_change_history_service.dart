@@ -102,6 +102,8 @@ class InvestmentChangeHistoryService extends BaseService {
     String clientId,
   ) async {
     try {
+      print('[HISTORY_SERVICE] Getting history for clientId: $clientId');
+      
       // Najpierw pobierz wszystkie inwestycje klienta
       final investmentsSnapshot = await _firestore
           .collection('investments')
@@ -112,7 +114,10 @@ class InvestmentChangeHistoryService extends BaseService {
           .map((doc) => doc.id)
           .toList();
 
+      print('[HISTORY_SERVICE] Found ${investmentIds.length} investments: $investmentIds');
+
       if (investmentIds.isEmpty) {
+        print('[HISTORY_SERVICE] No investments found for client: $clientId');
         return [];
       }
 
@@ -127,10 +132,13 @@ class InvestmentChangeHistoryService extends BaseService {
       final allHistory = historySnapshot.docs
           .map((doc) => InvestmentChangeHistory.fromFirestore(doc))
           .toList();
+      
+      print('[HISTORY_SERVICE] Found ${allHistory.length} history records before filtering');
 
       // 🔒 UKRYJ SUPER-ADMINÓW: Filtruj historię zmian
       final filteredHistory = await _userFilterService.filterHistoryBySuperAdmin(allHistory);
       
+      print('[HISTORY_SERVICE] Returning ${filteredHistory.length} history records after filtering');
       return filteredHistory;
     } catch (e) {
       logError(
