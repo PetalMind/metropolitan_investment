@@ -596,6 +596,146 @@ class EmailAndExportService extends BaseService {
     }
   }
 
+  /// 📧 Wysyła emaile używając kompletnych, pre-generowanych HTML dla każdego odbiorcy
+  ///
+  /// Ta metoda używa tego samego HTML co pokazywany w podglądzie, eliminując różnice
+  /// między podglądem a wysyłanymi emailami.
+  Future<List<EmailSendResult>> sendPreGeneratedEmailsToMixedRecipients({
+    required List<InvestorSummary> investors,
+    required List<String> additionalEmails,
+    String? subject,
+    Map<String, String>? completeEmailHtmlByClient,
+    String? aggregatedEmailHtmlForAdditionals,
+    required String senderEmail,
+    String senderName = 'Metropolitan Investment',
+  }) async {
+    const String cacheKey = 'send_pregenerated_emails';
+
+    try {
+      // Walidacja danych wejściowych
+      if (investors.isEmpty && additionalEmails.isEmpty) {
+        throw Exception(
+          'Lista odbiorców (inwestorzy + dodatkowe emaile) nie może być pusta',
+        );
+      }
+
+      if (senderEmail.isEmpty) {
+        throw Exception('Wymagany jest email wysyłającego');
+      }
+
+      if (kDebugMode) {
+        print('📧 [EmailService] Wysyłanie pre-generowanych emaili');
+        print('   - Inwestorzy: ${investors.length}');
+        print('   - Dodatkowe emaile: ${additionalEmails.length}');
+        print('   - Complete HTML map size: ${completeEmailHtmlByClient?.length ?? 0}');
+        print('   - Aggregated HTML length: ${aggregatedEmailHtmlForAdditionals?.length ?? 0}');
+      }
+
+      // Przygotuj dane do wysłania do Firebase Functions
+      final functionData = {
+        'recipients': investors.map((investor) => {
+          'clientId': investor.client.id,
+          'clientEmail': investor.client.email,
+          'clientName': investor.client.name,
+          'investmentCount': investor.investmentCount,
+          'totalAmount': investor.totalRemainingCapital,
+        }).toList(),
+        'additionalEmails': additionalEmails,
+        'subject': subject ?? 'Informacja o inwestycjach',
+        'senderEmail': senderEmail,
+        'senderName': senderName,
+        'completeEmailHtmlByClient': completeEmailHtmlByClient,
+        'aggregatedEmailHtmlForAdditionals': aggregatedEmailHtmlForAdditionals,
+      };
+
+      logDebug(
+        'sendPreGeneratedEmailsToMixedRecipients',
+        'Wysyłam ${investors.length} pre-generowanych emaili + ${additionalEmails.length} dodatkowych',
+      );
+
+      // Wywołaj nową Firebase Functions dla pre-generowanych emaili
+      final result = await FirebaseFunctions.instanceFor(
+        region: 'europe-west1',
+      ).httpsCallable('sendPreGeneratedEmails').call(functionData);
+
+      logDebug(
+        'sendPreGeneratedEmailsToMixedRecipients',
+        'Pre-generowane emaile wysłane pomyślnie',
+      );
+
+      // Przetwórz wynik
+      final data = result.data as Map<String, dynamic>;
+      if (data['success'] == true) {
+        clearCache(cacheKey);
+
+        final results = <EmailSendResult>[];
+        final resultsList = data['results'] as List<dynamic>? ?? [];
+
+        for (final resultData in resultsList) {
+          final result = resultData as Map<String, dynamic>;
+          results.add(
+            EmailSendResult(
+              success: result['success'] ?? false,
+              messageId: result['messageId'] ?? '',
+              clientEmail: result['recipientEmail'] ?? '',
+              clientName: result['recipientName'] ?? '',
+              investmentCount: result['investmentCount'] ?? 0,
+              totalAmount: (result['totalAmount'] ?? 0).toDouble(),
+              executionTimeMs: result['executionTimeMs'] ?? 0,
+              template: result['template'] ?? 'pre_generated_html',
+              error: result['error'],
+            ),
+          );
+        }
+
+        return results;
+      } else {
+        throw Exception(data['message'] ?? 'Nieznany błąd Firebase Functions');
+      }
+    } catch (e) {
+      logError('sendPreGeneratedEmailsToMixedRecipients', e);
+
+      // Zwróć listę błędów dla wszystkich odbiorców
+      final results = <EmailSendResult>[];
+
+      // Błędy dla inwestorów
+      for (final investor in investors) {
+        results.add(
+          EmailSendResult(
+            success: false,
+            messageId: '',
+            clientEmail: investor.client.email ?? '',
+            clientName: investor.client.name,
+            investmentCount: investor.investmentCount,
+            totalAmount: investor.totalRemainingCapital,
+            executionTimeMs: 0,
+            template: 'pre_generated_html',
+            error: e.toString(),
+          ),
+        );
+      }
+
+      // Błędy dla dodatkowych emaili
+      for (final email in additionalEmails) {
+        results.add(
+          EmailSendResult(
+            success: false,
+            messageId: '',
+            clientEmail: email,
+            clientName: email,
+            investmentCount: 0,
+            totalAmount: 0,
+            executionTimeMs: 0,
+            template: 'pre_generated_html',
+            error: e.toString(),
+          ),
+        );
+      }
+
+      return results;
+    }
+  }
+
   /// 📧 Wysyła niestandardowe maile HTML do mieszanych odbiorców (inwestorzy + dodatkowe emaile)
   Future<List<EmailSendResult>> sendCustomEmailsToMixedRecipients({
     required List<InvestorSummary> investors,
@@ -603,6 +743,8 @@ class EmailAndExportService extends BaseService {
     String? subject,
     required String htmlContent,
     bool includeInvestmentDetails = false,
+    Map<String, String>? investmentDetailsByClient,
+    String? aggregatedInvestmentsForAdditionals,
     required String senderEmail,
     String senderName = 'Metropolitan Investment',
   }) async {
@@ -643,6 +785,10 @@ class EmailAndExportService extends BaseService {
         'includeInvestmentDetails': includeInvestmentDetails,
         'senderEmail': senderEmail,
         'senderName': senderName,
+        if (investmentDetailsByClient != null && investmentDetailsByClient.isNotEmpty)
+          'investmentDetailsByClient': investmentDetailsByClient,
+        if (aggregatedInvestmentsForAdditionals != null && aggregatedInvestmentsForAdditionals.isNotEmpty)
+          'aggregatedInvestmentsForAdditionals': aggregatedInvestmentsForAdditionals,
       };
 
       logDebug(

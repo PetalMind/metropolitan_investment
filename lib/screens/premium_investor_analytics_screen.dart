@@ -1025,7 +1025,7 @@ class _PremiumInvestorAnalyticsScreenState
       customEmailBar: _isEmailMode
           ? PremiumTabHelper.buildEmailModeBar(
               selectedCount: _selectedInvestorIds.length,
-              onSendEmails: () => _showEmailDialog(),
+              onSendEmails: () => _sendEmailToSelectedInvestors(),
               onClose: _toggleEmailMode,
             )
           : null,
@@ -1707,8 +1707,35 @@ class _PremiumInvestorAnalyticsScreenState
     if (_selectedInvestors.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Najpierw wybierz inwestorów do wysłania email'),
+          content: Text('❌ Najpierw wybierz odbiorców maili\n💡 Użyj trybu email aby wybrać inwestorów'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      
+      if (!_isEmailMode && !_isSelectionMode) {
+        _toggleEmailMode();
+      }
+      return;
+    }
+
+    // Filtruj inwestorów z prawidłowymi emailami
+    final investorsWithEmail = _selectedInvestors
+        .where(
+          (investor) =>
+              investor.client.email.isNotEmpty &&
+              RegExp(
+                r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+              ).hasMatch(investor.client.email),
+        )
+        .toList();
+
+    if (investorsWithEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Wybrani inwestorzy nie mają prawidłowych adresów email'),
           backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
         ),
       );
       return;
@@ -1717,13 +1744,14 @@ class _PremiumInvestorAnalyticsScreenState
     showDialog(
       context: context,
       builder: (context) => EnhancedEmailEditorDialog(
-        selectedInvestors: _selectedInvestors,
+        selectedInvestors: investorsWithEmail,
         onEmailSent: () {
           Navigator.of(context).pop();
+          _toggleEmailMode(); // Wyłącz tryb email po wysłaniu
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Emaile zostały wysłane'),
-              backgroundColor: Colors.green,
+            SnackBar(
+              content: Text('✅ Emaile zostały wysłane do ${investorsWithEmail.length} odbiorców'),
+              backgroundColor: AppThemePro.statusSuccess,
             ),
           );
         },
@@ -4202,29 +4230,21 @@ class _PremiumInvestorAnalyticsScreenState
       return;
     }
 
-    // 🚀 NOWY: Używamy modułowego EmailEditorWidget
+    // 🚀 ZAKTUALIZOWANE: Używamy EnhancedEmailEditorDialog zamiast EmailEditorWidget
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
-        child: EmailEditorWidget(
-          investors: investorsWithEmail,
-          onEmailSent: () {
-            Navigator.of(context).pop();
-            _toggleEmailMode();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('✅ Emaile zostały wysłane'),
-                backgroundColor: AppThemePro.statusSuccess,
-              ),
-            );
-          },
-          initialSubject:
-              'Aktualizacja portfela inwestycyjnego - Metropolitan Investment',
-          showAsDialog: true,
-        ),
+      builder: (context) => EnhancedEmailEditorDialog(
+        selectedInvestors: investorsWithEmail,
+        onEmailSent: () {
+          Navigator.of(context).pop();
+          _toggleEmailMode();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Emaile zostały wysłane'),
+              backgroundColor: AppThemePro.statusSuccess,
+            ),
+          );
+        },
       ),
     );
   }

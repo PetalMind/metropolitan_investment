@@ -248,42 +248,87 @@ class EmailEditorService extends BaseService {
     }
 
     String result = _escapeHtml(text);
+    List<String> styles = [];
 
-    // Formatowanie tekstu
+    // === FORMATOWANIE TEKSTU ===
+    
+    // Pogrubienie
     if (attributes['bold'] == true) {
       result = '<strong>$result</strong>';
     }
 
+    // Kursywa
     if (attributes['italic'] == true) {
       result = '<em>$result</em>';
     }
 
+    // Podkreślenie
     if (attributes['underline'] == true) {
       result = '<u>$result</u>';
     }
 
+    // Przekreślenie
+    if (attributes['strike'] == true) {
+      result = '<s>$result</s>';
+    }
+
+    // Indeks górny
+    if (attributes['script'] == 'super') {
+      result = '<sup>$result</sup>';
+    }
+
+    // Indeks dolny
+    if (attributes['script'] == 'sub') {
+      result = '<sub>$result</sub>';
+    }
+
+    // Mały tekst
+    if (attributes['small'] == true) {
+      styles.add('font-size: 0.75em');
+    }
+
+    // === KOLORY ===
+
     // Kolor tekstu
     if (attributes['color'] != null) {
-      result = '<span style="color: ${attributes['color']}">$result</span>';
+      styles.add('color: ${_normalizeColor(attributes['color'])}');
     }
 
     // Kolor tła
     if (attributes['background'] != null) {
-      result =
-          '<span style="background-color: ${attributes['background']}">$result</span>';
+      styles.add('background-color: ${_normalizeColor(attributes['background'])}');
+    }
+
+    // === CZCIONKA ===
+
+    // Rodzina czcionki
+    if (attributes['font'] != null) {
+      final font = attributes['font'] as String;
+      styles.add('font-family: ${_normalizeFontFamily(font)}');
     }
 
     // Rozmiar czcionki
     if (attributes['size'] != null) {
-      result = '<span style="font-size: ${attributes['size']}">$result</span>';
+      final size = attributes['size'];
+      if (size is String) {
+        // Jeśli rozmiar jest stringiem (np. "small", "large")
+        styles.add('font-size: ${_normalizeFontSize(size)}');
+      } else if (size is num) {
+        // Jeśli rozmiar jest liczbą
+        styles.add('font-size: ${size}px');
+      }
     }
 
-    // Wyrównanie (zastosowane na poziomie akapitu)
+    // === WYRÓWNANIE ===
+
+    // Wyrównanie tekstu (zastosowane na poziomie akapitu)
     if (attributes['align'] != null) {
-      result = '<div style="text-align: ${attributes['align']}">$result</div>';
+      final alignment = attributes['align'] as String;
+      result = '<div style="text-align: $alignment">$result</div>';
     }
 
-    // Nagłówki
+    // === NAGŁÓWKI ===
+
     if (attributes['header'] != null) {
       final level = attributes['header'] as int;
       if (level >= 1 && level <= 6) {
@@ -291,22 +336,126 @@ class EmailEditorService extends BaseService {
       }
     }
 
-    // Listy
+    // === LISTY ===
+
     if (attributes['list'] != null) {
       final listType = attributes['list'] as String;
       if (listType == 'ordered') {
         result = '<ol><li>$result</li></ol>';
       } else if (listType == 'bullet') {
         result = '<ul><li>$result</li></ul>';
+      } else if (listType == 'checked') {
+        result = '<ul style="list-style: none;"><li>☑ $result</li></ul>';
+      } else if (listType == 'unchecked') {
+        result = '<ul style="list-style: none;"><li>☐ $result</li></ul>';
       }
     }
 
+    // === CYTATY I KOD ===
+
     // Cytaty
     if (attributes['blockquote'] == true) {
-      result = '<blockquote>$result</blockquote>';
+      result = '<blockquote style="border-left: 4px solid #d4af37; margin: 1em 0; padding-left: 16px; font-style: italic; background-color: rgba(212, 175, 55, 0.1); padding: 12px 16px; border-radius: 4px;">$result</blockquote>';
+    }
+
+    // Kod inline
+    if (attributes['code'] == true) {
+      result = '<code style="background-color: #f1f1f1; padding: 2px 4px; border-radius: 3px; font-family: \'Courier New\', monospace; font-size: 0.9em;">$result</code>';
+    }
+
+    // Blok kodu
+    if (attributes['code-block'] == true) {
+      result = '<pre style="background-color: #f8f8f8; padding: 16px; border-radius: 8px; overflow-x: auto; border: 1px solid #ddd;"><code style="font-family: \'Courier New\', monospace;">$result</code></pre>';
+    }
+
+    // === LINKI ===
+
+    if (attributes['link'] != null) {
+      final url = attributes['link'] as String;
+      result = '<a href="$url" style="color: #d4af37; text-decoration: none; font-weight: 500;" target="_blank">$result</a>';
+    }
+
+    // === ZASTOSUJ STYLE ===
+
+    if (styles.isNotEmpty) {
+      final styleString = styles.join('; ');
+      result = '<span style="$styleString">$result</span>';
     }
 
     return result;
+  }
+
+  /// Normalizuje kolor do formatu CSS
+  String _normalizeColor(dynamic color) {
+    if (color == null) return '#000000';
+    
+    final colorStr = color.toString();
+    
+    // Jeśli już jest w formacie hex
+    if (colorStr.startsWith('#')) {
+      return colorStr;
+    }
+    
+    // Jeśli jest w formacie rgba lub rgb
+    if (colorStr.startsWith('rgb')) {
+      return colorStr;
+    }
+    
+    // Mapowanie nazw kolorów na hex
+    final colorMap = {
+      'red': '#ff0000',
+      'green': '#008000', 
+      'blue': '#0000ff',
+      'black': '#000000',
+      'white': '#ffffff',
+      'yellow': '#ffff00',
+      'orange': '#ffa500',
+      'purple': '#800080',
+      'pink': '#ffc0cb',
+      'brown': '#a52a2a',
+      'gray': '#808080',
+      'grey': '#808080',
+    };
+    
+    return colorMap[colorStr.toLowerCase()] ?? colorStr;
+  }
+
+  /// Normalizuje rodzinę czcionek
+  String _normalizeFontFamily(String font) {
+    final fontMap = {
+      'sans-serif': 'Arial, Helvetica, sans-serif',
+      'serif': 'Times, "Times New Roman", serif',
+      'monospace': '"Courier New", Courier, monospace',
+      'Arial': 'Arial, Helvetica, sans-serif',
+      'Times New Roman': '"Times New Roman", Times, serif',
+      'Helvetica': 'Helvetica, Arial, sans-serif',
+      'Georgia': 'Georgia, Times, serif',
+      'Verdana': 'Verdana, Geneva, sans-serif',
+      'Courier New': '"Courier New", Courier, monospace',
+    };
+    
+    return fontMap[font] ?? font;
+  }
+
+  /// Normalizuje rozmiar czcionki
+  String _normalizeFontSize(String size) {
+    final sizeMap = {
+      '10': '10px',
+      '12': '12px', 
+      '14': '14px',
+      '16': '16px',
+      '18': '18px',
+      '20': '20px',
+      '24': '24px',
+      '28': '28px',
+      '32': '32px',
+      'small': '12px',
+      'normal': '14px',
+      'large': '18px',
+      'huge': '24px',
+    };
+    
+    return sizeMap[size] ?? size;
   }
 
   /// Escape HTML w tekście
@@ -330,7 +479,7 @@ class EmailEditorService extends BaseService {
   /// [senderEmail] - email wysyłającego
   /// [senderName] - nazwa wysyłającego
   /// [onProgress] - callback postępu wysyłki (opcjonalny)
-  Future<EmailSendResult> sendEmails({
+  Future<EmailEditorResult> sendEmails({
     required List<InvestorSummary> investors,
     required String subject,
     required String htmlContent,
@@ -353,17 +502,13 @@ class EmailEditorService extends BaseService {
       final smtpSettings = await _smtpService.getSmtpSettings();
       if (smtpSettings == null) {
         _addDebugLog('❌ Brak konfiguracji SMTP', onDebugLog);
-        return EmailSendResult(
+        return EmailEditorResult(
           success: false,
-          messageId: '',
-          clientEmail: '',
-          clientName: '',
-          investmentCount: 0,
-          totalAmount: 0.0,
-          executionTimeMs: 0,
-          template: '',
-          error:
-              'Brak konfiguracji serwera SMTP. Skonfiguruj ustawienia email w aplikacji.',
+          message: 'Brak konfiguracji serwera SMTP. Skonfiguruj ustawienia email w aplikacji.',
+          totalSent: 0,
+          totalFailed: 0,
+          detailedResults: [],
+          duration: Duration.zero,
         );
       }
 
@@ -375,16 +520,13 @@ class EmailEditorService extends BaseService {
       // Walidacja email wysyłającego
       if (senderEmail.trim().isEmpty) {
         _addDebugLog('❌ Brak email wysyłającego', onDebugLog);
-        return EmailSendResult(
+        return EmailEditorResult(
           success: false,
-          messageId: '',
-          clientEmail: '',
-          clientName: '',
-          investmentCount: 0,
-          totalAmount: 0.0,
-          executionTimeMs: 0,
-          template: '',
-          error: 'Podaj email wysyłającego',
+          message: 'Podaj email wysyłającego',
+          totalSent: 0,
+          totalFailed: 0,
+          detailedResults: [],
+          duration: Duration.zero,
         );
       }
 
@@ -400,10 +542,13 @@ class EmailEditorService extends BaseService {
 
       if (enabledRecipients.isEmpty) {
         _addDebugLog('❌ Brak prawidłowych odbiorców', onDebugLog);
-        return EmailSendResult(
+        return EmailEditorResult(
           success: false,
-          clientEmail: '',
-          error: 'Brak odbiorców z prawidłowymi adresami email',
+          message: 'Brak odbiorców z prawidłowymi adresami email',
+          totalSent: 0,
+          totalFailed: 0,
+          detailedResults: [],
+          duration: Duration.zero,
         );
       }
 
@@ -411,10 +556,13 @@ class EmailEditorService extends BaseService {
       onProgress?.call('Sprawdzam treść emaila...');
       if (htmlContent.trim().isEmpty) {
         _addDebugLog('❌ Brak treści emaila', onDebugLog);
-        return EmailSendResult(
+        return EmailEditorResult(
           success: false,
-          clientEmail: '',
-          error: 'Treść emaila nie może być pusta',
+          message: 'Treść emaila nie może być pusta',
+          totalSent: 0,
+          totalFailed: 0,
+          detailedResults: [],
+          duration: Duration.zero,
         );
       }
 
@@ -472,22 +620,22 @@ class EmailEditorService extends BaseService {
         results.addAll(investorResults);
       }
 
-      // Emaile do dodatkowych odbiorców BEZ szczegółów inwestycji
+      // Emaile do dodatkowych odbiorców z informacjami o wszystkich wybranych inwestycjach
       if (additionalEmailAddresses.isNotEmpty) {
         _addDebugLog(
-          '📤 Wysyłam emaile do ${additionalEmailAddresses.length} dodatkowych odbiorców BEZ szczegółów inwestycji',
+          '📤 Wysyłam emaile do ${additionalEmailAddresses.length} dodatkowych odbiorców z informacjami o wszystkich wybranych inwestycjach',
           onDebugLog,
         );
 
         final additionalResults = await _emailAndExportService
             .sendCustomEmailsToMixedRecipients(
-              investors: [],
+              investors: recipientsWithInvestmentData,
               additionalEmails: additionalEmailAddresses,
               subject: subject.isNotEmpty
                   ? subject
                   : 'Wiadomość od $senderName',
               htmlContent: htmlContent,
-              includeInvestmentDetails: false,
+              includeInvestmentDetails: true, // Dodatkowi odbiorcy ZAWSZE otrzymują szczegóły
               senderEmail: senderEmail,
               senderName: senderName,
             );
@@ -518,20 +666,16 @@ class EmailEditorService extends BaseService {
 
       onProgress?.call('Zakończono wysyłanie');
 
-      // Zwróć zbiorczy wynik
-      return EmailSendResult(
+      // Zwróć zbiorczy wynik  
+      return EmailEditorResult(
         success: failed == 0,
-        clientEmail: 'Grupowa wysyłka',
-        error: failed > 0
-            ? 'Niepowodzenie $failed z ${results.length} emaili'
-            : null,
-        additionalData: {
-          'total': results.length,
-          'successful': successful,
-          'failed': failed,
-          'results': results,
-          'duration': duration.inSeconds,
-        },
+        message: failed == 0 
+            ? 'Wszystkie emaile zostały wysłane pomyślnie'
+            : 'Niepowodzenie $failed z ${results.length} emaili',
+        totalSent: successful,
+        totalFailed: failed,
+        detailedResults: results,
+        duration: duration,
       );
     } catch (e) {
       final duration = _emailSendStartTime != null
@@ -543,10 +687,13 @@ class EmailEditorService extends BaseService {
         onDebugLog,
       );
 
-      return EmailSendResult(
+      return EmailEditorResult(
         success: false,
-        clientEmail: '',
-        error: 'Błąd podczas wysyłania maili: ${e.toString()}',
+        message: 'Błąd podczas wysyłania maili: ${e.toString()}',
+        totalSent: 0,
+        totalFailed: 0,
+        detailedResults: [],
+        duration: duration,
       );
     }
   }

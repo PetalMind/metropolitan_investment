@@ -1057,24 +1057,24 @@ W razie pytań prosimy o kontakt.
             .where((inv) => selectedInvestmentIds.contains(inv.id))
             .toList();
 
-        // Wyślij email
-        final result = await _emailAndExportService.sendInvestmentEmailToClient(
-          clientId: investor.client.id,
-          clientEmail: customEmail ?? investor.client.email,
-          clientName: investor.client.name,
-          investmentIds: filteredInvestments.map((inv) => inv.id).toList(),
-          emailTemplate: _emailTemplate,
+        // ⭐ POPRAWIONE WYSYŁANIE - używaj metody obsługującej HTML
+        final batchResults = await _emailAndExportService.sendCustomEmailsToMultipleClients(
+          investors: [InvestorSummary.withoutCalculations(
+            client: investor.client,
+            investments: filteredInvestments.isNotEmpty ? filteredInvestments : investor.investments,
+          )],
           subject: _subjectController.text.isNotEmpty
               ? _subjectController.text
-              : null,
-          customMessage: _customMessageController.text.isNotEmpty
+              : 'Informacja o inwestycjach od ${_senderNameController.text}',
+          htmlContent: _customMessageController.text.isNotEmpty
               ? _customMessageController.text
-              : null,
+              : '<p>Przesyłamy szczegółowe informacje o Państwa inwestycjach.</p>',
+          includeInvestmentDetails: true,
           senderEmail: _senderEmailController.text,
           senderName: _senderNameController.text,
         );
 
-        results.add(result);
+        results.addAll(batchResults);
       }
 
       setState(() {

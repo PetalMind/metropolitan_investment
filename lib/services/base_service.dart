@@ -47,10 +47,31 @@ abstract class BaseService {
     _cacheTimestamps.clear();
   }
 
+  /// Invaliduje cache dla danego klucza (alias dla clearCache)
+  void invalidateCache(String key) {
+    clearCache(key);
+  }
+
+  /// Invaliduje cache dla wszystkich kluczy pasujących do wzorca
+  void invalidateCachePattern(String pattern) {
+    final keysToRemove = _cache.keys.where((key) => key.contains(pattern)).toList();
+    for (final key in keysToRemove) {
+      _cache.remove(key);
+      _cacheTimestamps.remove(key);
+    }
+  }
+
   /// Loguje błędy w trybie debug
   void logError(String operation, dynamic error) {
     if (kDebugMode) {
       print('[$runtimeType] Błąd w $operation: $error');
+    }
+  }
+
+  /// Loguje informacje w trybie debug
+  void logInfo(String message) {
+    if (kDebugMode) {
+      print('[$runtimeType] $message');
     }
   }
 

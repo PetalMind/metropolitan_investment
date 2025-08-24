@@ -249,7 +249,20 @@ class DataCacheService extends BaseService {
   }
 
   /// Czyści cache - używaj po zapisie danych
-  void invalidateCache() {
+  @override
+  void invalidateCache(String key) {
+    // Implementacja dla zgodności z BaseService
+    if (key == 'all_investments') {
+      _allInvestmentsCache = null;
+      _allInvestmentsCacheTimestamp = null;
+    }
+    _collectionsCache.remove(key);
+    _collectionsCacheTimestamp.remove(key);
+    print('📊 [DataCache] Cache wyczyszczony dla klucza: $key');
+  }
+
+  /// Czyści cały cache - używaj po zapisie danych
+  void invalidateAllCache() {
     _allInvestmentsCache = null;
     _allInvestmentsCacheTimestamp = null;
     _collectionsCache.clear();
@@ -410,7 +423,7 @@ class DataCacheService extends BaseService {
   Future<List<Investment>> forceRefreshFromFirebase() async {
     print('📊 [DataCache] FORCE REFRESH - czyszczę wszystkie cache');
     await _clearPersistentCache();
-    invalidateCache();
+    invalidateCachePattern('*'); // Clear all cache entries
     return getAllInvestments(forceRefresh: true);
   }
 

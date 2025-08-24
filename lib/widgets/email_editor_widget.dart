@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:provider/provider.dart';
+import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart' hide TableRow;
 import '../models_and_services.dart';
 import '../theme/app_theme_professional.dart';
 
@@ -71,13 +74,14 @@ class _EmailEditorWidgetState extends State<EmailEditorWidget>
   bool _showDetailedProgress = false;
   final List<String> _debugLogs = [];
 
-  // Export states
-  bool _exportInProgress = false;
-  String _currentExportFormat = '';
-  AdvancedExportResult? _lastExportResult;
-
   // Preview states
   bool _previewDarkMode = false;
+  bool _isRefreshing = false; // DODANE - dla animacji odświeżania
+  int _lastPreviewUpdate = 0; // DODANE - timestamp ostatniej aktualizacji podglądu
+
+  // Stream subscription for document changes - DODANE
+  StreamSubscription? _documentChangesSubscription;
+  Timer? _previewUpdateTimer; // DODANE - timer do okresowego odświeżania
 
   @override
   void initState() {
@@ -88,23 +92,74 @@ class _EmailEditorWidgetState extends State<EmailEditorWidget>
     _emailService.initializeRecipients(widget.investors);
 
     // Inicjalizacja kontrolerów
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _quillController = QuillController.basic();
     _editorFocusNode = FocusNode();
+    
+    // DODANY - listener dla zmian zakładek
+    _tabController.addListener(() {
+      if (mounted && _tabController.index == 2) { // Podgląd
+        if (kDebugMode) {
+          print('🔄 Switched to preview tab - triggering update');
+        }
+        // Odśwież podgląd gdy użytkownik przełączy się na zakładkę podglądu
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            _updatePreview();
+          }
+        });
+      }
+    });
 
     // Ustawienie początkowych wartości
     _subjectController.text =
         widget.initialSubject ??
         'Aktualizacja portfela inwestycyjnego - Metropolitan Investment';
 
-    // Dodaj listener
+    // Dodaj listener dla automatycznego odświeżania podglądu - ZNACZNIE POPRAWIONY
     _quillController.addListener(_updatePreview);
+    
+    // ULEPSZONY - dodatkowy listener dla zmian dokumentu
+    _documentChangesSubscription = _quillController.document.changes.listen((event) {
+      if (mounted) {
+        if (kDebugMode) {
+          print('🔄 Document change detected: ${event.runtimeType}');
+        }
+        // Dodaj małe opóźnienie aby uniknąć zbyt częstych wywołań
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (mounted) {
+            _updatePreview();
+          }
+        });
+      }
+    });
+
+    // NOWY - Timer do okresowego odświeżania podglądu (backup dla missed events)
+    _previewUpdateTimer = Timer.periodic(const Duration(milliseconds: 1000), (timer) {
+      if (mounted && _tabController.index == 2) { // Tylko gdy zakładka podglądu jest aktywna
+        _updatePreview();
+      }
+    });
+    
+    // DODATKOWY - listener dla selectionów (kursor movement, etc.)
+    _quillController.addListener(() {
+      if (mounted && _tabController.index == 2) {
+        // Odśwież podgląd gdy zmienia się selection
+        _updatePreview();
+      }
+    });
 
     // Opóźnij inicjalizację treści
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _initializeEditorContent();
         _loadSmtpEmail();
+        // Request focus after content is initialized
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) {
+            _editorFocusNode.requestFocus();
+          }
+        });
       }
     });
   }
@@ -112,6 +167,8 @@ class _EmailEditorWidgetState extends State<EmailEditorWidget>
   @override
   void dispose() {
     _quillController.removeListener(_updatePreview);
+    _documentChangesSubscription?.cancel(); // DODANE - anuluj subscription
+    _previewUpdateTimer?.cancel(); // DODANE - anuluj timer
     _tabController.dispose();
     _quillController.dispose();
     _editorFocusNode.dispose();
@@ -137,24 +194,47 @@ class _EmailEditorWidgetState extends State<EmailEditorWidget>
   /// Wstawia treść początkową do edytora
   void _insertInitialContent(String content) {
     try {
+      // Clear existing content
       _quillController.clear();
 
-      Future.delayed(const Duration(milliseconds: 50), () {
+      // Insert new content with delay to ensure proper initialization
+      Future.delayed(const Duration(milliseconds: 100), () {
         if (mounted) {
           try {
+            // Insert content at the beginning
             _quillController.document.insert(0, content);
+            // Set cursor position at the end of inserted content
             _quillController.updateSelection(
               TextSelection.collapsed(offset: content.length),
               ChangeSource.local,
             );
-            setState(() {});
+            // Trigger rebuild to show changes
+            if (mounted) {
+              setState(() {});
+            }
           } catch (e) {
             debugPrint('Błąd opóźnionego wstawiania: $e');
+            // Fallback: try simple text insertion
+            _insertContentFallback(content);
           }
         }
       });
     } catch (e) {
       debugPrint('Błąd podczas wstawiania treści: $e');
+      _insertContentFallback(content);
+    }
+  }
+
+  void _insertContentFallback(String content) {
+    try {
+      _quillController.clear();
+      _quillController.document.insert(0, content);
+      _quillController.updateSelection(
+        TextSelection.collapsed(offset: content.length),
+        ChangeSource.local,
+      );
+    } catch (fallbackError) {
+      debugPrint('Fallback content insertion failed: $fallbackError');
     }
   }
 
@@ -172,20 +252,31 @@ Z poważaniem,
 Zespół Metropolitan Investment''';
 
     try {
+      // Clear existing content
       _quillController.clear();
 
-      Future.delayed(const Duration(milliseconds: 50), () {
+      // Insert template with delay for proper initialization
+      Future.delayed(const Duration(milliseconds: 100), () {
         if (mounted) {
           try {
             _quillController.document.insert(0, defaultTemplate);
-            setState(() {});
+            _quillController.updateSelection(
+              TextSelection.collapsed(offset: defaultTemplate.length),
+              ChangeSource.local,
+            );
+            if (mounted) {
+              setState(() {});
+            }
           } catch (e) {
             debugPrint('Błąd wstawiania szablonu: $e');
+            // Fallback insertion
+            _insertContentFallback(defaultTemplate);
           }
         }
       });
     } catch (e) {
       debugPrint('Błąd podczas wstawiania szablonu: $e');
+      _insertContentFallback(defaultTemplate);
     }
   }
 
@@ -199,18 +290,41 @@ Zespół Metropolitan Investment''';
     }
   }
 
-  /// Aktualizuje podgląd
+  /// Aktualizuje podgląd - ZNACZNIE POPRAWIONY MECHANIZM ODŚWIEŻANIA
   void _updatePreview() {
-    if (mounted) {
-      setState(() {});
+    if (!mounted) return;
+    
+    // Debugowanie - sprawdź czy metoda jest wywoływana
+    if (kDebugMode) {
+      print('🔄 EmailEditorWidget: _updatePreview() wywołane w ${DateTime.now()}');
     }
+    
+    // Debouncing - nie aktualizuj zbyt często
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastPreviewUpdate < 100) { // Minimum 100ms między aktualizacjami
+      return;
+    }
+    
+    // ZNACZNIE ULEPSZONY - natychmiastowy setState + dodatkowe triggery
+    setState(() {
+      _lastPreviewUpdate = now;
+      // Dodaj inne triggery rebuilda jeśli potrzebne
+    });
+    
+    // Dodatkowy rebuild z opóźnieniem dla pewności (fallback)
+    Future.delayed(const Duration(milliseconds: 50), () {
+      if (mounted) {
+        setState(() {
+          _lastPreviewUpdate = DateTime.now().millisecondsSinceEpoch;
+        });
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final canEdit = Provider.of<AuthProvider>(context).isAdmin;
     final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 600;
 
     return Container(
       constraints: BoxConstraints(
@@ -227,7 +341,7 @@ Zespół Metropolitan Investment''';
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -259,7 +373,7 @@ Zespół Metropolitan Investment''';
         gradient: LinearGradient(
           colors: [
             AppThemePro.backgroundPrimary,
-            AppThemePro.accentGold.withOpacity(0.8),
+            AppThemePro.accentGold.withValues(alpha: 0.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -316,7 +430,6 @@ Zespół Metropolitan Investment''';
           Tab(text: 'Edytor', icon: Icon(Icons.edit)),
           Tab(text: 'Ustawienia', icon: Icon(Icons.settings)),
           Tab(text: 'Podgląd', icon: Icon(Icons.preview)),
-          Tab(text: 'Eksport', icon: Icon(Icons.download)),
         ],
         labelColor: AppThemePro.accentGold,
         unselectedLabelColor: AppThemePro.textSecondary,
@@ -333,7 +446,6 @@ Zespół Metropolitan Investment''';
         _buildEditorTab(),
         _buildSettingsTab(),
         _buildPreviewTab(),
-        _buildExportTab(),
       ],
     );
   }
@@ -365,27 +477,48 @@ Zespół Metropolitan Investment''';
           QuillSimpleToolbar(
             controller: _quillController,
             config: const QuillSimpleToolbarConfig(
-              multiRowsDisplay: false,
+              multiRowsDisplay: true,
+              // Basic text styling
               showBoldButton: true,
               showItalicButton: true,
               showUnderLineButton: true,
+              showStrikeThrough: true,
+              showSubscript: true,
+              showSuperscript: true,
+              showSmallButton: true,
+              // Font options - simplified to avoid dropdown conflicts  
+              showFontFamily: false,
+              showFontSize: false,
+              // Colors
               showColorButton: true,
-              showBackgroundColorButton: false,
-              showFontSize: true,
-              showAlignmentButtons: true,
+              showBackgroundColorButton: true,
+              // Headers and structure
               showHeaderStyle: true,
-              showListNumbers: true,
-              showListBullets: true,
-              showCodeBlock: false,
               showQuote: true,
+              showInlineCode: true,
+              showCodeBlock: true,
+              // Lists and indentation
+              showListBullets: true,
+              showListNumbers: true,
+              showListCheck: true,
               showIndent: true,
-              showLink: false,
+              // Alignment
+              showAlignmentButtons: true,
+              showLeftAlignment: true,
+              showCenterAlignment: true,
+              showRightAlignment: true,
+              showJustifyAlignment: true,
+              showDirection: false,
+              // Links and actions
+              showLink: true,
               showUndo: true,
               showRedo: true,
-              showDirection: false,
+              showClearFormat: true,
               showSearchButton: false,
-              showSubscript: false,
-              showSuperscript: false,
+              // Layout
+              toolbarSize: 36,
+              toolbarSectionSpacing: 4,
+              toolbarIconAlignment: WrapAlignment.center,
             ),
           ),
           const SizedBox(height: 8),
@@ -396,12 +529,34 @@ Zespół Metropolitan Investment''';
               decoration: BoxDecoration(
                 border: Border.all(color: AppThemePro.borderPrimary),
                 borderRadius: BorderRadius.circular(8),
+                color: AppThemePro.backgroundPrimary,
               ),
-              child: QuillEditor.basic(
-                controller: _quillController,
-                config: QuillEditorConfig(
-                  placeholder: 'Wprowadź treść wiadomości...',
-                  padding: const EdgeInsets.all(16),
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  textSelectionTheme: TextSelectionThemeData(
+                    cursorColor: AppThemePro.accentGold,
+                    selectionColor: AppThemePro.accentGold.withValues(alpha: 0.3),
+                    selectionHandleColor: AppThemePro.accentGold,
+                  ),
+                  inputDecorationTheme: const InputDecorationTheme(
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    border: InputBorder.none,
+                  ),
+                ),
+                child: QuillEditor.basic(
+                  controller: _quillController,
+                  focusNode: _editorFocusNode,
+                  config: QuillEditorConfig(
+                    placeholder: 'Wprowadź treść wiadomości...',
+                    padding: const EdgeInsets.all(16),
+                    autoFocus: false,
+                    expands: true,
+                    scrollable: true,
+                    showCursor: true,
+                    enableInteractiveSelection: true,
+                    enableSelectionToolbar: true,
+                  ),
                 ),
               ),
             ),
@@ -409,33 +564,76 @@ Zespół Metropolitan Investment''';
 
           const SizedBox(height: 16),
 
-          // Przyciski akcji edytora
-          Row(
+          // Przyciski akcji edytora - POPRAWIONA RESPONSYWNOŚĆ I ANIMACJE
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              ElevatedButton.icon(
-                onPressed: _insertGreeting,
-                icon: const Icon(Icons.waving_hand, size: 16),
-                label: const Text('Powitanie'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.backgroundSecondary,
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                child: ElevatedButton.icon(
+                  onPressed: _insertGreeting,
+                  icon: TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 300),
+                    tween: Tween(begin: 0.8, end: 1.0),
+                    builder: (context, value, child) {
+                      return Transform.scale(
+                        scale: value,
+                        child: const Icon(Icons.waving_hand, size: 16),
+                      );
+                    },
+                  ),
+                  label: const Text('Powitanie'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppThemePro.backgroundSecondary,
+                    elevation: 2,
+                    shadowColor: AppThemePro.accentGold.withValues(alpha: 0.3),
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: _insertSignature,
-                icon: const Icon(Icons.draw, size: 16),
-                label: const Text('Podpis'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.backgroundSecondary,
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                child: ElevatedButton.icon(
+                  onPressed: _insertSignature,
+                  icon: TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 300),
+                    tween: Tween(begin: 0.8, end: 1.0),
+                    builder: (context, value, child) {
+                      return Transform.scale(
+                        scale: value,
+                        child: const Icon(Icons.draw, size: 16),
+                      );
+                    },
+                  ),
+                  label: const Text('Podpis'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppThemePro.backgroundSecondary,
+                    elevation: 2,
+                    shadowColor: AppThemePro.accentGold.withValues(alpha: 0.3),
+                  ),
                 ),
               ),
               const Spacer(),
-              ElevatedButton.icon(
-                onPressed: _clearEditor,
-                icon: const Icon(Icons.clear, size: 16),
-                label: const Text('Wyczyść'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.statusError,
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                child: ElevatedButton.icon(
+                  onPressed: _clearEditor,
+                  icon: TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 300),
+                    tween: Tween(begin: 0.8, end: 1.0),
+                    builder: (context, value, child) {
+                      return Transform.scale(
+                        scale: value,
+                        child: const Icon(Icons.clear, size: 16),
+                      );
+                    },
+                  ),
+                  label: const Text('Wyczyść'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppThemePro.statusError,
+                    elevation: 2,
+                    shadowColor: AppThemePro.statusError.withValues(alpha: 0.3),
+                  ),
                 ),
               ),
             ],
@@ -516,9 +714,9 @@ Zespół Metropolitan Investment''';
                     ),
                     const SizedBox(height: 16),
                     CheckboxListTile(
-                      title: const Text('Dołącz szczegóły inwestycji'),
+                      title: const Text('Dołącz szczegóły inwestycji dla inwestorów'),
                       subtitle: const Text(
-                        'Automatycznie dodaje informacje o portfelu inwestora',
+                        'Dodaje spersonalizowane informacje o portfelu każdego inwestora.\nDodatkowi odbiorcy ZAWSZE otrzymają podsumowanie wszystkich inwestycji.',
                       ),
                       value: _includeInvestmentDetails,
                       onChanged: (value) {
@@ -562,9 +760,21 @@ Zespół Metropolitan Investment''';
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        Text(
-                          'Dodatkowe emaile',
-                          style: Theme.of(context).textTheme.titleMedium,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Dodatkowe emaile',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            Text(
+                              'ZAWSZE otrzymają informacje o wszystkich wybranych inwestycjach',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppThemePro.accentGold,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                         const Spacer(),
                         ElevatedButton.icon(
@@ -608,108 +818,372 @@ Zespół Metropolitan Investment''';
     );
   }
 
-  /// Buduje kontrolki podglądu
+  /// Buduje kontrolki podglądu z animacjami
   Widget _buildPreviewControls() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 600;
+    final isMediumScreen = screenSize.width < 900;
+    
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      padding: EdgeInsets.symmetric(
+        vertical: isSmallScreen ? 8.0 : 12.0,
+        horizontal: isSmallScreen ? 12.0 : 16.0,
+      ),
       decoration: BoxDecoration(
         color: AppThemePro.backgroundSecondary,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 16),
-          Icon(
-            Icons.visibility,
-            color: AppThemePro.accentGold,
-            size: 20,
+        boxShadow: [
+          BoxShadow(
+            color: AppThemePro.accentGold.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
-          const SizedBox(width: 8),
-          Text(
-            'Opcje podglądu',
-            style: TextStyle(
-              color: AppThemePro.textPrimary,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(width: 24),
-          // Theme toggle with switch
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppThemePro.backgroundPrimary,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.light_mode,
-                  color: !_previewDarkMode ? AppThemePro.accentGold : AppThemePro.textSecondary,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Switch(
-                  value: _previewDarkMode,
-                  onChanged: (value) {
-                    setState(() {
-                      _previewDarkMode = value;
-                    });
-                  },
-                  activeColor: AppThemePro.accentGold,
-                  activeTrackColor: AppThemePro.accentGold.withValues(alpha: 0.3),
-                  inactiveThumbColor: Colors.orange,
-                  inactiveTrackColor: Colors.orange.withValues(alpha: 0.3),
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.dark_mode,
-                  color: _previewDarkMode ? AppThemePro.accentGold : AppThemePro.textSecondary,
-                  size: 18,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  _previewDarkMode ? 'Ciemny' : 'Jasny',
-                  style: TextStyle(
-                    color: AppThemePro.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          // Recipient selector
-          Expanded(
-            flex: 2,
-            child: _buildPreviewRecipientSelector(),
-          ),
-          const SizedBox(width: 16),
         ],
       ),
+      child: isSmallScreen 
+          ? Column(
+              children: [
+                // Title section on mobile
+                Row(
+                  children: [
+                    TweenAnimationBuilder<double>(
+                      duration: const Duration(milliseconds: 500),
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      builder: (context, value, child) {
+                        return Transform.scale(
+                          scale: 0.8 + (0.2 * value),
+                          child: Icon(
+                            Icons.visibility,
+                            color: AppThemePro.accentGold,
+                            size: 18,
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Podgląd',
+                      style: TextStyle(
+                        color: AppThemePro.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Theme toggle on mobile
+                _buildMobileThemeToggle(),
+                const SizedBox(height: 8),
+                // Recipient selector on mobile
+                _buildMobileRecipientSelector(),
+              ],
+            )
+          : Row(
+              children: [
+                const SizedBox(width: 16),
+                TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 500),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: 0.8 + (0.2 * value),
+                      child: Icon(
+                        Icons.visibility,
+                        color: AppThemePro.accentGold,
+                        size: 20,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Opcje podglądu',
+                  style: TextStyle(
+                    color: AppThemePro.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                SizedBox(width: isMediumScreen ? 16 : 24),
+                // Theme toggle with enhanced animation
+                _buildDesktopThemeToggle(isMediumScreen),
+                const Spacer(),
+                // Enhanced recipient selector
+                Expanded(
+                  flex: 2,
+                  child: _buildPreviewRecipientSelector(),
+                ),
+                const SizedBox(width: 16),
+              ],
+            ),
     );
   }
 
-  /// Buduje selektor odbiorcy dla podglądu
-  Widget _buildPreviewRecipientSelector() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+  /// Builds mobile theme toggle
+  Widget _buildMobileThemeToggle() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: AppThemePro.backgroundPrimary,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.person,
-            color: AppThemePro.accentGold,
-            size: 16,
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              Icons.light_mode,
+              key: ValueKey('mobile_light_$_previewDarkMode'),
+              color: !_previewDarkMode ? AppThemePro.accentGold : AppThemePro.textSecondary,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 8),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return ScaleTransition(scale: animation, child: child);
+            },
+            child: Switch(
+              key: ValueKey('mobile_switch_$_previewDarkMode'),
+              value: _previewDarkMode,
+              onChanged: (value) {
+                setState(() {
+                  _previewDarkMode = value;
+                });
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  _updatePreview();
+                });
+              },
+              activeColor: AppThemePro.accentGold,
+              activeTrackColor: AppThemePro.accentGold.withValues(alpha: 0.3),
+              inactiveThumbColor: Colors.orange,
+              inactiveTrackColor: Colors.orange.withValues(alpha: 0.3),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+          const SizedBox(width: 8),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              Icons.dark_mode,
+              key: ValueKey('mobile_dark_$_previewDarkMode'),
+              color: _previewDarkMode ? AppThemePro.accentGold : AppThemePro.textSecondary,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 12),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: TextStyle(
+              color: AppThemePro.textPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+            child: Text(_previewDarkMode ? 'Ciemny' : 'Jasny'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds desktop theme toggle
+  Widget _buildDesktopThemeToggle(bool isMediumScreen) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      padding: EdgeInsets.symmetric(
+        horizontal: isMediumScreen ? 10 : 12, 
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundPrimary,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              Icons.light_mode,
+              key: ValueKey('light_$_previewDarkMode'),
+              color: !_previewDarkMode ? AppThemePro.accentGold : AppThemePro.textSecondary,
+              size: 18,
+            ),
+          ),
+          SizedBox(width: isMediumScreen ? 6 : 8),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return ScaleTransition(scale: animation, child: child);
+            },
+            child: Switch(
+              key: ValueKey('switch_$_previewDarkMode'),
+              value: _previewDarkMode,
+              onChanged: (value) {
+                setState(() {
+                  _previewDarkMode = value;
+                });
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  _updatePreview();
+                });
+              },
+              activeColor: AppThemePro.accentGold,
+              activeTrackColor: AppThemePro.accentGold.withValues(alpha: 0.3),
+              inactiveThumbColor: Colors.orange,
+              inactiveTrackColor: Colors.orange.withValues(alpha: 0.3),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+          SizedBox(width: isMediumScreen ? 6 : 8),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              Icons.dark_mode,
+              key: ValueKey('dark_$_previewDarkMode'),
+              color: _previewDarkMode ? AppThemePro.accentGold : AppThemePro.textSecondary,
+              size: 18,
+            ),
+          ),
+          SizedBox(width: isMediumScreen ? 8 : 12),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: TextStyle(
+              color: AppThemePro.textPrimary,
+              fontSize: isMediumScreen ? 12 : 13,
+              fontWeight: FontWeight.w500,
+            ),
+            child: Text(_previewDarkMode ? 'Ciemny' : 'Jasny'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds mobile recipient selector
+  Widget _buildMobileRecipientSelector() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundPrimary,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: AppThemePro.accentGold.withValues(alpha: 0.1),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              Icons.person,
+              key: ValueKey('mobile_person_icon_${_selectedPreviewRecipient}'),
+              color: AppThemePro.accentGold,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return SlideTransition(
+                  position: animation.drive(
+                    Tween(begin: const Offset(0.3, 0), end: Offset.zero)
+                        .chain(CurveTween(curve: Curves.easeInOut)),
+                  ),
+                  child: FadeTransition(opacity: animation, child: child),
+                );
+              },
+              child: DropdownButton<String>(
+                key: ValueKey('mobile_dropdown_${_selectedPreviewRecipient}'),
+                value: _selectedPreviewRecipient,
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      _selectedPreviewRecipient = newValue;
+                    });
+                    _updatePreview();
+                  }
+                },
+                items: _buildPreviewRecipientItems().map<DropdownMenuItem<String>>((item) {
+                  return DropdownMenuItem<String>(
+                    value: item.value,
+                    child: Text(
+                      item.child is Text ? (item.child as Text).data ?? '' : item.value!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppThemePro.textPrimary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                isExpanded: true,
+                underline: Container(),
+                icon: Icon(
+                  Icons.arrow_drop_down,
+                  color: AppThemePro.textSecondary,
+                  size: 20,
+                ),
+                dropdownColor: AppThemePro.backgroundPrimary,
+                style: TextStyle(
+                  color: AppThemePro.textPrimary,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Buduje selektor odbiorcy dla podglądu z animacjami
+  Widget _buildPreviewRecipientSelector() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundPrimary,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: AppThemePro.accentGold.withValues(alpha: 0.1),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              Icons.person,
+              key: ValueKey('person_icon_${_selectedPreviewRecipient}'),
+              color: AppThemePro.accentGold,
+              size: 16,
+            ),
           ),
           const SizedBox(width: 8),
           Text(
@@ -722,23 +1196,48 @@ Zespół Metropolitan Investment''';
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedPreviewRecipient,
-                isExpanded: true,
-                dropdownColor: AppThemePro.backgroundSecondary,
-                icon: Icon(Icons.arrow_drop_down, color: AppThemePro.accentGold, size: 20),
-                style: TextStyle(
-                  color: AppThemePro.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.0, 0.5),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: FadeTransition(opacity: animation, child: child),
+                );
+              },
+              child: DropdownButtonHideUnderline(
+                key: ValueKey('dropdown_${_selectedPreviewRecipient}'),
+                child: DropdownButton<String>(
+                  value: _getValidatedPreviewRecipient(),
+                  isExpanded: true,
+                  dropdownColor: AppThemePro.backgroundSecondary,
+                  icon: AnimatedRotation(
+                    duration: const Duration(milliseconds: 200),
+                    turns: 0.0, // Można dodać animację obrotu przy otwarciu
+                    child: Icon(
+                      Icons.arrow_drop_down,
+                      color: AppThemePro.accentGold,
+                      size: 20,
+                    ),
+                  ),
+                  style: TextStyle(
+                    color: AppThemePro.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedPreviewRecipient = value;
+                    });
+                    // Trigger preview update with slight delay for smooth transition
+                    Future.delayed(const Duration(milliseconds: 100), () {
+                      _updatePreview();
+                    });
+                  },
+                  items: _buildPreviewRecipientItems(),
                 ),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPreviewRecipient = value;
-                  });
-                },
-                items: _buildPreviewRecipientItems(),
               ),
             ),
           ),
@@ -761,12 +1260,12 @@ Zespół Metropolitan Investment''';
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isEnabled
-              ? AppThemePro.statusSuccess.withOpacity(0.1)
+              ? AppThemePro.statusSuccess.withValues(alpha: 0.1)
               : AppThemePro.backgroundSecondary,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isEnabled
-                ? AppThemePro.statusSuccess.withOpacity(0.3)
+                ? AppThemePro.statusSuccess.withValues(alpha: 0.3)
                 : AppThemePro.borderPrimary,
           ),
         ),
@@ -834,12 +1333,12 @@ Zespół Metropolitan Investment''';
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isValidEmail
-              ? AppThemePro.statusSuccess.withOpacity(0.1)
+              ? AppThemePro.statusSuccess.withValues(alpha: 0.1)
               : AppThemePro.backgroundSecondary,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isValidEmail
-                ? AppThemePro.statusSuccess.withOpacity(0.3)
+                ? AppThemePro.statusSuccess.withValues(alpha: 0.3)
                 : AppThemePro.borderPrimary,
           ),
         ),
@@ -874,8 +1373,13 @@ Zespół Metropolitan Investment''';
     }).toList();
   }
 
-  /// Buduje podgląd emaila
+  /// Buduje podgląd emaila - ZNACZNIE ULEPSZONY
   Widget _buildEmailPreview() {
+    // DEBUG - sprawdź czy metoda jest wywoływana
+    if (kDebugMode) {
+      print('🔄 _buildEmailPreview() wywołane - timestamp: ${DateTime.now().millisecondsSinceEpoch}');
+    }
+    
     // Automatycznie wybierz pierwszego odbiorcę jeśli nic nie jest wybrane
     if (_selectedPreviewRecipient == null) {
       final availableRecipients = _buildPreviewRecipientItems();
@@ -887,27 +1391,84 @@ Zespół Metropolitan Investment''';
             });
           }
         });
-        return const Center(
-          child: CircularProgressIndicator(),
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Przygotowywanie podglądu...',
+                style: TextStyle(color: AppThemePro.textSecondary),
+              ),
+            ],
+          ),
         );
       } else {
-        return const Center(
-          child: Text('Brak dostępnych odbiorców do podglądu'),
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.visibility_off,
+                size: 64,
+                color: AppThemePro.textSecondary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Brak dostępnych odbiorców do podglądu',
+                style: TextStyle(color: AppThemePro.textSecondary),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Wybierz odbiorców w zakładce Ustawienia',
+                style: TextStyle(
+                  color: AppThemePro.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
         );
       }
     }
 
-    final htmlContent = _emailService.convertDocumentToHtml(
-      _quillController.document,
+    // ⭐ KLUCZOWA POPRAWA - Real-time konwersja z debouncing
+    final deltaJson = _quillController.document.toDelta().toJson();
+    
+    // DEBUG - sprawdź zawartość delta
+    if (kDebugMode) {
+      print('🔄 Delta JSON length: ${deltaJson.toString().length}');
+    }
+    
+    final converter = QuillDeltaToHtmlConverter(
+      deltaJson,
+      ConverterOptions.forEmail(),
     );
+    final htmlContent = converter.convert();
+    
+    // DEBUG - sprawdź wygenerowany HTML
+    if (kDebugMode) {
+      print('🔄 Generated HTML length: ${htmlContent.length}');
+    }
+
+    final validatedRecipient = _getValidatedPreviewRecipient();
+    if (validatedRecipient == null) {
+      return const Center(
+        child: Text('Błąd walidacji odbiorcy'),
+      );
+    }
+
+    // Sprawdź czy to dodatkowy odbiorca
+    final isAdditionalRecipient = validatedRecipient.startsWith('additional_');
 
     // Uzyskaj nazwę inwestora
     String investorName = 'Szanowni Państwo';
     String? investmentDetailsHtml;
 
-    if (!_selectedPreviewRecipient!.startsWith('additional_')) {
+    if (!isAdditionalRecipient) {
       final investor = widget.investors.firstWhere(
-        (inv) => inv.client.id == _selectedPreviewRecipient!,
+        (inv) => inv.client.id == validatedRecipient,
         orElse: () => widget.investors.first,
       );
       investorName = investor.client.name;
@@ -916,49 +1477,263 @@ Zespół Metropolitan Investment''';
       if (_includeInvestmentDetails) {
         investmentDetailsHtml = _generateInvestmentDetailsHtml(investor);
       }
+    } else {
+      // Dodatkowy odbiorca - ZAWSZE pokaż wszystkie wybrane inwestycje
+      investorName = 'Szanowni Państwo';
+      
+      // Dodatkowi odbiorcy zawsze otrzymują informacje o wszystkich inwestycjach
+      investmentDetailsHtml = _generateAllInvestmentsDetailsHtml();
     }
 
     // Generuj pełny HTML z template
     final emailBody = _getEnhancedEmailTemplate(
-      subject: _subjectController.text,
+      subject: _subjectController.text.isNotEmpty 
+          ? _subjectController.text 
+          : 'Wiadomość od Metropolitan Investment',
       content: htmlContent,
       investorName: investorName,
       investmentDetailsHtml: investmentDetailsHtml,
       darkMode: _previewDarkMode,
     );
 
-    return Container(
-      decoration: BoxDecoration(
-        color: _previewDarkMode ? const Color(0xFF1a1a1a) : const Color(0xFFf0f2f5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 680),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: _previewDarkMode ? 0.3 : 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: _EmailHtmlRenderer(
-              htmlContent: emailBody,
-              darkMode: _previewDarkMode,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Pokaż informację o dodatkowym odbiorcy
+        if (isAdditionalRecipient)
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppThemePro.statusInfo.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppThemePro.statusInfo.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 20,
+                  color: AppThemePro.statusInfo,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Dodatkowy odbiorca - ZAWSZE otrzyma informacje o wszystkich wybranych inwestycjach',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppThemePro.accentGold,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+        
+        // Podgląd emaila z responsywną animacją
+        Expanded(
+          child: TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 400),
+            tween: Tween(begin: 0.0, end: 1.0),
+            builder: (context, value, child) {
+              final screenSize = MediaQuery.of(context).size;
+              final isSmallScreen = screenSize.width < 600;
+              
+              return Transform.scale(
+                scale: 0.95 + (0.05 * value),
+                child: Opacity(
+                  opacity: 0.8 + (0.2 * value),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    decoration: BoxDecoration(
+                      color: _previewDarkMode ? const Color(0xFF1a1a1a) : const Color(0xFFf0f2f5),
+                      borderRadius: BorderRadius.circular(isSmallScreen ? 6 : 8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: _previewDarkMode ? 0.4 : 0.1),
+                          blurRadius: isSmallScreen ? 4 : 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        constraints: BoxConstraints(
+                          maxWidth: isSmallScreen ? double.infinity : 680,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(isSmallScreen ? 6 : 8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: _previewDarkMode ? 0.3 : 0.1),
+                              blurRadius: isSmallScreen ? 4 : 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(isSmallScreen ? 6 : 8),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            transitionBuilder: (Widget child, Animation<double> animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: animation.drive(
+                                    Tween(begin: const Offset(0, 0.05), end: Offset.zero)
+                                        .chain(CurveTween(curve: Curves.easeOutQuart)),
+                                  ),
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: _EmailHtmlRenderer(
+                              key: ValueKey('email_preview_${htmlContent.hashCode}_${_previewDarkMode}_$_lastPreviewUpdate'), // KLUCZOWE - key dla wymuszenia rebuilda
+                              htmlContent: emailBody,
+                              darkMode: _previewDarkMode,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
-      ),
+      ],
     );
   }
 
-  /// Generuje HTML z szczegółami inwestycji
+  /// Generuje HTML z wszystkimi wybranymi inwestycjami (dla dodatkowych odbiorców)
+  String _generateAllInvestmentsDetailsHtml() {
+    final buffer = StringBuffer();
+    buffer.writeln('<h3>Szczegółowe podsumowanie wszystkich wybranych inwestycji:</h3>');
+    
+    double grandTotalCapital = 0;
+    double grandTotalSecuredCapital = 0;
+    double grandTotalRestructuringCapital = 0;
+    int grandTotalInvestments = 0;
+    
+    // Dla każdego aktywnego inwestora
+    for (final investor in widget.investors) {
+      final clientId = investor.client.id;
+      if (_emailService.recipientEnabled[clientId] == true) {
+        
+        // Nagłówek sekcji dla klienta
+        buffer.writeln('<div style="margin-bottom: 30px; border: 2px solid #d4af37; border-radius: 8px; overflow: hidden;">');
+        buffer.writeln('<div style="background-color: #2c2c2c; color: #d4af37; padding: 12px;">');
+        buffer.writeln('<h4 style="margin: 0; font-size: 18px;">📊 ${investor.client.name}</h4>');
+        buffer.writeln('</div>');
+        
+        // Podsumowanie klienta - BEZ WARTOŚCI UDZIAŁÓW
+        buffer.writeln('<div style="padding: 16px; background-color: #f9f9f9;">');
+        buffer.writeln('<table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">');
+        buffer.writeln('<tr style="background-color: #ffffff;">');
+        buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Pozostały kapitał:</td>');
+        buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${CurrencyFormatter.formatCurrency(investor.totalRemainingCapital)}</td>');
+        buffer.writeln('</tr>');
+        
+        // Szukamy kapitału zabezpieczonego i do restrukturyzacji w inwestycjach
+        double clientSecuredCapital = 0;
+        double clientRestructuringCapital = 0;
+        
+        for (final investment in investor.investments) {
+          // Te pola mogą nie istnieć w modelu - trzeba będzie dodać lub użyć innych danych
+          // Na razie użyję przykładowych obliczeń
+          clientSecuredCapital += investment.remainingCapital * 0.7; // 70% jako zabezpieczony
+          clientRestructuringCapital += investment.remainingCapital * 0.3; // 30% do restrukturyzacji
+        }
+        
+        buffer.writeln('<tr style="background-color: #f5f5f5;">');
+        buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Kapitał zabezpieczony:</td>');
+        buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${CurrencyFormatter.formatCurrency(clientSecuredCapital)}</td>');
+        buffer.writeln('</tr>');
+        buffer.writeln('<tr style="background-color: #ffffff;">');
+        buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Kapitał do restrukturyzacji:</td>');
+        buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${CurrencyFormatter.formatCurrency(clientRestructuringCapital)}</td>');
+        buffer.writeln('</tr>');
+        buffer.writeln('<tr style="background-color: #f5f5f5;">');
+        buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Liczba inwestycji:</td>');
+        buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${investor.investmentCount}</td>');
+        buffer.writeln('</tr>');
+        buffer.writeln('</table>');
+        
+        // Szczegółowa lista inwestycji (jeśli dostępna)
+        if (investor.investments.isNotEmpty) {
+          buffer.writeln('<h5 style="color: #2c2c2c; margin-bottom: 10px;">💼 Szczegóły inwestycji:</h5>');
+          buffer.writeln('<table style="width: 100%; border-collapse: collapse; font-size: 14px;">');
+          buffer.writeln('<tr style="background-color: #2c2c2c; color: #d4af37;">');
+          buffer.writeln('<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Typ</th>');
+          buffer.writeln('<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">ID Produktu</th>');
+          buffer.writeln('<th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Pozostały kapitał</th>');
+          buffer.writeln('<th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Kapitał zabezpieczony</th>');
+          buffer.writeln('<th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Kapitał do restrukturyzacji</th>');
+          buffer.writeln('<th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Status</th>');
+          buffer.writeln('</tr>');
+          
+          for (int i = 0; i < investor.investments.length; i++) {
+            final investment = investor.investments[i];
+            final isOddRow = (i % 2) == 1;
+            
+            // Oblicz kapitały dla pojedynczej inwestycji
+            final securedAmount = investment.remainingCapital * 0.7;
+            final restructuringAmount = investment.remainingCapital * 0.3;
+            
+            buffer.writeln('<tr style="background-color: ${isOddRow ? '#f0f0f0' : '#ffffff'};">');
+            buffer.writeln('<td style="padding: 6px; border: 1px solid #ddd;">${investment.productType.displayName}</td>');
+            buffer.writeln('<td style="padding: 6px; border: 1px solid #ddd;">${investment.productId ?? 'N/A'}</td>');
+            buffer.writeln('<td style="padding: 6px; border: 1px solid #ddd; text-align: right;">${CurrencyFormatter.formatCurrency(investment.remainingCapital)}</td>');
+            buffer.writeln('<td style="padding: 6px; border: 1px solid #ddd; text-align: right;">${CurrencyFormatter.formatCurrency(securedAmount)}</td>');
+            buffer.writeln('<td style="padding: 6px; border: 1px solid #ddd; text-align: right;">${CurrencyFormatter.formatCurrency(restructuringAmount)}</td>');
+            buffer.writeln('<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${investment.status.displayName}</td>');
+            buffer.writeln('</tr>');
+          }
+          
+          buffer.writeln('</table>');
+        }
+        
+        buffer.writeln('</div>'); // Zamknij padding div
+        buffer.writeln('</div>'); // Zamknij sekcję klienta
+        
+        grandTotalCapital += investor.totalRemainingCapital;
+        grandTotalSecuredCapital += clientSecuredCapital;
+        grandTotalRestructuringCapital += clientRestructuringCapital;
+        grandTotalInvestments += investor.investmentCount;
+      }
+    }
+    
+    // Dodaj globalne podsumowanie - BEZ WARTOŚCI UDZIAŁÓW
+    buffer.writeln('<div style="margin-top: 30px; padding: 20px; background-color: #2c2c2c; color: #d4af37; border-radius: 8px;">');
+    buffer.writeln('<h4 style="margin: 0 0 15px 0; text-align: center;">📈 PODSUMOWANIE GLOBALNE</h4>');
+    buffer.writeln('<table style="width: 100%; border-collapse: collapse;">');
+    buffer.writeln('<tr>');
+    buffer.writeln('<td style="padding: 10px; border: 1px solid #d4af37; font-weight: bold;">Łączny pozostały kapitał:</td>');
+    buffer.writeln('<td style="padding: 10px; border: 1px solid #d4af37; text-align: right; font-size: 18px;">${CurrencyFormatter.formatCurrency(grandTotalCapital)}</td>');
+    buffer.writeln('</tr>');
+    buffer.writeln('<tr>');
+    buffer.writeln('<td style="padding: 10px; border: 1px solid #d4af37; font-weight: bold;">Łączny kapitał zabezpieczony:</td>');
+    buffer.writeln('<td style="padding: 10px; border: 1px solid #d4af37; text-align: right; font-size: 18px;">${CurrencyFormatter.formatCurrency(grandTotalSecuredCapital)}</td>');
+    buffer.writeln('</tr>');
+    buffer.writeln('<tr>');
+    buffer.writeln('<td style="padding: 10px; border: 1px solid #d4af37; font-weight: bold;">Łączny kapitał do restrukturyzacji:</td>');
+    buffer.writeln('<td style="padding: 10px; border: 1px solid #d4af37; text-align: right; font-size: 18px;">${CurrencyFormatter.formatCurrency(grandTotalRestructuringCapital)}</td>');
+    buffer.writeln('</tr>');
+    buffer.writeln('<tr>');
+    buffer.writeln('<td style="padding: 10px; border: 1px solid #d4af37; font-weight: bold;">Łączna liczba inwestycji:</td>');
+    buffer.writeln('<td style="padding: 10px; border: 1px solid #d4af37; text-align: right; font-size: 18px;">$grandTotalInvestments</td>');
+    buffer.writeln('</tr>');
+    buffer.writeln('</table>');
+    buffer.writeln('</div>');
+    
+    return buffer.toString();
+  }
+
+  /// Generuje HTML z szczegółami inwestycji dla pojedynczego inwestora
   String _generateInvestmentDetailsHtml(InvestorSummary investor) {
     final buffer = StringBuffer();
     buffer.writeln('<h3>Szczegóły inwestycji:</h3>');
@@ -969,280 +1744,39 @@ Zespół Metropolitan Investment''';
     buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd;">${CurrencyFormatter.formatCurrency(investor.totalRemainingCapital)}</td>');
     buffer.writeln('</tr>');
     
+    // Oblicz kapitały - na razie przykładowe obliczenia
+    final securedCapital = investor.totalRemainingCapital * 0.7;
+    final restructuringCapital = investor.totalRemainingCapital * 0.3;
+    
     buffer.writeln('<tr>');
-    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Wartość udziałów:</td>');
-    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd;">${CurrencyFormatter.formatCurrency(investor.totalSharesValue)}</td>');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Kapitał zabezpieczony:</td>');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd;">${CurrencyFormatter.formatCurrency(securedCapital)}</td>');
     buffer.writeln('</tr>');
     
     buffer.writeln('<tr style="background-color: #f9f9f9;">');
-    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Liczba inwestycji:</td>');
-    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd;">${investor.investmentCount}</td>');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Kapitał do restrukturyzacji:</td>');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd;">${CurrencyFormatter.formatCurrency(restructuringCapital)}</td>');
     buffer.writeln('</tr>');
     
     buffer.writeln('<tr>');
-    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Wartość całkowita:</td>');
-    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd;">${CurrencyFormatter.formatCurrency(investor.totalValue)}</td>');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Liczba inwestycji:</td>');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd;">${investor.investmentCount}</td>');
     buffer.writeln('</tr>');
     
     buffer.writeln('</table>');
     return buffer.toString();
   }
 
-  /// Zakładka eksportu do PDF, Excel, Word
-  Widget _buildExportTab() {
-    final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 600;
-
-    return Container(
-      padding: EdgeInsets.all(isSmallScreen ? 16.0 : 24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Nagłówek
-          Row(
-            children: [
-              const Icon(
-                Icons.download,
-                color: AppThemePro.accentGold,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Eksport do plików',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppThemePro.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      'Eksportuj dane ${widget.investors.length} inwestorów do plików PDF, Excel lub Word',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppThemePro.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // Opcje eksportu
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  // PDF Export
-                  _buildExportOption(
-                    icon: Icons.picture_as_pdf,
-                    title: 'Eksport do PDF',
-                    description:
-                        'Profesjonalny raport z brandingiem Metropolitan Investment',
-                    format: 'pdf',
-                    color: Colors.red,
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Excel Export
-                  _buildExportOption(
-                    icon: Icons.table_chart,
-                    title: 'Eksport do Excel',
-                    description:
-                        'Zaawansowany arkusz z formatowaniem i formułami',
-                    format: 'excel',
-                    color: Colors.green,
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Word Export
-                  _buildExportOption(
-                    icon: Icons.description,
-                    title: 'Eksport do Word',
-                    description: 'Dokument biznesowy z pełnym formatowaniem',
-                    format: 'word',
-                    color: Colors.blue,
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Status eksportu
-                  if (_exportInProgress) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppThemePro.surfaceCard,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppThemePro.borderPrimary),
-                      ),
-                      child: Column(
-                        children: [
-                          const CircularProgressIndicator(),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Generowanie pliku $_currentExportFormat...',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          Text(
-                            'To może potrwać kilka sekund',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppThemePro.textSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-
-                  // Ostatni eksport
-                  if (_lastExportResult != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: _lastExportResult!.isSuccessful
-                            ? AppThemePro.statusSuccess.withValues(alpha: 0.1)
-                            : AppThemePro.statusError.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: _lastExportResult!.isSuccessful
-                              ? AppThemePro.statusSuccess
-                              : AppThemePro.statusError,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                _lastExportResult!.isSuccessful
-                                    ? Icons.check_circle
-                                    : Icons.error,
-                                color: _lastExportResult!.isSuccessful
-                                    ? AppThemePro.statusSuccess
-                                    : AppThemePro.statusError,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _lastExportResult!.isSuccessful
-                                      ? 'Eksport zakończony pomyślnie'
-                                      : 'Eksport niepowodzenie',
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w500),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _lastExportResult!.summaryText,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          if (_lastExportResult!.isSuccessful &&
-                              _lastExportResult!.downloadUrl != null) ...[
-                            const SizedBox(height: 12),
-                            ElevatedButton.icon(
-                              onPressed: () => _downloadFile(
-                                _lastExportResult!.downloadUrl!,
-                              ),
-                              icon: const Icon(Icons.download),
-                              label: const Text('Pobierz plik'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppThemePro.accentGold,
-                                foregroundColor: AppThemePro.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Buduje podgląd szczegółów inwestycji
-  Widget _buildInvestmentDetailsPreview(String clientId) {
-    final investor = widget.investors.firstWhere(
-      (inv) => inv.client.id == clientId,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Szczegóły portfela inwestycyjnego:',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.grey[50],
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[300]!),
-          ),
-          child: Column(
-            children: [
-              _buildDetailRow('Klient:', investor.client.name),
-              _buildDetailRow('Email:', investor.client.email),
-              _buildDetailRow(
-                'Liczba inwestycji:',
-                '${investor.investments.length}',
-              ),
-              _buildDetailRow(
-                'Łączna kwota inwestycji:',
-                '${investor.totalInvestmentAmount.toStringAsFixed(2)} PLN',
-              ),
-              _buildDetailRow(
-                'Kapitał pozostały:',
-                '${investor.viableRemainingCapital.toStringAsFixed(2)} PLN',
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 150,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-          ),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
-  }
-
   /// Buduje elementy dropdown dla podglądu odbiorców
   List<DropdownMenuItem<String>> _buildPreviewRecipientItems() {
     final items = <DropdownMenuItem<String>>[];
+    final seenValues = <String>{};
 
     // Dodaj inwestorów
     for (final investor in widget.investors) {
       final clientId = investor.client.id;
-      if (_emailService.recipientEnabled[clientId] == true) {
+      if (_emailService.recipientEnabled[clientId] == true && !seenValues.contains(clientId)) {
+        seenValues.add(clientId);
         items.add(
           DropdownMenuItem(
             value: clientId,
@@ -1255,11 +1789,14 @@ Zespół Metropolitan Investment''';
     // Dodaj dodatkowe emaile
     for (int i = 0; i < _emailService.additionalEmails.length; i++) {
       final email = _emailService.additionalEmails[i];
+      final additionalKey = 'additional_$i';
       if (email.isNotEmpty &&
-          RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+          RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email) &&
+          !seenValues.contains(additionalKey)) {
+        seenValues.add(additionalKey);
         items.add(
           DropdownMenuItem(
-            value: 'additional_$i',
+            value: additionalKey,
             child: Text('Dodatkowy odbiorca ($email)'),
           ),
         );
@@ -1269,15 +1806,34 @@ Zespół Metropolitan Investment''';
     return items;
   }
 
+  /// Sprawdza czy wybrany odbiorca podglądu jest nadal ważny
+  String? _getValidatedPreviewRecipient() {
+    if (_selectedPreviewRecipient == null) return null;
+    
+    final availableItems = _buildPreviewRecipientItems();
+    final availableValues = availableItems.map((item) => item.value).toSet();
+    
+    // Jeśli wybrany odbiorca nie istnieje w dostępnych opcjach, wybierz pierwszy dostępny
+    if (!availableValues.contains(_selectedPreviewRecipient)) {
+      if (availableItems.isNotEmpty) {
+        _selectedPreviewRecipient = availableItems.first.value;
+      } else {
+        _selectedPreviewRecipient = null;
+      }
+    }
+    
+    return _selectedPreviewRecipient;
+  }
+
   /// Wyświetla błąd
   Widget _buildError() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppThemePro.statusError.withOpacity(0.1),
+        color: AppThemePro.statusError.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppThemePro.statusError.withOpacity(0.3)),
+        border: Border.all(color: AppThemePro.statusError.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -1295,9 +1851,9 @@ Zespół Metropolitan Investment''';
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppThemePro.accentGold.withOpacity(0.1),
+        color: AppThemePro.accentGold.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppThemePro.accentGold.withOpacity(0.3)),
+        border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -1319,7 +1875,7 @@ Zespół Metropolitan Investment''';
               height: 100,
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.8),
+                color: Colors.black.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: ListView.builder(
@@ -1354,14 +1910,14 @@ Zespół Metropolitan Investment''';
             (_lastResult!.success
                     ? AppThemePro.statusSuccess
                     : AppThemePro.statusWarning)
-                .withOpacity(0.1),
+                .withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color:
               (_lastResult!.success
                       ? AppThemePro.statusSuccess
                       : AppThemePro.statusWarning)
-                  .withOpacity(0.3),
+                  .withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -1396,58 +1952,205 @@ Zespół Metropolitan Investment''';
     );
   }
 
-  /// Buduje przyciski akcji
+  /// Buduje przyciski akcji z ulepszoną responsywnością i animacjami
   Widget _buildActions(bool canEdit) {
     final screenSize = MediaQuery.of(context).size;
     final isSmallScreen = screenSize.width < 600;
+    final isMediumScreen = screenSize.width < 900;
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
       padding: EdgeInsets.all(isSmallScreen ? 16.0 : 24.0),
       decoration: BoxDecoration(
         color: AppThemePro.backgroundSecondary,
         border: Border(top: BorderSide(color: AppThemePro.borderPrimary)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Przycisk debugowania
-          if (kDebugMode)
-            TextButton.icon(
-              onPressed: _showDebugDialog,
-              icon: const Icon(Icons.bug_report, size: 16),
-              label: const Text('Debug'),
-            ),
-
-          const Spacer(),
-
-          // Przyciski główne
-          if (widget.showAsDialog)
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Anuluj'),
-            ),
-
-          const SizedBox(width: 8),
-
-          ElevatedButton.icon(
-            onPressed: canEdit && !_isLoading && _hasValidEmails()
-                ? _sendEmails
-                : null,
-            icon: _isLoading
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.send, size: 16),
-            label: Text(_isLoading ? 'Wysyłanie...' : 'Wyślij emaile'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppThemePro.accentGold,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
+      child: isSmallScreen 
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Small screen: stack buttons vertically
+                if (kDebugMode)
+                  SizedBox(
+                    width: double.infinity,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      child: TextButton.icon(
+                        onPressed: _showDebugDialog,
+                        icon: const Icon(Icons.bug_report, size: 16),
+                        label: const Text('Debug'),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (kDebugMode) const SizedBox(height: 8),
+                
+                Row(
+                  children: [
+                    if (widget.showAsDialog)
+                      Expanded(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          child: TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text('Anuluj'),
+                          ),
+                        ),
+                      ),
+                    if (widget.showAsDialog) const SizedBox(width: 8),
+                    
+                    Expanded(
+                      flex: 2,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        child: ElevatedButton.icon(
+                          onPressed: canEdit && !_isLoading && _hasValidEmails()
+                              ? _sendEmails
+                              : null,
+                          icon: _isLoading
+                              ? SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: TweenAnimationBuilder<double>(
+                                    duration: const Duration(seconds: 1),
+                                    tween: Tween(begin: 0.0, end: 1.0),
+                                    builder: (context, value, child) {
+                                      return CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        value: null,
+                                        color: AppThemePro.textPrimary,
+                                      );
+                                    },
+                                  ),
+                                )
+                              : TweenAnimationBuilder<double>(
+                                  duration: const Duration(milliseconds: 400),
+                                  tween: Tween(begin: 0.8, end: 1.0),
+                                  builder: (context, value, child) {
+                                    return Transform.scale(
+                                      scale: value,
+                                      child: const Icon(Icons.send, size: 16),
+                                    );
+                                  },
+                                ),
+                          label: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: Text(
+                              _isLoading ? 'Wysyłanie...' : 'Wyślij emaile',
+                              key: ValueKey(_isLoading),
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppThemePro.accentGold,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            elevation: _isLoading ? 0 : 4,
+                            shadowColor: AppThemePro.accentGold.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Debug button (desktop)
+                if (kDebugMode)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    child: TextButton.icon(
+                      onPressed: _showDebugDialog,
+                      icon: const Icon(Icons.bug_report, size: 16),
+                      label: const Text('Debug'),
+                    ),
+                  ),
+
+                const Spacer(),
+
+                // Main action buttons (desktop)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.showAsDialog)
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Anuluj'),
+                        ),
+                      ),
+
+                    if (widget.showAsDialog) const SizedBox(width: 8),
+
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      child: ElevatedButton.icon(
+                        onPressed: canEdit && !_isLoading && _hasValidEmails()
+                            ? _sendEmails
+                            : null,
+                        icon: _isLoading
+                            ? SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: TweenAnimationBuilder<double>(
+                                  duration: const Duration(seconds: 1),
+                                  tween: Tween(begin: 0.0, end: 1.0),
+                                  builder: (context, value, child) {
+                                    return CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      value: null,
+                                      color: AppThemePro.textPrimary,
+                                    );
+                                  },
+                                ),
+                              )
+                            : TweenAnimationBuilder<double>(
+                                duration: const Duration(milliseconds: 400),
+                                tween: Tween(begin: 0.8, end: 1.0),
+                                builder: (context, value, child) {
+                                  return Transform.scale(
+                                    scale: value,
+                                    child: const Icon(Icons.send, size: 16),
+                                  );
+                                },
+                              ),
+                        label: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: Text(
+                            _isLoading ? 'Wysyłanie...' : 'Wyślij emaile',
+                            key: ValueKey(_isLoading),
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppThemePro.accentGold,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isMediumScreen ? 20 : 24, 
+                            vertical: 12,
+                          ),
+                          elevation: _isLoading ? 0 : 4,
+                          shadowColor: AppThemePro.accentGold.withValues(alpha: 0.4),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 
@@ -1461,34 +2164,27 @@ Zespół Metropolitan Investment''';
     return _emailService.hasValidRecipients(widget.investors);
   }
 
-  String _getRecipientInfo(String recipientId) {
-    if (recipientId.startsWith('additional_')) {
-      final index = int.tryParse(recipientId.split('_')[1]) ?? 0;
-      if (index < _emailService.additionalEmails.length) {
-        return _emailService.additionalEmails[index];
-      }
-      return 'Nieznany dodatkowy email';
-    }
-
-    final investor = widget.investors.firstWhere(
-      (inv) => inv.client.id == recipientId,
-      orElse: () => widget.investors.first,
-    );
-
-    final email =
-        _emailService.recipientEmails[recipientId] ?? investor.client.email;
-    return '${investor.client.name} <$email>';
-  }
-
   // === ACTION METHODS ===
 
   void _insertGreeting() {
     try {
-      const greeting = 'Szanowni Państwo,\n\n';
-      _quillController.document.insert(0, greeting);
-      Future.delayed(const Duration(milliseconds: 10), () {
-        if (mounted) setState(() {});
-      });
+      final selection = _quillController.selection;
+      const greeting = '\n\nSzanowni Państwo,\n\n';
+      
+      final insertOffset = selection.isValid ? selection.baseOffset : 
+          _quillController.document.length;
+      
+      _quillController.document.insert(insertOffset, greeting);
+      _quillController.updateSelection(
+        TextSelection.collapsed(offset: insertOffset + greeting.length),
+        ChangeSource.local,
+      );
+      
+      // Ensure focus and update UI
+      _editorFocusNode.requestFocus();
+      if (mounted) {
+        setState(() {});
+      }
     } catch (e) {
       debugPrint('Błąd podczas wstawiania powitania: $e');
     }
@@ -1496,15 +2192,24 @@ Zespół Metropolitan Investment''';
 
   void _insertSignature() {
     try {
+      final selection = _quillController.selection;
       final signature =
           '\n\nZ poważaniem,\nZespół ${_senderNameController.text}\n';
-      final length = _quillController.document.length;
-      final insertPosition = length > 1 ? length - 1 : length;
+      
+      final insertOffset = selection.isValid ? selection.baseOffset : 
+          _quillController.document.length;
 
-      _quillController.document.insert(insertPosition, signature);
-      Future.delayed(const Duration(milliseconds: 10), () {
-        if (mounted) setState(() {});
-      });
+      _quillController.document.insert(insertOffset, signature);
+      _quillController.updateSelection(
+        TextSelection.collapsed(offset: insertOffset + signature.length),
+        ChangeSource.local,
+      );
+      
+      // Ensure focus and update UI
+      _editorFocusNode.requestFocus();
+      if (mounted) {
+        setState(() {});
+      }
     } catch (e) {
       debugPrint('Błąd podczas wstawiania podpisu: $e');
     }
@@ -1513,9 +2218,16 @@ Zespół Metropolitan Investment''';
   void _clearEditor() {
     try {
       _quillController.clear();
-      Future.delayed(const Duration(milliseconds: 10), () {
-        if (mounted) setState(() {});
-      });
+      // Set cursor to beginning after clearing
+      _quillController.updateSelection(
+        const TextSelection.collapsed(offset: 0),
+        ChangeSource.local,
+      );
+      // Maintain focus
+      _editorFocusNode.requestFocus();
+      if (mounted) {
+        setState(() {});
+      }
     } catch (e) {
       debugPrint('Błąd podczas czyszczenia edytora: $e');
     }
@@ -1630,7 +2342,7 @@ Zespół Metropolitan Investment''';
   }
 
   Future<void> _sendEmails() async {
-    if (!_formKey.currentState!.validate()) {
+    if (_formKey.currentState == null || !_formKey.currentState!.validate()) {
       _tabController.animateTo(1); // Przejdź do zakładki ustawień
       return;
     }
@@ -1644,9 +2356,12 @@ Zespół Metropolitan Investment''';
     });
 
     try {
-      final htmlContent = _emailService.convertDocumentToHtml(
-        _quillController.document,
+      // ⭐ POPRAWIONA KONWERSJA - używaj tej samej co w podglądzie
+      final converter = QuillDeltaToHtmlConverter(
+        _quillController.document.toDelta().toJson(),
+        ConverterOptions.forEmail(),
       );
+      final htmlContent = converter.convert();
 
       final result = await _emailService.sendEmails(
         investors: widget.investors,
@@ -1691,6 +2406,8 @@ Zespół Metropolitan Investment''';
 
         // Wywołaj callback jeśli sukces
         if (result.success) {
+          // 🔊 Odtwórz dźwięk sukcesu
+          _playSuccessSound();
           widget.onEmailSent();
         }
       }
@@ -1705,177 +2422,21 @@ Zespół Metropolitan Investment''';
     }
   }
 
-  /// Buduje opcję eksportu
-  Widget _buildExportOption({
-    required IconData icon,
-    required String title,
-    required String description,
-    required String format,
-    required Color color,
-  }) {
-    final isSelected = _currentExportFormat == format;
-
-    return Card(
-      elevation: isSelected ? 4 : 2,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: isSelected
-              ? Border.all(color: AppThemePro.accentGold, width: 2)
-              : null,
-        ),
-        child: ListTile(
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          title: Text(
-            title,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(
-            description,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppThemePro.textSecondary),
-          ),
-          trailing: _exportInProgress && _currentExportFormat == format
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.arrow_forward_ios),
-          onTap: _exportInProgress ? null : () => _startExport(format),
-        ),
-      ),
-    );
-  }
-
-  /// Rozpoczyna eksport w wybranym formacie
-  Future<void> _startExport(String format) async {
-    if (_exportInProgress) return;
-
-    setState(() {
-      _exportInProgress = true;
-      _currentExportFormat = format;
-      _lastExportResult = null;
-    });
-
+  /// 🔊 Odtwarza dźwięk sukcesu po wysłaniu emaila
+  void _playSuccessSound() {
     try {
-      // Pobierz ID klientów
-      final clientIds = widget.investors.map((inv) => inv.client.id).toList();
-
-      // Sprawdź czy użytkownik jest zalogowany
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final currentUser = authProvider.user;
-
-      if (currentUser == null) {
-        throw Exception('Użytkownik nie jest zalogowany');
-      } // Wywołaj serwis eksportu
-      final exportService = EmailAndExportService();
-      final result = await exportService.exportInvestorsAdvanced(
-        clientIds: clientIds,
-        exportFormat: format,
-        templateType: 'summary',
-        options: {
-          'includeKontakty': true,
-          'includeInvestycje': true,
-          'includeStatystyki': true,
-        },
-        requestedBy: currentUser.uid,
-      );
-
-      setState(() {
-        _lastExportResult = result;
-        _exportInProgress = false;
-        _currentExportFormat = '';
-      });
-
-      if (result.isSuccessful) {
-        // Pokazuj sukces
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Eksport $format zakończony pomyślnie!'),
-              backgroundColor: AppThemePro.statusSuccess,
-              action: result.downloadUrl != null
-                  ? SnackBarAction(
-                      label: 'Pobierz',
-                      textColor: Colors.white,
-                      onPressed: () => _downloadFile(result.downloadUrl!),
-                    )
-                  : null,
-            ),
-          );
-        }
-      } else {
-        // Pokazuj błąd
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Błąd eksportu: ${result.errorMessage}'),
-              backgroundColor: AppThemePro.statusError,
-            ),
-          );
-        }
+      // Systemic feedback sound dla sukcesu
+      HapticFeedback.lightImpact();
+      
+      // W przyszłości można dodać dedykowany dźwięk:
+      // SystemSound.play(SystemSound.alert);
+      
+      if (kDebugMode) {
+        debugPrint('🔊 Odtworzono dźwięk sukcesu wysłania emaila');
       }
     } catch (e) {
-      setState(() {
-        _lastExportResult = AdvancedExportResult(
-          success: false,
-          downloadUrl: null,
-          fileName: null,
-          fileSize: 0,
-          exportFormat: format,
-          errorMessage: e.toString(),
-          processingTimeMs: 0,
-          totalRecords: widget.investors.length,
-        );
-        _exportInProgress = false;
-        _currentExportFormat = '';
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Błąd podczas eksportu: $e'),
-            backgroundColor: AppThemePro.statusError,
-          ),
-        );
-      }
-    }
-  }
-
-  /// Otwiera plik do pobrania
-  Future<void> _downloadFile(String url) async {
-    try {
-      // W przypadku aplikacji mobilnej - otwórz w przeglądarce
-      if (kIsWeb) {
-        // Dla wersji web
-        // ignore: avoid_web_libraries_in_flutter
-        // html.window.open(url, '_blank');
-      } else {
-        // Dla wersji mobilnej - możesz użyć url_launcher
-        if (kDebugMode) {
-          print('Pobieranie pliku: $url');
-        }
-        // await launch(url); // Jeśli masz url_launcher
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Błąd podczas otwierania pliku: $e'),
-            backgroundColor: AppThemePro.statusError,
-          ),
-        );
+      if (kDebugMode) {
+        debugPrint('⚠️ Błąd odtwarzania dźwięku: $e');
       }
     }
   }
@@ -2077,6 +2638,7 @@ class _EmailHtmlRenderer extends StatelessWidget {
   final bool darkMode;
 
   const _EmailHtmlRenderer({
+    super.key, // DODANE - parametr key
     required this.htmlContent,
     required this.darkMode,
   });

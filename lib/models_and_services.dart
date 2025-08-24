@@ -78,7 +78,9 @@ export 'services/firebase_functions_analytics_service_updated.dart'
 export 'services/firebase_functions_capital_calculation_service.dart';
 export 'services/auth_service.dart';
 export 'services/email_service.dart';
+export 'services/email_history_service.dart'; // 🚀 NOWE: Historia wysłanych emaili
 export 'services/email_and_export_service.dart'; // 🚀 NOWE: Email i eksport danych
+export 'services/audio_service.dart'; // 🚀 NOWE: Efekty dźwiękowe
 export 'services/email_editor_service_v2.dart'
     hide EmailTemplate; // 🚀 NOWE: Modularny serwis edytora emaili
 export 'services/user_preferences_service.dart';
@@ -124,6 +126,7 @@ export 'services/universal_investment_service.dart'
 export 'services/smtp_service.dart'; // 🚀 NOWE: Serwis konfiguracji i testowania SMTP
 export 'services/calendar_service.dart'; // 🚀 NOWE: Serwis kalendarza
 export 'services/calendar_notification_service.dart'; // 🚀 NOWE: Serwis powiadomień kalendarza
+export 'services/email_history_service.dart'; // 🚀 NOWE: Serwis historii wysłanych emaili
 
 // Voting status change model
 // VotingStatusChange is exported via models/voting_status_change.dart above

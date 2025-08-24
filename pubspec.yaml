@@ -97,6 +97,9 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   
+  # Audio
+  audioplayers: ^6.1.0
+  
   # Responsive UI
   responsive_framework: ^1.5.1
   
@@ -134,3 +137,4 @@ flutter:
     - assets/icons/
     - assets/animations/
     - assets/logos/
+    - assets/sounds/

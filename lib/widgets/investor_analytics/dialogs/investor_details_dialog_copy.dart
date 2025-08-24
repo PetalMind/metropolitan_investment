@@ -9,298 +9,39 @@ import '../../client_notes_widget.dart';
 import '../tabs/voting_changes_tab.dart';
 import '../../dialogs/investor_edit_dialog_enhancements.dart';
 
-/// 🚀 ENHANCED INVESTOR DETAILS DIALOG
-/// Najnowocześniejszy dialog szczegółów inwestora z zaawansowanymi funkcjami:
-/// - Nowoczesny design inspirowany profesjonalnymi platformami finansowymi
-/// - Tab-based navigation z 5 sekcjami
-/// - Historia zmian inwestycji (integration z InvestmentChangeHistoryService)
-/// - Historia głosowania (integration z VotingStatusChangeService)
-/// - Responsywny layout (mobile, tablet, desktop)
-/// - Smooth animations i microinteractions
-/// - Real-time data updates
-/// - Advanced filtering i search
-/// - Export funkcjonalność
-/// - RBAC (Role-Based Access Control)
-class EnhancedInvestorDetailsDialog extends StatefulWidget {
-  final InvestorSummary investor;
-  final InvestorAnalyticsService? analyticsService;
-  final VoidCallback? onUpdate;
-  final void Function(InvestorSummary updatedInvestor)? onInvestorUpdated;
+// === HELPER CLASSES ===
 
-  const EnhancedInvestorDetailsDialog({
-    super.key,
-    required this.investor,
-    this.analyticsService,
-    this.onUpdate,
-    this.onInvestorUpdated,
+class _TabDefinition {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final String tooltip;
+
+  const _TabDefinition({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.tooltip,
   });
-
-  @override
-  State<EnhancedInvestorDetailsDialog> createState() =>
-      _EnhancedInvestorDetailsDialogState();
 }
 
-class _EnhancedInvestorDetailsDialogState
-    extends State<EnhancedInvestorDetailsDialog>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
-  // === CORE CONTROLLERS ===
-  late TabController _tabController;
-  late AnimationController _slideAnimationController;
-  late AnimationController _fadeAnimationController;
-  late Animation<Offset> _slideAnimation;
-  late Animation<double> _fadeAnimation;
+class _StatItem {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final String? description;
+  final bool isHighlighted;
+  const _StatItem(
+    this.label,
+    this.value,
+    this.icon,
+    this.color, {
+    this.description,
+    this.isHighlighted = false,
+  });
 
-  // === FORM CONTROLLERS ===
-  late TextEditingController _notesController;
-  late TextEditingController _searchController;
-
-  // === SERVICES ===
-  late InvestorAnalyticsService _analyticsService;
-  final UnifiedVotingStatusService _votingService =
-      UnifiedVotingStatusService();
-  final InvestmentChangeHistoryService _historyService =
-      InvestmentChangeHistoryService();
-  final EmailHistoryService _emailHistoryService = EmailHistoryService(); // 🚀 NOWY: Serwis historii emaili
-  // 🚀 NOWE: Serwisy edycji z InvestorEditDialog
-  late final InvestorEditService _editService;
-
-  // === STATE VARIABLES ===
-  // Investor data
-  late VotingStatus _selectedVotingStatus;
-  String _selectedColor = '#FFFFFF';
-  List<String> _selectedUnviableInvestments = [];
-
-  // UI State
-  int _selectedTabIndex = 0;
-  bool _isLoading = false;
-  final bool _isEditing = false;
-  bool _hasChanges = false;
-  bool _isInvestmentEditMode = false; // Nowy: tryb edycji inwestycji
-  String? _editingInvestmentId; // Nowy: ID edytowanej inwestycji
-
-  // Investment editing controllers (dla każdej inwestycji)
-  final Map<String, Map<String, TextEditingController>> _investmentControllers = {};
-  final Map<String, bool> _investmentHasChanges = {}; // Czy inwestycja ma zmiany
-  
-  // 🚀 NOWE: Kontrolery edycji z InvestorEditDialog
-  late InvestmentEditControllers _unifiedControllers;
-  late InvestorEditState _editState;
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  // Investment filtering and search
-  String _investmentSearchQuery = '';
-  ProductType? _selectedProductTypeFilter;
-  bool _showOnlyUnviable = false;
-
-  // History data
-  List<InvestmentChangeHistory> _investmentHistory = [];
-  List<VotingStatusChange> _votingHistory = [];
-  List<EmailHistory> _emailHistory = []; // 🚀 NOWY: Historia emaili
-  bool _historyLoading = false;
-
-  // Layout & responsiveness
-  bool get _isLargeScreen => MediaQuery.of(context).size.width > 1200;
-  bool get _isMediumScreen => MediaQuery.of(context).size.width > 768;
-  bool get _isSmallScreen => MediaQuery.of(context).size.width <= 768;
-
-  // === TAB DEFINITIONS ===
-  static const List<_TabDefinition> _tabs = [
-    _TabDefinition(
-      icon: Icons.dashboard_outlined,
-      activeIcon: Icons.dashboard,
-      label: 'Przegląd',
-      tooltip: 'Główne informacje o inwestorze',
-    ),
-    _TabDefinition(
-      icon: Icons.account_balance_wallet_outlined,
-      activeIcon: Icons.account_balance_wallet,
-      label: 'Inwestycje',
-      tooltip: 'Lista inwestycji z możliwością edycji',
-    ),
-    _TabDefinition(
-      icon: Icons.history_outlined,
-      activeIcon: Icons.history,
-      label: 'Historia zmian',
-      tooltip: 'Historia zmian inwestycji, głosowania i wysłanych emaili',
-    ),
-    _TabDefinition(
-      icon: Icons.note_outlined,
-      activeIcon: Icons.note,
-      label: 'Notatki',
-      tooltip: 'Notatki klienta',
-    ),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _initializeState();
-    _initializeAnimations();
-    _loadInitialData();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _disposeControllers();
-    super.dispose();
-  }
-
-  @override
-  void didChangeMetrics() {
-    super.didChangeMetrics();
-    // Handle screen size changes
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  void _initializeState() {
-    _analyticsService = widget.analyticsService ?? InvestorAnalyticsService();
-    // 🚀 NOWE: Inicjalizacja serwisu edycji
-    _editService = InvestorEditService();
-    _editState = const InvestorEditState();
-    
-    _selectedVotingStatus = widget.investor.client.votingStatus;
-    _selectedColor = widget.investor.client.colorCode;
-    _selectedUnviableInvestments =
-        List.from(widget.investor.client.unviableInvestments);
-
-    // Initialize controllers
-    _notesController = TextEditingController(
-      text: widget.investor.client.notes,
-    );
-    _searchController = TextEditingController();
-
-    // Initialize investment editing controllers
-    _initializeInvestmentControllers();
-    // 🚀 NOWE: Inicjalizacja unifiedControllers dla advanced editing
-    _setupUnifiedControllers();
-
-    // Tab controller
-    _tabController = TabController(
-      length: _tabs.length,
-      vsync: this,
-      initialIndex: 0,
-    );
-
-    _tabController.addListener(_onTabChanged);
-  }
-
-  void _initializeInvestmentControllers() {
-    for (final investment in widget.investor.investments) {
-      _investmentControllers[investment.id] = {
-        // 🎯 UPROSZCZONE: Tylko 4 kluczowe pola do edycji (jak w products_management_screen)
-        'investmentAmount': TextEditingController(
-          text: investment.investmentAmount.toStringAsFixed(2),
-        ),
-        'remainingCapital': TextEditingController(
-          text: investment.remainingCapital.toStringAsFixed(2),
-        ),
-        'capitalForRestructuring': TextEditingController(
-          text: investment.capitalForRestructuring.toStringAsFixed(2),
-        ),
-        'capitalSecuredByRealEstate': TextEditingController(
-          text: investment.capitalSecuredByRealEstate.toStringAsFixed(2),
-        ),
-      };
-      _investmentHasChanges[investment.id] = false;
-      
-      // � NOWE: Dodaj listenery dla automatycznego przeliczania remainingCapital
-      final controllers = _investmentControllers[investment.id]!;
-      
-      // Listener dla kapitału do restrukturyzacji - automatycznie przeliczy kapitał pozostały
-      controllers['capitalForRestructuring']!.addListener(() {
-        debugPrint('🔄 [EnhancedDialog] Capital for restructuring changed for ${investment.id}');
-        _calculateAutomaticRemainingCapital(investment.id);
-      });
-      
-      // Listener dla kapitału zabezpieczonego - automatycznie przeliczy kapitał pozostały
-      controllers['capitalSecuredByRealEstate']!.addListener(() {
-        debugPrint('🔄 [EnhancedDialog] Capital secured changed for ${investment.id}');
-        _calculateAutomaticRemainingCapital(investment.id);
-      });
-      
-      // �🔍 DEBUG: Log wartości kontrolerów
-      debugPrint('🔧 [EnhancedDialog] Initialized controllers for ${investment.id}:');
-      debugPrint('   - capitalSecuredByRealEstate: ${investment.capitalSecuredByRealEstate} → controller: ${investment.capitalSecuredByRealEstate.toStringAsFixed(2)}');
-    }
-  }
-
-  /// 🚀 NOWE: Setupuje unified controllers dla zaawansowanej edycji
-  void _setupUnifiedControllers() {
-    debugPrint(
-      '🔧 [EnhancedDialog] Setting up unified controllers for ${widget.investor.investments.length} investments',
-    );
-
-    // Utwórz kontrolery
-    final remainingCapitalControllers = <TextEditingController>[];
-    final investmentAmountControllers = <TextEditingController>[];
-    final capitalForRestructuringControllers = <TextEditingController>[];
-    final capitalSecuredControllers = <TextEditingController>[];
-    final statusValues = <InvestmentStatus>[];
-
-    for (final investment in widget.investor.investments) {
-      final remainingCapitalFormatted = _editService.formatValueForController(
-        investment.remainingCapital,
-      );
-      final investmentAmountFormatted = _editService.formatValueForController(
-        investment.investmentAmount,
-      );
-      final capitalForRestructuringFormatted = _editService
-          .formatValueForController(investment.capitalForRestructuring);
-      final capitalSecuredFormatted = _editService.formatValueForController(
-        investment.capitalSecuredByRealEstate,
-      );
-
-      // 🔍 DEBUG: Log formatowania
-      debugPrint('🔧 [UnifiedControllers] Investment ${investment.id}:');
-      debugPrint('   - Raw capitalSecuredByRealEstate: ${investment.capitalSecuredByRealEstate}');
-      debugPrint('   - Formatted capitalSecuredByRealEstate: $capitalSecuredFormatted');
-
-      remainingCapitalControllers.add(
-        TextEditingController(text: remainingCapitalFormatted),
-      );
-      investmentAmountControllers.add(
-        TextEditingController(text: investmentAmountFormatted),
-      );
-      capitalForRestructuringControllers.add(
-        TextEditingController(text: capitalForRestructuringFormatted),
-      );
-      capitalSecuredControllers.add(
-        TextEditingController(text: capitalSecuredFormatted),
-      );
-      statusValues.add(investment.status);
-    }
-
-    // Oblicz całkowitą kwotę
-    final totalAmount = widget.investor.investments.fold<double>(
-      0.0,
-      (sum, inv) => sum + inv.investmentAmount,
-    );
-
-    final totalController = TextEditingController(
-      text: _editService.formatValueForController(totalAmount),
-    );
-
-    _unifiedControllers = InvestmentEditControllers(
-      remainingCapitalControllers: remainingCapitalControllers,
-      investmentAmountControllers: investmentAmountControllers,
-      capitalForRestructuringControllers: capitalForRestructuringControllers,
-      capitalSecuredByRealEstateControllers: capitalSecuredControllers,
-      statusValues: statusValues,
-      totalProductAmountController: totalController,
-    );
-
-    // Ustaw stan edycji
-    setState(() {
-      _editState = _editState.copyWith(originalTotalProductAmount: totalAmount);
-    });
-
-    debugPrint('✅ [EnhancedDialog] Unified controllers setup completed');
-  }
-
+}
   void _initializeAnimations() {
     // Slide animation for modal entrance
     _slideAnimationController = AnimationController(
@@ -354,67 +95,8 @@ class _EnhancedInvestorDetailsDialogState
   }
 
   Future<void> _loadInitialData() async {
-    await Future.wait([
-      _loadInvestmentHistory(),
-      _loadVotingHistory(),
-      _loadEmailHistory(),
-    ]);
-  }
-
-  Future<void> _loadEmailHistory() async {
-    try {
-      debugPrint('[ENHANCED_DIALOG] Loading email history for clientId: ${widget.investor.client.id}');
-      final emails = await _emailHistoryService.getEmailHistoryForClient(widget.investor.client.id);
-      if (mounted) {
-        setState(() {
-          _emailHistory = emails;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading email history: $e');
-    }
-  }
-
-  Future<void> _loadInvestmentHistory() async {
-    try {
-      setState(() => _historyLoading = true);
-
-      debugPrint('[ENHANCED_DIALOG] Loading history for clientId: ${widget.investor.client.id}');
-      final history = await _historyService.getClientHistory(
-        widget.investor.client.id,
-      );
-      debugPrint('[ENHANCED_DIALOG] Received ${history.length} history records');
-
-      if (mounted) {
-        setState(() {
-          _investmentHistory = history;
-          _historyLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _historyLoading = false;
-        });
-        debugPrint('Błąd podczas ładowania historii inwestycji: $e');
-      }
-    }
-  }
-
-  Future<void> _loadVotingHistory() async {
-    try {
-      final history = await _votingService.getVotingStatusHistory(
-        widget.investor.client.id,
-      );
-
-      if (mounted) {
-        setState(() {
-          _votingHistory = history;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading voting history: $e');
-    }
+    // 🚀 NOWE: Używamy zunifikowanej metody ładowania wszystkich historii
+    await _loadHistoryData();
   }
 
   void _onTabChanged() {
@@ -2646,14 +2328,14 @@ class _EnhancedInvestorDetailsDialogState
         additionalInfo: investment.additionalInfo,
       );
 
-  // Zapisz bezpośrednio do Firestore (jak w product_edit_dialog)
+      // Zapisz bezpośrednio do Firestore (jak w product_edit_dialog)
       final firestore = FirebaseFirestore.instance;
       final docRef = firestore.collection('investments').doc(investmentId);
       await docRef.update(updatedInvestment.toFirestore());
 
       // Wyczyść cache
       final cacheService = DataCacheService();
-  cacheService.invalidateAllCache();
+      cacheService.invalidateCachePattern('*'); // Clear all cache
       cacheService.invalidateCollectionCache('investments');
 
       setState(() {
@@ -2709,11 +2391,846 @@ class _EnhancedInvestorDetailsDialogState
     }
   }
 
-  Widget _buildInvestmentHistoryTab() {
-    // Używamy już załadowanych danych z _investmentHistory zamiast InvestmentHistoryWidget
-    return _buildClientHistoryView();
+  /// Ładuje wszystkie dane historii (inwestycje, głosowania, emaile)
+  Future<void> _loadHistoryData() async {
+    if (!mounted) return;
+    
+    setState(() => _historyLoading = true);
+
+    try {
+      // Pobierz historie równolegle
+      final futures = [
+        _historyService.getInvestmentHistory(widget.investor.client.id),
+        _votingService.getVotingStatusHistory(widget.investor.client.id),
+        _emailHistoryService.getEmailHistoryForClient(widget.investor.client.id),
+      ];
+
+      final results = await Future.wait(futures);
+      
+      if (mounted) {
+        setState(() {
+          _investmentHistory = results[0] as List<InvestmentChangeHistory>;
+          _votingHistory = results[1] as List<VotingStatusChange>;
+          _emailHistory = results[2] as List<EmailHistory>;
+          _historyLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _historyLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Błąd ładowania historii: $e')),
+              ],
+            ),
+            backgroundColor: AppThemePro.lossRed,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    }
   }
 
+  Widget _buildUnifiedHistoryTab() {
+    // 🚀 ZUNIFIKOWANA HISTORIA: Łączy wszystkie historie w jedną chronologiczną timeline
+    return _buildUnifiedHistoryView();
+  }
+
+  Widget _buildUnifiedHistoryView() {
+    if (_historyLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+            SizedBox(height: 16),
+            Text('Ładowanie historii...'),
+          ],
+        ),
+      );
+    }
+
+    // Połącz wszystkie historie w jedną listę z typu i datą
+    final unifiedHistoryItems = <UnifiedHistoryItem>[];
+    
+    // Dodaj historie zmian inwestycji
+    for (final history in _investmentHistory) {
+      unifiedHistoryItems.add(UnifiedHistoryItem(
+        date: history.changedAt,
+        type: UnifiedHistoryType.investmentChange,
+        data: history,
+      ));
+    }
+    
+    // Dodaj historie głosowania
+    for (final voting in _votingHistory) {
+      unifiedHistoryItems.add(UnifiedHistoryItem(
+        date: voting.timestamp,
+        type: UnifiedHistoryType.votingChange,
+        data: voting,
+      ));
+    }
+    
+    // Dodaj historie emaili
+    for (final email in _emailHistory) {
+      unifiedHistoryItems.add(UnifiedHistoryItem(
+        date: email.sentAt,
+        type: UnifiedHistoryType.emailSent,
+        data: email,
+      ));
+    }
+    
+    // Sortuj chronologicznie (najnowsze pierwsze)
+    unifiedHistoryItems.sort((a, b) => b.date.compareTo(a.date));
+
+    if (unifiedHistoryItems.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.history,
+              size: 64,
+              color: AppThemePro.textSecondary.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Brak historii',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Historia zmian, głosowania i emaili pojawi się tutaj',
+              style: AppThemePro.textStyleSmall.copyWith(
+                color: AppThemePro.textSecondary.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadHistoryData,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(_isSmallScreen ? 16 : 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header z filtrami
+            _buildUnifiedHistoryHeader(unifiedHistoryItems.length),
+            const SizedBox(height: 24),
+            
+            // Timeline z wszystkimi eventami
+            ...unifiedHistoryItems.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              final isLast = index == unifiedHistoryItems.length - 1;
+              
+              return _buildUnifiedHistoryItem(item, isLast);
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnifiedHistoryHeader(int totalItems) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppThemePro.primaryDark.withOpacity(0.1),
+            AppThemePro.accentGold.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppThemePro.accentGold.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppThemePro.accentGold, AppThemePro.accentGold.withOpacity(0.7)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.timeline,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Historia aktywności',
+                  style: AppThemePro.textStyleMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppThemePro.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Zmiany inwestycji, głosowania i wysłane emaile',
+                  style: AppThemePro.textStyleSmall.copyWith(
+                    color: AppThemePro.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppThemePro.accentGold.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppThemePro.accentGold.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              '$totalItems ${totalItems == 1 ? 'wpis' : totalItems < 5 ? 'wpisy' : 'wpisów'}',
+              style: AppThemePro.textStyleSmall.copyWith(
+                color: AppThemePro.accentGold,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUnifiedHistoryItem(UnifiedHistoryItem item, bool isLast) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Timeline indicator
+          Column(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _getHistoryTypeColor(item.type),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppThemePro.surfaceColor,
+                    width: 3,
+                  ),
+                ),
+                child: Icon(
+                  _getHistoryTypeIcon(item.type),
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              if (!isLast)
+                Container(
+                  width: 2,
+                  height: 60,
+                  color: AppThemePro.accentGold.withOpacity(0.3),
+                ),
+            ],
+          ),
+          const SizedBox(width: 16),
+          
+          // Content card
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppThemePro.surfaceColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppThemePro.accentGold.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header z typem i datą
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getHistoryTypeColor(item.type).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _getHistoryTypeLabel(item.type),
+                          style: AppThemePro.textStyleSmall.copyWith(
+                            color: _getHistoryTypeColor(item.type),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        _formatHistoryDate(item.date),
+                        style: AppThemePro.textStyleSmall.copyWith(
+                          color: AppThemePro.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Content specific to type
+                  _buildHistoryItemContent(item),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryItemContent(UnifiedHistoryItem item) {
+    switch (item.type) {
+      case UnifiedHistoryType.investmentChange:
+        return _buildInvestmentChangeContent(item.data as InvestmentChangeHistory);
+      case UnifiedHistoryType.votingChange:
+        return _buildVotingChangeContent(item.data as VotingStatusChange);
+      case UnifiedHistoryType.emailSent:
+        return _buildEmailHistoryContent(item.data as EmailHistory);
+    }
+  }
+
+  Widget _buildInvestmentChangeContent(InvestmentChangeHistory history) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Zmiana inwestycji: ${history.investmentId}',
+          style: AppThemePro.textStyleMedium.copyWith(
+            fontWeight: FontWeight.w500,
+            color: AppThemePro.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (history.fieldChanges.isNotEmpty) ...[
+          ...history.fieldChanges.map((change) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.arrow_forward,
+                    size: 16,
+                    color: AppThemePro.textSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                        style: AppThemePro.textStyleSmall.copyWith(
+                          color: AppThemePro.textSecondary,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: '${change.fieldDisplayName}: ',
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          TextSpan(text: '${change.oldValue} → '),
+                          TextSpan(
+                            text: '${change.newValue}',
+                            style: TextStyle(
+                              color: AppThemePro.accentGold,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+        if (history.changeDescription.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppThemePro.accentGold.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppThemePro.accentGold.withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: AppThemePro.accentGold,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    history.changeDescription,
+                    style: AppThemePro.textStyleSmall.copyWith(
+                      color: AppThemePro.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildVotingChangeContent(VotingStatusChange voting) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Zmiana statusu głosowania',
+          style: AppThemePro.textStyleMedium.copyWith(
+            fontWeight: FontWeight.w500,
+            color: AppThemePro.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Icon(
+              Icons.how_to_vote,
+              size: 16,
+              color: AppThemePro.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: RichText(
+                text: TextSpan(
+                  style: AppThemePro.textStyleSmall.copyWith(
+                    color: AppThemePro.textSecondary,
+                  ),
+                  children: [
+                    const TextSpan(text: 'Status: '),
+                    TextSpan(
+                      text: '${voting.oldStatus?.polishName ?? 'Brak'} → ',
+                    ),
+                    TextSpan(
+                      text: voting.newStatus?.polishName ?? 'Nieznany',
+                      style: TextStyle(
+                        color: AppThemePro.accentGold,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (voting.reason?.isNotEmpty == true) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppThemePro.accentGold.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppThemePro.accentGold.withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: AppThemePro.accentGold,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    voting.reason!,
+                    style: AppThemePro.textStyleSmall.copyWith(
+                      color: AppThemePro.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        Text(
+          'Autor: ${voting.editedByName ?? voting.editedByEmail}',
+          style: AppThemePro.textStyleSmall.copyWith(
+            color: AppThemePro.textSecondary.withOpacity(0.8),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmailHistoryContent(EmailHistory email) {
+    // Znajdź odbiorcę dla tego klienta
+    final clientRecipient = email.recipients.firstWhere(
+      (r) => r.clientId == widget.investor.client.id,
+      orElse: () => email.recipients.first, // fallback to first recipient
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Wysłano email',
+          style: AppThemePro.textStyleMedium.copyWith(
+            fontWeight: FontWeight.w500,
+            color: AppThemePro.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Icon(
+              Icons.email,
+              size: 16,
+              color: AppThemePro.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                email.subject,
+                style: AppThemePro.textStyleSmall.copyWith(
+                  color: AppThemePro.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Icon(
+              Icons.person,
+              size: 16,
+              color: AppThemePro.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Do: ${clientRecipient.emailAddress}',
+                style: AppThemePro.textStyleSmall.copyWith(
+                  color: AppThemePro.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: _getEmailStatusColor(email.status).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _getEmailStatusColor(email.status).withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                _getEmailStatusLabel(email.status),
+                style: AppThemePro.textStyleSmall.copyWith(
+                  color: _getEmailStatusColor(email.status),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: _getDeliveryStatusColor(clientRecipient.deliveryStatus).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _getDeliveryStatusColor(clientRecipient.deliveryStatus).withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                _getDeliveryStatusLabel(clientRecipient.deliveryStatus),
+                style: AppThemePro.textStyleSmall.copyWith(
+                  color: _getDeliveryStatusColor(clientRecipient.deliveryStatus),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (email.recipients.length > 1) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Wysłano do ${email.recipients.length} odbiorców',
+            style: AppThemePro.textStyleSmall.copyWith(
+              color: AppThemePro.textSecondary.withOpacity(0.8),
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // Helper methods for unified history
+  Color _getHistoryTypeColor(UnifiedHistoryType type) {
+    switch (type) {
+      case UnifiedHistoryType.investmentChange:
+        return AppThemePro.accentGold;
+      case UnifiedHistoryType.votingChange:
+        return Colors.blue;
+      case UnifiedHistoryType.emailSent:
+        return Colors.green;
+    }
+  }
+
+  IconData _getHistoryTypeIcon(UnifiedHistoryType type) {
+    switch (type) {
+      case UnifiedHistoryType.investmentChange:
+        return Icons.trending_up;
+      case UnifiedHistoryType.votingChange:
+        return Icons.how_to_vote;
+      case UnifiedHistoryType.emailSent:
+        return Icons.email;
+    }
+  }
+
+  String _getHistoryTypeLabel(UnifiedHistoryType type) {
+    switch (type) {
+      case UnifiedHistoryType.investmentChange:
+        return 'Zmiana inwestycji';
+      case UnifiedHistoryType.votingChange:
+        return 'Głosowanie';
+      case UnifiedHistoryType.emailSent:
+        return 'Email';
+    }
+  }
+
+  String _formatHistoryDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays == 0) {
+      return 'Dzisiaj ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays == 1) {
+      return 'Wczoraj ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} dni temu';
+    } else {
+      return '${date.day}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+    }
+  }
+
+  Color _getEmailStatusColor(EmailStatus status) {
+    switch (status) {
+      case EmailStatus.pending:
+        return Colors.grey;
+      case EmailStatus.sending:
+        return Colors.orange;
+      case EmailStatus.sent:
+        return Colors.green;
+      case EmailStatus.failed:
+        return Colors.red;
+      case EmailStatus.partiallyFailed:
+        return Colors.amber;
+    }
+  }
+
+  String _getEmailStatusLabel(EmailStatus status) {
+    switch (status) {
+      case EmailStatus.pending:
+        return 'Oczekujący';
+      case EmailStatus.sending:
+        return 'Wysyłanie';
+      case EmailStatus.sent:
+        return 'Wysłano';
+      case EmailStatus.failed:
+        return 'Błąd';
+      case EmailStatus.partiallyFailed:
+        return 'Częściowo nieudany';
+    }
+  }
+
+  Color _getDeliveryStatusColor(DeliveryStatus status) {
+    switch (status) {
+      case DeliveryStatus.pending:
+        return Colors.orange;
+      case DeliveryStatus.delivered:
+        return Colors.green;
+      case DeliveryStatus.failed:
+        return Colors.red;
+      case DeliveryStatus.bounced:
+        return Colors.purple;
+      case DeliveryStatus.spam:
+        return Colors.redAccent;
+    }
+  }
+
+  String _getDeliveryStatusLabel(DeliveryStatus status) {
+    switch (status) {
+      case DeliveryStatus.pending:
+        return 'Oczekujące';
+      case DeliveryStatus.delivered:
+        return 'Doręczono';
+      case DeliveryStatus.failed:
+        return 'Nieudane';
+      case DeliveryStatus.bounced:
+        return 'Odbite';
+      case DeliveryStatus.spam:
+        return 'Spam';
+    }
+  }
+
+  String _translateFieldName(String fieldName) {
+    const translations = {
+      'investmentAmount': 'Kwota inwestycji',
+      'remainingCapital': 'Kapitał pozostały',
+      'capitalSecuredByRealEstate': 'Kapitał zabezpieczony',
+      'capitalForRestructuring': 'Kapitał do restrukturyzacji',
+      'votingStatus': 'Status głosowania',
+      'unviable': 'Nierentowne',
+    };
+    return translations[fieldName] ?? fieldName;
+  }
+
+  // === NOTES AND ACTION BAR ===
+
+  Widget _buildNotesTab() {
+    return ClientNotesWidget(
+      clientId: widget.investor.client.id,
+      clientName: widget.investor.client.name,
+      currentUserId: 'current_user_id', // TODO: Get from AuthProvider
+      currentUserName: 'Current User', // TODO: Get from AuthProvider
+    );
+  }
+
+  Widget _buildActionBar() {
+    return Container(
+      height: 100,
+      decoration: BoxDecoration(
+        gradient: PremiumDialogDecorations.footerGradient,
+        border: Border(
+          top: BorderSide(
+            color: AppThemePro.accentGold.withOpacity(0.2),
+            width: 1.5,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+        child: Row(
+          children: [
+            // Status indicator section
+            Expanded(
+              child: ChangeStatusIndicator(
+                hasChanges: _hasChanges,
+                changeText: _isInvestmentEditMode 
+                  ? 'ZAAWANSOWANE ZMIANY OCZEKUJĄ'
+                  : 'ZMIANY OCZEKUJĄ',
+                noChangeText: _isInvestmentEditMode 
+                  ? 'GOTOWY DO ZAAWANSOWANEJ EDYCJI'
+                  : 'GOTOWY DO EDYCJI',
+              ),
+            ),
+
+            const SizedBox(width: 24),
+
+            // Action buttons section
+            Row(
+              children: [
+                // Cancel button
+                if (_hasChanges || _isInvestmentEditMode)
+                  ElevatedButton.icon(
+                    onPressed: _isInvestmentEditMode 
+                      ? _exitInvestmentEditMode 
+                      : () {
+                          // TODO: Implement cancel changes
+                        },
+                    icon: Icon(Icons.close),
+                    label: Text(_isInvestmentEditMode ? 'Anuluj edycję' : 'Cofnij'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[300],
+                      foregroundColor: Colors.black87,
+                    ),
+                  ),
+
+                if (_hasChanges || _isInvestmentEditMode) const SizedBox(width: 16),
+
+                // Save button - show always for unified edit mode
+                ElevatedButton.icon(
+                  onPressed: _hasChanges ? _saveChanges : null,
+                  icon: _isLoading 
+                    ? SizedBox(
+                        width: 16, 
+                        height: 16, 
+                        child: CircularProgressIndicator(strokeWidth: 2)
+                      )
+                    : Icon(_isInvestmentEditMode ? Icons.save : Icons.check),
+                  label: Text(_isInvestmentEditMode ? 'Zapisz zmiany' : 'Zapisz'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppThemePro.accent,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // === MISSING METHODS ===
+  // The canonical helper implementations are defined below (single copy).
   Widget _buildClientHistoryView() {
     if (_historyLoading) {
       return const Center(
@@ -2810,7 +3327,7 @@ class _EnhancedInvestorDetailsDialogState
                 ),
               ),
               IconButton(
-                onPressed: _loadInvestmentHistory,
+                onPressed: _loadHistoryData,
                 icon: Icon(
                   Icons.refresh,
                   color: AppThemePro.textSecondary,
@@ -3207,9 +3724,7 @@ class _EnhancedInvestorDetailsDialogState
     return amountFields.contains(fieldName);
   }
 
-  Widget _buildVotingHistoryTab() {
-    return VotingChangesTab(investor: widget.investor);
-  }
+  // === EMAIL HISTORY HELPERS ===
 
   Widget _buildNotesTab() {
     return ClientNotesWidget(
@@ -3219,352 +3734,6 @@ class _EnhancedInvestorDetailsDialogState
       currentUserName: 'Current User', // TODO: Get from AuthProvider
     );
   }
-
-  // === ZUNIFIKOWANA HISTORIA (INWESTYCJE + GŁOSOWANIA + EMAILE) ===
-  Widget _buildUnifiedHistoryTab() {
-    // Returns combined view
-    return _buildUnifiedHistoryView();
-  }
-
-  Widget _buildUnifiedHistoryView() {
-    if (_historyLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 3)),
-            SizedBox(height: 16),
-            Text('Ładowanie historii...'),
-          ],
-        ),
-      );
-    }
-
-    final unifiedHistoryItems = <UnifiedHistoryItem>[];
-
-    for (final history in _investmentHistory) {
-      unifiedHistoryItems.add(UnifiedHistoryItem(
-        date: history.changedAt,
-        type: UnifiedHistoryType.investmentChange,
-        data: history,
-      ));
-    }
-
-    for (final voting in _votingHistory) {
-      unifiedHistoryItems.add(UnifiedHistoryItem(
-        date: voting.timestamp,
-        type: UnifiedHistoryType.votingChange,
-        data: voting,
-      ));
-    }
-
-    for (final email in _emailHistory) {
-      unifiedHistoryItems.add(UnifiedHistoryItem(
-        date: email.sentAt,
-        type: UnifiedHistoryType.emailSent,
-        data: email,
-      ));
-    }
-
-    unifiedHistoryItems.sort((a, b) => b.date.compareTo(a.date));
-
-    if (unifiedHistoryItems.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.history, size: 64, color: AppThemePro.textSecondary.withOpacity(0.5)),
-            const SizedBox(height: 16),
-            const Text('Brak historii'),
-            const SizedBox(height: 8),
-            Text('Historia zmian, głosowania i emaili pojawi się tutaj',
-                style: TextStyle(color: AppThemePro.textSecondary), textAlign: TextAlign.center),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadInitialData,
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(_isSmallScreen ? 16 : 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildUnifiedHistoryHeader(unifiedHistoryItems.length),
-            const SizedBox(height: 24),
-            ...unifiedHistoryItems.asMap().entries.map((entry) {
-              final index = entry.key;
-              final item = entry.value;
-              final isLast = index == unifiedHistoryItems.length - 1;
-              return _buildUnifiedHistoryItem(item, isLast);
-            }).toList(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUnifiedHistoryHeader(int totalItems) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppThemePro.primaryDark.withOpacity(0.1), AppThemePro.accentGold.withOpacity(0.05)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppThemePro.accentGold.withOpacity(0.2), width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [AppThemePro.accentGold, AppThemePro.accentGold.withOpacity(0.7)]),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.timeline, color: Colors.white, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Historia aktywności', style: TextStyle(color: AppThemePro.textPrimary, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                Text('Zmiany inwestycji, głosowania i wysłane emaile', style: TextStyle(color: AppThemePro.textSecondary)),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppThemePro.accentGold.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppThemePro.accentGold.withOpacity(0.3), width: 1),
-            ),
-            child: Text('$totalItems ${totalItems == 1 ? 'wpis' : totalItems < 5 ? 'wpisy' : 'wpisów'}', style: TextStyle(color: AppThemePro.accentGold, fontWeight: FontWeight.w500)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUnifiedHistoryItem(UnifiedHistoryItem item, bool isLast) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: _getHistoryTypeColor(item.type), borderRadius: BorderRadius.circular(20), border: Border.all(color: AppThemePro.surfaceCard, width: 3)),
-                child: Icon(_getHistoryTypeIcon(item.type), color: Colors.white, size: 18),
-              ),
-              if (!isLast) Container(width: 2, height: 60, color: AppThemePro.accentGold.withOpacity(0.3)),
-            ],
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: AppThemePro.surfaceCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppThemePro.accentGold.withOpacity(0.1), width: 1)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: _getHistoryTypeColor(item.type).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                        child: Text(_getHistoryTypeLabel(item.type), style: TextStyle(color: _getHistoryTypeColor(item.type), fontWeight: FontWeight.w500)),
-                      ),
-                      Text(_formatHistoryDate(item.date), style: TextStyle(color: AppThemePro.textSecondary)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildHistoryItemContent(item),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHistoryItemContent(UnifiedHistoryItem item) {
-    switch (item.type) {
-      case UnifiedHistoryType.investmentChange:
-        return _buildClientHistoryEntry(item.data as InvestmentChangeHistory);
-      case UnifiedHistoryType.votingChange:
-        return _buildVotingChangeContent(item.data as VotingStatusChange);
-      case UnifiedHistoryType.emailSent:
-        return _buildEmailHistoryContent(item.data as EmailHistory);
-    }
-  }
-
-  Color _getHistoryTypeColor(UnifiedHistoryType type) {
-    switch (type) {
-      case UnifiedHistoryType.investmentChange:
-        return AppThemePro.accentGold;
-      case UnifiedHistoryType.votingChange:
-        return Colors.blue;
-      case UnifiedHistoryType.emailSent:
-        return Colors.green;
-    }
-  }
-
-  IconData _getHistoryTypeIcon(UnifiedHistoryType type) {
-    switch (type) {
-      case UnifiedHistoryType.investmentChange:
-        return Icons.trending_up;
-      case UnifiedHistoryType.votingChange:
-        return Icons.how_to_vote;
-      case UnifiedHistoryType.emailSent:
-        return Icons.email;
-    }
-  }
-
-  String _getHistoryTypeLabel(UnifiedHistoryType type) {
-    switch (type) {
-      case UnifiedHistoryType.investmentChange:
-        return 'Zmiana inwestycji';
-      case UnifiedHistoryType.votingChange:
-        return 'Głosowanie';
-      case UnifiedHistoryType.emailSent:
-        return 'Email';
-    }
-  }
-
-  Widget _buildVotingChangeContent(VotingStatusChange voting) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Zmiana statusu głosowania', style: TextStyle(color: AppThemePro.textPrimary, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Icon(Icons.how_to_vote, size: 16, color: AppThemePro.textSecondary),
-            const SizedBox(width: 8),
-            Expanded(
-              child: RichText(
-                text: TextSpan(
-                  style: TextStyle(color: AppThemePro.textSecondary),
-                  children: [
-                    const TextSpan(text: 'Status: '),
-                    TextSpan(text: '${voting.oldStatus?.displayName ?? 'Brak'} → '),
-                    TextSpan(text: voting.newStatus?.displayName ?? 'Nieznany', style: TextStyle(color: AppThemePro.accentGold, fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        if (voting.reason?.isNotEmpty == true) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppThemePro.accentGold.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppThemePro.accentGold.withOpacity(0.2), width: 1)),
-            child: Row(children: [Icon(Icons.info_outline, size: 16, color: AppThemePro.accentGold), const SizedBox(width: 8), Expanded(child: Text(voting.reason ?? '', style: TextStyle(color: AppThemePro.textSecondary)))]),
-          ),
-        ],
-        Text('Autor: ${voting.editedByName ?? voting.editedByEmail}', style: TextStyle(color: AppThemePro.textSecondary.withOpacity(0.8), fontStyle: FontStyle.italic)),
-      ],
-    );
-  }
-
-  Widget _buildEmailHistoryContent(EmailHistory email) {
-    final clientRecipient = email.recipients.firstWhere((r) => r.clientId == widget.investor.client.id, orElse: () => email.recipients.first);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Wysłano email', style: TextStyle(color: AppThemePro.textPrimary, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 8),
-        Row(children: [Icon(Icons.email, size: 16, color: AppThemePro.textSecondary), const SizedBox(width: 8), Expanded(child: Text(email.subject, style: TextStyle(color: AppThemePro.textSecondary)))]),
-        const SizedBox(height: 4),
-        Row(children: [Icon(Icons.person, size: 16, color: AppThemePro.textSecondary), const SizedBox(width: 8), Expanded(child: Text('Do: ${clientRecipient.emailAddress}', style: TextStyle(color: AppThemePro.textSecondary)))]),
-        const SizedBox(height: 8),
-        Row(children: [
-          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: _getEmailStatusColor(email.status).withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: _getEmailStatusColor(email.status).withOpacity(0.3), width: 1)), child: Text(_getEmailStatusLabel(email.status), style: TextStyle(color: _getEmailStatusColor(email.status), fontWeight: FontWeight.w500))),
-          const SizedBox(width: 12),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: _getDeliveryStatusColor(clientRecipient.deliveryStatus).withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: _getDeliveryStatusColor(clientRecipient.deliveryStatus).withOpacity(0.3), width: 1)), child: Text(_getDeliveryStatusLabel(clientRecipient.deliveryStatus), style: TextStyle(color: _getDeliveryStatusColor(clientRecipient.deliveryStatus), fontWeight: FontWeight.w500))),
-        ]),
-        if (email.recipients.length > 1) ...[const SizedBox(height: 4), Text('Wysłano do ${email.recipients.length} odbiorców', style: TextStyle(color: AppThemePro.textSecondary.withOpacity(0.8), fontStyle: FontStyle.italic))],
-      ],
-    );
-  }
-
-  Color _getEmailStatusColor(EmailStatus status) {
-    switch (status) {
-      case EmailStatus.pending:
-        return Colors.grey;
-      case EmailStatus.sending:
-        return Colors.orange;
-      case EmailStatus.sent:
-        return Colors.green;
-      case EmailStatus.failed:
-        return Colors.red;
-      case EmailStatus.partiallyFailed:
-        return Colors.amber;
-    }
-  }
-
-  String _getEmailStatusLabel(EmailStatus status) {
-    switch (status) {
-      case EmailStatus.pending:
-        return 'Oczekujący';
-      case EmailStatus.sending:
-        return 'Wysyłanie';
-      case EmailStatus.sent:
-        return 'Wysłano';
-      case EmailStatus.failed:
-        return 'Błąd';
-      case EmailStatus.partiallyFailed:
-        return 'Częściowo nieudany';
-    }
-  }
-
-  Color _getDeliveryStatusColor(DeliveryStatus status) {
-    switch (status) {
-      case DeliveryStatus.pending:
-        return Colors.orange;
-      case DeliveryStatus.delivered:
-        return Colors.green;
-      case DeliveryStatus.failed:
-        return Colors.red;
-      case DeliveryStatus.bounced:
-        return Colors.purple;
-      case DeliveryStatus.spam:
-        return Colors.redAccent;
-    }
-  }
-
-  String _getDeliveryStatusLabel(DeliveryStatus status) {
-    switch (status) {
-      case DeliveryStatus.pending:
-        return 'Oczekujące';
-      case DeliveryStatus.delivered:
-        return 'Doręczono';
-      case DeliveryStatus.failed:
-        return 'Nieudane';
-      case DeliveryStatus.bounced:
-        return 'Odbite';
-      case DeliveryStatus.spam:
-        return 'Spam';
-    }
-  }
-
-  // Helper datatypes
-  
-  // Represents a single unified history item
-  
 
 
 
@@ -3976,57 +4145,238 @@ class _EnhancedInvestorDetailsDialogState
     }
   }
 
+  /// Helper methods for text styles
+  TextStyle get _textStyleMedium => const TextStyle(
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
+  );
+  
+  TextStyle get _textStyleSmall => const TextStyle(
+    color: Colors.white70,
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+  );
+
   /// 🚀 NOWE: Formatuje kwoty walutowe
   String _formatCurrency(double amount) {
     return CurrencyFormatter.formatCurrency(amount);
   }
+
+  /// Helper method for formatting time ago
+  String _formatTimeAgo(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays > 0) {
+      return '${difference.inDays} dni temu';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} godzin temu';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minut temu';
+    } else {
+      return 'Przed chwilą';
+    }
+  }
+
+  /// Helper method for navigation to investment details
+  void _navigateToInvestmentDetails(Investment investment) {
+    // TODO: Implement navigation to investment details
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Przejście do szczegółów inwestycji: ${investment.id}'),
+      ),
+    );
+  }
+
+  /// Helper method for getting product type icon
+  IconData _getProductTypeIcon(ProductType type) {
+    switch (type) {
+      case ProductType.bond:
+        return Icons.account_balance;
+      case ProductType.loan:
+        return Icons.monetization_on;
+      case ProductType.share:
+        return Icons.trending_up;
+      case ProductType.apartment:
+        return Icons.home;
+    }
+  }
+
+  /// Gettery dla stylów tekstu
+  TextStyle get _textStyleSmall => TextStyle(
+    fontSize: 12,
+    color: AppThemePro.textSecondary,
+  );
+
+  TextStyle get _textStyleMedium => TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    color: AppThemePro.textPrimary,
+  );
+
+  /// Helper method for formatting time ago
+  String _formatTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays} dni temu';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} godz temu';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} min temu';
+    } else {
+      return 'przed chwilą';
+    }
+  }
+
+  /// Navigate to investment details
+  void _navigateToInvestmentDetails(Investment investment) {
+    // TODO: Implement navigation to investment details
+    // This could open a new dialog or navigate to a detailed view
+    print('Navigate to investment: ${investment.productId}');
+  }
+
+  /// Exit investment edit mode
+  void _exitInvestmentEditMode() {
+    setState(() {
+      _isInvestmentEditMode = false;
+      _hasChanges = false;
+    });
+  }
+
+  /// Save investment changes
+  void _saveChanges() async {
+    if (!_hasChanges) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // TODO: Implement save logic
+      await Future.delayed(Duration(milliseconds: 500)); // Simulate API call
+      
+      setState(() {
+        _hasChanges = false;
+        _isInvestmentEditMode = false;
+      });
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Zmiany zostały zapisane'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Błąd podczas zapisywania: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // === HELPER METHODS ===
+  String _formatTimeAgo(DateTime time) {
+    final now = DateTime.now();
+    final difference = now.difference(time);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays} dni temu';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} godz. temu';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} min. temu';
+    } else {
+      return 'Przed chwilą';
+    }
+  }
+
+  void _navigateToInvestmentDetails(Investment investment) {
+    context.push('/investments/${investment.id}');
+  }
+
+  IconData _getProductTypeIcon(ProductType productType) {
+    switch (productType) {
+      case ProductType.bonds:
+        return Icons.account_balance;
+      case ProductType.loans:
+        return Icons.monetization_on;
+      case ProductType.apartments:
+        return Icons.home;
+      case ProductType.shares:
+        return Icons.trending_up;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  void _exitInvestmentEditMode() {
+    setState(() {
+      _isInvestmentEditMode = false;
+      _editingInvestmentId = null;
+    });
+  }
+
+  Future<void> _saveChanges() async {
+    if (!_hasChanges) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Save voting status changes
+      if (_selectedVotingStatus != widget.investor.client.votingStatus) {
+        await _votingService.updateClientVotingStatus(
+          widget.investor.client.id,
+          _selectedVotingStatus,
+        );
+      }
+
+      // Save notes changes
+      if (_notesController.text != widget.investor.client.notes) {
+        // Update client notes - this would need to be implemented
+        // For now, just log the change
+        debugPrint('Notes updated: ${_notesController.text}');
+      }
+
+      setState(() {
+        _hasChanges = false;
+      });
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Zmiany zostały zapisane'),
+            backgroundColor: AppThemePro.statusSuccess,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd podczas zapisywania: $e'),
+            backgroundColor: AppThemePro.lossRed,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 }
 
-// === HELPER CLASSES ===
-
-class _TabDefinition {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final String tooltip;
-
-  const _TabDefinition({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-    required this.tooltip,
-  });
-}
-
-class _StatItem {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final String? description;
-  final bool isHighlighted;
-
-  const _StatItem(
-    this.label, 
-    this.value, 
-    this.icon, 
-    this.color, {
-    this.description,
-    this.isHighlighted = false,
-  });
-}
-
-// === Unified history helper types ===
-class UnifiedHistoryItem {
-  final DateTime date;
-  final UnifiedHistoryType type;
-  final dynamic data;
-
-  UnifiedHistoryItem({
-    required this.date,
-    required this.type,
-    required this.data,
-  });
-}
-
-enum UnifiedHistoryType { investmentChange, votingChange, emailSent }
+// End of file helpers

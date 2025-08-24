@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
 import '../models_and_services.dart';
 
 /// Wynik wysyłki emaili z serwisu edytora
@@ -195,11 +196,15 @@ class EmailEditorService extends BaseService {
 
   // === CONTENT CONVERSION ===
 
-  /// Konwertuje dokument Quill na HTML
+  /// Konwertuje dokument Quill na HTML - UŻYWA STANDARDOWEJ BIBLIOTEKI
   String convertDocumentToHtml(Document document) {
     try {
-      // Próbuj użyć standardowej konwersji (jeśli dostępna)
-      return _customDocumentToHtml(document);
+      // ⭐ POPRAWIONA KONWERSJA - używaj vsc_quill_delta_to_html z opcjami email
+      final converter = QuillDeltaToHtmlConverter(
+        document.toDelta().toJson(),
+        ConverterOptions.forEmail(),
+      );
+      return converter.convert();
     } catch (e) {
       logError('convertDocumentToHtml', e);
       // Fallback - zwróć plain text w prostym HTML
@@ -207,109 +212,7 @@ class EmailEditorService extends BaseService {
     }
   }
 
-  /// Niestandardowa konwersja dokumentu Quill do HTML
-  String _customDocumentToHtml(Document document) {
-    try {
-      final buffer = StringBuffer();
-
-      for (final delta in document.toDelta().toList()) {
-        if (delta.data is String) {
-          final text = delta.data as String;
-          final attributes = delta.attributes;
-
-          // Obsłuż nowe linie
-          if (text.contains('\n')) {
-            final lines = text.split('\n');
-            for (int i = 0; i < lines.length; i++) {
-              if (lines[i].isNotEmpty) {
-                buffer.write(_applyFormattingToText(lines[i], attributes));
-              }
-              if (i < lines.length - 1) {
-                buffer.write('<br>');
-              }
-            }
-          } else {
-            buffer.write(_applyFormattingToText(text, attributes));
-          }
-        }
-      }
-
-      return buffer.toString();
-    } catch (e) {
-      logError('_customDocumentToHtml', e);
-      return '<p>${_escapeHtml(document.toPlainText())}</p>';
-    }
-  }
-
-  /// Aplikuje formatowanie HTML na podstawie atrybutów Quill
-  String _applyFormattingToText(String text, Map<String, dynamic>? attributes) {
-    if (attributes == null || attributes.isEmpty) {
-      return _escapeHtml(text);
-    }
-
-    String result = _escapeHtml(text);
-
-    // Formatowanie tekstu
-    if (attributes['bold'] == true) {
-      result = '<strong>$result</strong>';
-    }
-
-    if (attributes['italic'] == true) {
-      result = '<em>$result</em>';
-    }
-
-    if (attributes['underline'] == true) {
-      result = '<u>$result</u>';
-    }
-
-    // Kolor tekstu
-    if (attributes['color'] != null) {
-      result = '<span style="color: ${attributes['color']}">$result</span>';
-    }
-
-    // Kolor tła
-    if (attributes['background'] != null) {
-      result =
-          '<span style="background-color: ${attributes['background']}">$result</span>';
-    }
-
-    // Rozmiar czcionki
-    if (attributes['size'] != null) {
-      result = '<span style="font-size: ${attributes['size']}">$result</span>';
-    }
-
-    // Wyrównanie (zastosowane na poziomie akapitu)
-    if (attributes['align'] != null) {
-      result = '<div style="text-align: ${attributes['align']}">$result</div>';
-    }
-
-    // Nagłówki
-    if (attributes['header'] != null) {
-      final level = attributes['header'] as int;
-      if (level >= 1 && level <= 6) {
-        result = '<h$level>$result</h$level>';
-      }
-    }
-
-    // Listy
-    if (attributes['list'] != null) {
-      final listType = attributes['list'] as String;
-      if (listType == 'ordered') {
-        result = '<ol><li>$result</li></ol>';
-      } else if (listType == 'bullet') {
-        result = '<ul><li>$result</li></ul>';
-      }
-    }
-
-    // Cytaty
-    if (attributes['blockquote'] == true) {
-      result = '<blockquote>$result</blockquote>';
-    }
-
-    return result;
-  }
-
-  /// Escape HTML w tekście
+  /// Escape HTML w tekście - HELPER METHOD
   String _escapeHtml(String text) {
     return text
         .replaceAll('&', '&amp;')

@@ -24,6 +24,9 @@
       "Bash(flutter compile:*)",
       "Bash(node:*)"
     ],
-    "deny": []
+    "deny": [],
+    "additionalDirectories": [
+      "/Users/dominik/Documents/GitHub/metropolitan_investment"
+    ]
   }
 }
