@@ -76,6 +76,9 @@ class _EmailEditorWidgetState extends State<EmailEditorWidget>
   String _currentExportFormat = '';
   AdvancedExportResult? _lastExportResult;
 
+  // Preview states
+  bool _previewDarkMode = false;
+
   @override
   void initState() {
     super.initState();
@@ -592,26 +595,153 @@ Zespół Metropolitan Investment''';
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Wybór odbiorcy do podglądu
+          // Kontrolki podglądu (odbiorca + tryb)
           if (_getEnabledRecipientsCount() > 0) ...[
-            DropdownButtonFormField<String>(
-              value: _selectedPreviewRecipient,
-              decoration: const InputDecoration(
-                labelText: 'Wybierz odbiorcę do podglądu',
-                prefixIcon: Icon(Icons.person),
-              ),
-              items: _buildPreviewRecipientItems(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedPreviewRecipient = value;
-                });
-              },
-            ),
+            _buildPreviewControls(),
             const SizedBox(height: 16),
           ],
 
           // Podgląd emaila
           Expanded(child: _buildEmailPreview()),
+        ],
+      ),
+    );
+  }
+
+  /// Buduje kontrolki podglądu
+  Widget _buildPreviewControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundSecondary,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 16),
+          Icon(
+            Icons.visibility,
+            color: AppThemePro.accentGold,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Opcje podglądu',
+            style: TextStyle(
+              color: AppThemePro.textPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(width: 24),
+          // Theme toggle with switch
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppThemePro.backgroundPrimary,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.light_mode,
+                  color: !_previewDarkMode ? AppThemePro.accentGold : AppThemePro.textSecondary,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Switch(
+                  value: _previewDarkMode,
+                  onChanged: (value) {
+                    setState(() {
+                      _previewDarkMode = value;
+                    });
+                  },
+                  activeColor: AppThemePro.accentGold,
+                  activeTrackColor: AppThemePro.accentGold.withValues(alpha: 0.3),
+                  inactiveThumbColor: Colors.orange,
+                  inactiveTrackColor: Colors.orange.withValues(alpha: 0.3),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.dark_mode,
+                  color: _previewDarkMode ? AppThemePro.accentGold : AppThemePro.textSecondary,
+                  size: 18,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  _previewDarkMode ? 'Ciemny' : 'Jasny',
+                  style: TextStyle(
+                    color: AppThemePro.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Spacer(),
+          // Recipient selector
+          Expanded(
+            flex: 2,
+            child: _buildPreviewRecipientSelector(),
+          ),
+          const SizedBox(width: 16),
+        ],
+      ),
+    );
+  }
+
+  /// Buduje selektor odbiorcy dla podglądu
+  Widget _buildPreviewRecipientSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundPrimary,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.person,
+            color: AppThemePro.accentGold,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Podgląd dla:',
+            style: TextStyle(
+              color: AppThemePro.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedPreviewRecipient,
+                isExpanded: true,
+                dropdownColor: AppThemePro.backgroundSecondary,
+                icon: Icon(Icons.arrow_drop_down, color: AppThemePro.accentGold, size: 20),
+                style: TextStyle(
+                  color: AppThemePro.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedPreviewRecipient = value;
+                  });
+                },
+                items: _buildPreviewRecipientItems(),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -746,68 +876,116 @@ Zespół Metropolitan Investment''';
 
   /// Buduje podgląd emaila
   Widget _buildEmailPreview() {
+    // Automatycznie wybierz pierwszego odbiorcę jeśli nic nie jest wybrane
     if (_selectedPreviewRecipient == null) {
-      return const Center(child: Text('Wybierz odbiorcę aby zobaczyć podgląd'));
+      final availableRecipients = _buildPreviewRecipientItems();
+      if (availableRecipients.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _selectedPreviewRecipient = availableRecipients.first.value;
+            });
+          }
+        });
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      } else {
+        return const Center(
+          child: Text('Brak dostępnych odbiorców do podglądu'),
+        );
+      }
     }
 
     final htmlContent = _emailService.convertDocumentToHtml(
       _quillController.document,
     );
 
+    // Uzyskaj nazwę inwestora
+    String investorName = 'Szanowni Państwo';
+    String? investmentDetailsHtml;
+
+    if (!_selectedPreviewRecipient!.startsWith('additional_')) {
+      final investor = widget.investors.firstWhere(
+        (inv) => inv.client.id == _selectedPreviewRecipient!,
+        orElse: () => widget.investors.first,
+      );
+      investorName = investor.client.name;
+      
+      // Generuj szczegóły inwestycji jeśli włączone
+      if (_includeInvestmentDetails) {
+        investmentDetailsHtml = _generateInvestmentDetailsHtml(investor);
+      }
+    }
+
+    // Generuj pełny HTML z template
+    final emailBody = _getEnhancedEmailTemplate(
+      subject: _subjectController.text,
+      content: htmlContent,
+      investorName: investorName,
+      investmentDetailsHtml: investmentDetailsHtml,
+      darkMode: _previewDarkMode,
+    );
+
     return Container(
-      color: Colors.white,
+      decoration: BoxDecoration(
+        color: _previewDarkMode ? const Color(0xFF1a1a1a) : const Color(0xFFf0f2f5),
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Nagłówek emaila
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 680),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: _previewDarkMode ? 0.3 : 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Od: ${_senderNameController.text} <${_senderEmailController.text}>',
-                  ),
-                  Text('Do: ${_getRecipientInfo(_selectedPreviewRecipient!)}'),
-                  Text('Temat: ${_subjectController.text}'),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Treść emaila (HTML)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[300]!),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                htmlContent,
-                style: const TextStyle(color: Colors.black),
-              ),
-            ),
-
-            // Szczegóły inwestycji (jeśli włączone)
-            if (_includeInvestmentDetails &&
-                !_selectedPreviewRecipient!.startsWith('additional_')) ...[
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 16),
-              _buildInvestmentDetailsPreview(_selectedPreviewRecipient!),
             ],
-          ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: _EmailHtmlRenderer(
+              htmlContent: emailBody,
+              darkMode: _previewDarkMode,
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  /// Generuje HTML z szczegółami inwestycji
+  String _generateInvestmentDetailsHtml(InvestorSummary investor) {
+    final buffer = StringBuffer();
+    buffer.writeln('<h3>Szczegóły inwestycji:</h3>');
+    buffer.writeln('<table style="width: 100%; border-collapse: collapse;">');
+    
+    buffer.writeln('<tr style="background-color: #f9f9f9;">');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Pozostały kapitał:</td>');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd;">${CurrencyFormatter.formatCurrency(investor.totalRemainingCapital)}</td>');
+    buffer.writeln('</tr>');
+    
+    buffer.writeln('<tr>');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Wartość udziałów:</td>');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd;">${CurrencyFormatter.formatCurrency(investor.totalSharesValue)}</td>');
+    buffer.writeln('</tr>');
+    
+    buffer.writeln('<tr style="background-color: #f9f9f9;">');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Liczba inwestycji:</td>');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd;">${investor.investmentCount}</td>');
+    buffer.writeln('</tr>');
+    
+    buffer.writeln('<tr>');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Wartość całkowita:</td>');
+    buffer.writeln('<td style="padding: 8px; border: 1px solid #ddd;">${CurrencyFormatter.formatCurrency(investor.totalValue)}</td>');
+    buffer.writeln('</tr>');
+    
+    buffer.writeln('</table>');
+    return buffer.toString();
   }
 
   /// Zakładka eksportu do PDF, Excel, Word
@@ -1701,4 +1879,566 @@ Zespół Metropolitan Investment''';
       }
     }
   }
+
+  /// Enhanced email template with proper styling and theme support
+  String _getEnhancedEmailTemplate({
+    required String subject,
+    required String content,
+    required String investorName,
+    String? investmentDetailsHtml,
+    bool darkMode = false,
+  }) {
+    final now = DateTime.now();
+    final currentYear = now.year;
+    
+    // Define colors based on theme
+    final backgroundColor = darkMode ? '#1a1a1a' : '#f0f2f5';
+    final containerBg = darkMode ? '#2c2c2c' : '#ffffff';
+    final textColor = darkMode ? '#e0e0e0' : '#1c1e21';
+    final footerBg = darkMode ? '#1f1f1f' : '#f7f7f7';
+    final footerText = darkMode ? '#888888' : '#606770';
+    final borderColor = darkMode ? '#444444' : '#dddfe2';
+    final headerBg = darkMode ? '#1f1f1f' : '#2c2c2c';
+
+    return """
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>$subject</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: $backgroundColor;
+      color: $textColor;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      line-height: 1.6;
+    }
+    .email-container {
+      max-width: 680px;
+      margin: 20px auto;
+      background-color: $containerBg;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid $borderColor;
+      box-shadow: 0 4px 12px rgba(0,0,0,${darkMode ? '0.3' : '0.08'});
+    }
+    .email-header {
+      background-color: $headerBg;
+      padding: 32px;
+      text-align: center;
+    }
+    .email-header h1 {
+      color: #d4af37; /* Metropolitan Gold */
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .email-content {
+      padding: 32px;
+      color: $textColor;
+    }
+    .email-content p {
+      line-height: 1.6;
+      font-size: 16px;
+      margin: 1em 0;
+      color: $textColor;
+    }
+    .email-content h1, .email-content h2, .email-content h3, 
+    .email-content h4, .email-content h5, .email-content h6 {
+      color: $textColor;
+      margin-top: 1.5em;
+      margin-bottom: 0.5em;
+    }
+    .email-content h1 { font-size: 2em; }
+    .email-content h2 { font-size: 1.5em; }
+    .email-content h3 { font-size: 1.25em; }
+    .email-content strong, .email-content b {
+      font-weight: 600;
+      color: $textColor;
+    }
+    .email-content em, .email-content i {
+      font-style: italic;
+    }
+    .email-content u {
+      text-decoration: underline;
+    }
+    .email-content a {
+      color: #d4af37;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .email-content a:hover {
+      text-decoration: underline;
+    }
+    .email-content ul, .email-content ol {
+      padding-left: 20px;
+      margin: 1em 0;
+    }
+    .email-content li {
+      margin: 0.5em 0;
+      color: $textColor;
+    }
+    .email-content blockquote {
+      border-left: 4px solid #d4af37;
+      margin: 1em 0;
+      padding-left: 16px;
+      font-style: italic;
+      background-color: ${darkMode ? '#2a2a2a' : '#f9f9f9'};
+      padding: 12px 16px;
+      border-radius: 4px;
+    }
+    .email-content code {
+      background-color: ${darkMode ? '#3a3a3a' : '#f1f1f1'};
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+    .email-footer {
+      background-color: $footerBg;
+      padding: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: $footerText;
+      border-top: 1px solid $borderColor;
+    }
+    .investment-details {
+      margin-top: 24px;
+      border-top: 1px solid $borderColor;
+      padding-top: 16px;
+    }
+    .investment-details h3 {
+      font-size: 18px;
+      color: $textColor;
+      margin-bottom: 12px;
+    }
+    /* Text alignment classes */
+    .ql-align-center { text-align: center; }
+    .ql-align-right { text-align: right; }
+    .ql-align-justify { text-align: justify; }
+    
+    /* Font size classes */
+    .ql-size-small { font-size: 0.75em; }
+    .ql-size-large { font-size: 1.5em; }
+    .ql-size-huge { font-size: 2.5em; }
+    
+    /* Color handling for rich text */
+    .email-content span[style*="color"] {
+      /* Preserve inline color styles from Quill */
+    }
+    .email-content span[style*="background-color"] {
+      /* Preserve inline background colors from Quill */
+    }
+    
+    @media (max-width: 600px) {
+      .email-container {
+        margin: 10px;
+        border-radius: 8px;
+      }
+      .email-header, .email-content, .email-footer {
+        padding: 20px;
+      }
+      .email-header h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="email-header">
+      <h1>Metropolitan Investment</h1>
+    </div>
+    <div class="email-content">
+      <p>Witaj $investorName,</p>
+      $content
+      ${investmentDetailsHtml != null && investmentDetailsHtml.isNotEmpty ? '<div class="investment-details">$investmentDetailsHtml</div>' : ''}
+    </div>
+    <div class="email-footer">
+      <p>&copy; $currentYear Metropolitan Investment S.A. Wszelkie prawa zastrzeżone.</p>
+      <p>Ta wiadomość została wygenerowana automatycznie. Prosimy na nią nie odpowiadać.</p>
+    </div>
+  </div>
+</body>
+</html>
+""";
+  }
+}
+
+/// Widget do renderowania HTML emaila z flutter_html
+class _EmailHtmlRenderer extends StatelessWidget {
+  final String htmlContent;
+  final bool darkMode;
+
+  const _EmailHtmlRenderer({
+    required this.htmlContent,
+    required this.darkMode,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Parsuj pełny HTML template
+    final document = _parseEmailTemplate(htmlContent);
+    
+    return Container(
+      color: darkMode ? const Color(0xFF1a1a1a) : const Color(0xFFf0f2f5),
+      child: SingleChildScrollView(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 680),
+          margin: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: darkMode ? const Color(0xFF2c2c2c) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: darkMode ? const Color(0xFF444444) : const Color(0xFFdddfe2),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: darkMode ? 0.3 : 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: darkMode ? const Color(0xFF1f1f1f) : const Color(0xFF2c2c2c),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Metropolitan Investment',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFFd4af37), // Metropolitan Gold
+                    fontSize: 28,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              // Content
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Greeting
+                    Text(
+                      'Witaj ${document.investorName},',
+                      style: TextStyle(
+                        color: darkMode ? const Color(0xFFe0e0e0) : const Color(0xFF1c1e21),
+                        fontSize: 16,
+                        height: 1.6,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Main content
+                    ...document.contentWidgets.map((widget) => widget),
+                    // Investment details
+                    if (document.investmentDetailsHtml != null) ...[
+                      const SizedBox(height: 24),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.only(top: 16),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(
+                              color: darkMode ? const Color(0xFF444444) : const Color(0xFFdddfe2),
+                            ),
+                          ),
+                        ),
+                        child: _buildInvestmentDetailsWidget(document.investmentDetailsHtml!, darkMode),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              // Footer
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: darkMode ? const Color(0xFF1f1f1f) : const Color(0xFFf7f7f7),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(12),
+                    bottomRight: Radius.circular(12),
+                  ),
+                  border: Border(
+                    top: BorderSide(
+                      color: darkMode ? const Color(0xFF444444) : const Color(0xFFdddfe2),
+                    ),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      '© ${DateTime.now().year} Metropolitan Investment S.A. Wszelkie prawa zastrzeżone.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: darkMode ? const Color(0xFF888888) : const Color(0xFF606770),
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Ta wiadomość została wygenerowana automatycznie. Prosimy na nią nie odpowiadać.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: darkMode ? const Color(0xFF888888) : const Color(0xFF606770),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Parsuje HTML template i wyciąga komponenty
+  _EmailDocument _parseEmailTemplate(String html) {
+    String investorName = 'Szanowni Państwo';
+    String content = '';
+    String? investmentDetailsHtml;
+
+    try {
+      // Wyciągnij nazwę inwestora
+      final investorMatch = RegExp(r'<p>Witaj ([^,<]+),</p>').firstMatch(html);
+      if (investorMatch != null) {
+        investorName = investorMatch.group(1)!;
+      }
+
+      // Wyciągnij główną treść między powitaniem a detalami inwestycji
+      final contentMatch = RegExp(
+        r'<p>Witaj [^,<]+,</p>\s*(.*?)(?:<div class="investment-details">|</div>\s*</div>\s*</body>)',
+        dotAll: true,
+      ).firstMatch(html);
+      
+      if (contentMatch != null) {
+        content = contentMatch.group(1)!.trim();
+      }
+
+      // Wyciągnij szczegóły inwestycji
+      final investmentMatch = RegExp(
+        r'<div class="investment-details">(.*?)</div>',
+        dotAll: true,
+      ).firstMatch(html);
+      
+      if (investmentMatch != null) {
+        investmentDetailsHtml = investmentMatch.group(1)!;
+      }
+
+      return _EmailDocument(
+        investorName: investorName,
+        contentWidgets: _buildContentWidgets(content),
+        investmentDetailsHtml: investmentDetailsHtml,
+      );
+    } catch (e) {
+      // Fallback - użyj prostego parsowania
+      return _EmailDocument(
+        investorName: investorName,
+        contentWidgets: [
+          Text(
+            'Błąd parsowania treści emaila: $e',
+            style: const TextStyle(color: Colors.red),
+          ),
+        ],
+        investmentDetailsHtml: null,
+      );
+    }
+  }
+
+  /// Buduje widgety zawartości z HTML
+  List<Widget> _buildContentWidgets(String htmlContent) {
+    final widgets = <Widget>[];
+    
+    if (htmlContent.isEmpty) {
+      widgets.add(
+        Text(
+          'Brak treści wiadomości.',
+          style: TextStyle(
+            color: darkMode ? const Color(0xFF888888) : const Color(0xFF606770),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+      return widgets;
+    }
+
+    // Usuń tagi HTML i podziel na akapity
+    final cleanContent = htmlContent
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .trim();
+
+    final paragraphs = cleanContent.split('\n\n');
+    
+    for (final paragraph in paragraphs) {
+      final trimmed = paragraph.trim();
+      if (trimmed.isNotEmpty) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text(
+              trimmed,
+              style: TextStyle(
+                color: darkMode ? const Color(0xFFe0e0e0) : const Color(0xFF1c1e21),
+                fontSize: 16,
+                height: 1.6,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    return widgets;
+  }
+
+  /// Buduje widget szczegółów inwestycji
+  Widget _buildInvestmentDetailsWidget(String htmlContent, bool darkMode) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Szczegóły inwestycji:',
+          style: TextStyle(
+            color: darkMode ? const Color(0xFFe0e0e0) : const Color(0xFF1c1e21),
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: darkMode ? const Color(0xFF444444) : const Color(0xFFdddfe2),
+            ),
+          ),
+          child: _parseInvestmentTable(htmlContent, darkMode),
+        ),
+      ],
+    );
+  }
+
+  /// Parsuje i renderuje tabelę inwestycji
+  Widget _parseInvestmentTable(String htmlContent, bool darkMode) {
+    final rows = <TableRow>[];
+    
+    // Parsuj HTML tabeli
+    final rowMatches = RegExp(r'<tr[^>]*>(.*?)</tr>', dotAll: true).allMatches(htmlContent);
+    
+    for (final match in rowMatches) {
+      final rowHtml = match.group(1)!;
+      final cellMatches = RegExp(r'<td[^>]*>(.*?)</td>', dotAll: true).allMatches(rowHtml);
+      
+      final cells = <Widget>[];
+      for (final cellMatch in cellMatches) {
+        final cellContent = cellMatch.group(1)!
+            .replaceAll(RegExp(r'<[^>]*>'), '')
+            .replaceAll('&nbsp;', ' ')
+            .trim();
+        
+        final isBold = rowHtml.contains('font-weight: bold');
+        final isEvenRow = rowHtml.contains('background-color: #f9f9f9');
+        
+        cells.add(
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isEvenRow
+                  ? (darkMode ? const Color(0xFF2a2a2a) : const Color(0xFFf9f9f9))
+                  : Colors.transparent,
+            ),
+            child: Text(
+              cellContent,
+              style: TextStyle(
+                color: darkMode ? const Color(0xFFe0e0e0) : const Color(0xFF1c1e21),
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        );
+      }
+      
+      if (cells.length >= 2) {
+        rows.add(
+          TableRow(
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: darkMode ? const Color(0xFF444444) : const Color(0xFFdddfe2),
+                  width: 0.5,
+                ),
+              ),
+            ),
+            children: cells,
+          ),
+        );
+      }
+    }
+
+    if (rows.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          'Brak danych do wyświetlenia',
+          style: TextStyle(
+            color: darkMode ? const Color(0xFF888888) : const Color(0xFF606770),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+
+    return Table(
+      border: TableBorder.all(
+        color: darkMode ? const Color(0xFF444444) : const Color(0xFFdddfe2),
+        width: 1,
+      ),
+      columnWidths: const {
+        0: FlexColumnWidth(2),
+        1: FlexColumnWidth(3),
+      },
+      children: rows,
+    );
+  }
+}
+
+/// Model dokumentu email
+class _EmailDocument {
+  final String investorName;
+  final List<Widget> contentWidgets;
+  final String? investmentDetailsHtml;
+
+  _EmailDocument({
+    required this.investorName,
+    required this.contentWidgets,
+    this.investmentDetailsHtml,
+  });
 }

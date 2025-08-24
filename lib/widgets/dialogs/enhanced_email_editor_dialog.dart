@@ -772,55 +772,88 @@ Zespół Metropolitan Investment''';
   }
 
   Widget _buildPreviewControls() {
-    return Row(
-      children: [
-        Expanded(child: _buildPreviewRecipientSelector()),
-        const SizedBox(width: 16),
-        Container(
-          decoration: BoxDecoration(
-            color: AppThemePro.backgroundSecondary,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppThemePro.borderSecondary),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundSecondary,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 16),
+          Icon(
+            Icons.visibility,
+            color: AppThemePro.accentGold,
+            size: 20,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'Motyw:',
-                  style: TextStyle(
-                    color: AppThemePro.textSecondary,
-                    fontSize: 14,
-                  ),
+          const SizedBox(width: 8),
+          Text(
+            'Opcje podglądu',
+            style: TextStyle(
+              color: AppThemePro.textPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(width: 24),
+          // Theme toggle with switch
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppThemePro.backgroundPrimary,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.light_mode,
+                  color: !_previewDarkMode ? AppThemePro.accentGold : AppThemePro.textSecondary,
+                  size: 18,
                 ),
-              ),
-              IconButton(
-                icon: Icon(
-                  _previewDarkMode ? Icons.dark_mode : Icons.light_mode,
-                  color: _previewDarkMode ? AppThemePro.accentGold : Colors.orange,
+                const SizedBox(width: 8),
+                Switch(
+                  value: _previewDarkMode,
+                  onChanged: (value) {
+                    setState(() {
+                      _previewDarkMode = value;
+                    });
+                  },
+                  activeColor: AppThemePro.accentGold,
+                  activeTrackColor: AppThemePro.accentGold.withValues(alpha: 0.3),
+                  inactiveThumbColor: Colors.orange,
+                  inactiveTrackColor: Colors.orange.withValues(alpha: 0.3),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                onPressed: () {
-                  setState(() {
-                    _previewDarkMode = !_previewDarkMode;
-                  });
-                },
-                tooltip: _previewDarkMode ? 'Przełącz na jasny motyw' : 'Przełącz na ciemny motyw',
-              ),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Text(
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.dark_mode,
+                  color: _previewDarkMode ? AppThemePro.accentGold : AppThemePro.textSecondary,
+                  size: 18,
+                ),
+                const SizedBox(width: 12),
+                Text(
                   _previewDarkMode ? 'Ciemny' : 'Jasny',
                   style: TextStyle(
-                    color: AppThemePro.textSecondary,
-                    fontSize: 12,
+                    color: AppThemePro.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+          const Spacer(),
+          // Recipient selector
+          Expanded(
+            flex: 2,
+            child: _buildPreviewRecipientSelector(),
+          ),
+          const SizedBox(width: 16),
+        ],
+      ),
     );
   }
 
@@ -830,7 +863,31 @@ Zespół Metropolitan Investment''';
         .toList();
 
     if (availableRecipients.isEmpty) {
-      return const Text('Brak aktywnych odbiorców do podglądu.');
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppThemePro.backgroundPrimary,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppThemePro.textSecondary.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.orange,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Brak aktywnych odbiorców do podglądu',
+              style: TextStyle(
+                color: AppThemePro.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     // Ensure a default selection if none is set or the selected one is no longer valid
@@ -841,34 +898,64 @@ Zespół Metropolitan Investment''';
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppThemePro.backgroundSecondary,
+        color: AppThemePro.backgroundPrimary,
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedPreviewRecipient,
-          isExpanded: true,
-          dropdownColor: AppThemePro.backgroundSecondary,
-          icon: Icon(Icons.arrow_drop_down, color: AppThemePro.accentGold),
-          onChanged: (String? newValue) {
-            setState(() {
-              _selectedPreviewRecipient = newValue;
-            });
-          },
-          items: availableRecipients
-              .map<DropdownMenuItem<String>>((InvestorSummary investor) {
-            return DropdownMenuItem<String>(
-              value: investor.client.id,
-              child: Text(
-                'Podgląd dla: ${investor.client.name} (${investor.client.email})',
-                style: TextStyle(color: AppThemePro.textPrimary),
-                overflow: TextOverflow.ellipsis,
+      child: Row(
+        children: [
+          Icon(
+            Icons.person,
+            color: AppThemePro.accentGold,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Podgląd dla:',
+            style: TextStyle(
+              color: AppThemePro.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedPreviewRecipient,
+                isExpanded: true,
+                dropdownColor: AppThemePro.backgroundSecondary,
+                icon: Icon(Icons.arrow_drop_down, color: AppThemePro.accentGold, size: 20),
+                style: TextStyle(
+                  color: AppThemePro.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedPreviewRecipient = newValue;
+                  });
+                },
+                items: availableRecipients
+                    .map<DropdownMenuItem<String>>((InvestorSummary investor) {
+                  return DropdownMenuItem<String>(
+                    value: investor.client.id,
+                    child: Text(
+                      investor.client.name,
+                      style: TextStyle(
+                        color: AppThemePro.textPrimary,
+                        fontSize: 13,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
               ),
-            );
-          }).toList(),
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
