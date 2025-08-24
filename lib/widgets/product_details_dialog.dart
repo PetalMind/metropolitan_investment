@@ -1485,7 +1485,7 @@ class _EnhancedProductDetailsDialogState
           ],
         ],
       ),
-    )
+    );
   }
 
   Widget _buildAnalyticsCard(
@@ -2406,6 +2406,97 @@ class _EnhancedProductDetailsDialogState
   }
 
   /// Buduje chip z amenity dla apartamentów
+  Widget _buildAmenityChip(String label, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.successPrimary.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppTheme.successPrimary.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: AppTheme.successPrimary, size: 16),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.successPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Sprawdza czy pole jest specjalne (już wyświetlone w sekcji specyficznej)
+  bool _isSpecialField(String fieldName) {
+    const specialFields = [
+      'borrower',
+      'creditorCompany',
+      'collateral',
+      'status',
+      'apartmentNumber',
+      'building',
+      'area',
+      'roomCount',
+      'floor',
+      'apartmentType',
+      'pricePerSquareMeter',
+      'address',
+      'hasBalcony',
+      'hasParkingSpace',
+      'hasStorage',
+    ];
+    return specialFields.contains(fieldName);
+  }
+
+  /// Formatuje nazwę pola dla wyświetlenia
+  String _formatFieldName(String fieldName) {
+    // Mapa tłumaczeń dla polskich nazw pól
+    const translations = {
+      'nazwa_produktu': 'Nazwa produktu',
+      'typ_produktu': 'Typ produktu',
+      'kwota_inwestycji': 'Kwota inwestycji',
+      'data_utworzenia': 'Data utworzenia',
+      'ostatnia_aktualizacja': 'Ostatnia aktualizacja',
+      'oprocentowanie': 'Oprocentowanie',
+      'data_zapadalnosci': 'Data zapadalności',
+      'liczba_udzialow': 'Liczba udziałów',
+      'cena_za_udzial': 'Cena za udział',
+      'companyName': 'Nazwa firmy',
+      'waluta': 'Waluta',
+      'projekt_nazwa': 'Nazwa projektu',
+      'numer_apartamentu': 'Numer apartamentu',
+      'powierzchnia': 'Powierzchnia',
+      'liczba_pokoi': 'Liczba pokoi',
+      'pietro': 'Piętro',
+      'typ_apartamentu': 'Typ apartamentu',
+      'cena_za_m2': 'Cena za m²',
+      'balkon': 'Balkon',
+      'miejsce_parkingowe': 'Miejsce parkingowe',
+      'komorka': 'Komórka',
+      'adres': 'Adres',
+      'pozyczkobiorca': 'Pożyczkobiorca',
+      'wierzyciel_spolka': 'Wierzyciel spółka',
+      'zabezpieczenie': 'Zabezpieczenie',
+      'status_pozyczki': 'Status pożyczki',
+    };
+
+    return translations[fieldName] ??
+        fieldName.replaceAll('_', ' ').toUpperCase()[0] +
+            fieldName.replaceAll('_', ' ').substring(1);
+  }
+
+  /// Formatuje datę
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
 }
 
 // --- Helpers for modern information card ---------------------------------
@@ -2515,98 +2606,5 @@ class _AnimatedInfoTileState extends State<_AnimatedInfoTile> with SingleTickerP
         ),
       ),
     );
-  }
-}
-
-  Widget _buildAmenityChip(String label, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppTheme.successPrimary.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppTheme.successPrimary.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: AppTheme.successPrimary, size: 16),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.successPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Sprawdza czy pole jest specjalne (już wyświetlone w sekcji specyficznej)
-  bool _isSpecialField(String fieldName) {
-    const specialFields = [
-      'borrower',
-      'creditorCompany',
-      'collateral',
-      'status',
-      'apartmentNumber',
-      'building',
-      'area',
-      'roomCount',
-      'floor',
-      'apartmentType',
-      'pricePerSquareMeter',
-      'address',
-      'hasBalcony',
-      'hasParkingSpace',
-      'hasStorage',
-    ];
-    return specialFields.contains(fieldName);
-  }
-
-  /// Formatuje nazwę pola dla wyświetlenia
-  String _formatFieldName(String fieldName) {
-    // Mapa tłumaczeń dla polskich nazw pól
-    const translations = {
-      'nazwa_produktu': 'Nazwa produktu',
-      'typ_produktu': 'Typ produktu',
-      'kwota_inwestycji': 'Kwota inwestycji',
-      'data_utworzenia': 'Data utworzenia',
-      'ostatnia_aktualizacja': 'Ostatnia aktualizacja',
-      'oprocentowanie': 'Oprocentowanie',
-      'data_zapadalnosci': 'Data zapadalności',
-      'liczba_udzialow': 'Liczba udziałów',
-      'cena_za_udzial': 'Cena za udział',
-      'companyName': 'Nazwa firmy',
-      'waluta': 'Waluta',
-      'projekt_nazwa': 'Nazwa projektu',
-      'numer_apartamentu': 'Numer apartamentu',
-      'powierzchnia': 'Powierzchnia',
-      'liczba_pokoi': 'Liczba pokoi',
-      'pietro': 'Piętro',
-      'typ_apartamentu': 'Typ apartamentu',
-      'cena_za_m2': 'Cena za m²',
-      'balkon': 'Balkon',
-      'miejsce_parkingowe': 'Miejsce parkingowe',
-      'komorka': 'Komórka',
-      'adres': 'Adres',
-      'pozyczkobiorca': 'Pożyczkobiorca',
-      'wierzyciel_spolka': 'Wierzyciel spółka',
-      'zabezpieczenie': 'Zabezpieczenie',
-      'status_pozyczki': 'Status pożyczki',
-    };
-
-    return translations[fieldName] ??
-        fieldName.replaceAll('_', ' ').toUpperCase()[0] +
-            fieldName.replaceAll('_', ' ').substring(1);
-  }
-
-  /// Formatuje datę
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 }

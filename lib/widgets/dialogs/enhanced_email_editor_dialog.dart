@@ -1,19 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_html/flutter_html.dart' as html;
+import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
-import '../../providers/auth_provider.dart';
 
-/// Zaawansowany dialog do tworzenia i wysyłania maili z edytorem Quill
-///
-/// Pozwala na:
-/// - Formatowanie tekstu za pomocą rich text editora
-/// - Podgląd HTML generowanego z edytora
-/// - Wysyłanie spersonalizowanych maili do inwestorów
-/// - Zapisywanie szablonów do ponownego użycia
+/// Enhanced email editor dialog with rich text formatting
 class EnhancedEmailEditorDialog extends StatefulWidget {
   final List<InvestorSummary> selectedInvestors;
   final VoidCallback onEmailSent;
@@ -48,19 +41,19 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
 
   bool _isLoading = false;
   bool _includeInvestmentDetails = true;
-  bool _isGroupEmail = false; // Czy wysyłać jako jeden grupowy mail
+  bool _isGroupEmail = false;
+  bool _previewDarkMode = false; // Theme toggle for preview
   String? _error;
   List<EmailSendResult>? _results;
 
-  // 🚀 NOWE: Enhanced loading and debugging states
+  // Enhanced loading and debugging states
   String _loadingMessage = 'Przygotowywanie...';
   int _currentEmailIndex = 0;
   int _totalEmailsToSend = 0;
   bool _showDetailedProgress = false;
   final List<String> _debugLogs = [];
-  DateTime? _emailSendStartTime;
 
-  // Mapy do zarządzania adresami email odbiorców
+  // Email recipient management
   final Map<String, bool> _recipientEnabled = {};
   final Map<String, String> _recipientEmails = {};
   final List<String> _additionalEmails = [];
@@ -73,35 +66,30 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
 
-    // Inicjalizacja QuillController z podstawową konfiguracją bezpieczną dla web
+    // Initialize QuillController
     _quillController = QuillController.basic();
-
-    // Inicjalizacja FocusNode dla edytora
     _editorFocusNode = FocusNode();
 
-    // Ustawienie początkowych wartości
+    // Set initial values
     _subjectController.text =
         widget.initialSubject ??
         'Aktualizacja portfela inwestycyjnego - Metropolitan Investment';
 
-    // Dodaj listener od razu
+    // Add listener
     _quillController.addListener(_updatePreview);
     
-    // Opóźnij inicjalizację treści dla stabilności
+    // Initialize content
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _initializeEditorContent();
       }
     });
 
-    // Inicjalizacja map odbiorców
+    // Initialize recipients
     _initializeRecipients();
-
-    // Pobierz email z ustawień SMTP
     _loadSmtpEmail();
   }
 
-  /// Nowa metoda inicjalizacji edytora - bardziej stabilna
   void _initializeEditorContent() {
     try {
       if (widget.initialMessage != null) {
@@ -110,39 +98,35 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
         _insertDefaultTemplate();
       }
     } catch (e) {
-      debugPrint('Błąd inicjalizacji edytora: $e');
+      debugPrint('Error initializing editor: $e');
     }
   }
 
   void _insertInitialContent(String content) {
     try {
-      // Stabilniejsze wstawianie treści
       _quillController.clear();
       
-      // Poczekaj na stabilizację stanu
       Future.delayed(const Duration(milliseconds: 50), () {
         if (mounted) {
           try {
             _quillController.document.insert(0, content);
-            // Ustaw kursor na końcu tekstu
             _quillController.updateSelection(
               TextSelection.collapsed(offset: content.length),
               ChangeSource.local,
             );
-            setState(() {}); // Wymuś odświeżenie
+            setState(() {});
           } catch (e) {
-            debugPrint('Błąd opóźnionego wstawiania: $e');
+            debugPrint('Error inserting content: $e');
           }
         }
       });
     } catch (e) {
-      debugPrint('Błąd podczas wstawiania treści: $e');
-      // Fallback - prostsza metoda
+      debugPrint('Error during content insertion: $e');
       try {
         _quillController.clear();
         _quillController.document.insert(0, content);
       } catch (fallbackError) {
-        debugPrint('Błąd fallback: $fallbackError');
+        debugPrint('Fallback error: $fallbackError');
       }
     }
   }
@@ -157,6 +141,14 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
           RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
       _recipientEmails[clientId] = email;
     }
+    
+    // Auto-select first available recipient for preview
+    final availableRecipients = widget.selectedInvestors
+        .where((inv) => _recipientEnabled[inv.client.id] ?? false)
+        .toList();
+    if (availableRecipients.isNotEmpty && _selectedPreviewRecipient == null) {
+      _selectedPreviewRecipient = availableRecipients.first.client.id;
+    }
   }
 
   Future<void> _loadSmtpEmail() async {
@@ -167,7 +159,7 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
         _senderEmailController.text = smtpSettings.username;
       }
     } catch (e) {
-      // Ignoruj błąd - użytkownik może wprowadzić email ręcznie
+      // Ignore error - user can enter email manually
     }
   }
 
@@ -186,42 +178,36 @@ Zespół Metropolitan Investment''';
     try {
       _quillController.clear();
       
-      // Stabilne wstawianie szablonu
       Future.delayed(const Duration(milliseconds: 50), () {
         if (mounted) {
           try {
             _quillController.document.insert(0, defaultTemplate);
-            // Ustaw kursor na końcu
             _quillController.updateSelection(
               TextSelection.collapsed(offset: defaultTemplate.length),
               ChangeSource.local,
             );
-            setState(() {}); // Wymuś odświeżenie
+            setState(() {});
           } catch (e) {
-            debugPrint('Błąd opóźnionego wstawiania szablonu: $e');
+            debugPrint('Error inserting template: $e');
           }
         }
       });
     } catch (e) {
-      debugPrint('Błąd podczas wstawiania szablonu: $e');
+      debugPrint('Error during template insertion: $e');
     }
   }
 
   void _updatePreview() {
-    // Bezpieczna aktualizacja podglądu
     if (mounted) {
       setState(() {
-        // Aktualizacja podglądu - wywołane przy zmianie treści
+        // Update preview when content changes
       });
     }
   }
 
   @override
-  @override
   void dispose() {
-    // Usuń listener przed dispose
     _quillController.removeListener(_updatePreview);
-
     _tabController.dispose();
     _quillController.dispose();
     _editorFocusNode.dispose();
@@ -238,16 +224,15 @@ Zespół Metropolitan Investment''';
     final isSmallScreen = screenSize.width < 600;
     final isMediumScreen = screenSize.width < 900;
     
-    // Responsywne wymiary dialogu
     final dialogWidth = isSmallScreen 
-        ? screenSize.width * 0.95  // 95% na mobile
+        ? screenSize.width * 0.95
         : isMediumScreen 
-            ? screenSize.width * 0.85  // 85% na tablet
-            : screenSize.width * 0.8;  // 80% na desktop
+            ? screenSize.width * 0.85
+            : screenSize.width * 0.8;
     
     final dialogHeight = isSmallScreen 
-        ? screenSize.height * 0.95  // 95% na mobile
-        : screenSize.height * 0.9;  // 90% na desktop/tablet
+        ? screenSize.height * 0.95
+        : screenSize.height * 0.9;
     
     final dialogPadding = isSmallScreen ? 8.0 : 16.0;
 
@@ -262,7 +247,7 @@ Zespół Metropolitan Investment''';
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -294,7 +279,7 @@ Zespół Metropolitan Investment''';
         gradient: LinearGradient(
           colors: [
             AppThemePro.backgroundPrimary,
-            AppThemePro.accentGold.withOpacity(0.8),
+            AppThemePro.accentGold.withValues(alpha: 0.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -372,7 +357,6 @@ Zespół Metropolitan Investment''';
       padding: EdgeInsets.all(contentPadding),
       child: Column(
         children: [
-          // Editor z zabezpieczeniami dla web
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -381,7 +365,7 @@ Zespół Metropolitan Investment''';
               ),
               child: Column(
                 children: [
-                  // Pasek narzędzi Quill - ZAWSZE widoczny (również na web)
+                  // Quill toolbar
                   Container(
                     decoration: BoxDecoration(
                       color: AppThemePro.backgroundSecondary,
@@ -396,108 +380,92 @@ Zespół Metropolitan Investment''';
                     child: Theme(
                       data: Theme.of(context).copyWith(
                         iconTheme: IconThemeData(
-                          color: AppThemePro.backgroundPrimary,
-                          size: 18,
+                          color: AppThemePro.textPrimary,
+                          size: 20,
                         ),
-                        dividerColor: AppThemePro.borderPrimary,
-                        tooltipTheme: TooltipThemeData(
-                          decoration: BoxDecoration(
-                            color: AppThemePro.backgroundModal,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: AppThemePro.borderPrimary,
-                            ),
-                          ),
-                          textStyle: TextStyle(
-                            color: AppThemePro.backgroundPrimary,
-                            fontSize: 12,
-                          ),
+                        dividerTheme: DividerThemeData(
+                          color: AppThemePro.borderSecondary,
+                          thickness: 1,
                         ),
                       ),
-                      child: Theme(
-                        data: Theme.of(context).copyWith(
-                          // Poprawiona kolorystyka dla toolbara
-                          iconTheme: IconThemeData(
-                            color: AppThemePro.textPrimary,
-                            size: 20,
-                          ),
-                          textTheme: TextTheme(
-                            bodySmall: TextStyle(
-                              color: AppThemePro.overlayDark,
-                              fontSize: 12,
+                      child: QuillSimpleToolbar(
+                        controller: _quillController,
+                        config: QuillSimpleToolbarConfig(
+                          multiRowsDisplay: true,
+                          showFontFamily: true,
+                          showFontSize: true,
+                          showColorButton: true,
+                          showBackgroundColorButton: true,
+                          showBoldButton: true,
+                          showItalicButton: true,
+                          showUnderLineButton: true,
+                          showStrikeThrough: true,
+                          showSubscript: true,
+                          showSuperscript: true,
+                          showHeaderStyle: true,
+                          showQuote: true,
+                          showInlineCode: true,
+                          showCodeBlock: false,
+                          showListBullets: true,
+                          showListNumbers: true,
+                          showListCheck: true,
+                          showIndent: true,
+                          showAlignmentButtons: true,
+                          showLeftAlignment: true,
+                          showCenterAlignment: true,
+                          showRightAlignment: true,
+                          showJustifyAlignment: true,
+                          showDirection: false,
+                          showLink: true,
+                          showUndo: true,
+                          showRedo: true,
+                          showClearFormat: true,
+                          showSearchButton: false,
+                          decoration: BoxDecoration(
+                            color: AppThemePro.backgroundTertiary,
+                            border: Border.all(
+                              color: AppThemePro.borderPrimary,
+                              width: 1,
                             ),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          dividerTheme: DividerThemeData(
-                            color: AppThemePro.borderSecondary,
-                            thickness: 1,
-                          ),
-                        ),
-                        child: QuillSimpleToolbar(
-                          controller: _quillController,
-                          config: QuillSimpleToolbarConfig(
-                            multiRowsDisplay: true,
-                            showFontFamily: false,
-                            showFontSize: true, // Rozmiar czcionki tylko na desktop/mobile
-                            showStrikeThrough: false,
-                            showInlineCode: false,
-                            showCodeBlock: false,
-                            showSubscript: false,
-                            showSuperscript: false,
-                            showSearchButton: false,
-                            showListCheck: false,
-                            showHeaderStyle: true,
-                            showListBullets: true,
-                            showListNumbers: true,
-                            showIndent: !kIsWeb, // Wcięcia tylko na desktop/mobile
-                            showLink: false, // Wyłącz linki dla stabilności
-                            showUndo: true,
-                            showRedo: true,
-                            showDirection: false,
-                            showAlignmentButtons: true,
-                            showLeftAlignment: true,
-                            showCenterAlignment: true,
-                            showRightAlignment: true,
-                            showJustifyAlignment: false,
-                            showBackgroundColorButton: !kIsWeb, // Kolor tła tylko na desktop/mobile
-                            showColorButton: true, // Kolor tekstu tylko na desktop/mobile
-                            showBoldButton: true,
-                            showItalicButton: true,
-                            showUnderLineButton: true,
-                            showClearFormat: true,
-                            showQuote: true,
-                            // Improved styling for dark theme compatibility
-                            decoration: BoxDecoration(
-                              color: AppThemePro.backgroundTertiary,
-                              border: Border.all(
-                                color: AppThemePro.borderPrimary,
-                                width: 1,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
+                          toolbarSize: 35,
+                          toolbarSectionSpacing: 4,
+                          toolbarIconAlignment: WrapAlignment.center,
+                          // Enhanced button options for better formatting
+                          buttonOptions: QuillSimpleToolbarButtonOptions(
+                            base: QuillToolbarBaseButtonOptions(
+                              iconSize: 18,
+                              iconButtonFactor: 1.2,
                             ),
+                            // Font size options - adding more size variations
+                            fontSize: QuillToolbarFontSizeButtonOptions(
+                              attribute: Attribute.size,
+                            ),
+                            // Color options - using default QuillToolbarColorButtonOptions
+                            color: const QuillToolbarColorButtonOptions(),
+                            // Background color options - using default QuillToolbarColorButtonOptions  
+                            backgroundColor: const QuillToolbarColorButtonOptions(),
                           ),
                         ),
                       ),
                     ),
                   ),
 
-                  // Separator między toolbar a edytorem
                   Container(height: 1, color: AppThemePro.borderPrimary),
 
-                  // Edytor Quill z lepszą kolorystyką
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
-                        // Focus editor when tapped - z zabezpieczeniem
                         try {
                           _editorFocusNode.requestFocus();
-                          // Opóźnione wymuszenie focus dla stabilności
                           Future.delayed(const Duration(milliseconds: 100), () {
                             if (mounted && !_editorFocusNode.hasFocus) {
                               _editorFocusNode.requestFocus();
                             }
                           });
                         } catch (e) {
-                          debugPrint('Błąd focus edytora: $e');
+                          debugPrint('Focus error: $e');
                         }
                       },
                       child: Container(
@@ -511,7 +479,6 @@ Zespół Metropolitan Investment''';
                         ),
                         child: Theme(
                           data: Theme.of(context).copyWith(
-                            // Nadpisanie kolorów dla lepszej widoczności na białym tle
                             iconTheme: IconThemeData(
                               color: AppThemePro.backgroundPrimary,
                             ),
@@ -525,11 +492,10 @@ Zespół Metropolitan Investment''';
                                 fontSize: 14,
                               ),
                             ),
-                            // Dodaj konfigurację selection
                             textSelectionTheme: TextSelectionThemeData(
                               cursorColor: AppThemePro.accentGold,
                               selectionColor: AppThemePro.accentGold
-                                  .withOpacity(0.3),
+                                  .withValues(alpha: 0.3),
                               selectionHandleColor: AppThemePro.accentGold,
                             ),
                           ),
@@ -550,7 +516,7 @@ Zespół Metropolitan Investment''';
             ),
           ),
 
-          // Szybkie akcje z dodatkowymi opcjami dla web
+          // Quick actions
           Wrap(
             spacing: isSmallScreen ? 4 : 8,
             runSpacing: isSmallScreen ? 4 : 8,
@@ -560,7 +526,7 @@ Zespół Metropolitan Investment''';
                 icon: const Icon(Icons.waving_hand, size: 16),
                 label: const Text('Dodaj powitanie'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.statusInfo.withOpacity(0.2),
+                  backgroundColor: AppThemePro.statusInfo.withValues(alpha: 0.2),
                   foregroundColor: AppThemePro.statusInfo,
                   padding: EdgeInsets.symmetric(
                     horizontal: isSmallScreen ? 8 : 12,
@@ -573,7 +539,7 @@ Zespół Metropolitan Investment''';
                 icon: const Icon(Icons.edit, size: 16),
                 label: const Text('Dodaj podpis'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.statusSuccess.withOpacity(0.2),
+                  backgroundColor: AppThemePro.statusSuccess.withValues(alpha: 0.2),
                   foregroundColor: AppThemePro.statusSuccess,
                   padding: EdgeInsets.symmetric(
                     horizontal: isSmallScreen ? 8 : 12,
@@ -586,7 +552,7 @@ Zespół Metropolitan Investment''';
                 icon: const Icon(Icons.clear, size: 16),
                 label: const Text('Wyczyść'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.statusError.withOpacity(0.2),
+                  backgroundColor: AppThemePro.statusError.withValues(alpha: 0.2),
                   foregroundColor: AppThemePro.statusError,
                   padding: EdgeInsets.symmetric(
                     horizontal: isSmallScreen ? 8 : 12,
@@ -594,42 +560,10 @@ Zespół Metropolitan Investment''';
                   ),
                 ),
               ),
-              if (kIsWeb) // Dodatkowe opcje dla web
-                ElevatedButton.icon(
-                  onPressed: _insertDefaultTemplate,
-                  icon: const Icon(Icons.article, size: 16),
-                  label: const Text('Szablon'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppThemePro.accentGold.withOpacity(0.2),
-                    foregroundColor: AppThemePro.accentGold,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isSmallScreen ? 8 : 12,
-                      vertical: isSmallScreen ? 6 : 8,
-                    ),
-                  ),
-                ),
             ],
           ),
 
           const SizedBox(height: 12),
-
-          // Informacja o skrótach klawiszowych dla web
-          if (kIsWeb)
-            Container(
-              padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
-              decoration: BoxDecoration(
-                color: AppThemePro.backgroundTertiary,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: AppThemePro.borderSecondary),
-              ),
-              child: Text(
-                'Skróty: Ctrl+B (pogrubienie), Ctrl+I (kursywa), Ctrl+U (podkreślenie), Ctrl+Z (cofnij)',
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 10 : 11, 
-                  color: AppThemePro.textMuted,
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -638,1293 +572,677 @@ Zespół Metropolitan Investment''';
   Widget _buildSettingsTab() {
     final screenSize = MediaQuery.of(context).size;
     final isSmallScreen = screenSize.width < 600;
-    final settingsPadding = isSmallScreen ? 16.0 : 24.0;
-    
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(settingsPadding),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Podstawowe ustawienia
-            Text(
-              'Ustawienia Email',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 16),
+    final contentPadding = isSmallScreen ? 12.0 : 24.0;
 
-            // Email wysyłającego
-            TextFormField(
-              controller: _senderEmailController,
-              keyboardType: TextInputType.emailAddress,
-              autocorrect: false,
-              enableSuggestions: false,
-              decoration: const InputDecoration(
-                labelText: 'Twój Email *',
-                hintText: 'your@company.com',
-                prefixIcon: Icon(Icons.person_outline),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Email wysyłającego jest wymagany';
-                }
-                if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value)) {
-                  return 'Nieprawidłowy format email';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            // Nazwa wysyłającego
-            TextFormField(
-              controller: _senderNameController,
-              decoration: const InputDecoration(
-                labelText: 'Nazwa Wysyłającego',
-                hintText: 'Metropolitan Investment',
-                prefixIcon: Icon(Icons.business_outlined),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Temat
-            TextFormField(
-              controller: _subjectController,
-              decoration: const InputDecoration(
-                labelText: 'Temat Email',
-                hintText: 'Twoje inwestycje - podsumowanie',
-                prefixIcon: Icon(Icons.subject_outlined),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Opcje dodatkowe
-            Text(
-              'Opcje Dodatkowe',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 16),
-
-            CheckboxListTile(
-              title: const Text('Dołącz szczegóły inwestycji'),
-              subtitle: const Text('Automatycznie dodaj tabelę z inwestycjami'),
-              value: _includeInvestmentDetails,
-              onChanged: (value) {
-                setState(() {
-                  _includeInvestmentDetails = value ?? true;
-                });
-              },
-              activeColor: AppThemePro.accentGold,
-            ),
-
-            // Typ wysyłki (jeśli więcej niż 1 odbiorca)
-            if (widget.selectedInvestors.length > 1) ...[
-              const SizedBox(height: 8),
-              SwitchListTile(
-                title: const Text('Email grupowy'),
-                subtitle: Text(
-                  _isGroupEmail
-                      ? 'Jeden email do wszystkich odbiorców (TO/CC/BCC)'
-                      : 'Osobne emaile dla każdego odbiorcy',
-                ),
-                value: _isGroupEmail,
-                onChanged: (value) {
-                  setState(() {
-                    _isGroupEmail = value;
-                  });
-                },
-                activeColor: AppThemePro.accentGold,
-              ),
-            ],
-
-            // Lista odbiorców
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Text(
-                  'Odbiorcy',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: _addAdditionalEmail,
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Dodaj email'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppThemePro.accentGold,
-                  ),
-                ),
-              ],
-            ),
-
-            // Informacja o edycji emaili
-            Container(
-              margin: EdgeInsets.only(
-                top: isSmallScreen ? 6 : 8, 
-                bottom: isSmallScreen ? 8 : 12,
-              ),
-              padding: EdgeInsets.all(isSmallScreen ? 8 : 12),
-              decoration: BoxDecoration(
-                color: AppThemePro.accentGold.withOpacity(0.1),
-                border: Border.all(
-                  color: AppThemePro.accentGold.withOpacity(0.3),
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.lightbulb_outline,
-                    size: 18,
-                    color: AppThemePro.accentGold,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Możesz edytować adresy email inwestorów klikając przycisk edycji. Email zostanie wysłany na nowy adres zamiast na adres przypisany do klienta.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppThemePro.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Lista inwestorów
-            ..._buildRecipientsList(),
-
-            // Lista dodatkowych emaili
-            if (_additionalEmails.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Dodatkowe adresy',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              ..._buildAdditionalEmailsList(),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _buildRecipientsList() {
-    final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 600;
-    
-    return widget.selectedInvestors.map((investor) {
-      final clientId = investor.client.id;
-      final isEnabled = _recipientEnabled[clientId] ?? false;
-      final currentEmail = _recipientEmails[clientId] ?? '';
-      final originalEmail = investor.client.email;
-      final hasCustomEmail =
-          currentEmail != originalEmail && currentEmail.isNotEmpty;
-
-      return Container(
-        margin: EdgeInsets.only(bottom: isSmallScreen ? 8 : 12),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isEnabled
-                ? AppThemePro.accentGold.withOpacity(0.3)
-                : AppThemePro.borderPrimary,
-            width: isEnabled ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(12),
-          color: isEnabled
-              ? AppThemePro.accentGold.withOpacity(0.05)
-              : AppThemePro.backgroundTertiary,
-          boxShadow: isEnabled
-              ? [
-                  BoxShadow(
-                    color: AppThemePro.accentGold.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header z przełącznikiem i nazwą inwestora
-              Row(
-                children: [
-                  Transform.scale(
-                    scale: 0.9,
-                    child: Switch(
-                      value: isEnabled,
-                      onChanged: (value) {
-                        setState(() {
-                          _recipientEnabled[clientId] = value;
-                          // Jeśli włączamy i nie ma emaila, ustaw oryginalny
-                          if (value &&
-                              currentEmail.isEmpty &&
-                              originalEmail.isNotEmpty) {
-                            _recipientEmails[clientId] = originalEmail;
-                          }
-                        });
-                      },
-                      activeColor: AppThemePro.accentGold,
-                      activeTrackColor: AppThemePro.accentGold.withOpacity(0.3),
-                      inactiveThumbColor: AppThemePro.textMuted,
-                      inactiveTrackColor: AppThemePro.borderSecondary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          investor.client.name,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: isEnabled
-                                ? AppThemePro.textPrimary
-                                : AppThemePro.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.account_balance_wallet,
-                              size: 14,
-                              color: AppThemePro.textMuted,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${investor.investmentCount} inwestycji',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppThemePro.textMuted,
-                              ),
-                            ),
-                            if (hasCustomEmail) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppThemePro.accentGold.withOpacity(
-                                    0.2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'WŁASNY EMAIL',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppThemePro.accentGold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              // Pole email z lepszym designem
-              TextFormField(
-                initialValue: currentEmail,
-                enabled: isEnabled,
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                enableSuggestions: false,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: isEnabled
-                      ? AppThemePro.textPrimary
-                      : AppThemePro.textMuted,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'adres@email.com',
-                  hintStyle: TextStyle(
-                    color: AppThemePro.textMuted,
-                    fontSize: 14,
-                  ),
-                  filled: true,
-                  fillColor: isEnabled
-                      ? AppThemePro.surfaceCard
-                      : AppThemePro.backgroundSecondary,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: AppThemePro.borderPrimary),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: hasCustomEmail
-                          ? AppThemePro.accentGold.withOpacity(0.5)
-                          : AppThemePro.borderPrimary,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: AppThemePro.accentGold,
-                      width: 2,
-                    ),
-                  ),
-                  disabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: AppThemePro.borderPrimary.withOpacity(0.5),
-                    ),
-                  ),
-                  prefixIcon: Icon(
-                    hasCustomEmail ? Icons.edit_outlined : Icons.email_outlined,
-                    size: 18,
-                    color: isEnabled
-                        ? (hasCustomEmail
-                              ? AppThemePro.accentGold
-                              : AppThemePro.textSecondary)
-                        : AppThemePro.textMuted,
-                  ),
-                  suffixIcon: isEnabled
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (hasCustomEmail) ...[
-                              IconButton(
-                                icon: Icon(
-                                  Icons.refresh,
-                                  size: 18,
-                                  color: AppThemePro.textSecondary,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _recipientEmails[clientId] = originalEmail;
-                                  });
-                                },
-                                tooltip: 'Przywróć oryginalny email',
-                              ),
-                            ],
-                            IconButton(
-                              icon: Icon(
-                                Icons.edit_outlined,
-                                size: 18,
-                                color: AppThemePro.accentGold,
-                              ),
-                              onPressed: () {
-                                _showEmailEditDialog(
-                                  clientId,
-                                  investor.client.name,
-                                  currentEmail,
-                                  originalEmail,
-                                );
-                              },
-                              tooltip: 'Edytuj email',
-                            ),
-                          ],
-                        )
-                      : null,
-                ),
-                onChanged: (value) {
-                  _recipientEmails[clientId] = value;
-
-                  // Sprawdź czy email jest prawidłowy i automatycznie ustaw switch
-                  final isValid =
-                      value.isNotEmpty &&
-                      RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value);
-
-                  setState(() {
-                    if (isValid && !_recipientEnabled[clientId]!) {
-                      _recipientEnabled[clientId] = true;
-                    }
-                  });
-                },
-                validator: isEnabled
-                    ? (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Email jest wymagany';
-                        }
-                        if (!RegExp(
-                          r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
-                        ).hasMatch(value)) {
-                          return 'Nieprawidłowy format email';
-                        }
-                        return null;
-                      }
-                    : null,
-              ),
-
-              // Footer z informacją o oryginalnym emailu
-              if (originalEmail.isNotEmpty &&
-                  originalEmail != currentEmail) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 14,
-                      color: AppThemePro.textMuted,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Oryginalny email: $originalEmail',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppThemePro.textMuted,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      );
-    }).toList();
-  }
-
-  List<Widget> _buildAdditionalEmailsList() {
-    final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 600;
-    
-    return _additionalEmails.asMap().entries.map((entry) {
-      final index = entry.key;
-      final email = entry.value;
-      final isValidEmail =
-          email.isNotEmpty &&
-          RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
-
-      return Container(
-        key: ValueKey('additional_email_$index'),
-        margin: EdgeInsets.only(bottom: isSmallScreen ? 8 : 12),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isValidEmail
-                ? AppThemePro.statusInfo.withOpacity(0.5)
-                : AppThemePro.borderPrimary,
-            width: isValidEmail ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(12),
-          color: isValidEmail
-              ? AppThemePro.statusInfo.withOpacity(0.1)
-              : AppThemePro.backgroundTertiary,
-          boxShadow: isValidEmail
-              ? [
-                  BoxShadow(
-                    color: AppThemePro.statusInfo.withOpacity(0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header z ikoną i etykietą
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppThemePro.statusInfo.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.person_add_outlined,
-                      size: 18,
-                      color: AppThemePro.statusInfo,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Dodatkowy odbiorca ${index + 1}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppThemePro.textPrimary,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.delete_outline,
-                      color: AppThemePro.statusError,
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _additionalEmails.removeAt(index);
-                      });
-                    },
-                    tooltip: 'Usuń tego odbiorcę',
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              // Pole email
-              TextFormField(
-                key: ValueKey('additional_email_field_$index'),
-                initialValue: email,
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                enableSuggestions: false,
-                style: TextStyle(fontSize: 14, color: AppThemePro.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'dodatkowy@email.com',
-                  hintStyle: TextStyle(
-                    color: AppThemePro.textMuted,
-                    fontSize: 14,
-                  ),
-                  filled: true,
-                  fillColor: AppThemePro.surfaceCard,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: AppThemePro.borderPrimary),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: isValidEmail
-                          ? AppThemePro.statusInfo.withOpacity(0.5)
-                          : AppThemePro.borderPrimary,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: AppThemePro.statusInfo, width: 2),
-                  ),
-                  prefixIcon: Icon(
-                    Icons.alternate_email,
-                    size: 18,
-                    color: isValidEmail
-                        ? AppThemePro.statusInfo
-                        : AppThemePro.textSecondary,
-                  ),
-                  suffixIcon: isValidEmail
-                      ? Icon(
-                          Icons.check_circle,
-                          size: 18,
-                          color: AppThemePro.statusSuccess,
-                        )
-                      : null,
-                ),
-                onChanged: (value) {
-                  if (index < _additionalEmails.length) {
-                    // Zabezpieczenie przed błędami indeksu
-                    _additionalEmails[index] = value;
-                  }
-                },
-              ),
-
-              // Dodanie przycisków akcji - przeniesienie z niepoprawnego atrybutu trailing
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.check,
-                      color: AppThemePro.statusSuccess,
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      // Pobierz aktualną wartość z listy _additionalEmails
-                      final currentValue = index < _additionalEmails.length
-                          ? _additionalEmails[index].trim()
-                          : '';
-
-                      // Potwierdzenie dodania adresu
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            currentValue.isNotEmpty
-                                ? 'Adres $currentValue został potwierdzony'
-                                : 'Adres jest pusty - wprowadź poprawny email',
-                          ),
-                          backgroundColor: currentValue.isNotEmpty
-                              ? AppThemePro.statusSuccess
-                              : Colors.orange,
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                    tooltip: 'Potwierdź adres',
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.delete,
-                      color: AppThemePro.statusError,
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        if (index < _additionalEmails.length) {
-                          // Zabezpieczenie przed błędami indeksu
-                          _additionalEmails.removeAt(index);
-                        }
-                      });
-                    },
-                    tooltip: 'Usuń adres',
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
-    }).toList();
-  }
-
-  void _addAdditionalEmail() {
-    setState(() {
-      _additionalEmails.add('');
-    });
-  }
-
-  Widget _buildPreviewTab() {
-    final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 600;
-    
-    return Container(
-      padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: EdgeInsets.all(contentPadding),
+      child: ListView(
         children: [
-          Row(
-            children: [
-              const Icon(Icons.preview, color: AppThemePro.accentGold),
-              const SizedBox(width: 8),
-              Text(
-                'Podgląd Email',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const Spacer(),
-              DropdownButton<String>(
-                value: _selectedPreviewRecipient,
-                hint: const Text('Wybierz odbiorcę'),
-                items: _getEnabledRecipients().map((recipient) {
-                  return DropdownMenuItem(
-                    value: recipient['id'],
-                    child: Text(
-                      recipient['name'] ?? 'Nieznany',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPreviewRecipient = value;
-                    _updatePreview();
-                  });
-                },
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: _updatePreview,
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Odśwież'),
-              ),
-            ],
-          ),
+          _buildSectionHeader('Główne Ustawienia', Icons.settings_outlined),
           const SizedBox(height: 16),
-
-          // Info o wybranym odbiorcy
-          if (_selectedPreviewRecipient != null) ...[
-            Container(
-              padding: EdgeInsets.all(isSmallScreen ? 8 : 12),
-              decoration: BoxDecoration(
-                color: AppThemePro.statusInfo.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppThemePro.statusInfo.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppThemePro.statusInfo, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Podgląd dla: ${_getRecipientInfo(_selectedPreviewRecipient!)}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // Faktyczny podgląd email
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppThemePro.backgroundSecondary,
-                border: Border.all(color: AppThemePro.borderPrimary),
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: SingleChildScrollView(child: _buildEmailPreview()),
-            ),
+          SwitchListTile.adaptive(
+            title: const Text('Dołącz szczegóły inwestycji'),
+            subtitle: const Text(
+                'Automatycznie dodaj tabelę z podsumowaniem inwestycji na końcu wiadomości.'),
+            value: _includeInvestmentDetails,
+            onChanged: (value) => setState(() => _includeInvestmentDetails = value),
+            activeColor: AppThemePro.accentGold,
+            secondary: Icon(Icons.attach_money, color: AppThemePro.accentGold),
           ),
+          const SizedBox(height: 8),
+          SwitchListTile.adaptive(
+            title: const Text('Grupowa wiadomość (BCC)'),
+            subtitle: const Text(
+                'Wyślij jedną wiadomość do wszystkich odbiorców w polu "BCC", ukrywając ich adresy.'),
+            value: _isGroupEmail,
+            onChanged: (value) => setState(() => _isGroupEmail = value),
+            activeColor: AppThemePro.accentGold,
+            secondary: Icon(Icons.group, color: AppThemePro.accentGold),
+          ),
+          const Divider(height: 48),
+          _buildSectionHeader('Zarządzanie Odbiorcami', Icons.people_outline),
+          const SizedBox(height: 16),
+          _buildRecipientList(),
+          const SizedBox(height: 24),
+          _buildAdditionalEmailsField(),
         ],
       ),
     );
   }
 
-  List<Map<String, String>> _getEnabledRecipients() {
-    final recipients = <Map<String, String>>[];
-
-    // Dodaj aktywnych inwestorów
-    for (final investor in widget.selectedInvestors) {
-      final clientId = investor.client.id;
-      if (_recipientEnabled[clientId] == true) {
-        recipients.add({
-          'id': clientId,
-          'name': investor.client.name,
-          'email': _recipientEmails[clientId] ?? '',
-          'type': 'investor',
-        });
-      }
-    }
-
-    // Dodaj dodatkowe emaile
-    for (int i = 0; i < _additionalEmails.length; i++) {
-      final email = _additionalEmails[i];
-      if (email.isNotEmpty &&
-          RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
-        recipients.add({
-          'id': 'additional_$i',
-          'name': 'Dodatkowy: $email',
-          'email': email,
-          'type': 'additional',
-        });
-      }
-    }
-
-    return recipients;
-  }
-
-  String _getRecipientInfo(String recipientId) {
-    if (recipientId.startsWith('additional_')) {
-      final index = int.tryParse(recipientId.split('_')[1]) ?? 0;
-      if (index < _additionalEmails.length) {
-        return _additionalEmails[index];
-      }
-      return 'Nieznany dodatkowy email';
-    }
-
-    final investor = widget.selectedInvestors.firstWhere(
-      (inv) => inv.client.id == recipientId,
-      orElse: () => widget.selectedInvestors.first,
-    );
-
-    final email = _recipientEmails[recipientId] ?? investor.client.email;
-    return '${investor.client.name} <$email>';
-  }
-
-  Widget _buildEmailPreview() {
-    final screenSize = MediaQuery.of(context).size;
-    final isSmallScreen = screenSize.width < 600;
-    
-    if (_selectedPreviewRecipient == null) {
-      return SizedBox(
-        height: 300,
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.email_outlined, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
-              Text(
-                'Wybierz odbiorcę z listy powyżej\naby zobaczyć podgląd email',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 16),
-              ),
-            ],
-          ),
-        ),
+  Widget _buildRecipientList() {
+    if (widget.selectedInvestors.isEmpty) {
+      return const Center(
+        child: Text('Brak wybranych inwestorów.'),
       );
     }
 
-    final recipientInfo = _getRecipientInfo(_selectedPreviewRecipient!);
-    final plainText = _quillController.document.toPlainText();
-
     return Container(
-      color: Colors.white,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Email header (jak w prawdziwym kliencie email)
-          Container(
-            padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
-            decoration: BoxDecoration(
-              color: AppThemePro.backgroundTertiary,
-              border: Border(bottom: BorderSide(color: AppThemePro.borderSecondary)),
+      constraints: const BoxConstraints(maxHeight: 300),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppThemePro.borderSecondary),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListView.builder(
+        shrinkWrap: true,
+        itemCount: widget.selectedInvestors.length,
+        itemBuilder: (context, index) {
+          final investor = widget.selectedInvestors[index];
+          final clientId = investor.client.id;
+          final email = investor.client.email;
+          final isValidEmail = email.isNotEmpty &&
+              RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
+
+          return CheckboxListTile(
+            title: Text(investor.client.name),
+            subtitle: Text(email.isNotEmpty ? email : 'Brak adresu email'),
+            value: _recipientEnabled[clientId] ?? false,
+            onChanged: isValidEmail
+                ? (bool? value) {
+                    setState(() {
+                      _recipientEnabled[clientId] = value ?? false;
+                    });
+                  }
+                : null,
+            secondary: Icon(
+              isValidEmail ? Icons.person : Icons.person_off,
+              color: isValidEmail
+                  ? AppThemePro.statusSuccess
+                  : AppThemePro.statusError,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'Od: ',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppThemePro.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      '${_senderNameController.text} <${_senderEmailController.text}>',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      'Do: ',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppThemePro.textSecondary,
-                      ),
-                    ),
-                    Expanded(child: Text(recipientInfo)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      'Temat: ',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppThemePro.textSecondary,
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        _subjectController.text.isNotEmpty
-                            ? _subjectController.text
-                            : 'Brak tematu',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: _subjectController.text.isNotEmpty
-                              ? Colors.black
-                              : Colors.grey,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      'Data: ',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppThemePro.textSecondary,
-                      ),
-                    ),
-                    Text(DateTime.now().toString().split('.')[0]),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Email content
-          Container(
-            padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Powitanie
-                if (_selectedPreviewRecipient!.startsWith('additional_'))
-                  Text(
-                    'Szanowni Państwo,',
-                    style: TextStyle(
-                  fontSize: isSmallScreen ? 14 : 16, 
-                  color: AppThemePro.textPrimary,
-                ),
-                  )
-                else
-                  Text(
-                    'Szanowny/a ${widget.selectedInvestors.firstWhere((inv) => inv.client.id == _selectedPreviewRecipient!).client.name},',
-                    style: TextStyle(
-                  fontSize: isSmallScreen ? 14 : 16, 
-                  color: AppThemePro.textPrimary,
-                ),
-                  ),
-
-                const SizedBox(height: 16),
-
-                // Treść z edytora - dokładnie 1:1 z zawartością edytora
-                if (plainText.isNotEmpty)
-                  Container(
-                    padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
-                    decoration: BoxDecoration(
-                      color: AppThemePro.backgroundTertiary,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppThemePro.borderPrimary),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          plainText,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            height: 1.6,
-                            color: AppThemePro.textPrimary,
-                          ),
-                        ),
-
-                        // Dodanie szczegółów inwestycji jeśli włączone
-                        if (_includeInvestmentDetails &&
-                            !_selectedPreviewRecipient!.startsWith(
-                              'additional_',
-                            )) ...[
-                          const SizedBox(height: 16),
-                          const Divider(color: AppThemePro.borderSecondary),
-                          const SizedBox(height: 16),
-                          _buildInvestmentDetailsInline(
-                            _selectedPreviewRecipient!,
-                          ),
-                        ],
-                      ],
-                    ),
-                  )
-                else
-                  Container(
-                    padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
-                    decoration: BoxDecoration(
-                      color: AppThemePro.statusWarning.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppThemePro.statusWarning),
-                    ),
-                    child: const Text(
-                      'Brak treści wiadomości. Użyj edytora aby dodać treść.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontStyle: FontStyle.italic,
-                        color: AppThemePro.statusWarning,
-                      ),
-                    ),
-                  ),
-
-                // Szczegóły inwestycji są już wbudowane w treść powyżej
-                const SizedBox(height: 24),
-
-                // Podpis
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Z poważaniem,', style: TextStyle(color: AppThemePro.textPrimary)),
-                    Text(
-                      _senderNameController.text.isNotEmpty
-                          ? _senderNameController.text
-                          : 'Metropolitan Investment',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: AppThemePro.textPrimary),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // Footer
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppThemePro.statusInfo.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Ten email został wygenerowany ${DateTime.now().toString().split('.')[0]}.\n'
-                    'W razie pytań prosimy o kontakt z naszym działem obsługi klienta.',
-                    style: TextStyle(fontSize: 12, color: AppThemePro.statusInfo),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+            controlAffinity: ListTileControlAffinity.leading,
+            activeColor: AppThemePro.accentGold,
+          );
+        },
       ),
     );
   }
 
-  /// Inline version of investment details for editor synchronization
-  Widget _buildInvestmentDetailsInline(String clientId) {
-    final investor = widget.selectedInvestors.firstWhere(
-      (inv) => inv.client.id == clientId,
-    );
-
+  Widget _buildAdditionalEmailsField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '📊 Podsumowanie Twojego Portfela',
+          'Dodatkowi odbiorcy (oddzieleni przecinkiem)',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: AppThemePro.accentGold,
+            color: AppThemePro.textPrimary,
           ),
         ),
-        const SizedBox(height: 12),
-
-        // Statystyki
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppThemePro.backgroundSecondary,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: AppThemePro.borderSecondary),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Całkowita wartość inwestycji: ${investor.totalInvestmentAmount.toStringAsFixed(2)} PLN',
-                style: TextStyle(
-                  color: AppThemePro.textSecondary,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Kapitał pozostały: ${investor.totalRemainingCapital.toStringAsFixed(2)} PLN',
-                style: const TextStyle(
-                  color: AppThemePro.accentGold,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+        const SizedBox(height: 8),
+        TextFormField(
+          initialValue: _additionalEmails.join(', '),
+          onChanged: (value) {
+            setState(() {
+              _additionalEmails.clear();
+              _additionalEmails.addAll(
+                value.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty),
+              );
+            });
+          },
+          decoration: InputDecoration(
+            hintText: 'np. email1@example.com, email2@example.com',
+            prefixIcon: Icon(Icons.add, color: AppThemePro.textSecondary),
+            filled: true,
+            fillColor: AppThemePro.backgroundSecondary,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
-
-        // Lista inwestycji (pierwsze 3)
-        if (investor.investments.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(
-            'Szczegóły inwestycji:',
-            style: const TextStyle(
-              fontWeight: FontWeight.w500,
-              color: AppThemePro.textSecondary,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...investor.investments
-              .take(3)
-              .map(
-                (investment) => Container(
-                  margin: const EdgeInsets.only(bottom: 4),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppThemePro.backgroundSecondary,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: AppThemePro.borderSecondary),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          investment.productName,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppThemePro.textPrimary,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '${investment.remainingCapital.toStringAsFixed(2)} PLN',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppThemePro.accentGold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          if (investor.investments.length > 3)
-            Text(
-              '... i ${investor.investments.length - 3} więcej',
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppThemePro.textMuted,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-        ],
       ],
     );
   }
 
-  Widget _buildError() {
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: AppThemePro.accentGold, size: 22),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppThemePro.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPreviewTab() {
+    final converter = QuillDeltaToHtmlConverter(
+      _quillController.document.toDelta().toJson(),
+    );
+
+    final htmlContent = converter.convert();
+    final emailBody = _getEnhancedEmailTemplate(
+      subject: _subjectController.text,
+      content: htmlContent,
+      investorName: _selectedPreviewRecipient != null
+          ? widget.selectedInvestors
+              .firstWhere((inv) => inv.client.id == _selectedPreviewRecipient)
+              .client
+              .name
+          : 'Szanowni Państwo',
+      investmentDetailsHtml: _includeInvestmentDetails
+          ? '<h3>Podsumowanie Inwestycji (Przykład)</h3><p>Tutaj pojawi się tabela z danymi...</p>'
+          : '',
+      darkMode: _previewDarkMode,
+    );
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppThemePro.statusError.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppThemePro.statusError.withOpacity(0.3)),
-      ),
-      child: Row(
+      color: AppThemePro.backgroundPrimary,
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
         children: [
-          Icon(Icons.error_outline, color: AppThemePro.statusError),
-          const SizedBox(width: 8),
+          _buildPreviewControls(),
+          const SizedBox(height: 16),
           Expanded(
-            child: Text(_error!, style: TextStyle(color: AppThemePro.statusError)),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppThemePro.borderSecondary),
+                borderRadius: BorderRadius.circular(8),
+                color: _previewDarkMode ? const Color(0xFF1a1a1a) : Colors.white,
+              ),
+              child: SingleChildScrollView(
+                child: html.Html(
+                  data: emailBody,
+                  style: {
+                    "body": html.Style(
+                      backgroundColor: _previewDarkMode ? const Color(0xFF1a1a1a) : Colors.white,
+                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                      margin: html.Margins.all(0),
+                      padding: html.HtmlPaddings.all(0),
+                    ),
+                    "*": html.Style(
+                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                    ),
+                  },
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  /// 🚀 NOWY: Szczegółowy wskaźnik postępu
-  Widget _buildProgressIndicator() {
-    if (!_showDetailedProgress || !_isLoading) {
-      return const SizedBox.shrink();
-    }
-
-    final progress = _totalEmailsToSend > 0
-        ? _currentEmailIndex / _totalEmailsToSend
-        : 0.0;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppThemePro.accentGold.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppThemePro.accentGold.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+  Widget _buildPreviewControls() {
+    return Row(
+      children: [
+        Expanded(child: _buildPreviewRecipientSelector()),
+        const SizedBox(width: 16),
+        Container(
+          decoration: BoxDecoration(
+            color: AppThemePro.backgroundSecondary,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppThemePro.borderSecondary),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(AppThemePro.accentGold),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Text(
-                  _loadingMessage,
+                  'Motyw:',
                   style: TextStyle(
-                    color: AppThemePro.accentGold,
-                    fontWeight: FontWeight.w600,
+                    color: AppThemePro.textSecondary,
                     fontSize: 14,
                   ),
                 ),
               ),
-              if (_totalEmailsToSend > 0)
-                Text(
-                  '$_currentEmailIndex / $_totalEmailsToSend',
+              IconButton(
+                icon: Icon(
+                  _previewDarkMode ? Icons.dark_mode : Icons.light_mode,
+                  color: _previewDarkMode ? AppThemePro.accentGold : Colors.orange,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _previewDarkMode = !_previewDarkMode;
+                  });
+                },
+                tooltip: _previewDarkMode ? 'Przełącz na jasny motyw' : 'Przełącz na ciemny motyw',
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  _previewDarkMode ? 'Ciemny' : 'Jasny',
                   style: TextStyle(
                     color: AppThemePro.textSecondary,
                     fontSize: 12,
                   ),
                 ),
+              ),
             ],
           ),
-          if (_totalEmailsToSend > 0) ...[
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: progress,
-              backgroundColor: AppThemePro.borderSecondary,
-              valueColor: AlwaysStoppedAnimation(AppThemePro.accentGold),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPreviewRecipientSelector() {
+    final availableRecipients = widget.selectedInvestors
+        .where((inv) => _recipientEnabled[inv.client.id] ?? false)
+        .toList();
+
+    if (availableRecipients.isEmpty) {
+      return const Text('Brak aktywnych odbiorców do podglądu.');
+    }
+
+    // Ensure a default selection if none is set or the selected one is no longer valid
+    if (_selectedPreviewRecipient == null ||
+        !availableRecipients
+            .any((inv) => inv.client.id == _selectedPreviewRecipient)) {
+      _selectedPreviewRecipient = availableRecipients.first.client.id;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundSecondary,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedPreviewRecipient,
+          isExpanded: true,
+          dropdownColor: AppThemePro.backgroundSecondary,
+          icon: Icon(Icons.arrow_drop_down, color: AppThemePro.accentGold),
+          onChanged: (String? newValue) {
+            setState(() {
+              _selectedPreviewRecipient = newValue;
+            });
+          },
+          items: availableRecipients
+              .map<DropdownMenuItem<String>>((InvestorSummary investor) {
+            return DropdownMenuItem<String>(
+              value: investor.client.id,
+              child: Text(
+                'Podgląd dla: ${investor.client.name} (${investor.client.email})',
+                style: TextStyle(color: AppThemePro.textPrimary),
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  /// Enhanced email template with proper styling and theme support
+  String _getEnhancedEmailTemplate({
+    required String subject,
+    required String content,
+    required String investorName,
+    String? investmentDetailsHtml,
+    bool darkMode = false,
+  }) {
+    final now = DateTime.now();
+    final currentYear = now.year;
+    
+    // Define colors based on theme
+    final backgroundColor = darkMode ? '#1a1a1a' : '#f0f2f5';
+    final containerBg = darkMode ? '#2c2c2c' : '#ffffff';
+    final textColor = darkMode ? '#e0e0e0' : '#1c1e21';
+    final footerBg = darkMode ? '#1f1f1f' : '#f7f7f7';
+    final footerText = darkMode ? '#888888' : '#606770';
+    final borderColor = darkMode ? '#444444' : '#dddfe2';
+    final headerBg = darkMode ? '#1f1f1f' : '#2c2c2c';
+
+    return """
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>$subject</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: $backgroundColor;
+      color: $textColor;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      line-height: 1.6;
+    }
+    .email-container {
+      max-width: 680px;
+      margin: 20px auto;
+      background-color: $containerBg;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid $borderColor;
+      box-shadow: 0 4px 12px rgba(0,0,0,${darkMode ? '0.3' : '0.08'});
+    }
+    .email-header {
+      background-color: $headerBg;
+      padding: 32px;
+      text-align: center;
+    }
+    .email-header h1 {
+      color: #d4af37; /* Metropolitan Gold */
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .email-content {
+      padding: 32px;
+      color: $textColor;
+    }
+    .email-content p {
+      line-height: 1.6;
+      font-size: 16px;
+      margin: 1em 0;
+      color: $textColor;
+    }
+    .email-content h1, .email-content h2, .email-content h3, 
+    .email-content h4, .email-content h5, .email-content h6 {
+      color: $textColor;
+      margin-top: 1.5em;
+      margin-bottom: 0.5em;
+    }
+    .email-content h1 { font-size: 2em; }
+    .email-content h2 { font-size: 1.5em; }
+    .email-content h3 { font-size: 1.25em; }
+    .email-content strong, .email-content b {
+      font-weight: 600;
+      color: $textColor;
+    }
+    .email-content em, .email-content i {
+      font-style: italic;
+    }
+    .email-content u {
+      text-decoration: underline;
+    }
+    .email-content a {
+      color: #d4af37;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .email-content a:hover {
+      text-decoration: underline;
+    }
+    .email-content ul, .email-content ol {
+      padding-left: 20px;
+      margin: 1em 0;
+    }
+    .email-content li {
+      margin: 0.5em 0;
+      color: $textColor;
+    }
+    .email-content blockquote {
+      border-left: 4px solid #d4af37;
+      margin: 1em 0;
+      padding-left: 16px;
+      font-style: italic;
+      background-color: ${darkMode ? '#2a2a2a' : '#f9f9f9'};
+      padding: 12px 16px;
+      border-radius: 4px;
+    }
+    .email-content code {
+      background-color: ${darkMode ? '#3a3a3a' : '#f1f1f1'};
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+    .email-footer {
+      background-color: $footerBg;
+      padding: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: $footerText;
+      border-top: 1px solid $borderColor;
+    }
+    .investment-details {
+      margin-top: 24px;
+      border-top: 1px solid $borderColor;
+      padding-top: 16px;
+    }
+    .investment-details h3 {
+      font-size: 18px;
+      color: $textColor;
+      margin-bottom: 12px;
+    }
+    /* Text alignment classes */
+    .ql-align-center { text-align: center; }
+    .ql-align-right { text-align: right; }
+    .ql-align-justify { text-align: justify; }
+    
+    /* Font size classes */
+    .ql-size-small { font-size: 0.75em; }
+    .ql-size-large { font-size: 1.5em; }
+    .ql-size-huge { font-size: 2.5em; }
+    
+    /* Color handling for rich text */
+    .email-content span[style*="color"] {
+      /* Preserve inline color styles from Quill */
+    }
+    .email-content span[style*="background-color"] {
+      /* Preserve inline background colors from Quill */
+    }
+    
+    @media (max-width: 600px) {
+      .email-container {
+        margin: 10px;
+        border-radius: 8px;
+      }
+      .email-header, .email-content, .email-footer {
+        padding: 20px;
+      }
+      .email-header h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="email-header">
+      <h1>Metropolitan Investment</h1>
+    </div>
+    <div class="email-content">
+      <p>Witaj $investorName,</p>
+      $content
+      ${investmentDetailsHtml != null && investmentDetailsHtml.isNotEmpty ? '<div class="investment-details">$investmentDetailsHtml</div>' : ''}
+    </div>
+    <div class="email-footer">
+      <p>&copy; $currentYear Metropolitan Investment S.A. Wszelkie prawa zastrzeżone.</p>
+      <p>Ta wiadomość została wygenerowana automatycznie. Prosimy na nią nie odpowiadać.</p>
+    </div>
+  </div>
+</body>
+</html>
+""";
+  }
+
+  Future<void> _sendEmails() async {
+    if (!_formKey.currentState!.validate()) {
+      setState(() {
+        _error = 'Proszę wypełnić wszystkie wymagane pola.';
+      });
+      return;
+    }
+
+    if (!_hasValidEmails()) {
+      setState(() {
+        _error = 'Brak prawidłowych odbiorców do wysłania wiadomości.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _showDetailedProgress = true;
+      _error = null;
+      _results = null;
+      _debugLogs.clear();
+      _loadingMessage = 'Przygotowywanie wiadomości...';
+    });
+
+    try {
+      final converter = QuillDeltaToHtmlConverter(
+        _quillController.document.toDelta().toJson(),
+      );
+      final htmlContent = converter.convert();
+
+      final selectedRecipients = widget.selectedInvestors
+          .where((inv) => _recipientEnabled[inv.client.id] ?? false)
+          .toList();
+
+      _totalEmailsToSend = selectedRecipients.length + _additionalEmails.length;
+      _currentEmailIndex = 0;
+
+      // Logika wysyłki
+      final results = await _emailAndExportService.sendCustomEmailsToMixedRecipients(
+        investors: selectedRecipients,
+        additionalEmails: _additionalEmails,
+        subject: _subjectController.text,
+        htmlContent: htmlContent,
+        includeInvestmentDetails: _includeInvestmentDetails,
+        senderEmail: _senderEmailController.text,
+        senderName: _senderNameController.text,
+      );
+
+      setState(() {
+        _results = results;
+        _loadingMessage = 'Wysyłanie zakończone.';
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Wystąpił nieoczekiwany błąd: $e';
+        _loadingMessage = 'Błąd wysyłania.';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+        _showDetailedProgress = false;
+      });
+
+      // Show summary snackbar
+      if (_results != null) {
+        final successful = _results!.where((r) => r.success).length;
+        final failed = _results!.length - successful;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Wysyłanie zakończone. Pomyślnie: $successful, Błędy: $failed.'),
+            backgroundColor: failed > 0 ? AppThemePro.statusError : AppThemePro.statusSuccess,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Check if there are valid emails to send to
+  bool _hasValidEmails() {
+    final validInvestors = widget.selectedInvestors
+        .where((inv) => _recipientEnabled[inv.client.id] ?? false)
+        .isNotEmpty;
+    final validAdditionalEmails = _additionalEmails
+        .where((email) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email))
+        .isNotEmpty;
+    
+    return validInvestors || validAdditionalEmails;
+  }
+
+  /// Insert greeting template
+  void _insertGreeting() {
+    final selection = _quillController.selection;
+    const greeting = '\n\nSzanowni Państwo,\n\n';
+    
+    try {
+      _quillController.document.insert(selection.baseOffset, greeting);
+      _quillController.updateSelection(
+        TextSelection.collapsed(offset: selection.baseOffset + greeting.length),
+        ChangeSource.local,
+      );
+    } catch (e) {
+      debugPrint('Error inserting greeting: $e');
+    }
+  }
+
+  /// Insert signature template
+  void _insertSignature() {
+    final selection = _quillController.selection;
+    const signature = '\n\nZ poważaniem,\nZespół Metropolitan Investment\n\nTel: +48 XXX XXX XXX\nEmail: kontakt@metropolitan-investment.pl\nwww.metropolitan-investment.pl\n';
+    
+    try {
+      _quillController.document.insert(selection.baseOffset, signature);
+      _quillController.updateSelection(
+        TextSelection.collapsed(offset: selection.baseOffset + signature.length),
+        ChangeSource.local,
+      );
+    } catch (e) {
+      debugPrint('Error inserting signature: $e');
+    }
+  }
+
+  /// Clear editor content
+  void _clearEditor() {
+    try {
+      _quillController.clear();
+      setState(() {});
+    } catch (e) {
+      debugPrint('Error clearing editor: $e');
+    }
+  }
+
+  /// Build error display widget
+  Widget _buildError() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.statusError.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppThemePro.statusError),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: AppThemePro.statusError),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _error!,
+              style: TextStyle(
+                color: AppThemePro.statusError,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ],
-          if (_debugLogs.isNotEmpty && _debugLogs.length <= 3) ...[
-            const SizedBox(height: 8),
-            ...(_debugLogs
-                .take(3)
-                .map(
-                  (log) => Padding(
-                    padding: const EdgeInsets.only(bottom: 2),
-                    child: Text(
-                      log.length > 60 ? '${log.substring(0, 60)}...' : log,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppThemePro.textMuted,
-                        fontFamily: 'monospace',
-                      ),
-                    ),
-                  ),
-                )),
-          ],
+          ),
+          IconButton(
+            onPressed: () => setState(() => _error = null),
+            icon: Icon(Icons.close, color: AppThemePro.statusError),
+          ),
         ],
       ),
     );
   }
 
+  /// Build results display widget
   Widget _buildResults() {
-    if (_results == null) return const SizedBox.shrink();
+    if (_results == null || _results!.isEmpty) return const SizedBox.shrink();
 
     final successful = _results!.where((r) => r.success).length;
     final failed = _results!.length - successful;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
+      margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: successful == _results!.length
-            ? AppThemePro.statusSuccess.withOpacity(0.1)
-            : AppThemePro.statusWarning.withOpacity(0.1),
+        color: failed > 0 
+            ? AppThemePro.statusWarning.withValues(alpha: 0.1)
+            : AppThemePro.statusSuccess.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: successful == _results!.length
-              ? AppThemePro.statusSuccess.withOpacity(0.3)
-              : AppThemePro.statusWarning.withOpacity(0.3),
+          color: failed > 0 ? AppThemePro.statusWarning : AppThemePro.statusSuccess,
         ),
       ),
       child: Column(
@@ -1933,1069 +1251,161 @@ Zespół Metropolitan Investment''';
           Row(
             children: [
               Icon(
-                successful == _results!.length
-                    ? Icons.check_circle_outline
-                    : Icons.warning_outlined,
-                color: successful == _results!.length
-                    ? AppThemePro.statusSuccess
-                    : AppThemePro.statusWarning,
+                failed > 0 ? Icons.warning_outlined : Icons.check_circle_outline,
+                color: failed > 0 ? AppThemePro.statusWarning : AppThemePro.statusSuccess,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               Text(
                 'Wyniki wysyłania',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: successful == _results!.length
-                      ? AppThemePro.statusSuccess
-                      : AppThemePro.statusWarning,
+                  color: AppThemePro.textPrimary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text('✅ Wysłane pomyślnie: $successful'),
-          if (failed > 0) Text('❌ Błędy: $failed'),
-          const SizedBox(height: 8),
-          if (kDebugMode && _debugLogs.isNotEmpty)
-            TextButton.icon(
-              onPressed: _showDebugDialog,
-              icon: Icon(Icons.info_outline, size: 16),
-              label: Text('Pokaż szczegóły debug'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppThemePro.accentGold,
-              ),
-            ),
+          Text('Pomyślnie wysłane: $successful'),
+          if (failed > 0) Text('Błędy: $failed'),
         ],
       ),
     );
   }
 
+  /// Build progress indicator widget
+  Widget _buildProgressIndicator() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundSecondary,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppThemePro.borderSecondary),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _loadingMessage,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: AppThemePro.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_totalEmailsToSend > 0) ...[
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: _currentEmailIndex / _totalEmailsToSend,
+              backgroundColor: AppThemePro.borderSecondary,
+              valueColor: AlwaysStoppedAnimation(AppThemePro.accentGold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$_currentEmailIndex / $_totalEmailsToSend maili',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppThemePro.textSecondary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Build action buttons
   Widget _buildActions(bool canEdit) {
     final screenSize = MediaQuery.of(context).size;
     final isSmallScreen = screenSize.width < 600;
-    final actionsPadding = isSmallScreen ? 16.0 : 24.0;
     
     return Container(
-      padding: EdgeInsets.all(actionsPadding),
+      padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
       decoration: BoxDecoration(
         color: AppThemePro.backgroundSecondary,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(16),
           bottomRight: Radius.circular(16),
         ),
+        border: Border(
+          top: BorderSide(color: AppThemePro.borderSecondary),
+        ),
       ),
       child: Row(
-        mainAxisAlignment: isSmallScreen 
-            ? MainAxisAlignment.spaceEvenly 
-            : MainAxisAlignment.spaceBetween,
         children: [
-          if (!isSmallScreen)
-            TextButton(
-              onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-              child: const Text('Anuluj'),
-            ),
-          Flexible(
-            child: Row(
-              mainAxisSize: isSmallScreen ? MainAxisSize.min : MainAxisSize.max,
-              children: [
-              // 🚀 NOWY: Przycisk debug (tylko w trybie development)
-              if (kDebugMode) ...[
-                ElevatedButton.icon(
-                  onPressed: _debugLogs.isNotEmpty ? _showDebugDialog : null,
-                  icon: Icon(Icons.bug_report, size: 16),
-                  label: Text('Debug (${_debugLogs.length})'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _debugLogs.any(
-                          (log) => log.contains('❌') || log.contains('💥'),
-                        )
-                        ? AppThemePro.statusError.withOpacity(0.2)
-                        : AppThemePro.backgroundTertiary,
-                    foregroundColor:
-                        _debugLogs.any(
-                          (log) => log.contains('❌') || log.contains('💥'),
-                        )
-                        ? AppThemePro.statusError
-                        : AppThemePro.textMuted,
+          // Subject field
+          Expanded(
+            flex: 2,
+            child: Form(
+              key: _formKey,
+              child: TextFormField(
+                controller: _subjectController,
+                decoration: InputDecoration(
+                  labelText: 'Temat wiadomości',
+                  prefixIcon: Icon(Icons.subject, color: AppThemePro.accentGold),
+                  filled: true,
+                  fillColor: AppThemePro.backgroundPrimary,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
                   ),
                 ),
-                const SizedBox(width: 8),
-              ],
-              ElevatedButton.icon(
-                onPressed: (!canEdit || _isLoading) ? null : _saveTemplate,
-                icon: const Icon(Icons.save_outlined),
-                label: const Text('Zapisz szablon'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.statusInfo.withOpacity(0.2),
-                  foregroundColor: AppThemePro.statusInfo,
-                ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: (!canEdit || _isLoading || !_hasValidEmails())
-                    ? null
-                    : _sendEmails,
-                icon: _isLoading
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send),
-                label: Text(_isLoading ? _loadingMessage : 'Wyślij Email'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.accentGold,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          )
-        ),
-        ],
-      ),
-    );
-  }
-
-  void _insertGreeting() {
-    try {
-      const greeting = 'Szanowni Państwo,\n\n';
-      final currentLength = _quillController.document.length;
-      
-      // Wstaw na początku dokumentu
-      _quillController.document.insert(0, greeting);
-
-      // Ustaw kursor po pozdrowieniu z zabezpieczeniem
-      Future.delayed(const Duration(milliseconds: 10), () {
-        if (mounted) {
-          try {
-            _quillController.updateSelection(
-              TextSelection.collapsed(offset: greeting.length),
-              ChangeSource.local,
-            );
-            // Wymuś focus na edytorze
-            _editorFocusNode.requestFocus();
-          } catch (e) {
-            debugPrint('Błąd ustawiania kursora: $e');
-          }
-        }
-      });
-
-      setState(() {}); // Force refresh
-    } catch (e) {
-      debugPrint('Błąd podczas wstawiania powitania: $e');
-    }
-  }
-
-  void _insertSignature() {
-    try {
-      final signature =
-          '\n\nZ poważaniem,\nZespół ${_senderNameController.text}\n';
-      final length = _quillController.document.length;
-      final insertPosition = length > 1 ? length - 1 : length;
-      
-      _quillController.document.insert(insertPosition, signature);
-
-      // Ustaw kursor po podpisie z opóźnieniem
-      Future.delayed(const Duration(milliseconds: 10), () {
-        if (mounted) {
-          try {
-            final newPosition = insertPosition + signature.length;
-            _quillController.updateSelection(
-              TextSelection.collapsed(offset: newPosition),
-              ChangeSource.local,
-            );
-            // Wymuś focus na edytorze
-            _editorFocusNode.requestFocus();
-          } catch (e) {
-            debugPrint('Błąd ustawiania kursora po podpisie: $e');
-          }
-        }
-      });
-
-      setState(() {}); // Force refresh
-    } catch (e) {
-      debugPrint('Błąd podczas wstawiania podpisu: $e');
-    }
-  }
-
-  void _clearEditor() {
-    try {
-      _quillController.clear();
-
-      // Reset kursora z opóźnieniem dla stabilności
-      Future.delayed(const Duration(milliseconds: 10), () {
-        if (mounted) {
-          try {
-            _quillController.updateSelection(
-              const TextSelection.collapsed(offset: 0),
-              ChangeSource.local,
-            );
-            // Wymuś focus na edytorze
-            _editorFocusNode.requestFocus();
-          } catch (e) {
-            debugPrint('Błąd resetu kursora: $e');
-          }
-        }
-      });
-
-      setState(() {}); // Force refresh
-    } catch (e) {
-      debugPrint('Błąd podczas czyszczenia edytora: $e');
-    }
-  }
-
-  bool _hasValidEmails() {
-    // Sprawdź czy są aktywni inwestorzy z emailami
-    final hasValidInvestorEmails = widget.selectedInvestors.any(
-      (investor) =>
-          _recipientEnabled[investor.client.id] == true &&
-          investor.client.email.isNotEmpty &&
-          RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(investor.client.email),
-    );
-
-    // Sprawdź czy są ważne dodatkowe emaile
-    final hasValidAdditionalEmails = _additionalEmails.any(
-      (email) =>
-          email.isNotEmpty &&
-          RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email),
-    );
-
-    return hasValidInvestorEmails || hasValidAdditionalEmails;
-  }
-
-  Future<void> _saveTemplate() async {
-    // TODO: Implementacja zapisywania szablonu
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Funkcja zapisywania szablonów będzie dostępna wkrótce'),
-        backgroundColor: AppThemePro.statusWarning,
-      ),
-    );
-  }
-
-  Future<void> _sendEmails() async {
-    if (!_formKey.currentState!.validate()) {
-      _tabController.animateTo(1); // Przejdź do zakładki ustawień
-      return;
-    }
-
-    // 🚀 ENHANCED: Reset debug state and start timing
-    _emailSendStartTime = DateTime.now();
-    _debugLogs.clear();
-    _addDebugLog('🚀 Rozpoczynam proces wysyłania maili');
-
-    // Sprawdź czy istnieją konfiguracje SMTP
-    setState(() {
-      _isLoading = true;
-      _loadingMessage = 'Sprawdzam konfigurację SMTP...';
-      _currentEmailIndex = 0;
-      _totalEmailsToSend = 0;
-      _showDetailedProgress = true;
-      _error = null;
-      _results = null;
-    });
-
-    try {
-      // 🚀 ENHANCED: Sprawdź ustawienia SMTP przed wysyłaniem z debugowaniem
-      _addDebugLog('🔧 Sprawdzam ustawienia SMTP...');
-      final smtpService = SmtpService();
-      final smtpSettings = await smtpService.getSmtpSettings();
-
-      if (smtpSettings == null) {
-        _addDebugLog('❌ Brak konfiguracji SMTP');
-        setState(() {
-          _error =
-              'Brak konfiguracji serwera SMTP. Skonfiguruj ustawienia email w aplikacji.';
-          _isLoading = false;
-          _loadingMessage = 'Przygotowywanie...';
-        });
-        return;
-      }
-
-      _addDebugLog(
-        '✅ Konfiguracja SMTP znaleziona: ${smtpSettings.host}:${smtpSettings.port}',
-      );
-
-      // 🚀 ENHANCED: Walidacja email wysyłającego z debugowaniem
-      if (_senderEmailController.text.trim().isEmpty) {
-        _addDebugLog('❌ Brak email wysyłającego');
-        setState(() {
-          _error = 'Podaj email wysyłającego';
-          _isLoading = false;
-          _loadingMessage = 'Przygotowywanie...';
-        });
-        return;
-      }
-
-      _addDebugLog('📧 Email wysyłającego: ${_senderEmailController.text}');
-
-      // 🚀 ENHANCED: Pobierz inwestorów z włączonymi emailami z debugowaniem
-      setState(() {
-        _loadingMessage = 'Przygotowywanie listy odbiorców...';
-      });
-
-      final enabledRecipients = _getEnabledRecipients();
-      _addDebugLog(
-        '👥 Znaleziono ${enabledRecipients.length} aktywnych odbiorców',
-      );
-
-      if (enabledRecipients.isEmpty) {
-        _addDebugLog('❌ Brak prawidłowych odbiorców');
-        setState(() {
-          _error = 'Brak odbiorców z prawidłowymi adresami email';
-          _isLoading = false;
-          _loadingMessage = 'Przygotowywanie...';
-        });
-        return;
-      }
-
-      setState(() {
-        _totalEmailsToSend = enabledRecipients.length;
-      });
-
-      // 🚀 ENHANCED: Konwersja treści z Quill do HTML z debugowaniem
-      setState(() {
-        _loadingMessage = 'Konwertuję treść na HTML...';
-      });
-
-      final htmlContent = _convertDocumentToHtml(_quillController.document);
-      _addDebugLog('📝 Długość treści HTML: ${htmlContent.length} znaków');
-
-      if (htmlContent.trim().isEmpty) {
-        _addDebugLog('❌ Brak treści emaila');
-        setState(() {
-          _error = 'Treść emaila nie może być pusta';
-          _isLoading = false;
-          _loadingMessage = 'Przygotowywanie...';
-        });
-        return;
-      }
-
-      // 🚀 ENHANCED: Przygotuj listę odbiorców z debugowaniem
-      setState(() {
-        _loadingMessage = 'Przetwarzam odbiorców...';
-      });
-
-      final recipientsWithInvestmentData = <InvestorSummary>[];
-      final additionalEmailAddresses = <String>[];
-
-      for (final recipient in enabledRecipients) {
-        final recipientId = recipient['id']!;
-
-        if (recipientId.startsWith('additional_')) {
-          // Dodaj dodatkowe emaile do osobnej listy
-          additionalEmailAddresses.add(recipient['email']!);
-        } else {
-          // Znajdź prawdziwego inwestora
-          final investor = widget.selectedInvestors.firstWhere(
-            (inv) => inv.client.id == recipientId,
-            orElse: () => widget.selectedInvestors.first,
-          );
-
-          recipientsWithInvestmentData.add(investor);
-        }
-      }
-
-      // 🚀 ENHANCED: Wybierz odpowiednią metodę wysyłania z debugowaniem
-      _addDebugLog(
-        '📊 Inwestorów: ${recipientsWithInvestmentData.length}, Dodatkowych: ${additionalEmailAddresses.length}',
-      );
-
-      setState(() {
-        _loadingMessage = 'Wysyłam emaile...';
-        _currentEmailIndex = 1;
-      });
-
-      // 🚀 ENHANCED: Sprawdź czy mamy odbiorców do wysłania
-      if (recipientsWithInvestmentData.isEmpty && additionalEmailAddresses.isEmpty) {
-        _addDebugLog('❌ Brak odbiorców do wysłania maili');
-        setState(() {
-          _error = 'Brak wybranych odbiorców. Wybierz inwestorów lub dodaj dodatkowe emaile.';
-          _isLoading = false;
-          _loadingMessage = '';
-        });
-        return;
-      }
-
-      List<EmailSendResult> results = [];
-
-      // 🚀 ENHANCED: Wyślij emaile do inwestorów z szczegółami inwestycji (jeśli włączone)
-      if (recipientsWithInvestmentData.isNotEmpty) {
-        _addDebugLog('📤 Wysyłam emaile do ${recipientsWithInvestmentData.length} inwestorów z szczegółami inwestycji');
-        final investorResults = await _emailAndExportService
-            .sendCustomEmailsToMultipleClients(
-              investors: recipientsWithInvestmentData,
-              subject: _subjectController.text.isNotEmpty
-                  ? _subjectController.text
-                  : 'Wiadomość od ${_senderNameController.text}',
-              htmlContent: htmlContent,
-              includeInvestmentDetails: _includeInvestmentDetails,
-              senderEmail: _senderEmailController.text,
-              senderName: _senderNameController.text,
-            );
-        results.addAll(investorResults);
-      }
-
-      // 🚀 ENHANCED: Wyślij emaile do dodatkowych odbiorców BEZ szczegółów inwestycji
-      if (additionalEmailAddresses.isNotEmpty) {
-        _addDebugLog('📤 Wysyłam emaile do ${additionalEmailAddresses.length} dodatkowych odbiorców BEZ szczegółów inwestycji');
-        final additionalResults = await _emailAndExportService
-            .sendCustomEmailsToMixedRecipients(
-              investors: [], // Pusta lista inwestorów
-              additionalEmails: additionalEmailAddresses,
-              subject: _subjectController.text.isNotEmpty
-                  ? _subjectController.text
-                  : 'Wiadomość od ${_senderNameController.text}',
-              htmlContent: htmlContent,
-              includeInvestmentDetails: false, // Zawsze false dla dodatkowych emaili
-              senderEmail: _senderEmailController.text,
-              senderName: _senderNameController.text,
-            );
-        results.addAll(additionalResults);
-      }
-
-      // 🚀 ENHANCED: Analiza wyników z debugowaniem
-      final successful = results.where((r) => r.success).length;
-      final failed = results.length - successful;
-      final duration = DateTime.now().difference(_emailSendStartTime!);
-
-      _addDebugLog('✅ Zakończono wysyłanie w ${duration.inSeconds}s');
-      _addDebugLog('📊 Podsumowanie: $successful sukces, $failed błędów');
-
-      // Dodaj szczegóły błędów do logów
-      for (final result in results.where((r) => !r.success)) {
-        _addDebugLog('❌ Błąd dla ${result.clientEmail}: ${result.error}');
-      }
-
-      setState(() {
-        _results = results;
-        _isLoading = false;
-        _loadingMessage = 'Zakończono';
-        _showDetailedProgress = false;
-      });
-
-      // Pokaż snackbar z podsumowaniem - already calculated above
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              failed == 0
-                  ? '✅ Wysłano $successful maili pomyślnie'
-                  : '⚠️ Wysłano $successful maili, błędów: $failed',
-            ),
-            backgroundColor: failed == 0
-                ? AppThemePro.statusSuccess
-                : AppThemePro.statusWarning,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-
-      // Jeśli wszystkie maile zostały wysłane pomyślnie, wywołaj callback
-      if (failed == 0) {
-        widget.onEmailSent();
-      }
-    } catch (e) {
-      // 🚀 ENHANCED: Szczegółowe debugowanie błędów
-      final duration = _emailSendStartTime != null
-          ? DateTime.now().difference(_emailSendStartTime!)
-          : Duration.zero;
-
-      _addDebugLog(
-        '💥 KRYTYCZNY BŁĄD po ${duration.inSeconds}s: ${e.toString()}',
-      );
-      _addDebugLog('📍 Stack trace: ${StackTrace.current}');
-
-      setState(() {
-        _error = 'Błąd podczas wysyłania maili: ${e.toString()}';
-        _isLoading = false;
-        _loadingMessage = 'Przygotowywanie...';
-        _showDetailedProgress = false;
-      });
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Błąd wysyłania: ${e.toString()}'),
-            backgroundColor: AppThemePro.statusError,
-            duration: const Duration(seconds: 6),
-          ),
-        );
-      }
-    }
-  }
-
-  // Pomocnicza metoda konwersji dokumentu Quill na HTML
-  String _convertDocumentToHtml(Document document) {
-    try {
-      // Użyj niestandardowej implementacji konwersji
-      return _customDocumentToHtml(document);
-    } catch (e) {
-      debugPrint('Błąd konwersji Quill do HTML: $e');
-
-      // Ostateczny fallback - prosty plain text z <br>
-      final plainText = document.toPlainText();
-      return plainText
-          .replaceAll('\n', '<br>')
-          .replaceAll('  ', '&nbsp;&nbsp;');
-    }
-  }
-
-  /// Niestandardowa konwersja dokumentu Quill do HTML (fallback)
-  String _customDocumentToHtml(Document document) {
-    try {
-      final buffer = StringBuffer();
-      buffer.write('<div>');
-
-      // Iteruj przez operacje delta
-      final ops = document.toDelta().operations;
-
-      for (final op in ops) {
-        if (op.isInsert) {
-          String text = op.data?.toString() ?? '';
-
-          // Sprawdź czy jest to zwykły tekst czy znak nowej linii
-          if (text == '\n') {
-            buffer.write('<br>');
-          } else {
-            // Aplikuj formatowanie na podstawie atrybutów
-            String formattedText = _applyFormattingToText(text, op.attributes);
-            buffer.write(formattedText);
-          }
-        }
-      }
-
-      buffer.write('</div>');
-      return buffer.toString();
-    } catch (e) {
-      debugPrint('Błąd niestandardowej konwersji do HTML: $e');
-
-      // Ostateczny fallback - prosty plain text z <br>
-      final plainText = document.toPlainText();
-      return plainText
-          .replaceAll('\n', '<br>')
-          .replaceAll('  ', '&nbsp;&nbsp;');
-    }
-  }
-
-  /// Aplikuje formatowanie HTML na podstawie atrybutów Quill
-  String _applyFormattingToText(String text, Map<String, dynamic>? attributes) {
-    if (attributes == null || attributes.isEmpty) {
-      return _escapeHtml(text);
-    }
-
-    String result = _escapeHtml(text);
-
-    // Formatowanie tekstu
-    if (attributes['bold'] == true) {
-      result = '<strong>$result</strong>';
-    }
-
-    if (attributes['italic'] == true) {
-      result = '<em>$result</em>';
-    }
-
-    if (attributes['underline'] == true) {
-      result = '<u>$result</u>';
-    }
-
-    // Kolor tekstu
-    if (attributes['color'] != null) {
-      final color = attributes['color'].toString();
-      result = '<span style="color: $color">$result</span>';
-    }
-
-    // Kolor tła
-    if (attributes['background'] != null) {
-      final bgColor = attributes['background'].toString();
-      result = '<span style="background-color: $bgColor">$result</span>';
-    }
-
-    // Rozmiar czcionki
-    if (attributes['size'] != null) {
-      final size = attributes['size'].toString();
-      result = '<span style="font-size: $size">$result</span>';
-    }
-
-    // Wyrównanie (zastosowane na poziomie akapitu)
-    if (attributes['align'] != null) {
-      final align = attributes['align'].toString();
-      result = '<div style="text-align: $align">$result</div>';
-    }
-
-    // Nagłówki
-    if (attributes['header'] != null) {
-      final level = attributes['header'].toString();
-      switch (level) {
-        case '1':
-          result = '<h1>$result</h1>';
-          break;
-        case '2':
-          result = '<h2>$result</h2>';
-          break;
-        case '3':
-          result = '<h3>$result</h3>';
-          break;
-        default:
-          result = '<h4>$result</h4>';
-      }
-    }
-
-    // Listy
-    if (attributes['list'] != null) {
-      final listType = attributes['list'].toString();
-      if (listType == 'ordered') {
-        result = '<li>$result</li>'; // Będzie opakowane w <ol> później
-      } else if (listType == 'bullet') {
-        result = '<li>$result</li>'; // Będzie opakowane w <ul> później
-      }
-    }
-
-    // Cytaty
-    if (attributes['blockquote'] == true) {
-      result = '<blockquote>$result</blockquote>';
-    }
-
-    return result;
-  }
-
-  /// Escape HTML w tekście
-  String _escapeHtml(String text) {
-    return text
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#x27;');
-  }
-
-  // 🚀 NOWE: Metody debugowania
-  void _addDebugLog(String message) {
-    final timestamp = DateTime.now().toString().substring(11, 19);
-    final logEntry = '[$timestamp] $message';
-    _debugLogs.add(logEntry);
-
-    // Print to console for development
-    if (kDebugMode) {
-      print('📧 [EmailDebug] $logEntry');
-    }
-
-    // Update UI if showing progress
-    if (_showDetailedProgress && mounted) {
-      setState(() {}); // Trigger rebuild to show new log
-    }
-  }
-
-  /// Pokazuje dialog z debugowaniem
-  void _showDebugDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppThemePro.backgroundModal,
-        title: Row(
-          children: [
-            Icon(Icons.bug_report, color: AppThemePro.accentGold),
-            const SizedBox(width: 8),
-            Text(
-              'Debug Logs - Wysyłanie Email',
-              style: TextStyle(color: AppThemePro.textPrimary),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: 500,
-          height: 400,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppThemePro.accentGold.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'Logi z ostatniego procesu wysyłania (${_debugLogs.length} wpisów)',
-                  style: TextStyle(
-                    color: AppThemePro.accentGold,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: AppThemePro.borderSecondary),
-                  ),
-                  child: _debugLogs.isEmpty
-                      ? Center(
-                          child: Text(
-                            'Brak logów - wyślij emaile aby zobaczyć debug info',
-                            style: TextStyle(color: AppThemePro.textMuted),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: _debugLogs.length,
-                          itemBuilder: (context, index) {
-                            final log = _debugLogs[index];
-                            Color logColor = Colors.white;
-
-                            // Kolorowanie na podstawie typu logu
-                            if (log.contains('✅')) {
-                              logColor = AppThemePro.statusSuccess;
-                            } else if (log.contains('❌') ||
-                                log.contains('💥')) {
-                              logColor = AppThemePro.statusError;
-                            } else if (log.contains('⚠️')) {
-                              logColor = AppThemePro.statusWarning;
-                            } else if (log.contains('🚀')) {
-                              logColor = AppThemePro.statusInfo;
-                            } else if (log.contains('📧') ||
-                                log.contains('📄')) {
-                              logColor = AppThemePro.accentGold;
-                            }
-
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              child: Text(
-                                log,
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  fontSize: 11,
-                                  color: logColor,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton.icon(
-            onPressed: () {
-              // Kopiuj logi do schowka
-              Clipboard.setData(ClipboardData(text: _debugLogs.join('\n')));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('📋 Logi skopiowane do schowka'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-            icon: Icon(Icons.copy, size: 16),
-            label: Text('Kopiuj'),
-            style: TextButton.styleFrom(
-              foregroundColor: AppThemePro.accentGold,
-            ),
-          ),
-          TextButton.icon(
-            onPressed: () {
-              _debugLogs.clear();
-              Navigator.pop(context);
-            },
-            icon: Icon(Icons.clear, size: 16),
-            label: Text('Wyczyść'),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Zamknij'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Pokazuje dialog do edycji emaila inwestora
-  void _showEmailEditDialog(
-    String clientId,
-    String clientName,
-    String currentEmail,
-    String originalEmail,
-  ) {
-    String tempEmail = currentEmail;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppThemePro.backgroundSecondary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppThemePro.accentGold.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.edit_outlined,
-                color: AppThemePro.accentGold,
-                size: 20,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Temat jest wymagany';
+                  }
+                  return null;
+                },
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Edytuj Email',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppThemePro.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    clientName,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppThemePro.textSecondary,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                ],
+          ),
+          
+          const SizedBox(width: 16),
+          
+          // Send button
+          ElevatedButton.icon(
+            onPressed: _isLoading ? null : _sendEmails,
+            icon: _isLoading 
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.send),
+            label: Text(_isLoading ? 'Wysyłanie...' : 'Wyślij'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppThemePro.accentGold,
+              foregroundColor: Colors.black,
+              padding: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 16 : 24,
+                vertical: isSmallScreen ? 12 : 16,
               ),
             ),
-          ],
-        ),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) {
-            final isValidEmail =
-                tempEmail.isNotEmpty &&
-                RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(tempEmail);
-            final hasCustomEmail =
-                tempEmail != originalEmail && tempEmail.isNotEmpty;
-
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Pole do edycji emaila
-                TextFormField(
-                  initialValue: tempEmail,
-                  autofocus: true,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppThemePro.textPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Adres email',
-                    hintText: 'nowy@email.com',
-                    hintStyle: TextStyle(color: AppThemePro.textMuted),
-                    filled: true,
-                    fillColor: AppThemePro.surfaceCard,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: AppThemePro.borderPrimary),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: isValidEmail
-                            ? AppThemePro.accentGold.withOpacity(0.5)
-                            : AppThemePro.borderPrimary,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: AppThemePro.accentGold,
-                        width: 2,
-                      ),
-                    ),
-                    prefixIcon: Icon(
-                      Icons.alternate_email,
-                      size: 18,
-                      color: isValidEmail
-                          ? AppThemePro.accentGold
-                          : AppThemePro.textSecondary,
-                    ),
-                    suffixIcon: isValidEmail
-                        ? Icon(
-                            Icons.check_circle,
-                            size: 18,
-                            color: AppThemePro.statusSuccess,
-                          )
-                        : null,
-                  ),
-                  onChanged: (value) {
-                    setDialogState(() {
-                      tempEmail = value;
-                    });
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // Informacje dodatkowe
-                if (originalEmail.isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppThemePro.backgroundTertiary,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppThemePro.borderSecondary),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              size: 16,
-                              color: AppThemePro.textMuted,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Oryginalny email:',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: AppThemePro.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          originalEmail,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppThemePro.textSecondary,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                        if (hasCustomEmail) ...[
-                          const SizedBox(height: 8),
-                          TextButton.icon(
-                            onPressed: () {
-                              setDialogState(() {
-                                tempEmail = originalEmail;
-                              });
-                            },
-                            icon: Icon(Icons.refresh, size: 16),
-                            label: Text('Przywróć oryginalny'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppThemePro.accentGold,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-
-                // Status walidacji
-                if (tempEmail.isNotEmpty && !isValidEmail) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 16,
-                        color: AppThemePro.statusError,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Nieprawidłowy format email',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppThemePro.statusError,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-        actions: [
+          ),
+          
+          const SizedBox(width: 8),
+          
+          // Cancel button
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Anuluj',
-              style: TextStyle(color: AppThemePro.textMuted),
+            onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: AppThemePro.textSecondary,
+              padding: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 12 : 16,
+                vertical: isSmallScreen ? 12 : 16,
+              ),
             ),
-          ),
-          StatefulBuilder(
-            builder: (context, setButtonState) {
-              final isValidEmail =
-                  tempEmail.isNotEmpty &&
-                  RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(tempEmail);
-
-              return ElevatedButton.icon(
-                onPressed: isValidEmail
-                    ? () {
-                        setState(() {
-                          _recipientEmails[clientId] = tempEmail;
-                          // Automatycznie włącz odbiorcę przy prawidłowym emailu
-                          _recipientEnabled[clientId] = true;
-                        });
-                        Navigator.pop(context);
-
-                        // Pokaż potwierdzenie
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                Icon(
-                                  Icons.check_circle,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Email dla $clientName został zaktualizowany',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            backgroundColor: AppThemePro.statusSuccess,
-                            duration: const Duration(seconds: 3),
-                          ),
-                        );
-                      }
-                    : null,
-                icon: Icon(Icons.save, size: 16),
-                label: Text('Zapisz email'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isValidEmail
-                      ? AppThemePro.accentGold
-                      : Colors.grey,
-                  foregroundColor: Colors.black,
-                ),
-              );
-            },
+            child: const Text('Anuluj'),
           ),
         ],
       ),

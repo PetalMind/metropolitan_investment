@@ -393,6 +393,106 @@ class EmailAndExportService extends BaseService {
     return results;
   }
 
+  String getThemedEmailTemplate({
+    required String subject,
+    required String content,
+    required String investorName,
+    String? investmentDetailsHtml,
+  }) {
+    final now = DateTime.now();
+    final currentYear = now.year;
+
+    return """
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>$subject</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f0f2f5;
+      color: #1c1e21;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .email-container {
+      max-width: 680px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #dddfe2;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .email-header {
+      background-color: #2c2c2c;
+      padding: 32px;
+      text-align: center;
+    }
+    .email-header h1 {
+      color: #d4af37; /* Gold accent */
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .email-content {
+      padding: 32px;
+    }
+    .email-content p {
+      line-height: 1.6;
+      font-size: 16px;
+      margin: 1em 0;
+    }
+    .email-content a {
+      color: #d4af37;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .email-footer {
+      background-color: #f7f7f7;
+      padding: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: #606770;
+      border-top: 1px solid #dddfe2;
+    }
+    .investment-details {
+      margin-top: 24px;
+      border-top: 1px solid #e9e9e9;
+      padding-top: 16px;
+    }
+    .investment-details h3 {
+      font-size: 18px;
+      color: #2c2c2c;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="email-header">
+      <h1>Metropolitan Investment</h1>
+    </div>
+    <div class="email-content">
+      <p>Witaj $investorName,</p>
+      $content
+      ${investmentDetailsHtml != null && investmentDetailsHtml.isNotEmpty ? '<div class="investment-details">$investmentDetailsHtml</div>' : ''}
+    </div>
+    <div class="email-footer">
+      <p>&copy; $currentYear Metropolitan Investment S.A. Wszelkie prawa zastrzeżone.</p>
+      <p>Ta wiadomość została wygenerowana automatycznie. Prosimy na nią nie odpowiadać.</p>
+    </div>
+  </div>
+</body>
+</html>
+""";
+  }
+
   /// Wysyła niestandardowe maile HTML do wielu klientów z edytora Quill
   Future<List<EmailSendResult>> sendCustomEmailsToMultipleClients({
     required List<InvestorSummary> investors,

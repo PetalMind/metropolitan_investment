@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models_and_services.dart';
 import '../../../theme/app_theme_professional.dart';
 import '../../optimized_voting_status_widget.dart';
 import '../../client_notes_widget.dart';
 import '../tabs/voting_changes_tab.dart';
+import '../../dialogs/investor_edit_dialog_enhancements.dart';
 
 /// 🚀 ENHANCED INVESTOR DETAILS DIALOG
 /// Najnowocześniejszy dialog szczegółów inwestora z zaawansowanymi funkcjami:
@@ -58,6 +60,8 @@ class _EnhancedInvestorDetailsDialogState
       UnifiedVotingStatusService();
   final InvestmentChangeHistoryService _historyService =
       InvestmentChangeHistoryService();
+  // 🚀 NOWE: Serwisy edycji z InvestorEditDialog
+  late final InvestorEditService _editService;
 
   // === STATE VARIABLES ===
   // Investor data
@@ -68,8 +72,19 @@ class _EnhancedInvestorDetailsDialogState
   // UI State
   int _selectedTabIndex = 0;
   bool _isLoading = false;
-  bool _isEditing = false;
+  final bool _isEditing = false;
   bool _hasChanges = false;
+  bool _isInvestmentEditMode = false; // Nowy: tryb edycji inwestycji
+  String? _editingInvestmentId; // Nowy: ID edytowanej inwestycji
+
+  // Investment editing controllers (dla każdej inwestycji)
+  final Map<String, Map<String, TextEditingController>> _investmentControllers = {};
+  final Map<String, bool> _investmentHasChanges = {}; // Czy inwestycja ma zmiany
+  
+  // 🚀 NOWE: Kontrolery edycji z InvestorEditDialog
+  late InvestmentEditControllers _unifiedControllers;
+  late InvestorEditState _editState;
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // Investment filtering and search
   String _investmentSearchQuery = '';
@@ -147,6 +162,10 @@ class _EnhancedInvestorDetailsDialogState
 
   void _initializeState() {
     _analyticsService = widget.analyticsService ?? InvestorAnalyticsService();
+    // 🚀 NOWE: Inicjalizacja serwisu edycji
+    _editService = InvestorEditService();
+    _editState = const InvestorEditState();
+    
     _selectedVotingStatus = widget.investor.client.votingStatus;
     _selectedColor = widget.investor.client.colorCode;
     _selectedUnviableInvestments =
@@ -158,6 +177,11 @@ class _EnhancedInvestorDetailsDialogState
     );
     _searchController = TextEditingController();
 
+    // Initialize investment editing controllers
+    _initializeInvestmentControllers();
+    // 🚀 NOWE: Inicjalizacja unifiedControllers dla advanced editing
+    _setupUnifiedControllers();
+
     // Tab controller
     _tabController = TabController(
       length: _tabs.length,
@@ -166,6 +190,119 @@ class _EnhancedInvestorDetailsDialogState
     );
 
     _tabController.addListener(_onTabChanged);
+  }
+
+  void _initializeInvestmentControllers() {
+    for (final investment in widget.investor.investments) {
+      _investmentControllers[investment.id] = {
+        // 🎯 UPROSZCZONE: Tylko 4 kluczowe pola do edycji (jak w products_management_screen)
+        'investmentAmount': TextEditingController(
+          text: investment.investmentAmount.toStringAsFixed(2),
+        ),
+        'remainingCapital': TextEditingController(
+          text: investment.remainingCapital.toStringAsFixed(2),
+        ),
+        'capitalForRestructuring': TextEditingController(
+          text: investment.capitalForRestructuring.toStringAsFixed(2),
+        ),
+        'capitalSecuredByRealEstate': TextEditingController(
+          text: investment.capitalSecuredByRealEstate.toStringAsFixed(2),
+        ),
+      };
+      _investmentHasChanges[investment.id] = false;
+      
+      // � NOWE: Dodaj listenery dla automatycznego przeliczania remainingCapital
+      final controllers = _investmentControllers[investment.id]!;
+      
+      // Listener dla kapitału do restrukturyzacji - automatycznie przeliczy kapitał pozostały
+      controllers['capitalForRestructuring']!.addListener(() {
+        debugPrint('🔄 [EnhancedDialog] Capital for restructuring changed for ${investment.id}');
+        _calculateAutomaticRemainingCapital(investment.id);
+      });
+      
+      // Listener dla kapitału zabezpieczonego - automatycznie przeliczy kapitał pozostały
+      controllers['capitalSecuredByRealEstate']!.addListener(() {
+        debugPrint('🔄 [EnhancedDialog] Capital secured changed for ${investment.id}');
+        _calculateAutomaticRemainingCapital(investment.id);
+      });
+      
+      // �🔍 DEBUG: Log wartości kontrolerów
+      debugPrint('🔧 [EnhancedDialog] Initialized controllers for ${investment.id}:');
+      debugPrint('   - capitalSecuredByRealEstate: ${investment.capitalSecuredByRealEstate} → controller: ${investment.capitalSecuredByRealEstate.toStringAsFixed(2)}');
+    }
+  }
+
+  /// 🚀 NOWE: Setupuje unified controllers dla zaawansowanej edycji
+  void _setupUnifiedControllers() {
+    debugPrint(
+      '🔧 [EnhancedDialog] Setting up unified controllers for ${widget.investor.investments.length} investments',
+    );
+
+    // Utwórz kontrolery
+    final remainingCapitalControllers = <TextEditingController>[];
+    final investmentAmountControllers = <TextEditingController>[];
+    final capitalForRestructuringControllers = <TextEditingController>[];
+    final capitalSecuredControllers = <TextEditingController>[];
+    final statusValues = <InvestmentStatus>[];
+
+    for (final investment in widget.investor.investments) {
+      final remainingCapitalFormatted = _editService.formatValueForController(
+        investment.remainingCapital,
+      );
+      final investmentAmountFormatted = _editService.formatValueForController(
+        investment.investmentAmount,
+      );
+      final capitalForRestructuringFormatted = _editService
+          .formatValueForController(investment.capitalForRestructuring);
+      final capitalSecuredFormatted = _editService.formatValueForController(
+        investment.capitalSecuredByRealEstate,
+      );
+
+      // 🔍 DEBUG: Log formatowania
+      debugPrint('🔧 [UnifiedControllers] Investment ${investment.id}:');
+      debugPrint('   - Raw capitalSecuredByRealEstate: ${investment.capitalSecuredByRealEstate}');
+      debugPrint('   - Formatted capitalSecuredByRealEstate: $capitalSecuredFormatted');
+
+      remainingCapitalControllers.add(
+        TextEditingController(text: remainingCapitalFormatted),
+      );
+      investmentAmountControllers.add(
+        TextEditingController(text: investmentAmountFormatted),
+      );
+      capitalForRestructuringControllers.add(
+        TextEditingController(text: capitalForRestructuringFormatted),
+      );
+      capitalSecuredControllers.add(
+        TextEditingController(text: capitalSecuredFormatted),
+      );
+      statusValues.add(investment.status);
+    }
+
+    // Oblicz całkowitą kwotę
+    final totalAmount = widget.investor.investments.fold<double>(
+      0.0,
+      (sum, inv) => sum + inv.investmentAmount,
+    );
+
+    final totalController = TextEditingController(
+      text: _editService.formatValueForController(totalAmount),
+    );
+
+    _unifiedControllers = InvestmentEditControllers(
+      remainingCapitalControllers: remainingCapitalControllers,
+      investmentAmountControllers: investmentAmountControllers,
+      capitalForRestructuringControllers: capitalForRestructuringControllers,
+      capitalSecuredByRealEstateControllers: capitalSecuredControllers,
+      statusValues: statusValues,
+      totalProductAmountController: totalController,
+    );
+
+    // Ustaw stan edycji
+    setState(() {
+      _editState = _editState.copyWith(originalTotalProductAmount: totalAmount);
+    });
+
+    debugPrint('✅ [EnhancedDialog] Unified controllers setup completed');
   }
 
   void _initializeAnimations() {
@@ -208,6 +345,16 @@ class _EnhancedInvestorDetailsDialogState
     _fadeAnimationController.dispose();
     _notesController.dispose();
     _searchController.dispose();
+    
+    // Dispose investment controllers
+    for (final controllers in _investmentControllers.values) {
+      for (final controller in controllers.values) {
+        controller.dispose();
+      }
+    }
+    
+    // 🚀 NOWE: Dispose unified controllers
+    _unifiedControllers.dispose();
   }
 
   Future<void> _loadInitialData() async {
@@ -261,8 +408,36 @@ class _EnhancedInvestorDetailsDialogState
 
   void _onTabChanged() {
     if (_tabController.indexIsChanging) {
+      final newIndex = _tabController.index;
+      
+      // Blokuj przejście na inne taby gdy aktywny jest tryb edycji inwestycji
+      if (_isInvestmentEditMode && newIndex != 1) { // Index 1 = "Inwestycje"
+        // Animuj z powrotem do taba inwestycji
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _tabController.animateTo(1);
+        });
+        
+        // Pokaż toast info
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.lock_outline, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                const Text('Tryb edycji inwestycji - dostępny tylko tab "Inwestycje"'),
+              ],
+            ),
+            backgroundColor: AppThemePro.statusWarning,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+        return;
+      }
+      
       setState(() {
-        _selectedTabIndex = _tabController.index;
+        _selectedTabIndex = newIndex;
       });
       _triggerHapticFeedback();
     }
@@ -356,29 +531,17 @@ class _EnhancedInvestorDetailsDialogState
         maxWidth: _isLargeScreen ? 1400 : (_isMediumScreen ? 1000 : 600),
         maxHeight: 800,
       ),
-      decoration: BoxDecoration(
-        color: AppThemePro.backgroundPrimary,
-        borderRadius: BorderRadius.circular(_isSmallScreen ? 16 : 24),
-        border: Border.all(
-          color: AppThemePro.borderPrimary,
-          width: 1,
+      decoration: PremiumDialogDecorations.premiumContainerDecoration,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Column(
+          children: [
+            _buildHeader(),
+            _buildTabBar(),
+            Expanded(child: _buildTabContent()),
+            if (_hasChanges || _isEditing) _buildActionBar(),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _buildHeader(),
-          _buildTabBar(),
-          Expanded(child: _buildTabContent()),
-          if (_hasChanges || _isEditing) _buildActionBar(),
-        ],
       ),
     );
   }
@@ -387,16 +550,15 @@ class _EnhancedInvestorDetailsDialogState
     return Container(
       padding: EdgeInsets.all(_isSmallScreen ? 16 : 24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppThemePro.primaryDark,
-            AppThemePro.primaryMedium,
-          ],
-        ),
+        gradient: PremiumDialogDecorations.headerGradient,
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(_isSmallScreen ? 16 : 24),
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: AppThemePro.accentGold.withOpacity(0.3),
+            width: 1,
+          ),
         ),
       ),
       child: Row(
@@ -545,17 +707,12 @@ class _EnhancedInvestorDetailsDialogState
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Edit toggle
+        // Investment edit toggle
         _buildHeaderButton(
-          icon: _isEditing ? Icons.edit_off : Icons.edit,
-          tooltip: _isEditing ? 'Wyłącz edycję' : 'Włącz edycję',
-          onPressed: () {
-            setState(() {
-              _isEditing = !_isEditing;
-            });
-            _triggerHapticFeedback();
-          },
-          isActive: _isEditing,
+          icon: _isInvestmentEditMode ? Icons.edit_off : Icons.edit,
+          tooltip: _isInvestmentEditMode ? 'Wyłącz edycję inwestycji' : 'Włącz edycję inwestycji',
+          onPressed: _toggleInvestmentEditMode,
+          isActive: _isInvestmentEditMode,
         ),
 
         SizedBox(width: _isSmallScreen ? 4 : 8),
@@ -568,6 +725,38 @@ class _EnhancedInvestorDetailsDialogState
         ),
       ],
     );
+  }
+
+  void _toggleInvestmentEditMode() {
+    setState(() {
+      _isInvestmentEditMode = !_isInvestmentEditMode;
+      
+      if (_isInvestmentEditMode) {
+        // Gdy włączamy tryb edycji, automatycznie przechodzimy na tab "Inwestycje"
+        if (_selectedTabIndex != 1) { // Index 1 = tab "Inwestycje"
+          _tabController.animateTo(1);
+        }
+      } else {
+        // Resetuj editing state
+        _editingInvestmentId = null;
+        // Sprawdź czy są zmiany do zapisania
+        _checkForInvestmentChanges();
+      }
+    });
+    _triggerHapticFeedback();
+  }
+
+  void _checkForInvestmentChanges() {
+    bool hasAnyChanges = false;
+    for (final hasChanges in _investmentHasChanges.values) {
+      if (hasChanges) {
+        hasAnyChanges = true;
+        break;
+      }
+    }
+    setState(() {
+      _hasChanges = _hasChanges || hasAnyChanges;
+    });
   }
 
   Widget _buildHeaderButton({
@@ -643,29 +832,58 @@ class _EnhancedInvestorDetailsDialogState
 
   Widget _buildTab(_TabDefinition tab) {
     final isSelected = _selectedTabIndex == _tabs.indexOf(tab);
+    final tabIndex = _tabs.indexOf(tab);
+    final isInvestmentsTab = tabIndex == 1; // Index 1 = "Inwestycje"
+    final isBlocked = _isInvestmentEditMode && !isInvestmentsTab;
 
     return Tab(
       height: 60,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: _isSmallScreen ? 8 : 16,
-          vertical: 8,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isSelected ? tab.activeIcon : tab.icon,
-              size: _isSmallScreen ? 18 : 20,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              tab.label,
-              style: TextStyle(
-                fontSize: _isSmallScreen ? 10 : 12,
+      child: Opacity(
+        opacity: isBlocked ? 0.4 : 1.0,
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: _isSmallScreen ? 8 : 16,
+            vertical: 8,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                children: [
+                  Icon(
+                    isSelected ? tab.activeIcon : tab.icon,
+                    size: _isSmallScreen ? 18 : 20,
+                    color: isBlocked ? AppThemePro.textMuted : null,
+                  ),
+                  if (isBlocked)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: AppThemePro.statusWarning,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppThemePro.backgroundSecondary,
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                tab.label,
+                style: TextStyle(
+                  fontSize: _isSmallScreen ? 10 : 12,
+                  color: isBlocked ? AppThemePro.textMuted : null,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1143,11 +1361,21 @@ class _EnhancedInvestorDetailsDialogState
   }
 
   Widget _buildInvestmentsTab() {
-    return Column(
-      children: [
-        _buildInvestmentsToolbar(),
-        Expanded(child: _buildInvestmentsList()),
-      ],
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          // 🚀 NOWE: Toolbar z przełącznikiem trybu edycji
+          _buildInvestmentsToolbar(),
+          
+          // Main content area
+          Expanded(
+            child: _isInvestmentEditMode 
+              ? _buildAdvancedEditingView()
+              : _buildStandardInvestmentsList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1165,92 +1393,199 @@ class _EnhancedInvestorDetailsDialogState
       ),
       child: Column(
         children: [
-          // Search bar
-          TextField(
-            controller: _searchController,
-            style: TextStyle(color: AppThemePro.textPrimary),
-            decoration: InputDecoration(
-              hintText: 'Szukaj inwestycji...',
-              hintStyle: TextStyle(color: AppThemePro.textMuted),
-              prefixIcon: Icon(Icons.search, color: AppThemePro.textSecondary),
-              suffixIcon: _investmentSearchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: Icon(Icons.clear, color: AppThemePro.textSecondary),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _investmentSearchQuery = '';
-                        });
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: AppThemePro.surfaceInteractive,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+          // 🚀 NOWE: Header z trybem edycji
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'INWESTYCJE (${widget.investor.investments.length})',
+                  style: TextStyle(
+                    color: AppThemePro.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+              // 🚀 NOWE: Toggle button dla zaawansowanej edycji
+              Container(
+                decoration: BoxDecoration(
+                  color: _isInvestmentEditMode 
+                    ? AppThemePro.accentGold.withOpacity(0.1)
+                    : AppThemePro.backgroundTertiary,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _isInvestmentEditMode 
+                      ? AppThemePro.accentGold.withOpacity(0.3)
+                      : AppThemePro.borderSecondary,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      onPressed: _toggleInvestmentEditMode,
+                      icon: Icon(
+                        _isInvestmentEditMode 
+                          ? Icons.edit 
+                          : Icons.edit_outlined,
+                        size: 18,
+                      ),
+                      color: _isInvestmentEditMode 
+                        ? AppThemePro.accentGold 
+                        : AppThemePro.textSecondary,
+                      tooltip: _isInvestmentEditMode 
+                        ? 'Wyłącz tryb edycji'
+                        : 'Włącz zaawansowaną edycję',
+                    ),
+                    if (_isInvestmentEditMode) ...[
+                      Container(
+                        width: 1,
+                        height: 24,
+                        color: AppThemePro.accentGold.withOpacity(0.3),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'EDYCJA',
+                        style: TextStyle(
+                          color: AppThemePro.accentGold,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ],
+                ),
               ),
-            ),
-            onChanged: (value) {
-              setState(() {
-                _investmentSearchQuery = value;
-              });
-            },
+            ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
-          // Filters
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildFilterChip(
-                  'Wszystkie',
-                  _selectedProductTypeFilter == null,
-                  () => setState(() => _selectedProductTypeFilter = null),
+          // Search bar (tylko jeśli nie ma trybu edycji)
+          if (!_isInvestmentEditMode) ...[
+            TextField(
+              controller: _searchController,
+              style: TextStyle(color: AppThemePro.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Szukaj inwestycji...',
+                hintStyle: TextStyle(color: AppThemePro.textMuted),
+                prefixIcon: Icon(Icons.search, color: AppThemePro.textSecondary),
+                suffixIcon: _investmentSearchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, color: AppThemePro.textSecondary),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _investmentSearchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: AppThemePro.surfaceInteractive,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  'Obligacje',
-                  _selectedProductTypeFilter == ProductType.bonds,
-                  () => setState(() =>
-                      _selectedProductTypeFilter = ProductType.bonds),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  'Udziały',
-                  _selectedProductTypeFilter == ProductType.shares,
-                  () => setState(() =>
-                      _selectedProductTypeFilter = ProductType.shares),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  'Pożyczki',
-                  _selectedProductTypeFilter == ProductType.loans,
-                  () => setState(() =>
-                      _selectedProductTypeFilter = ProductType.loans),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  'Apartamenty',
-                  _selectedProductTypeFilter == ProductType.apartments,
-                  () => setState(() =>
-                      _selectedProductTypeFilter = ProductType.apartments),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  'Tylko nieopłacalne',
-                  _showOnlyUnviable,
-                  () => setState(() => _showOnlyUnviable = !_showOnlyUnviable),
-                ),
-              ],
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _investmentSearchQuery = value;
+                });
+              },
             ),
-          ),
+
+            const SizedBox(height: 12),
+
+            // Filters (tylko jeśli nie ma trybu edycji)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildFilterChip(
+                    'Wszystkie',
+                    _selectedProductTypeFilter == null,
+                    () => setState(() => _selectedProductTypeFilter = null),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    'Obligacje',
+                    _selectedProductTypeFilter == ProductType.bonds,
+                    () => setState(() =>
+                        _selectedProductTypeFilter = ProductType.bonds),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    'Udziały',
+                    _selectedProductTypeFilter == ProductType.shares,
+                    () => setState(() =>
+                        _selectedProductTypeFilter = ProductType.shares),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    'Pożyczki',
+                    _selectedProductTypeFilter == ProductType.loans,
+                    () => setState(() =>
+                        _selectedProductTypeFilter = ProductType.loans),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    'Apartamenty',
+                    _selectedProductTypeFilter == ProductType.apartments,
+                    () => setState(() =>
+                        _selectedProductTypeFilter = ProductType.apartments),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    'Tylko nieopłacalne',
+                    _showOnlyUnviable,
+                    () => setState(() => _showOnlyUnviable = !_showOnlyUnviable),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            // Informacja o trybie edycji
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppThemePro.accentGold.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppThemePro.accentGold.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: AppThemePro.accentGold,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Tryb zaawansowanej edycji aktywny. Możesz edytować wszystkie pola z automatycznymi obliczeniami.',
+                      style: TextStyle(
+                        color: AppThemePro.accentGold,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1325,6 +1660,235 @@ class _EnhancedInvestorDetailsDialogState
     );
   }
 
+  /// 🚀 NOWE: Standard investments list (tylko podgląd)
+  Widget _buildStandardInvestmentsList() {
+    return _buildInvestmentsList();
+  }
+
+  /// 🚀 NOWE: Zaawansowany widok edycji używający komponentów z InvestorEditDialog
+  Widget _buildAdvancedEditingView() {
+    return CustomScrollView(
+      slivers: [
+        // Loading indicator jeśli operacja w toku
+        if (_editState.isLoading)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: PremiumLoadingIndicator(
+                isLoading: true,
+                text: 'Zapisywanie zmian...',
+              ),
+            ),
+          ),
+
+        // Error notification if present
+        if (_editState.error != null)
+          SliverToBoxAdapter(child: _buildPremiumErrorCard()),
+
+        // Investments editing section
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header z informacją o trybie edycji
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppThemePro.accentGold.withOpacity(0.1),
+                        AppThemePro.accentGold.withOpacity(0.05),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppThemePro.accentGold.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppThemePro.accentGold.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.edit_rounded,
+                          color: AppThemePro.accentGold,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'TRYB ZAAWANSOWANEJ EDYCJI',
+                              style: TextStyle(
+                                color: AppThemePro.accentGold,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Edycja wszystkich kluczowych pól inwestycji z automatycznymi obliczeniami',
+                              style: TextStyle(
+                                color: AppThemePro.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Investment cards z zaawansowaną edycją
+                Column(
+                  children: List.generate(
+                    widget.investor.investments.length,
+                    (index) {
+                      final investment = widget.investor.investments[index];
+                      return Container(
+                        margin: EdgeInsets.only(
+                          bottom: index < widget.investor.investments.length - 1 ? 20 : 0,
+                        ),
+                        child: InvestmentEditCard(
+                          investment: investment,
+                          index: index,
+                          remainingCapitalController:
+                              _unifiedControllers.remainingCapitalControllers[index],
+                          investmentAmountController:
+                              _unifiedControllers.investmentAmountControllers[index],
+                          capitalForRestructuringController:
+                              _unifiedControllers.capitalForRestructuringControllers[index],
+                          capitalSecuredController: _unifiedControllers
+                              .capitalSecuredByRealEstateControllers[index],
+                          statusValue: _unifiedControllers.statusValues[index],
+                          onStatusChanged: (status) => _onUnifiedStatusChanged(index, status),
+                          onChanged: _onUnifiedDataChanged,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Bottom padding
+        const SliverToBoxAdapter(child: SizedBox(height: 32)),
+      ],
+    );
+  }
+
+  /// 🚀 NOWE: Error card z premium stylistyką
+  Widget _buildPremiumErrorCard() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppThemePro.lossRedBg.withOpacity(0.8),
+            AppThemePro.lossRedBg.withOpacity(0.6),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppThemePro.lossRed.withOpacity(0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppThemePro.lossRed.withOpacity(0.2),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppThemePro.lossRed.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.warning_amber_rounded,
+              color: AppThemePro.lossRed,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'BŁĄD OPERACJI',
+                  style: TextStyle(
+                    color: AppThemePro.lossRed,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _editState.error!,
+                  style: TextStyle(
+                    color: AppThemePro.textPrimary,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 🚀 NOWE: Handler dla zmian unified controllers
+  void _onUnifiedDataChanged() {
+    if (mounted) {
+      setState(() {
+        _editState = _editState.withChanges();
+        _hasChanges = true;
+      });
+    }
+  }
+
+  /// 🚀 NOWE: Handler dla zmian statusu
+  void _onUnifiedStatusChanged(int index, InvestmentStatus newStatus) {
+    if (mounted) {
+      setState(() {
+        _unifiedControllers.statusValues[index] = newStatus;
+        _editState = _editState.withChanges();
+        _hasChanges = true;
+      });
+    }
+  }
+
   List<Investment> _getFilteredInvestments() {
     return widget.investor.investments.where((investment) {
       // Search filter
@@ -1359,38 +1923,47 @@ class _EnhancedInvestorDetailsDialogState
     final productTypeColor = AppThemePro.getInvestmentTypeColor(
       investment.productType.name,
     );
+    final isEditing = _isInvestmentEditMode && _editingInvestmentId == investment.id;
+    final hasChanges = _investmentHasChanges[investment.id] ?? false;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppThemePro.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isUnviable
-              ? AppThemePro.lossRed.withOpacity(0.3)
-              : productTypeColor.withOpacity(0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: (isUnviable ? AppThemePro.lossRed : productTypeColor)
-                .withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+      decoration: _isInvestmentEditMode 
+        ? PremiumDialogDecorations.getInvestmentCardDecoration(
+            hasChanges: hasChanges,
+            isHovered: isEditing,
+          )
+        : BoxDecoration(
+            color: AppThemePro.surfaceCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isUnviable
+                  ? AppThemePro.lossRed.withOpacity(0.3)
+                  : productTypeColor.withOpacity(0.2),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: (isUnviable ? AppThemePro.lossRed : productTypeColor)
+                    .withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _navigateToInvestmentDetails(investment),
+          onTap: _isInvestmentEditMode 
+            ? () => _toggleInvestmentEdit(investment.id)
+            : () => _navigateToInvestmentDetails(investment),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
+                // Header z statusem edycji
                 Row(
                   children: [
                     Container(
@@ -1430,7 +2003,19 @@ class _EnhancedInvestorDetailsDialogState
                         ],
                       ),
                     ),
-                    if (_isEditing)
+                    if (_isInvestmentEditMode) ...[
+                      if (hasChanges)
+                        ChangeStatusIndicator(
+                          hasChanges: true,
+                          changeText: 'ZMIENIONO',
+                        )
+                      else
+                        Icon(
+                          isEditing ? Icons.edit : Icons.edit_outlined,
+                          color: AppThemePro.accentGold,
+                          size: 20,
+                        ),
+                    ] else if (_isEditing) ...[
                       Checkbox(
                         value: isUnviable,
                         onChanged: (value) {
@@ -1445,57 +2030,17 @@ class _EnhancedInvestorDetailsDialogState
                         },
                         activeColor: AppThemePro.lossRed,
                       ),
+                    ],
                   ],
                 ),
 
                 const SizedBox(height: 16),
 
-                // Financial data
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildFinancialDataItem(
-                        'Kwota inwestycji',
-                        CurrencyFormatter.formatCurrency(
-                          investment.investmentAmount,
-                        ),
-                        AppThemePro.bondsBlue,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildFinancialDataItem(
-                        'Kapitał pozostały',
-                        CurrencyFormatter.formatCurrency(
-                          investment.remainingCapital,
-                        ),
-                        AppThemePro.profitGreen,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildFinancialDataItem(
-                        'Status',
-                        investment.status.displayName,
-                        AppThemePro.getStatusColor(investment.status.name),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildFinancialDataItem(
-                        'Typ rynku',
-                        investment.marketType.displayName,
-                        AppThemePro.neutralGray,
-                      ),
-                    ),
-                  ],
-                ),
+                // Financial data - edytowalne lub tylko do odczytu
+                if (isEditing)
+                  _buildEditableInvestmentFields(investment)
+                else
+                  _buildReadOnlyInvestmentFields(investment),
 
                 if (isUnviable) ...[
                   const SizedBox(height: 12),
@@ -1561,6 +2106,597 @@ class _EnhancedInvestorDetailsDialogState
         ),
       ],
     );
+  }
+
+  void _toggleInvestmentEdit(String investmentId) {
+    setState(() {
+      if (_editingInvestmentId == investmentId) {
+        // Wyłącz edycję tej inwestycji
+        _editingInvestmentId = null;
+      } else {
+        // Włącz edycję tej inwestycji
+        _editingInvestmentId = investmentId;
+      }
+    });
+    _triggerHapticFeedback();
+  }
+
+  Widget _buildReadOnlyInvestmentFields(Investment investment) {
+    return Column(
+      children: [
+        // Pierwszy rząd - kwoty podstawowe (🎯 UPROSZCZONE: tylko kluczowe pola)
+        Row(
+          children: [
+            Expanded(
+              child: _buildFinancialDataItem(
+                'Kwota inwestycji',
+                CurrencyFormatter.formatCurrency(investment.investmentAmount),
+                AppThemePro.bondsBlue,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildFinancialDataItem(
+                'Kapitał pozostały',
+                CurrencyFormatter.formatCurrency(investment.remainingCapital),
+                AppThemePro.profitGreen,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        
+        // Drugi rząd - kapitały specjalne (🎯 UPROSZCZONE: tylko kluczowe pola)
+        Row(
+          children: [
+            Expanded(
+              child: _buildFinancialDataItem(
+                'Kapitał do restrukturyzacji',
+                CurrencyFormatter.formatCurrency(investment.capitalForRestructuring),
+                AppThemePro.loansOrange,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildFinancialDataItem(
+                'Kapitał zabezpieczony',
+                CurrencyFormatter.formatCurrency(investment.capitalSecuredByRealEstate),
+                AppThemePro.neutralGray,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        
+        // Czwarty rząd - kapitał zabezpieczony i restrukturyzacja
+        Row(
+          children: [
+            Expanded(
+              child: _buildFinancialDataItem(
+                'Kapitał zabezpieczony',
+                CurrencyFormatter.formatCurrency(investment.capitalSecuredByRealEstate),
+                AppThemePro.realEstateViolet,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildFinancialDataItem(
+                'Do restrukturyzacji',
+                CurrencyFormatter.formatCurrency(investment.capitalForRestructuring),
+                AppThemePro.statusWarning,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        
+        // 🔢 AUTOMATYCZNE OBLICZENIA (tylko do wyświetlania)
+        _buildCalculatedFields(investment),
+      ],
+    );
+  }
+
+  Widget _buildEditableInvestmentFields(Investment investment) {
+    final controllers = _investmentControllers[investment.id];
+    if (controllers == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: PremiumDialogDecorations.getInputDecorationTheme().fillColor != null 
+        ? BoxDecoration(
+            color: AppThemePro.backgroundTertiary.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppThemePro.accentGold.withOpacity(0.3),
+              width: 1,
+            ),
+          )
+        : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.edit_outlined,
+                color: AppThemePro.accentGold,
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Tryb edycji (tylko kluczowe pola)',
+                style: TextStyle(
+                  color: AppThemePro.accentGold,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Pierwszy rząd - kwoty podstawowe (🎯 UPROSZCZONE: tylko kluczowe pola)
+          Row(
+            children: [
+              Expanded(
+                child: _buildEditableField(
+                  'Kwota inwestycji',
+                  controllers['investmentAmount']!,
+                  investment.id,
+                  'investmentAmount',
+                  AppThemePro.bondsBlue,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildEditableField(
+                  'Kapitał pozostały',
+                  controllers['remainingCapital']!,
+                  investment.id,
+                  'remainingCapital',
+                  AppThemePro.profitGreen,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Drugi rząd - kapitały specjalne (🎯 UPROSZCZONE: tylko kluczowe pola)
+          Row(
+            children: [
+              Expanded(
+                child: _buildEditableField(
+                  'Kapitał do restrukturyzacji',
+                  controllers['capitalForRestructuring']!,
+                  investment.id,
+                  'capitalForRestructuring',
+                  AppThemePro.loansOrange,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildEditableField(
+                  'Kapitał zabezpieczony',
+                  controllers['capitalSecuredByRealEstate']!,
+                  investment.id,
+                  'capitalSecuredByRealEstate',
+                  AppThemePro.neutralGray,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // === OBLICZENIA AUTOMATYCZNE ===
+          _buildCalculatedFields(investment),
+          
+          const SizedBox(height: 16),
+          
+          // Przyciski akcji
+          Row(
+            children: [
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: () => _resetInvestmentFields(investment.id),
+                  icon: Icon(Icons.refresh, size: 16),
+                  label: const Text('Resetuj'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppThemePro.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _saveInvestmentChanges(investment.id),
+                  icon: Icon(Icons.save, size: 16),
+                  label: const Text('Zapisz'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppThemePro.accentGold,
+                    foregroundColor: AppThemePro.primaryDark,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditableField(
+    String label,
+    TextEditingController controller,
+    String investmentId,
+    String fieldName,
+    Color color,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [CurrencyInputFormatter()],
+          style: TextStyle(
+            color: AppThemePro.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          decoration: InputDecoration(
+            hintText: '0,00',
+            hintStyle: TextStyle(color: AppThemePro.textMuted),
+            filled: true,
+            fillColor: AppThemePro.backgroundSecondary,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: color.withOpacity(0.3)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: color.withOpacity(0.3)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: color, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          ),
+          onChanged: (_) => _onInvestmentFieldChanged(investmentId),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCalculatedFields(Investment investment) {
+    final controllers = _investmentControllers[investment.id];
+    if (controllers == null) return const SizedBox.shrink();
+
+    // Parsuj aktualne wartości z kontrolerów używając editService (usuwa spacje!)
+    final investmentAmount = _editService.parseValueFromController(controllers['investmentAmount']!.text);
+    final remainingCapital = _editService.parseValueFromController(controllers['remainingCapital']!.text);
+    final capitalForRestructuring = _editService.parseValueFromController(controllers['capitalForRestructuring']!.text);
+
+    // 🔢 OBLICZENIA ZGODNE Z MODELEM INVESTMENT
+    final totalValue = remainingCapital; // Zgodnie z modelem: totalValue => remainingCapital
+    final profitLoss = remainingCapital - investmentAmount; // Zgodnie z modelem
+    final profitLossPercentage = investmentAmount > 0 ? (profitLoss / investmentAmount) * 100 : 0.0;
+
+    // Kapitał zabezpieczony = max(remainingCapital - capitalForRestructuring, 0)
+    final capitalSecured = (remainingCapital - capitalForRestructuring).clamp(0.0, double.infinity);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundTertiary.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppThemePro.borderSecondary.withOpacity(0.5),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.calculate_outlined,
+                color: AppThemePro.accentGold,
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Obliczenia automatyczne',
+                style: TextStyle(
+                  color: AppThemePro.accentGold,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              _buildCalculatedValue(
+                'Wartość całkowita',
+                totalValue,
+                Icons.assessment,
+                AppThemePro.neutralGray,
+              ),
+              _buildCalculatedValue(
+                'Zysk/Strata',
+                profitLoss,
+                profitLoss >= 0 ? Icons.trending_up : Icons.trending_down,
+                AppThemePro.getPerformanceColor(profitLoss),
+              ),
+              _buildCalculatedValue(
+                'Kapitał zabezpieczony (oblicz.)',
+                capitalSecured,
+                Icons.security,
+                AppThemePro.realEstateViolet,
+              ),
+            ],
+          ),
+          if (profitLossPercentage != 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Wydajność: ${profitLossPercentage >= 0 ? '+' : ''}${profitLossPercentage.toStringAsFixed(2)}%',
+              style: TextStyle(
+                color: AppThemePro.getPerformanceColor(profitLossPercentage),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalculatedValue(
+    String label,
+    double value,
+    IconData icon,
+    Color color,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: AppThemePro.textMuted,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              CurrencyFormatter.formatCurrency(value),
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _onInvestmentFieldChanged(String investmentId) {
+    setState(() {
+      _investmentHasChanges[investmentId] = true;
+      _hasChanges = true;
+    });
+  }
+
+  /// 🔧 NOWE: Automatyczne przeliczanie kapitału pozostałego
+  /// remainingCapital = capitalSecuredByRealEstate + capitalForRestructuring
+  void _calculateAutomaticRemainingCapital(String investmentId) {
+    final controllers = _investmentControllers[investmentId];
+    if (controllers == null) return;
+
+    try {
+      // Pobierz wartości z kontrolerów
+      final capitalForRestructuringText = controllers['capitalForRestructuring']!.text;
+      final capitalSecuredText = controllers['capitalSecuredByRealEstate']!.text;
+      final currentRemainingCapitalText = controllers['remainingCapital']!.text;
+
+      debugPrint('🧮 [EnhancedDialog] Auto-calculating remaining capital for $investmentId:');
+      debugPrint('   - capitalForRestructuring text: "$capitalForRestructuringText"');
+      debugPrint('   - capitalSecured text: "$capitalSecuredText"');
+      debugPrint('   - CURRENT remainingCapital text: "$currentRemainingCapitalText"');
+
+      // Parsuj wartości używając editService (usuwa spacje)
+      final capitalForRestructuring = _editService.parseValueFromController(capitalForRestructuringText);
+      final capitalSecured = _editService.parseValueFromController(capitalSecuredText);
+
+      // 🧮 LOGIKA BIZNESOWA: Kapitał pozostały = Kapitał zabezpieczony + Kapitał do restrukturyzacji
+      final calculatedRemainingCapital = capitalSecured + capitalForRestructuring;
+
+      debugPrint('   - Parsed capitalForRestructuring: $capitalForRestructuring');
+      debugPrint('   - Parsed capitalSecured: $capitalSecured');
+      debugPrint('   - Calculated remainingCapital: $calculatedRemainingCapital');
+
+      // Sformatuj nową wartość
+      final newRemainingCapitalText = calculatedRemainingCapital.toStringAsFixed(2);
+
+      // Aktualizuj kontroler tylko jeśli wartość się zmieniła (unikamy nieskończonych pętli)
+      if (controllers['remainingCapital']!.text != newRemainingCapitalText) {
+        debugPrint('📝 [EnhancedDialog] Updating remaining capital: $currentRemainingCapitalText → $newRemainingCapitalText');
+        
+        controllers['remainingCapital']!.text = newRemainingCapitalText;
+        
+        // Oznacz jako zmienione
+        _onInvestmentFieldChanged(investmentId);
+      }
+    } catch (e) {
+      debugPrint('❌ [EnhancedDialog] Error calculating automatic remaining capital: $e');
+    }
+  }
+
+  void _resetInvestmentFields(String investmentId) {
+    final investment = widget.investor.investments.firstWhere((inv) => inv.id == investmentId);
+    final controllers = _investmentControllers[investmentId];
+    
+    if (controllers != null) {
+      // 🎯 UPROSZCZONE: Resetuj tylko 4 kluczowe pola
+      controllers['investmentAmount']!.text = investment.investmentAmount.toStringAsFixed(2);
+      controllers['remainingCapital']!.text = investment.remainingCapital.toStringAsFixed(2);
+      controllers['capitalForRestructuring']!.text = investment.capitalForRestructuring.toStringAsFixed(2);
+      controllers['capitalSecuredByRealEstate']!.text = investment.capitalSecuredByRealEstate.toStringAsFixed(2);
+      
+      setState(() {
+        _investmentHasChanges[investmentId] = false;
+      });
+    }
+  }
+
+  Future<void> _saveInvestmentChanges(String investmentId) async {
+    final controllers = _investmentControllers[investmentId];
+    if (controllers == null) return;
+
+    try {
+      setState(() => _isLoading = true);
+
+      // Znajdź inwestycję i stwórz zaktualizowaną wersję
+      final investment = widget.investor.investments.firstWhere((inv) => inv.id == investmentId);
+      
+      // 🎯 UPROSZCZONE: Parsuj tylko 4 kluczowe pola używając editService (usuwa spacje!)
+      final investmentAmount = _editService.parseValueFromController(controllers['investmentAmount']!.text);
+      final remainingCapital = _editService.parseValueFromController(controllers['remainingCapital']!.text);
+      final capitalForRestructuring = _editService.parseValueFromController(controllers['capitalForRestructuring']!.text);
+      final capitalSecuredByRealEstate = _editService.parseValueFromController(controllers['capitalSecuredByRealEstate']!.text);
+
+      // Stwórz zaktualizowany obiekt Investment (zachowaj pozostałe pola)
+      final updatedInvestment = Investment(
+        id: investment.id,
+        clientId: investment.clientId,
+        clientName: investment.clientName,
+        employeeId: investment.employeeId,
+        employeeFirstName: investment.employeeFirstName,
+        employeeLastName: investment.employeeLastName,
+        branchCode: investment.branchCode,
+        status: investment.status,
+        isAllocated: investment.isAllocated,
+        marketType: investment.marketType,
+        signedDate: investment.signedDate,
+        entryDate: investment.entryDate,
+        exitDate: investment.exitDate,
+        proposalId: investment.proposalId,
+        productType: investment.productType,
+        productName: investment.productName,
+        productId: investment.productId,
+        creditorCompany: investment.creditorCompany,
+        companyId: investment.companyId,
+        issueDate: investment.issueDate,
+        redemptionDate: investment.redemptionDate,
+        sharesCount: investment.sharesCount,
+        // 🎯 ZAKTUALIZOWANE: Tylko 4 kluczowe pola
+        investmentAmount: investmentAmount,
+        remainingCapital: remainingCapital,
+        capitalForRestructuring: capitalForRestructuring,
+        capitalSecuredByRealEstate: capitalSecuredByRealEstate,
+        // 🔒 ZACHOWANE: Pozostałe pola bez zmian
+        paidAmount: investment.paidAmount,
+        realizedCapital: investment.realizedCapital,
+        realizedInterest: investment.realizedInterest,
+        remainingInterest: investment.remainingInterest,
+        transferToOtherProduct: investment.transferToOtherProduct,
+        plannedTax: investment.plannedTax,
+        realizedTax: investment.realizedTax,
+        currency: investment.currency,
+        exchangeRate: investment.exchangeRate,
+        createdAt: investment.createdAt,
+        updatedAt: DateTime.now(),
+        additionalInfo: investment.additionalInfo,
+      );
+
+      // Zapisz bezpośrednio do Firestore (jak w product_edit_dialog)
+      final firestore = FirebaseFirestore.instance;
+      final docRef = firestore.collection('investments').doc(investmentId);
+      await docRef.update(updatedInvestment.toFirestore());
+
+      // Wyczyść cache
+      final cacheService = DataCacheService();
+      cacheService.invalidateCache();
+      cacheService.invalidateCollectionCache('investments');
+
+      setState(() {
+        _investmentHasChanges[investmentId] = false;
+        _editingInvestmentId = null;
+      });
+
+      // Pokaż sukces
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                const Text('Zmiany zostały zapisane'),
+              ],
+            ),
+            backgroundColor: AppThemePro.profitGreen,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+
+      // Przeładuj dane
+      if (widget.onUpdate != null) {
+        widget.onUpdate!();
+      }
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Błąd zapisywania: $e')),
+              ],
+            ),
+            backgroundColor: AppThemePro.lossRed,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Widget _buildInvestmentHistoryTab() {
@@ -2078,68 +3214,169 @@ class _EnhancedInvestorDetailsDialogState
 
   Widget _buildActionBar() {
     return Container(
-      padding: EdgeInsets.all(_isSmallScreen ? 16 : 24),
+      height: 100,
       decoration: BoxDecoration(
-        color: AppThemePro.backgroundSecondary,
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(_isSmallScreen ? 16 : 24),
-        ),
+        gradient: PremiumDialogDecorations.footerGradient,
         border: Border(
           top: BorderSide(
-            color: AppThemePro.borderPrimary,
-            width: 1,
+            color: AppThemePro.accentGold.withOpacity(0.2),
+            width: 1.5,
           ),
         ),
-      ),
-      child: Row(
-        children: [
-          if (_hasChanges) ...[
-            Icon(
-              Icons.edit,
-              color: AppThemePro.accentGold,
-              size: 16,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Masz niezapisane zmiany',
-              style: TextStyle(
-                color: AppThemePro.accentGold,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-          const Spacer(),
-          TextButton(
-            onPressed: _isLoading ? null : _closeDialog,
-            child: const Text('Anuluj'),
-          ),
-          const SizedBox(width: 12),
-          ElevatedButton.icon(
-            onPressed: _isLoading ? null : _saveChanges,
-            icon: _isLoading
-                ? SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(
-                        AppThemePro.primaryDark,
-                      ),
-                    ),
-                  )
-                : const Icon(Icons.save),
-            label: Text(_isLoading ? 'Zapisywanie...' : 'Zapisz zmiany'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppThemePro.accentGold,
-              foregroundColor: AppThemePro.primaryDark,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 12,
-              ),
-            ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -4),
           ),
         ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+        child: Row(
+          children: [
+            // Status indicator section
+            Expanded(
+              child: ChangeStatusIndicator(
+                hasChanges: _hasChanges,
+                changeText: _isInvestmentEditMode 
+                  ? 'ZAAWANSOWANE ZMIANY OCZEKUJĄ'
+                  : 'ZMIANY OCZEKUJĄ',
+                noChangeText: _isInvestmentEditMode 
+                  ? 'GOTOWY DO ZAAWANSOWANEJ EDYCJI'
+                  : 'GOTOWY DO EDYCJI',
+              ),
+            ),
+
+            const SizedBox(width: 24),
+
+            // Action buttons
+            Row(
+              children: [
+                // Cancel button
+                Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppThemePro.backgroundTertiary,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppThemePro.borderSecondary,
+                      width: 1,
+                    ),
+                  ),
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'Anuluj',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: AppThemePro.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 16),
+
+                // Save button
+                Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: (_isLoading || _editState.isLoading)
+                        ? LinearGradient(
+                            colors: [
+                              AppThemePro.accentGold.withOpacity(0.6),
+                              AppThemePro.accentGoldMuted.withOpacity(0.6),
+                            ],
+                          )
+                        : LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppThemePro.accentGold,
+                              AppThemePro.accentGoldMuted,
+                            ],
+                          ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: (_isLoading || _editState.isLoading)
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: AppThemePro.accentGold.withOpacity(0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: (_isLoading || _editState.isLoading) 
+                      ? null 
+                      : (_isInvestmentEditMode ? _saveUnifiedChanges : _saveChanges),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: AppThemePro.backgroundPrimary,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isLoading || _editState.isLoading) ...[
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppThemePro.backgroundPrimary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Zapisywanie...',
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(
+                                  color: AppThemePro.backgroundPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ] else ...[
+                          Icon(
+                            Icons.save_rounded,
+                            size: 18,
+                            color: AppThemePro.backgroundPrimary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _isInvestmentEditMode 
+                              ? 'ZAPISZ INWESTYCJE'
+                              : 'ZAPISZ ZMIANY',
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(
+                                  color: AppThemePro.backgroundPrimary,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2297,6 +3534,95 @@ class _EnhancedInvestorDetailsDialogState
     } else {
       return 'Teraz';
     }
+  }
+
+  /// 🚀 NOWE: Zapisywanie zmian w trybie zaawansowanej edycji
+  Future<void> _saveUnifiedChanges() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _editState = _editState.withLoading(true).clearError();
+    });
+
+    try {
+      // Obsłuż standardowe zmiany pojedynczych inwestycji
+      final success = await _editService.saveInvestmentChanges(
+        originalInvestments: widget.investor.investments,
+        remainingCapitalControllers: _unifiedControllers.remainingCapitalControllers,
+        investmentAmountControllers: _unifiedControllers.investmentAmountControllers,
+        capitalForRestructuringControllers:
+            _unifiedControllers.capitalForRestructuringControllers,
+        capitalSecuredControllers:
+            _unifiedControllers.capitalSecuredByRealEstateControllers,
+        statusValues: _unifiedControllers.statusValues,
+        changeReason: 'Zaawansowana edycja inwestycji przez ${widget.investor.client.name}',
+      );
+
+      if (success) {
+        // Pokaż powiadomienie o sukcesie
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Zmiany zostały zapisane pomyślnie'),
+              backgroundColor: Colors.green[700],
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+
+        // Wywołaj callback aktualizacji
+        if (widget.onInvestorUpdated != null) {
+          // Utworzenie zaktualizowanego InvestorSummary z nowymi danymi
+          final updatedInvestments = widget.investor.investments;
+          final updatedInvestor = InvestorSummary(
+            client: widget.investor.client,
+            investments: updatedInvestments,
+            totalInvestmentAmount: widget.investor.totalInvestmentAmount,
+            totalRemainingCapital: widget.investor.totalRemainingCapital,
+            totalSharesValue: widget.investor.totalSharesValue,
+            totalValue: widget.investor.totalValue,
+            totalRealizedCapital: widget.investor.totalRealizedCapital,
+            capitalForRestructuring: widget.investor.capitalForRestructuring,
+            capitalSecuredByRealEstate: widget.investor.capitalSecuredByRealEstate,
+            investmentCount: widget.investor.investmentCount,
+          );
+          widget.onInvestorUpdated!(updatedInvestor);
+        }
+
+        if (mounted) {
+          setState(() {
+            _editState = _editState.resetChanges().withLoading(false);
+            _hasChanges = false;
+            _isInvestmentEditMode = false; // Wyłącz tryb edycji po zapisaniu
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _editState = _editState
+                .withLoading(false)
+                .copyWith(error: 'Błąd podczas zapisywania zmian');
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ [EnhancedDialog] Błąd podczas zapisywania: $e');
+      if (mounted) {
+        setState(() {
+          _editState = _editState
+              .withLoading(false)
+              .copyWith(
+                error: 'Błąd podczas zapisywania zmian: ${e.toString()}',
+              );
+        });
+      }
+    }
+  }
+
+  /// 🚀 NOWE: Formatuje kwoty walutowe
+  String _formatCurrency(double amount) {
+    return CurrencyFormatter.formatCurrency(amount);
   }
 }
 
