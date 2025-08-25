@@ -199,17 +199,150 @@ class EmailEditorService extends BaseService {
   /// Konwertuje dokument Quill na HTML - UŻYWA STANDARDOWEJ BIBLIOTEKI
   String convertDocumentToHtml(Document document) {
     try {
-      // ⭐ POPRAWIONA KONWERSJA - używaj vsc_quill_delta_to_html z opcjami email
+      // ⭐ ROZSZERZONA KONWERSJA - pełna obsługa formatowania Quill
       final converter = QuillDeltaToHtmlConverter(
         document.toDelta().toJson(),
-        ConverterOptions.forEmail(),
+        _createEnhancedConverterOptions(),
       );
-      return converter.convert();
+      
+      final htmlResult = converter.convert();
+      
+      // DEBUG - pokaż delta i HTML dla sprawdzenia formatowania
+      if (kDebugMode) {
+        final delta = document.toDelta();
+        print('🎨 [ENHANCED FORMATTING] Delta operations:');
+        for (var op in delta.toJson()) {
+          print('  📝 $op');
+        }
+        print('🎨 [ENHANCED FORMATTING] Generated HTML:');
+        print('  🔗 ${htmlResult.substring(0, htmlResult.length > 500 ? 500 : htmlResult.length)}${htmlResult.length > 500 ? "..." : ""}');
+      }
+      
+      return htmlResult;
     } catch (e) {
       logError('convertDocumentToHtml', e);
       // Fallback - zwróć plain text w prostym HTML
       return '<p>${_escapeHtml(document.toPlainText())}</p>';
     }
+  }
+
+  /// Tworzy zaawansowane opcje konwersji obsługujące wszystkie elementy flutter_quill
+  ConverterOptions _createEnhancedConverterOptions() {
+    return ConverterOptions(
+      converterOptions: OpConverterOptions(
+        // Używaj stylów inline dla lepszej kompatybilności z emailami
+        inlineStylesFlag: true,
+        
+        // Zaawansowane style inline obsługujące wszystkie elementy formatowania
+        inlineStyles: InlineStyles({
+          // === PODSTAWOWE FORMATOWANIE ===
+          'bold': InlineStyleType(
+            fn: (value, _) => 'font-weight: bold',
+          ),
+          'italic': InlineStyleType(
+            fn: (value, _) => 'font-style: italic',
+          ),
+          'underline': InlineStyleType(
+            fn: (value, _) => 'text-decoration: underline',
+          ),
+          'strike': InlineStyleType(
+            fn: (value, _) => 'text-decoration: line-through',
+          ),
+          
+          // === KOLORY ===
+          'color': InlineStyleType(
+            fn: (value, _) => 'color: $value',
+          ),
+          'background': InlineStyleType(
+            fn: (value, _) => 'background-color: $value',
+          ),
+          
+          // === CZCIONKI ===
+          'font': InlineStyleType(
+            fn: (value, _) => 'font-family: $value',
+          ),
+          
+          // === ROZMIARY CZCIONKI ===
+          'size': InlineStyleType(
+            fn: (value, _) {
+              // Obsługa różnych formatów rozmiaru z flutter_quill
+              if (value is String) {
+                if (value == 'small') return 'font-size: 0.75em';
+                if (value == 'large') return 'font-size: 1.5em';
+                if (value == 'huge') return 'font-size: 2.5em';
+                // Numeryczne wartości jako px
+                final numValue = double.tryParse(value);
+                if (numValue != null) {
+                  return 'font-size: ${numValue}px';
+                }
+                return 'font-size: $value';
+              } else if (value is num) {
+                return 'font-size: ${value}px';
+              }
+              return 'font-size: $value';
+            },
+          ),
+          
+          // === WYRÓWNANIE TEKSTU ===
+          'align': InlineStyleType(
+            fn: (value, _) => 'text-align: $value',
+          ),
+          
+          // === KIERUNEK TEKSTU ===
+          'direction': InlineStyleType(
+            fn: (value, _) => 'direction: $value',
+          ),
+          
+          // === WCIĘCIA ===
+          'indent': InlineStyleType(
+            fn: (value, _) {
+              final indentValue = value is String ? int.tryParse(value) ?? 0 : (value as num).toInt();
+              return 'margin-left: ${indentValue * 30}px'; // 30px na poziom wcięcia
+            },
+          ),
+          
+          // === SKRYPTY (sub/superscript) ===
+          'script': InlineStyleType(
+            fn: (value, _) {
+              if (value == 'sub') return 'vertical-align: sub; font-size: smaller';
+              if (value == 'super') return 'vertical-align: super; font-size: smaller';
+              return '';
+            },
+          ),
+          
+          // === LISTY ===
+          'list': InlineStyleType(
+            fn: (value, _) => '', // Listy są obsługiwane przez znaczniki HTML
+          ),
+          
+          // === DODATKOWE STYLE ===
+          'code-block': InlineStyleType(
+            fn: (value, _) => 'background-color: #f4f4f4; padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap',
+          ),
+        }),
+        
+        // Konfiguracja linków
+        linkRel: 'noopener noreferrer',
+        linkTarget: '_blank',
+        
+        // Enkodowanie HTML dla bezpieczeństwa
+        encodeHtml: true,
+        
+        // Znaczniki dla akapitów
+        paragraphTag: 'p',
+        
+        // Prefix dla klas CSS (jeśli nie używamy inline styles)
+        classPrefix: 'ql-',
+        
+        // Niestandardowe znaczniki list są obsługiwane automatycznie
+      ),
+      
+      // Opcje sanityzacji
+      sanitizerOptions: OpAttributeSanitizerOptions(
+        // Pozwól na 8-cyfrowe kolory hex (np. z flutter_quill)
+        allow8DigitHexColors: true,
+      ),
+    );
   }
 
   /// Escape HTML w tekście - HELPER METHOD

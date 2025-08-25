@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:provider/provider.dart';
 import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart' hide TableRow;
+import 'package:flutter_html/flutter_html.dart' as html;
 import '../models_and_services.dart';
 import '../theme/app_theme_professional.dart';
 
@@ -1374,6 +1375,125 @@ Zespół Metropolitan Investment''';
   }
 
   /// Buduje podgląd emaila - ZNACZNIE ULEPSZONY
+  /// Tworzy zaawansowane opcje konwersji obsługujące wszystkie elementy flutter_quill
+  ConverterOptions _createEnhancedConverterOptions() {
+    return ConverterOptions(
+      converterOptions: OpConverterOptions(
+        // Używaj stylów inline dla lepszej kompatybilności z emailami
+        inlineStylesFlag: true,
+        
+        // Zaawansowane style inline obsługujące wszystkie elementy formatowania
+        inlineStyles: InlineStyles({
+          // === PODSTAWOWE FORMATOWANIE ===
+          'bold': InlineStyleType(
+            fn: (value, _) => 'font-weight: bold',
+          ),
+          'italic': InlineStyleType(
+            fn: (value, _) => 'font-style: italic',
+          ),
+          'underline': InlineStyleType(
+            fn: (value, _) => 'text-decoration: underline',
+          ),
+          'strike': InlineStyleType(
+            fn: (value, _) => 'text-decoration: line-through',
+          ),
+          
+          // === KOLORY ===
+          'color': InlineStyleType(
+            fn: (value, _) => 'color: $value',
+          ),
+          'background': InlineStyleType(
+            fn: (value, _) => 'background-color: $value',
+          ),
+          
+          // === CZCIONKI ===
+          'font': InlineStyleType(
+            fn: (value, _) => 'font-family: $value',
+          ),
+          
+          // === ROZMIARY CZCIONKI ===
+          'size': InlineStyleType(
+            fn: (value, _) {
+              // Obsługa różnych formatów rozmiaru z flutter_quill
+              if (value is String) {
+                if (value == 'small') return 'font-size: 0.75em';
+                if (value == 'large') return 'font-size: 1.5em';
+                if (value == 'huge') return 'font-size: 2.5em';
+                // Numeryczne wartości jako px
+                final numValue = double.tryParse(value);
+                if (numValue != null) {
+                  return 'font-size: ${numValue}px';
+                }
+                return 'font-size: $value';
+              } else if (value is num) {
+                return 'font-size: ${value}px';
+              }
+              return 'font-size: $value';
+            },
+          ),
+          
+          // === WYRÓWNANIE TEKSTU ===
+          'align': InlineStyleType(
+            fn: (value, _) => 'text-align: $value',
+          ),
+          
+          // === KIERUNEK TEKSTU ===
+          'direction': InlineStyleType(
+            fn: (value, _) => 'direction: $value',
+          ),
+          
+          // === WCIĘCIA ===
+          'indent': InlineStyleType(
+            fn: (value, _) {
+              final indentValue = value is String ? int.tryParse(value) ?? 0 : (value as num).toInt();
+              return 'margin-left: ${indentValue * 30}px'; // 30px na poziom wcięcia
+            },
+          ),
+          
+          // === SKRYPTY (sub/superscript) ===
+          'script': InlineStyleType(
+            fn: (value, _) {
+              if (value == 'sub') return 'vertical-align: sub; font-size: smaller';
+              if (value == 'super') return 'vertical-align: super; font-size: smaller';
+              return '';
+            },
+          ),
+          
+          // === LISTY ===
+          'list': InlineStyleType(
+            fn: (value, _) => '', // Listy są obsługiwane przez znaczniki HTML
+          ),
+          
+          // === DODATKOWE STYLE ===
+          'code-block': InlineStyleType(
+            fn: (value, _) => 'background-color: #f4f4f4; padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap',
+          ),
+        }),
+        
+        // Konfiguracja linków
+        linkRel: 'noopener noreferrer',
+        linkTarget: '_blank',
+        
+        // Enkodowanie HTML dla bezpieczeństwa
+        encodeHtml: true,
+        
+        // Znaczniki dla akapitów
+        paragraphTag: 'p',
+        
+        // Prefix dla klas CSS (jeśli nie używamy inline styles)
+        classPrefix: 'ql-',
+        
+        // Niestandardowe znaczniki list są obsługiwane automatycznie
+      ),
+      
+      // Opcje sanityzacji
+      sanitizerOptions: OpAttributeSanitizerOptions(
+        // Pozwól na 8-cyfrowe kolory hex (np. z flutter_quill)
+        allow8DigitHexColors: true,
+      ),
+    );
+  }
+
   Widget _buildEmailPreview() {
     // DEBUG - sprawdź czy metoda jest wywoływana
     if (kDebugMode) {
@@ -1443,13 +1563,19 @@ Zespół Metropolitan Investment''';
     
     final converter = QuillDeltaToHtmlConverter(
       deltaJson,
-      ConverterOptions.forEmail(),
+      _createEnhancedConverterOptions(),
     );
     final htmlContent = converter.convert();
     
     // DEBUG - sprawdź wygenerowany HTML
     if (kDebugMode) {
       print('🔄 Generated HTML length: ${htmlContent.length}');
+      print('🎨 [PREVIEW] Delta operations:');
+      for (var op in deltaJson) {
+        print('  📝 $op');
+      }
+      print('🎨 [PREVIEW] Generated HTML (first 300 chars):');
+      print('  🔗 ${htmlContent.substring(0, htmlContent.length > 300 ? 300 : htmlContent.length)}${htmlContent.length > 300 ? "..." : ""}');
     }
 
     final validatedRecipient = _getValidatedPreviewRecipient();
@@ -2356,10 +2482,10 @@ Zespół Metropolitan Investment''';
     });
 
     try {
-      // ⭐ POPRAWIONA KONWERSJA - używaj tej samej co w podglądzie
+      // ⭐ ROZSZERZONA KONWERSJA - używaj tej samej co w podglądzie
       final converter = QuillDeltaToHtmlConverter(
         _quillController.document.toDelta().toJson(),
-        ConverterOptions.forEmail(),
+        _createEnhancedConverterOptions(),
       );
       final htmlContent = converter.convert();
 
@@ -2845,35 +2971,80 @@ class _EmailHtmlRenderer extends StatelessWidget {
       return widgets;
     }
 
-    // Usuń tagi HTML i podziel na akapity
-    final cleanContent = htmlContent
-        .replaceAll(RegExp(r'<[^>]*>'), '')
-        .replaceAll('&nbsp;', ' ')
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .trim();
-
-    final paragraphs = cleanContent.split('\n\n');
-    
-    for (final paragraph in paragraphs) {
-      final trimmed = paragraph.trim();
-      if (trimmed.isNotEmpty) {
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              trimmed,
-              style: TextStyle(
-                color: darkMode ? const Color(0xFFe0e0e0) : const Color(0xFF1c1e21),
-                fontSize: 16,
-                height: 1.6,
-              ),
-            ),
+    // ⭐ NOWE: Używaj flutter_html do renderowania HTML z pełnym formatowaniem
+    widgets.add(
+      html.Html(
+        data: htmlContent,
+        style: {
+          // Podstawowe style dla tekstu
+          "body": html.Style(
+            fontSize: html.FontSize(16),
+            lineHeight: const html.LineHeight(1.6),
+            color: darkMode ? const Color(0xFFe0e0e0) : const Color(0xFF1c1e21),
+            margin: html.Margins.zero,
+            padding: html.HtmlPaddings.zero,
           ),
-        );
-      }
-    }
+          "p": html.Style(
+            fontSize: html.FontSize(16),
+            lineHeight: const html.LineHeight(1.6),
+            color: darkMode ? const Color(0xFFe0e0e0) : const Color(0xFF1c1e21),
+            margin: html.Margins.only(bottom: 16),
+          ),
+          // Headery
+          "h1, h2, h3, h4, h5, h6": html.Style(
+            color: darkMode ? const Color(0xFFd4af37) : const Color(0xFF2c2c2c),
+            fontWeight: FontWeight.w600,
+          ),
+          // Listy
+          "ul, ol": html.Style(
+            color: darkMode ? const Color(0xFFe0e0e0) : const Color(0xFF1c1e21),
+          ),
+          // Code blocks
+          "code": html.Style(
+            backgroundColor: darkMode ? const Color(0xFF3c3c3c) : const Color(0xFFF4F4F4),
+            color: darkMode ? const Color(0xFFe0e0e0) : const Color(0xFF1c1e21),
+            fontFamily: 'monospace',
+            padding: html.HtmlPaddings.symmetric(horizontal: 4, vertical: 2),
+            border: Border.all(color: darkMode ? const Color(0xFF555555) : const Color(0xFFdddddd)),
+          ),
+          "pre": html.Style(
+            backgroundColor: darkMode ? const Color(0xFF3c3c3c) : const Color(0xFFF4F4F4),
+            color: darkMode ? const Color(0xFFe0e0e0) : const Color(0xFF1c1e21),
+            fontFamily: 'monospace',
+            padding: html.HtmlPaddings.all(12),
+            border: Border.all(color: darkMode ? const Color(0xFF555555) : const Color(0xFFdddddd)),
+            whiteSpace: html.WhiteSpace.pre,
+          ),
+          // Links
+          "a": html.Style(
+            color: const Color(0xFFd4af37),
+            textDecoration: TextDecoration.underline,
+          ),
+          // Blockquotes
+          "blockquote": html.Style(
+            border: const Border(left: BorderSide(color: Color(0xFFd4af37), width: 4)),
+            padding: html.HtmlPaddings.only(left: 16),
+            margin: html.Margins.symmetric(vertical: 16),
+            fontStyle: FontStyle.italic,
+          ),
+          // Tables
+          "table": html.Style(
+            border: Border.all(color: darkMode ? const Color(0xFF555555) : const Color(0xFFdddddd)),
+            backgroundColor: darkMode ? const Color(0xFF2c2c2c) : Colors.white,
+          ),
+          "th": html.Style(
+            backgroundColor: darkMode ? const Color(0xFF1f1f1f) : const Color(0xFF2c2c2c),
+            color: const Color(0xFFd4af37),
+            fontWeight: FontWeight.w600,
+            padding: html.HtmlPaddings.all(12),
+          ),
+          "td": html.Style(
+            padding: html.HtmlPaddings.all(10),
+            border: Border.all(color: darkMode ? const Color(0xFF444444) : const Color(0xFFe9ecef)),
+          ),
+        },
+      ),
+    );
 
     return widgets;
   }
@@ -2901,95 +3072,56 @@ class _EmailHtmlRenderer extends StatelessWidget {
               color: darkMode ? const Color(0xFF444444) : const Color(0xFFdddfe2),
             ),
           ),
-          child: _parseInvestmentTable(htmlContent, darkMode),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: html.Html(
+              data: htmlContent,
+              style: {
+                "body": html.Style(
+                  margin: html.Margins.zero,
+                  padding: html.HtmlPaddings.zero,
+                ),
+                // Tables
+                "table": html.Style(
+                  width: html.Width(100, html.Unit.percent),
+                  border: Border.all(color: darkMode ? const Color(0xFF555555) : const Color(0xFFdddddd)),
+                  backgroundColor: darkMode ? const Color(0xFF2c2c2c) : Colors.white,
+                ),
+                "th": html.Style(
+                  backgroundColor: darkMode ? const Color(0xFF1f1f1f) : const Color(0xFF2c2c2c),
+                  color: const Color(0xFFd4af37),
+                  fontWeight: FontWeight.w600,
+                  padding: html.HtmlPaddings.all(12),
+                  textAlign: TextAlign.left,
+                ),
+                "td": html.Style(
+                  padding: html.HtmlPaddings.all(10),
+                  border: Border.all(color: darkMode ? const Color(0xFF444444) : const Color(0xFFe9ecef)),
+                  fontSize: html.FontSize(14),
+                  color: darkMode ? const Color(0xFFe0e0e0) : const Color(0xFF1c1e21),
+                ),
+                // Inne elementy
+                "div": html.Style(
+                  margin: html.Margins.zero,
+                ),
+                "h3, h4": html.Style(
+                  color: const Color(0xFFd4af37),
+                  fontWeight: FontWeight.w600,
+                  margin: html.Margins.only(bottom: 12),
+                ),
+                "p": html.Style(
+                  margin: html.Margins.only(bottom: 8),
+                  fontSize: html.FontSize(14),
+                  color: darkMode ? const Color(0xFFe0e0e0) : const Color(0xFF1c1e21),
+                ),
+              },
+            ),
+          ),
         ),
       ],
     );
   }
 
-  /// Parsuje i renderuje tabelę inwestycji
-  Widget _parseInvestmentTable(String htmlContent, bool darkMode) {
-    final rows = <TableRow>[];
-    
-    // Parsuj HTML tabeli
-    final rowMatches = RegExp(r'<tr[^>]*>(.*?)</tr>', dotAll: true).allMatches(htmlContent);
-    
-    for (final match in rowMatches) {
-      final rowHtml = match.group(1)!;
-      final cellMatches = RegExp(r'<td[^>]*>(.*?)</td>', dotAll: true).allMatches(rowHtml);
-      
-      final cells = <Widget>[];
-      for (final cellMatch in cellMatches) {
-        final cellContent = cellMatch.group(1)!
-            .replaceAll(RegExp(r'<[^>]*>'), '')
-            .replaceAll('&nbsp;', ' ')
-            .trim();
-        
-        final isBold = rowHtml.contains('font-weight: bold');
-        final isEvenRow = rowHtml.contains('background-color: #f9f9f9');
-        
-        cells.add(
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isEvenRow
-                  ? (darkMode ? const Color(0xFF2a2a2a) : const Color(0xFFf9f9f9))
-                  : Colors.transparent,
-            ),
-            child: Text(
-              cellContent,
-              style: TextStyle(
-                color: darkMode ? const Color(0xFFe0e0e0) : const Color(0xFF1c1e21),
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                fontSize: 14,
-              ),
-            ),
-          ),
-        );
-      }
-      
-      if (cells.length >= 2) {
-        rows.add(
-          TableRow(
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: darkMode ? const Color(0xFF444444) : const Color(0xFFdddfe2),
-                  width: 0.5,
-                ),
-              ),
-            ),
-            children: cells,
-          ),
-        );
-      }
-    }
-
-    if (rows.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          'Brak danych do wyświetlenia',
-          style: TextStyle(
-            color: darkMode ? const Color(0xFF888888) : const Color(0xFF606770),
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-      );
-    }
-
-    return Table(
-      border: TableBorder.all(
-        color: darkMode ? const Color(0xFF444444) : const Color(0xFFdddfe2),
-        width: 1,
-      ),
-      columnWidths: const {
-        0: FlexColumnWidth(2),
-        1: FlexColumnWidth(3),
-      },
-      children: rows,
-    );
-  }
 }
 
 /// Model dokumentu email

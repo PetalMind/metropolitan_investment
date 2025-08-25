@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart' as html;
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
 
@@ -43,6 +45,78 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
 
   // Debounce timer for preview updates to avoid rapid rebuilds
   Timer? _previewDebounceTimer;
+
+  // ⭐ Custom font sizes map - numeric values for precise control
+  static const Map<String, String> _customFontSizes = {
+    '8px': '8',
+    '10px': '10',
+    '12px': '12',
+    '14px': '14',
+    '16px': '16',
+    '18px': '18',
+    '20px': '20',
+    '22px': '22',
+    '24px': '24',
+    '28px': '28',
+    '32px': '32',
+    '36px': '36',
+    '48px': '48',
+  };
+
+  // ⭐ Mobile-friendly reduced font sizes
+  static const Map<String, String> _mobileFontSizes = {
+    '10px': '10',
+    '14px': '14',
+    '18px': '18',
+    '24px': '24',
+    '32px': '32',
+  };
+
+  // ⭐ Custom font families with web-safe fallbacks
+  static const Map<String, String> _customFontFamilies = {
+    'Arial': 'Arial, sans-serif',
+    'Helvetica': 'Helvetica, Arial, sans-serif',
+    'Times New Roman': 'Times New Roman, Times, serif',
+    'Georgia': 'Georgia, serif',
+    'Verdana': 'Verdana, sans-serif',
+    'Calibri': 'Calibri, sans-serif',
+    'Roboto': 'Roboto, sans-serif',
+    'Open Sans': 'Open Sans, sans-serif',
+    'Lato': 'Lato, sans-serif',
+    'Source Sans Pro': 'Source Sans Pro, sans-serif',
+    'Montserrat': 'Montserrat, sans-serif',
+    'Oswald': 'Oswald, sans-serif',
+    'Courier New': 'Courier New, Courier, monospace',
+    'Monaco': 'Monaco, Consolas, monospace',
+  };
+
+  // ⭐ Mobile-friendly reduced font families
+  static const Map<String, String> _mobileFontFamilies = {
+    'Arial': 'Arial, sans-serif',
+    'Times New Roman': 'Times New Roman, serif',
+    'Georgia': 'Georgia, serif',
+    'Courier New': 'Courier New, monospace',
+  };
+
+  // ⭐ Predefined color palette for quick selection
+  static const List<Color> _predefinedColors = [
+    Colors.black,
+    Colors.white,
+    Colors.red,
+    Colors.green,
+    Colors.blue,
+    Colors.orange,
+    Colors.purple,
+    Colors.pink,
+    Colors.teal,
+    Colors.brown,
+    Color(0xFF1976D2), // Professional blue
+    Color(0xFFD4AF37), // Gold accent
+    Color(0xFF2E2E2E), // Dark gray
+    Color(0xFF666666), // Light gray
+    Color(0xFF4CAF50), // Success green
+    Color(0xFFF44336), // Error red
+  ];
 
   bool _isLoading = false;
   bool _includeInvestmentDetails = true;
@@ -256,6 +330,186 @@ Zespół Metropolitan Investment''';
     });
   }
 
+  // ⭐ Custom Color Picker Methods
+  
+  /// Shows an enhanced color picker dialog with predefined palette and custom color wheel
+  Future<Color?> _showEnhancedColorPicker(BuildContext context, {
+    required bool isBackground,
+    Color? currentColor,
+  }) async {
+    Color pickerColor = currentColor ?? Colors.black;
+    
+    return showDialog<Color>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppThemePro.backgroundPrimary,
+          title: Text(
+            isBackground ? 'Wybierz kolor tła' : 'Wybierz kolor tekstu',
+            style: TextStyle(
+              color: AppThemePro.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: SizedBox(
+            width: 350,
+            height: 500,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Predefined color palette
+                  _buildPredefinedColorPalette((Color color) {
+                    pickerColor = color;
+                  }),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Divider with label
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: AppThemePro.borderSecondary)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'Lub wybierz custom kolor',
+                          style: TextStyle(
+                            color: AppThemePro.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: AppThemePro.borderSecondary)),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Custom color picker wheel
+                  ColorPicker(
+                    pickerColor: pickerColor,
+                    onColorChanged: (Color color) {
+                      pickerColor = color;
+                    },
+                    colorPickerWidth: 300,
+                    pickerAreaHeightPercent: 0.7,
+                    enableAlpha: false,
+                    displayThumbColor: true,
+                    paletteType: PaletteType.hueWheel,
+                    labelTypes: const [ColorLabelType.hex],
+                    hexInputBar: true,
+                    pickerAreaBorderRadius: BorderRadius.circular(8),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Anuluj',
+                style: TextStyle(color: AppThemePro.textSecondary),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(pickerColor),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppThemePro.accentGold,
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Wybierz'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  /// Builds a predefined color palette widget for quick color selection
+  Widget _buildPredefinedColorPalette(Function(Color) onColorSelected) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundSecondary,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppThemePro.borderSecondary),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Szybki wybór kolorów',
+            style: TextStyle(
+              color: AppThemePro.textPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _predefinedColors.map((color) {
+              return GestureDetector(
+                onTap: () => onColorSelected(color),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: color == Colors.white 
+                        ? AppThemePro.borderSecondary 
+                        : Colors.transparent,
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: color == Colors.white
+                    ? Icon(
+                        Icons.format_color_text,
+                        color: AppThemePro.textSecondary,
+                        size: 16,
+                      )
+                    : null,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// Applies selected color to the current text selection
+  void _applyColorToSelection(Color color, {required bool isBackground}) {
+    final controller = _getCurrentController();
+    final selection = controller.selection;
+    
+    if (!selection.isValid) return;
+    
+    final hexColor = '#${color.r.round().toRadixString(16).padLeft(2, '0')}'
+        '${color.g.round().toRadixString(16).padLeft(2, '0')}'
+        '${color.b.round().toRadixString(16).padLeft(2, '0')}';
+    
+    if (isBackground) {
+      controller.formatSelection(Attribute.fromKeyValue('background', hexColor));
+    } else {
+      controller.formatSelection(Attribute.fromKeyValue('color', hexColor));
+    }
+    
+    // Trigger preview update
+    _updatePreview();
+  }
+
   @override
   void dispose() {
     _quillController.removeListener(_updatePreview);
@@ -278,6 +532,89 @@ Zespół Metropolitan Investment''';
     super.dispose();
   }
 
+  /// Create enhanced converter options for rich text formatting
+  /// Supports dynamic font sizes, colors, and font families
+  ConverterOptions _createEnhancedConverterOptions() {
+    return ConverterOptions(
+      converterOptions: OpConverterOptions(
+        inlineStylesFlag: true,
+        inlineStyles: InlineStyles({
+          'bold': InlineStyleType(fn: (value, _) => 'font-weight: bold'),
+          'italic': InlineStyleType(fn: (value, _) => 'font-style: italic'),
+          'underline': InlineStyleType(fn: (value, _) => 'text-decoration: underline'),
+          'strike': InlineStyleType(fn: (value, _) => 'text-decoration: line-through'),
+          
+          // ⭐ Enhanced color support - handles hex, rgb, and named colors
+          'color': InlineStyleType(fn: (value, _) {
+            if (value.isEmpty) return '';
+            // Handle hex colors
+            if (value.startsWith('#')) return 'color: $value';
+            // Handle rgb/rgba colors
+            if (value.startsWith('rgb')) return 'color: $value';
+            // Handle HSL colors
+            if (value.startsWith('hsl')) return 'color: $value';
+            // Default case
+            return 'color: $value';
+          }),
+          
+          // ⭐ Enhanced background color support
+          'background': InlineStyleType(fn: (value, _) {
+            if (value.isEmpty) return '';
+            // Handle hex colors
+            if (value.startsWith('#')) return 'background-color: $value';
+            // Handle rgb/rgba colors
+            if (value.startsWith('rgb')) return 'background-color: $value';
+            // Handle HSL colors
+            if (value.startsWith('hsl')) return 'background-color: $value';
+            // Default case
+            return 'background-color: $value';
+          }),
+          
+          // ⭐ Enhanced font family support
+          'font': InlineStyleType(fn: (value, _) {
+            if (value.isEmpty) return '';
+            return 'font-family: $value';
+          }),
+          
+          // ⭐ Enhanced numeric font size support
+          'size': InlineStyleType(fn: (value, _) {
+            if (value.isEmpty) return '';
+            
+            // Handle pure numeric values (assume pixels)
+            if (RegExp(r'^\d+$').hasMatch(value)) {
+              return 'font-size: ${value}px';
+            }
+            
+            // Handle values with units
+            if (value.endsWith('px') || value.endsWith('pt') || 
+                value.endsWith('em') || value.endsWith('rem') || 
+                value.endsWith('%')) {
+              return 'font-size: $value';
+            }
+            
+            // Legacy support for predefined sizes
+            final legacySizes = {
+              'small': '12px',
+              'large': '18px',
+              'huge': '24px'
+            };
+            
+            if (legacySizes.containsKey(value)) {
+              return 'font-size: ${legacySizes[value]}';
+            }
+            
+            // Fallback - assume it's a valid CSS font-size value
+            return 'font-size: $value';
+          }),
+          
+          'code': InlineStyleType(fn: (value, _) => 
+            'background-color: #f4f4f4; padding: 2px 4px; border-radius: 3px; font-family: monospace'),
+          'link': InlineStyleType(fn: (value, _) => 'color: #007bff; text-decoration: underline'),
+        }),
+      ),
+    );
+  }
+
   /// **NOWA NIEZAWODNA FUNKCJA KONWERSJI QUILL → HTML**
   ///
   /// Prostsze, bardziej niezawodne rozwiązanie, które zawsze przenosi całą treść
@@ -285,59 +622,63 @@ Zespół Metropolitan Investment''';
   String _convertQuillToReliableHtml(QuillController controller) {
     try {
       if (kDebugMode) {
-        print('🔄 [ReliableConversion] Starting conversion for controller');
+        print('🔄 [EnhancedConversion] Starting enhanced conversion for controller');
       }
 
-      // Najpierw spróbuj wbudowanej konwersji Quill
-      String html = '';
+      // Check if document is empty
+      if (controller.document.length <= 1) {
+        return '<p></p>';
+      }
 
+      final plainText = controller.document.toPlainText();
+      if (plainText.trim().isEmpty) {
+        return '<p></p>';
+      }
+
+      if (kDebugMode) {
+        print('🔄 [EnhancedConversion] Plain text length: ${plainText.length}');
+        print('🔄 [EnhancedConversion] Plain text preview: ${plainText.substring(0, math.min(200, plainText.length))}...');
+      }
+
+      // Try enhanced conversion with formatting
       try {
-        // Użyj wbudowanej funkcji toHtml() jeśli jest dostępna
-        if (controller.document.length <= 1) {
-          return '<p></p>';
+        final delta = controller.document.toDelta();
+        
+        if (kDebugMode) {
+          print('🔄 [EnhancedConversion] Delta operations count: ${delta.toList().length}');
         }
 
-        // Pobierz plain text jako podstawę
-        final plainText = controller.document.toPlainText();
+        // Use enhanced converter with full formatting support
+        final converter = QuillDeltaToHtmlConverter(
+          controller.document.toDelta().toJson(),
+          _createEnhancedConverterOptions(),
+        );
 
-        if (plainText.trim().isEmpty) {
-          return '<p></p>';
-        }
+        final html = converter.convert();
 
         if (kDebugMode) {
-          print(
-            '🔄 [ReliableConversion] Plain text length: ${plainText.length}',
-          );
-          print(
-            '🔄 [ReliableConversion] Plain text preview: ${plainText.substring(0, math.min(200, plainText.length))}...',
-          );
+          print('✅ [EnhancedConversion] Enhanced conversion successful, HTML length: ${html.length}');
+          print('🔄 [EnhancedConversion] HTML preview: ${html.substring(0, math.min(500, html.length))}...');
         }
 
-        // Użyj naszej niezawodnej konwersji plain text → HTML
-        html = _convertPlainTextToBasicHtml(plainText);
-
+        return html;
+      } catch (enhancedError) {
         if (kDebugMode) {
-          print(
-            '✅ [ReliableConversion] Conversion successful, HTML length: ${html.length}',
-          );
-          print(
-            '🔄 [ReliableConversion] HTML preview: ${html.substring(0, math.min(300, html.length))}...',
-          );
-        }
-      } catch (htmlError) {
-        if (kDebugMode) {
-          print('⚠️ [ReliableConversion] HTML conversion failed: $htmlError');
+          print('⚠️ [EnhancedConversion] Enhanced conversion failed: $enhancedError');
         }
 
-        // Fallback - convert plain text directly
-        final plainText = controller.document.toPlainText();
-        html = _convertPlainTextToBasicHtml(plainText);
+        // Fallback to basic HTML conversion
+        final html = _convertPlainTextToBasicHtml(plainText);
+        
+        if (kDebugMode) {
+          print('🔄 [EnhancedConversion] Using fallback conversion, HTML length: ${html.length}');
+        }
+        
+        return html;
       }
-
-      return html;
     } catch (e) {
       if (kDebugMode) {
-        print('❌ [ReliableConversion] Complete conversion failure: $e');
+        print('❌ [EnhancedConversion] Complete conversion failure: $e');
       }
 
       // Last resort fallback
@@ -346,7 +687,7 @@ Zespół Metropolitan Investment''';
         return _convertPlainTextToBasicHtml(plainText);
       } catch (fallbackError) {
         if (kDebugMode) {
-          print('❌ [ReliableConversion] Even fallback failed: $fallbackError');
+          print('❌ [EnhancedConversion] Even fallback failed: $fallbackError');
         }
         return '<p>Błąd podczas konwersji treści.</p>';
       }
@@ -734,7 +1075,7 @@ Zespół Metropolitan Investment''';
                   showSubscript: !isMobile,
                   showSuperscript: !isMobile,
                   showSmallButton: !isMobile,
-                  // Font options - enabled for enhanced customization
+                  // ⭐ Enhanced font options with custom configurations
                   showFontFamily: !isMobile, // Hide on mobile - too complex
                   showFontSize: !isMobile,
                   // Colors
@@ -764,6 +1105,31 @@ Zespół Metropolitan Investment''';
                   showRedo: true,
                   showClearFormat: !isMobile,
                   showSearchButton: false,
+                  
+                  // ⭐ Custom button configurations
+                  buttonOptions: QuillSimpleToolbarButtonOptions(
+                    // Custom font size configuration
+                    fontSize: QuillToolbarFontSizeButtonOptions(
+                      items: isMobile ? _mobileFontSizes : _customFontSizes,
+                      tooltip: 'Rozmiar czcionki',
+                    ),
+                    
+                    // Custom font family configuration
+                    fontFamily: QuillToolbarFontFamilyButtonOptions(
+                      items: isMobile ? _mobileFontFamilies : _customFontFamilies,
+                      tooltip: 'Rodzaj czcionki',
+                    ),
+                    
+                    // Enhanced color buttons (always available)
+                    color: QuillToolbarColorButtonOptions(
+                      tooltip: 'Kolor tekstu',
+                    ),
+                    
+                    backgroundColor: QuillToolbarColorButtonOptions(
+                      tooltip: 'Kolor tła',
+                    ),
+                  ),
+                  
                   // Layout and styling
                   decoration: BoxDecoration(
                     color: AppThemePro.backgroundTertiary,
@@ -781,7 +1147,10 @@ Zespół Metropolitan Investment''';
             ),
           ),
 
-          Container(height: 1, color: AppThemePro.borderPrimary),
+          Container(
+            height: 1, 
+            color: AppThemePro.borderPrimary,
+          ),
 
           Expanded(
             child: Container(
@@ -1920,16 +2289,14 @@ Zespół Metropolitan Investment''';
 
   /// Format investment details for display with voting status
   String _formatInvestmentDetails(Investment investment) {
-    final votingBadge = _getVotingStatusBadge(
-      investment.votingStatus.displayName,
-    );
+    final votingStatusText = investment.votingStatus.displayName;
     return '  • ${investment.productName}\n'
         '    Kwota inwestycji: ${_formatCurrency(investment.investmentAmount)}\n'
         '    Kapitał pozostały: ${_formatCurrency(investment.remainingCapital)}\n'
         '    Kapitał zabezpieczony: ${_formatCurrency(investment.capitalSecuredByRealEstate)}\n'
         '    Kapitał do restrukturyzacji: ${_formatCurrency(investment.capitalForRestructuring)}\n'
         '    Status: ${investment.status.displayName}\n'
-        '    Głosowanie: $votingBadge\n\n';
+        '    Głosowanie: $votingStatusText\n\n';
   }
 
   /// Format investor summary
@@ -3458,45 +3825,6 @@ Zespół Metropolitan Investment''';
     return result.reversed.join();
   }
 
-  /// Get voting status badge HTML
-  String _getVotingStatusBadge(String? status) {
-    if (status == null || status.isEmpty) return '';
-
-    final statusUpper = status.toUpperCase();
-    String color;
-    String bgColor;
-    String displayText;
-
-    switch (statusUpper) {
-      case 'TAK':
-      case 'YES':
-        color = '#ffffff';
-        bgColor = '#28a745';
-        displayText = 'TAK';
-        break;
-      case 'NIE':
-      case 'NO':
-        color = '#ffffff';
-        bgColor = '#dc3545';
-        displayText = 'NIE';
-        break;
-      case 'WSTRZYMUJE':
-      case 'ABSTAIN':
-        color = '#000000';
-        bgColor = '#ffc107';
-        displayText = 'WSTRZYMUJE';
-        break;
-      case 'NIEZDECYDOWANY':
-      case 'UNDECIDED':
-      default:
-        color = '#666666';
-        bgColor = '#e9ecef';
-        displayText = 'NIEZDECYDOWANY';
-        break;
-    }
-
-    return '<span style="display: inline-block; padding: 2px 8px; margin: 0 4px; background-color: $bgColor; color: $color; border-radius: 12px; font-size: 11px; font-weight: bold;">$displayText</span>';
-  }
 
   /// Alternative conversion method for when Quill-to-HTML fails
   String _convertPlainTextToBasicHtml(String plainText) {
@@ -3646,8 +3974,7 @@ Zespół Metropolitan Investment''';
 
             statusLine = 'Status: $mainStatus';
             if (votingStatus != null && votingStatus.isNotEmpty) {
-              statusLine +=
-                  ' | Głosowanie: ${_getVotingStatusBadge(votingStatus)}';
+              statusLine += ' | Głosowanie: $votingStatus';
             }
           }
 
@@ -3665,7 +3992,7 @@ Zespół Metropolitan Investment''';
           String votingLine = trimmed;
           if (match != null) {
             final votingStatus = match.group(1);
-            votingLine = 'Głosowanie: ${_getVotingStatusBadge(votingStatus)}';
+            votingLine = 'Głosowanie: $votingStatus';
           }
 
           buffer.writeln(

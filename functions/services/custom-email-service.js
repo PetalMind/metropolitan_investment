@@ -924,7 +924,6 @@ function generateBasicEmailContent({ htmlContent, senderName, recipientEmail }) 
         </div>
         
         <div class="content">
-            <p><strong>Szanowni Państwo,</strong></p>
             <div class="message-content">
                 ${htmlContent}
             </div>

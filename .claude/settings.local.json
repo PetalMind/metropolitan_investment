@@ -22,7 +22,9 @@
       "Bash(flutter pub:*)",
       "WebSearch",
       "Bash(flutter compile:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "WebFetch(domain:pub.dev)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "additionalDirectories": [

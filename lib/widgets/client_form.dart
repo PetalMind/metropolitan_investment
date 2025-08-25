@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models_and_services.dart';
 import '../theme/app_theme_professional.dart';
 import 'client_notes_widget.dart';
+import 'email_history_widget.dart';
 import 'optimized_voting_status_widget.dart';
 
 class ClientForm extends StatefulWidget {
@@ -325,6 +326,88 @@ class _ClientFormState extends State<ClientForm> {
                               'current_user', // TODO: Pobierz z AuthProvider
                           currentUserName:
                               'Bieżący użytkownik', // TODO: Pobierz z AuthProvider
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Historia emaili - nowa sekcja
+            if (widget.client != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                decoration: AppThemePro.elevatedSurfaceDecoration.copyWith(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppThemePro.accentGold.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: AppThemePro.accentGold.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.email_rounded,
+                            color: AppThemePro.accentGold,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Historia emaili',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppThemePro.textPrimary,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Kompletna historia wysłanych emaili do tego klienta',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppThemePro.textSecondary,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      height: 400,
+                      decoration: BoxDecoration(
+                        color: AppThemePro.backgroundSecondary,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppThemePro.borderPrimary,
+                          width: 1,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: EmailHistoryWidget(
+                          clientId: widget.client!.id,
+                          isCompact: false,
                         ),
                       ),
                     ),
