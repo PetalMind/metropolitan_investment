@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart' as html;
-import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
 
@@ -187,12 +186,8 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
         .where((inv) => _recipientEnabled[inv.client.id] ?? false)
         .toList();
     if (availableRecipients.isNotEmpty) {
-      if (_selectedPreviewRecipient == null) {
-        _selectedPreviewRecipient = availableRecipients.first.client.id;
-      }
-      if (_selectedRecipientForEditing == null) {
-        _selectedRecipientForEditing = availableRecipients.first.client.id;
-      }
+      _selectedPreviewRecipient ??= availableRecipients.first.client.id;
+      _selectedRecipientForEditing ??= availableRecipients.first.client.id;
     }
   }
 
@@ -281,6 +276,140 @@ Zespół Metropolitan Investment''';
     }
     
     super.dispose();
+  }
+
+  /// **NOWA NIEZAWODNA FUNKCJA KONWERSJI QUILL → HTML**
+  ///
+  /// Prostsze, bardziej niezawodne rozwiązanie, które zawsze przenosi całą treść
+  /// z edytora Quill do HTML, bez problemów z formatowaniem i emoji.
+  String _convertQuillToReliableHtml(QuillController controller) {
+    try {
+      if (kDebugMode) {
+        print('🔄 [ReliableConversion] Starting conversion for controller');
+      }
+
+      // Najpierw spróbuj wbudowanej konwersji Quill
+      String html = '';
+
+      try {
+        // Użyj wbudowanej funkcji toHtml() jeśli jest dostępna
+        if (controller.document.length <= 1) {
+          return '<p></p>';
+        }
+
+        // Pobierz plain text jako podstawę
+        final plainText = controller.document.toPlainText();
+
+        if (plainText.trim().isEmpty) {
+          return '<p></p>';
+        }
+
+        if (kDebugMode) {
+          print(
+            '🔄 [ReliableConversion] Plain text length: ${plainText.length}',
+          );
+          print(
+            '🔄 [ReliableConversion] Plain text preview: ${plainText.substring(0, math.min(200, plainText.length))}...',
+          );
+        }
+
+        // Użyj naszej niezawodnej konwersji plain text → HTML
+        html = _convertPlainTextToBasicHtml(plainText);
+
+        if (kDebugMode) {
+          print(
+            '✅ [ReliableConversion] Conversion successful, HTML length: ${html.length}',
+          );
+          print(
+            '🔄 [ReliableConversion] HTML preview: ${html.substring(0, math.min(300, html.length))}...',
+          );
+        }
+      } catch (htmlError) {
+        if (kDebugMode) {
+          print('⚠️ [ReliableConversion] HTML conversion failed: $htmlError');
+        }
+
+        // Fallback - convert plain text directly
+        final plainText = controller.document.toPlainText();
+        html = _convertPlainTextToBasicHtml(plainText);
+      }
+
+      return html;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [ReliableConversion] Complete conversion failure: $e');
+      }
+
+      // Last resort fallback
+      try {
+        final plainText = controller.document.toPlainText();
+        return _convertPlainTextToBasicHtml(plainText);
+      } catch (fallbackError) {
+        if (kDebugMode) {
+          print('❌ [ReliableConversion] Even fallback failed: $fallbackError');
+        }
+        return '<p>Błąd podczas konwersji treści.</p>';
+      }
+    }
+  }
+
+  /// **UPROSZCZONA FUNKCJA DODAWANIA SZCZEGÓŁÓW INWESTYCJI**
+  ///
+  /// Zawsze dodaje szczegóły inwestycji na końcu treści, niezależnie od tego
+  /// co już jest w treści emaila.
+  String _ensureInvestmentDetails(
+    String html, {
+    InvestorSummary? specificInvestor,
+    List<InvestorSummary>? allInvestors,
+  }) {
+    if (kDebugMode) {
+      print('🔄 [InvestmentDetails] Adding investment details to HTML');
+      print(
+        '🔄 [InvestmentDetails] Specific investor: ${specificInvestor?.client.name}',
+      );
+      print(
+        '🔄 [InvestmentDetails] All investors count: ${allInvestors?.length}',
+      );
+    }
+
+    String additionalContent = '';
+
+    if (specificInvestor != null) {
+      // Dodaj szczegóły dla konkretnego inwestora
+      additionalContent = _buildHtmlInvestmentsTableForInvestor(
+        specificInvestor,
+      );
+    } else if (allInvestors != null && allInvestors.isNotEmpty) {
+      // Dodaj zbiorcze szczegóły dla wszystkich inwestorów
+      additionalContent = _buildAggregatedInvestmentsTableHtml(allInvestors);
+    }
+
+    if (additionalContent.isNotEmpty) {
+      // Znajdź najlepsze miejsce do wstawienia - przed zamykającymi tagami jeśli są
+      final insertPattern = RegExp(r'</div>\s*</body>|</body>|$');
+      final match = insertPattern.firstMatch(html);
+
+      if (match != null) {
+        final insertIndex = match.start;
+        html =
+            '${html.substring(0, insertIndex)}'
+            '\n\n'
+            '$additionalContent'
+            '\n\n'
+            '${html.substring(insertIndex)}';
+      } else {
+        // Proste dodanie na końcu jeśli nie ma struktury
+        html += '\n\n$additionalContent';
+      }
+
+      if (kDebugMode) {
+        print(
+          '✅ [InvestmentDetails] Added investment details, final length: ${html.length}',
+        );
+      }
+    }
+
+    return html;
   }
 
   @override
@@ -519,13 +648,6 @@ Zespół Metropolitan Investment''';
       return const SizedBox.shrink();
     }
 
-    final selectedInvestor = _selectedRecipientForEditing != null
-        ? widget.selectedInvestors.firstWhere(
-            (inv) => inv.client.id == _selectedRecipientForEditing,
-            orElse: () => widget.selectedInvestors.first,
-          )
-        : widget.selectedInvestors.first;
-
     return Container(
       padding: EdgeInsets.all(isMobile ? 8 : 12),
       decoration: BoxDecoration(
@@ -711,25 +833,12 @@ Zespół Metropolitan Investment''';
             runSpacing: isSmallScreen ? 4 : 8,
             children: [
               ElevatedButton.icon(
-                onPressed: _insertGreeting,
-                icon: const Icon(Icons.waving_hand, size: 16),
-                label: const Text('Dodaj powitanie'),
+                onPressed: _insertVoting,
+                icon: const Icon(Icons.how_to_vote, size: 16),
+                label: const Text('Dodaj głosowanie'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppThemePro.statusInfo.withValues(alpha: 0.2),
                   foregroundColor: AppThemePro.statusInfo,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isSmallScreen ? 8 : 12,
-                    vertical: isSmallScreen ? 6 : 8,
-                  ),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: _insertSignature,
-                icon: const Icon(Icons.edit, size: 16),
-                label: const Text('Dodaj podpis'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.statusSuccess.withValues(alpha: 0.2),
-                  foregroundColor: AppThemePro.statusSuccess,
                   padding: EdgeInsets.symmetric(
                     horizontal: isSmallScreen ? 8 : 12,
                     vertical: isSmallScreen ? 6 : 8,
@@ -741,8 +850,40 @@ Zespół Metropolitan Investment''';
                 icon: const Icon(Icons.clear, size: 16),
                 label: const Text('Wyczyść'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.statusError.withValues(alpha: 0.2),
+                  backgroundColor: AppThemePro.statusError.withValues(
+                    alpha: 0.2,
+                  ),
                   foregroundColor: AppThemePro.statusError,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 8 : 12,
+                    vertical: isSmallScreen ? 6 : 8,
+                  ),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _insertIndividualInvestmentList,
+                icon: const Icon(Icons.list_alt, size: 16),
+                label: const Text('Lista indywidualna'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppThemePro.accentGold.withValues(
+                    alpha: 0.2,
+                  ),
+                  foregroundColor: AppThemePro.accentGold,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 8 : 12,
+                    vertical: isSmallScreen ? 6 : 8,
+                  ),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _insertGlobalInvestmentList,
+                icon: const Icon(Icons.account_tree, size: 16),
+                label: const Text('Lista globalna'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppThemePro.accentGold.withValues(
+                    alpha: 0.2,
+                  ),
+                  foregroundColor: AppThemePro.accentGold,
                   padding: EdgeInsets.symmetric(
                     horizontal: isSmallScreen ? 8 : 12,
                     vertical: isSmallScreen ? 6 : 8,
@@ -979,38 +1120,56 @@ Zespół Metropolitan Investment''';
   }
 
   Widget _buildPreviewTab(bool isMobile, bool isSmallScreen) {
-    // Convert the current editor (global) delta to HTML and display it verbatim.
-    final converter = QuillDeltaToHtmlConverter(
-      _quillController.document.toDelta().toJson(),
-      ConverterOptions.forEmail(),
-    );
+    // **NOWE PODEJŚCIE: Użyj naszej niezawodnej konwersji**
+    final workingHtml = _convertQuillToReliableHtml(_quillController);
+    final plainText = _quillController.document.toPlainText();
 
-    // Raw HTML coming directly from the editor -> shown in preview exactly as it will be sent.
-    final rawEditorHtml = converter.convert();
+    if (kDebugMode) {
+      print('🔍 [PreviewDebug] Plain text length: ${plainText.length}');
+      print('🔍 [PreviewDebug] Working HTML length: ${workingHtml.length}');
+      print('🔍 [PreviewDebug] Working HTML: $workingHtml');
+    }
     
-    // Process HTML to replace investment table markers with actual HTML tables
-    // The processing depends on the selected recipient type
+    // **ZAWSZE DODAJ SZCZEGÓŁY INWESTYCJI** na podstawie wybranego odbiorcy
     String processedHtml;
     
     if (_selectedPreviewRecipient?.startsWith('investor:') == true) {
-      // For investors, show personalized content with their investment data
+      // Dla inwestorów - dodaj ich szczegóły
       final investorId = _selectedPreviewRecipient!.substring('investor:'.length);
       final investor = widget.selectedInvestors.firstWhere(
         (inv) => inv.client.id == investorId,
         orElse: () => widget.selectedInvestors.first,
       );
       
-      processedHtml = _processInvestmentTableMarkersForInvestor(rawEditorHtml, investor);
+      processedHtml = _ensureInvestmentDetails(
+        workingHtml,
+        specificInvestor: investor,
+      );
     } else if (_selectedPreviewRecipient?.startsWith('additional:') == true) {
-      // For additional emails, show aggregated content for all enabled investors
+      // Dla dodatkowych emaili - dodaj zbiorcze dane
       final enabledInvestors = widget.selectedInvestors
           .where((inv) => _recipientEnabled[inv.client.id] ?? false)
           .toList();
       
-      processedHtml = _processInvestmentTableMarkersForAggregated(rawEditorHtml, enabledInvestors);
+      processedHtml = _ensureInvestmentDetails(
+        workingHtml,
+        allInvestors: enabledInvestors,
+      );
     } else {
-      // Fallback: just process tables generically
-      processedHtml = _processInvestmentTableMarkers(rawEditorHtml);
+      // Fallback - dodaj zbiorcze dane dla wszystkich
+      processedHtml = _ensureInvestmentDetails(
+        workingHtml,
+        allInvestors: widget.selectedInvestors,
+      );
+    }
+
+    if (kDebugMode) {
+      print(
+        '🔍 [PreviewDebug] Final processed HTML length: ${processedHtml.length}',
+      );
+      print(
+        '🔍 [PreviewDebug] First 500 chars: ${processedHtml.substring(0, math.min(500, processedHtml.length))}',
+      );
     }
 
     return Container(
@@ -1034,13 +1193,23 @@ Zespół Metropolitan Investment''';
                   style: {
                     "body": html.Style(
                       backgroundColor: _previewDarkMode ? const Color(0xFF1a1a1a) : Colors.white,
+                      color: _previewDarkMode ? Colors.white : Colors.black,
                       margin: html.Margins.all(0),
                       padding: html.HtmlPaddings.all(16),
                     ),
-                    // Remove global font family override to respect individual element styles
                     "p": html.Style(
-                      margin: html.Margins.symmetric(vertical: 8),
+                      color: _previewDarkMode ? Colors.white : Colors.black,
                     ),
+                    "div": html.Style(
+                      color: _previewDarkMode ? Colors.white : Colors.black,
+                    ),
+                    "span": html.Style(
+                      color: _previewDarkMode ? Colors.white : Colors.black,
+                    ),
+                    "h1, h2, h3, h4, h5, h6": html.Style(
+                      color: _previewDarkMode ? Colors.white : Colors.black,
+                    ),
+                    // Remove global font family override to respect individual element styles
                     "table": html.Style(
                       margin: html.Margins.all(8),
                     ),
@@ -1291,254 +1460,6 @@ Zespół Metropolitan Investment''';
     );
   }
 
-  /// Enhanced email template with proper styling and theme support
-  String _getEnhancedEmailTemplate({
-    required String subject,
-    required String content,
-    required String investorName,
-    String? investmentDetailsHtml,
-    bool darkMode = false,
-  }) {
-    final now = DateTime.now();
-    final currentYear = now.year;
-    
-    // Define colors based on theme
-    final backgroundColor = darkMode ? '#1a1a1a' : '#f0f2f5';
-    final containerBg = darkMode ? '#2c2c2c' : '#ffffff';
-    final textColor = darkMode ? '#e0e0e0' : '#1c1e21';
-    final footerBg = darkMode ? '#1f1f1f' : '#f7f7f7';
-    final footerText = darkMode ? '#888888' : '#606770';
-    final borderColor = darkMode ? '#444444' : '#dddfe2';
-    final headerBg = darkMode ? '#1f1f1f' : '#2c2c2c';
-
-    return """
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>$subject</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background-color: $backgroundColor;
-      color: $textColor;
-      margin: 0;
-      padding: 0;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      line-height: 1.6;
-    }
-    .email-container {
-      max-width: 680px;
-      margin: 20px auto;
-      background-color: $containerBg;
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid $borderColor;
-      box-shadow: 0 4px 12px rgba(0,0,0,${darkMode ? '0.3' : '0.08'});
-    }
-    .email-header {
-      background-color: $headerBg;
-      padding: 32px;
-      text-align: center;
-    }
-    .email-header h1 {
-      color: #d4af37; /* Metropolitan Gold */
-      margin: 0;
-      font-size: 28px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-    }
-    .email-content {
-      padding: 32px;
-      color: $textColor;
-    }
-    .email-content p {
-      line-height: 1.6;
-      font-size: 16px;
-      margin: 1em 0;
-      color: $textColor;
-    }
-    .email-content h1, .email-content h2, .email-content h3, 
-    .email-content h4, .email-content h5, .email-content h6 {
-      color: $textColor;
-      margin-top: 1.5em;
-      margin-bottom: 0.5em;
-    }
-    .email-content h1 { font-size: 2em; }
-    .email-content h2 { font-size: 1.5em; }
-    .email-content h3 { font-size: 1.25em; }
-    .email-content strong, .email-content b {
-      font-weight: 600;
-      color: $textColor;
-    }
-    .email-content em, .email-content i {
-      font-style: italic;
-    }
-    .email-content u {
-      text-decoration: underline;
-    }
-    .email-content a {
-      color: #d4af37;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .email-content a:hover {
-      text-decoration: underline;
-    }
-    .email-content ul, .email-content ol {
-      padding-left: 20px;
-      margin: 1em 0;
-    }
-    .email-content li {
-      margin: 0.5em 0;
-      color: $textColor;
-    }
-    .email-content blockquote {
-      border-left: 4px solid #d4af37;
-      margin: 1em 0;
-      padding-left: 16px;
-      font-style: italic;
-      background-color: ${darkMode ? '#2a2a2a' : '#f9f9f9'};
-      padding: 12px 16px;
-      border-radius: 4px;
-    }
-    .email-content code {
-      background-color: ${darkMode ? '#3a3a3a' : '#f1f1f1'};
-      padding: 2px 4px;
-      border-radius: 3px;
-      font-family: 'Courier New', monospace;
-      font-size: 0.9em;
-    }
-    .email-footer {
-      background-color: $footerBg;
-      padding: 24px;
-      text-align: center;
-      font-size: 12px;
-      color: $footerText;
-      border-top: 1px solid $borderColor;
-    }
-    .investment-details {
-      margin-top: 24px;
-      border-top: 1px solid $borderColor;
-      padding-top: 16px;
-    }
-    .investment-details h3 {
-      font-size: 18px;
-      color: $textColor;
-      margin-bottom: 12px;
-    }
-    /* Text alignment classes */
-    .ql-align-center { text-align: center; }
-    .ql-align-right { text-align: right; }
-    .ql-align-justify { text-align: justify; }
-    
-    /* Font size classes */
-    .ql-size-small { font-size: 0.75em; }
-    .ql-size-large { font-size: 1.5em; }
-    .ql-size-huge { font-size: 2.5em; }
-    
-    /* Enhanced formatting support for rich text */
-    .email-content span[style*="color"] {
-      /* Preserve inline color styles from Quill */
-    }
-    .email-content span[style*="background-color"] {
-      /* Preserve inline background colors from Quill */
-    }
-    .email-content span[style*="font-family"] {
-      /* Preserve inline font family from Quill */
-    }
-    .email-content span[style*="font-size"] {
-      /* Preserve inline font size from Quill */
-    }
-    
-    /* Enhanced text formatting */
-    .email-content s {
-      text-decoration: line-through;
-    }
-    .email-content sup {
-      vertical-align: super;
-      font-size: smaller;
-    }
-    .email-content sub {
-      vertical-align: sub;
-      font-size: smaller;
-    }
-    .email-content code {
-      background-color: ${darkMode ? '#3a3a3a' : '#f1f1f1'};
-      padding: 2px 4px;
-      border-radius: 3px;
-      font-family: 'Courier New', monospace;
-      font-size: 0.9em;
-      color: ${darkMode ? '#e0e0e0' : '#c7254e'};
-    }
-    .email-content pre {
-      background-color: ${darkMode ? '#2a2a2a' : '#f8f8f8'};
-      padding: 16px;
-      border-radius: 8px;
-      overflow-x: auto;
-      border: 1px solid ${darkMode ? '#444444' : '#ddd'};
-      white-space: pre-wrap;
-    }
-    .email-content pre code {
-      background: none;
-      padding: 0;
-      border-radius: 0;
-      color: inherit;
-    }
-    
-    /* Enhanced list styling */
-    .email-content ul[style*="list-style: none"] li {
-      padding: 4px 0;
-    }
-    
-    /* Link styling */
-    .email-content a {
-      color: #d4af37;
-      text-decoration: none;
-      font-weight: 500;
-      border-bottom: 1px solid transparent;
-      transition: border-bottom-color 0.2s;
-    }
-    .email-content a:hover {
-      border-bottom-color: #d4af37;
-    }
-    
-    @media (max-width: 600px) {
-      .email-container {
-        margin: 10px;
-        border-radius: 8px;
-      }
-      .email-header, .email-content, .email-footer {
-        padding: 20px;
-      }
-      .email-header h1 {
-        font-size: 24px;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="email-container">
-    <div class="email-header">
-      <h1>Metropolitan Investment</h1>
-    </div>
-    <div class="email-content">
-      <p>Witaj $investorName,</p>
-      $content
-      ${investmentDetailsHtml != null && investmentDetailsHtml.isNotEmpty ? '<div class="investment-details">$investmentDetailsHtml</div>' : ''}
-    </div>
-    <div class="email-footer">
-      <p>&copy; $currentYear Metropolitan Investment S.A. Wszelkie prawa zastrzeżone.</p>
-      <p>Ta wiadomość została wygenerowana automatycznie. Prosimy na nią nie odpowiadać.</p>
-    </div>
-  </div>
-</body>
-</html>
-""";
-  }
-
   Future<void> _sendEmails() async {
     if (!_formKey.currentState!.validate()) {
       setState(() {
@@ -1575,7 +1496,6 @@ Zespół Metropolitan Investment''';
       // Build a raw HTML map per-recipient using the editor's content
       Map<String, String>? completeEmailHtmlByClient;
       String? aggregatedEmailHtmlForAdditionals;
-      String processedHtml = '';
 
       if (selectedRecipients.isNotEmpty) {
         completeEmailHtmlByClient = <String, String>{};
@@ -1585,15 +1505,31 @@ Zespół Metropolitan Investment''';
           final controllerToUse = (_useIndividualContent && _individualControllers.containsKey(investor.client.id))
               ? _individualControllers[investor.client.id]! : _quillController;
 
-          // Convert editor delta to raw HTML
-          final converter = QuillDeltaToHtmlConverter(
-            controllerToUse.document.toDelta().toJson(),
-            ConverterOptions.forEmail(),
+          // **NOWE PODEJŚCIE: Użyj naszej niezawodnej konwersji**
+          final workingHtml = _convertQuillToReliableHtml(controllerToUse);
+
+          // DEBUGGING: Check individual content
+          final plainTextContent = controllerToUse.document.toPlainText();
+          if (kDebugMode) {
+            print(
+              '🔍 [EmailDebug] Individual content for ${investor.client.name}:',
+            );
+            print('Plain text length: ${plainTextContent.length}');
+            print('Working HTML length: ${workingHtml.length}');
+            print('Working HTML: $workingHtml');
+          }
+
+          // **ZAWSZE DODAJ SZCZEGÓŁY INWESTYCJI**
+          final investorSpecificHtml = _ensureInvestmentDetails(
+            workingHtml,
+            specificInvestor: investor,
           );
-          final rawHtmlContent = converter.convert();
-          
-          // Process HTML to replace investment table markers with actual HTML tables
-          final investorSpecificHtml = _processInvestmentTableMarkersForInvestor(rawHtmlContent, investor);
+
+          if (kDebugMode) {
+            print(
+              '✅ [EmailDebug] Final HTML for ${investor.client.name} - length: ${investorSpecificHtml.length}',
+            );
+          }
 
           completeEmailHtmlByClient[investor.client.id] = investorSpecificHtml;
 
@@ -1604,20 +1540,39 @@ Zespół Metropolitan Investment''';
         }
       }
 
-      // Convert main content for preview and additional emails
-      final converter = QuillDeltaToHtmlConverter(
-        _quillController.document.toDelta().toJson(),
-        ConverterOptions.forEmail(),
-      );
-      final rawHtml = converter.convert();
-      
-      // Process HTML to replace investment table markers with actual HTML tables
-      processedHtml = _processInvestmentTableMarkers(rawHtml);
+      // **NOWE PODEJŚCIE: Convert main content for additional emails**
+      final workingHtml = _convertQuillToReliableHtml(_quillController);
 
+      // DEBUGGING: Check what we get from Quill
+      final plainTextContent = _quillController.document.toPlainText();
+      if (kDebugMode) {
+        print('🔍 [EmailDebug] Plain text content:');
+        print(plainTextContent);
+        print('🔍 [EmailDebug] Plain text length: ${plainTextContent.length}');
+        print('🔍 [EmailDebug] Working HTML from reliable conversion:');
+        print(workingHtml);
+        print('🔍 [EmailDebug] Working HTML length: ${workingHtml.length}');
+      }
+
+      // **ZAWSZE DODAJ ZBIORCZE SZCZEGÓŁY** dla dodatkowych odbiorców
+      final processedHtml = _ensureInvestmentDetails(
+        workingHtml,
+        allInvestors: selectedRecipients,
+      );
+
+      if (kDebugMode) {
+        print(
+          '✅ [EmailDebug] Main processed HTML with investment details - length: ${processedHtml.length}',
+        );
+      }
+      
       // Generate aggregated email HTML for additional recipients if needed
       if (_additionalEmails.isNotEmpty) {
-        // For additional emails, process with aggregated investor data
-        aggregatedEmailHtmlForAdditionals = _processInvestmentTableMarkersForAggregated(processedHtml, selectedRecipients);
+        // For additional emails, use aggregated content
+        aggregatedEmailHtmlForAdditionals = _ensureInvestmentDetails(
+          workingHtml,
+          allInvestors: selectedRecipients,
+        );
 
         if (kDebugMode) {
           print('📋 [EmailDialog] Aggregated processed HTML length: ${aggregatedEmailHtmlForAdditionals.length} chars');
@@ -1641,7 +1596,7 @@ Zespół Metropolitan Investment''';
         print('   - includeInvestmentDetails: $_includeInvestmentDetails');
         print('   - completeEmailHtmlByClient: ${completeEmailHtmlByClient?.keys.length ?? 0} clients');
         if (completeEmailHtmlByClient != null) {
-          completeEmailHtmlByClient!.forEach((clientId, html) {
+          completeEmailHtmlByClient.forEach((clientId, html) {
             print('     - $clientId: ${html.length} chars');
           });
         }
@@ -1652,7 +1607,8 @@ Zespół Metropolitan Investment''';
         additionalEmails: _additionalEmails,
         subject: _subjectController.text,
         htmlContent: processedHtml, // Send the processed HTML that includes investment tables
-        includeInvestmentDetails: _includeInvestmentDetails,
+        includeInvestmentDetails:
+            false, // IMPORTANT: Set to false to avoid duplication since we're providing complete HTML
         investmentDetailsByClient: completeEmailHtmlByClient, // Pass individual investment details if available
         aggregatedInvestmentsForAdditionals: aggregatedEmailHtmlForAdditionals, // Pass aggregated details for additional emails
         senderEmail: _senderEmailController.text,
@@ -1746,87 +1702,39 @@ Zespół Metropolitan Investment''';
     }
   }
 
-  /// Insert greeting template
-  void _insertGreeting() {
+  /// Insert voting template
+  void _insertVoting() {
     try {
       final selection = _quillController.selection;
-      const greeting = '\n\nSzanowni Państwo,\n\n';
-      
-      final insertOffset = selection.isValid ? selection.baseOffset : 
-          _quillController.document.length;
-      
-      _quillController.document.insert(insertOffset, greeting);
+      const votingTemplate =
+          '\n\n📊 GŁOSOWANIE\n\n'
+          'Prosimy o zapoznanie się z materiałami dotyczącymi głosowania i wyrażenie swojej opinii:\n\n'
+          '🗳️ Opcje głosowania:\n'
+          '• TAK - Zgadzam się z proponowanymi zmianami\n'
+          '• NIE - Nie zgadzam się z proponowanymi zmianami\n'
+          '• WSTRZYMUJĘ SIĘ - Nie wyrażam opinii\n\n'
+          '📅 Termin głosowania: [WPISZ TERMIN]\n'
+          '📧 Odpowiedź proszę przesłać na: [WPISZ EMAIL]\n\n'
+          'Dziękujemy za Państwa aktywność w procesie decyzyjnym.\n\n';
+
+      final insertOffset = selection.isValid
+          ? selection.baseOffset
+          : _quillController.document.length;
+
+      _quillController.document.insert(insertOffset, votingTemplate);
       _quillController.updateSelection(
-        TextSelection.collapsed(offset: insertOffset + greeting.length),
+        TextSelection.collapsed(offset: insertOffset + votingTemplate.length),
         ChangeSource.local,
       );
-      
+
       // Ensure focus and update UI
       _editorFocusNode.requestFocus();
       if (mounted) {
         setState(() {});
       }
     } catch (e) {
-      debugPrint('Error inserting greeting: $e');
+      debugPrint('Error inserting voting template: $e');
     }
-  }
-
-  /// Insert signature template
-  void _insertSignature() {
-    try {
-      final selection = _quillController.selection;
-      const signature = '\n\nZ poważaniem,\nZespół Metropolitan Investment\n\nTel: +48 XXX XXX XXX\nEmail: kontakt@metropolitan-investment.pl\nwww.metropolitan-investment.pl\n';
-      
-      final insertOffset = selection.isValid ? selection.baseOffset : 
-          _quillController.document.length;
-      
-      _quillController.document.insert(insertOffset, signature);
-      _quillController.updateSelection(
-        TextSelection.collapsed(offset: insertOffset + signature.length),
-        ChangeSource.local,
-      );
-      
-      // Ensure focus and update UI
-      _editorFocusNode.requestFocus();
-      if (mounted) {
-        setState(() {});
-      }
-    } catch (e) {
-      debugPrint('Error inserting signature: $e');
-    }
-  }
-
-  /// Build a simple HTML table summarizing investments for the selected recipients.
-  /// The Email service will embed this HTML into the final themed template.
-  String _buildInvestmentsSummaryHtml(List<InvestorSummary> recipients) {
-    // Build a generic table showing client name, number of investments and total remaining capital.
-    final buffer = StringBuffer();
-    buffer.writeln('<h3>Podsumowanie Inwestycji</h3>');
-    buffer.writeln('<table style="width:100%; border-collapse: collapse;">');
-    buffer.writeln('<thead>');
-    buffer.writeln('<tr>');
-    buffer.writeln('<th style="text-align:left; padding:8px; border-bottom:1px solid #ddd;">Klient</th>');
-    buffer.writeln('<th style="text-align:right; padding:8px; border-bottom:1px solid #ddd;">Liczba inwestycji</th>');
-    buffer.writeln('<th style="text-align:right; padding:8px; border-bottom:1px solid #ddd;">Kapitał pozostały</th>');
-    buffer.writeln('</tr>');
-    buffer.writeln('</thead>');
-    buffer.writeln('<tbody>');
-
-    for (final inv in recipients) {
-      final name = inv.client.name.replaceAllMapped(RegExp(r'[<>]'), (m) => '');
-  final count = inv.investmentCount;
-  final total = inv.totalRemainingCapital.toStringAsFixed(2);
-
-      buffer.writeln('<tr>');
-      buffer.writeln('<td style="padding:8px; border-bottom:1px solid #f0f0f0;">$name</td>');
-      buffer.writeln('<td style="padding:8px; text-align:right; border-bottom:1px solid #f0f0f0;">$count</td>');
-      buffer.writeln('<td style="padding:8px; text-align:right; border-bottom:1px solid #f0f0f0;">$total</td>');
-      buffer.writeln('</tr>');
-    }
-
-    buffer.writeln('</tbody>');
-    buffer.writeln('</table>');
-    return buffer.toString();
   }
 
   /// Clear editor content
@@ -1847,6 +1755,193 @@ Zespół Metropolitan Investment''';
       debugPrint('Error clearing editor: $e');
     }
   }
+
+  /// Insert individual investment lists for each selected investor
+  void _insertIndividualInvestmentList() {
+    if (_isGroupEmail) {
+      _showSnackBar(
+        'Lista indywidualna nie jest dostępna dla wiadomości grupowych.',
+        isError: true,
+      );
+      return;
+    }
+
+    try {
+      final controller = _getCurrentController();
+      final selection = controller.selection;
+      final insertIndex = selection.baseOffset;
+
+      // Insert individual investment lists for each selected investor
+      for (final investor in widget.selectedInvestors) {
+        _insertInvestmentListForInvestor(controller, insertIndex, investor);
+      }
+
+      // Show confirmation
+      _showSnackBar(
+        'Listy inwestycji dodane dla każdego inwestora indywidualnie',
+      );
+    } catch (e) {
+      debugPrint('Error inserting individual investment lists: $e');
+      _showSnackBar('Błąd podczas dodawania list inwestycji', isError: true);
+    }
+  }
+
+  /// Insert global investment list for all selected investors
+  void _insertGlobalInvestmentList() {
+    try {
+      final controller = _getCurrentController();
+      final selection = controller.selection;
+      final insertIndex = selection.baseOffset;
+
+      _insertGlobalInvestmentListForInvestors(
+        controller,
+        insertIndex,
+        widget.selectedInvestors,
+      );
+
+      // Show confirmation
+      _showSnackBar('Globalna lista inwestycji została dodana');
+    } catch (e) {
+      debugPrint('Error inserting global investment list: $e');
+      _showSnackBar(
+        'Błąd podczas dodawania globalnej listy inwestycji',
+        isError: true,
+      );
+    }
+  }
+
+  /// Helper method to show snackbar
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: isError
+              ? AppThemePro.statusError
+              : AppThemePro.statusSuccess,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  /// Insert investment list for a specific investor
+  void _insertInvestmentListForInvestor(
+    QuillController controller,
+    int index,
+    InvestorSummary investor,
+  ) {
+    // Insert header
+    controller.document.insert(index, '\n');
+    int currentIndex = index + 1;
+
+    // Header text with formatting
+    final headerText = '📊 Inwestycje: ${investor.client.name}\n';
+    controller.document.insert(currentIndex, headerText);
+
+    // Apply header formatting (bold)
+    controller.formatText(currentIndex, headerText.length - 1, Attribute.bold);
+
+    currentIndex += headerText.length;
+
+    // Insert investment details
+    for (final investment in investor.investments) {
+      final investmentDetails = _formatInvestmentDetails(investment);
+      controller.document.insert(currentIndex, investmentDetails);
+      currentIndex += investmentDetails.length;
+    }
+
+    // Insert summary
+    final summary = _formatInvestorSummary(investor);
+    controller.document.insert(currentIndex, summary);
+    controller.formatText(currentIndex, summary.length - 1, Attribute.bold);
+
+    controller.document.insert(currentIndex + summary.length, '\n');
+  }
+
+  /// Insert global investment list for all investors
+  void _insertGlobalInvestmentListForInvestors(
+    QuillController controller,
+    int index,
+    List<InvestorSummary> investors,
+  ) {
+    // Insert header
+    controller.document.insert(index, '\n');
+    int currentIndex = index + 1;
+
+    // Header text with formatting
+    final headerText = '📈 Zbiorcze podsumowanie inwestycji\n\n';
+    controller.document.insert(currentIndex, headerText);
+
+    // Apply header formatting (bold)
+    controller.formatText(currentIndex, headerText.length - 2, Attribute.bold);
+
+    currentIndex += headerText.length;
+
+    double totalCapitalRemaining = 0;
+    double totalCapitalSecured = 0;
+    double totalCapitalForRestructuring = 0;
+    double totalInvestmentAmount = 0;
+    int totalInvestments = 0;
+
+    // List each investor's summary
+    for (final investor in investors) {
+      final investorSummaryText =
+          '• ${investor.client.name}\n'
+          '  Liczba inwestycji: ${investor.investments.length}\n'
+          '  Kapitał pozostały: ${_formatCurrency(investor.totalRemainingCapital)}\n'
+          '  Kapitał zabezpieczony: ${_formatCurrency(investor.capitalSecuredByRealEstate)}\n'
+          '  Kapitał do restrukturyzacji: ${_formatCurrency(investor.capitalForRestructuring)}\n'
+          '  Kwota inwestycji: ${_formatCurrency(investor.totalInvestmentAmount)}\n\n';
+
+      controller.document.insert(currentIndex, investorSummaryText);
+      currentIndex += investorSummaryText.length;
+
+      // Add to totals
+      totalCapitalRemaining += investor.totalRemainingCapital;
+      totalCapitalSecured += investor.capitalSecuredByRealEstate;
+      totalCapitalForRestructuring += investor.capitalForRestructuring;
+      totalInvestmentAmount += investor.totalInvestmentAmount;
+      totalInvestments += investor.investments.length;
+    }
+
+    // Insert totals
+    final totalsText =
+        '═══ PODSUMOWANIE ŁĄCZNE ═══\n'
+        'Łączna liczba inwestycji: $totalInvestments\n'
+        'Łączny kapitał pozostały: ${_formatCurrency(totalCapitalRemaining)}\n'
+        'Łączny kapitał zabezpieczony: ${_formatCurrency(totalCapitalSecured)}\n'
+        'Łączny kapitał do restrukturyzacji: ${_formatCurrency(totalCapitalForRestructuring)}\n'
+        'Łączna kwota inwestycji: ${_formatCurrency(totalInvestmentAmount)}\n\n';
+
+    controller.document.insert(currentIndex, totalsText);
+    controller.formatText(currentIndex, totalsText.length - 2, Attribute.bold);
+  }
+
+  /// Format investment details for display with voting status
+  String _formatInvestmentDetails(Investment investment) {
+    final votingBadge = _getVotingStatusBadge(
+      investment.votingStatus.displayName,
+    );
+    return '  • ${investment.productName}\n'
+        '    Kwota inwestycji: ${_formatCurrency(investment.investmentAmount)}\n'
+        '    Kapitał pozostały: ${_formatCurrency(investment.remainingCapital)}\n'
+        '    Kapitał zabezpieczony: ${_formatCurrency(investment.capitalSecuredByRealEstate)}\n'
+        '    Kapitał do restrukturyzacji: ${_formatCurrency(investment.capitalForRestructuring)}\n'
+        '    Status: ${investment.status.displayName}\n'
+        '    Głosowanie: $votingBadge\n\n';
+  }
+
+  /// Format investor summary
+  String _formatInvestorSummary(InvestorSummary investor) {
+    return '  ── PODSUMOWANIE dla ${investor.client.name} ──\n'
+        '  Łącznie inwestycji: ${investor.investments.length}\n'
+        '  Łączny kapitał pozostały: ${_formatCurrency(investor.totalRemainingCapital)}\n'
+        '  Łączny kapitał zabezpieczony: ${_formatCurrency(investor.capitalSecuredByRealEstate)}\n'
+        '  Łączny kapitał do restrukturyzacji: ${_formatCurrency(investor.capitalForRestructuring)}\n'
+        '  Łączna kwota inwestycji: ${_formatCurrency(investor.totalInvestmentAmount)}\n\n';
+  }
+
 
   /// Build error display widget
   Widget _buildError() {
@@ -2047,6 +2142,9 @@ Zespół Metropolitan Investment''';
             ),
           ),
           
+          // Debug button (only in debug mode)
+          _buildDebugButton(),
+          
           const SizedBox(width: 8),
           
           // Cancel button
@@ -2064,84 +2162,6 @@ Zespół Metropolitan Investment''';
         ],
       ),
     );
-  }
-
-  /// Buduje szczegółową tabelę HTML z inwestycjami dla konkretnego inwestora
-  String _buildDetailedInvestmentsTableHtml(InvestorSummary investor) {
-    if (kDebugMode) {
-      print('📋 [EmailDialog] Generuję tabelę dla ${investor.client.name}, inwestycji: ${investor.investments.length}');
-    }
-    final buffer = StringBuffer();
-    buffer.writeln('<div class="investment-summary" style="margin-top: 24px; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #d4af37;">');
-    buffer.writeln('<h3 style="color: #d4af37; margin-bottom: 16px; font-size: 18px;">📊 Twój portfel inwestycyjny</h3>');
-    
-    // Podsumowanie numeryczne
-    buffer.writeln('<div style="margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">');
-    buffer.writeln('<div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e9ecef;">');
-    buffer.writeln('<div style="font-size: 14px; color: #6c757d; margin-bottom: 4px;">Liczba inwestycji</div>');
-    buffer.writeln('<div style="font-size: 18px; font-weight: bold; color: #2c2c2c;">${investor.investmentCount}</div>');
-    buffer.writeln('</div>');
-    
-    buffer.writeln('<div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e9ecef;">');
-    buffer.writeln('<div style="font-size: 14px; color: #6c757d; margin-bottom: 4px;">Kapitał pozostały</div>');
-    buffer.writeln('<div style="font-size: 18px; font-weight: bold; color: #28a745;">${_formatCurrency(investor.totalRemainingCapital)}</div>');
-    buffer.writeln('</div>');
-    
-    buffer.writeln('<div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e9ecef;">');
-    buffer.writeln('<div style="font-size: 14px; color: #6c757d; margin-bottom: 4px;">Całkowita wartość</div>');
-    buffer.writeln('<div style="font-size: 18px; font-weight: bold; color: #d4af37;">${_formatCurrency(investor.totalInvestmentAmount)}</div>');
-    buffer.writeln('</div>');
-    buffer.writeln('</div>');
-    
-    // Tabela szczegółowa inwestycji
-    if (investor.investments.isNotEmpty) {
-      buffer.writeln('<h4 style="color: #2c2c2c; margin: 20px 0 12px 0; font-size: 16px;">📋 Szczegóły inwestycji</h4>');
-      buffer.writeln('<table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">');
-      
-      // Nagłówki tabeli
-      buffer.writeln('<thead>');
-      buffer.writeln('<tr style="background: #2c2c2c; color: white;">');
-      buffer.writeln('<th style="text-align: left; padding: 12px; font-weight: 600; font-size: 14px;">Produkt</th>');
-      buffer.writeln('<th style="text-align: right; padding: 12px; font-weight: 600; font-size: 14px;">Kwota inwest.</th>');
-      buffer.writeln('<th style="text-align: right; padding: 12px; font-weight: 600; font-size: 14px;">Kapitał pozostały</th>');
-      buffer.writeln('<th style="text-align: right; padding: 12px; font-weight: 600; font-size: 14px;">Kapitał zabezp.</th>');
-      buffer.writeln('<th style="text-align: center; padding: 12px; font-weight: 600; font-size: 14px;">Status</th>');
-      buffer.writeln('</tr>');
-      buffer.writeln('</thead>');
-      
-      // Wiersze z inwestycjami
-      buffer.writeln('<tbody>');
-      for (int i = 0; i < investor.investments.length; i++) {
-        final investment = investor.investments[i];
-        final isOdd = i % 2 == 1;
-        final bgColor = isOdd ? '#f8f9fa' : 'white';
-        
-        buffer.writeln('<tr style="background-color: $bgColor;">');
-        buffer.writeln('<td style="padding: 10px 12px; border-bottom: 1px solid #e9ecef; font-weight: 500;">${_sanitizeHtml(investment.productName)}</td>');
-        buffer.writeln('<td style="padding: 10px 12px; text-align: right; border-bottom: 1px solid #e9ecef;">${_formatCurrency(investment.investmentAmount)}</td>');
-        buffer.writeln('<td style="padding: 10px 12px; text-align: right; border-bottom: 1px solid #e9ecef; color: #28a745; font-weight: 600;">${_formatCurrency(investment.remainingCapital)}</td>');
-        buffer.writeln('<td style="padding: 10px 12px; text-align: right; border-bottom: 1px solid #e9ecef;">${_formatCurrency(investment.capitalSecuredByRealEstate)}</td>');
-        
-        // Status z kolorkiem
-        final status = investment.status.displayName;
-        final statusColor = status.toLowerCase().contains('aktywny') ? '#28a745' : 
-                           status.toLowerCase().contains('zakończony') ? '#6c757d' : '#ffc107';
-        buffer.writeln('<td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #e9ecef;">');
-        buffer.writeln('<span style="background: $statusColor; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">$status</span>');
-        buffer.writeln('</td>');
-        buffer.writeln('</tr>');
-      }
-      buffer.writeln('</tbody>');
-      buffer.writeln('</table>');
-    }
-    
-    // Informacje dodatkowe
-    buffer.writeln('<div style="margin-top: 16px; padding: 12px; background: #e7f3ff; border-radius: 6px; border-left: 3px solid #0066cc;">');
-    buffer.writeln('<p style="margin: 0; font-size: 14px; color: #495057;"><strong>💡 Ważne:</strong> Powyższe dane prezentują aktualny stan Twojego portfela na dzień ${DateTime.now().day}.${DateTime.now().month}.${DateTime.now().year}.</p>');
-    buffer.writeln('</div>');
-    
-    buffer.writeln('</div>');
-    return buffer.toString();
   }
 
   /// Buduje zbiorczą tabelę HTML z inwestycjami wszystkich wybranych inwestorów
@@ -2249,10 +2269,20 @@ Zespół Metropolitan Investment''';
     return buffer.toString();
   }
 
-  /// Formatuje kwotę jako walutę polską
+  /// Formatuje kwotę jako walutę polską z separatorami tysięcy
   String _formatCurrency(double amount) {
     if (amount == 0) return '0,00 zł';
-    return '${amount.toStringAsFixed(2).replaceAll('.', ',')} zł';
+    
+    // Formatuj z 2 miejscami po przecinku
+    final formattedAmount = amount.toStringAsFixed(2);
+    final parts = formattedAmount.split('.');
+    final integerPart = parts[0];
+    final decimalPart = parts[1];
+
+    // Dodaj separatory tysięcy
+    final formattedInteger = _addThousandsSeparators(integerPart);
+
+    return '$formattedInteger,$decimalPart zł';
   }
 
   /// Oczyszcza tekst z HTML i niebezpiecznych znaków
@@ -2447,7 +2477,7 @@ Zespół Metropolitan Investment''';
         // Recipient list
         Expanded(
           child: ListView.builder(
-            itemCount: availableRecipients.length + (_additionalEmails.length > 0 ? _additionalEmails.length + 1 : 0),
+            itemCount: availableRecipients.length + (_additionalEmails.isNotEmpty ? _additionalEmails.length + 1 : 0),
             itemBuilder: (context, index) {
               // If index falls into investor list
               if (index < availableRecipients.length) {
@@ -2808,19 +2838,7 @@ Zespół Metropolitan Investment''';
   void _insertFormattedInvestmentTable(QuillController controller, int index, List<Investment> investments, String clientName) {
     int currentIndex = index;
     
-    // Table headers
-    final headers = ['Nazwa produktu', 'Kwota inwestycji', 'Kapitał pozostały', 'Kapitał zabezpieczony', 'Kapitał do restrukturyzacji', 'Wierzyciel'];
-    final headerRow = headers.join(' | ') + '\n';
-    final separatorRow = '-' * 100 + '\n';
-    
-    controller.document.insert(currentIndex, headerRow);
-    controller.formatText(currentIndex, headerRow.length - 1, Attribute.bold);
-    currentIndex += headerRow.length;
-    
-    controller.document.insert(currentIndex, separatorRow);
-    currentIndex += separatorRow.length;
-    
-    // Investment rows
+    // Investment list format
     double totalInvestmentAmount = 0;
     double totalRemainingCapital = 0;
     double totalCapitalSecured = 0;
@@ -2832,33 +2850,52 @@ Zespół Metropolitan Investment''';
       totalCapitalSecured += inv.capitalSecuredByRealEstate;
       totalCapitalForRestructuring += inv.capitalForRestructuring;
       
-      final rowData = [
-        inv.productName,
-        _formatCurrency(inv.investmentAmount),
-        _formatCurrency(inv.remainingCapital),
-        _formatCurrency(inv.capitalSecuredByRealEstate),
-        _formatCurrency(inv.capitalForRestructuring),
-        inv.creditorCompany
+      // Product name as header
+      final productNameText = '${inv.productName}\n';
+      controller.document.insert(currentIndex, productNameText);
+      controller.formatText(
+        currentIndex,
+        productNameText.length - 1,
+        Attribute.bold,
+      );
+      currentIndex += productNameText.length;
+
+      // Investment details as bullet points
+      final details = [
+        '  • Kwota inwestycji: ${_formatCurrency(inv.investmentAmount)}\n',
+        '  • Kapitał pozostały: ${_formatCurrency(inv.remainingCapital)}\n',
+        '  • Kapitał zabezpieczony: ${_formatCurrency(inv.capitalSecuredByRealEstate)}\n',
+        '  • Kapitał do restrukturyzacji: ${_formatCurrency(inv.capitalForRestructuring)}\n',
       ];
       
-      final row = rowData.join(' | ') + '\n';
-      controller.document.insert(currentIndex, row);
-      currentIndex += row.length;
+      if (inv.creditorCompany.isNotEmpty) {
+        details.add('  • Wierzyciel: ${inv.creditorCompany}\n');
+      }
+      details.add('\n'); // Empty line after each investment
+
+      for (final detail in details) {
+        controller.document.insert(currentIndex, detail);
+        currentIndex += detail.length;
+      }
     }
-    
-    // Total row
-    final totalRowData = [
-      'RAZEM',
-      _formatCurrency(totalInvestmentAmount),
-      _formatCurrency(totalRemainingCapital),
-      _formatCurrency(totalCapitalSecured),
-      _formatCurrency(totalCapitalForRestructuring),
-      ''
+
+    // Total summary
+    final totalText = 'RAZEM:\n';
+    controller.document.insert(currentIndex, totalText);
+    controller.formatText(currentIndex, totalText.length - 1, Attribute.bold);
+    currentIndex += totalText.length;
+
+    final totalDetails = [
+      '  • Kwota inwestycji: ${_formatCurrency(totalInvestmentAmount)}\n',
+      '  • Kapitał pozostały: ${_formatCurrency(totalRemainingCapital)}\n',
+      '  • Kapitał zabezpieczony: ${_formatCurrency(totalCapitalSecured)}\n',
+      '  • Kapitał do restrukturyzacji: ${_formatCurrency(totalCapitalForRestructuring)}\n\n',
     ];
     
-    final totalRow = totalRowData.join(' | ') + '\n\n';
-    controller.document.insert(currentIndex, totalRow);
-    controller.formatText(currentIndex, totalRow.length - 1, Attribute.bold);
+    for (final detail in totalDetails) {
+      controller.document.insert(currentIndex, detail);
+      currentIndex += detail.length;
+    }
   }
 
   /// Insert formatted aggregated table
@@ -2867,7 +2904,7 @@ Zespół Metropolitan Investment''';
     
     // Table headers
     final headers = ['Klient', 'Liczba inwestycji', 'Kapitał pozostały', 'Kapitał zabezpieczony', 'Kapitał do restrukturyzacji'];
-    final headerRow = headers.join(' | ') + '\n';
+    final headerRow = '${headers.join(' | ')}\n';
     final separatorRow = '-' * 80 + '\n';
     
     controller.document.insert(currentIndex, headerRow);
@@ -2897,7 +2934,7 @@ Zespół Metropolitan Investment''';
         _formatCurrency(inv.capitalForRestructuring)
       ];
       
-      final row = rowData.join(' | ') + '\n';
+      final row = '${rowData.join(' | ')}\n';
       controller.document.insert(currentIndex, row);
       currentIndex += row.length;
     }
@@ -2911,7 +2948,7 @@ Zespół Metropolitan Investment''';
       _formatCurrency(totalCapitalForRestructuring)
     ];
     
-    final totalRow = totalRowData.join(' | ') + '\n\n';
+    final totalRow = '${totalRowData.join(' | ')}\n\n';
     controller.document.insert(currentIndex, totalRow);
     controller.formatText(currentIndex, totalRow.length - 1, Attribute.bold);
   }
@@ -3007,64 +3044,9 @@ Zespół Metropolitan Investment''';
     return buffer.toString();
   }
 
-  /// Builds HTML table for aggregated investors data
-  String _buildHtmlAggregatedTable(List<InvestorSummary> recipients) {
-    final buffer = StringBuffer();
-    
-    // Table header
-    buffer.writeln('<br><h3>Zbiorcze podsumowanie inwestycji</h3>');
-    buffer.writeln('<table style="border-collapse: collapse; width: 100%; margin: 10px 0; font-family: Arial, sans-serif;">');
-    buffer.writeln('<thead>');
-    buffer.writeln('<tr style="background-color: #2a2a2a; color: #ffd700;">');
-    buffer.writeln('<th style="border: 1px solid #666; padding: 8px; text-align: left;">Klient</th>');
-    buffer.writeln('<th style="border: 1px solid #666; padding: 8px; text-align: right;">Liczba inwestycji</th>');
-    buffer.writeln('<th style="border: 1px solid #666; padding: 8px; text-align: right;">Kapitał pozostały</th>');
-    buffer.writeln('<th style="border: 1px solid #666; padding: 8px; text-align: right;">Kapitał zabezpieczony</th>');
-    buffer.writeln('<th style="border: 1px solid #666; padding: 8px; text-align: right;">Kapitał do restrukturyzacji</th>');
-    buffer.writeln('</tr>');
-    buffer.writeln('</thead>');
-    buffer.writeln('<tbody>');
-    
-    double totalCapitalRemaining = 0;
-    double totalCapitalSecured = 0;
-    double totalCapitalForRestructuring = 0;
-    int totalInvestmentCount = 0;
-    
-    // Table rows
-    for (final inv in recipients) {
-      totalCapitalRemaining += inv.totalRemainingCapital;
-      totalCapitalSecured += inv.capitalSecuredByRealEstate;
-      totalCapitalForRestructuring += inv.capitalForRestructuring;
-      totalInvestmentCount += inv.investmentCount;
-      
-      buffer.writeln('<tr style="background-color: #3a3a3a; color: #ffffff;">');
-      buffer.writeln('<td style="border: 1px solid #666; padding: 8px;">${inv.client.name}</td>');
-      buffer.writeln('<td style="border: 1px solid #666; padding: 8px; text-align: right;">${inv.investmentCount}</td>');
-      buffer.writeln('<td style="border: 1px solid #666; padding: 8px; text-align: right;">${_formatCurrency(inv.totalRemainingCapital)}</td>');
-      buffer.writeln('<td style="border: 1px solid #666; padding: 8px; text-align: right;">${_formatCurrency(inv.capitalSecuredByRealEstate)}</td>');
-      buffer.writeln('<td style="border: 1px solid #666; padding: 8px; text-align: right;">${_formatCurrency(inv.capitalForRestructuring)}</td>');
-      buffer.writeln('</tr>');
-    }
-    
-    // Total row
-    buffer.writeln('<tr style="background-color: #4a4a4a; color: #ffd700; font-weight: bold;">');
-    buffer.writeln('<td style="border: 1px solid #666; padding: 8px;">RAZEM</td>');
-    buffer.writeln('<td style="border: 1px solid #666; padding: 8px; text-align: right;">$totalInvestmentCount</td>');
-    buffer.writeln('<td style="border: 1px solid #666; padding: 8px; text-align: right;">${_formatCurrency(totalCapitalRemaining)}</td>');
-    buffer.writeln('<td style="border: 1px solid #666; padding: 8px; text-align: right;">${_formatCurrency(totalCapitalSecured)}</td>');
-    buffer.writeln('<td style="border: 1px solid #666; padding: 8px; text-align: right;">${_formatCurrency(totalCapitalForRestructuring)}</td>');
-    buffer.writeln('</tr>');
-    
-    buffer.writeln('</tbody>');
-    buffer.writeln('</table><br>');
-    return buffer.toString();
-  }
-
   String _buildPlainTextInvestmentsTableForInvestor(InvestorSummary investor) {
     final buffer = StringBuffer();
-    buffer.writeln('\n----- Szczegółowe inwestycje: ${investor.client.name} -----\n');
-    buffer.writeln('Nazwa produktu | Kwota inwestycji | Kapitał pozostały | Kapitał zabezpieczony | Kapitał do restrukturyzacji | Wierzyciel');
-    buffer.writeln('---------------------------------------------');
+    buffer.writeln('\nSzczegółowe inwestycje: ${investor.client.name}');
     
     double totalInvestmentAmount = 0;
     double totalRemainingCapital = 0;
@@ -3077,10 +3059,38 @@ Zespół Metropolitan Investment''';
       totalCapitalSecured += inv.capitalSecuredByRealEstate;
       totalCapitalForRestructuring += inv.capitalForRestructuring;
       
-      buffer.writeln('${inv.productName} | ${_formatCurrency(inv.investmentAmount)} | ${_formatCurrency(inv.remainingCapital)} | ${_formatCurrency(inv.capitalSecuredByRealEstate)} | ${_formatCurrency(inv.capitalForRestructuring)} | ${inv.creditorCompany}');
+      buffer.writeln(inv.productName);
+      buffer.writeln(
+        '  • Kwota inwestycji: ${_formatCurrency(inv.investmentAmount)}',
+      );
+      buffer.writeln(
+        '  • Kapitał pozostały: ${_formatCurrency(inv.remainingCapital)}',
+      );
+      buffer.writeln(
+        '  • Kapitał zabezpieczony: ${_formatCurrency(inv.capitalSecuredByRealEstate)}',
+      );
+      buffer.writeln(
+        '  • Kapitał do restrukturyzacji: ${_formatCurrency(inv.capitalForRestructuring)}',
+      );
+      if (inv.creditorCompany.isNotEmpty) {
+        buffer.writeln('  • Wierzyciel: ${inv.creditorCompany}');
+      }
+      buffer.writeln('');
     }
     
-    buffer.writeln('RAZEM | ${_formatCurrency(totalInvestmentAmount)} | ${_formatCurrency(totalRemainingCapital)} | ${_formatCurrency(totalCapitalSecured)} | ${_formatCurrency(totalCapitalForRestructuring)} | ');
+    buffer.writeln('RAZEM:');
+    buffer.writeln(
+      '  • Kwota inwestycji: ${_formatCurrency(totalInvestmentAmount)}',
+    );
+    buffer.writeln(
+      '  • Kapitał pozostały: ${_formatCurrency(totalRemainingCapital)}',
+    );
+    buffer.writeln(
+      '  • Kapitał zabezpieczony: ${_formatCurrency(totalCapitalSecured)}',
+    );
+    buffer.writeln(
+      '  • Kapitał do restrukturyzacji: ${_formatCurrency(totalCapitalForRestructuring)}',
+    );
     buffer.writeln('\n');
     return buffer.toString();
   }
@@ -3132,119 +3142,87 @@ Zespół Metropolitan Investment''';
     }
   }
 
-  /// Processes HTML content to replace plain text tables with HTML tables
-  String _processInvestmentTableMarkers(String html) {
-    if (kDebugMode) {
-      print('🔄 [EmailDialog] Processing HTML for table conversion (${html.length} chars)');
-      print('🔍 [EmailDialog] HTML content preview: ${html.substring(0, math.min(500, html.length))}...');
-    }
-    
-    // Pattern 1: Individual investor tables (updated for new detailed format)
-    final individualTablePattern = RegExp(
-      r'----- Szczegółowe inwestycje: (.+?) -----\s*\n\s*Nazwa produktu \| Kwota inwestycji \| Kapitał pozostały \| Kapitał zabezpieczony \| Kapitał do restrukturyzacji \| Wierzyciel\s*\n\s*-+\s*\n((?:(?!RAZEM).+\n)*?)RAZEM \| (.+?)\n',
-      multiLine: true,
-    );
-    
-    html = html.replaceAllMapped(individualTablePattern, (match) {
-      final investorName = match.group(1)?.trim() ?? '';
-      final tableRows = match.group(2)?.trim() ?? '';
-      final totalRow = match.group(3)?.trim() ?? '';
-      
-      if (kDebugMode) {
-        print('🔄 [EmailDialog] Converting detailed individual table for: $investorName');
-        print('🔍 [EmailDialog] Table rows: $tableRows');
-        print('🔍 [EmailDialog] Total row: $totalRow');
-      }
-      
-      return _convertDetailedPlainTextTableToHtml(investorName, tableRows, totalRow);
-    });
-    
-    // Pattern 2: Aggregated tables (updated for new detailed format)
-    final aggregatedTablePattern = RegExp(
-      r'----- Zbiorcze podsumowanie inwestycji -----\s*\n\s*Klient \| Liczba inwestycji \| Kapitał pozostały \| Kapitał zabezpieczony \| Kapitał do restrukturyzacji\s*\n\s*-+\s*\n((?:(?!RAZEM).+\n)*?)RAZEM \| (.+?)\n',
-      multiLine: true,
-    );
-    
-    html = html.replaceAllMapped(aggregatedTablePattern, (match) {
-      final tableRows = match.group(1)?.trim() ?? '';
-      final totalRow = match.group(2)?.trim() ?? '';
-      
-      if (kDebugMode) {
-        print('🔄 [EmailDialog] Converting detailed aggregated table');
-        print('🔍 [EmailDialog] Table rows: $tableRows');
-        print('🔍 [EmailDialog] Total row: $totalRow');
-      }
-      
-      return _convertDetailedAggregatedTableToHtml(tableRows, totalRow);
-    });
-    
-    if (kDebugMode) {
-      print('🔄 [EmailDialog] Processing complete. Final HTML length: ${html.length}');
-    }
-    
-    return html;
-  }
   
-  /// Converts plain text table to HTML table
-  String _convertPlainTextTableToHtml(String title, String tableRows, String total, {required bool isIndividual}) {
+  /// Converts new investment list format to HTML
+  String _convertNewInvestmentListToHtml(
+    String investorName,
+    String investmentsList,
+    String totalsList,
+  ) {
     final buffer = StringBuffer();
-    
-    // Start HTML table structure
-    buffer.writeln('<div class="investment-summary" style="margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #d4af37;">');
-    buffer.writeln('<h3 style="color: #d4af37; margin-bottom: 16px;">📊 ${isIndividual ? 'Inwestycje: $title' : title}</h3>');
-    
-    // Create HTML table
-    buffer.writeln('<table style="width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">');
-    
-    // Table headers
-    if (isIndividual) {
-      buffer.writeln('<thead><tr style="background: #2c2c2c; color: white;">');
-      buffer.writeln('<th style="text-align: left; padding: 12px; font-weight: 600;">Nazwa</th>');
-      buffer.writeln('<th style="text-align: right; padding: 12px; font-weight: 600;">Pozostały kapitał</th>');
-      buffer.writeln('<th style="text-align: left; padding: 12px; font-weight: 600;">Wierzyciel</th>');
-      buffer.writeln('</tr></thead>');
-    } else {
-      buffer.writeln('<thead><tr style="background: #2c2c2c; color: white;">');
-      buffer.writeln('<th style="text-align: left; padding: 12px; font-weight: 600;">Klient</th>');
-      buffer.writeln('<th style="text-align: center; padding: 12px; font-weight: 600;">Liczba inwestycji</th>');
-      buffer.writeln('<th style="text-align: right; padding: 12px; font-weight: 600;">Kapitał pozostały</th>');
-      buffer.writeln('</tr></thead>');
-    }
-    
-    // Table body
-    buffer.writeln('<tbody>');
-    final rows = tableRows.split('\n').where((row) => row.trim().isNotEmpty);
-    for (int i = 0; i < rows.length; i++) {
-      final row = rows.elementAt(i);
-      final columns = row.split('|').map((col) => col.trim()).toList();
-      
-      if (columns.length >= 2) {
-        final bgColor = i % 2 == 0 ? 'white' : '#f8f9fa';
-        buffer.writeln('<tr style="background-color: $bgColor;">');
-        
-        for (int j = 0; j < columns.length; j++) {
-          final align = (isIndividual && j == 1) || (!isIndividual && j == 2) ? 'right' : 
-                       (!isIndividual && j == 1) ? 'center' : 'left';
-          buffer.writeln('<td style="padding: 10px 12px; border-bottom: 1px solid #e9ecef; text-align: $align;">${columns[j]}</td>');
+
+    buffer.writeln(
+      '<div style="margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #d4af37;">',
+    );
+    buffer.writeln(
+      '<h3 style="color: #d4af37; margin-bottom: 16px;">📊 Szczegółowe inwestycje: $investorName</h3>',
+    );
+
+    // Parse investments from list format
+    final lines = investmentsList
+        .split('\n')
+        .where((line) => line.trim().isNotEmpty)
+        .toList();
+    String? currentProduct;
+    List<String> currentDetails = [];
+
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (!trimmed.startsWith('•') && !trimmed.startsWith('  •')) {
+        // This is a product name
+        if (currentProduct != null && currentDetails.isNotEmpty) {
+          // Output previous product
+          buffer.writeln(
+            '<p style="margin: 8px 0; font-size: 14px; line-height: 1.5;">',
+          );
+          buffer.writeln('<strong>$currentProduct</strong><br>');
+          for (final detail in currentDetails) {
+            buffer.writeln('$detail<br>');
+          }
+          buffer.writeln('</p>');
         }
-        
-        buffer.writeln('</tr>');
+        currentProduct = trimmed;
+        currentDetails.clear();
+      } else if (trimmed.startsWith('•') || trimmed.startsWith('  •')) {
+        // This is a detail line
+        final cleanDetail = trimmed.replaceFirst(RegExp(r'^\s*•\s*'), '• ');
+        currentDetails.add(cleanDetail);
       }
     }
-    buffer.writeln('</tbody>');
-    
-    // Total row if available
-    if (total.isNotEmpty && isIndividual) {
-      buffer.writeln('<tfoot><tr style="background: #d4af37; color: white; font-weight: bold;">');
-      buffer.writeln('<td style="padding: 12px; border: none;">RAZEM</td>');
-      buffer.writeln('<td style="padding: 12px; border: none; text-align: right;">$total</td>');
-      buffer.writeln('<td style="padding: 12px; border: none;"></td>');
-      buffer.writeln('</tr></tfoot>');
+
+    // Output last product
+    if (currentProduct != null && currentDetails.isNotEmpty) {
+      buffer.writeln(
+        '<p style="margin: 8px 0; font-size: 14px; line-height: 1.5;">',
+      );
+      buffer.writeln('<strong>$currentProduct</strong><br>');
+      for (final detail in currentDetails) {
+        buffer.writeln('$detail<br>');
+      }
+      buffer.writeln('</p>');
     }
-    
-    buffer.writeln('</table>');
+
+    // Add totals section
+    if (totalsList.isNotEmpty) {
+      buffer.writeln(
+        '<div style="margin-top: 16px; padding: 12px; background-color: #d4af37; color: white; border-radius: 6px;">',
+      );
+      buffer.writeln('<strong>RAZEM</strong><br>');
+
+      final totalLines = totalsList
+          .split('\n')
+          .where((line) => line.trim().isNotEmpty);
+      for (final totalLine in totalLines) {
+        final trimmed = totalLine.trim();
+        if (trimmed.startsWith('•') || trimmed.startsWith('  •')) {
+          final cleanDetail = trimmed.replaceFirst(RegExp(r'^\s*•\s*'), '• ');
+          buffer.writeln('$cleanDetail<br>');
+        }
+      }
+      buffer.writeln('</div>');
+    }
+
     buffer.writeln('</div>');
-    
     return buffer.toString();
   }
   
@@ -3252,252 +3230,479 @@ Zespół Metropolitan Investment''';
   String _convertDetailedPlainTextTableToHtml(String investorName, String tableRows, String totalRow) {
     final buffer = StringBuffer();
     
-    // Start HTML table structure
-    buffer.writeln('<div class="investment-summary" style="margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #d4af37;">');
+    // Simple text formatting without HTML table
+    buffer.writeln(
+      '<div style="margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #d4af37;">',
+    );
     buffer.writeln('<h3 style="color: #d4af37; margin-bottom: 16px;">📊 Szczegółowe inwestycje: $investorName</h3>');
     
-    // Create HTML table
-    buffer.writeln('<table style="width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">');
-    
-    // Table headers for detailed view
-    buffer.writeln('<thead><tr style="background: #2c2c2c; color: white;">');
-    buffer.writeln('<th style="text-align: left; padding: 8px; font-weight: 600; font-size: 12px;">Nazwa produktu</th>');
-    buffer.writeln('<th style="text-align: right; padding: 8px; font-weight: 600; font-size: 12px;">Kwota inwestycji</th>');
-    buffer.writeln('<th style="text-align: right; padding: 8px; font-weight: 600; font-size: 12px;">Kapitał pozostały</th>');
-    buffer.writeln('<th style="text-align: right; padding: 8px; font-weight: 600; font-size: 12px;">Kapitał zabezpieczony</th>');
-    buffer.writeln('<th style="text-align: right; padding: 8px; font-weight: 600; font-size: 12px;">Kapitał do restrukturyzacji</th>');
-    buffer.writeln('<th style="text-align: left; padding: 8px; font-weight: 600; font-size: 12px;">Wierzyciel</th>');
-    buffer.writeln('</tr></thead>');
-    
-    // Table body
-    buffer.writeln('<tbody>');
+    // Convert table rows to simple text lines
     final rows = tableRows.split('\n').where((row) => row.trim().isNotEmpty);
-    for (int i = 0; i < rows.length; i++) {
-      final row = rows.elementAt(i);
+    for (final row in rows) {
       final columns = row.split('|').map((col) => col.trim()).toList();
       
       if (columns.length >= 6) {
-        final bgColor = i % 2 == 0 ? 'white' : '#f8f9fa';
-        buffer.writeln('<tr style="background-color: $bgColor;">');
-        
-        // Product name (left)
-        buffer.writeln('<td style="padding: 8px; border-bottom: 1px solid #e9ecef; text-align: left; font-size: 12px;">${columns[0]}</td>');
-        // Investment amount (right)
-        buffer.writeln('<td style="padding: 8px; border-bottom: 1px solid #e9ecef; text-align: right; font-size: 12px; font-weight: 500;">${columns[1]}</td>');
-        // Remaining capital (right)
-        buffer.writeln('<td style="padding: 8px; border-bottom: 1px solid #e9ecef; text-align: right; font-size: 12px; font-weight: 500;">${columns[2]}</td>');
-        // Secured capital (right)
-        buffer.writeln('<td style="padding: 8px; border-bottom: 1px solid #e9ecef; text-align: right; font-size: 12px; font-weight: 500;">${columns[3]}</td>');
-        // Capital for restructuring (right)
-        buffer.writeln('<td style="padding: 8px; border-bottom: 1px solid #e9ecef; text-align: right; font-size: 12px; font-weight: 500;">${columns[4]}</td>');
-        // Creditor (left)
-        buffer.writeln('<td style="padding: 8px; border-bottom: 1px solid #e9ecef; text-align: left; font-size: 12px;">${columns[5]}</td>');
-        
-        buffer.writeln('</tr>');
-      }
-    }
-    buffer.writeln('</tbody>');
-    
-    // Total row
-    if (totalRow.isNotEmpty) {
-      final totalColumns = totalRow.split('|').map((col) => col.trim()).toList();
-      if (totalColumns.length >= 6) {
-        buffer.writeln('<tfoot><tr style="background: #d4af37; color: white; font-weight: bold;">');
-        buffer.writeln('<td style="padding: 10px 8px; border: none; font-size: 12px;">RAZEM</td>');
-        buffer.writeln('<td style="padding: 10px 8px; border: none; text-align: right; font-size: 12px;">${totalColumns[1]}</td>');
-        buffer.writeln('<td style="padding: 10px 8px; border: none; text-align: right; font-size: 12px;">${totalColumns[2]}</td>');
-        buffer.writeln('<td style="padding: 10px 8px; border: none; text-align: right; font-size: 12px;">${totalColumns[3]}</td>');
-        buffer.writeln('<td style="padding: 10px 8px; border: none; text-align: right; font-size: 12px;">${totalColumns[4]}</td>');
-        buffer.writeln('<td style="padding: 10px 8px; border: none; font-size: 12px;"></td>');
-        buffer.writeln('</tr></tfoot>');
+        buffer.writeln(
+          '<p style="margin: 8px 0; font-size: 14px; line-height: 1.5;">',
+        );
+        buffer.writeln('<strong>${columns[0]}</strong><br>');
+        buffer.writeln('• Kwota inwestycji: ${columns[1]}<br>');
+        buffer.writeln('• Kapitał pozostały: ${columns[2]}<br>');
+        buffer.writeln('• Kapitał zabezpieczony: ${columns[3]}<br>');
+        buffer.writeln('• Kapitał do restrukturyzacji: ${columns[4]}<br>');
+        if (columns[5].isNotEmpty) {
+          buffer.writeln('• Wierzyciel: ${columns[5]}<br>');
+        }
+        buffer.writeln('</p>');
       }
     }
     
-    buffer.writeln('</table>');
-    buffer.writeln('</div>');
-    
-    return buffer.toString();
-  }
-  
-  /// Converts detailed aggregated plain text table to HTML table
-  String _convertDetailedAggregatedTableToHtml(String tableRows, String totalRow) {
-    final buffer = StringBuffer();
-    
-    // Start HTML table structure
-    buffer.writeln('<div class="investment-summary" style="margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #d4af37;">');
-    buffer.writeln('<h3 style="color: #d4af37; margin-bottom: 16px;">📊 Zbiorcze podsumowanie inwestycji</h3>');
-    
-    // Create HTML table
-    buffer.writeln('<table style="width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">');
-    
-    // Table headers for detailed aggregated view
-    buffer.writeln('<thead><tr style="background: #2c2c2c; color: white;">');
-    buffer.writeln('<th style="text-align: left; padding: 10px; font-weight: 600; font-size: 13px;">Klient</th>');
-    buffer.writeln('<th style="text-align: center; padding: 10px; font-weight: 600; font-size: 13px;">Liczba inwestycji</th>');
-    buffer.writeln('<th style="text-align: right; padding: 10px; font-weight: 600; font-size: 13px;">Kapitał pozostały</th>');
-    buffer.writeln('<th style="text-align: right; padding: 10px; font-weight: 600; font-size: 13px;">Kapitał zabezpieczony</th>');
-    buffer.writeln('<th style="text-align: right; padding: 10px; font-weight: 600; font-size: 13px;">Kapitał do restrukturyzacji</th>');
-    buffer.writeln('</tr></thead>');
-    
-    // Table body
-    buffer.writeln('<tbody>');
-    final rows = tableRows.split('\n').where((row) => row.trim().isNotEmpty);
-    for (int i = 0; i < rows.length; i++) {
-      final row = rows.elementAt(i);
-      final columns = row.split('|').map((col) => col.trim()).toList();
-      
-      if (columns.length >= 5) {
-        final bgColor = i % 2 == 0 ? 'white' : '#f8f9fa';
-        buffer.writeln('<tr style="background-color: $bgColor;">');
-        
-        // Client name (left)
-        buffer.writeln('<td style="padding: 10px; border-bottom: 1px solid #e9ecef; text-align: left; font-size: 13px;">${columns[0]}</td>');
-        // Investment count (center)
-        buffer.writeln('<td style="padding: 10px; border-bottom: 1px solid #e9ecef; text-align: center; font-size: 13px; font-weight: 500;">${columns[1]}</td>');
-        // Remaining capital (right)
-        buffer.writeln('<td style="padding: 10px; border-bottom: 1px solid #e9ecef; text-align: right; font-size: 13px; font-weight: 500;">${columns[2]}</td>');
-        // Secured capital (right)
-        buffer.writeln('<td style="padding: 10px; border-bottom: 1px solid #e9ecef; text-align: right; font-size: 13px; font-weight: 500;">${columns[3]}</td>');
-        // Capital for restructuring (right)
-        buffer.writeln('<td style="padding: 10px; border-bottom: 1px solid #e9ecef; text-align: right; font-size: 13px; font-weight: 500;">${columns[4]}</td>');
-        
-        buffer.writeln('</tr>');
-      }
-    }
-    buffer.writeln('</tbody>');
-    
-    // Total row
+    // Total row as simple text
     if (totalRow.isNotEmpty) {
       final totalColumns = totalRow.split('|').map((col) => col.trim()).toList();
       if (totalColumns.length >= 5) {
-        buffer.writeln('<tfoot><tr style="background: #d4af37; color: white; font-weight: bold;">');
-        buffer.writeln('<td style="padding: 12px 10px; border: none; font-size: 13px;">RAZEM</td>');
-        buffer.writeln('<td style="padding: 12px 10px; border: none; text-align: center; font-size: 13px;">${totalColumns[1]}</td>');
-        buffer.writeln('<td style="padding: 12px 10px; border: none; text-align: right; font-size: 13px;">${totalColumns[2]}</td>');
-        buffer.writeln('<td style="padding: 12px 10px; border: none; text-align: right; font-size: 13px;">${totalColumns[3]}</td>');
-        buffer.writeln('<td style="padding: 12px 10px; border: none; text-align: right; font-size: 13px;">${totalColumns[4]}</td>');
-        buffer.writeln('</tr></tfoot>');
+        buffer.writeln(
+          '<div style="margin-top: 16px; padding: 12px; background-color: #d4af37; color: white; border-radius: 6px;">',
+        );
+        buffer.writeln(
+          '<h4 style="margin: 0 0 8px 0; color: white;">PODSUMOWANIE:</h4>',
+        );
+        buffer.writeln('<p style="margin: 4px 0; font-weight: bold;">');
+        buffer.writeln('• Łączna kwota inwestycji: ${totalColumns[1]}<br>');
+        buffer.writeln('• Łączny kapitał pozostały: ${totalColumns[2]}<br>');
+        buffer.writeln(
+          '• Łączny kapitał zabezpieczony: ${totalColumns[3]}<br>',
+        );
+        buffer.writeln(
+          '• Łączny kapitał do restrukturyzacji: ${totalColumns[4]}',
+        );
+        buffer.writeln('</p>');
+        buffer.writeln('</div>');
       }
     }
     
-    buffer.writeln('</table>');
     buffer.writeln('</div>');
     
     return buffer.toString();
   }
   
-  /// Processes HTML content to replace table markers with investor-specific content
-  String _processInvestmentTableMarkersForInvestor(String html, InvestorSummary investor) {
-    if (kDebugMode) {
-      print('🔄 [EmailDialog] Processing HTML for investor: ${investor.client.name}');
+  /// Converts detailed aggregated plain text table to simple text format
+  String _convertDetailedAggregatedTableToHtml(String tableRows, String totalRow) {
+    final buffer = StringBuffer();
+    
+    // Simple text formatting without HTML table
+    buffer.writeln(
+      '<div style="margin: 20px 0; padding: 20px; background-color: #f0f8ff; border-radius: 8px; border-left: 4px solid #d4af37;">',
+    );
+    buffer.writeln('<h3 style="color: #d4af37; margin-bottom: 16px;">📊 Zbiorcze podsumowanie inwestycji</h3>');
+    
+    // Convert table rows to simple text lines
+    final rows = tableRows.split('\n').where((row) => row.trim().isNotEmpty);
+    for (final row in rows) {
+      final columns = row.split('|').map((col) => col.trim()).toList();
+      
+      if (columns.length >= 5) {
+        buffer.writeln(
+          '<p style="margin: 12px 0; font-size: 14px; line-height: 1.6; padding: 12px; background-color: white; border-radius: 6px; border-left: 3px solid #d4af37;">',
+        );
+        buffer.writeln(
+          '<strong style="color: #2c2c2c; font-size: 16px;">${columns[0]}</strong><br>',
+        );
+        buffer.writeln(
+          '• Liczba inwestycji: <strong>${columns[1]}</strong><br>',
+        );
+        buffer.writeln(
+          '• Kapitał pozostały: <strong>${columns[2]}</strong><br>',
+        );
+        buffer.writeln(
+          '• Kapitał zabezpieczony: <strong>${columns[3]}</strong><br>',
+        );
+        buffer.writeln(
+          '• Kapitał do restrukturyzacji: <strong>${columns[4]}</strong>',
+        );
+        buffer.writeln('</p>');
+      }
     }
     
-    // Pattern 1: Individual investor tables - replace with this specific investor's detailed data
-    final individualTablePattern = RegExp(
-      r'----- Szczegółowe inwestycje: (.+?) -----\s*\n\s*Nazwa produktu \| Kwota inwestycji \| Kapitał pozostały \| Kapitał zabezpieczony \| Kapitał do restrukturyzacji \| Wierzyciel\s*\n\s*-+\s*\n((?:(?!RAZEM).+\n)*?)RAZEM \| (.+?)\n',
-      multiLine: true,
-    );
-    
-    html = html.replaceAllMapped(individualTablePattern, (match) {
-      // Generate specific table content for this investor
-      final tableContent = _buildPlainTextInvestmentsTableForInvestor(investor);
-      
-      // Extract the plain text table from the generated content
-      final tablePattern = RegExp(
-        r'----- Szczegółowe inwestycje: (.+?) -----\s*\n\s*Nazwa produktu \| Kwota inwestycji \| Kapitał pozostały \| Kapitał zabezpieczony \| Kapitał do restrukturyzacji \| Wierzyciel\s*\n\s*-+\s*\n((?:(?!RAZEM).+\n)*?)RAZEM \| (.+?)\n',
-        multiLine: true,
-      );
-      
-      final tableMatch = tablePattern.firstMatch(tableContent);
-      if (tableMatch != null) {
-        final investorName = tableMatch.group(1)?.trim() ?? investor.client.name;
-        final tableRows = tableMatch.group(2)?.trim() ?? '';
-        final totalRow = tableMatch.group(3)?.trim() ?? '';
-        
-        return _convertDetailedPlainTextTableToHtml(investorName, tableRows, totalRow);
+    // Total row as simple text
+    if (totalRow.isNotEmpty) {
+      final totalColumns = totalRow.split('|').map((col) => col.trim()).toList();
+      if (totalColumns.length >= 5) {
+        buffer.writeln(
+          '<div style="margin-top: 16px; padding: 16px; background-color: #d4af37; color: white; border-radius: 8px;">',
+        );
+        buffer.writeln(
+          '<h4 style="margin: 0 0 12px 0; color: white; font-size: 18px;">📈 ŁĄCZNE PODSUMOWANIE:</h4>',
+        );
+        buffer.writeln(
+          '<p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.5;">',
+        );
+        buffer.writeln('• Łączna liczba inwestycji: ${totalColumns[1]}<br>');
+        buffer.writeln('• Łączny kapitał pozostały: ${totalColumns[2]}<br>');
+        buffer.writeln(
+          '• Łączny kapitał zabezpieczony: ${totalColumns[3]}<br>',
+        );
+        buffer.writeln(
+          '• Łączny kapitał do restrukturyzacji: ${totalColumns[4]}',
+        );
+        buffer.writeln('</p>');
+        buffer.writeln('</div>');
       }
-      
-      // Fallback - return original match
-      return match.group(0) ?? '';
-    });
+    }
     
-    // Pattern 2: Aggregated tables - for individual preview, show only this investor
-    final aggregatedTablePattern = RegExp(
-      r'----- Zbiorcze podsumowanie inwestycji -----\s*\n\s*Klient \| Liczba inwestycji \| Kapitał pozostały \| Kapitał zabezpieczony \| Kapitał do restrukturyzacji\s*\n\s*-+\s*\n((?:(?!RAZEM).+\n)*?)RAZEM \| (.+?)\n',
-      multiLine: true,
-    );
+    buffer.writeln('</div>');
     
-    html = html.replaceAllMapped(aggregatedTablePattern, (match) {
-      // For individual preview, show aggregated table with just this investor
-      final tableContent = _buildPlainTextAggregatedTable([investor]);
-      
-      final tablePattern = RegExp(
-        r'----- Zbiorcze podsumowanie inwestycji -----\s*\n\s*Klient \| Liczba inwestycji \| Kapitał pozostały \| Kapitał zabezpieczony \| Kapitał do restrukturyzacji\s*\n\s*-+\s*\n((?:(?!RAZEM).+\n)*?)RAZEM \| (.+?)\n',
-        multiLine: true,
-      );
-      
-      final tableMatch = tablePattern.firstMatch(tableContent);
-      if (tableMatch != null) {
-        final tableRows = tableMatch.group(1)?.trim() ?? '';
-        final totalRow = tableMatch.group(2)?.trim() ?? '';
-        return _convertDetailedAggregatedTableToHtml(tableRows, totalRow);
-      }
-      
-      // Fallback - return original match
-      return match.group(0) ?? '';
-    });
-    
-    return html;
+    return buffer.toString();
   }
   
-  /// Processes HTML content to replace table markers with aggregated content for multiple investors
-  String _processInvestmentTableMarkersForAggregated(String html, List<InvestorSummary> investors) {
+
+
+  /// Debug method to analyze Quill content
+  void _debugQuillContent() {
     if (kDebugMode) {
-      print('🔄 [EmailDialog] Processing HTML for ${investors.length} aggregated investors');
-    }
-    
-    // Pattern 1: Individual investor tables - replace with aggregated message
-    final individualTablePattern = RegExp(
-      r'----- Szczegółowe inwestycje: (.+?) -----\s*\n\s*Nazwa produktu \| Kwota inwestycji \| Kapitał pozostały \| Kapitał zabezpieczony \| Kapitał do restrukturyzacji \| Wierzyciel\s*\n\s*-+\s*\n((?:(?!RAZEM).+\n)*?)RAZEM \| (.+?)\n',
-      multiLine: true,
-    );
-    
-    html = html.replaceAllMapped(individualTablePattern, (match) {
-      // For additional emails, replace individual tables with a notice
-      return '''
-      <div class="investment-summary" style="margin: 20px 0; padding: 20px; background-color: #f0f8ff; border-radius: 8px; border-left: 4px solid #d4af37;">
-        <h3 style="color: #d4af37; margin-bottom: 16px;">📊 Inwestycje klientów</h3>
-        <p style="color: #555; font-style: italic;">Szczegółowe dane inwestycyjne dostępne w zbiorczym podsumowaniu poniżej.</p>
-      </div>
-      ''';
-    });
-    
-    // Pattern 2: Aggregated tables - replace with data for all investors
-    final aggregatedTablePattern = RegExp(
-      r'----- Zbiorcze podsumowanie inwestycji -----\s*\n\s*Klient \| Liczba inwestycji \| Kapitał pozostały \| Kapitał zabezpieczony \| Kapitał do restrukturyzacji\s*\n\s*-+\s*\n((?:(?!RAZEM).+\n)*?)RAZEM \| (.+?)\n',
-      multiLine: true,
-    );
-    
-    html = html.replaceAllMapped(aggregatedTablePattern, (match) {
-      // Generate aggregated table content for all investors
-      final tableContent = _buildPlainTextAggregatedTable(investors);
-      
-      final tablePattern = RegExp(
-        r'----- Zbiorcze podsumowanie inwestycji -----\s*\n\s*Klient \| Liczba inwestycji \| Kapitał pozostały \| Kapitał zabezpieczony \| Kapitał do restrukturyzacji\s*\n\s*-+\s*\n((?:(?!RAZEM).+\n)*?)RAZEM \| (.+?)\n',
-        multiLine: true,
+      final plainText = _quillController.document.toPlainText();
+      final delta = _quillController.document.toDelta();
+
+      print('🔍 [QuillDebug] Document plain text:');
+      print(plainText);
+      print('🔍 [QuillDebug] Plain text length: ${plainText.length}');
+      print('🔍 [QuillDebug] Document delta:');
+      print(delta.toJson());
+
+      // **NOWE PODEJŚCIE: Użyj naszej niezawodnej konwersji**
+      final html = _convertQuillToReliableHtml(_quillController);
+
+      print('🔍 [QuillDebug] Generated HTML (reliable conversion):');
+      print(html);
+      print('🔍 [QuillDebug] HTML length: ${html.length}');
+
+      // Check for investment content patterns
+      print('🔍 [QuillDebug] Pattern analysis:');
+      print(
+        '- Contains "Szczegółowe inwestycje": ${plainText.contains('Szczegółowe inwestycje')}',
       );
-      
-      final tableMatch = tablePattern.firstMatch(tableContent);
-      if (tableMatch != null) {
-        final tableRows = tableMatch.group(1)?.trim() ?? '';
-        final totalRow = tableMatch.group(2)?.trim() ?? '';
-        return _convertDetailedAggregatedTableToHtml(tableRows, totalRow);
+      print(
+        '- Contains "Metropolitan Investment": ${plainText.contains('Metropolitan Investment')}',
+      );
+      print(
+        '- Contains "Kwota inwestycji": ${plainText.contains('Kwota inwestycji')}',
+      );
+      print('- Contains "RAZEM": ${plainText.contains('RAZEM')}');
+
+      // Advanced debugging: Check if HTML conversion failed or is incomplete
+      final conversionFailed =
+          (html.length < 50 && plainText.length > 100) ||
+          (plainText.length > html.length * 3) ||
+          (plainText.contains('Szczegółowe inwestycje') &&
+              !html.contains('Szczegółowe inwestycje')) ||
+          (plainText.contains('📊 Inwestycje:') &&
+              !html.contains('📊 Inwestycje:'));
+
+      if (conversionFailed) {
+        print('⚠️ [QuillDebug] PROBLEM: HTML conversion failed or incomplete!');
+        print('   Plain text length: ${plainText.length}');
+        print('   HTML length: ${html.length}');
+        print('   Ratio: ${plainText.length / html.length}');
+        print('⚠️ [QuillDebug] This indicates a conversion issue.');
+
+        // Try alternative conversion
+        final alternativeHtml = _convertPlainTextToBasicHtml(plainText);
+        print('🔧 [QuillDebug] Alternative HTML conversion:');
+        print(
+          alternativeHtml.substring(0, math.min(1000, alternativeHtml.length)),
+        );
+        print(
+          '🔧 [QuillDebug] Alternative HTML length: ${alternativeHtml.length}',
+        );
+      } else {
+        print('✅ [QuillDebug] HTML conversion appears successful');
       }
-      
-      // Fallback - return original match
-      return match.group(0) ?? '';
+    }
+  }
+
+  /// Format numbers with thousands separators for better readability
+  String _formatNumbersInText(String text) {
+    // Pattern to match numbers with decimal places (like 3000000,00 zł)
+    final numberPattern = RegExp(
+      r'(\d{4,})([,\.]\d{2})?\s*(zł|PLN|EUR|USD)?',
+      caseSensitive: false,
+    );
+
+    return text.replaceAllMapped(numberPattern, (match) {
+      final numberPart = match.group(1)!;
+      final decimalPart = match.group(2) ?? '';
+      final currency = match.group(3) ?? '';
+
+      // Add thousands separators
+      final formattedNumber = _addThousandsSeparators(numberPart);
+
+      // Reconstruct with proper spacing
+      return '$formattedNumber$decimalPart${currency.isNotEmpty ? ' $currency' : ''}';
     });
-    
-    return html;
+  }
+
+  /// Add thousands separators to a number string
+  String _addThousandsSeparators(String numberStr) {
+    if (numberStr.length <= 3) return numberStr;
+
+    final reversedChars = numberStr.split('').reversed.toList();
+    final result = <String>[];
+
+    for (int i = 0; i < reversedChars.length; i++) {
+      if (i > 0 && i % 3 == 0) {
+        result.add(' '); // Use space as thousands separator
+      }
+      result.add(reversedChars[i]);
+    }
+
+    return result.reversed.join();
+  }
+
+  /// Get voting status badge HTML
+  String _getVotingStatusBadge(String? status) {
+    if (status == null || status.isEmpty) return '';
+
+    final statusUpper = status.toUpperCase();
+    String color;
+    String bgColor;
+    String displayText;
+
+    switch (statusUpper) {
+      case 'TAK':
+      case 'YES':
+        color = '#ffffff';
+        bgColor = '#28a745';
+        displayText = 'TAK';
+        break;
+      case 'NIE':
+      case 'NO':
+        color = '#ffffff';
+        bgColor = '#dc3545';
+        displayText = 'NIE';
+        break;
+      case 'WSTRZYMUJE':
+      case 'ABSTAIN':
+        color = '#000000';
+        bgColor = '#ffc107';
+        displayText = 'WSTRZYMUJE';
+        break;
+      case 'NIEZDECYDOWANY':
+      case 'UNDECIDED':
+      default:
+        color = '#666666';
+        bgColor = '#e9ecef';
+        displayText = 'NIEZDECYDOWANY';
+        break;
+    }
+
+    return '<span style="display: inline-block; padding: 2px 8px; margin: 0 4px; background-color: $bgColor; color: $color; border-radius: 12px; font-size: 11px; font-weight: bold;">$displayText</span>';
+  }
+
+  /// Alternative conversion method for when Quill-to-HTML fails
+  String _convertPlainTextToBasicHtml(String plainText) {
+    if (plainText.trim().isEmpty) return '<p></p>';
+
+    // First, format numbers in the entire text for better readability
+    final formattedText = _formatNumbersInText(plainText);
+
+    // Convert plain text to basic HTML
+    final lines = formattedText.split('\n');
+    final buffer = StringBuffer();
+    bool inTable = false;
+
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final trimmed = line.trim();
+
+      if (trimmed.isEmpty) {
+        if (!inTable) {
+          buffer.writeln('<br/>');
+        }
+        continue;
+      }
+
+      if (trimmed.startsWith('•')) {
+        // Bullet point
+        buffer.writeln(
+          '<p style="margin-left: 20px; margin: 4px 0;">$trimmed</p>',
+        );
+      } else if (trimmed.startsWith('📊')) {
+        // Investment section with emoji
+        buffer.writeln(
+          '<h3 style="color: #d4af37; margin: 16px 0 8px 0;">$trimmed</h3>',
+        );
+      } else if (trimmed.startsWith('📈')) {
+        // Summary section with emoji
+        buffer.writeln(
+          '<h3 style="color: #d4af37; margin: 16px 0 8px 0;">$trimmed</h3>',
+        );
+      } else if (trimmed.startsWith('──') && trimmed.contains('PODSUMOWANIE')) {
+        // Summary divider
+        buffer.writeln(
+          '<h4 style="color: #d4af37; margin: 12px 0 8px 0; border-top: 2px solid #d4af37; padding-top: 8px;">$trimmed</h4>',
+        );
+      } else if (trimmed.startsWith('═══') &&
+          trimmed.contains('PODSUMOWANIE')) {
+        // Global summary divider
+        buffer.writeln(
+          '<h4 style="color: #d4af37; margin: 12px 0 8px 0; border-top: 3px solid #d4af37; padding-top: 8px;">$trimmed</h4>',
+        );
+      } else if (trimmed.contains('|') &&
+          (trimmed.contains('Klient') ||
+              trimmed.contains('Liczba inwestycji'))) {
+        // Table header
+        if (!inTable) {
+          buffer.writeln(
+            '<table style="border-collapse: collapse; width: 100%; margin: 10px 0;">',
+          );
+          inTable = true;
+        }
+        final columns = trimmed.split('|').map((col) => col.trim()).toList();
+        buffer.writeln('<tr style="background-color: #f0f0f0;">');
+        for (final col in columns) {
+          buffer.writeln(
+            '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;"><strong>$col</strong></th>',
+          );
+        }
+        buffer.writeln('</tr>');
+      } else if (trimmed.contains('|') &&
+          (trimmed.contains('RAZEM') || !trimmed.startsWith('-'))) {
+        // Table data row
+        if (!inTable) {
+          buffer.writeln(
+            '<table style="border-collapse: collapse; width: 100%; margin: 10px 0;">',
+          );
+          inTable = true;
+        }
+        final columns = trimmed.split('|').map((col) => col.trim()).toList();
+        final isTotal = trimmed.contains('RAZEM');
+        buffer.writeln(
+          '<tr${isTotal ? ' style="background-color: #fffacd; font-weight: bold;"' : ''}>',
+        );
+        for (final col in columns) {
+          buffer.writeln(
+            '<td style="border: 1px solid #ddd; padding: 8px;">$col</td>',
+          );
+        }
+        buffer.writeln('</tr>');
+      } else if (trimmed.startsWith('-') && trimmed.length > 10) {
+        // Table separator line - ignore
+        continue;
+      } else {
+        // Close table if we were in one
+        if (inTable) {
+          buffer.writeln('</table>');
+          inTable = false;
+        }
+
+        if (trimmed.contains('RAZEM:')) {
+          // Summary section
+          buffer.writeln(
+            '<p style="font-weight: bold; margin: 8px 0;"><strong>$trimmed</strong></p>',
+          );
+        } else if (trimmed.startsWith('Szczegółowe inwestycje:')) {
+          // Investment section header
+          buffer.writeln(
+            '<h3 style="color: #d4af37; margin: 16px 0 8px 0;">📊 $trimmed</h3>',
+          );
+        } else if (trimmed.startsWith('Zbiorcze podsumowanie')) {
+          // Summary section header
+          buffer.writeln(
+            '<h3 style="color: #d4af37; margin: 16px 0 8px 0;">📊 $trimmed</h3>',
+          );
+        } else if (trimmed.contains('Metropolitan') ||
+            trimmed.contains('MI S.A.') ||
+            trimmed.contains('Projekt')) {
+          // Investment product name
+          buffer.writeln(
+            '<p style="font-weight: bold; margin: 8px 0 4px 0;"><strong>$trimmed</strong></p>',
+          );
+        } else if (trimmed.startsWith('Kwota inwestycji:') ||
+            trimmed.startsWith('Kapitał pozostały:') ||
+            trimmed.startsWith('Kapitał zabezpieczony:') ||
+            trimmed.startsWith('Kapitał do restrukturyzacji:') ||
+            trimmed.startsWith('Liczba inwestycji:') ||
+            trimmed.startsWith('Łącznie inwestycji:') ||
+            trimmed.startsWith('Łączny kapitał') ||
+            trimmed.startsWith('Łączna kwota')) {
+          // Investment details - with indentation
+          buffer.writeln(
+            '<p style="margin: 2px 0 2px 20px; font-size: 14px;">$trimmed</p>',
+          );
+        } else if (trimmed.startsWith('Status:')) {
+          // Status line - check if it contains voting status
+          String statusLine = trimmed;
+
+          // Look for voting status patterns in the status line
+          final votingPattern = RegExp(
+            r'Status:\s*(\w+)(?:\s*\|\s*Głosowanie:\s*(\w+))?',
+            caseSensitive: false,
+          );
+          final match = votingPattern.firstMatch(trimmed);
+
+          if (match != null) {
+            final mainStatus = match.group(1) ?? '';
+            final votingStatus = match.group(2);
+
+            statusLine = 'Status: $mainStatus';
+            if (votingStatus != null && votingStatus.isNotEmpty) {
+              statusLine +=
+                  ' | Głosowanie: ${_getVotingStatusBadge(votingStatus)}';
+            }
+          }
+
+          buffer.writeln(
+            '<p style="margin: 2px 0 2px 20px; font-size: 14px;">$statusLine</p>',
+          );
+        } else if (trimmed.startsWith('Głosowanie:')) {
+          // Standalone voting status line
+          final votingPattern = RegExp(
+            r'Głosowanie:\s*(\w+)',
+            caseSensitive: false,
+          );
+          final match = votingPattern.firstMatch(trimmed);
+
+          String votingLine = trimmed;
+          if (match != null) {
+            final votingStatus = match.group(1);
+            votingLine = 'Głosowanie: ${_getVotingStatusBadge(votingStatus)}';
+          }
+
+          buffer.writeln(
+            '<p style="margin: 2px 0 2px 20px; font-size: 14px;">$votingLine</p>',
+          );
+        } else {
+          // Regular paragraph
+          buffer.writeln('<p style="margin: 4px 0;">$trimmed</p>');
+        }
+      }
+    }
+
+    // Close table if we ended in one
+    if (inTable) {
+      buffer.writeln('</table>');
+    }
+
+    return buffer.toString();
+  }
+
+  /// Debug button for development (only visible in debug mode)
+  Widget _buildDebugButton() {
+    if (!kDebugMode) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: ElevatedButton.icon(
+        onPressed: _debugQuillContent,
+        icon: const Icon(Icons.bug_report, size: 16),
+        label: const Text('Debug', style: TextStyle(fontSize: 12)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orange,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          minimumSize: const Size(0, 32),
+        ),
+      ),
+    );
   }
 }

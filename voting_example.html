@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Przykład statusów głosowania w emailach - Metropolitan Investment</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .email-preview {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .header {
+            text-align: center;
+            color: #d4af37;
+            border-bottom: 2px solid #d4af37;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .investment-item {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #d4af37;
+        }
+        .voting-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .voting-yes { background-color: #28a745; }
+        .voting-no { background-color: #dc3545; }
+        .voting-abstain { background-color: #ffc107; color: #333; }
+        .voting-undecided { background-color: #6c757d; }
+        
+        .amount {
+            font-weight: bold;
+            color: #28a745;
+        }
+        
+        .summary {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .features {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="features">
+        <h2>🎉 Nowa funkcjonalność - Status głosowania inwestycji</h2>
+        <p><strong>Co się zmieniło:</strong></p>
+        <ul>
+            <li>✅ <strong>Formatowanie tysięcy</strong>: Liczby wyświetlane z separatorami (np. 1 000 000,00 zł)</li>
+            <li>✅ <strong>Status głosowania per inwestycja</strong>: Każda inwestycja ma swój własny status głosowania</li>
+            <li>✅ <strong>Kolorowe odznaki</strong>: Wizualne oznaczenia statusów głosowania</li>
+            <li>✅ <strong>Zachowanie wszystkich funkcji</strong>: Głosowanie, formatowanie, konwersja HTML</li>
+        </ul>
+    </div>
+
+    <div class="email-preview">
+        <div class="header">
+            <h1>📊 Metropolitan Investment</h1>
+            <p>Raport inwestycji z statusami głosowania</p>
+        </div>
+
+        <h2>📊 Inwestycje: Kasper Cęcek</h2>
+        
+        <div class="investment-item">
+            <h3>• Metropolitan SPV I Sp. z o.o. A1</h3>
+            <p>Kwota inwestycji: <span class="amount">1 000 000,00 zł</span></p>
+            <p>Kapitał pozostały: <span class="amount">1 000 000,00 zł</span></p>
+            <p>Kapitał zabezpieczony: <span class="amount">730 000,00 zł</span></p>
+            <p>Kapitał do restrukturyzacji: <span class="amount">270 000,00 zł</span></p>
+            <p>Status: Aktywny</p>
+            <p>Głosowanie: <span class="voting-badge voting-yes">TAK</span></p>
+        </div>
+
+        <div class="investment-item">
+            <h3>• Projekt Botaniczna Sp. z o.o. A1</h3>
+            <p>Kwota inwestycji: <span class="amount">400 000,00 zł</span></p>
+            <p>Kapitał pozostały: <span class="amount">400 000,00 zł</span></p>
+            <p>Kapitał zabezpieczony: <span class="amount">400 000,00 zł</span></p>
+            <p>Kapitał do restrukturyzacji: <span class="amount">0,00 zł</span></p>
+            <p>Status: Aktywny</p>
+            <p>Głosowanie: <span class="voting-badge voting-abstain">WSTRZYMUJE SIĘ</span></p>
+        </div>
+
+        <div class="investment-item">
+            <h3>• Pożyczka Projekt Poloneza Sp. z o.o. A1</h3>
+            <p>Kwota inwestycji: <span class="amount">495 000,00 zł</span></p>
+            <p>Kapitał pozostały: <span class="amount">495 000,00 zł</span></p>
+            <p>Kapitał zabezpieczony: <span class="amount">0,00 zł</span></p>
+            <p>Kapitał do restrukturyzacji: <span class="amount">495 000,00 zł</span></p>
+            <p>Status: Aktywny</p>
+            <p>Głosowanie: <span class="voting-badge voting-no">NIE</span></p>
+        </div>
+
+        <div class="investment-item">
+            <h3>• Pożyczka Projekt Wrocławska Sp. z o.o. B1</h3>
+            <p>Kwota inwestycji: <span class="amount">495 000,00 zł</span></p>
+            <p>Kapitał pozostały: <span class="amount">495 000,00 zł</span></p>
+            <p>Kapitał zabezpieczony: <span class="amount">0,00 zł</span></p>
+            <p>Kapitał do restrukturyzacji: <span class="amount">495 000,00 zł</span></p>
+            <p>Status: Aktywny</p>
+            <p>Głosowanie: <span class="voting-badge voting-undecided">NIEZDECYDOWANY</span></p>
+        </div>
+
+        <div class="investment-item">
+            <h3>• Metropolitan Apartamenty</h3>
+            <p>Kwota inwestycji: <span class="amount">551 685,00 zł</span></p>
+            <p>Kapitał pozostały: <span class="amount">551 685,00 zł</span></p>
+            <p>Kapitał zabezpieczony: <span class="amount">400 000,00 zł</span></p>
+            <p>Kapitał do restrukturyzacji: <span class="amount">151 685,00 zł</span></p>
+            <p>Status: Aktywny</p>
+            <p>Głosowanie: <span class="voting-badge voting-yes">TAK</span></p>
+        </div>
+
+        <div class="summary">
+            <h3>💡 Podsumowanie zmian</h3>
+            <p><strong>Status głosowania na poziomie inwestycji:</strong></p>
+            <ul>
+                <li>✅ TAK - 2 inwestycje (Metropolitan SPV I, Metropolitan Apartamenty)</li>
+                <li>❌ NIE - 1 inwestycja (Pożyczka Projekt Poloneza)</li>
+                <li>⚪ WSTRZYMUJE SIĘ - 1 inwestycja (Projekt Botaniczna)</li>
+                <li>❓ NIEZDECYDOWANY - 1 inwestycja (Pożyczka Projekt Wrocławska)</li>
+            </ul>
+            
+            <p><strong>Łączna wartość portfela:</strong> <span class="amount">2 941 685,00 zł</span></p>
+        </div>
+    </div>
+
+    <div class="email-preview">
+        <h2>🔧 Techniczne szczegóły implementacji</h2>
+        
+        <h3>📄 Zmiany w modelu Investment:</h3>
+        <ul>
+            <li>Dodano pole <code>votingStatus: VotingStatus</code></li>
+            <li>Mapowanie z Firebase: <code>votingStatus</code>, <code>voting_status</code>, <code>status_glosowania</code></li>
+            <li>Wsparcie dla wartości: yes/tak/za, no/nie/przeciw, abstain/wstrzymuje, undecided</li>
+        </ul>
+
+        <h3>💰 Ulepszenia formatowania:</h3>
+        <ul>
+            <li>Funkcja <code>_formatCurrency()</code> z separatorami tysięcy</li>
+            <li>Wzorzec: <code>1 000 000,00 zł</code> zamiast <code>1000000.00 zł</code></li>
+            <li>Funkcja <code>_addThousandsSeparators()</code> dla dużych liczb</li>
+        </ul>
+
+        <h3>🎨 Kolorowe statusy głosowania:</h3>
+        <ul>
+            <li><span class="voting-badge voting-yes">TAK</span> - #28a745 (zielony)</li>
+            <li><span class="voting-badge voting-no">NIE</span> - #dc3545 (czerwony)</li>
+            <li><span class="voting-badge voting-abstain">WSTRZYMUJE SIĘ</span> - #ffc107 (żółty)</li>
+            <li><span class="voting-badge voting-undecided">NIEZDECYDOWANY</span> - #6c757d (szary)</li>
+        </ul>
+
+        <h3>📧 Integracja z edytorem emaili:</h3>
+        <ul>
+            <li>Funkcja <code>_formatInvestmentDetails()</code> pokazuje status głosowania</li>
+            <li>Funkcja <code>_convertPlainTextToBasicHtml()</code> konwertuje na HTML z kolorami</li>
+            <li>Zachowane wszystkie poprzednie funkcje (szablon głosowania, formatowanie liczb)</li>
+        </ul>
+    </div>
+</body>
+</html>

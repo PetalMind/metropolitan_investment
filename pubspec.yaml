@@ -94,6 +94,7 @@ dependencies:
   
   # Rich text editor
   flutter_quill: ^11.4.2
+  vsc_quill_delta_to_html: ^1.0.5
   flutter_localizations:
     sdk: flutter
   
@@ -106,7 +107,6 @@ dependencies:
   # Currency
   currency_formatter: ^2.2.0
   flutter_html: ^3.0.0
-  vsc_quill_delta_to_html: ^1.0.5
   html_editor_enhanced: ^2.7.1
 
 dev_dependencies:

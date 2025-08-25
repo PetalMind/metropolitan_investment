@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'product.dart';
+import 'client.dart' show VotingStatus;
 
 enum InvestmentStatus {
   active('Aktywny'),
@@ -59,6 +60,8 @@ class Investment {
   final DateTime updatedAt;
   final double capitalSecuredByRealEstate;
   final double capitalForRestructuring;
+  final VotingStatus
+  votingStatus; // Status głosowania dla konkretnej inwestycji
   final Map<String, dynamic> additionalInfo;
 
   Investment({
@@ -101,6 +104,7 @@ class Investment {
     // 🔥 POLA Z GŁÓWNEGO POZIOMU FIREBASE
     this.capitalSecuredByRealEstate = 0.0,
     this.capitalForRestructuring = 0.0,
+    this.votingStatus = VotingStatus.undecided, // Domyślny status głosowania
   });
 
   String get employeeFullName => '$employeeFirstName $employeeLastName';
@@ -152,6 +156,30 @@ class Investment {
 
       return null;
     } // Helper function to map status from Polish to enum
+
+    // Helper function to parse voting status
+    VotingStatus _parseVotingStatus(dynamic status) {
+      if (status == null) return VotingStatus.undecided;
+
+      final statusStr = status.toString().toLowerCase();
+      switch (statusStr) {
+        case 'yes':
+        case 'tak':
+        case 'za':
+          return VotingStatus.yes;
+        case 'no':
+        case 'nie':
+        case 'przeciw':
+          return VotingStatus.no;
+        case 'abstain':
+        case 'wstrzymuje':
+        case 'wstrzymuje_sie':
+        case 'wstrzymuje się':
+          return VotingStatus.abstain;
+        default:
+          return VotingStatus.undecided;
+      }
+    }
 
     InvestmentStatus mapStatus(String? status) {
       switch (status) {
@@ -370,6 +398,11 @@ class Investment {
             data['Kapitał do restrukturyzacji'] ??
             data['Kapital do restrukturyzacji'],
       ),
+      votingStatus: _parseVotingStatus(
+        data['votingStatus'] ??
+            data['voting_status'] ??
+            data['status_glosowania'],
+      ),
       additionalInfo: {
         'sourceFile': data['sourceFile'] ?? data['source_file'],
         'saleId': data['saleId'] ?? data['ID_Sprzedaz'] ?? data['id_sprzedaz'],
@@ -417,6 +450,8 @@ class Investment {
       // 🔥 ADD CAPITAL FIELDS FROM MAIN LEVEL
       'capitalSecuredByRealEstate': capitalSecuredByRealEstate,
       'capitalForRestructuring': capitalForRestructuring,
+      'votingStatus': votingStatus.name, // Zapisujemy status głosowania
+      'status_glosowania': votingStatus.displayName, // Dla kompatybilności
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'uploadedAt': updatedAt.toIso8601String(),
@@ -481,6 +516,7 @@ class Investment {
     double? remainingInterest,
     double? capitalSecuredByRealEstate,
     double? capitalForRestructuring,
+    VotingStatus? votingStatus,
     double? plannedTax,
     double? realizedTax,
     String? currency,
@@ -523,6 +559,7 @@ class Investment {
           capitalSecuredByRealEstate ?? this.capitalSecuredByRealEstate,
       capitalForRestructuring:
           capitalForRestructuring ?? this.capitalForRestructuring,
+      votingStatus: votingStatus ?? this.votingStatus,
       plannedTax: plannedTax ?? this.plannedTax,
       realizedTax: realizedTax ?? this.realizedTax,
       currency: currency ?? this.currency,
@@ -632,6 +669,29 @@ class Investment {
       }
     }
 
+    VotingStatus _parseVotingStatusStatic(dynamic status) {
+      if (status == null) return VotingStatus.undecided;
+
+      final statusStr = status.toString().toLowerCase();
+      switch (statusStr) {
+        case 'yes':
+        case 'tak':
+        case 'za':
+          return VotingStatus.yes;
+        case 'no':
+        case 'nie':
+        case 'przeciw':
+          return VotingStatus.no;
+        case 'abstain':
+        case 'wstrzymuje':
+        case 'wstrzymuje_sie':
+        case 'wstrzymuje się':
+          return VotingStatus.abstain;
+        default:
+          return VotingStatus.undecided;
+      }
+    }
+
     return Investment(
       id: map['id']?.toString() ?? '',
       clientId: map['clientId']?.toString() ?? '',
@@ -666,6 +726,7 @@ class Investment {
       capitalSecuredByRealEstate: safeToDouble(
         map['capitalSecuredByRealEstate'],
       ),
+      votingStatus: _parseVotingStatusStatic(map['votingStatus']),
       additionalInfo: {},
     );
   }
