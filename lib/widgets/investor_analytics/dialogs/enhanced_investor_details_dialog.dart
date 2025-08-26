@@ -728,6 +728,15 @@ class _EnhancedInvestorDetailsDialogState
 
         SizedBox(width: _isSmallScreen ? 4 : 8),
 
+        // Mail button
+        _buildHeaderButton(
+          icon: Icons.mail_outline,
+          tooltip: 'Wyślij email',
+          onPressed: _openEmailDialog,
+        ),
+
+        SizedBox(width: _isSmallScreen ? 4 : 8),
+
         // Close button
         _buildHeaderButton(
           icon: Icons.close,
@@ -768,6 +777,93 @@ class _EnhancedInvestorDetailsDialogState
     setState(() {
       _hasChanges = _hasChanges || hasAnyChanges;
     });
+  }
+
+  void _openEmailDialog() {
+    // Sprawdź czy klient ma adres email
+    if (widget.investor.client.email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              const Text('Brak adresu email dla tego klienta'),
+            ],
+          ),
+          backgroundColor: AppThemePro.statusWarning,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+      return;
+    }
+
+    // Walidacja formatu email
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(widget.investor.client.email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              const Text('Nieprawidłowy format adresu email'),
+            ],
+          ),
+          backgroundColor: AppThemePro.statusError,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+      return;
+    }
+
+    // Otwórz zaawansowany edytor emaila dla pojedynczego inwestora
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => EnhancedEmailEditorDialog(
+        selectedInvestors: [widget.investor], // Przekaż pojedynczego inwestora
+        initialSubject: 'Aktualizacja portfela inwestycyjnego - ${widget.investor.client.name}',
+        initialMessage: '''Szanowny/a ${widget.investor.client.name},
+
+Przesyłamy aktualne informacje dotyczące Pana/Pani inwestycji w Metropolitan Investment.
+
+Poniżej znajdzie Pan/Pani szczegółowe podsumowanie swojego portfela inwestycyjnego.
+
+W razie pytań prosimy o kontakt z naszym działem obsługi klienta.
+
+Z poważaniem,
+Zespół Metropolitan Investment''',
+        onEmailSent: () {
+          // Callback po wysłaniu emaila
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white, size: 16),
+                    const SizedBox(width: 8),
+                    Text('Email wysłany do: ${widget.investor.client.name}'),
+                  ],
+                ),
+                backgroundColor: AppThemePro.statusSuccess,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 3),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            );
+          }
+          
+          // Opcjonalnie: wywołaj callback refresh
+          if (widget.onUpdate != null) {
+            widget.onUpdate!();
+          }
+        },
+      ),
+    );
   }
 
   Widget _buildHeaderButton({

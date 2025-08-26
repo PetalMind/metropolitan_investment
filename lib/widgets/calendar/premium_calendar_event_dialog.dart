@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../models/calendar/calendar_event.dart';
 import '../../services/calendar_service.dart';
+import '../../services/calendar_notification_service.dart';
 import '../../theme/app_theme_professional.dart';
 import '../../providers/auth_provider.dart';
 import 'package:provider/provider.dart';
@@ -1474,11 +1475,17 @@ class _PremiumCalendarEventDialogState extends State<PremiumCalendarEventDialog>
         throw Exception('Wydarzenie zostało zapisane ale nie otrzymało ID');
       }
 
-      widget.onEventChanged?.call(savedEvent);
+  widget.onEventChanged?.call(savedEvent);
+  // Ensure global calendar notification badges are refreshed when an event is added/updated
+  CalendarNotificationService().forceRefresh();
 
       if (!mounted) return;
-      
-      Navigator.of(context).pop(savedEvent);
+
+      // Avoid calling pop synchronously during gesture handling which can
+      // cause Navigator to be locked. Schedule the pop after the current frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).pop(savedEvent);
+      });
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1613,11 +1620,17 @@ class _PremiumCalendarEventDialogState extends State<PremiumCalendarEventDialog>
     try {
       await _calendarService.deleteEvent(widget.event!.id);
       
-      widget.onEventChanged?.call(widget.event!);
+  widget.onEventChanged?.call(widget.event!);
+  // Ensure global calendar notification badges are refreshed when an event is deleted
+  CalendarNotificationService().forceRefresh();
 
       if (!mounted) return;
-      
-      Navigator.of(context).pop(true);
+
+      // Schedule pop to avoid _debugLocked assertion when invoked inside gesture
+      // handlers on web/desktop builds.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).pop(true);
+      });
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
