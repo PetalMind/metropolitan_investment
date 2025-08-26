@@ -1399,21 +1399,44 @@ function normalizeQuillHtml(html) {
     (match, fontFamily) => {
       const cleanFont = fontFamily.trim();
       
-      // Mapowanie zgodne z frontendem _customFontFamilies
+      // Mapowanie zgodne z frontendem _customFontFamilies (expanded with Google Fonts)
       const fontFamilyMap = {
+        // System fonts
         'Arial': 'Arial, sans-serif',
         'Helvetica': 'Helvetica, Arial, sans-serif',
         'Times New Roman': 'Times New Roman, Times, serif',
         'Georgia': 'Georgia, serif',
         'Verdana': 'Verdana, sans-serif',
         'Calibri': 'Calibri, sans-serif',
+        
+        // Google Fonts - popular choices for professional documents
         'Roboto': 'Roboto, sans-serif',
         'Open Sans': 'Open Sans, sans-serif',
         'Lato': 'Lato, sans-serif',
         'Source Sans Pro': 'Source Sans Pro, sans-serif',
         'Montserrat': 'Montserrat, sans-serif',
-        'Oswald': 'Oswald, sans-serif',
+        'Poppins': 'Poppins, sans-serif',
+        'Nunito': 'Nunito, sans-serif',
+        'Inter': 'Inter, sans-serif',
+        'Work Sans': 'Work Sans, sans-serif',
+        'Fira Sans': 'Fira Sans, sans-serif',
+        
+        // Serif Google Fonts
+        'Merriweather': 'Merriweather, serif',
+        'Playfair Display': 'Playfair Display, serif',
+        'Crimson Text': 'Crimson Text, serif',
+        'Libre Baskerville': 'Libre Baskerville, serif',
+        
+        // Monospace
         'Courier New': 'Courier New, Courier, monospace',
+        'Fira Code': 'Fira Code, monospace',
+        'Source Code Pro': 'Source Code Pro, monospace',
+        
+        // Display fonts
+        'Oswald': 'Oswald, sans-serif',
+        'Raleway': 'Raleway, sans-serif',
+        
+        // Legacy compatibility
         'Monaco': 'Monaco, Consolas, monospace',
       };
 

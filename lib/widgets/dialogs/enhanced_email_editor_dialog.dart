@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart' as html;
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
 
@@ -75,29 +76,51 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
     '32px': '32',
   };
 
-  // ⭐ Custom font families with web-safe fallbacks
+  // ⭐ Custom font families with Google Fonts and web-safe fallbacks
   static const Map<String, String> _customFontFamilies = {
+    // System fonts
     'Arial': 'Arial, sans-serif',
     'Helvetica': 'Helvetica, Arial, sans-serif',
     'Times New Roman': 'Times New Roman, Times, serif',
     'Georgia': 'Georgia, serif',
     'Verdana': 'Verdana, sans-serif',
     'Calibri': 'Calibri, sans-serif',
+    
+    // Google Fonts - popular choices for professional documents
     'Roboto': 'Roboto, sans-serif',
     'Open Sans': 'Open Sans, sans-serif',
     'Lato': 'Lato, sans-serif',
     'Source Sans Pro': 'Source Sans Pro, sans-serif',
     'Montserrat': 'Montserrat, sans-serif',
-    'Oswald': 'Oswald, sans-serif',
+    'Poppins': 'Poppins, sans-serif',
+    'Nunito': 'Nunito, sans-serif',
+    'Inter': 'Inter, sans-serif',
+    'Work Sans': 'Work Sans, sans-serif',
+    'Fira Sans': 'Fira Sans, sans-serif',
+    
+    // Serif Google Fonts
+    'Merriweather': 'Merriweather, serif',
+    'Playfair Display': 'Playfair Display, serif',
+    'Crimson Text': 'Crimson Text, serif',
+    'Libre Baskerville': 'Libre Baskerville, serif',
+    
+    // Monospace
     'Courier New': 'Courier New, Courier, monospace',
-    'Monaco': 'Monaco, Consolas, monospace',
+    'Fira Code': 'Fira Code, monospace',
+    'Source Code Pro': 'Source Code Pro, monospace',
+    
+    // Display fonts
+    'Oswald': 'Oswald, sans-serif',
+    'Raleway': 'Raleway, sans-serif',
   };
 
   // ⭐ Mobile-friendly reduced font families
   static const Map<String, String> _mobileFontFamilies = {
     'Arial': 'Arial, sans-serif',
+    'Roboto': 'Roboto, sans-serif',
+    'Open Sans': 'Open Sans, sans-serif', 
     'Times New Roman': 'Times New Roman, serif',
-    'Georgia': 'Georgia, serif',
+    'Merriweather': 'Merriweather, serif',
     'Courier New': 'Courier New, monospace',
   };
 
@@ -150,10 +173,53 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
 
   final _emailAndExportService = EmailAndExportService();
 
+  /// Preloads Google Fonts used in the font family picker
+  Future<void> _preloadGoogleFonts() async {
+    try {
+      // Preload most commonly used Google Fonts
+      final fontsToPreload = [
+        GoogleFonts.roboto(),
+        GoogleFonts.openSans(),
+        GoogleFonts.lato(),
+        GoogleFonts.sourceSans3(), // Source Sans Pro
+        GoogleFonts.montserrat(),
+        GoogleFonts.poppins(),
+        GoogleFonts.nunito(),
+        GoogleFonts.inter(),
+        GoogleFonts.workSans(),
+        GoogleFonts.firaSans(),
+        GoogleFonts.merriweather(),
+        GoogleFonts.playfairDisplay(),
+        GoogleFonts.crimsonText(),
+        GoogleFonts.libreBaskerville(),
+        GoogleFonts.firaCode(),
+        GoogleFonts.sourceCodePro(),
+        GoogleFonts.oswald(),
+        GoogleFonts.raleway(),
+      ];
+      
+      // Preload fonts silently in background
+      for (final textStyle in fontsToPreload) {
+        GoogleFonts.getFont(textStyle.fontFamily!);
+      }
+      
+      if (kDebugMode) {
+        print('📝 [GoogleFonts] Successfully preloaded ${fontsToPreload.length} Google Fonts');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ [GoogleFonts] Error preloading fonts: $e');
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    
+    // Preload Google Fonts for better performance
+    _preloadGoogleFonts();
 
     // Initialize QuillController with proper configuration
     _quillController = QuillController.basic();
@@ -849,7 +915,10 @@ Zespół Metropolitan Investment''';
           _createEnhancedConverterOptions(),
         );
 
-        final html = converter.convert();
+        var html = converter.convert();
+
+        // Add Google Fonts CSS to HTML for proper font rendering
+        html = _addGoogleFontsToHtml(html);
 
         if (kDebugMode) {
           print('✅ [EnhancedConversion] Enhanced conversion successful, HTML length: ${html.length}');
@@ -863,7 +932,10 @@ Zespół Metropolitan Investment''';
         }
 
         // Fallback to basic HTML conversion
-        final html = _convertPlainTextToBasicHtml(plainText);
+        var html = _convertPlainTextToBasicHtml(plainText);
+        
+        // Add Google Fonts even to fallback HTML
+        html = _addGoogleFontsToHtml(html);
         
         if (kDebugMode) {
           print('🔄 [EnhancedConversion] Using fallback conversion, HTML length: ${html.length}');
@@ -887,6 +959,47 @@ Zespół Metropolitan Investment''';
         return '<p>Błąd podczas konwersji treści.</p>';
       }
     }
+  }
+
+  /// **FUNKCJA DODAWANIA GOOGLE FONTS DO HTML**
+  ///
+  /// Dodaje Google Fonts CSS link do HTML head dla proper font rendering
+  String _addGoogleFontsToHtml(String html) {
+    // Generate Google Fonts URL for used fonts
+    final googleFontsUrl = 'https://fonts.googleapis.com/css2?family='
+        'Roboto:wght@300;400;500;700&'
+        'family=Open+Sans:wght@300;400;600;700&'
+        'family=Lato:wght@300;400;700&'
+        'family=Source+Sans+Pro:wght@300;400;600;700&'
+        'family=Montserrat:wght@300;400;500;600;700&'
+        'family=Poppins:wght@300;400;500;600;700&'
+        'family=Nunito:wght@300;400;600;700&'
+        'family=Inter:wght@300;400;500;600;700&'
+        'family=Work+Sans:wght@300;400;500;600;700&'
+        'family=Fira+Sans:wght@300;400;500;600;700&'
+        'family=Merriweather:wght@300;400;700&'
+        'family=Playfair+Display:wght@400;700&'
+        'family=Crimson+Text:wght@400;600;700&'
+        'family=Libre+Baskerville:wght@400;700&'
+        'family=Fira+Code:wght@300;400;500&'
+        'family=Source+Code+Pro:wght@300;400;500&'
+        'family=Oswald:wght@300;400;500;600&'
+        'family=Raleway:wght@300;400;500;600;700&'
+        'display=swap';
+    
+    final googleFontsLink = '<link href="$googleFontsUrl" rel="stylesheet">';
+    
+    // Try to inject into <head>
+    if (html.contains('<head>')) {
+      html = html.replaceFirst('<head>', '<head>\n$googleFontsLink');
+    } else if (html.contains('<html>')) {
+      html = html.replaceFirst('<html>', '<html><head>\n$googleFontsLink\n</head>');
+    } else {
+      // If no HTML structure, add it at the beginning
+      html = '$googleFontsLink\n$html';
+    }
+    
+    return html;
   }
 
   /// **UPROSZCZONA FUNKCJA DODAWANIA SZCZEGÓŁÓW INWESTYCJI**
@@ -1791,25 +1904,19 @@ Zespół Metropolitan Investment''';
                   style: {
                     "body": html.Style(
                       backgroundColor: _previewDarkMode ? const Color(0xFF1a1a1a) : Colors.white,
-                      color: _previewDarkMode ? Colors.white : Colors.black,
                       margin: html.Margins.all(0),
                       padding: html.HtmlPaddings.all(16),
                     ),
-                    "p": html.Style(
-                      color: _previewDarkMode ? Colors.white : Colors.black,
-                    ),
-                    "div": html.Style(
-                      color: _previewDarkMode ? Colors.white : Colors.black,
-                    ),
-                    "span": html.Style(
-                      color: _previewDarkMode ? Colors.white : Colors.black,
-                    ),
-                    "h1, h2, h3, h4, h5, h6": html.Style(
-                      color: _previewDarkMode ? Colors.white : Colors.black,
-                    ),
-                    // Remove global font family override to respect individual element styles
+                    // DON'T override colors for these elements - let inline styles work
+                    // "p": html.Style(), // Removed color override
+                    // "div": html.Style(), // Removed color override  
+                    // "span": html.Style(), // Removed color override
                     "table": html.Style(
                       margin: html.Margins.all(8),
+                    ),
+                    // Headers can still have theme colors as fallback
+                    "h1, h2, h3, h4, h5, h6": html.Style(
+                      color: _previewDarkMode ? Colors.white : Colors.black,
                     ),
                   },
                 ),
