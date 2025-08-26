@@ -151,12 +151,13 @@ const sendPreGeneratedEmails = onCall(async (request) => {
         }
 
         // 📬 WYŚLIJ EMAIL DO INWESTORA
+        const normalizedHtml = normalizeQuillHtml(emailHtml);
         const mailOptions = {
           from: `${senderName} <${senderEmail}>`,
           to: recipient.clientEmail,
           subject: subject,
-          html: emailHtml,
-          text: stripHtmlTags(emailHtml),
+          html: normalizedHtml,
+          text: stripHtmlTags(normalizedHtml),
         };
 
         const emailResult = await transporter.sendMail(mailOptions);
@@ -218,12 +219,13 @@ const sendPreGeneratedEmails = onCall(async (request) => {
         }
 
         // 📬 WYŚLIJ EMAIL DO DODATKOWEGO ODBIORCY
+        const normalizedHtml = normalizeQuillHtml(emailHtml);
         const mailOptions = {
           from: `${senderName} <${senderEmail}>`,
           to: email,
           subject: subject,
-          html: emailHtml,
-          text: stripHtmlTags(emailHtml),
+          html: normalizedHtml,
+          text: stripHtmlTags(normalizedHtml),
         };
 
         const emailResult = await transporter.sendMail(mailOptions);
@@ -474,12 +476,13 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
         });
 
         // 📬 WYŚLIJ EMAIL DO INWESTORA
+        const normalizedHtml = normalizeQuillHtml(personalizedHtml);
         const mailOptions = {
           from: `${senderName} <${senderEmail}>`,
           to: recipient.clientEmail,
           subject: subject,
-          html: personalizedHtml,
-          text: stripHtmlTags(personalizedHtml),
+          html: normalizedHtml,
+          text: stripHtmlTags(normalizedHtml),
         };
 
         const emailResult = await transporter.sendMail(mailOptions);
@@ -577,12 +580,13 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
         }
 
         // 📬 WYŚLIJ EMAIL DO DODATKOWEGO ODBIORCY
+        const normalizedHtml = normalizeQuillHtml(emailHtml);
         const mailOptions = {
           from: `${senderName} <${senderEmail}>`,
           to: email,
           subject: subject,
-          html: emailHtml,
-          text: stripHtmlTags(emailHtml),
+          html: normalizedHtml,
+          text: stripHtmlTags(normalizedHtml),
         };
 
         const emailResult = await transporter.sendMail(mailOptions);
@@ -1056,12 +1060,13 @@ const sendCustomHtmlEmailsToMultipleClients = onCall(async (request) => {
         });
 
         // 📬 WYŚLIJ EMAIL
+        const normalizedHtml = normalizeQuillHtml(personalizedHtml);
         const mailOptions = {
           from: `${senderName} <${senderEmail}>`,
           to: recipient.clientEmail,
           subject: subject,
-          html: personalizedHtml,
-          text: stripHtmlTags(personalizedHtml), // Wersja tekstowa jako fallback
+          html: normalizedHtml,
+          text: stripHtmlTags(normalizedHtml), // Wersja tekstowa jako fallback
         };
 
         const emailResult = await transporter.sendMail(mailOptions);
@@ -1377,6 +1382,107 @@ function generatePersonalizedEmailContent({
     </body>
     </html>
   `;
+}
+
+/**
+ * Normalizuje HTML z Quill dla lepszej kompatybilności z klientami email
+ * Synchronizowane z logiką frontendu w enhanced_email_editor_dialog.dart
+ */
+function normalizeQuillHtml(html) {
+  if (!html || typeof html !== 'string') return html;
+
+  let normalizedHtml = html;
+
+  // 1. Upewnij się, że font-family ma bezpieczne fallback fonts
+  normalizedHtml = normalizedHtml.replace(
+    /font-family:\s*([^;,"]+)(?![,"])/g, 
+    (match, fontFamily) => {
+      const cleanFont = fontFamily.trim();
+      
+      // Mapowanie zgodne z frontendem _customFontFamilies
+      const fontFamilyMap = {
+        'Arial': 'Arial, sans-serif',
+        'Helvetica': 'Helvetica, Arial, sans-serif',
+        'Times New Roman': 'Times New Roman, Times, serif',
+        'Georgia': 'Georgia, serif',
+        'Verdana': 'Verdana, sans-serif',
+        'Calibri': 'Calibri, sans-serif',
+        'Roboto': 'Roboto, sans-serif',
+        'Open Sans': 'Open Sans, sans-serif',
+        'Lato': 'Lato, sans-serif',
+        'Source Sans Pro': 'Source Sans Pro, sans-serif',
+        'Montserrat': 'Montserrat, sans-serif',
+        'Oswald': 'Oswald, sans-serif',
+        'Courier New': 'Courier New, Courier, monospace',
+        'Monaco': 'Monaco, Consolas, monospace',
+      };
+
+      // Jeśli font jest w mapie, użyj pełnej definicji
+      if (fontFamilyMap[cleanFont]) {
+        return `font-family: ${fontFamilyMap[cleanFont]}`;
+      }
+
+      // Jeśli nie zawiera przecinka, dodaj bezpieczny fallback
+      if (!cleanFont.includes(',')) {
+        return `font-family: "${cleanFont}", Arial, sans-serif`;
+      }
+
+      return match;
+    }
+  );
+
+  // 2. Normalizuj font-size - upewnij się, że ma jednostki
+  normalizedHtml = normalizedHtml.replace(
+    /font-size:\s*(\d+)(?!px|pt|em|rem|%)/g, 
+    'font-size: $1px'
+  );
+
+  // 3. Normalizuj kolory hex do uppercase dla lepszej kompatybilności
+  normalizedHtml = normalizedHtml.replace(
+    /color:\s*(#[a-f0-9]{6})/gi, 
+    (match, colorValue) => `color: ${colorValue.toUpperCase()}`
+  );
+
+  // 4. Normalizuj background-color hex
+  normalizedHtml = normalizedHtml.replace(
+    /background-color:\s*(#[a-f0-9]{6})/gi, 
+    (match, colorValue) => `background-color: ${colorValue.toUpperCase()}`
+  );
+
+  // 5. Dodaj CSS resetowanie dla lepszej kompatybilności z klientami email
+  if (normalizedHtml.includes('<style>') || normalizedHtml.includes('style=')) {
+    // Dodaj podstawowe resetowanie dla email clients
+    const emailResetStyles = `
+      <style>
+        /* Email client reset */
+        body, table, td, p, a, li, blockquote {
+          -webkit-text-size-adjust: 100%;
+          -ms-text-size-adjust: 100%;
+        }
+        table, td {
+          mso-table-lspace: 0pt;
+          mso-table-rspace: 0pt;
+        }
+        /* Preserve font formatting */
+        .preserve-font {
+          font-family: inherit !important;
+          font-size: inherit !important;
+          color: inherit !important;
+        }
+      </style>
+    `;
+    
+    // Wstaw style na początku jeśli HTML ma strukturę
+    if (normalizedHtml.includes('<head>')) {
+      normalizedHtml = normalizedHtml.replace('<head>', `<head>${emailResetStyles}`);
+    } else if (normalizedHtml.includes('<html>')) {
+      normalizedHtml = normalizedHtml.replace('<html>', `<html><head>${emailResetStyles}</head>`);
+    }
+  }
+
+  console.log(`📧 [normalizeQuillHtml] Normalized HTML length: ${normalizedHtml.length}`);
+  
+  return normalizedHtml;
 }
 
 /**

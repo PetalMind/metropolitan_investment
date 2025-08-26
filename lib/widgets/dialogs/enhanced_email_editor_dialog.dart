@@ -45,6 +45,10 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
 
   // Debounce timer for preview updates to avoid rapid rebuilds
   Timer? _previewDebounceTimer;
+  
+  // Auto-hide UI state when user is typing
+  bool _isUserTyping = false;
+  Timer? _typingDebounceTimer;
 
   // ⭐ Custom font sizes map - numeric values for precise control
   static const Map<String, String> _customFontSizes = {
@@ -164,6 +168,9 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
     // Add listener for preview updates
     _quillController.addListener(_updatePreview);
     
+    // Add focus listener to detect when user starts interacting with editor
+    _editorFocusNode.addListener(_onEditorFocusChange);
+    
     // Initialize content after widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -251,8 +258,15 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
       _recipientEmails[clientId] = email;
       
       // Create individual QuillController and FocusNode for each recipient
-      _individualControllers[clientId] = QuillController.basic();
-      _individualFocusNodes[clientId] = FocusNode();
+      final controller = QuillController.basic();
+      final focusNode = FocusNode();
+      
+      // Add listeners for typing detection
+      controller.addListener(_updatePreview);
+      focusNode.addListener(_onEditorFocusChange);
+      
+      _individualControllers[clientId] = controller;
+      _individualFocusNodes[clientId] = focusNode;
     }
     
     // Auto-select first available recipient for preview
@@ -328,6 +342,39 @@ Zespół Metropolitan Investment''';
         });
       }
     });
+    
+    // Handle typing state for UI auto-hiding
+    _handleUserTyping();
+  }
+  
+  /// Handle user typing detection for auto-hiding UI elements
+  void _handleUserTyping() {
+    // Cancel previous timer
+    _typingDebounceTimer?.cancel();
+    
+    // Set typing state immediately if not already set
+    if (!_isUserTyping && mounted) {
+      setState(() {
+        _isUserTyping = true;
+      });
+    }
+    
+    // Set timer to detect when user stops typing (2 seconds of inactivity)
+    _typingDebounceTimer = Timer(const Duration(milliseconds: 2000), () {
+      if (mounted && _isUserTyping) {
+        setState(() {
+          _isUserTyping = false;
+        });
+      }
+    });
+  }
+  
+  /// Handle editor focus change - trigger typing detection on focus
+  void _onEditorFocusChange() {
+    if (_editorFocusNode.hasFocus) {
+      // Trigger typing state when editor gains focus
+      _handleUserTyping();
+    }
   }
 
   // ⭐ Custom Color Picker Methods
@@ -513,7 +560,9 @@ Zespół Metropolitan Investment''';
   @override
   void dispose() {
     _quillController.removeListener(_updatePreview);
+    _editorFocusNode.removeListener(_onEditorFocusChange);
     _previewDebounceTimer?.cancel();
+    _typingDebounceTimer?.cancel();
     _tabController.dispose();
     _quillController.dispose();
     _editorFocusNode.dispose();
@@ -523,9 +572,11 @@ Zespół Metropolitan Investment''';
     
     // Dispose individual controllers and focus nodes
     for (final controller in _individualControllers.values) {
+      controller.removeListener(_updatePreview);
       controller.dispose();
     }
     for (final focusNode in _individualFocusNodes.values) {
+      focusNode.removeListener(_onEditorFocusChange);
       focusNode.dispose();
     }
     
@@ -570,15 +621,36 @@ Zespół Metropolitan Investment''';
             return 'background-color: $value';
           }),
           
-          // ⭐ Enhanced font family support
+          // ⭐ Enhanced font family support with fallback fonts
           'font': InlineStyleType(fn: (value, _) {
             if (value.isEmpty) return '';
-            return 'font-family: $value';
+            
+            // Sprawdź czy wartość istnieje w naszej mapie custom fonts
+            if (_customFontFamilies.containsKey(value)) {
+              return 'font-family: ${_customFontFamilies[value]}';
+            }
+            
+            // Sprawdź czy to już jest pełna definicja z fallback (zawiera przecinek)
+            if (value.contains(',')) {
+              return 'font-family: $value';
+            }
+            
+            // Dla custom wartości dodaj bezpieczny fallback
+            return 'font-family: "$value", Arial, sans-serif';
           }),
           
-          // ⭐ Enhanced numeric font size support
+          // ⭐ Enhanced numeric font size support with better mapping
           'size': InlineStyleType(fn: (value, _) {
             if (value.isEmpty) return '';
+            
+            // Sprawdź czy wartość istnieje w naszej mapie custom font sizes
+            final matchingSize = _customFontSizes.entries
+                .firstWhere((e) => e.value == value, orElse: () => const MapEntry('', ''));
+            
+            if (matchingSize.key.isNotEmpty) {
+              // Użyj wartości z mapy (już w px)
+              return 'font-size: ${matchingSize.value}px';
+            }
             
             // Handle pure numeric values (assume pixels)
             if (RegExp(r'^\d+$').hasMatch(value)) {
@@ -595,7 +667,7 @@ Zespół Metropolitan Investment''';
             // Legacy support for predefined sizes
             final legacySizes = {
               'small': '12px',
-              'large': '18px',
+              'large': '18px', 
               'huge': '24px'
             };
             
@@ -603,8 +675,8 @@ Zespół Metropolitan Investment''';
               return 'font-size: ${legacySizes[value]}';
             }
             
-            // Fallback - assume it's a valid CSS font-size value
-            return 'font-size: $value';
+            // Fallback - assume it's a valid CSS font-size value or default to 14px
+            return value.isNotEmpty ? 'font-size: $value' : 'font-size: 14px';
           }),
           
           'code': InlineStyleType(fn: (value, _) => 
@@ -946,13 +1018,27 @@ Zespół Metropolitan Investment''';
   Widget _buildMobileEditorLayout(bool isMobile, bool isSmallScreen) {
     return Column(
       children: [
-        // Mobile: recipient list as dropdown or expandable section
-        if (_useIndividualContent) ...[
-          _buildMobileRecipientSelector(isMobile),
-          SizedBox(height: isMobile ? 8 : 12),
-        ],
+        // Mobile: recipient list as dropdown - animated
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+          height: (_useIndividualContent && !_isUserTyping) ? null : 0,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 300),
+            opacity: (_useIndividualContent && !_isUserTyping) ? 1.0 : 0.0,
+            child: Column(
+              children: [
+                if (_useIndividualContent) _buildMobileRecipientSelector(isMobile),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: (_useIndividualContent && !_isUserTyping) ? (isMobile ? 8 : 12) : 0,
+                ),
+              ],
+            ),
+          ),
+        ),
         
-        // Editor takes full width on mobile
+        // Editor takes full width on mobile - expands when recipient selector is hidden
         Expanded(
           child: _buildEditorContainer(isMobile, isSmallScreen),
         ),
@@ -963,20 +1049,31 @@ Zespół Metropolitan Investment''';
   Widget _buildDesktopEditorLayout(bool isMobile, bool isSmallScreen) {
     return Row(
       children: [
-        // Left sidebar - recipient list (when in individual mode)
-        if (_useIndividualContent) ...[
-          Container(
-            width: 250,
-            decoration: BoxDecoration(
-              border: Border.all(color: AppThemePro.borderSecondary),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: _buildRecipientList(isMobile, isSmallScreen),
+        // Left sidebar - recipient list (when in individual mode) - animated
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+          width: (_useIndividualContent && !_isUserTyping) ? 250 : 0,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 300),
+            opacity: (_useIndividualContent && !_isUserTyping) ? 1.0 : 0.0,
+            child: _useIndividualContent ? Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppThemePro.borderSecondary),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: _buildRecipientList(isMobile, isSmallScreen),
+            ) : const SizedBox.shrink(),
           ),
-          const SizedBox(width: 16),
-        ],
+        ),
         
-        // Main editor area
+        // Spacer - animated
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 500),
+          width: (_useIndividualContent && !_isUserTyping) ? 16 : 0,
+        ),
+        
+        // Main editor area - expands when sidebar is hidden
         Expanded(
           child: _buildEditorContainer(isMobile, isSmallScreen),
         ),
@@ -1021,6 +1118,8 @@ Zespół Metropolitan Investment''';
             setState(() {
               _selectedRecipientForEditing = value;
             });
+            // Force preview refresh when switching recipient
+            _updatePreview();
           }
         },
         dropdownColor: AppThemePro.backgroundPrimary,
@@ -1489,9 +1588,10 @@ Zespół Metropolitan Investment''';
   }
 
   Widget _buildPreviewTab(bool isMobile, bool isSmallScreen) {
-    // **NOWE PODEJŚCIE: Użyj naszej niezawodnej konwersji**
-    final workingHtml = _convertQuillToReliableHtml(_quillController);
-    final plainText = _quillController.document.toPlainText();
+    // **NOWE PODEJŚCIE: Użyj naszej niezawodnej konwersji z aktualnym kontrolerem**
+    final currentController = _getCurrentController();
+    final workingHtml = _convertQuillToReliableHtml(currentController);
+    final plainText = currentController.document.toPlainText();
 
     if (kDebugMode) {
       print('🔍 [PreviewDebug] Plain text length: ${plainText.length}');
@@ -1666,6 +1766,41 @@ Zespół Metropolitan Investment''';
               ],
             ),
           ),
+          const SizedBox(width: 16),
+          // Debug button
+          if (kDebugMode) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppThemePro.backgroundPrimary,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+              ),
+              child: InkWell(
+                onTap: _testHtmlConversion,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.bug_report,
+                      color: Colors.orange,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Debug HTML',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+          ],
           const Spacer(),
           // Recipient selector
           Expanded(
@@ -2691,122 +2826,157 @@ Zespół Metropolitan Investment''';
 
   /// Builds recipient selector header with content mode toggle
   Widget _buildRecipientSelectorHeader(bool isMobile, bool isSmallScreen) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppThemePro.backgroundSecondary,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppThemePro.borderSecondary),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.people, color: AppThemePro.accentGold, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Odbiorcy emaili (${widget.selectedInvestors.length})',
-                style: TextStyle(
-                  color: AppThemePro.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              // Toggle between global and individual content
-              Container(
-                decoration: BoxDecoration(
-                  color: AppThemePro.backgroundPrimary,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppThemePro.borderSecondary),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: () => setState(() {
-                        _useIndividualContent = false;
-                        _syncContentBetweenControllers();
-                      }),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: !_useIndividualContent 
-                              ? AppThemePro.accentGold 
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Text(
-                          'Globalna',
-                          style: TextStyle(
-                            color: !_useIndividualContent 
-                                ? Colors.black 
-                                : AppThemePro.textSecondary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => setState(() {
-                        _useIndividualContent = true;
-                        _syncContentBetweenControllers();
-                      }),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _useIndividualContent 
-                              ? AppThemePro.accentGold 
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Text(
-                          'Indywidualna',
-                          style: TextStyle(
-                            color: _useIndividualContent 
-                                ? Colors.black 
-                                : AppThemePro.textSecondary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+      height: _isUserTyping ? 0 : null, // Collapse when typing
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 300),
+        opacity: _isUserTyping ? 0.0 : 1.0,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          margin: EdgeInsets.only(bottom: _isUserTyping ? 0 : 8),
+          decoration: BoxDecoration(
+            color: AppThemePro.backgroundSecondary,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppThemePro.borderSecondary),
           ),
-          if (_useIndividualContent) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppThemePro.backgroundPrimary,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
-              ),
-              child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Icon(Icons.info_outline, color: AppThemePro.accentGold, size: 16),
+                  Icon(Icons.people, color: AppThemePro.accentGold, size: 20),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Tryb indywidualny: każdy odbiorca może mieć inną treść wiadomości',
-                      style: TextStyle(
-                        color: AppThemePro.textSecondary,
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                      ),
+                  Text(
+                    'Odbiorcy emaili (${widget.selectedInvestors.length})',
+                    style: TextStyle(
+                      color: AppThemePro.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const Spacer(),
+                  // Show/hide indicator when typing
+                  if (_isUserTyping) 
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppThemePro.accentGold.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit, size: 12, color: AppThemePro.accentGold),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Pisanie...',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppThemePro.accentGold,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    // Toggle between global and individual content
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppThemePro.backgroundPrimary,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppThemePro.borderSecondary),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () => setState(() {
+                              _useIndividualContent = false;
+                              _syncContentBetweenControllers();
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: !_useIndividualContent 
+                                    ? AppThemePro.accentGold 
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Text(
+                                'Globalna',
+                                style: TextStyle(
+                                  color: !_useIndividualContent 
+                                      ? Colors.black 
+                                      : AppThemePro.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => setState(() {
+                              _useIndividualContent = true;
+                              _syncContentBetweenControllers();
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: _useIndividualContent 
+                                    ? AppThemePro.accentGold 
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Text(
+                                'Indywidualna',
+                                style: TextStyle(
+                                  color: _useIndividualContent 
+                                      ? Colors.black 
+                                      : AppThemePro.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
-            ),
-          ],
-        ],
+              if (_useIndividualContent && !_isUserTyping) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppThemePro.backgroundPrimary,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: AppThemePro.accentGold, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Tryb indywidualny: każdy odbiorca może mieć inną treść wiadomości',
+                          style: TextStyle(
+                            color: AppThemePro.textSecondary,
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -2916,6 +3086,8 @@ Zespół Metropolitan Investment''';
                       setState(() {
                         _selectedRecipientForEditing = investor.client.id;
                       });
+                      // Force preview refresh when switching recipient
+                      _updatePreview();
                     },
                   ),
                 );
@@ -3028,6 +3200,9 @@ Zespół Metropolitan Investment''';
         }
       }
     }
+    
+    // Force preview refresh after switching modes
+    _updatePreview();
   }
 
   /// Builds investment details widget that can be inserted into editor
@@ -4011,6 +4186,121 @@ Zespół Metropolitan Investment''';
     }
 
     return buffer.toString();
+  }
+
+  /// Test HTML conversion and display detailed debugging information
+  void _testHtmlConversion() {
+    if (!kDebugMode) return;
+
+    try {
+      final currentController = _getCurrentController();
+      final plainText = currentController.document.toPlainText();
+      final deltaJson = currentController.document.toDelta().toJson();
+      final convertedHtml = _convertQuillToReliableHtml(currentController);
+      
+      print('═══════════════════════════════════════');
+      print('🔍 TEST KONWERSJI HTML - SZCZEGÓŁOWE DEBUGOWANIE');
+      print('═══════════════════════════════════════');
+      print('📝 Plain text (${plainText.length} chars):');
+      print('   ${plainText.substring(0, math.min(200, plainText.length))}${plainText.length > 200 ? '...' : ''}');
+      print('');
+      
+      print('🔄 Delta JSON (${deltaJson.toString().length} chars):');
+      print('   $deltaJson');
+      print('');
+      
+      print('📧 Converted HTML (${convertedHtml.length} chars):');
+      print('   $convertedHtml');
+      print('');
+      
+      // Test font mapping
+      print('🎨 MAPOWANIE FONTÓW:');
+      print('   Custom font families: ${_customFontFamilies.keys.join(', ')}');
+      print('   Custom font sizes: ${_customFontSizes.keys.join(', ')}');
+      print('');
+      
+      // Test with investment details
+      String? testInvestor;
+      if (_selectedPreviewRecipient?.startsWith('investor:') == true) {
+        testInvestor = _selectedPreviewRecipient!.substring('investor:'.length);
+        final investor = widget.selectedInvestors.firstWhere(
+          (inv) => inv.client.id == testInvestor,
+          orElse: () => widget.selectedInvestors.first,
+        );
+        
+        final processedHtml = _ensureInvestmentDetails(
+          convertedHtml,
+          specificInvestor: investor,
+        );
+        
+        print('📊 HTML z szczegółami inwestycji dla ${investor.client.name} (${processedHtml.length} chars):');
+        print('   ${processedHtml.substring(0, math.min(300, processedHtml.length))}${processedHtml.length > 300 ? '...' : ''}');
+      } else {
+        final processedHtml = _ensureInvestmentDetails(
+          convertedHtml,
+          allInvestors: widget.selectedInvestors,
+        );
+        
+        print('📊 HTML ze zbiorczymi szczegółami inwestycji (${processedHtml.length} chars):');
+        print('   ${processedHtml.substring(0, math.min(300, processedHtml.length))}${processedHtml.length > 300 ? '...' : ''}');
+      }
+      print('');
+      
+      // Test formatting detection
+      final hasFormatting = convertedHtml.contains('font-family') || 
+                           convertedHtml.contains('font-size') || 
+                           convertedHtml.contains('color:') ||
+                           convertedHtml.contains('background-color');
+      print('✨ FORMATOWANIE:');
+      print('   Wykryto formatowanie: ${hasFormatting ? '✅' : '❌'}');
+      if (hasFormatting) {
+        if (convertedHtml.contains('font-family')) print('   - Font family: ✅');
+        if (convertedHtml.contains('font-size')) print('   - Font size: ✅');
+        if (convertedHtml.contains('color:')) print('   - Text color: ✅');
+        if (convertedHtml.contains('background-color')) print('   - Background color: ✅');
+      }
+      
+      print('═══════════════════════════════════════');
+      
+      // Show user-friendly notification
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.bug_report, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Debug HTML konwersji - sprawdź konsole dla szczegółów\n'
+                    'HTML: ${convertedHtml.length} znaków, Formatowanie: ${hasFormatting ? 'TAK' : 'NIE'}',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
+          ),
+        );
+      }
+      
+    } catch (e) {
+      print('❌ Błąd podczas debugowania konwersji HTML: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd debugowania: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   /// Debug button for development (only visible in debug mode)

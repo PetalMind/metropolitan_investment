@@ -94,8 +94,9 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
 
   void _initializeEditorContent() {
     try {
-      if (widget.initialMessage != null) {
-        _insertInitialContent(widget.initialMessage!);
+      final initial = widget.initialMessage;
+      if (initial != null && initial.isNotEmpty) {
+        _insertInitialContent(initial);
       } else {
         _insertDefaultTemplate();
       }
