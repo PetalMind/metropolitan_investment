@@ -34,6 +34,10 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
   String _selectedStatus = 'all';
   String _searchQuery = '';
   bool _isLoading = true;
+  // Local loader for event list updates after first full load
+  bool _isEventsLoading = false;
+  // Track whether initial full load finished at least once
+  bool _hasLoadedOnce = false;
   String? _error;
 
   // Animation Controllers
@@ -57,6 +61,11 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _animationController.status == AnimationStatus.dismissed) {
         _animationController.forward();
+      }
+      // Ensure week navigation is visible by default after first frame.
+      // We set value directly to avoid an off-screen SlideTransition on first paint.
+      if (mounted && _weekNavigationController.status == AnimationStatus.dismissed) {
+        _weekNavigationController.value = 1.0;
       }
     });
     
@@ -118,13 +127,23 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
     _selectedWeekStart = now.subtract(Duration(days: weekday - 1));
   }
 
-  Future<void> _loadEvents() async {
+  Future<void> _loadEvents({bool forceFullLoading = false}) async {
     if (!mounted) return;
 
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    // On the very first load (or when explicitly forced) show the full page loader.
+    // On subsequent loads (week changes / refresh) show a smaller events-area loader so
+    // the week navigation remains visible and animations aren't interrupted.
+    if (!_hasLoadedOnce || forceFullLoading) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    } else {
+      setState(() {
+        _isEventsLoading = true;
+        _error = null;
+      });
+    }
 
     try {
       final events = await _calendarService.getEventsInRange(
@@ -137,15 +156,26 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
         _events = events;
         _filteredEvents = events;
         _isLoading = false;
+        _isEventsLoading = false;
       });
 
       _applyFilters();
 
-      // 🚀 DEBUG: Loguj liczbę wydarzeń
+      // DEBUG: Loguj liczbę wydarzeń
       print('CalendarScreen: Loaded ${_events.length} events, filtered to ${_filteredEvents.length}');
-      
-      // 🚀 FIX: Nie resetuj głównej animacji - header powinien być już widoczny
-      // Uruchom tylko animację tygodnia jeśli główna animacja nie jest aktywna
+
+      // Mark that we've completed the initial full load so subsequent loads
+      // use the lightweight events loader.
+      if (!_hasLoadedOnce) {
+        _hasLoadedOnce = true;
+        // Ensure week navigation visible (if not already). If the controller is dismissed,
+        // set value to 1.0 so SlideTransition isn't off-screen.
+        if (_weekNavigationController.status == AnimationStatus.dismissed) {
+          _weekNavigationController.value = 1.0;
+        }
+      }
+
+      // Ensure body fade-in runs if needed
       if (_animationController.status == AnimationStatus.dismissed) {
         _animationController.forward();
       }
@@ -154,6 +184,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
       setState(() {
         _error = e.toString();
         _isLoading = false;
+        _isEventsLoading = false;
       });
     }
   }
@@ -469,9 +500,27 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
               if (isMobile) // 🚀 Na mobile dodaj kompaktowy przycisk filtrów
                 _buildMobileFilterButton(),
               Expanded(
-                child: _buildResponsiveWeeklyCalendar(
-                  isMobile: isMobile,
-                  isTablet: isTablet,
+                child: Stack(
+                  children: [
+                    _buildResponsiveWeeklyCalendar(
+                      isMobile: isMobile,
+                      isTablet: isTablet,
+                    ),
+                    // Compact overlay loader for event list updates so week-nav stays visible
+                    if (_isEventsLoading)
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.black.withOpacity(0.03),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: CircularProgressIndicator(strokeWidth: 3),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -756,12 +805,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildQuickNavigationButton(
-                        label: 'Poprz.',
-                        onTap: () => _navigateWeek(-4),
-                        icon: Icons.skip_previous,
-                        compact: true,
-                      ),
+                   
                       _buildQuickNavigationButton(
                         label: 'Dziś',
                         onTap: _goToToday,
@@ -769,12 +813,7 @@ class _CalendarScreenEnhancedState extends State<CalendarScreenEnhanced>
                         isPrimary: true,
                         compact: true,
                       ),
-                      _buildQuickNavigationButton(
-                        label: 'Nast.',
-                        onTap: () => _navigateWeek(4),
-                        icon: Icons.skip_next,
-                        compact: true,
-                      ),
+                
                     ],
                   ),
                 ],

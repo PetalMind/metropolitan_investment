@@ -46,9 +46,8 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
   // Debounce timer for preview updates to avoid rapid rebuilds
   Timer? _previewDebounceTimer;
   
-  // Auto-hide UI state when user is typing
-  bool _isUserTyping = false;
-  Timer? _typingDebounceTimer;
+  // Auto-hide UI state when editor has focus
+  bool _isEditorFocused = false;
 
   // ⭐ Custom font sizes map - numeric values for precise control
   static const Map<String, String> _customFontSizes = {
@@ -342,38 +341,18 @@ Zespół Metropolitan Investment''';
         });
       }
     });
-    
-    // Handle typing state for UI auto-hiding
-    _handleUserTyping();
   }
   
-  /// Handle user typing detection for auto-hiding UI elements
-  void _handleUserTyping() {
-    // Cancel previous timer
-    _typingDebounceTimer?.cancel();
-    
-    // Set typing state immediately if not already set
-    if (!_isUserTyping && mounted) {
-      setState(() {
-        _isUserTyping = true;
-      });
-    }
-    
-    // Set timer to detect when user stops typing (2 seconds of inactivity)
-    _typingDebounceTimer = Timer(const Duration(milliseconds: 2000), () {
-      if (mounted && _isUserTyping) {
-        setState(() {
-          _isUserTyping = false;
-        });
-      }
-    });
-  }
-  
-  /// Handle editor focus change - trigger typing detection on focus
+  /// Handle editor focus change - control UI visibility based on focus
   void _onEditorFocusChange() {
-    if (_editorFocusNode.hasFocus) {
-      // Trigger typing state when editor gains focus
-      _handleUserTyping();
+    // Check if ANY editor focus node has focus
+    final hasAnyFocus = _editorFocusNode.hasFocus || 
+        _individualFocusNodes.values.any((node) => node.hasFocus);
+    
+    if (hasAnyFocus != _isEditorFocused) {
+      setState(() {
+        _isEditorFocused = hasAnyFocus;
+      });
     }
   }
 
@@ -562,7 +541,6 @@ Zespół Metropolitan Investment''';
     _quillController.removeListener(_updatePreview);
     _editorFocusNode.removeListener(_onEditorFocusChange);
     _previewDebounceTimer?.cancel();
-    _typingDebounceTimer?.cancel();
     _tabController.dispose();
     _quillController.dispose();
     _editorFocusNode.dispose();
@@ -1022,16 +1000,16 @@ Zespół Metropolitan Investment''';
         AnimatedContainer(
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOut,
-          height: (_useIndividualContent && !_isUserTyping) ? null : 0,
+          height: (_useIndividualContent && !_isEditorFocused) ? null : 0,
           child: AnimatedOpacity(
             duration: const Duration(milliseconds: 300),
-            opacity: (_useIndividualContent && !_isUserTyping) ? 1.0 : 0.0,
+            opacity: (_useIndividualContent && !_isEditorFocused) ? 1.0 : 0.0,
             child: Column(
               children: [
                 if (_useIndividualContent) _buildMobileRecipientSelector(isMobile),
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
-                  height: (_useIndividualContent && !_isUserTyping) ? (isMobile ? 8 : 12) : 0,
+                  height: (_useIndividualContent && !_isEditorFocused) ? (isMobile ? 8 : 12) : 0,
                 ),
               ],
             ),
@@ -1053,10 +1031,10 @@ Zespół Metropolitan Investment''';
         AnimatedContainer(
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOut,
-          width: (_useIndividualContent && !_isUserTyping) ? 250 : 0,
+          width: (_useIndividualContent && !_isEditorFocused) ? 250 : 0,
           child: AnimatedOpacity(
             duration: const Duration(milliseconds: 300),
-            opacity: (_useIndividualContent && !_isUserTyping) ? 1.0 : 0.0,
+            opacity: (_useIndividualContent && !_isEditorFocused) ? 1.0 : 0.0,
             child: _useIndividualContent ? Container(
               decoration: BoxDecoration(
                 border: Border.all(color: AppThemePro.borderSecondary),
@@ -1070,7 +1048,7 @@ Zespół Metropolitan Investment''';
         // Spacer - animated
         AnimatedContainer(
           duration: const Duration(milliseconds: 500),
-          width: (_useIndividualContent && !_isUserTyping) ? 16 : 0,
+          width: (_useIndividualContent && !_isEditorFocused) ? 16 : 0,
         ),
         
         // Main editor area - expands when sidebar is hidden
@@ -2829,13 +2807,13 @@ Zespół Metropolitan Investment''';
     return AnimatedContainer(
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOut,
-      height: _isUserTyping ? 0 : null, // Collapse when typing
+      height: _isEditorFocused ? 0 : null, // Collapse when typing
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 300),
-        opacity: _isUserTyping ? 0.0 : 1.0,
+        opacity: _isEditorFocused ? 0.0 : 1.0,
         child: Container(
           padding: const EdgeInsets.all(16),
-          margin: EdgeInsets.only(bottom: _isUserTyping ? 0 : 8),
+          margin: EdgeInsets.only(bottom: _isEditorFocused ? 0 : 8),
           decoration: BoxDecoration(
             color: AppThemePro.backgroundSecondary,
             borderRadius: BorderRadius.circular(8),
@@ -2858,7 +2836,7 @@ Zespół Metropolitan Investment''';
                   ),
                   const Spacer(),
                   // Show/hide indicator when typing
-                  if (_isUserTyping) 
+                  if (_isEditorFocused) 
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -2871,7 +2849,7 @@ Zespół Metropolitan Investment''';
                           Icon(Icons.edit, size: 12, color: AppThemePro.accentGold),
                           const SizedBox(width: 4),
                           Text(
-                            'Pisanie...',
+                            'Edycja...',
                             style: TextStyle(
                               fontSize: 10,
                               color: AppThemePro.accentGold,
@@ -2947,7 +2925,7 @@ Zespół Metropolitan Investment''';
                     ),
                 ],
               ),
-              if (_useIndividualContent && !_isUserTyping) ...[
+              if (_useIndividualContent && !_isEditorFocused) ...[
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
