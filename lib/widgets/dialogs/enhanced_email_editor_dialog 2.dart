@@ -358,285 +358,137 @@ Zespół Metropolitan Investment''';
 
   // ⭐ Custom Color Picker Methods
   
-  /// Shows custom color picker using flutter_colorpicker and predefined colors
-  Future<void> _showCustomColorPicker(BuildContext context, {
+  /// Shows a simple color picker with circles and squares
+  Future<Color?> _showSimpleColorPicker(BuildContext context, {
     required bool isBackground,
+    Color? currentColor,
   }) async {
-    final controller = _getCurrentController();
-    final selection = controller.selection;
+    Color? selectedColor = currentColor;
     
-    if (!selection.isValid) {
-      // If no text is selected, show an alert
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
+    return showDialog<Color>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
           backgroundColor: AppThemePro.backgroundPrimary,
           title: Text(
-            'Wybierz tekst',
-            style: TextStyle(color: AppThemePro.textPrimary),
+            isBackground ? 'Wybierz kolor tła' : 'Wybierz kolor tekstu',
+            style: TextStyle(
+              color: AppThemePro.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          content: Text(
-            'Najpierw zaznacz tekst, którego kolor chcesz zmienić.',
-            style: TextStyle(color: AppThemePro.textSecondary),
+          content: SizedBox(
+            width: 300,
+            height: 200,
+            child: Column(
+              children: [
+                Text(
+                  'Koła - kolory podstawowe',
+                  style: TextStyle(
+                    color: AppThemePro.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildCircleColorSelector((color) => selectedColor = color),
+                const SizedBox(height: 16),
+                Text(
+                  'Kwadraty - kolory dodatkowe',
+                  style: TextStyle(
+                    color: AppThemePro.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildSquareColorSelector((color) => selectedColor = color),
+              ],
+            ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: Text(
-                'OK',
-                style: TextStyle(color: AppThemePro.accentGold),
+                'Anuluj',
+                style: TextStyle(color: AppThemePro.textSecondary),
               ),
             ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(selectedColor),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppThemePro.accentGold,
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Wybierz'),
+            ),
           ],
-        ),
-      );
-      return;
-    }
-    
-    Color? selectedColor = await showDialog<Color>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        Color pickerColor = Colors.black;
-        Color? finalColor;
-        
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              backgroundColor: AppThemePro.backgroundPrimary,
-              title: Text(
-                isBackground ? 'Wybierz kolor tła' : 'Wybierz kolor tekstu',
-                style: TextStyle(
-                  color: AppThemePro.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: SizedBox(
-                width: 350,
-                height: 400,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Quick color selection with circles and squares
-                      Text(
-                        'Szybki wybór kolorów',
-                        style: TextStyle(
-                          color: AppThemePro.textSecondary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildCircleColorSelector((color) {
-                        if (kDebugMode) {
-                          print('🔴 [CircleColor] Selected: $color (hex: #${color.red.toRadixString(16).padLeft(2, '0')}${color.green.toRadixString(16).padLeft(2, '0')}${color.blue.toRadixString(16).padLeft(2, '0')})');
-                        }
-                        setState(() {
-                          pickerColor = color;
-                          finalColor = color;
-                        });
-                      }),
-                      const SizedBox(height: 12),
-                      _buildSquareColorSelector((color) {
-                        if (kDebugMode) {
-                          print('🟦 [SquareColor] Selected: $color (hex: #${color.red.toRadixString(16).padLeft(2, '0')}${color.green.toRadixString(16).padLeft(2, '0')}${color.blue.toRadixString(16).padLeft(2, '0')})');
-                        }
-                        setState(() {
-                          pickerColor = color;
-                          finalColor = color;
-                        });
-                      }),
-                      
-                      const SizedBox(height: 20),
-                      
-                      // Divider
-                      Row(
-                        children: [
-                          Expanded(child: Divider(color: AppThemePro.borderSecondary)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              'Lub wybierz dokładny kolor',
-                              style: TextStyle(
-                                color: AppThemePro.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          Expanded(child: Divider(color: AppThemePro.borderSecondary)),
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Advanced color picker
-                      ColorPicker(
-                        pickerColor: pickerColor,
-                        onColorChanged: (Color color) {
-                          if (kDebugMode) {
-                            print('🎨 [ColorPicker] Wheel changed: $color (hex: #${color.red.toRadixString(16).padLeft(2, '0')}${color.green.toRadixString(16).padLeft(2, '0')}${color.blue.toRadixString(16).padLeft(2, '0')})');
-                          }
-                          setState(() {
-                            pickerColor = color;
-                            finalColor = color;
-                          });
-                        },
-                        colorPickerWidth: 280,
-                        pickerAreaHeightPercent: 0.7,
-                        enableAlpha: false,
-                        displayThumbColor: true,
-                        paletteType: PaletteType.hsl,
-                        labelTypes: const [ColorLabelType.hex],
-                        hexInputBar: true,
-                        pickerAreaBorderRadius: BorderRadius.circular(8),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(
-                    'Anuluj',
-                    style: TextStyle(color: AppThemePro.textSecondary),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(finalColor ?? pickerColor),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppThemePro.accentGold,
-                    foregroundColor: Colors.black,
-                  ),
-                  child: const Text('Zastosuj'),
-                ),
-              ],
-            );
-          },
         );
       },
     );
-    
-    // Apply the selected color to the text
-    if (selectedColor != null) {
-      _applyColorToSelection(selectedColor, isBackground: isBackground);
-    }
   }
   
-  /// Builds circle color selector for primary colors
-  Widget _buildCircleColorSelector(Function(Color) onColorSelected) {
-    final primaryColors = [
-      Colors.black,
-      Colors.red,
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.brown,
-      Colors.white,
-    ];
-    
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      alignment: WrapAlignment.center,
-      children: primaryColors.map((color) {
-        return GestureDetector(
-          onTap: () => onColorSelected(color),
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: color == Colors.white 
-                  ? AppThemePro.borderSecondary 
-                  : Colors.transparent,
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 3,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: color == Colors.white
-              ? Icon(
-                  Icons.format_color_text,
-                  color: AppThemePro.textSecondary,
-                  size: 14,
-                )
-              : null,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  /// Builds square color selector for additional colors
-  Widget _buildSquareColorSelector(Function(Color) onColorSelected) {
-    final additionalColors = [
-      const Color(0xFF1976D2), // Professional blue
-      const Color(0xFFD4AF37), // Gold accent
-      const Color(0xFF2E2E2E), // Dark gray
-      const Color(0xFF666666), // Light gray
-      const Color(0xFF4CAF50), // Success green
-      const Color(0xFFF44336), // Error red
-      const Color(0xFFC90e0e), // Custom dark red (test color)
-      Colors.pink,
-      Colors.teal,
-    ];
-    
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      alignment: WrapAlignment.center,
-      children: additionalColors.map((color) {
-        return GestureDetector(
-          onTap: () => onColorSelected(color),
-          child: Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: Colors.transparent,
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 3,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-  
-  /// Builds custom color button for QuillSimpleToolbar
-  QuillToolbarCustomButtonOptions _buildCustomColorButton({
-    required bool isBackground,
-    required bool isMobile,
-  }) {
-    return QuillToolbarCustomButtonOptions(
-      icon: Icon(
-        isBackground ? Icons.format_color_fill : Icons.format_color_text,
-        size: isMobile ? 18 : 20,
-        color: AppThemePro.textPrimary,
+  /// Builds a predefined color palette widget for quick color selection
+  Widget _buildPredefinedColorPalette(Function(Color) onColorSelected) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundSecondary,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppThemePro.borderSecondary),
       ),
-      tooltip: isBackground ? 'Kolor tła' : 'Kolor tekstu',
-      onPressed: () => _showCustomColorPicker(context, isBackground: isBackground),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Szybki wybór kolorów',
+            style: TextStyle(
+              color: AppThemePro.textPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _predefinedColors.map((color) {
+              return GestureDetector(
+                onTap: () => onColorSelected(color),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: color == Colors.white 
+                        ? AppThemePro.borderSecondary 
+                        : Colors.transparent,
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: color == Colors.white
+                    ? Icon(
+                        Icons.format_color_text,
+                        color: AppThemePro.textSecondary,
+                        size: 16,
+                      )
+                    : null,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
-
+  
   /// Applies selected color to the current text selection
   void _applyColorToSelection(Color color, {required bool isBackground}) {
     final controller = _getCurrentController();
@@ -644,37 +496,14 @@ Zespół Metropolitan Investment''';
     
     if (!selection.isValid) return;
     
-    // Prawidłowa konwersja Color na hex string
-    final hexColor = '#${color.red.toRadixString(16).padLeft(2, '0')}'
-        '${color.green.toRadixString(16).padLeft(2, '0')}'
-        '${color.blue.toRadixString(16).padLeft(2, '0')}';
+    final hexColor = '#${color.r.round().toRadixString(16).padLeft(2, '0')}'
+        '${color.g.round().toRadixString(16).padLeft(2, '0')}'
+        '${color.b.round().toRadixString(16).padLeft(2, '0')}';
     
-    if (kDebugMode) {
-      print('🎨 [ColorPicker] Applying color: $color');
-      print('   - Red: ${color.red} -> ${color.red.toRadixString(16).padLeft(2, '0')}');
-      print('   - Green: ${color.green} -> ${color.green.toRadixString(16).padLeft(2, '0')}');  
-      print('   - Blue: ${color.blue} -> ${color.blue.toRadixString(16).padLeft(2, '0')}');
-      print('   - Final hex: $hexColor (background: $isBackground)');
-      print('   - Selection: ${selection.baseOffset}-${selection.extentOffset}');
-    }
-    
-    try {
-      if (isBackground) {
-        controller.formatSelection(Attribute.fromKeyValue('background', hexColor));
-      } else {
-        controller.formatSelection(Attribute.fromKeyValue('color', hexColor));
-      }
-      
-      if (kDebugMode) {
-        print('✅ [ColorPicker] Color applied successfully');
-        // Check what's actually in the document now
-        final delta = controller.document.toDelta();
-        print('📄 [ColorPicker] Document delta after color: ${delta.toJson()}');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ [ColorPicker] Error applying color: $e');
-      }
+    if (isBackground) {
+      controller.formatSelection(Attribute.fromKeyValue('background', hexColor));
+    } else {
+      controller.formatSelection(Attribute.fromKeyValue('color', hexColor));
     }
     
     // Trigger preview update
@@ -1300,9 +1129,9 @@ Zespół Metropolitan Investment''';
                   // ⭐ Enhanced font options with custom configurations
                   showFontFamily: !isMobile, // Hide on mobile - too complex
                   showFontSize: !isMobile,
-                  // Colors - disabled default, will add custom ones
-                  showColorButton: false,
-                  showBackgroundColorButton: false,
+                  // Colors
+                  showColorButton: true,
+                  showBackgroundColorButton: !isMobile,
                   // Headers and structure
                   showHeaderStyle: true,
                   showQuote: !isMobile,
@@ -1342,7 +1171,7 @@ Zespół Metropolitan Investment''';
                       tooltip: 'Rodzaj czcionki',
                     ),
                     
-                    // Enhanced color buttons with custom color picker
+                    // Enhanced color buttons (always available)
                     color: QuillToolbarColorButtonOptions(
                       tooltip: 'Kolor tekstu',
                     ),
@@ -1364,12 +1193,6 @@ Zespół Metropolitan Investment''';
                   toolbarSize: isMobile ? 32 : 36,
                   toolbarSectionSpacing: isMobile ? 2 : 4,
                   toolbarIconAlignment: WrapAlignment.center,
-                  
-                  // Custom color buttons
-                  customButtons: [
-                    _buildCustomColorButton(isBackground: false, isMobile: isMobile),
-                    _buildCustomColorButton(isBackground: true, isMobile: isMobile),
-                  ],
                 ),
               ),
             ),
@@ -1898,37 +1721,6 @@ Zespół Metropolitan Investment''';
           const SizedBox(width: 16),
           // Debug button
           if (kDebugMode) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppThemePro.backgroundPrimary,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-              ),
-              child: InkWell(
-                onTap: _testHtmlConversion,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.bug_report,
-                      color: Colors.orange,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Debug HTML',
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
           ],
           const Spacer(),
           // Recipient selector
@@ -2772,10 +2564,7 @@ Zespół Metropolitan Investment''';
               ),
             ),
           ),
-          
-          // Debug button (only in debug mode)
-          _buildDebugButton(),
-          
+              
           const SizedBox(width: 8),
           
           // Cancel button
@@ -4432,23 +4221,4 @@ Zespół Metropolitan Investment''';
     }
   }
 
-  /// Debug button for development (only visible in debug mode)
-  Widget _buildDebugButton() {
-    if (!kDebugMode) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: ElevatedButton.icon(
-        onPressed: _debugQuillContent,
-        icon: const Icon(Icons.bug_report, size: 16),
-        label: const Text('Debug', style: TextStyle(fontSize: 12)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.orange,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          minimumSize: const Size(0, 32),
-        ),
-      ),
-    );
-  }
 }
