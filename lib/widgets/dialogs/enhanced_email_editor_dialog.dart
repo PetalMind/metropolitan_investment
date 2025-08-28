@@ -47,8 +47,18 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
   // Debounce timer for preview updates to avoid rapid rebuilds
   Timer? _previewDebounceTimer;
   
-  // Auto-hide UI state when editor has focus
+  // 🚀 ULTRA-RESPONSIVE STATE MANAGEMENT
   bool _isEditorFocused = false;
+  bool _isKeyboardVisible = false;
+  bool _showFloatingToolbar = false;
+  bool _isGestureMode = false;
+  double _keyboardHeight = 0.0;
+  int _currentRecipientIndex = 0;
+  bool _isSwipingRecipients = false;
+  
+  // Gesture detection
+  final _gestureKey = GlobalKey();
+  double _lastPanPosition = 0.0;
 
   // ⭐ Custom font sizes map - numeric values for precise control
   static const Map<String, String> _customFontSizes = {
@@ -410,16 +420,211 @@ Zespół Metropolitan Investment''';
   }
   
   /// Handle editor focus change - control UI visibility based on focus
+  /// 🧠 SMART FOCUS DETECTION WITH GESTURE ACTIVATION
   void _onEditorFocusChange() {
-    // Check if ANY editor focus node has focus
     final hasAnyFocus = _editorFocusNode.hasFocus || 
         _individualFocusNodes.values.any((node) => node.hasFocus);
     
     if (hasAnyFocus != _isEditorFocused) {
       setState(() {
         _isEditorFocused = hasAnyFocus;
+        
+        // 🎯 Auto-enable gesture mode on focus
+        if (hasAnyFocus && MediaQuery.of(context).size.width < 600) {
+          _isGestureMode = true;
+          _showFloatingToolbar = true;
+        }
+      });
+      
+      // 🌊 Trigger fluid animation
+      _animateToFocusMode(hasAnyFocus);
+    }
+  }
+  
+  /// 🌊 Smooth animation when entering/exiting focus mode
+  void _animateToFocusMode(bool hasFocus) {
+    if (hasFocus && MediaQuery.of(context).size.width < 600) {
+      // Mobile focus mode - minimal UI, maximum editor space
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          setState(() {
+            _showFloatingToolbar = true;
+          });
+        }
       });
     }
+  }
+  
+  // 👆 GESTURE HANDLERS FOR SWIPE & INTERACTIONS
+  
+  void _handlePanStart(DragStartDetails details) {
+    _lastPanPosition = details.localPosition.dx;
+    if (_useIndividualContent && widget.selectedInvestors.length > 1) {
+      setState(() {
+        _isSwipingRecipients = true;
+      });
+    }
+  }
+  
+  void _handlePanUpdate(DragUpdateDetails details) {
+    if (!_isSwipingRecipients) return;
+    
+    final currentPosition = details.localPosition.dx;
+    final deltaX = currentPosition - _lastPanPosition;
+    
+    // Minimum swipe distance to trigger change
+    if (deltaX.abs() > 50) {
+      if (deltaX > 0 && _currentRecipientIndex > 0) {
+        // Swipe right - previous recipient
+        _switchToPreviousRecipient();
+      } else if (deltaX < 0 && _currentRecipientIndex < widget.selectedInvestors.length - 1) {
+        // Swipe left - next recipient
+        _switchToNextRecipient();
+      }
+      _lastPanPosition = currentPosition;
+    }
+  }
+  
+  void _handlePanEnd(DragEndDetails details) {
+    if (_isSwipingRecipients) {
+      setState(() {
+        _isSwipingRecipients = false;
+      });
+    }
+  }
+  
+  void _handleDoubleTap() {
+    // Double tap to toggle floating toolbar
+    if (_isEditorFocused) {
+      setState(() {
+        _showFloatingToolbar = !_showFloatingToolbar;
+      });
+    }
+  }
+  
+  // 🔄 RECIPIENT SWITCHING METHODS
+  
+  void _switchToPreviousRecipient() {
+    if (_currentRecipientIndex > 0) {
+      setState(() {
+        _currentRecipientIndex--;
+        final newRecipientId = widget.selectedInvestors[_currentRecipientIndex].client.id;
+        _selectedRecipientForEditing = newRecipientId;
+      });
+      _updatePreview();
+      _showRecipientSwitchFeedback('poprzedni');
+    }
+  }
+  
+  void _switchToNextRecipient() {
+    if (_currentRecipientIndex < widget.selectedInvestors.length - 1) {
+      setState(() {
+        _currentRecipientIndex++;
+        final newRecipientId = widget.selectedInvestors[_currentRecipientIndex].client.id;
+        _selectedRecipientForEditing = newRecipientId;
+      });
+      _updatePreview();
+      _showRecipientSwitchFeedback('następny');
+    }
+  }
+  
+  void _showRecipientSwitchFeedback(String direction) {
+    final currentInvestor = widget.selectedInvestors[_currentRecipientIndex];
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.swipe_left, color: Colors.white, size: 16),
+            const SizedBox(width: 8),
+            Text('Przełączono na: ${currentInvestor.client.name}'),
+          ],
+        ),
+        backgroundColor: AppThemePro.accentGold,
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+  
+  void _showRecipientQuickSwitcher() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: AppThemePro.backgroundPrimary,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppThemePro.borderSecondary,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Wybierz odbiorcę',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppThemePro.textPrimary,
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 300,
+              child: ListView.builder(
+                itemCount: widget.selectedInvestors.length,
+                itemBuilder: (context, index) {
+                  final investor = widget.selectedInvestors[index];
+                  final isSelected = index == _currentRecipientIndex;
+                  
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: isSelected ? AppThemePro.accentGold : AppThemePro.backgroundSecondary,
+                      child: Text(
+                        investor.client.name.isNotEmpty ? investor.client.name[0].toUpperCase() : '?',
+                        style: TextStyle(
+                          color: isSelected ? Colors.black : AppThemePro.textSecondary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      investor.client.name,
+                      style: TextStyle(
+                        color: isSelected ? AppThemePro.accentGold : AppThemePro.textPrimary,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    subtitle: Text('${investor.investmentCount} inwestycji'),
+                    trailing: isSelected ? Icon(Icons.check, color: AppThemePro.accentGold) : null,
+                    onTap: () {
+                      setState(() {
+                        _currentRecipientIndex = index;
+                        _selectedRecipientForEditing = investor.client.id;
+                      });
+                      _updatePreview();
+                      Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 
   // ⭐ Custom Color Picker Methods
@@ -1251,33 +1456,46 @@ Zespół Metropolitan Investment''';
     );
   }
 
+  /// 📱 ULTRA-MOBILE LAYOUT WITH GESTURES
   Widget _buildMobileEditorLayout(bool isMobile, bool isSmallScreen) {
-    return Column(
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final isKeyboardVisible = keyboardHeight > 100;
+    
+    return Stack(
       children: [
-        // Mobile: recipient list as dropdown - animated
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-          height: (_useIndividualContent && !_isEditorFocused) ? null : 0,
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 300),
-            opacity: (_useIndividualContent && !_isEditorFocused) ? 1.0 : 0.0,
-            child: Column(
-              children: [
-                if (_useIndividualContent) _buildMobileRecipientSelector(isMobile),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  height: (_useIndividualContent && !_isEditorFocused) ? (isMobile ? 8 : 12) : 0,
-                ),
-              ],
+        // Main editor column
+        Column(
+          children: [
+            // 💯 Swipeable recipient selector - only when NOT focused
+            if (_useIndividualContent && !_isEditorFocused)
+              _buildSwipeableRecipientBar(isMobile),
+            
+            // 🎯 Editor takes ALL available space
+            Expanded(
+              child: GestureDetector(
+                key: _gestureKey,
+                onPanStart: _handlePanStart,
+                onPanUpdate: _handlePanUpdate,
+                onPanEnd: _handlePanEnd,
+                onDoubleTap: _handleDoubleTap,
+                child: _buildEditorContainer(isMobile, isSmallScreen),
+              ),
             ),
-          ),
+          ],
         ),
         
-        // Editor takes full width on mobile - expands when recipient selector is hidden
-        Expanded(
-          child: _buildEditorContainer(isMobile, isSmallScreen),
-        ),
+        // 🎆 FLOATING QUICK ACTIONS (simplified for now)
+        if (_showFloatingToolbar && _isEditorFocused)
+          Positioned(
+            right: 16,
+            bottom: isKeyboardVisible ? keyboardHeight + 16 : 80,
+            child: FloatingActionButton(
+              mini: true,
+              onPressed: () => _getCurrentController().formatSelection(Attribute.bold),
+              backgroundColor: AppThemePro.accentGold,
+              child: const Icon(Icons.format_bold, color: Colors.black),
+            ),
+          ),
       ],
     );
   }
@@ -1317,6 +1535,94 @@ Zespół Metropolitan Investment''';
     );
   }
 
+  /// 🎆 SWIPEABLE RECIPIENT BAR - like Instagram stories
+  Widget _buildSwipeableRecipientBar(bool isMobile) {
+    if (!_useIndividualContent || widget.selectedInvestors.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final currentInvestor = widget.selectedInvestors.isNotEmpty 
+        ? widget.selectedInvestors[_currentRecipientIndex.clamp(0, widget.selectedInvestors.length - 1)]
+        : widget.selectedInvestors.first;
+    
+    return Container(
+      height: 44,
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppThemePro.accentGold.withValues(alpha: 0.1),
+            AppThemePro.backgroundSecondary.withValues(alpha: 0.8),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          // Previous button
+          if (_currentRecipientIndex > 0)
+            IconButton(
+              icon: Icon(Icons.chevron_left, color: AppThemePro.accentGold, size: 20),
+              onPressed: _switchToPreviousRecipient,
+              padding: const EdgeInsets.all(8),
+            ),
+          
+          // Current recipient with avatar
+          Expanded(
+            child: GestureDetector(
+              onTap: _showRecipientQuickSwitcher,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundColor: AppThemePro.accentGold,
+                    child: Text(
+                      currentInvestor.client.name.isNotEmpty 
+                          ? currentInvestor.client.name[0].toUpperCase() 
+                          : '?',
+                      style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      currentInvestor.client.name,
+                      style: TextStyle(
+                        color: AppThemePro.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${_currentRecipientIndex + 1}/${widget.selectedInvestors.length}',
+                    style: TextStyle(
+                      color: AppThemePro.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Next button
+          if (_currentRecipientIndex < widget.selectedInvestors.length - 1)
+            IconButton(
+              icon: Icon(Icons.chevron_right, color: AppThemePro.accentGold, size: 20),
+              onPressed: _switchToNextRecipient,
+              padding: const EdgeInsets.all(8),
+            ),
+        ],
+      ),
+    );
+  }
+  
+  /// Legacy mobile recipient selector (keeping for fallback)
   Widget _buildMobileRecipientSelector(bool isMobile) {
     if (!_useIndividualContent || widget.selectedInvestors.isEmpty) {
       return const SizedBox.shrink();
@@ -1542,19 +1848,7 @@ Zespół Metropolitan Investment''';
             spacing: isSmallScreen ? 4 : 8,
             runSpacing: isSmallScreen ? 4 : 8,
             children: [
-              ElevatedButton.icon(
-                onPressed: _insertVoting,
-                icon: const Icon(Icons.how_to_vote, size: 16),
-                label: const Text('Dodaj głosowanie'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.statusInfo.withValues(alpha: 0.2),
-                  foregroundColor: AppThemePro.statusInfo,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isSmallScreen ? 8 : 12,
-                    vertical: isSmallScreen ? 6 : 8,
-                  ),
-                ),
-              ),
+         
               ElevatedButton.icon(
                 onPressed: _clearEditor,
                 icon: const Icon(Icons.clear, size: 16),
