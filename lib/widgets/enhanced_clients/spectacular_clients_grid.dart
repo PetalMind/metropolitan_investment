@@ -496,7 +496,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
       );
     }
 
-    // 🚀 PREMIUM GRADIENT dla top inwestorów
+    // 🚀 PREMIUM GRADIENT - TYLKO dla top inwestorów
     if (isTopInvestor) {
       return LinearGradient(
         begin: Alignment.topLeft,
@@ -515,17 +515,15 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
       );
     }
 
-    // Professional investment card gradient
+    // 🔹 PODSTAWOWE KARTY - bez gradientu, tylko solid color
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        AppThemePro.backgroundSecondary.withOpacity(0.98),
-        AppThemePro.backgroundPrimary,
-        AppThemePro.backgroundSecondary.withOpacity(0.95),
-        AppThemePro.accentGold.withOpacity(0.03),
+        AppThemePro.backgroundSecondary,
+        AppThemePro.backgroundSecondary,
       ],
-      stops: const [0.0, 0.4, 0.8, 1.0],
+      stops: const [0.0, 1.0],
     );
   }
 
