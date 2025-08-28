@@ -28,7 +28,7 @@ class SpectacularClientsGrid extends StatefulWidget {
   final Map<String, InvestorSummary>? investorSummaries; // clientId -> InvestorSummary
   final Map<String, List<Investment>>? clientInvestments; // clientId -> List<Investment>
 
-  const SpectacularClientsGrid({
+  SpectacularClientsGrid({
     super.key,
     required this.clients,
     this.isLoading = false,
@@ -52,20 +52,38 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   late AnimationController _staggerController;
   late AnimationController _pulseController;
 
+  // 🚀 PREMIUM ANIMATIONS - tylko dla TOP 50 inwestorów
+  late AnimationController _premiumShimmerController;
+  late AnimationController _premiumGlowController;
+  late AnimationController _premiumFloatController;
+
   final List<GlobalKey> _cardKeys = [];
   final Map<String, AnimationController> _cardAnimations = {};
+  
+  // 🚀 TOP INVESTORS - identyfikacja top 50 inwestorów
+  Set<String> _topInvestorIds = {};
 
   @override
   void initState() {
     super.initState();
+    print(
+      '🎨 [SpectacularClientsGrid] initState - klienci: ${widget.clients.length}',
+    );
+    print(
+      '💰 [SpectacularClientsGrid] initState - dane inwestycji: ${widget.investorSummaries?.length ?? 0}',
+    );
     _initializeAnimations();
     _setupCardKeys();
+    _identifyTopInvestors();
   }
 
   @override
   void dispose() {
     _staggerController.dispose();
     _pulseController.dispose();
+    _premiumShimmerController.dispose();
+    _premiumGlowController.dispose();
+    _premiumFloatController.dispose();
     _disposeCardAnimations();
     super.dispose();
   }
@@ -81,8 +99,68 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
       vsync: this,
     );
 
+    // 🚀 PREMIUM ANIMATIONS - tylko dla TOP 50 inwestorów
+    _premiumShimmerController = AnimationController(
+      duration: const Duration(milliseconds: 2500),
+      vsync: this,
+    );
+
+    _premiumGlowController = AnimationController(
+      duration: const Duration(milliseconds: 3000),
+      vsync: this,
+    );
+
+    _premiumFloatController = AnimationController(
+      duration: const Duration(milliseconds: 4000),
+      vsync: this,
+    );
+
     _pulseController.repeat();
     _staggerController.forward();
+    
+    // 🚀 Uruchom premium animacje
+    _premiumShimmerController.repeat(reverse: true);
+    _premiumGlowController.repeat(reverse: true);
+    _premiumFloatController.repeat(reverse: true);
+  }
+
+  /// 🚀 IDENTYFIKUJ TOP 50 INWESTORÓW
+  void _identifyTopInvestors() {
+    if (widget.investorSummaries == null || widget.investorSummaries!.isEmpty) {
+      _topInvestorIds.clear();
+      print(
+        '🚫 [SpectacularClientsGrid] Brak danych inwestycji - premium animacje wyłączone',
+      );
+      return;
+    }
+
+    // Sortuj klientów po całkowitym kapitale pozostałym (malejąco)
+    final sortedClients =
+        widget.clients.where((client) {
+          final summary = widget.investorSummaries![client.id];
+          return summary != null && summary.totalRemainingCapital > 0;
+        }).toList()..sort((a, b) {
+          final summaryA = widget.investorSummaries![a.id]!;
+          final summaryB = widget.investorSummaries![b.id]!;
+          return summaryB.totalRemainingCapital.compareTo(
+            summaryA.totalRemainingCapital,
+          );
+        });
+
+    // Weź top 50 inwestorów
+    _topInvestorIds = sortedClients.take(50).map((client) => client.id).toSet();
+
+    print('🎯 [SpectacularClientsGrid] TOP 50 INWESTORÓW ZIDENTYFIKOWANYCH:');
+    print('   - Łącznie klientów z danymi inwestycji: ${sortedClients.length}');
+    print('   - Top 50 inwestorów: ${_topInvestorIds.length}');
+    if (_topInvestorIds.isNotEmpty) {
+      final topInvestor = sortedClients.first;
+      final topSummary = widget.investorSummaries![topInvestor.id]!;
+      print(
+        '   - Największy inwestor: ${topInvestor.name} - ${topSummary.totalRemainingCapital.toStringAsFixed(2)} PLN',
+      );
+      print('   - Premium animacje AKTYWNE dla top inwestorów!');
+    }
   }
 
   void _setupCardKeys() {
@@ -103,8 +181,17 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   void didUpdateWidget(SpectacularClientsGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (widget.clients.length != oldWidget.clients.length) {
+    if (widget.clients.length != oldWidget.clients.length ||
+        widget.investorSummaries != oldWidget.investorSummaries) {
+      print('🔄 [SpectacularClientsGrid] didUpdateWidget - zmiana danych!');
+      print(
+        '   - Klienci: ${oldWidget.clients.length} -> ${widget.clients.length}',
+      );
+      print(
+        '   - Dane inwestycji: ${oldWidget.investorSummaries?.length ?? 0} -> ${widget.investorSummaries?.length ?? 0}',
+      );
       _setupCardKeys();
+      _identifyTopInvestors(); // 🚀 Re-identify top investors
       _staggerController.reset();
       _staggerController.forward();
     }
@@ -208,78 +295,105 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
 
   Widget _buildClientCard(Client client, int index) {
     final isSelected = widget.selectedClientIds.contains(client.id);
+    final isTopInvestor = _topInvestorIds.contains(
+      client.id,
+    ); // 🚀 Czy to top inwestor?
+
+    // 🚀 DEBUG: Log premium status
+    if (isTopInvestor) {
+      print(
+        '✨ [SpectacularClientsGrid] ${client.name} jest TOP INWESTOREM - premium animacje włączone!',
+      );
+    }
+
     final cardAnimation = _getCardAnimation(client.id);
 
     return AnimatedBuilder(
-      animation: Listenable.merge([cardAnimation, _pulseController]),
+      animation: Listenable.merge([
+        cardAnimation,
+        _pulseController,
+        // 🚀 Dodaj premium animacje tylko dla top inwestorów
+        if (isTopInvestor) ...[
+          _premiumShimmerController,
+          _premiumGlowController,
+          _premiumFloatController,
+        ],
+      ]),
       builder: (context, child) {
-        return Hero(
-          tag: 'client_card_${client.id}',
-          child: Container(
-            key: _cardKeys.length > index ? _cardKeys[index] : null,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                // Main card shadow
-                BoxShadow(
-                  color: isSelected
-                      ? AppThemePro.accentGold.withOpacity(0.4)
-                      : AppThemePro.overlayMedium.withOpacity(0.15),
-                  blurRadius: isSelected ? 25 : 15,
-                  spreadRadius: isSelected ? 3 : 1,
-                  offset: const Offset(0, 8),
-                ),
-                // Subtle glow effect
-                if (isSelected)
-                  BoxShadow(
-                    color: AppThemePro.accentGold.withOpacity(0.2),
-                    blurRadius: 40,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 0),
+        // 🚀 Oblicz premium efekty tylko dla top inwestorów
+        final premiumOffset = isTopInvestor
+            ? Offset(0, sin(_premiumFloatController.value * 2 * pi) * 3)
+            : Offset.zero;
+
+        final premiumScale = isTopInvestor
+            ? 1.0 + (_premiumGlowController.value * 0.02)
+            : 1.0;
+
+        return Transform.translate(
+          offset: premiumOffset,
+          child: Transform.scale(
+            scale: premiumScale,
+            child: Hero(
+              tag: 'client_card_${client.id}',
+              child: Container(
+                key: _cardKeys.length > index ? _cardKeys[index] : null,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: _buildCardShadows(
+                    client,
+                    isSelected,
+                    isTopInvestor,
                   ),
-                // Inner highlight
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.05),
-                  blurRadius: 8,
-                  spreadRadius: -2,
-                  offset: const Offset(0, -2),
                 ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  _handleCardTap(client);
-                },
-                onLongPress: () {
-                  HapticFeedback.mediumImpact();
-                  _handleCardLongPress(client);
-                },
-                borderRadius: BorderRadius.circular(20),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 350),
-                  curve: Curves.easeInOutCubic,
-                  transform: Matrix4.identity()..scale(isSelected ? 1.02 : 1.0),
-                  decoration: BoxDecoration(
-                    gradient: _buildCardGradient(client, isSelected),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      _handleCardTap(client);
+                    },
+                    onLongPress: () {
+                      HapticFeedback.mediumImpact();
+                      _handleCardLongPress(client);
+                    },
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppThemePro.accentGold.withOpacity(0.8)
-                          : AppThemePro.borderSecondary.withOpacity(0.3),
-                      width: isSelected ? 2.5 : 1.2,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeInOutCubic,
+                      transform: Matrix4.identity()
+                        ..scale(isSelected ? 1.02 : 1.0),
+                      decoration: BoxDecoration(
+                        gradient: _buildCardGradient(
+                          client,
+                          isSelected,
+                          isTopInvestor,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _getBorderColor(
+                            client,
+                            isSelected,
+                            isTopInvestor,
+                          ),
+                          width: _getBorderWidth(
+                            client,
+                            isSelected,
+                            isTopInvestor,
+                          ),
+                        ),
+                      ),
+                      child: Stack(
+                        children: [
+                          _buildCardBackground(isTopInvestor),
+                          _buildCardContent(client),
+                          if (widget.isSelectionMode)
+                            _buildSelectionOverlay(isSelected),
+                          _buildStatusIndicator(client),
+                          if (isTopInvestor)
+                            _buildPremiumCrownIndicator(), // 🚀 Korona dla top inwestorów
+                        ],
+                      ),
                     ),
-                  ),
-                  child: Stack(
-                    children: [
-                      _buildCardBackground(),
-                      _buildCardContent(client),
-                      if (widget.isSelectionMode)
-                        _buildSelectionOverlay(isSelected),
-                      _buildStatusIndicator(client),
-                    ],
                   ),
                 ),
               ),
@@ -290,7 +404,70 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     );
   }
 
-  LinearGradient _buildCardGradient(Client client, bool isSelected) {
+  /// 🚀 SHADOWS DLA KART - uwzględnia top inwestorów
+  List<BoxShadow> _buildCardShadows(
+    Client client,
+    bool isSelected,
+    bool isTopInvestor,
+  ) {
+    final shadows = <BoxShadow>[];
+
+    // Main card shadow
+    shadows.add(
+      BoxShadow(
+        color: isSelected
+            ? AppThemePro.accentGold.withOpacity(0.4)
+            : AppThemePro.overlayMedium.withOpacity(0.15),
+        blurRadius: isSelected ? 25 : 15,
+        spreadRadius: isSelected ? 3 : 1,
+        offset: const Offset(0, 8),
+      ),
+    );
+
+    // 🚀 PREMIUM GLOW dla top inwestorów
+    if (isTopInvestor) {
+      shadows.add(
+        BoxShadow(
+          color: AppThemePro.accentGold.withOpacity(
+            0.3 + (_premiumGlowController.value * 0.2),
+          ),
+          blurRadius: 30 + (_premiumGlowController.value * 20),
+          spreadRadius: 2 + (_premiumGlowController.value * 3),
+          offset: const Offset(0, 0),
+        ),
+      );
+    }
+
+    // Subtle glow effect for selected
+    if (isSelected) {
+      shadows.add(
+        BoxShadow(
+          color: AppThemePro.accentGold.withOpacity(0.2),
+          blurRadius: 40,
+          spreadRadius: 0,
+          offset: const Offset(0, 0),
+        ),
+      );
+    }
+
+    // Inner highlight
+    shadows.add(
+      BoxShadow(
+        color: Colors.white.withOpacity(0.05),
+        blurRadius: 8,
+        spreadRadius: -2,
+        offset: const Offset(0, -2),
+      ),
+    );
+
+    return shadows;
+  }
+
+  LinearGradient _buildCardGradient(
+    Client client,
+    bool isSelected, [
+    bool isTopInvestor = false,
+  ]) {
     if (isSelected) {
       return LinearGradient(
         begin: Alignment.topLeft,
@@ -319,6 +496,25 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
       );
     }
 
+    // 🚀 PREMIUM GRADIENT dla top inwestorów
+    if (isTopInvestor) {
+      return LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          AppThemePro.accentGold.withOpacity(
+            0.12 + (_premiumShimmerController.value * 0.08),
+          ),
+          AppThemePro.backgroundSecondary.withOpacity(0.98),
+          AppThemePro.backgroundPrimary,
+          AppThemePro.accentGold.withOpacity(
+            0.06 + (_premiumShimmerController.value * 0.04),
+          ),
+        ],
+        stops: const [0.0, 0.4, 0.8, 1.0],
+      );
+    }
+
     // Professional investment card gradient
     return LinearGradient(
       begin: Alignment.topLeft,
@@ -333,7 +529,27 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     );
   }
 
-  Widget _buildCardBackground() {
+  Color _getBorderColor(Client client, bool isSelected, bool isTopInvestor) {
+    if (isSelected) {
+      return AppThemePro.accentGold.withOpacity(0.8);
+    }
+
+    if (isTopInvestor) {
+      return AppThemePro.accentGold.withOpacity(
+        0.6 + (_premiumGlowController.value * 0.2),
+      );
+    }
+
+    return AppThemePro.borderSecondary.withOpacity(0.3);
+  }
+
+  double _getBorderWidth(Client client, bool isSelected, bool isTopInvestor) {
+    if (isSelected) return 2.5;
+    if (isTopInvestor) return 2.0 + (_premiumGlowController.value * 0.5);
+    return 1.2;
+  }
+
+  Widget _buildCardBackground([bool isTopInvestor = false]) {
     return Positioned.fill(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(19),
@@ -344,6 +560,10 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
               painter: ProfessionalClientCardPainter(
                 animation: _pulseController,
                 isSelected: widget.selectedClientIds.contains,
+                isTopInvestor: isTopInvestor,
+                premiumShimmer: isTopInvestor
+                    ? _premiumShimmerController
+                    : null,
               ),
             );
           },
@@ -352,20 +572,20 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     );
   }
 
-  Widget _buildCardContent(Client client) {
+  Widget _buildCardContent(Client client, [bool isTopInvestor = false]) {
     return LayoutBuilder(
       builder: (context, constraints) {
         // Responsywny padding - mniejszy na mobile
         final isMobile = constraints.maxWidth < 400;
         final padding = isMobile ? 12.0 : 20.0;
         final spacing = isMobile ? 12.0 : 16.0;
-        
+
         return Padding(
           padding: EdgeInsets.all(padding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildClientHeader(client, isMobile),
+              _buildClientHeader(client, isMobile, isTopInvestor),
               SizedBox(height: spacing),
               _buildClientDetails(client, isMobile),
               const Spacer(),
@@ -377,7 +597,47 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     );
   }
 
-  Widget _buildClientHeader(Client client, [bool isMobile = false]) {
+  Widget _buildPremiumCrownIndicator() {
+    return Positioned(
+      top: 8,
+      right: 8,
+      child: AnimatedBuilder(
+        animation: _premiumGlowController,
+        builder: (context, child) {
+          return Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                colors: [
+                  AppThemePro.accentGold.withOpacity(
+                    0.8 + (_premiumGlowController.value * 0.2),
+                  ),
+                  AppThemePro.accentGold.withOpacity(0.4),
+                  Colors.transparent,
+                ],
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppThemePro.accentGold.withOpacity(0.6),
+                  blurRadius: 8 + (_premiumGlowController.value * 4),
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Icon(Icons.star, color: Colors.white, size: 14),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildClientHeader(
+    Client client, [
+    bool isMobile = false,
+    bool isTopInvestor = false,
+  ]) {
     return Row(
       children: [
         _buildClientAvatar(client, isMobile),
@@ -881,10 +1141,14 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
 class ProfessionalClientCardPainter extends CustomPainter {
   final Animation<double> animation;
   final bool Function(String) isSelected;
+  final bool isTopInvestor;
+  final Animation<double>? premiumShimmer;
 
   ProfessionalClientCardPainter({
     required this.animation,
     required this.isSelected,
+    this.isTopInvestor = false,
+    this.premiumShimmer,
   });
 
   @override

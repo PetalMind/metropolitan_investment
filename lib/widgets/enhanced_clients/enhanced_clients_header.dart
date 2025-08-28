@@ -8,7 +8,7 @@ import '../../models_and_services.dart';
 /// - Responsywny design (tablet/mobile)
 /// - Płynne animacje i przejścia
 /// - Tryb selekcji z licznikiem
-/// - Przyciski: Refresh, Add Client, Email, Clear Cache
+/// - Przyciski: Add Client, Export, Email
 /// - Gradient background z efektami świetlnymi
 /// - RBAC support z tooltipami
 /// - Accessibility support
@@ -21,14 +21,12 @@ import '../../models_and_services.dart';
 ///   canEdit: Provider.of<AuthProvider>(context).isAdmin,
 ///   totalCount: clients.length,
 ///   isLoading: isLoadingData,
-///   isRefreshing: isRefreshingData,
 ///   isSelectionMode: currentSelectionMode,
 ///   selectedClientIds: selectedIds,
 ///   displayedClients: filteredClients,
-///   onRefresh: () => refreshData(),
 ///   onAddClient: () => showClientForm(),
 ///   onToggleEmail: () => toggleEmailMode(),
-///   onClearCache: () => clearCache(),
+///   onToggleExport: () => toggleExportMode(),
 ///   onSelectAll: () => selectAllClients(),
 ///   onClearSelection: () => clearSelection(),
 /// )
@@ -39,26 +37,18 @@ class EnhancedClientsHeader extends StatefulWidget {
   final bool canEdit;
   final int totalCount;
   final bool isLoading;
-  final bool isRefreshing;
 
   // === STATE PROPS ===
   final bool isSelectionMode;
   final bool isEmailMode;
-  final bool isExportMode; // 🚀 NOWY: Tryb eksportu
-  final bool isEditMode; // 🚀 NOWY: Tryb edycji
+  final bool isExportMode;
   final Set<String> selectedClientIds;
   final List<Client> displayedClients;
 
   // === CALLBACKS ===
-  final VoidCallback onRefresh;
   final VoidCallback onAddClient;
   final VoidCallback onToggleEmail;
-  final VoidCallback? onToggleExport; // 🚀 NOWY: Toggle eksportu
-  final VoidCallback? onToggleEdit; // 🚀 NOWY: Toggle edycji
-  final VoidCallback onEmailClients; // 🚀 NOWY: Wysyłanie email do wybranych klientów
-  final VoidCallback? onExportClients; // 🚀 NOWY: Eksport klientów
-  final VoidCallback? onEditClients; // 🚀 NOWY: Edycja klientów
-  final VoidCallback onClearCache;
+  final VoidCallback onToggleExport;
   final VoidCallback onSelectAll;
   final VoidCallback onClearSelection;
 
@@ -68,22 +58,14 @@ class EnhancedClientsHeader extends StatefulWidget {
     required this.canEdit,
     required this.totalCount,
     required this.isLoading,
-    required this.isRefreshing,
     required this.isSelectionMode,
     required this.isEmailMode,
     required this.isExportMode,
-    required this.isEditMode,
     required this.selectedClientIds,
     required this.displayedClients,
-    required this.onRefresh,
     required this.onAddClient,
     required this.onToggleEmail,
-    this.onToggleExport,
-    this.onToggleEdit,
-    required this.onEmailClients,
-    this.onExportClients,
-    this.onEditClients,
-    required this.onClearCache,
+    required this.onToggleExport,
     required this.onSelectAll,
     required this.onClearSelection,
   });
@@ -166,8 +148,7 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
     // Restart button animation when selection mode changes
     if (oldWidget.isSelectionMode != widget.isSelectionMode ||
         oldWidget.isEmailMode != widget.isEmailMode ||
-        oldWidget.isExportMode != widget.isExportMode ||
-        oldWidget.isEditMode != widget.isEditMode) {
+        oldWidget.isExportMode != widget.isExportMode) {
       _buttonsAnimationController.reset();
       _buttonsAnimationController.forward();
     }
@@ -183,30 +164,23 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
       ]),
       builder: (context, child) {
         return Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.isTablet ? 24 : 16,
+            vertical: 16,
+          ),
           decoration: _buildHeaderDecoration(),
           child: SafeArea(
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: widget.isTablet ? 24 : 16,
-                vertical: 16,
-              ),
-              child: Row(
-                children: [
-                  _buildAnimatedIcon(),
-                  const SizedBox(width: 16),
-                  Expanded(child: _buildTitleSection()),
-                  const SizedBox(width: 16),
-                  if (widget.isSelectionMode) ...[
-                    _buildSelectionControls(),
-                  ] else ...[
-                    _buildActionButtons(),
-                  ],
-                  if (!widget.isTablet) ...[
-                    const SizedBox(width: 8),
-                    _buildFilterButton(),
-                  ],
+            child: Row(
+              children: [
+                _buildAnimatedIcon(),
+                const SizedBox(width: 12),
+                Expanded(child: _buildTitleSection()),
+                if (widget.isSelectionMode) ...[
+                  _buildSelectionControls(),
+                ] else ...[
+                  _buildActionButtons(),
                 ],
-              ),
+              ],
             ),
           ),
         );
@@ -220,24 +194,25 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          AppThemePro.backgroundSecondary.withOpacity(0.95),
-          AppThemePro.backgroundPrimary.withOpacity(0.98),
+          AppThemePro.primaryDark,
+          AppThemePro.primaryMedium.withValues(alpha: 0.9),
           AppThemePro.backgroundPrimary,
         ],
       ),
       border: Border(
         bottom: BorderSide(
-          color: AppThemePro.accentGold.withOpacity(0.3),
+          color: AppThemePro.accentGold.withValues(
+            alpha: 0.3 * _glowPulseAnimation.value,
+          ),
           width: 1,
         ),
       ),
       boxShadow: [
         BoxShadow(
-          color: AppThemePro.accentGold.withOpacity(
-            0.1 * _glowPulseAnimation.value,
+          color: AppThemePro.accentGold.withValues(
+            alpha: 0.1 * _glowPulseAnimation.value,
           ),
-          blurRadius: 20,
-          spreadRadius: 2,
+          blurRadius: 12,
           offset: const Offset(0, 2),
         ),
       ],
@@ -250,21 +225,25 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
+          borderRadius: BorderRadius.circular(12),
           gradient: RadialGradient(
             colors: [
-              AppThemePro.accentGold.withOpacity(0.3),
-              AppThemePro.accentGold.withOpacity(0.1),
+              AppThemePro.accentGold.withValues(
+                alpha: 0.3 * _glowPulseAnimation.value,
+              ),
+              AppThemePro.accentGold.withValues(
+                alpha: 0.1 * _glowPulseAnimation.value,
+              ),
               Colors.transparent,
             ],
           ),
           boxShadow: [
             BoxShadow(
-              color: AppThemePro.accentGold.withOpacity(
-                0.3 * _glowPulseAnimation.value,
+              color: AppThemePro.accentGold.withValues(
+                alpha: 0.4 * _glowPulseAnimation.value,
               ),
               blurRadius: 12,
-              spreadRadius: 2,
+              spreadRadius: 1,
             ),
           ],
         ),
@@ -289,9 +268,12 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildAnimatedTitle(),
-            const SizedBox(height: 4),
-            _buildSubtitle(),
-            _buildStatusBadge(),
+            if (widget.totalCount > 0) ...[
+              const SizedBox(height: 4),
+              _buildSubtitle(),
+              const SizedBox(height: 4),
+              _buildStatusBadge(),
+            ],
           ],
         ),
       ),
@@ -307,7 +289,7 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
       shaderCallback: (bounds) => LinearGradient(
         colors: [
           AppThemePro.accentGold,
-          AppThemePro.accentGold.withOpacity(0.8),
+          AppThemePro.accentGoldMuted,
           AppThemePro.textPrimary,
         ],
       ).createShader(bounds),
@@ -316,11 +298,17 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
         child: Text(
           title,
           key: ValueKey(title),
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
             color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: widget.isTablet ? 24 : 20,
+            fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
+            shadows: [
+              Shadow(
+                color: AppThemePro.accentGold.withValues(alpha: 0.3),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
         ),
       ),
@@ -363,7 +351,7 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (widget.isLoading)
+          if (widget.isLoading) ...[
             SizedBox(
               width: 12,
               height: 12,
@@ -371,24 +359,32 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation(AppThemePro.statusWarning),
               ),
-            )
-          else
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Ładowanie...',
+              style: TextStyle(
+                color: AppThemePro.statusWarning,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ] else ...[
             Icon(
               Icons.check_circle_rounded,
               size: 12,
               color: AppThemePro.statusSuccess,
             ),
-          const SizedBox(width: 4),
-          Text(
-            widget.isLoading ? 'Ładowanie...' : 'Gotowe',
-            style: TextStyle(
-              fontSize: 10,
-              color: widget.isLoading
-                  ? AppThemePro.statusWarning
-                  : AppThemePro.statusSuccess,
-              fontWeight: FontWeight.w500,
+            const SizedBox(width: 4),
+            Text(
+              'Aktualny',
+              style: TextStyle(
+                color: AppThemePro.statusSuccess,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -400,14 +396,10 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildSelectionButton(),
-          if (widget.selectedClientIds.isNotEmpty) ...[
+          if (widget.displayedClients.isNotEmpty) ...[
+            _buildSelectionButton(),
             const SizedBox(width: 8),
-            if (widget.isEmailMode) _buildEmailButton(),
-            if (widget.isExportMode) _buildExportButton(),
-            if (widget.isEditMode) _buildEditButton(),
           ],
-          const SizedBox(width: 8),
         ],
       ),
     );
@@ -424,21 +416,25 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
         icon: AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
           child: Icon(
-            isAllSelected ? Icons.clear_all_rounded : Icons.select_all_rounded,
+            isAllSelected ? Icons.deselect : Icons.select_all,
             key: ValueKey(isAllSelected),
-            size: 16,
+            size: 20,
+            color: AppThemePro.accentGold,
           ),
         ),
         label: Text(
-          isAllSelected ? 'Odznacz' : 'Zaznacz wszystkich',
-          style: TextStyle(fontSize: widget.isTablet ? 14 : 12),
+          isAllSelected ? 'Usuń zaznaczenie' : 'Zaznacz wszystko',
+          style: TextStyle(
+            fontSize: widget.isTablet ? 12 : 10,
+            color: AppThemePro.accentGold,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         style: TextButton.styleFrom(
           foregroundColor: AppThemePro.accentGold,
-          backgroundColor: AppThemePro.accentGold.withOpacity(0.1),
           padding: EdgeInsets.symmetric(
-            horizontal: widget.isTablet ? 16 : 12,
-            vertical: 8,
+            horizontal: widget.isTablet ? 12 : 8,
+            vertical: 4,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -456,23 +452,13 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildRefreshButton(),
-                const SizedBox(width: 8),
                 if (widget.canEdit) ...[
                   _buildAddClientButton(),
                   const SizedBox(width: 8),
                 ],
-                _buildEmailToggleButton(),
+                _buildExportButton(),
                 const SizedBox(width: 8),
-                if (widget.onToggleExport != null) ...[
-                  _buildExportToggleButton(),
-                  const SizedBox(width: 8),
-                ],
-                if (widget.onToggleEdit != null) ...[
-                  _buildEditToggleButton(),
-                  const SizedBox(width: 8),
-                ],
-                _buildMoreOptionsButton(),
+                _buildEmailButton(),
               ],
             )
           : PopupMenuButton<String>(
@@ -483,50 +469,19 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
               tooltip: 'Więcej opcji',
               onSelected: (value) {
                 switch (value) {
-                  case 'refresh':
-                    if (!widget.isLoading) widget.onRefresh();
-                    break;
                   case 'add_client':
                     if (widget.canEdit) widget.onAddClient();
+                    break;
+                  case 'export':
+                    if (widget.canEdit) widget.onToggleExport();
                     break;
                   case 'email':
                     if (widget.canEdit) widget.onToggleEmail();
                     break;
-                  case 'export':
-                    if (widget.canEdit && widget.onToggleExport != null) widget.onToggleExport!();
-                    break;
-                  case 'edit':
-                    if (widget.canEdit && widget.onToggleEdit != null) widget.onToggleEdit!();
-                    break;
-                  case 'clear_cache':
-                    widget.onClearCache();
-                    break;
                 }
               },
               itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'refresh',
-                  enabled: !widget.isLoading,
-                  child: Row(
-                    children: [
-                      widget.isRefreshing
-                          ? SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(
-                                  AppThemePro.accentGold,
-                                ),
-                              ),
-                            )
-                          : Icon(Icons.refresh_rounded, size: 16),
-                      const SizedBox(width: 8),
-                      Text('Odśwież'),
-                    ],
-                  ),
-                ),
-                if (widget.canEdit) ...[
+                if (widget.canEdit)
                   PopupMenuItem(
                     value: 'add_client',
                     child: Row(
@@ -537,76 +492,45 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                       ],
                     ),
                   ),
-                  PopupMenuItem(
-                    value: 'email',
-                    child: Row(
-                      children: [
-                        Icon(
-                          widget.isEmailMode
-                              ? Icons.close_rounded
-                              : Icons.email_rounded,
-                          size: 16,
-                          color: widget.isEmailMode
-                              ? AppThemePro.statusError
-                              : null,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          widget.isEmailMode ? 'Zakończ email' : 'Wyślij email',
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (widget.onToggleExport != null)
-                    PopupMenuItem(
-                      value: 'export',
-                      child: Row(
-                        children: [
-                          Icon(
-                            widget.isExportMode
-                                ? Icons.close_rounded
-                                : Icons.download_rounded,
-                            size: 16,
-                            color: widget.isExportMode
-                                ? AppThemePro.statusError
-                                : null,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            widget.isExportMode ? 'Zakończ eksport' : 'Eksportuj dane',
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (widget.onToggleEdit != null)
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(
-                            widget.isEditMode
-                                ? Icons.close_rounded
-                                : Icons.edit_rounded,
-                            size: 16,
-                            color: widget.isEditMode
-                                ? AppThemePro.statusError
-                                : AppThemePro.statusWarning,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            widget.isEditMode ? 'Zakończ edycję' : 'Tryb edycji',
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
                 PopupMenuItem(
-                  value: 'clear_cache',
+                  value: 'export',
+                  enabled: widget.canEdit,
                   child: Row(
                     children: [
-                      Icon(Icons.clear_all_rounded, size: 16),
+                      Icon(
+                        widget.isExportMode
+                            ? Icons.close_rounded
+                            : Icons.download_rounded,
+                        size: 16,
+                        color: widget.isExportMode
+                            ? AppThemePro.statusError
+                            : null,
+                      ),
                       const SizedBox(width: 8),
-                      Text('Wyczyść cache'),
+                      Text(
+                        widget.isExportMode ? 'Zakończ eksport' : 'Eksportuj',
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'email',
+                  enabled: widget.canEdit,
+                  child: Row(
+                    children: [
+                      Icon(
+                        widget.isEmailMode
+                            ? Icons.close_rounded
+                            : Icons.email_rounded,
+                        size: 16,
+                        color: widget.isEmailMode
+                            ? AppThemePro.statusError
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        widget.isEmailMode ? 'Zakończ email' : 'Wyślij email',
+                      ),
                     ],
                   ),
                 ),
@@ -615,290 +539,37 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
     );
   }
 
-  Widget _buildRefreshButton() {
-    return Tooltip(
-      message: 'Odśwież dane',
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: widget.isRefreshing
-              ? AppThemePro.accentGold.withOpacity(0.2)
-              : Colors.transparent,
-        ),
-        child: IconButton(
-          onPressed: widget.isLoading ? null : widget.onRefresh,
-          icon: widget.isRefreshing
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(AppThemePro.accentGold),
-                  ),
-                )
-              : Icon(
-                  Icons.refresh_rounded,
-                  color: widget.isLoading
-                      ? AppThemePro.textTertiary
-                      : AppThemePro.textSecondary,
-                ),
-          tooltip: 'Odśwież dane',
-          style: IconButton.styleFrom(
-            backgroundColor: widget.isRefreshing
-                ? AppThemePro.accentGold.withOpacity(0.1)
-                : Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildAddClientButton() {
     return Tooltip(
       message: 'Dodaj nowego klienta',
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
-        child: IconButton(
-          onPressed: widget.onAddClient,
-          icon: Icon(Icons.person_add_rounded, color: AppThemePro.accentGold),
-          style: IconButton.styleFrom(
-            backgroundColor: AppThemePro.accentGold.withOpacity(0.1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: AppThemePro.accentGold.withOpacity(0.3)),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmailButton() {
-    const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
-
-    return Tooltip(
-      message: widget.canEdit
-          ? (widget.isEmailMode ? 'Zakończ wysyłanie' : 'Wyślij emaile')
-          : kRbacNoPermissionTooltip,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
-        child: IconButton(
-          onPressed: widget.canEdit ? widget.onEmailClients : null,
-          icon: Icon(
-            Icons.email_rounded,
-            color: widget.canEdit
-                ? AppThemePro.accentGold
-                : AppThemePro.textTertiary,
-          ),
-          style: IconButton.styleFrom(
-            backgroundColor: AppThemePro.accentGold.withOpacity(0.1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: AppThemePro.accentGold.withOpacity(0.3)),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMoreOptionsButton() {
-    return PopupMenuButton<String>(
-      icon: Icon(Icons.more_horiz_rounded, color: AppThemePro.textSecondary),
-      tooltip: 'Więcej opcji',
-      onSelected: (value) {
-        switch (value) {
-          case 'email':
-            if (widget.canEdit) widget.onToggleEmail();
-            break;
-          case 'export':
-            if (widget.canEdit && widget.onToggleExport != null) widget.onToggleExport!();
-            break;
-          case 'edit':
-            if (widget.canEdit && widget.onToggleEdit != null) widget.onToggleEdit!();
-            break;
-          case 'clear_cache':
-            widget.onClearCache();
-            break;
-        }
-      },
-      itemBuilder: (context) => [
-        if (widget.canEdit) ...[
-          PopupMenuItem(
-            value: 'email',
-            child: Row(
-              children: [
-                Icon(
-                  widget.isEmailMode
-                      ? Icons.close_rounded
-                      : Icons.email_rounded,
-                  size: 16,
-                  color: widget.isEmailMode ? AppThemePro.statusError : null,
-                ),
-                const SizedBox(width: 8),
-                Text(widget.isEmailMode ? 'Zakończ email' : 'Wyślij email'),
-              ],
-            ),
-          ),
-          if (widget.onToggleExport != null)
-            PopupMenuItem(
-              value: 'export',
-              child: Row(
-                children: [
-                  Icon(
-                    widget.isExportMode
-                        ? Icons.close_rounded
-                        : Icons.download_rounded,
-                    size: 16,
-                    color: widget.isExportMode ? AppThemePro.statusError : null,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(widget.isExportMode ? 'Zakończ eksport' : 'Eksportuj dane'),
-                ],
-              ),
-            ),
-          if (widget.onToggleEdit != null)
-            PopupMenuItem(
-              value: 'edit',
-              child: Row(
-                children: [
-                  Icon(
-                    widget.isEditMode
-                        ? Icons.close_rounded
-                        : Icons.edit_rounded,
-                    size: 16,
-                    color: widget.isEditMode ? AppThemePro.statusError : AppThemePro.statusWarning,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(widget.isEditMode ? 'Zakończ edycję' : 'Tryb edycji'),
-                ],
-              ),
-            ),
-        ],
-        PopupMenuItem(
-          value: 'clear_cache',
-          child: Row(
-            children: [
-              Icon(Icons.clear_all_rounded, size: 16),
-              const SizedBox(width: 8),
-              Text('Wyczyść cache'),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [
+              AppThemePro.accentGold.withOpacity(0.1),
+              AppThemePro.accentGold.withOpacity(0.05),
             ],
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmailToggleButton() {
-    const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
-
-    return Tooltip(
-      message: widget.canEdit
-          ? (widget.isEmailMode ? 'Zakończ wysyłanie' : 'Tryb email')
-          : kRbacNoPermissionTooltip,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
-        child: IconButton(
-          onPressed: widget.canEdit ? widget.onToggleEmail : null,
-          icon: Icon(
-            widget.isEmailMode ? Icons.close_rounded : Icons.email_rounded,
-            color: widget.canEdit
-                ? (widget.isEmailMode ? AppThemePro.statusError : AppThemePro.accentGold)
-                : AppThemePro.textTertiary,
+          border: Border.all(
+            color: AppThemePro.accentGold.withOpacity(0.3),
+            width: 1,
           ),
-          style: IconButton.styleFrom(
-            backgroundColor: widget.isEmailMode 
-                ? AppThemePro.statusError.withOpacity(0.1)
-                : AppThemePro.accentGold.withOpacity(0.1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(
-                color: widget.isEmailMode 
-                    ? AppThemePro.statusError.withOpacity(0.3)
-                    : AppThemePro.accentGold.withOpacity(0.3),
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: AppThemePro.accentGold.withOpacity(0.1),
+              blurRadius: 6,
+              spreadRadius: 0.5,
             ),
-          ),
+          ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildExportToggleButton() {
-    const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
-
-    return Tooltip(
-      message: widget.canEdit
-          ? (widget.isExportMode ? 'Zakończ eksport' : 'Tryb eksportu')
-          : kRbacNoPermissionTooltip,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
         child: IconButton(
-          onPressed: widget.canEdit && widget.onToggleExport != null 
-              ? widget.onToggleExport! : null,
+          onPressed: widget.onAddClient,
           icon: Icon(
-            widget.isExportMode ? Icons.close_rounded : Icons.download_rounded,
-            color: widget.canEdit
-                ? (widget.isExportMode ? AppThemePro.statusError : AppThemePro.statusInfo)
-                : AppThemePro.textTertiary,
-          ),
-          style: IconButton.styleFrom(
-            backgroundColor: widget.isExportMode 
-                ? AppThemePro.statusError.withOpacity(0.1)
-                : AppThemePro.statusInfo.withOpacity(0.1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(
-                color: widget.isExportMode 
-                    ? AppThemePro.statusError.withOpacity(0.3)
-                    : AppThemePro.statusInfo.withOpacity(0.3),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEditToggleButton() {
-    const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
-
-    return Tooltip(
-      message: widget.canEdit
-          ? (widget.isEditMode ? 'Zakończ edycję' : 'Tryb edycji')
-          : kRbacNoPermissionTooltip,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
-        child: IconButton(
-          onPressed: widget.canEdit && widget.onToggleEdit != null 
-              ? widget.onToggleEdit! : null,
-          icon: Icon(
-            widget.isEditMode ? Icons.close_rounded : Icons.edit_rounded,
-            color: widget.canEdit
-                ? (widget.isEditMode ? AppThemePro.statusError : AppThemePro.statusWarning)
-                : AppThemePro.textTertiary,
-          ),
-          style: IconButton.styleFrom(
-            backgroundColor: widget.isEditMode 
-                ? AppThemePro.statusError.withOpacity(0.1)
-                : AppThemePro.statusWarning.withOpacity(0.1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(
-                color: widget.isEditMode 
-                    ? AppThemePro.statusError.withOpacity(0.3)
-                    : AppThemePro.statusWarning.withOpacity(0.3),
-              ),
-            ),
+            Icons.person_add_rounded,
+            color: AppThemePro.accentGold,
+            size: 20,
           ),
         ),
       ),
@@ -910,79 +581,201 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
 
     return Tooltip(
       message: widget.canEdit
-          ? 'Eksportuj wybranych klientów'
+          ? (widget.isExportMode ? 'Zakończ eksport' : 'Eksportuj wybrane dane')
           : kRbacNoPermissionTooltip,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
-        child: IconButton(
-          onPressed: widget.canEdit && widget.onExportClients != null 
-              ? widget.onExportClients! : null,
-          icon: Icon(
-            Icons.download_rounded,
-            color: widget.canEdit
-                ? AppThemePro.statusInfo
-                : AppThemePro.textTertiary,
-          ),
-          style: IconButton.styleFrom(
-            backgroundColor: AppThemePro.statusInfo.withOpacity(0.1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: AppThemePro.statusInfo.withOpacity(0.3)),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: widget.isExportMode
+              ? LinearGradient(
+                  colors: [
+                    AppThemePro.statusError.withOpacity(0.15),
+                    AppThemePro.statusError.withOpacity(0.05),
+                  ],
+                )
+              : (widget.canEdit
+                    ? LinearGradient(
+                        colors: [
+                          AppThemePro.accentGold.withOpacity(0.1),
+                          AppThemePro.accentGold.withOpacity(0.05),
+                        ],
+                      )
+                    : null),
+          border: widget.isExportMode
+              ? Border.all(
+                  color: AppThemePro.statusError.withOpacity(0.4),
+                  width: 1.5,
+                )
+              : (widget.canEdit
+                    ? Border.all(
+                        color: AppThemePro.accentGold.withOpacity(0.3),
+                        width: 1,
+                      )
+                    : Border.all(
+                        color: Colors.grey.withOpacity(0.2),
+                        width: 1,
+                      )),
+          boxShadow: widget.isExportMode
+              ? [
+                  BoxShadow(
+                    color: AppThemePro.statusError.withOpacity(0.2),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : (widget.canEdit
+                    ? [
+                        BoxShadow(
+                          color: AppThemePro.accentGold.withOpacity(0.1),
+                          blurRadius: 6,
+                          spreadRadius: 0.5,
+                        ),
+                      ]
+                    : null),
+        ),
+        child: Stack(
+          children: [
+            IconButton(
+              onPressed: !widget.canEdit ? null : widget.onToggleExport,
+              icon: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Icon(
+                  widget.isExportMode
+                      ? Icons.close_rounded
+                      : Icons.download_rounded,
+                  key: ValueKey(widget.isExportMode),
+                  color: widget.isExportMode
+                      ? AppThemePro.statusError
+                      : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
+                  size: 20,
+                ),
+              ),
             ),
-          ),
+            if (widget.isExportMode)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: AppThemePro.statusError,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppThemePro.statusError.withOpacity(0.5),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildEditButton() {
+  Widget _buildEmailButton() {
     const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
 
     return Tooltip(
       message: widget.canEdit
-          ? (widget.isEditMode ? 'Zakończ edycję' : 'Edytuj wybranych')
+          ? (widget.isEmailMode
+                ? 'Zakończ wysyłanie email'
+                : 'Wyślij email do wybranych')
           : kRbacNoPermissionTooltip,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
-        child: IconButton(
-          onPressed: widget.canEdit && widget.onEditClients != null 
-              ? widget.onEditClients! : null,
-          icon: Icon(
-            Icons.edit_rounded,
-            color: widget.canEdit
-                ? AppThemePro.statusWarning
-                : AppThemePro.textTertiary,
-          ),
-          style: IconButton.styleFrom(
-            backgroundColor: widget.canEdit
-                ? AppThemePro.statusWarning.withOpacity(0.1)
-                : Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(
-                color: widget.canEdit
-                    ? AppThemePro.statusWarning.withOpacity(0.3)
-                    : AppThemePro.textTertiary.withOpacity(0.2),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: widget.isEmailMode
+              ? LinearGradient(
+                  colors: [
+                    AppThemePro.statusError.withOpacity(0.15),
+                    AppThemePro.statusError.withOpacity(0.05),
+                  ],
+                )
+              : (widget.canEdit
+                    ? LinearGradient(
+                        colors: [
+                          AppThemePro.accentGold.withOpacity(0.1),
+                          AppThemePro.accentGold.withOpacity(0.05),
+                        ],
+                      )
+                    : null),
+          border: widget.isEmailMode
+              ? Border.all(
+                  color: AppThemePro.statusError.withOpacity(0.4),
+                  width: 1.5,
+                )
+              : (widget.canEdit
+                    ? Border.all(
+                        color: AppThemePro.accentGold.withOpacity(0.3),
+                        width: 1,
+                      )
+                    : Border.all(
+                        color: Colors.grey.withOpacity(0.2),
+                        width: 1,
+                      )),
+          boxShadow: widget.isEmailMode
+              ? [
+                  BoxShadow(
+                    color: AppThemePro.statusError.withOpacity(0.2),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : (widget.canEdit
+                    ? [
+                        BoxShadow(
+                          color: AppThemePro.accentGold.withOpacity(0.1),
+                          blurRadius: 6,
+                          spreadRadius: 0.5,
+                        ),
+                      ]
+                    : null),
+        ),
+        child: Stack(
+          children: [
+            IconButton(
+              onPressed: !widget.canEdit ? null : widget.onToggleEmail,
+              icon: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Icon(
+                  widget.isEmailMode
+                      ? Icons.close_rounded
+                      : Icons.email_rounded,
+                  key: ValueKey(widget.isEmailMode),
+                  color: widget.isEmailMode
+                      ? AppThemePro.statusError
+                      : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
+                  size: 20,
+                ),
               ),
             ),
-          ),
+            if (widget.isEmailMode)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: AppThemePro.statusError,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppThemePro.statusError.withOpacity(0.5),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildFilterButton() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
-      child: IconButton(
-        onPressed: () {
-          // Placeholder for filter functionality
-        },
-        icon: Icon(Icons.filter_list_rounded, color: AppThemePro.textSecondary),
-        tooltip: 'Filtry',
       ),
     );
   }

@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_theme_professional.dart';
 import '../widgets/enhanced_clients/collapsible_search_header_fixed.dart'
     as CollapsibleHeader;
 import '../widgets/enhanced_clients/spectacular_clients_grid.dart';
+import '../widgets/enhanced_clients/simple_clients_grid.dart';
 import '../widgets/enhanced_clients/enhanced_clients_header.dart';
 
 /// 🎨 SPEKTAKULARNY EKRAN KLIENTÓW Z EFEKTEM WOW
@@ -45,6 +47,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   // Controllers
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  // Debounce timer for search
+  Timer? _searchDebounce;
 
   // Animation Controllers
   late AnimationController _headerController;
@@ -73,8 +77,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   // Multi-selection
   bool _isSelectionMode = false;
   bool _isEmailMode = false; // 🚀 NOWY: Tryb email
-  bool _isExportMode = false; // 🚀 NOWY: Tryb eksportu (podobnie jak w premium analytics)
-  bool _isEditMode = false; // 🚀 NOWY: Tryb edycji
+  bool _isExportMode =
+      false; // 🚀 NOWY: Tryb eksportu (podobnie jak w premium analytics)
   Set<String> _selectedClientIds = <String>{};
 
   // Header collapse state
@@ -125,12 +129,28 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
   @override
   void dispose() {
+    // cancel debounce timer if active
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
     _headerController.dispose();
     _gridController.dispose();
     _selectionController.dispose();
     super.dispose();
+  }
+
+  /// Handler for search controller changes with debounce
+  void _onSearchChanged() {
+    // update local query immediately for UI responsiveness
+    _currentSearchQuery = _searchController.text;
+
+    // debounce server searches
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) {
+        _performSearch();
+      }
+    });
   }
 
   void _initializeAnimations() {
@@ -627,16 +647,10 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   /// Zastosuj obecne filtry do listy klientów
   void _applyCurrentFilters() {
     // Filtrowanie zostanie zastosowane przez getter _displayedClients
-    setState(() {});
-  }
-
-  /// Obsługa zmiany wyszukiwania z debouncing
-  Timer? _searchTimer;
-  void _onSearchChanged() {
-    _searchTimer?.cancel();
-    _searchTimer = Timer(const Duration(milliseconds: 1000), () {
-      _performSearch();
-    });
+    // Uwaga: nie zmieniamy trybów tutaj — tylko wymuszamy re-render aby filtry się zastosowały
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   // 🚀 NOWE: Funkcje obsługi email i eksportu (wzorowane na premium_investor_analytics_screen)
@@ -646,7 +660,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       if (_isEmailMode) {
         _isSelectionMode = true;
         _isExportMode = false; // Wyłącz tryb eksportu
-        _isEditMode = false; // Wyłącz tryb edycji
         _selectedClientIds.clear();
       } else {
         _isSelectionMode = false;
@@ -662,11 +675,11 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             '📧 Tryb email aktywny - wybierz odbiorców wiadomości',
             style: TextStyle(color: Colors.white),
           ),
-          backgroundColor: AppTheme.secondaryGold,
+          backgroundColor: AppThemePro.accentGold,
           duration: const Duration(seconds: 3),
           action: SnackBarAction(
             label: 'Anuluj',
-            textColor: AppTheme.backgroundPrimary,
+            textColor: AppThemePro.backgroundPrimary,
             onPressed: _toggleEmailMode,
           ),
         ),
@@ -680,14 +693,14 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       if (_isExportMode) {
         _isSelectionMode = true;
         _isEmailMode = false; // Wyłącz tryb email
-        _isEditMode = false; // Wyłącz tryb edycji
+        // edit mode removed
         _selectedClientIds.clear();
       } else {
         _isSelectionMode = false;
         _selectedClientIds.clear();
       }
     });
-
+    // edit mode removed
     if (_isExportMode) {
       HapticFeedback.mediumImpact();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -696,7 +709,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             '📊 Tryb eksportu aktywny - wybierz klientów do wyeksportowania',
             style: TextStyle(color: Colors.white),
           ),
-          backgroundColor: AppTheme.infoColor,
+          backgroundColor: AppThemePro.statusInfo,
           duration: const Duration(seconds: 3),
           action: SnackBarAction(
             label: 'Anuluj',
@@ -708,39 +721,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     }
   }
 
-  void _toggleEditMode() {
-    setState(() {
-      _isEditMode = !_isEditMode;
-      if (_isEditMode) {
-        _isSelectionMode = true;
-        _isEmailMode = false; // Wyłącz tryb email
-        _isExportMode = false; // Wyłącz tryb eksportu
-        _selectedClientIds.clear();
-      } else {
-        _isSelectionMode = false;
-        _selectedClientIds.clear();
-      }
-    });
-
-    if (_isEditMode) {
-      HapticFeedback.mediumImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            '✏️ Tryb edycji aktywny - wybierz klientów do edycji',
-            style: TextStyle(color: Colors.white),
-          ),
-          backgroundColor: AppTheme.warningColor,
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'Anuluj',
-            textColor: Colors.white,
-            onPressed: _toggleEditMode,
-          ),
-        ),
-      );
-    }
-  }
 
   void _enterSelectionMode() {
     setState(() {
@@ -908,7 +888,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: AppTheme.successColor,
+        backgroundColor: AppThemePro.statusSuccess,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -918,7 +898,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: AppTheme.errorColor,
+        backgroundColor: AppThemePro.statusError,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -961,25 +941,28 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard,
+        color: AppThemePro.surfaceCard,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.secondaryGold.withOpacity(0.2)),
+        border: Border.all(color: AppThemePro.accentGold.withOpacity(0.2)),
       ),
       child: Column(
         children: [
-          Icon(icon, color: AppTheme.secondaryGold, size: 20),
+          Icon(icon, color: AppThemePro.accentGold, size: 20),
           const SizedBox(height: 4),
           Text(
             value,
             style: const TextStyle(
-              color: AppTheme.textPrimary,
+              color: AppThemePro.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
           ),
           Text(
             title,
-            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+            style: const TextStyle(
+              color: AppThemePro.textSecondary,
+              fontSize: 12,
+            ),
           ),
         ],
       ),
@@ -1062,7 +1045,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('✅ Emaile zostały wysłane do ${clientsWithEmail.length} odbiorców'),
-                backgroundColor: AppTheme.successColor,
+                backgroundColor: AppThemePro.statusSuccess,
               ),
             );
           },
@@ -1090,66 +1073,20 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       _showClientForm(_selectedClients.first);
     } else {
       // Edycja grupowa - pokaż dialog z opcjami
-      _showBatchEditDialog();
+      // Group edit (batch edit) removed — feature simplified to only Email & Export
     }
   }
 
-  /// Pokazuje dialog edycji grupowej
-  void _showBatchEditDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surfaceCard,
-        title: Row(
-          children: [
-            const Icon(Icons.edit_note, color: AppTheme.secondaryGold),
-            const SizedBox(width: 8),
-            Text(
-              'Edycja grupowa (${_selectedClients.length} klientów)',
-              style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.person_outline, color: AppTheme.secondaryGold),
-              title: const Text('Edytuj każdego osobno', style: TextStyle(color: AppTheme.textPrimary)),
-              subtitle: const Text('Otwórz formularz dla każdego klienta', style: TextStyle(color: AppTheme.textSecondary)),
-              onTap: () {
-                Navigator.of(context).pop();
-                _editClientsIndividually();
-              },
-            ),
-            const Divider(color: AppTheme.secondaryGold),
-            ListTile(
-              leading: const Icon(Icons.group_work_outlined, color: AppTheme.infoColor),
-              title: const Text('Edycja wsadowa', style: TextStyle(color: AppTheme.textPrimary)),
-              subtitle: const Text('Zmień wspólne właściwości', style: TextStyle(color: AppTheme.textSecondary)),
-              onTap: () {
-                Navigator.of(context).pop();
-                _showBatchEditForm();
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Anuluj', style: TextStyle(color: AppTheme.textSecondary)),
-          ),
-        ],
-      ),
-    );
-  }
+  // Batch edit removed per UX decision: only Email & Export modes remain.
 
   /// Edytuje klientów pojedynczo
   void _editClientsIndividually() {
-    for (final client in _selectedClients) {
-      _showClientForm(client);
+    if (_selectedClients.isNotEmpty) {
+      for (final client in _selectedClients) {
+        _showClientForm(client);
+      }
+      // Edit mode removed - no toggle
     }
-    _toggleEditMode(); // Wyłącz tryb edycji po zakończeniu
   }
 
   /// Pokazuje formularz edycji wsadowej
@@ -1228,8 +1165,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppTheme.infoColor.withOpacity(0.8),
-            AppTheme.infoColor.withOpacity(0.6),
+            AppThemePro.statusInfo.withOpacity(0.8),
+            AppThemePro.statusInfo.withOpacity(0.6),
           ],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
@@ -1237,7 +1174,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.infoColor.withOpacity(0.3),
+            color: AppThemePro.statusInfo.withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1308,93 +1245,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     );
   }
 
-  /// Banner dla trybu edycji
-  Widget _buildEditModeBanner() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.warningColor.withOpacity(0.8),
-            AppTheme.warningColor.withOpacity(0.6),
-          ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.warningColor.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.edit,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '✏️ Tryb edycji aktywny',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  _selectedClientIds.isEmpty
-                      ? 'Wybierz klientów do edycji'
-                      : '${_selectedClientIds.length} klientów wybranych',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (_selectedClientIds.isNotEmpty)
-            TextButton.icon(
-              onPressed: () => _editSelectedClients(),
-              icon: const Icon(Icons.edit, color: Colors.white, size: 18),
-              label: const Text(
-                'Edytuj',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white.withOpacity(0.2),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: _toggleEditMode,
-            icon: const Icon(Icons.close, color: Colors.white),
-            tooltip: 'Zamknij tryb edycji',
-          ),
-        ],
-      ),
-    );
-  }
+  // Edit mode banner removed.
 
   /// Banner dla trybu email (wzorowane na premium analytics)
   Widget _buildEmailModeBanner() {
@@ -1404,8 +1255,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppTheme.secondaryGold.withOpacity(0.8),
-            AppTheme.secondaryGold.withOpacity(0.6),
+            AppThemePro.accentGold.withOpacity(0.8),
+            AppThemePro.accentGold.withOpacity(0.6),
           ],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
@@ -1413,7 +1264,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.secondaryGold.withOpacity(0.3),
+            color: AppThemePro.accentGold.withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1488,12 +1339,12 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: AppTheme.backgroundPrimary,
+        backgroundColor: AppThemePro.backgroundPrimary,
         body: const Center(child: PremiumShimmerLoadingWidget.fullScreen()),
       );
     }
     return Scaffold(
-      backgroundColor: AppTheme.backgroundPrimary,
+      backgroundColor: AppThemePro.backgroundPrimary,
       body: Column(
         children: [
           // 🚀 NOWY: Enhanced responsywny header z animacjami (wzorowany na premium analytics)
@@ -1502,22 +1353,14 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             canEdit: canEdit,
             totalCount: _allClients.length,
             isLoading: _isLoading,
-            isRefreshing: _isLoading, // używamy tego samego stanu
             isSelectionMode: _isSelectionMode,
             isEmailMode: _isEmailMode,
-            isExportMode: _isExportMode, // 🚀 NOWY: Tryb eksportu
-            isEditMode: _isEditMode, // 🚀 NOWY: Tryb edycji
+            isExportMode: _isExportMode,
             selectedClientIds: _selectedClientIds,
             displayedClients: _displayedClients,
-            onRefresh: _refreshData,
             onAddClient: () => _showClientForm(),
             onToggleEmail: _toggleEmailMode,
-            onToggleExport: _toggleExportMode, // 🚀 NOWY: Toggle eksportu
-            onToggleEdit: _toggleEditMode, // 🚀 NOWY: Toggle edycji
-            onEmailClients: _sendEmailToSelectedClients, // 🚀 NOWY: Wysyłanie emaili
-            onExportClients: _exportSelectedClients, // 🚀 NOWY: Eksport klientów
-            onEditClients: _editSelectedClients, // 🚀 NOWY: Edycja klientów
-            onClearCache: _clearCache,
+            onToggleExport: _toggleExportMode,
             onSelectAll: _selectAllClients,
             onClearSelection: _clearSelection,
           ),
@@ -1529,7 +1372,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           if (_isEmailMode) _buildEmailModeBanner(),
           
           // 🚀 NOWY: Edit Mode Banner
-          if (_isEditMode) _buildEditModeBanner(),
+          // edit mode removed
 
           // 🎨 LEGACY COLLAPSIBLE SEARCH HEADER - TYLKO DLA WYSZUKIWANIA I FILTRÓW
           CollapsibleHeader.CollapsibleSearchHeader(
@@ -1609,20 +1452,22 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 80, color: AppTheme.errorColor),
+          Icon(Icons.error_outline, size: 80, color: AppThemePro.statusError),
           const SizedBox(height: 16),
           Text(
             'Wystąpił błąd',
             style: Theme.of(
               context,
-            ).textTheme.headlineMedium?.copyWith(color: AppTheme.textSecondary),
+            ).textTheme.headlineMedium?.copyWith(
+              color: AppThemePro.textSecondary,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             _errorMessage,
             style: Theme.of(
               context,
-            ).textTheme.bodyLarge?.copyWith(color: AppTheme.textTertiary),
+            ).textTheme.bodyLarge?.copyWith(color: AppThemePro.textTertiary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -1631,8 +1476,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             icon: const Icon(Icons.refresh),
             label: const Text('Spróbuj ponownie'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: AppTheme.textOnPrimary,
+              backgroundColor: AppThemePro.accentGold,
+              foregroundColor: AppThemePro.textPrimary,
             ),
           ),
         ],
@@ -1645,13 +1490,15 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.people_outline, size: 80, color: AppTheme.textTertiary),
+          Icon(Icons.people_outline, size: 80, color: AppThemePro.textTertiary),
           const SizedBox(height: 16),
           Text(
             'Brak klientów',
             style: Theme.of(
               context,
-            ).textTheme.headlineMedium?.copyWith(color: AppTheme.textSecondary),
+            ).textTheme.headlineMedium?.copyWith(
+              color: AppThemePro.textSecondary,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -1660,7 +1507,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
                 : 'Dodaj pierwszego klienta, aby rozpocząć',
             style: Theme.of(
               context,
-            ).textTheme.bodyLarge?.copyWith(color: AppTheme.textTertiary),
+            ).textTheme.bodyLarge?.copyWith(color: AppThemePro.textTertiary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -1670,8 +1517,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
               icon: const Icon(Icons.add),
               label: const Text('Dodaj Klienta'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.secondaryGold,
-                foregroundColor: AppTheme.textOnSecondary,
+                backgroundColor: AppThemePro.accentGold,
+                foregroundColor: AppThemePro.textPrimary,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 16,
@@ -1715,15 +1562,13 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       });
       
       print('✅ [InvestmentData] Zaktualizowano dane inwestycji dla ${summariesMap.length} klientów');
+      print(
+        '🎯 [InvestmentData] Dane inwestycji przekazane do SpectacularClientsGrid - premium animacje powinny działać!',
+      );
     } catch (e) {
       print('⚠️ [InvestmentData] Błąd ładowania danych inwestycji: $e');
       // Nie przerywamy ładowania - klienci mogą być wyświetleni bez danych inwestycji
     }
-  }
-
-  /// 🚀 HELPER: Sprawdź ile wybranych klientów ma dane inwestycji
-  int get _selectedClientsWithInvestmentData {
-    return _selectedClients.where((client) => _investorSummaries.containsKey(client.id)).length;
   }
 
   /// Fallback method - ładowanie przez produkty (stara metoda)

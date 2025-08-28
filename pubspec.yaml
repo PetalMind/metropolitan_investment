@@ -135,8 +135,5 @@ flutter:
 
   # Assets
   assets:
-    - assets/images/
-    - assets/icons/
-    - assets/animations/
+    - assets/fonts/
     - assets/logos/
-    - assets/sounds/
