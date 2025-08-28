@@ -37,6 +37,10 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       OptimizedProductService(); // 🚀 GŁÓWNY SERWIS jak w Premium Analytics
   final EnhancedClientService _enhancedClientService =
       EnhancedClientService(); // 🚀 NOWY: Server-side optimized service
+  final InvestorAnalyticsService _investorAnalyticsService =
+      InvestorAnalyticsService(); // 🚀 NOWY: Pobieranie danych inwestycji
+  final InvestmentService _investmentService =
+      InvestmentService(); // 🚀 NOWY: Pobieranie inwestycji per klient
 
   // Controllers
   final TextEditingController _searchController = TextEditingController();
@@ -51,6 +55,10 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   List<Client> _allClients = [];
   List<Client> _activeClients = [];
   ClientStats? _clientStats;
+  
+  // 🚀 NOWE: Dane inwestycji i kapitału
+  Map<String, InvestorSummary> _investorSummaries = {}; // clientId -> InvestorSummary
+  Map<String, List<Investment>> _clientInvestments = {}; // clientId -> List<Investment>
 
   // State
   bool _isLoading = true;
@@ -66,6 +74,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   bool _isSelectionMode = false;
   bool _isEmailMode = false; // 🚀 NOWY: Tryb email
   bool _isExportMode = false; // 🚀 NOWY: Tryb eksportu (podobnie jak w premium analytics)
+  bool _isEditMode = false; // 🚀 NOWY: Tryb edycji
   Set<String> _selectedClientIds = <String>{};
 
   // Header collapse state
@@ -238,6 +247,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             '    - ${optimizedResult.statistics?.totalRemainingCapital.toStringAsFixed(2) ?? '0'} PLN kapitału',
           );
           print('    - Źródło: EnhancedClientService+OptimizedProductService');
+
+          // 🚀 NOWE: Pobierz dane inwestycji i kapitału
+          await _loadInvestmentData();
         } catch (productError) {
           print('⚠️ [KROK 2] OptimizedProductService failed: $productError');
 
@@ -258,6 +270,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           print(
             '    - ${enhancedResult.statistics?.activeClients ?? 0} aktywnych',
           );
+
+          // 🚀 NOWE: Pobierz dane inwestycji i kapitału
+          await _loadInvestmentData();
         }
       } else {
         print(
@@ -631,6 +646,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       if (_isEmailMode) {
         _isSelectionMode = true;
         _isExportMode = false; // Wyłącz tryb eksportu
+        _isEditMode = false; // Wyłącz tryb edycji
         _selectedClientIds.clear();
       } else {
         _isSelectionMode = false;
@@ -664,6 +680,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       if (_isExportMode) {
         _isSelectionMode = true;
         _isEmailMode = false; // Wyłącz tryb email
+        _isEditMode = false; // Wyłącz tryb edycji
         _selectedClientIds.clear();
       } else {
         _isSelectionMode = false;
@@ -685,6 +702,40 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             label: 'Anuluj',
             textColor: Colors.white,
             onPressed: _toggleExportMode,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _toggleEditMode() {
+    setState(() {
+      _isEditMode = !_isEditMode;
+      if (_isEditMode) {
+        _isSelectionMode = true;
+        _isEmailMode = false; // Wyłącz tryb email
+        _isExportMode = false; // Wyłącz tryb eksportu
+        _selectedClientIds.clear();
+      } else {
+        _isSelectionMode = false;
+        _selectedClientIds.clear();
+      }
+    });
+
+    if (_isEditMode) {
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            '✏️ Tryb edycji aktywny - wybierz klientów do edycji',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: AppTheme.warningColor,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Anuluj',
+            textColor: Colors.white,
+            onPressed: _toggleEditMode,
           ),
         ),
       );
@@ -952,6 +1003,18 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       return;
     }
 
+    // 🚀 SPRAWDZENIE: Czy dane inwestycji są załadowane
+    if (_investorSummaries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⏳ Dane inwestycji się ładują - spróbuj ponownie za chwilę'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     // Filtruj klientów z prawidłowymi emailami
     final clientsWithEmail = _selectedClients
         .where(
@@ -973,10 +1036,18 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     }
 
     try {
-      // Konwertuj klientów na InvestorSummary (z pustymi inwestycjami dla kompatybilności)
-      final investorsData = clientsWithEmail
-          .map((client) => InvestorSummary.fromInvestments(client, []))
-          .toList();
+      // 🚀 POPRAWKA: Użyj prawdziwych danych inwestycji zamiast pustych list
+      final investorsData = clientsWithEmail.map((client) {
+        // Sprawdź czy mamy dane inwestora w cache
+        final cachedSummary = _investorSummaries[client.id];
+        if (cachedSummary != null) {
+          return cachedSummary; // Użyj prawdziwych danych z cache
+        } else {
+          // Fallback: utwórz z pustymi danymi (ale z ostrzeżeniem)
+          print('⚠️ [Email] Brak danych inwestora dla ${client.name} - używam pustych danych');
+          return InvestorSummary.fromInvestments(client, []);
+        }
+      }).toList();
 
       if (!mounted) return;
 
@@ -1002,6 +1073,96 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     }
   }
 
+  /// Edytuje wybranych klientów
+  Future<void> _editSelectedClients() async {
+    if (_selectedClients.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Najpierw wybierz klientów do edycji'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedClients.length == 1) {
+      // Edytuj pojedynczego klienta
+      _showClientForm(_selectedClients.first);
+    } else {
+      // Edycja grupowa - pokaż dialog z opcjami
+      _showBatchEditDialog();
+    }
+  }
+
+  /// Pokazuje dialog edycji grupowej
+  void _showBatchEditDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceCard,
+        title: Row(
+          children: [
+            const Icon(Icons.edit_note, color: AppTheme.secondaryGold),
+            const SizedBox(width: 8),
+            Text(
+              'Edycja grupowa (${_selectedClients.length} klientów)',
+              style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.person_outline, color: AppTheme.secondaryGold),
+              title: const Text('Edytuj każdego osobno', style: TextStyle(color: AppTheme.textPrimary)),
+              subtitle: const Text('Otwórz formularz dla każdego klienta', style: TextStyle(color: AppTheme.textSecondary)),
+              onTap: () {
+                Navigator.of(context).pop();
+                _editClientsIndividually();
+              },
+            ),
+            const Divider(color: AppTheme.secondaryGold),
+            ListTile(
+              leading: const Icon(Icons.group_work_outlined, color: AppTheme.infoColor),
+              title: const Text('Edycja wsadowa', style: TextStyle(color: AppTheme.textPrimary)),
+              subtitle: const Text('Zmień wspólne właściwości', style: TextStyle(color: AppTheme.textSecondary)),
+              onTap: () {
+                Navigator.of(context).pop();
+                _showBatchEditForm();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Anuluj', style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Edytuje klientów pojedynczo
+  void _editClientsIndividually() {
+    for (final client in _selectedClients) {
+      _showClientForm(client);
+    }
+    _toggleEditMode(); // Wyłącz tryb edycji po zakończeniu
+  }
+
+  /// Pokazuje formularz edycji wsadowej
+  void _showBatchEditForm() {
+    // TODO: Implementacja formularza edycji wsadowej
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('🚧 Funkcja edycji wsadowej w budowie'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+  }
+
   /// Eksportuje wybranych klientów do różnych formatów (wzorowane na premium_investor_analytics_screen)
   Future<void> _exportSelectedClients() async {
     if (_selectedClients.isEmpty) {
@@ -1014,10 +1175,30 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       return;
     }
 
-    // Konwertuj klientów na InvestorSummary dla kompatybilności z InvestorExportDialog
-    final investorsData = _selectedClients
-        .map((client) => InvestorSummary.fromInvestments(client, []))
-        .toList();
+    // 🚀 SPRAWDZENIE: Czy dane inwestycji są załadowane
+    if (_investorSummaries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⏳ Dane inwestycji się ładują - spróbuj ponownie za chwilę'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // 🚀 POPRAWKA: Użyj prawdziwych danych inwestycji zamiast pustych list
+    final investorsData = _selectedClients.map((client) {
+      // Sprawdź czy mamy dane inwestora w cache
+      final cachedSummary = _investorSummaries[client.id];
+      if (cachedSummary != null) {
+        return cachedSummary; // Użyj prawdziwych danych z cache
+      } else {
+        // Fallback: utwórz z pustymi danymi (ale z ostrzeżeniem)
+        print('⚠️ [Export] Brak danych inwestora dla ${client.name} - używam pustych danych');
+        return InvestorSummary.fromInvestments(client, []);
+      }
+    }).toList();
 
     showDialog(
       context: context,
@@ -1037,8 +1218,270 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     );
   }
 
-  Future<void> _showEmailDialog() async {
-    await _sendEmailToSelectedClients();
+
+
+  /// Banner dla trybu eksportu (wzorowane na premium analytics)
+  Widget _buildExportModeBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.infoColor.withOpacity(0.8),
+            AppTheme.infoColor.withOpacity(0.6),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.infoColor.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.file_download,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '📊 Tryb eksportu aktywny',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  _selectedClientIds.isEmpty
+                      ? 'Wybierz klientów do wyeksportowania'
+                      : '${_selectedClientIds.length} klientów wybranych',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_selectedClientIds.isNotEmpty)
+            TextButton.icon(
+              onPressed: _exportSelectedClients,
+              icon: const Icon(Icons.download, color: Colors.white, size: 18),
+              label: const Text(
+                'Eksportuj',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.white.withOpacity(0.2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: _toggleExportMode,
+            icon: const Icon(Icons.close, color: Colors.white),
+            tooltip: 'Zamknij tryb eksportu',
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Banner dla trybu edycji
+  Widget _buildEditModeBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.warningColor.withOpacity(0.8),
+            AppTheme.warningColor.withOpacity(0.6),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.warningColor.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.edit,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '✏️ Tryb edycji aktywny',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  _selectedClientIds.isEmpty
+                      ? 'Wybierz klientów do edycji'
+                      : '${_selectedClientIds.length} klientów wybranych',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_selectedClientIds.isNotEmpty)
+            TextButton.icon(
+              onPressed: () => _editSelectedClients(),
+              icon: const Icon(Icons.edit, color: Colors.white, size: 18),
+              label: const Text(
+                'Edytuj',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.white.withOpacity(0.2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: _toggleEditMode,
+            icon: const Icon(Icons.close, color: Colors.white),
+            tooltip: 'Zamknij tryb edycji',
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Banner dla trybu email (wzorowane na premium analytics)
+  Widget _buildEmailModeBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.secondaryGold.withOpacity(0.8),
+            AppTheme.secondaryGold.withOpacity(0.6),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.secondaryGold.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.email,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '📧 Tryb email aktywny',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  _selectedClientIds.isEmpty
+                      ? 'Wybierz odbiorców wiadomości'
+                      : '${_selectedClientIds.length} odbiorców wybranych',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_selectedClientIds.isNotEmpty)
+            TextButton.icon(
+              onPressed: _sendEmailToSelectedClients,
+              icon: const Icon(Icons.send, color: Colors.white, size: 18),
+              label: const Text(
+                'Wyślij',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.white.withOpacity(0.2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: _toggleEmailMode,
+            icon: const Icon(Icons.close, color: Colors.white),
+            tooltip: 'Zamknij tryb email',
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -1063,18 +1506,30 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             isSelectionMode: _isSelectionMode,
             isEmailMode: _isEmailMode,
             isExportMode: _isExportMode, // 🚀 NOWY: Tryb eksportu
+            isEditMode: _isEditMode, // 🚀 NOWY: Tryb edycji
             selectedClientIds: _selectedClientIds,
             displayedClients: _displayedClients,
             onRefresh: _refreshData,
             onAddClient: () => _showClientForm(),
             onToggleEmail: _toggleEmailMode,
             onToggleExport: _toggleExportMode, // 🚀 NOWY: Toggle eksportu
+            onToggleEdit: _toggleEditMode, // 🚀 NOWY: Toggle edycji
             onEmailClients: _sendEmailToSelectedClients, // 🚀 NOWY: Wysyłanie emaili
             onExportClients: _exportSelectedClients, // 🚀 NOWY: Eksport klientów
+            onEditClients: _editSelectedClients, // 🚀 NOWY: Edycja klientów
             onClearCache: _clearCache,
             onSelectAll: _selectAllClients,
             onClearSelection: _clearSelection,
           ),
+
+          // 🚀 NOWY: Export Mode Banner (wzorowane na premium analytics)
+          if (_isExportMode) _buildExportModeBanner(),
+          
+          // 🚀 NOWY: Email Mode Banner
+          if (_isEmailMode) _buildEmailModeBanner(),
+          
+          // 🚀 NOWY: Edit Mode Banner
+          if (_isEditMode) _buildEditModeBanner(),
 
           // 🎨 LEGACY COLLAPSIBLE SEARCH HEADER - TYLKO DLA WYSZUKIWANIA I FILTRÓW
           CollapsibleHeader.CollapsibleSearchHeader(
@@ -1128,10 +1583,10 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       child: SpectacularClientsGrid(
         clients: _displayedClients,
         isLoading: _isLoading,
-        isSelectionMode: _isSelectionMode,
+        isSelectionMode: _isSelectionMode || _isExportMode || _isEmailMode,
         selectedClientIds: _selectedClientIds,
         scrollController: _scrollController,
-        onClientTap: _isSelectionMode
+        onClientTap: (_isSelectionMode || _isExportMode || _isEmailMode)
             ? null
             : (client) => _showClientForm(client),
         onSelectionChanged: (selectedIds) {
@@ -1141,6 +1596,10 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         },
         onLoadMore: _hasMoreData ? _loadMoreClients : null,
         hasMoreData: _hasMoreData,
+        
+        // 🚀 NOWE: Przekaż dane inwestycji
+        investorSummaries: _investorSummaries,
+        clientInvestments: _clientInvestments,
       ),
     );
   }
@@ -1225,6 +1684,46 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         ],
       ),
     );
+  }
+
+  /// 🚀 NOWA METODA: Ładowanie danych inwestycji i kapitału dla wszystkich klientów
+  Future<void> _loadInvestmentData() async {
+    print('💰 [InvestmentData] Ładowanie danych inwestycji dla ${_allClients.length} klientów...');
+    
+    try {
+      // Użyj InvestorAnalyticsService do pobierania wszystkich danych inwestorów
+      final allInvestorSummaries = await _investorAnalyticsService.getAllInvestorsForAnalysis(
+        includeInactive: true, // Pobierz wszystkich klientów
+      );
+      
+      print('✅ [InvestmentData] Pobrano ${allInvestorSummaries.length} podsumowań inwestorów');
+      
+      // Utwórz mapę clientId -> InvestorSummary
+      final Map<String, InvestorSummary> summariesMap = {};
+      final Map<String, List<Investment>> investmentsMap = {};
+      
+      for (final summary in allInvestorSummaries) {
+        summariesMap[summary.client.id] = summary;
+        investmentsMap[summary.client.id] = summary.investments;
+        
+        print('💰 ${summary.client.name}: ${summary.totalRemainingCapital.toStringAsFixed(2)} PLN (${summary.investmentCount} inwestycji)');
+      }
+      
+      setState(() {
+        _investorSummaries = summariesMap;
+        _clientInvestments = investmentsMap;
+      });
+      
+      print('✅ [InvestmentData] Zaktualizowano dane inwestycji dla ${summariesMap.length} klientów');
+    } catch (e) {
+      print('⚠️ [InvestmentData] Błąd ładowania danych inwestycji: $e');
+      // Nie przerywamy ładowania - klienci mogą być wyświetleni bez danych inwestycji
+    }
+  }
+
+  /// 🚀 HELPER: Sprawdź ile wybranych klientów ma dane inwestycji
+  int get _selectedClientsWithInvestmentData {
+    return _selectedClients.where((client) => _investorSummaries.containsKey(client.id)).length;
   }
 
   /// Fallback method - ładowanie przez produkty (stara metoda)

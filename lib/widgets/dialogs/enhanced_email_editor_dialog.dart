@@ -2316,15 +2316,6 @@ Zespół Metropolitan Investment''';
                       color: Colors.orange,
                       size: 16,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Debug HTML',
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
                   ],
                 ),
               ),

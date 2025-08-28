@@ -23,6 +23,10 @@ class SpectacularClientsGrid extends StatefulWidget {
   final VoidCallback? onLoadMore;
   final bool hasMoreData;
   final ScrollController? scrollController;
+  
+  // 🚀 NOWE: Dane inwestycji i kapitału
+  final Map<String, InvestorSummary>? investorSummaries; // clientId -> InvestorSummary
+  final Map<String, List<Investment>>? clientInvestments; // clientId -> List<Investment>
 
   const SpectacularClientsGrid({
     super.key,
@@ -35,6 +39,8 @@ class SpectacularClientsGrid extends StatefulWidget {
     this.onLoadMore,
     this.hasMoreData = false,
     this.scrollController,
+    this.investorSummaries, // 🚀 NOWE
+    this.clientInvestments, // 🚀 NOWE
   });
 
   @override
@@ -475,21 +481,55 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   Widget _buildClientDetails(Client client, [bool isMobile = false]) {
     final spacing = isMobile ? 6.0 : 8.0;
     
+    // 🚀 NOWE: Pobierz dane inwestycji dla klienta
+    final investorSummary = widget.investorSummaries?[client.id];
+    // final investments = widget.clientInvestments?[client.id] ?? []; // Na razie nieużywane
+    
     return Column(
       children: [
+        // 💰 NOWE: Informacje o kapitale i inwestycjach (PRIORYTET)
+        if (investorSummary != null) ...[
+          _buildDetailRow(
+            icon: Icons.account_balance_wallet_outlined,
+            text: '${CurrencyFormatter.formatCurrency(investorSummary.totalRemainingCapital)} PLN',
+            color: AppTheme.secondaryGold,
+            isMobile: isMobile,
+          ),
+          SizedBox(height: spacing),
+          _buildDetailRow(
+            icon: Icons.trending_up_outlined,
+            text: '${investorSummary.investmentCount} inwestycji',
+            color: AppTheme.infoColor,
+            isMobile: isMobile,
+          ),
+          if (investorSummary.capitalSecuredByRealEstate > 0) ...[
+            SizedBox(height: spacing),
+            _buildDetailRow(
+              icon: Icons.security_outlined,
+              text: '${CurrencyFormatter.formatCurrency(investorSummary.capitalSecuredByRealEstate)} PLN zabezp.',
+              color: AppTheme.successColor,
+              isMobile: isMobile,
+            ),
+          ],
+          SizedBox(height: spacing),
+        ],
+        
+        // Podstawowe dane kontaktowe (DRUGORZĘDNE)
         _buildDetailRow(
           icon: Icons.email_outlined,
-          text: client.email,
-          color: AppTheme.infoColor,
+          text: client.email.isEmpty ? 'Brak email' : client.email,
+          color: client.email.isEmpty ? AppTheme.warningColor : AppTheme.infoColor,
           isMobile: isMobile,
         ),
         SizedBox(height: spacing),
         _buildDetailRow(
           icon: Icons.phone_outlined,
-          text: client.phone,
-          color: AppTheme.successColor,
+          text: client.phone.isEmpty ? 'Brak telefonu' : client.phone,
+          color: client.phone.isEmpty ? AppTheme.warningColor : AppTheme.successColor,
           isMobile: isMobile,
         ),
+        
+        // PESEL (jeśli dostępny)
         if (client.pesel?.isNotEmpty == true) ...[
           SizedBox(height: spacing),
           _buildDetailRow(

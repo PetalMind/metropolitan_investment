@@ -45,6 +45,7 @@ class EnhancedClientsHeader extends StatefulWidget {
   final bool isSelectionMode;
   final bool isEmailMode;
   final bool isExportMode; // 🚀 NOWY: Tryb eksportu
+  final bool isEditMode; // 🚀 NOWY: Tryb edycji
   final Set<String> selectedClientIds;
   final List<Client> displayedClients;
 
@@ -53,8 +54,10 @@ class EnhancedClientsHeader extends StatefulWidget {
   final VoidCallback onAddClient;
   final VoidCallback onToggleEmail;
   final VoidCallback? onToggleExport; // 🚀 NOWY: Toggle eksportu
+  final VoidCallback? onToggleEdit; // 🚀 NOWY: Toggle edycji
   final VoidCallback onEmailClients; // 🚀 NOWY: Wysyłanie email do wybranych klientów
   final VoidCallback? onExportClients; // 🚀 NOWY: Eksport klientów
+  final VoidCallback? onEditClients; // 🚀 NOWY: Edycja klientów
   final VoidCallback onClearCache;
   final VoidCallback onSelectAll;
   final VoidCallback onClearSelection;
@@ -69,14 +72,17 @@ class EnhancedClientsHeader extends StatefulWidget {
     required this.isSelectionMode,
     required this.isEmailMode,
     required this.isExportMode,
+    required this.isEditMode,
     required this.selectedClientIds,
     required this.displayedClients,
     required this.onRefresh,
     required this.onAddClient,
     required this.onToggleEmail,
     this.onToggleExport,
+    this.onToggleEdit,
     required this.onEmailClients,
     this.onExportClients,
+    this.onEditClients,
     required this.onClearCache,
     required this.onSelectAll,
     required this.onClearSelection,
@@ -160,7 +166,8 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
     // Restart button animation when selection mode changes
     if (oldWidget.isSelectionMode != widget.isSelectionMode ||
         oldWidget.isEmailMode != widget.isEmailMode ||
-        oldWidget.isExportMode != widget.isExportMode) {
+        oldWidget.isExportMode != widget.isExportMode ||
+        oldWidget.isEditMode != widget.isEditMode) {
       _buttonsAnimationController.reset();
       _buttonsAnimationController.forward();
     }
@@ -398,6 +405,7 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
             const SizedBox(width: 8),
             if (widget.isEmailMode) _buildEmailButton(),
             if (widget.isExportMode) _buildExportButton(),
+            if (widget.isEditMode) _buildEditButton(),
           ],
           const SizedBox(width: 8),
         ],
@@ -460,6 +468,10 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                   _buildExportToggleButton(),
                   const SizedBox(width: 8),
                 ],
+                if (widget.onToggleEdit != null) ...[
+                  _buildEditToggleButton(),
+                  const SizedBox(width: 8),
+                ],
                 _buildMoreOptionsButton(),
               ],
             )
@@ -482,6 +494,9 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                     break;
                   case 'export':
                     if (widget.canEdit && widget.onToggleExport != null) widget.onToggleExport!();
+                    break;
+                  case 'edit':
+                    if (widget.canEdit && widget.onToggleEdit != null) widget.onToggleEdit!();
                     break;
                   case 'clear_cache':
                     widget.onClearCache();
@@ -559,6 +574,27 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                           const SizedBox(width: 8),
                           Text(
                             widget.isExportMode ? 'Zakończ eksport' : 'Eksportuj dane',
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (widget.onToggleEdit != null)
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(
+                            widget.isEditMode
+                                ? Icons.close_rounded
+                                : Icons.edit_rounded,
+                            size: 16,
+                            color: widget.isEditMode
+                                ? AppThemePro.statusError
+                                : AppThemePro.statusWarning,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            widget.isEditMode ? 'Zakończ edycję' : 'Tryb edycji',
                           ),
                         ],
                       ),
@@ -684,6 +720,9 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
           case 'export':
             if (widget.canEdit && widget.onToggleExport != null) widget.onToggleExport!();
             break;
+          case 'edit':
+            if (widget.canEdit && widget.onToggleEdit != null) widget.onToggleEdit!();
+            break;
           case 'clear_cache':
             widget.onClearCache();
             break;
@@ -721,6 +760,23 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                   ),
                   const SizedBox(width: 8),
                   Text(widget.isExportMode ? 'Zakończ eksport' : 'Eksportuj dane'),
+                ],
+              ),
+            ),
+          if (widget.onToggleEdit != null)
+            PopupMenuItem(
+              value: 'edit',
+              child: Row(
+                children: [
+                  Icon(
+                    widget.isEditMode
+                        ? Icons.close_rounded
+                        : Icons.edit_rounded,
+                    size: 16,
+                    color: widget.isEditMode ? AppThemePro.statusError : AppThemePro.statusWarning,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(widget.isEditMode ? 'Zakończ edycję' : 'Tryb edycji'),
                 ],
               ),
             ),
@@ -812,6 +868,43 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
     );
   }
 
+  Widget _buildEditToggleButton() {
+    const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
+
+    return Tooltip(
+      message: widget.canEdit
+          ? (widget.isEditMode ? 'Zakończ edycję' : 'Tryb edycji')
+          : kRbacNoPermissionTooltip,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
+        child: IconButton(
+          onPressed: widget.canEdit && widget.onToggleEdit != null 
+              ? widget.onToggleEdit! : null,
+          icon: Icon(
+            widget.isEditMode ? Icons.close_rounded : Icons.edit_rounded,
+            color: widget.canEdit
+                ? (widget.isEditMode ? AppThemePro.statusError : AppThemePro.statusWarning)
+                : AppThemePro.textTertiary,
+          ),
+          style: IconButton.styleFrom(
+            backgroundColor: widget.isEditMode 
+                ? AppThemePro.statusError.withOpacity(0.1)
+                : AppThemePro.statusWarning.withOpacity(0.1),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: widget.isEditMode 
+                    ? AppThemePro.statusError.withOpacity(0.3)
+                    : AppThemePro.statusWarning.withOpacity(0.3),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildExportButton() {
     const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
 
@@ -836,6 +929,43 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
               side: BorderSide(color: AppThemePro.statusInfo.withOpacity(0.3)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEditButton() {
+    const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
+
+    return Tooltip(
+      message: widget.canEdit
+          ? (widget.isEditMode ? 'Zakończ edycję' : 'Edytuj wybranych')
+          : kRbacNoPermissionTooltip,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
+        child: IconButton(
+          onPressed: widget.canEdit && widget.onEditClients != null 
+              ? widget.onEditClients! : null,
+          icon: Icon(
+            Icons.edit_rounded,
+            color: widget.canEdit
+                ? AppThemePro.statusWarning
+                : AppThemePro.textTertiary,
+          ),
+          style: IconButton.styleFrom(
+            backgroundColor: widget.canEdit
+                ? AppThemePro.statusWarning.withOpacity(0.1)
+                : Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: widget.canEdit
+                    ? AppThemePro.statusWarning.withOpacity(0.3)
+                    : AppThemePro.textTertiary.withOpacity(0.2),
+              ),
             ),
           ),
         ),
