@@ -1,5 +1,8 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models_and_services.dart';
+import '../../theme/app_theme_professional.dart';
 
 /// 🎯 SPECTACULAR CLIENTS GRID
 ///
@@ -211,33 +214,56 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
+                // Main card shadow
                 BoxShadow(
                   color: isSelected
-                      ? AppTheme.secondaryGold.withOpacity(0.3)
-                      : AppTheme.shadowColor.withOpacity(0.1),
-                  blurRadius: isSelected ? 20 : 10,
-                  offset: const Offset(0, 5),
+                      ? AppThemePro.accentGold.withOpacity(0.4)
+                      : AppThemePro.overlayMedium.withOpacity(0.15),
+                  blurRadius: isSelected ? 25 : 15,
+                  spreadRadius: isSelected ? 3 : 1,
+                  offset: const Offset(0, 8),
+                ),
+                // Subtle glow effect
+                if (isSelected)
+                  BoxShadow(
+                    color: AppThemePro.accentGold.withOpacity(0.2),
+                    blurRadius: 40,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 0),
+                  ),
+                // Inner highlight
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.05),
+                  blurRadius: 8,
+                  spreadRadius: -2,
+                  offset: const Offset(0, -2),
                 ),
               ],
             ),
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: () => _handleCardTap(client),
-                onLongPress: () => _handleCardLongPress(client),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _handleCardTap(client);
+                },
+                onLongPress: () {
+                  HapticFeedback.mediumImpact();
+                  _handleCardLongPress(client);
+                },
                 borderRadius: BorderRadius.circular(20),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
+                  duration: const Duration(milliseconds: 350),
                   curve: Curves.easeInOutCubic,
-                  transform: Matrix4.identity()..scale(isSelected ? 1.05 : 1.0),
+                  transform: Matrix4.identity()..scale(isSelected ? 1.02 : 1.0),
                   decoration: BoxDecoration(
                     gradient: _buildCardGradient(client, isSelected),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: isSelected
-                          ? AppTheme.secondaryGold.withOpacity(0.6)
-                          : AppTheme.borderSecondary.withOpacity(0.2),
-                      width: isSelected ? 2 : 1,
+                          ? AppThemePro.accentGold.withOpacity(0.8)
+                          : AppThemePro.borderSecondary.withOpacity(0.3),
+                      width: isSelected ? 2.5 : 1.2,
                     ),
                   ),
                   child: Stack(
@@ -264,10 +290,12 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          AppTheme.secondaryGold.withOpacity(0.1),
-          AppTheme.backgroundSecondary,
-          AppTheme.primaryColor.withOpacity(0.05),
+          AppThemePro.accentGold.withOpacity(0.15),
+          AppThemePro.backgroundSecondary.withOpacity(0.95),
+          AppThemePro.backgroundPrimary,
+          AppThemePro.accentGold.withOpacity(0.08),
         ],
+        stops: const [0.0, 0.3, 0.7, 1.0],
       );
     }
 
@@ -276,21 +304,26 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          AppTheme.errorColor.withOpacity(0.05),
-          AppTheme.backgroundSecondary,
-          AppTheme.backgroundSecondary,
+          AppThemePro.statusError.withOpacity(0.08),
+          AppThemePro.backgroundSecondary.withOpacity(0.95),
+          AppThemePro.backgroundPrimary,
+          AppThemePro.neutralGray.withOpacity(0.1),
         ],
+        stops: const [0.0, 0.3, 0.7, 1.0],
       );
     }
 
+    // Professional investment card gradient
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        AppTheme.backgroundSecondary,
-        AppTheme.surfaceInteractive.withOpacity(0.5),
-        AppTheme.backgroundSecondary,
+        AppThemePro.backgroundSecondary.withOpacity(0.98),
+        AppThemePro.backgroundPrimary,
+        AppThemePro.backgroundSecondary.withOpacity(0.95),
+        AppThemePro.accentGold.withOpacity(0.03),
       ],
+      stops: const [0.0, 0.4, 0.8, 1.0],
     );
   }
 
@@ -302,7 +335,10 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
           animation: _pulseController,
           builder: (context, child) {
             return CustomPaint(
-              painter: ClientCardBackgroundPainter(animation: _pulseController),
+              painter: ProfessionalClientCardPainter(
+                animation: _pulseController,
+                isSelected: widget.selectedClientIds.contains,
+              ),
             );
           },
         ),
@@ -344,24 +380,34 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                client.name,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: isMobile ? 14 : null, // Mniejsza czcionka na mobile
+              ShaderMask(
+                shaderCallback: (bounds) => LinearGradient(
+                  colors: [
+                    AppThemePro.textPrimary,
+                    AppThemePro.accentGold.withOpacity(0.8),
+                  ],
+                ).createShader(bounds),
+                child: Text(
+                  client.name,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: isMobile ? 15 : 17,
+                    letterSpacing: 0.3,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
               if (client.companyName?.isNotEmpty == true) ...[
                 const SizedBox(height: 4),
                 Text(
                   client.companyName!,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textSecondary,
+                    color: AppThemePro.textSecondary.withOpacity(0.9),
                     fontStyle: FontStyle.italic,
-                    fontSize: isMobile ? 11 : null, // Mniejsza czcionka na mobile
+                    fontSize: isMobile ? 11 : 12,
+                    fontWeight: FontWeight.w500,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -384,21 +430,42 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [avatarColor, avatarColor.withOpacity(0.7)],
+        gradient: RadialGradient(
+          colors: [
+            avatarColor.withOpacity(0.9),
+            avatarColor,
+            avatarColor.withOpacity(0.8),
+          ],
+          stops: const [0.0, 0.7, 1.0],
         ),
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
+        border: Border.all(
+          color: AppThemePro.accentGold.withOpacity(0.3), 
+          width: 2.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: avatarColor.withOpacity(0.3),
+            blurRadius: 8,
+            spreadRadius: 1,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Center(
         child: Text(
           initials,
           style: TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
             fontSize: fontSize,
+            shadows: [
+              Shadow(
+                color: Colors.black.withOpacity(0.3),
+                offset: const Offset(0, 1),
+                blurRadius: 2,
+              ),
+            ],
           ),
         ),
       ),
@@ -451,8 +518,24 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
         Container(
           padding: EdgeInsets.all(padding),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+            gradient: LinearGradient(
+              colors: [
+                color.withOpacity(0.15),
+                color.withOpacity(0.08),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: color.withOpacity(0.2),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Icon(icon, size: iconSize, color: color),
         ),
@@ -463,8 +546,9 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textSecondary,
-              fontSize: isMobile ? 11 : null, // Mniejsza czcionka na mobile
+              color: AppThemePro.textSecondary.withOpacity(0.9),
+              fontSize: isMobile ? 11 : 12,
+              fontWeight: FontWeight.w500,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -498,15 +582,33 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
         vertical: verticalPadding,
       ),
       decoration: BoxDecoration(
-        color: client.isActive
-            ? AppTheme.successColor.withOpacity(0.15)
-            : AppTheme.errorColor.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: client.isActive
+              ? [
+                  AppThemePro.statusSuccess.withOpacity(0.2),
+                  AppThemePro.statusSuccess.withOpacity(0.1),
+                ]
+              : [
+                  AppThemePro.statusError.withOpacity(0.2),
+                  AppThemePro.statusError.withOpacity(0.1),
+                ],
+        ),
+        borderRadius: BorderRadius.circular(25),
         border: Border.all(
           color: client.isActive
-              ? AppTheme.successColor.withOpacity(0.3)
-              : AppTheme.errorColor.withOpacity(0.3),
+              ? AppThemePro.statusSuccess.withOpacity(0.4)
+              : AppThemePro.statusError.withOpacity(0.4),
+          width: 1.5,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: client.isActive
+                ? AppThemePro.statusSuccess.withOpacity(0.2)
+                : AppThemePro.statusError.withOpacity(0.2),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -523,13 +625,14 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
           ),
           SizedBox(width: spacing),
           Text(
-            client.isActive ? 'Aktywny' : 'Nieaktywny',
+            client.isActive ? 'AKTYWNY' : 'NIEAKTYWNY',
             style: TextStyle(
               color: client.isActive
-                  ? AppTheme.successColor
-                  : AppTheme.errorColor,
+                  ? AppThemePro.statusSuccess
+                  : AppThemePro.statusError,
               fontSize: fontSize,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -577,17 +680,25 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
         width: 12,
         height: 12,
         decoration: BoxDecoration(
-          color: client.isActive ? AppTheme.successColor : AppTheme.errorColor,
+          gradient: RadialGradient(
+            colors: [
+              client.isActive 
+                  ? AppThemePro.statusSuccess 
+                  : AppThemePro.statusError,
+              client.isActive 
+                  ? AppThemePro.statusSuccess.withOpacity(0.8)
+                  : AppThemePro.statusError.withOpacity(0.8),
+            ],
+          ),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color:
-                  (client.isActive
-                          ? AppTheme.successColor
-                          : AppTheme.errorColor)
-                      .withOpacity(0.4),
-              blurRadius: 8,
-              spreadRadius: 2,
+              color: (client.isActive
+                      ? AppThemePro.statusSuccess
+                      : AppThemePro.statusError)
+                  .withOpacity(0.5),
+              blurRadius: 12,
+              spreadRadius: 3,
             ),
           ],
         ),
@@ -726,36 +837,90 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   }
 }
 
-/// Custom painter for card background effects
-class ClientCardBackgroundPainter extends CustomPainter {
+/// 🎨 Professional custom painter for investment-grade client cards
+class ProfessionalClientCardPainter extends CustomPainter {
   final Animation<double> animation;
+  final bool Function(String) isSelected;
 
-  ClientCardBackgroundPainter({required this.animation});
+  ProfessionalClientCardPainter({
+    required this.animation,
+    required this.isSelected,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppTheme.secondaryGold.withOpacity(0.03)
-      ..style = PaintingStyle.fill;
+    // Professional gradient mesh background
+    final backgroundPaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0.7, -0.3),
+        radius: 1.2,
+        colors: [
+          AppThemePro.accentGold.withOpacity(0.08),
+          AppThemePro.accentGold.withOpacity(0.03),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.6, 1.0],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
-    // Draw subtle animated background pattern
-    for (int i = 0; i < 3; i++) {
-      final progress = (animation.value + i * 0.3) % 1.0;
-      final radius = size.width * 0.1 * (1 + progress);
-      final opacity = (1 - progress) * 0.1;
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      backgroundPaint,
+    );
 
-      paint.color = AppTheme.secondaryGold.withOpacity(opacity);
+    // Animated professional particles
+    final particlePaint = Paint()..style = PaintingStyle.fill;
 
-      canvas.drawCircle(
-        Offset(size.width * 0.8, size.height * 0.2),
-        radius,
-        paint,
+    for (int i = 0; i < 5; i++) {
+      final progress = (animation.value + i * 0.2) % 1.0;
+      final opacity = (sin(progress * 2 * pi) * 0.5 + 0.5) * 0.15;
+      
+      final x = size.width * (0.2 + (i * 0.15));
+      final y = size.height * (0.1 + progress * 0.8);
+      final radius = (2 + i * 0.5) * (1 + progress * 0.3);
+
+      particlePaint.color = AppThemePro.accentGold.withOpacity(opacity);
+
+      canvas.drawCircle(Offset(x, y), radius, particlePaint);
+    }
+
+    // Professional corner accents
+    final accentPaint = Paint()
+      ..color = AppThemePro.accentGold.withOpacity(0.1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    // Top-left accent
+    final topLeftPath = Path();
+    topLeftPath.moveTo(0, size.height * 0.2);
+    topLeftPath.lineTo(0, 0);
+    topLeftPath.lineTo(size.width * 0.2, 0);
+    canvas.drawPath(topLeftPath, accentPaint);
+
+    // Bottom-right accent
+    final bottomRightPath = Path();
+    bottomRightPath.moveTo(size.width * 0.8, size.height);
+    bottomRightPath.lineTo(size.width, size.height);
+    bottomRightPath.lineTo(size.width, size.height * 0.8);
+    canvas.drawPath(bottomRightPath, accentPaint);
+
+    // Subtle investment-grade pattern
+    final patternPaint = Paint()
+      ..color = AppThemePro.accentGold.withOpacity(0.05)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    // Draw subtle grid pattern
+    for (double x = size.width * 0.1; x < size.width; x += size.width * 0.15) {
+      canvas.drawLine(
+        Offset(x, size.height * 0.1),
+        Offset(x, size.height * 0.9),
+        patternPaint,
       );
     }
   }
 
   @override
-  bool shouldRepaint(ClientCardBackgroundPainter oldDelegate) {
+  bool shouldRepaint(ProfessionalClientCardPainter oldDelegate) {
     return oldDelegate.animation.value != animation.value;
   }
 }

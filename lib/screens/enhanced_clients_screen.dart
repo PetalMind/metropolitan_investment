@@ -65,6 +65,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   // Multi-selection
   bool _isSelectionMode = false;
   bool _isEmailMode = false; // 🚀 NOWY: Tryb email
+  bool _isExportMode = false; // 🚀 NOWY: Tryb eksportu (podobnie jak w premium analytics)
   Set<String> _selectedClientIds = <String>{};
 
   // Header collapse state
@@ -623,12 +624,13 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     });
   }
 
-  // 🚀 NOWE: Funkcje obsługi email
+  // 🚀 NOWE: Funkcje obsługi email i eksportu (wzorowane na premium_investor_analytics_screen)
   void _toggleEmailMode() {
     setState(() {
       _isEmailMode = !_isEmailMode;
       if (_isEmailMode) {
         _isSelectionMode = true;
+        _isExportMode = false; // Wyłącz tryb eksportu
         _selectedClientIds.clear();
       } else {
         _isSelectionMode = false;
@@ -641,7 +643,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
-            'Tryb email aktywny - wybierz odbiorców wiadomości',
+            '📧 Tryb email aktywny - wybierz odbiorców wiadomości',
             style: TextStyle(color: Colors.white),
           ),
           backgroundColor: AppTheme.secondaryGold,
@@ -650,6 +652,39 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             label: 'Anuluj',
             textColor: AppTheme.backgroundPrimary,
             onPressed: _toggleEmailMode,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _toggleExportMode() {
+    setState(() {
+      _isExportMode = !_isExportMode;
+      if (_isExportMode) {
+        _isSelectionMode = true;
+        _isEmailMode = false; // Wyłącz tryb email
+        _selectedClientIds.clear();
+      } else {
+        _isSelectionMode = false;
+        _selectedClientIds.clear();
+      }
+    });
+
+    if (_isExportMode) {
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            '📊 Tryb eksportu aktywny - wybierz klientów do wyeksportowania',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: AppTheme.infoColor,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Anuluj',
+            textColor: Colors.white,
+            onPressed: _toggleExportMode,
           ),
         ),
       );
@@ -668,6 +703,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     setState(() {
       _isSelectionMode = false;
       _isEmailMode = false;
+      _isExportMode = false;
       _selectedClientIds.clear();
     });
     _selectionController.reverse();
@@ -899,9 +935,20 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     );
   }
 
-  Future<void> _showEmailDialog() async {
+  /// Wysyła email do wybranych klientów (wzorowane na premium_investor_analytics_screen)
+  Future<void> _sendEmailToSelectedClients() async {
     if (_selectedClients.isEmpty) {
-      _showErrorSnackBar('Nie wybrano żadnych klientów');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Najpierw wybierz odbiorców maili\n💡 Użyj trybu email aby wybrać klientów'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      
+      if (!_isEmailMode && !_isSelectionMode) {
+        _toggleEmailMode();
+      }
       return;
     }
 
@@ -915,40 +962,83 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         .toList();
 
     if (clientsWithEmail.isEmpty) {
-      _showErrorSnackBar('Wybrani klienci nie mają prawidłowych adresów email');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Wybrani klienci nie mają prawidłowych adresów email'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+        ),
+      );
       return;
     }
 
     try {
-      // Konwertuj klientów na InvestorSummary (z pustymi inwestycjami)
+      // Konwertuj klientów na InvestorSummary (z pustymi inwestycjami dla kompatybilności)
       final investorsData = clientsWithEmail
           .map((client) => InvestorSummary.fromInvestments(client, []))
           .toList();
 
       if (!mounted) return;
 
-      // 🚀 NOWY: Używamy modułowego EmailEditorWidget
+      // 🚀 WZOROWANE NA PREMIUM ANALYTICS: Używamy EnhancedEmailEditorDialog
       showDialog(
         context: context,
-        barrierDismissible: false,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(16),
-          child: EmailEditorWidget(
-            investors: investorsData,
-            onEmailSent: () {
-              Navigator.of(context).pop();
-              _exitSelectionMode();
-              _showSuccessSnackBar('Email został wysłany pomyślnie');
-            },
-            initialSubject: 'Wiadomość dla klientów - Metropolitan Investment',
-            showAsDialog: true,
-          ),
+        builder: (context) => EnhancedEmailEditorDialog(
+          selectedInvestors: investorsData,
+          onEmailSent: () {
+            Navigator.of(context).pop();
+            _toggleEmailMode(); // Wyłącz tryb email po wysłaniu
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('✅ Emaile zostały wysłane do ${clientsWithEmail.length} odbiorców'),
+                backgroundColor: AppTheme.successColor,
+              ),
+            );
+          },
         ),
       );
     } catch (e) {
       _showErrorSnackBar('Błąd podczas przygotowywania danych: $e');
     }
+  }
+
+  /// Eksportuje wybranych klientów do różnych formatów (wzorowane na premium_investor_analytics_screen)
+  Future<void> _exportSelectedClients() async {
+    if (_selectedClients.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Najpierw wybierz klientów do eksportu'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Konwertuj klientów na InvestorSummary dla kompatybilności z InvestorExportDialog
+    final investorsData = _selectedClients
+        .map((client) => InvestorSummary.fromInvestments(client, []))
+        .toList();
+
+    showDialog(
+      context: context,
+      builder: (context) => InvestorExportDialog(
+        selectedInvestors: investorsData,
+        onExportComplete: () {
+          Navigator.of(context).pop();
+          _toggleExportMode(); // Wyłącz tryb eksportu
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Eksport zakończony pomyślnie'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showEmailDialog() async {
+    await _sendEmailToSelectedClients();
   }
 
   @override
@@ -963,7 +1053,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       backgroundColor: AppTheme.backgroundPrimary,
       body: Column(
         children: [
-          // 🚀 NOWY: Enhanced responsywny header z animacjami
+          // 🚀 NOWY: Enhanced responsywny header z animacjami (wzorowany na premium analytics)
           EnhancedClientsHeader(
             isTablet: _isTablet,
             canEdit: canEdit,
@@ -972,13 +1062,15 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             isRefreshing: _isLoading, // używamy tego samego stanu
             isSelectionMode: _isSelectionMode,
             isEmailMode: _isEmailMode,
+            isExportMode: _isExportMode, // 🚀 NOWY: Tryb eksportu
             selectedClientIds: _selectedClientIds,
             displayedClients: _displayedClients,
             onRefresh: _refreshData,
             onAddClient: () => _showClientForm(),
             onToggleEmail: _toggleEmailMode,
-            onEmailClients:
-                _showEmailDialog, // 🚀 NOWY: Callback do wysyłania email
+            onToggleExport: _toggleExportMode, // 🚀 NOWY: Toggle eksportu
+            onEmailClients: _sendEmailToSelectedClients, // 🚀 NOWY: Wysyłanie emaili
+            onExportClients: _exportSelectedClients, // 🚀 NOWY: Eksport klientów
             onClearCache: _clearCache,
             onSelectAll: _selectAllClients,
             onClearSelection: _clearSelection,

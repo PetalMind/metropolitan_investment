@@ -44,6 +44,7 @@ class EnhancedClientsHeader extends StatefulWidget {
   // === STATE PROPS ===
   final bool isSelectionMode;
   final bool isEmailMode;
+  final bool isExportMode; // 🚀 NOWY: Tryb eksportu
   final Set<String> selectedClientIds;
   final List<Client> displayedClients;
 
@@ -51,8 +52,9 @@ class EnhancedClientsHeader extends StatefulWidget {
   final VoidCallback onRefresh;
   final VoidCallback onAddClient;
   final VoidCallback onToggleEmail;
-  final VoidCallback
-  onEmailClients; // 🚀 NOWY: Wysyłanie email do wybranych klientów
+  final VoidCallback? onToggleExport; // 🚀 NOWY: Toggle eksportu
+  final VoidCallback onEmailClients; // 🚀 NOWY: Wysyłanie email do wybranych klientów
+  final VoidCallback? onExportClients; // 🚀 NOWY: Eksport klientów
   final VoidCallback onClearCache;
   final VoidCallback onSelectAll;
   final VoidCallback onClearSelection;
@@ -66,12 +68,15 @@ class EnhancedClientsHeader extends StatefulWidget {
     required this.isRefreshing,
     required this.isSelectionMode,
     required this.isEmailMode,
+    required this.isExportMode,
     required this.selectedClientIds,
     required this.displayedClients,
     required this.onRefresh,
     required this.onAddClient,
     required this.onToggleEmail,
+    this.onToggleExport,
     required this.onEmailClients,
+    this.onExportClients,
     required this.onClearCache,
     required this.onSelectAll,
     required this.onClearSelection,
@@ -154,7 +159,8 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
 
     // Restart button animation when selection mode changes
     if (oldWidget.isSelectionMode != widget.isSelectionMode ||
-        oldWidget.isEmailMode != widget.isEmailMode) {
+        oldWidget.isEmailMode != widget.isEmailMode ||
+        oldWidget.isExportMode != widget.isExportMode) {
       _buttonsAnimationController.reset();
       _buttonsAnimationController.forward();
     }
@@ -390,7 +396,8 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
           _buildSelectionButton(),
           if (widget.selectedClientIds.isNotEmpty) ...[
             const SizedBox(width: 8),
-            _buildEmailButton(),
+            if (widget.isEmailMode) _buildEmailButton(),
+            if (widget.isExportMode) _buildExportButton(),
           ],
           const SizedBox(width: 8),
         ],
@@ -447,6 +454,12 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                   _buildAddClientButton(),
                   const SizedBox(width: 8),
                 ],
+                _buildEmailToggleButton(),
+                const SizedBox(width: 8),
+                if (widget.onToggleExport != null) ...[
+                  _buildExportToggleButton(),
+                  const SizedBox(width: 8),
+                ],
                 _buildMoreOptionsButton(),
               ],
             )
@@ -466,6 +479,9 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                     break;
                   case 'email':
                     if (widget.canEdit) widget.onToggleEmail();
+                    break;
+                  case 'export':
+                    if (widget.canEdit && widget.onToggleExport != null) widget.onToggleExport!();
                     break;
                   case 'clear_cache':
                     widget.onClearCache();
@@ -526,6 +542,27 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                       ],
                     ),
                   ),
+                  if (widget.onToggleExport != null)
+                    PopupMenuItem(
+                      value: 'export',
+                      child: Row(
+                        children: [
+                          Icon(
+                            widget.isExportMode
+                                ? Icons.close_rounded
+                                : Icons.download_rounded,
+                            size: 16,
+                            color: widget.isExportMode
+                                ? AppThemePro.statusError
+                                : null,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            widget.isExportMode ? 'Zakończ eksport' : 'Eksportuj dane',
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
                 PopupMenuItem(
                   value: 'clear_cache',
@@ -644,13 +681,16 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
           case 'email':
             if (widget.canEdit) widget.onToggleEmail();
             break;
+          case 'export':
+            if (widget.canEdit && widget.onToggleExport != null) widget.onToggleExport!();
+            break;
           case 'clear_cache':
             widget.onClearCache();
             break;
         }
       },
       itemBuilder: (context) => [
-        if (widget.canEdit)
+        if (widget.canEdit) ...[
           PopupMenuItem(
             value: 'email',
             child: Row(
@@ -667,6 +707,24 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
               ],
             ),
           ),
+          if (widget.onToggleExport != null)
+            PopupMenuItem(
+              value: 'export',
+              child: Row(
+                children: [
+                  Icon(
+                    widget.isExportMode
+                        ? Icons.close_rounded
+                        : Icons.download_rounded,
+                    size: 16,
+                    color: widget.isExportMode ? AppThemePro.statusError : null,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(widget.isExportMode ? 'Zakończ eksport' : 'Eksportuj dane'),
+                ],
+              ),
+            ),
+        ],
         PopupMenuItem(
           value: 'clear_cache',
           child: Row(
@@ -678,6 +736,110 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildEmailToggleButton() {
+    const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
+
+    return Tooltip(
+      message: widget.canEdit
+          ? (widget.isEmailMode ? 'Zakończ wysyłanie' : 'Tryb email')
+          : kRbacNoPermissionTooltip,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
+        child: IconButton(
+          onPressed: widget.canEdit ? widget.onToggleEmail : null,
+          icon: Icon(
+            widget.isEmailMode ? Icons.close_rounded : Icons.email_rounded,
+            color: widget.canEdit
+                ? (widget.isEmailMode ? AppThemePro.statusError : AppThemePro.accentGold)
+                : AppThemePro.textTertiary,
+          ),
+          style: IconButton.styleFrom(
+            backgroundColor: widget.isEmailMode 
+                ? AppThemePro.statusError.withOpacity(0.1)
+                : AppThemePro.accentGold.withOpacity(0.1),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: widget.isEmailMode 
+                    ? AppThemePro.statusError.withOpacity(0.3)
+                    : AppThemePro.accentGold.withOpacity(0.3),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExportToggleButton() {
+    const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
+
+    return Tooltip(
+      message: widget.canEdit
+          ? (widget.isExportMode ? 'Zakończ eksport' : 'Tryb eksportu')
+          : kRbacNoPermissionTooltip,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
+        child: IconButton(
+          onPressed: widget.canEdit && widget.onToggleExport != null 
+              ? widget.onToggleExport! : null,
+          icon: Icon(
+            widget.isExportMode ? Icons.close_rounded : Icons.download_rounded,
+            color: widget.canEdit
+                ? (widget.isExportMode ? AppThemePro.statusError : AppThemePro.statusInfo)
+                : AppThemePro.textTertiary,
+          ),
+          style: IconButton.styleFrom(
+            backgroundColor: widget.isExportMode 
+                ? AppThemePro.statusError.withOpacity(0.1)
+                : AppThemePro.statusInfo.withOpacity(0.1),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: widget.isExportMode 
+                    ? AppThemePro.statusError.withOpacity(0.3)
+                    : AppThemePro.statusInfo.withOpacity(0.3),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExportButton() {
+    const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
+
+    return Tooltip(
+      message: widget.canEdit
+          ? 'Eksportuj wybranych klientów'
+          : kRbacNoPermissionTooltip,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
+        child: IconButton(
+          onPressed: widget.canEdit && widget.onExportClients != null 
+              ? widget.onExportClients! : null,
+          icon: Icon(
+            Icons.download_rounded,
+            color: widget.canEdit
+                ? AppThemePro.statusInfo
+                : AppThemePro.textTertiary,
+          ),
+          style: IconButton.styleFrom(
+            backgroundColor: AppThemePro.statusInfo.withOpacity(0.1),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: AppThemePro.statusInfo.withOpacity(0.3)),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
