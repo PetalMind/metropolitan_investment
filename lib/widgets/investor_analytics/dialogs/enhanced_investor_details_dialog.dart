@@ -1056,15 +1056,6 @@ Zespół Metropolitan Investment''',
         AppThemePro.statusWarning,
         description: 'Kwota do restrukturyzacji',
       ),
-  
-      _StatItem(
-        'Łączna wartość',
-        CurrencyFormatter.formatCurrency(widget.investor.totalValue),
-        Icons.savings,
-        AppThemePro.accentGold,
-        description: 'Kapitał pozostały + udziały',
-        isHighlighted: true,
-      ),
     ];
 
     return Column(

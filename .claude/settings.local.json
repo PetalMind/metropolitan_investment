@@ -24,7 +24,8 @@
       "Bash(flutter compile:*)",
       "Bash(node:*)",
       "WebFetch(domain:pub.dev)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(flutter clean:*)"
     ],
     "deny": [],
     "additionalDirectories": [
