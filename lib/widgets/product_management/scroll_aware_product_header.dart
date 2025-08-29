@@ -301,7 +301,7 @@ class _ScrollAwareProductHeaderState extends State<ScrollAwareProductHeader>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Produkty Inwestycyjne',
+                'Zarządzanie Produktami',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: _isCollapsed ? 18 : 28,

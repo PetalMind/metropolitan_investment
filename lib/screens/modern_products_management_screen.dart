@@ -11,6 +11,7 @@ import '../adapters/product_statistics_adapter.dart';
 import '../widgets/premium_error_widget.dart';
 import '../widgets/metropolitan_loading_system.dart';
 import '../widgets/product_management/scroll_aware_product_header.dart';
+import '../widgets/product_management/product_type_distribution_widget.dart';
 
 // RBAC: wspólny tooltip dla braku uprawnień
 const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
@@ -556,6 +557,38 @@ class _ModernProductsManagementScreenState extends State<ModernProductsManagemen
               ),
             ),
 
+          if (!_isLoading && _statistics != null)
+            SliverToBoxAdapter(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.backgroundSecondary,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppTheme.textSecondary.withValues(alpha: 0.3),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.shadowColor.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ProductTypeDistributionWidget(
+                    productStatistics: _statistics,
+                    isLoading: false,
+                    height: 300,
+                    showAnimation: true,
+                    showLegend: true,
+                    padding: const EdgeInsets.all(20),
+                  ),
+                ),
+              ),
+            ),
+
           if (_isLoading)
             SliverFillRemaining(
               child: FadeTransition(
@@ -621,23 +654,6 @@ class _ModernProductsManagementScreenState extends State<ModernProductsManagemen
           ),
         ],
 
-        // Przełącznik deduplikacji
-        IconButton(
-          icon: Icon(
-            _showDeduplicatedView ? Icons.filter_vintage : Icons.all_inclusive,
-            color: AppTheme.secondaryGold,
-          ),
-          onPressed: () async {
-            setState(() {
-              _showDeduplicatedView = !_showDeduplicatedView;
-              _applyFiltersAndSearch();
-            });
-            HapticFeedback.lightImpact();
-          },
-          tooltip: _showDeduplicatedView
-              ? 'Pokaż wszystkie inwestycje'
-              : 'Pokaż produkty unikalne',
-        ),
 
         // Filters toggle
         IconButton(

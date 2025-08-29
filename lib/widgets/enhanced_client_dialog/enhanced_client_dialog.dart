@@ -201,28 +201,17 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
       _formKey.currentState!.save();
       final client = _formData.toClient();
 
-      // 🚀 NOWY: Wywołaj onSave i poczekaj na zakończenie
+      // Zapisz klienta i poczekaj na zakończenie (w tym odświeżenie danych)
       await widget.onSave(client);
 
-      // 🚀 NOWY: Odśwież dane w dialogu jeśli callback jest dostępny
-      if (widget.onDataRefresh != null) {
-        print('🔄 [EnhancedClientDialog] Odświeżanie danych w dialogu...');
-        final refreshedData = await widget.onDataRefresh!();
-        if (refreshedData != null) {
-          setState(() {
-            _currentAdditionalData = refreshedData;
-          });
-          print('✅ [EnhancedClientDialog] Dane odświeżone w dialogu');
-        }
-      }
-
-      // Reset loading state before closing dialog
+      // Reset loading state po udanym zapisie
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
 
+      // Zamknij dialog
       Navigator.of(context).pop();
       HapticFeedback.mediumImpact();
       

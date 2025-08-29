@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../theme/app_theme.dart';
 import '../../models_and_services.dart';
+import 'product_type_distribution_widget.dart';
 import 'dart:math' as math;
 
 /// 🎨 ANIMATED PRODUCT STATS
@@ -369,24 +370,6 @@ class _AnimatedProductStatsState extends State<AnimatedProductStats>
             ),
           ),
         ),
-        
-        if (!widget.isCollapsed)
-          AnimatedBuilder(
-            animation: _pulseAnimation,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: 1.0 + (_pulseAnimation.value * 0.05),
-                child: IconButton(
-                  onPressed: widget.onToggleCharts,
-                  icon: Icon(
-                    widget.showCharts ? Icons.bar_chart : Icons.bar_chart_outlined,
-                    color: Colors.white,
-                  ),
-                  tooltip: widget.showCharts ? 'Ukryj wykresy' : 'Pokaż wykresy',
-                ),
-              );
-            },
-          ),
       ],
     );
   }
@@ -488,7 +471,14 @@ class _AnimatedProductStatsState extends State<AnimatedProductStats>
           children: [
             Expanded(
               flex: 2,
-              child: _buildProductTypePieChart(),
+              child: ProductTypeDistributionWidget(
+                productStatistics: widget.productStatistics,
+                isLoading: widget.isLoading,
+                height: 140,
+                showAnimation: true,
+                showLegend: false,
+                padding: EdgeInsets.zero,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -501,73 +491,6 @@ class _AnimatedProductStatsState extends State<AnimatedProductStats>
     );
   }
 
-  Widget _buildProductTypePieChart() {
-    final stats = widget.productStatistics;
-    final typeDistribution = stats?.typeDistribution as Map<dynamic, dynamic>? ?? {};
-    
-    if (typeDistribution.isEmpty) {
-      return const Center(
-        child: Text(
-          'Brak danych\no typach',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 12,
-          ),
-        ),
-      );
-    }
-
-    final List<PieChartSectionData> sections = [];
-    final colors = [
-      AppTheme.secondaryGold,
-      AppTheme.infoColor,
-      AppTheme.successColor,
-      AppTheme.warningColor,
-      AppTheme.errorColor,
-    ];
-    
-    int colorIndex = 0;
-    typeDistribution.forEach((type, count) {
-      sections.add(
-        PieChartSectionData(
-          value: (count as num).toDouble(),
-          title: '$count',
-          color: colors[colorIndex % colors.length],
-          radius: 40 * _chartAnimation.value,
-          titleStyle: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      );
-      colorIndex++;
-    });
-
-    return Column(
-      children: [
-        const Text(
-          'Typy produktów',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: PieChart(
-            PieChartData(
-              sections: sections,
-              centerSpaceRadius: 20,
-              sectionsSpace: 2,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildValueTrendChart() {
     return Column(

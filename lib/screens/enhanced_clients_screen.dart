@@ -885,23 +885,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           _showErrorSnackBar('Błąd podczas zapisywania: $e');
         }
       },
-      // 🚀 NOWY: Callback do odświeżania danych w dialogu
-      onDataRefresh: () async {
-        print('🔄 [EnhancedClientsScreen] Odświeżanie danych dla dialogu...');
-
-        // Załaduj fresh dane inwestycji dla dialogu
-        await _loadInvestmentData();
-
-        // Zwróć zaktualizowane dane
-        final refreshedData = {
-          'investorSummaries': _investorSummaries,
-          'clientInvestments': _clientInvestments,
-          'clientStats': _clientStats,
-        };
-
-        print('✅ [EnhancedClientsScreen] Dane odświeżone dla dialogu');
-        return refreshedData;
-      },
     );
   }
 
