@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
+import '../../services/universal_investment_service.dart' as universal;
 import 'client_overview_tab.dart'; // For ClientFormData
 
-/// 🎨 SEKCJA AKCJE - Tab 5
-///
-/// Zawiera:
-/// - Email management z szablonami
-/// - Notatki i historia kontaktów
-/// - Dokumenty i pliki klienta
-/// - Historia operacji
-/// - Quick actions (telefon, email, spotkanie)
-/// - Eksport danych klienta
+/// Client Actions Tab
+/// - Opens the existing EnhancedEmailEditorDialog for email flows
+/// - Uses EmailAndExportService for exports
+/// - Shows client notes (via ClientNotesService)
+/// - Documents area is a lightweight placeholder until a DocumentsService is provided
 class ClientActionsTab extends StatefulWidget {
   final Client? client;
   final ClientFormData formData;
@@ -31,38 +29,24 @@ class ClientActionsTab extends StatefulWidget {
 
 class _ClientActionsTabState extends State<ClientActionsTab>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
-  // 🚀 UŻYWAJ ISTNIEJĄCYCH SERWISÓW Z models_and_services.dart (w przyszłości)
-  // final ClientNotesService _clientNotesService = ClientNotesService();
-  // final EmailService _emailService = EmailService();
-  // final EmailHistoryService _emailHistoryService = EmailHistoryService();
-  // final CalendarService _calendarService = CalendarService();
+  final ClientNotesService _clientNotesService = ClientNotesService();
+  final EmailHistoryService _emailHistoryService = EmailHistoryService();
+  final EmailAndExportService _emailAndExportService = EmailAndExportService();
+  final CalendarService _calendarService = CalendarService();
+  final InvestorAnalyticsService _investorAnalyticsService =
+      InvestorAnalyticsService(); // Przygotowane na przyszłe rozszerzenia analityki
+  final UniversalInvestmentService _universalInvestmentService =
+      universal.UniversalInvestmentService.instance;
 
-  // Controllers for forms
   final _notesController = TextEditingController();
-  final _emailSubjectController = TextEditingController();
-  final _emailBodyController = TextEditingController();
+  late final AnimationController _cardController;
 
-  // Animation controllers
-  late AnimationController _cardController;
-  late AnimationController _emailController;
-
-  // State
-  bool _isEmailExpanded = false;
-  String _selectedEmailTemplate = 'Wybierz szablon';
   List<ClientNote> _clientNotes = [];
-  List<ClientDocument> _clientDocuments = [];
-
-  // 🚀 UŻYJ DOSTĘPNYCH MODELI EMAILI
-  final Map<String, String> _emailTemplates = {
-    'Powitanie':
-        'Szanowny/a {name},\n\nDziękujemy za zaufanie i wybór naszej firmy...',
-    'Raport miesięczny':
-        'Szanowny/a {name},\n\nPrzesyłamy raport z Pana/Pani inwestycji za {month}...',
-    'Przypomnienie':
-        'Szanowny/a {name},\n\nUprzejmie przypominamy o zbliżającym się terminie...',
-    'Zaproszenie na spotkanie':
-        'Szanowny/a {name},\n\nChcielibyśmy zaprosić Pana/Panię na spotkanie...',
-  };
+  List<dynamic> _clientDocuments = [];
+  List<Investment> _clientInvestments =
+      []; // Przygotowane na przyszłe użycie w emailach z danymi inwestycji
+  bool _isLoadingInvestments =
+      false; // Przygotowane na przyszłe użycie w emailach z danymi inwestycji
 
   @override
   bool get wantKeepAlive => true;
@@ -70,75 +54,62 @@ class _ClientActionsTabState extends State<ClientActionsTab>
   @override
   void initState() {
     super.initState();
-    _initializeControllers();
+    _cardController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _notesController.text = widget.formData.notes;
+    _notesController.addListener(_onNotesChanged);
     _loadClientData();
+    _cardController.forward();
   }
 
   @override
   void dispose() {
     _notesController.dispose();
-    _emailSubjectController.dispose();
-    _emailBodyController.dispose();
     _cardController.dispose();
-    _emailController.dispose();
     super.dispose();
-  }
-
-  void _initializeControllers() {
-    _cardController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-
-    _emailController = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-
-    _notesController.text = widget.formData.notes;
-    _notesController.addListener(_onNotesChanged);
-
-    _cardController.forward();
-  }
-
-  void _loadClientData() {
-    // Load client notes and documents - mock implementation
-    _clientNotes = [
-      ClientNote(
-        id: '1',
-        content: 'Klient zainteresowany dodatkową inwestycją w Q2',
-        createdAt: DateTime.now().subtract(const Duration(days: 5)),
-        author: 'Jan Kowalski',
-      ),
-      ClientNote(
-        id: '2',
-        content: 'Wysłano raport miesięczny na email',
-        createdAt: DateTime.now().subtract(const Duration(days: 12)),
-        author: 'Anna Nowak',
-      ),
-    ];
-
-    _clientDocuments = [
-      ClientDocument(
-        id: '1',
-        name: 'Umowa inwestycyjna.pdf',
-        type: 'PDF',
-        size: '2.1 MB',
-        uploadedAt: DateTime.now().subtract(const Duration(days: 30)),
-      ),
-      ClientDocument(
-        id: '2',
-        name: 'Dokument tożsamości.jpg',
-        type: 'JPG',
-        size: '1.5 MB',
-        uploadedAt: DateTime.now().subtract(const Duration(days: 45)),
-      ),
-    ];
   }
 
   void _onNotesChanged() {
     widget.formData.notes = _notesController.text;
     widget.onDataChanged();
+  }
+
+  Future<void> _loadClientData() async {
+    _clientNotes = [];
+    _clientDocuments = [];
+    _clientInvestments = [];
+
+    if (widget.client == null) return;
+
+    final clientId = widget.client!.id;
+
+    try {
+      final notes = await _clientNotesService.getClientNotes(clientId);
+      setState(() => _clientNotes = notes);
+    } catch (e) {
+      debugPrint('Błąd ładowania notatek: $e');
+    }
+
+    try {
+      await _emailHistoryService.getEmailHistoryForClient(clientId);
+      // We don't currently display detailed history here; EmailEditor handles it
+    } catch (e) {
+      debugPrint('Błąd ładowania historii emaili: $e');
+    }
+
+    // Załaduj inwestycje klienta dla funkcji email
+    try {
+      setState(() => _isLoadingInvestments = true);
+      final investments = await _universalInvestmentService
+          .getInvestmentsForClient(clientId);
+      setState(() => _clientInvestments = investments);
+    } catch (e) {
+      debugPrint('Błąd ładowania inwestycji klienta: $e');
+    } finally {
+      setState(() => _isLoadingInvestments = false);
+    }
   }
 
   @override
@@ -150,23 +121,12 @@ class _ClientActionsTabState extends State<ClientActionsTab>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Quick actions row
           _buildQuickActionsSection(),
           const SizedBox(height: 24),
-
-          // Email section
-          _buildEmailSection(),
-          const SizedBox(height: 24),
-
-          // Notes section
           _buildNotesSection(),
           const SizedBox(height: 24),
-
-          // Documents section
           _buildDocumentsSection(),
           const SizedBox(height: 24),
-
-          // History section
           _buildHistorySection(),
         ],
       ),
@@ -194,7 +154,6 @@ class _ClientActionsTabState extends State<ClientActionsTab>
                     'Najczęściej używane operacje',
                   ),
                   const SizedBox(height: 20),
-
                   Row(
                     children: [
                       Expanded(
@@ -211,7 +170,7 @@ class _ClientActionsTabState extends State<ClientActionsTab>
                           'Email',
                           Icons.email_rounded,
                           AppThemePro.accentGold,
-                          () => _toggleEmailSection(),
+                          () => _openEmailEditor(),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -278,141 +237,6 @@ class _ClientActionsTabState extends State<ClientActionsTab>
     );
   }
 
-  Widget _buildEmailSection() {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 600),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: AppThemePro.elevatedSurfaceDecoration,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildSectionHeader(
-                          'Komunikacja email',
-                          Icons.email_rounded,
-                          'Szablony i wysyłanie wiadomości',
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: _toggleEmailSection,
-                        icon: AnimatedRotation(
-                          turns: _isEmailExpanded ? 0.5 : 0,
-                          duration: const Duration(milliseconds: 300),
-                          child: const Icon(Icons.expand_more_rounded),
-                        ),
-                        style: IconButton.styleFrom(
-                          backgroundColor: AppThemePro.accentGold.withOpacity(
-                            0.1,
-                          ),
-                          foregroundColor: AppThemePro.accentGold,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  if (_isEmailExpanded) ...[
-                    const SizedBox(height: 20),
-                    _buildEmailForm(),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildEmailForm() {
-    return SlideTransition(
-      position: Tween<Offset>(begin: const Offset(0, -0.5), end: Offset.zero)
-          .animate(
-            CurvedAnimation(
-              parent: _emailController,
-              curve: Curves.easeOutCubic,
-            ),
-          ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Template selector
-          DropdownButtonFormField<String>(
-            value: _selectedEmailTemplate,
-            decoration: const InputDecoration(
-              labelText: 'Szablon wiadomości',
-              prefixIcon: Icon(Icons.email_outlined),
-            ),
-            items: ['Wybierz szablon', ..._emailTemplates.keys]
-                .map(
-                  (template) =>
-                      DropdownMenuItem(value: template, child: Text(template)),
-                )
-                .toList(),
-            onChanged: _onEmailTemplateChanged,
-          ),
-          const SizedBox(height: 16),
-
-          // Subject field
-          TextFormField(
-            controller: _emailSubjectController,
-            decoration: const InputDecoration(
-              labelText: 'Temat wiadomości',
-              prefixIcon: Icon(Icons.subject_rounded),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Body field
-          TextFormField(
-            controller: _emailBodyController,
-            decoration: const InputDecoration(
-              labelText: 'Treść wiadomości',
-              prefixIcon: Icon(Icons.message_rounded),
-              alignLabelWithHint: true,
-            ),
-            maxLines: 8,
-            minLines: 4,
-          ),
-          const SizedBox(height: 20),
-
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _previewEmail,
-                  icon: const Icon(Icons.preview_rounded),
-                  label: const Text('Podgląd'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _sendEmail,
-                  icon: const Icon(Icons.send_rounded),
-                  label: const Text('Wyślij'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppThemePro.accentGold,
-                    foregroundColor: AppThemePro.backgroundPrimary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildNotesSection() {
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 700),
@@ -434,8 +258,6 @@ class _ClientActionsTabState extends State<ClientActionsTab>
                     'Zapisz ważne informacje o kliencie',
                   ),
                   const SizedBox(height: 20),
-
-                  // Current notes input
                   TextFormField(
                     controller: _notesController,
                     decoration: const InputDecoration(
@@ -447,8 +269,6 @@ class _ClientActionsTabState extends State<ClientActionsTab>
                     minLines: 3,
                   ),
                   const SizedBox(height: 20),
-
-                  // Notes history
                   if (_clientNotes.isNotEmpty) ...[
                     Text(
                       'Historia notatek',
@@ -504,7 +324,7 @@ class _ClientActionsTabState extends State<ClientActionsTab>
               ),
               const SizedBox(width: 4),
               Text(
-                note.author,
+                note.authorName,
                 style: const TextStyle(
                   fontSize: 11,
                   color: AppThemePro.textTertiary,
@@ -583,6 +403,7 @@ class _ClientActionsTabState extends State<ClientActionsTab>
                       ),
                     )
                   else
+                    // When a documents service is available, map documents here
                     ..._clientDocuments
                         .map((doc) => _buildDocumentCard(doc))
                         .toList(),
@@ -595,7 +416,7 @@ class _ClientActionsTabState extends State<ClientActionsTab>
     );
   }
 
-  Widget _buildDocumentCard(ClientDocument document) {
+  Widget _buildDocumentCard(dynamic document) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -754,80 +575,6 @@ class _ClientActionsTabState extends State<ClientActionsTab>
     );
   }
 
-  // Helper methods
-  void _toggleEmailSection() {
-    setState(() {
-      _isEmailExpanded = !_isEmailExpanded;
-    });
-
-    if (_isEmailExpanded) {
-      _emailController.forward();
-    } else {
-      _emailController.reverse();
-    }
-
-    HapticFeedback.lightImpact();
-  }
-
-  void _onEmailTemplateChanged(String? template) {
-    if (template == null || template == 'Wybierz szablon') return;
-
-    setState(() {
-      _selectedEmailTemplate = template;
-    });
-
-    final emailTemplate = _emailTemplates[template];
-    if (emailTemplate != null) {
-      // Ustaw temat na podstawie szablonu
-      String subject;
-      switch (template) {
-        case 'Powitanie':
-          subject = 'Witamy w Metropolitan Investment';
-          break;
-        case 'Raport miesięczny':
-          subject =
-              'Raport miesięczny - ${_getCurrentMonth()} ${DateTime.now().year}';
-          break;
-        case 'Przypomnienie':
-          subject = 'Przypomnienie o terminie';
-          break;
-        case 'Zaproszenie na spotkanie':
-          subject = 'Zaproszenie na spotkanie';
-          break;
-        default:
-          subject = '';
-      }
-
-      _emailSubjectController.text = _replaceVariables(subject);
-      _emailBodyController.text = _replaceVariables(emailTemplate);
-    }
-  }
-
-  String _replaceVariables(String text) {
-    return text
-        .replaceAll('{name}', widget.formData.name)
-        .replaceAll('{month}', _getCurrentMonth())
-        .replaceAll('{year}', DateTime.now().year.toString());
-  }
-
-  String _getCurrentMonth() {
-    const months = [
-      'Styczeń',
-      'Luty',
-      'Marzec',
-      'Kwiecień',
-      'Maj',
-      'Czerwiec',
-      'Lipiec',
-      'Sierpień',
-      'Wrzesień',
-      'Październik',
-      'Listopad',
-      'Grudzień',
-    ];
-    return months[DateTime.now().month - 1];
-  }
-
   String _formatDate(DateTime date) {
     return '${date.day}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
@@ -879,11 +626,81 @@ class _ClientActionsTabState extends State<ClientActionsTab>
     );
   }
 
+  void _openEmailEditor() {
+    HapticFeedback.mediumImpact();
+
+    if (widget.client == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Brak wybranego klienta do wysyłki emaila'),
+          backgroundColor: AppThemePro.statusInfo,
+        ),
+      );
+      return;
+    }
+
+    final investorsData = [InvestorSummary.fromInvestments(widget.client!, [])];
+
+    showDialog(
+      context: context,
+      builder: (context) => EnhancedEmailEditorDialog(
+        selectedInvestors: investorsData,
+        onEmailSent: () {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Email wysłany do ${widget.client!.name}'),
+              backgroundColor: AppThemePro.statusSuccess,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   void _scheduleMeeting() {
     HapticFeedback.lightImpact();
+    if (widget.client != null) {
+      final now = DateTime.now().add(const Duration(days: 7));
+      final event = CalendarEvent(
+        id: '',
+        title: 'Spotkanie z ${widget.client!.name}',
+        description: 'Automatycznie utworzone wydarzenie',
+        startDate: now,
+        endDate: now.add(const Duration(hours: 1)),
+        location: '',
+        category: CalendarEventCategory.client,
+        status: CalendarEventStatus.tentative,
+        participants: [],
+        createdBy: '',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      _calendarService
+          .createEvent(event)
+          .then((created) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('📅 Utworzono wydarzenie: ${created.title}'),
+                backgroundColor: AppThemePro.statusInfo,
+              ),
+            );
+          })
+          .catchError((e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Błąd tworzenia wydarzenia'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          });
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('📅 Otwieranie kalendarza...'),
+        content: Text('Brak danych klienta do zaplanowania spotkania'),
         backgroundColor: AppThemePro.statusInfo,
       ),
     );
@@ -962,49 +779,6 @@ class _ClientActionsTabState extends State<ClientActionsTab>
     );
   }
 
-  void _previewEmail() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Podgląd wiadomości'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Do: ${widget.formData.email}'),
-            const SizedBox(height: 8),
-            Text('Temat: ${_emailSubjectController.text}'),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppThemePro.backgroundSecondary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(_emailBodyController.text),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Zamknij'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _sendEmail() {
-    HapticFeedback.mediumImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('📧 Wysyłanie wiadomości...'),
-        backgroundColor: AppThemePro.accentGold,
-      ),
-    );
-  }
-
   void _uploadDocument() {
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1015,22 +789,22 @@ class _ClientActionsTabState extends State<ClientActionsTab>
     );
   }
 
-  void _downloadDocument(ClientDocument document) {
+  void _downloadDocument(dynamic document) {
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('⬇️ Pobieranie ${document.name}...'),
+        content: Text('⬇️ Pobieranie ${document?.name ?? ''}...'),
         backgroundColor: AppThemePro.statusSuccess,
       ),
     );
   }
 
-  void _deleteDocument(ClientDocument document) {
+  void _deleteDocument(dynamic document) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Usuń dokument'),
-        content: Text('Czy na pewno chcesz usunąć ${document.name}?'),
+        content: Text('Czy na pewno chcesz usunąć ${document?.name ?? ''}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -1051,51 +825,46 @@ class _ClientActionsTabState extends State<ClientActionsTab>
     );
   }
 
-  void _exportData(String type) {
+  Future<void> _exportData(String type) async {
     HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('📄 Eksportowanie jako $type...'),
-        backgroundColor: AppThemePro.statusInfo,
-      ),
-    );
+
+    if (widget.client == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Brak klienta do eksportu'),
+          backgroundColor: AppThemePro.statusInfo,
+        ),
+      );
+      return;
+    }
+
+    final clientId = widget.client!.id;
+    final requestedBy = widget.formData.email.isNotEmpty
+        ? widget.formData.email
+        : 'system@metropolitan.example';
+
+    try {
+      final result = await _emailAndExportService.exportInvestorsData(
+        clientIds: [clientId],
+        exportFormat: type.toLowerCase(),
+        requestedBy: requestedBy,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '✅ Eksport gotowy: ${result.filename.isNotEmpty ? result.filename : 'zakończono'}',
+          ),
+          backgroundColor: AppThemePro.statusSuccess,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Błąd eksportu: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
-}
-
-// Helper data classes
-class EmailTemplate {
-  final String subject;
-  final String body;
-
-  EmailTemplate({required this.subject, required this.body});
-}
-
-class ClientNote {
-  final String id;
-  final String content;
-  final DateTime createdAt;
-  final String author;
-
-  ClientNote({
-    required this.id,
-    required this.content,
-    required this.createdAt,
-    required this.author,
-  });
-}
-
-class ClientDocument {
-  final String id;
-  final String name;
-  final String type;
-  final String size;
-  final DateTime uploadedAt;
-
-  ClientDocument({
-    required this.id,
-    required this.name,
-    required this.type,
-    required this.size,
-    required this.uploadedAt,
-  });
 }

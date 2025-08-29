@@ -5,7 +5,6 @@ import '../../theme/app_theme_professional.dart';
 import 'client_overview_tab.dart';
 import 'client_contact_tab.dart';
 import 'client_investments_tab.dart';
-import 'client_analytics_tab.dart';
 import 'client_actions_tab.dart';
 
 /// 🎨 SPEKTAKULARNY ENHANCED CLIENT DIALOG
@@ -85,11 +84,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
       icon: Icons.trending_up_rounded,
       tooltip: 'Portfel inwestycyjny klienta',
     ),
-    TabDefinition(
-      label: 'Analityka',
-      icon: Icons.analytics_rounded,
-      tooltip: 'Wykresy i statystyki',
-    ),
+    // Analytics tab removed - analytics moved to Investments/Overview
     TabDefinition(
       label: 'Akcje',
       icon: Icons.settings_rounded,
@@ -281,12 +276,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
         ): VoidCallbackIntent(
           () => _tabController.animateTo(3),
         ),
-        LogicalKeySet(
-          LogicalKeyboardKey.controlLeft,
-          LogicalKeyboardKey.digit5,
-        ): VoidCallbackIntent(
-          () => _tabController.animateTo(4),
-        ),
+        // Ctrl+5 removed - fewer tabs now
       },
       child: Actions(
         actions: {
@@ -617,11 +607,6 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
             onDataChanged: _onFormDataChanged,
           ),
           ClientInvestmentsTab(
-            client: widget.client,
-            formData: _formData,
-            additionalData: widget.additionalData,
-          ),
-          ClientAnalyticsTab(
             client: widget.client,
             formData: _formData,
             additionalData: widget.additionalData,

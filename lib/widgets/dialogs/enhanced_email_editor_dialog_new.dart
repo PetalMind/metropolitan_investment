@@ -64,7 +64,6 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
 
   // Templates management
   List<EmailTemplateModel> _emailTemplates = [];
-  EmailTemplate? _selectedTemplate;
   bool _isLoadingTemplates = false;
 
   // Editor formatting options
@@ -657,7 +656,7 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
           // Editor with toolbar
           Expanded(
             child: HtmlEditorWidget(
-              controller: _getCurrentController().controller,
+              controller: _getCurrentController(),
               focusNode: _getCurrentFocusNode(),
               placeholder: 'Wpisz treść swojego emaila...',
               padding: EdgeInsets.all(
