@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
-import '../../services/universal_investment_service.dart' as universal;
 import 'client_overview_tab.dart'; // For ClientFormData
 
 /// Client Actions Tab
@@ -30,23 +29,13 @@ class ClientActionsTab extends StatefulWidget {
 class _ClientActionsTabState extends State<ClientActionsTab>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   final ClientNotesService _clientNotesService = ClientNotesService();
-  final EmailHistoryService _emailHistoryService = EmailHistoryService();
-  final EmailAndExportService _emailAndExportService = EmailAndExportService();
   final CalendarService _calendarService = CalendarService();
-  final InvestorAnalyticsService _investorAnalyticsService =
-      InvestorAnalyticsService(); // Przygotowane na przyszłe rozszerzenia analityki
-  final UniversalInvestmentService _universalInvestmentService =
-      universal.UniversalInvestmentService.instance;
 
   final _notesController = TextEditingController();
   late final AnimationController _cardController;
 
   List<ClientNote> _clientNotes = [];
   List<dynamic> _clientDocuments = [];
-  List<Investment> _clientInvestments =
-      []; // Przygotowane na przyszłe użycie w emailach z danymi inwestycji
-  bool _isLoadingInvestments =
-      false; // Przygotowane na przyszłe użycie w emailach z danymi inwestycji
 
   @override
   bool get wantKeepAlive => true;
@@ -79,7 +68,6 @@ class _ClientActionsTabState extends State<ClientActionsTab>
   Future<void> _loadClientData() async {
     _clientNotes = [];
     _clientDocuments = [];
-    _clientInvestments = [];
 
     if (widget.client == null) return;
 
@@ -90,25 +78,6 @@ class _ClientActionsTabState extends State<ClientActionsTab>
       setState(() => _clientNotes = notes);
     } catch (e) {
       debugPrint('Błąd ładowania notatek: $e');
-    }
-
-    try {
-      await _emailHistoryService.getEmailHistoryForClient(clientId);
-      // We don't currently display detailed history here; EmailEditor handles it
-    } catch (e) {
-      debugPrint('Błąd ładowania historii emaili: $e');
-    }
-
-    // Załaduj inwestycje klienta dla funkcji email
-    try {
-      setState(() => _isLoadingInvestments = true);
-      final investments = await _universalInvestmentService
-          .getInvestmentsForClient(clientId);
-      setState(() => _clientInvestments = investments);
-    } catch (e) {
-      debugPrint('Błąd ładowania inwestycji klienta: $e');
-    } finally {
-      setState(() => _isLoadingInvestments = false);
     }
   }
 
@@ -167,28 +136,10 @@ class _ClientActionsTabState extends State<ClientActionsTab>
                       const SizedBox(width: 12),
                       Expanded(
                         child: _buildQuickActionCard(
-                          'Email',
-                          Icons.email_rounded,
-                          AppThemePro.accentGold,
-                          () => _openEmailEditor(),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildQuickActionCard(
                           'Spotkanie',
                           Icons.event_rounded,
                           AppThemePro.statusInfo,
                           () => _scheduleMeeting(),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildQuickActionCard(
-                          'Eksport',
-                          Icons.download_rounded,
-                          AppThemePro.statusWarning,
-                          () => _showExportOptions(),
                         ),
                       ),
                     ],
@@ -626,38 +577,6 @@ class _ClientActionsTabState extends State<ClientActionsTab>
     );
   }
 
-  void _openEmailEditor() {
-    HapticFeedback.mediumImpact();
-
-    if (widget.client == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Brak wybranego klienta do wysyłki emaila'),
-          backgroundColor: AppThemePro.statusInfo,
-        ),
-      );
-      return;
-    }
-
-    final investorsData = [InvestorSummary.fromInvestments(widget.client!, [])];
-
-    showDialog(
-      context: context,
-      builder: (context) => EnhancedEmailEditorDialog(
-        selectedInvestors: investorsData,
-        onEmailSent: () {
-          Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('✅ Email wysłany do ${widget.client!.name}'),
-              backgroundColor: AppThemePro.statusSuccess,
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   void _scheduleMeeting() {
     HapticFeedback.lightImpact();
     if (widget.client != null) {
@@ -702,79 +621,6 @@ class _ClientActionsTabState extends State<ClientActionsTab>
       const SnackBar(
         content: Text('Brak danych klienta do zaplanowania spotkania'),
         backgroundColor: AppThemePro.statusInfo,
-      ),
-    );
-  }
-
-  void _showExportOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: AppThemePro.backgroundPrimary,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              height: 4,
-              width: 40,
-              decoration: BoxDecoration(
-                color: AppThemePro.borderSecondary,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  const Text(
-                    'Eksportuj dane klienta',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppThemePro.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _buildExportOption('PDF', Icons.picture_as_pdf, Colors.red),
-                  _buildExportOption('Excel', Icons.table_chart, Colors.green),
-                  _buildExportOption(
-                    'JSON',
-                    Icons.code,
-                    AppThemePro.accentGold,
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExportOption(String type, IconData icon, Color color) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: color),
-        ),
-        title: Text('Eksportuj jako $type'),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: () {
-          Navigator.pop(context);
-          _exportData(type);
-        },
       ),
     );
   }
@@ -825,46 +671,4 @@ class _ClientActionsTabState extends State<ClientActionsTab>
     );
   }
 
-  Future<void> _exportData(String type) async {
-    HapticFeedback.lightImpact();
-
-    if (widget.client == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Brak klienta do eksportu'),
-          backgroundColor: AppThemePro.statusInfo,
-        ),
-      );
-      return;
-    }
-
-    final clientId = widget.client!.id;
-    final requestedBy = widget.formData.email.isNotEmpty
-        ? widget.formData.email
-        : 'system@metropolitan.example';
-
-    try {
-      final result = await _emailAndExportService.exportInvestorsData(
-        clientIds: [clientId],
-        exportFormat: type.toLowerCase(),
-        requestedBy: requestedBy,
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '✅ Eksport gotowy: ${result.filename.isNotEmpty ? result.filename : 'zakończono'}',
-          ),
-          backgroundColor: AppThemePro.statusSuccess,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Błąd eksportu: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
 }

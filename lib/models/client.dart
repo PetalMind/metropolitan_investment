@@ -150,6 +150,7 @@ class Client {
         data['fullName'] ?? data['imie_nazwisko'] ?? data['name'] ?? '';
     final email = data['email'] ?? '';
     final phone = data['phone'] ?? data['telefon'] ?? '';
+    final address = data['address'] ?? '';
 
     // Helper function to parse date strings or Timestamp
     DateTime parseDateTime(dynamic dateValue) {
@@ -186,8 +187,8 @@ class Client {
       name: fullName, // Użyj zmapowanej nazwy
       email: email, // Użyj zmapowanego emaila
       phone: phone, // Użyj zmapowanego telefonu
-      address: data['address'] ?? '', // Może być puste dla danych z Excel
-      pesel: data['pesel'], // PESEL jest już obsługiwany
+      address: address, // Użyj zmapowanego adresu
+      pesel: data['pesel']?.toString(), // PESEL jest teraz obsługiwany
       companyName: data['companyName'] ?? data['nazwa_firmy'],
       type: ClientType.values.firstWhere(
         (e) => e.name == data['type'],
@@ -206,6 +207,9 @@ class Client {
       additionalInfo:
           data['additionalInfo'] ??
           {'sourceFile': data['sourceFile'] ?? data['source_file']},
+      contactPreferences: ContactPreferences.fromFirestore(
+        data['contactPreferences'] as Map<String, dynamic>?,
+      ), // 🎯 NOWE: ContactPreferences
     );
   }
 
@@ -243,6 +247,8 @@ class Client {
           additionalInfo['sourceFile'] ??
           additionalInfo['source_file'] ??
           'manual_entry', // Kompatybilność
+      'contactPreferences': contactPreferences
+          .toFirestore(), // 🎯 NOWE: ContactPreferences
     };
   }
 
@@ -264,6 +270,7 @@ class Client {
     DateTime? updatedAt,
     bool? isActive,
     Map<String, dynamic>? additionalInfo,
+    ContactPreferences? contactPreferences, // 🎯 NOWE
   }) {
     return Client(
       id: id ?? this.id,
@@ -283,6 +290,8 @@ class Client {
       updatedAt: updatedAt ?? this.updatedAt,
       isActive: isActive ?? this.isActive,
       additionalInfo: additionalInfo ?? this.additionalInfo,
+      contactPreferences:
+          contactPreferences ?? this.contactPreferences, // 🎯 NOWE
     );
   }
 
@@ -371,6 +380,9 @@ class Client {
       updatedAt: parseDate(map['updatedAt']) ?? DateTime.now(),
       isActive: map['isActive'] as bool? ?? true,
       additionalInfo: map['additionalInfo'] as Map<String, dynamic>? ?? {},
+      contactPreferences: ContactPreferences.fromFirestore(
+        map['contactPreferences'] as Map<String, dynamic>?,
+      ), // 🎯 NOWE
     );
   }
 }

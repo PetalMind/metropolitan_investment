@@ -22,6 +22,8 @@ class EnhancedClientDialog extends StatefulWidget {
   final VoidCallback? onCancel;
   final Map<String, dynamic>?
   additionalData; // Dane inwestycji, statystyki itp.
+  final Future<Map<String, dynamic>?> Function()?
+  onDataRefresh; // 🚀 NOWY: Callback do odświeżania danych
 
   const EnhancedClientDialog({
     super.key,
@@ -29,6 +31,7 @@ class EnhancedClientDialog extends StatefulWidget {
     required this.onSave,
     this.onCancel,
     this.additionalData,
+    this.onDataRefresh,
   });
 
   static Future<void> show({
@@ -37,6 +40,8 @@ class EnhancedClientDialog extends StatefulWidget {
     required Function(Client) onSave,
     VoidCallback? onCancel,
     Map<String, dynamic>? additionalData,
+    Future<Map<String, dynamic>?> Function()?
+    onDataRefresh, // 🚀 NOWY: Callback do odświeżania danych
   }) {
     return showDialog(
       context: context,
@@ -47,6 +52,7 @@ class EnhancedClientDialog extends StatefulWidget {
         onSave: onSave,
         onCancel: onCancel,
         additionalData: additionalData,
+        onDataRefresh: onDataRefresh,
       ),
     );
   }
@@ -66,6 +72,8 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
   late ClientFormData _formData;
   bool _hasUnsavedChanges = false;
   bool _isLoading = false;
+  Map<String, dynamic>?
+  _currentAdditionalData; // 🚀 NOWY: Aktualny stan additionalData
 
   // Tab definitions
   static const List<TabDefinition> _tabs = [
@@ -98,6 +106,8 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
     _initializeControllers();
     _initializeFormData();
     _setupKeyboardShortcuts();
+    _currentAdditionalData =
+        widget.additionalData; // 🚀 NOWY: Zainicjalizuj dane
   }
 
   @override
@@ -191,21 +201,53 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
       _formKey.currentState!.save();
       final client = _formData.toClient();
 
-      widget.onSave(client);
-      Navigator.of(context).pop();
+      // 🚀 NOWY: Wywołaj onSave i poczekaj na zakończenie
+      await widget.onSave(client);
 
+      // 🚀 NOWY: Odśwież dane w dialogu jeśli callback jest dostępny
+      if (widget.onDataRefresh != null) {
+        print('🔄 [EnhancedClientDialog] Odświeżanie danych w dialogu...');
+        final refreshedData = await widget.onDataRefresh!();
+        if (refreshedData != null) {
+          setState(() {
+            _currentAdditionalData = refreshedData;
+          });
+          print('✅ [EnhancedClientDialog] Dane odświeżone w dialogu');
+        }
+      }
+
+      // Reset loading state before closing dialog
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+
+      Navigator.of(context).pop();
       HapticFeedback.mediumImpact();
+      
+      // Pokaż komunikat o sukcesie
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Klient został zapisany i dane odświeżone'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Błąd podczas zapisywania: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Błąd podczas zapisywania: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -459,16 +501,6 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
                     ),
                   ),
                   const SizedBox(height: 8),
-
-                  // Keyboard shortcuts hint
-                  Wrap(
-                    spacing: 12,
-                    children: [
-                      _buildShortcutHint('Ctrl+S', 'Zapisz'),
-                      _buildShortcutHint('Esc', 'Zamknij'),
-                      _buildShortcutHint('Ctrl+1-5', 'Przełącz tab'),
-                    ],
-                  ),
                 ],
               ),
             ),
@@ -600,7 +632,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
           ClientOverviewTab(
             formData: _formData,
             onDataChanged: _onFormDataChanged,
-            additionalData: widget.additionalData,
+            additionalData: _currentAdditionalData,
           ),
           ClientContactTab(
             formData: _formData,
@@ -609,7 +641,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
           ClientInvestmentsTab(
             client: widget.client,
             formData: _formData,
-            additionalData: widget.additionalData,
+            additionalData: _currentAdditionalData,
           ),
           ClientActionsTab(
             client: widget.client,

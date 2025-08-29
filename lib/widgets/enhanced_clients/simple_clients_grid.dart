@@ -81,6 +81,18 @@ class _SimpleClientsGridState extends State<SimpleClientsGrid> {
     InvestorSummary? investorSummary,
     List<Investment> investments,
   ) {
+    // 🎨 Pobierz kolor klienta
+    Color? clientColor;
+    if (client.colorCode != '#FFFFFF' && client.colorCode.isNotEmpty) {
+      try {
+        clientColor = Color(
+          int.parse('0xFF${client.colorCode.replaceAll('#', '')}'),
+        );
+      } catch (e) {
+        debugPrint('Błąd parsowania koloru klienta: ${client.colorCode}');
+      }
+    }
+
     return Card(
       elevation: isSelected ? 8 : 2,
       color: isSelected
@@ -89,8 +101,12 @@ class _SimpleClientsGridState extends State<SimpleClientsGrid> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isSelected ? AppThemePro.accentGold : Colors.transparent,
-          width: 2,
+          color: isSelected
+              ? AppThemePro.accentGold
+              : (clientColor != null
+                    ? clientColor.withOpacity(0.4)
+                    : Colors.transparent),
+          width: isSelected ? 2 : (clientColor != null ? 1.5 : 0),
         ),
       ),
       child: InkWell(
@@ -98,115 +114,138 @@ class _SimpleClientsGridState extends State<SimpleClientsGrid> {
             ? () => _toggleSelection(client.id)
             : () => widget.onClientTap?.call(client),
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header z nazwą i checkbox/selection indicator
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      client.name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppThemePro.textPrimary,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (widget.isSelectionMode)
-                    Checkbox(
-                      value: isSelected,
-                      onChanged: (value) => _toggleSelection(client.id),
-                      activeColor: AppThemePro.accentGold,
-                    ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // Email
-              if (client.email.isNotEmpty)
-                Text(
-                  client.email,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppThemePro.textSecondary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-
-              const SizedBox(height: 4),
-
-              // Phone
-              if (client.phone.isNotEmpty)
-                Text(
-                  client.phone,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppThemePro.textSecondary,
-                  ),
-                  maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                ),
-
-              const Spacer(),
-
-              // Investment summary
-              if (investorSummary != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppThemePro.accentGold.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${investorSummary.investmentCount} inwestycji',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: AppThemePro.textSecondary,
-                        ),
-                      ),
-                      Text(
-                        '${investorSummary.totalRemainingCapital.toStringAsFixed(0)} PLN',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppThemePro.accentGold,
-                        ),
-                      ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: clientColor != null && !isSelected
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      clientColor.withOpacity(0.08),
+                      AppThemePro.surfaceCard,
+                      clientColor.withOpacity(0.05),
                     ],
-                  ),
+                    stops: const [0.0, 0.5, 1.0],
+                  )
+                : null,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header z nazwą i checkbox/selection indicator
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        client.name,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppThemePro.textPrimary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (widget.isSelectionMode)
+                      Checkbox(
+                        value: isSelected,
+                        onChanged: (value) => _toggleSelection(client.id),
+                        activeColor: AppThemePro.accentGold,
+                      ),
+                  ],
                 ),
 
-              // Status indicator
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: client.isActive
-                      ? AppThemePro.statusSuccess.withOpacity(0.2)
-                      : AppThemePro.statusError.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  client.isActive ? 'Aktywny' : 'Nieaktywny',
-                  style: TextStyle(
-                    fontSize: 10,
+                const SizedBox(height: 8),
+
+                // Email
+                if (client.email.isNotEmpty)
+                  Text(
+                    client.email,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppThemePro.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                const SizedBox(height: 4),
+
+                // Phone
+                if (client.phone.isNotEmpty)
+                  Text(
+                    client.phone,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppThemePro.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                const Spacer(),
+
+                // Investment summary
+                if (investorSummary != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppThemePro.accentGold.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${investorSummary.investmentCount} inwestycji',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppThemePro.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          '${investorSummary.totalRemainingCapital.toStringAsFixed(0)} PLN',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppThemePro.accentGold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Status indicator
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
                     color: client.isActive
-                        ? AppThemePro.statusSuccess
-                        : AppThemePro.statusError,
+                        ? AppThemePro.statusSuccess.withOpacity(0.2)
+                        : AppThemePro.statusError.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    client.isActive ? 'Aktywny' : 'Nieaktywny',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: client.isActive
+                          ? AppThemePro.statusSuccess
+                          : AppThemePro.statusError,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

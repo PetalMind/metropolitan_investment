@@ -181,9 +181,37 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   void didUpdateWidget(SpectacularClientsGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (widget.clients.length != oldWidget.clients.length ||
-        widget.investorSummaries != oldWidget.investorSummaries) {
-      print('🔄 [SpectacularClientsGrid] didUpdateWidget - zmiana danych!');
+    // Sprawdź czy zmieniła się długość listy lub dane inwestycji
+    bool dataChanged =
+        widget.clients.length != oldWidget.clients.length ||
+        widget.investorSummaries != oldWidget.investorSummaries;
+
+    // Sprawdź czy zmieniły się właściwości klientów (np. colorCode)
+    if (!dataChanged && widget.clients.length == oldWidget.clients.length) {
+      for (int i = 0; i < widget.clients.length; i++) {
+        final newClient = widget.clients[i];
+        final oldClient = oldWidget.clients[i];
+
+        // Porównaj kluczowe właściwości klientów
+        if (newClient.id != oldClient.id ||
+            newClient.name != oldClient.name ||
+            newClient.colorCode != oldClient.colorCode ||
+            newClient.isActive != oldClient.isActive ||
+            newClient.email != oldClient.email ||
+            newClient.phone != oldClient.phone) {
+          dataChanged = true;
+          print(
+            '🔄 [SpectacularClientsGrid] Wykryto zmianę właściwości klienta: ${newClient.name}',
+          );
+          break;
+        }
+      }
+    }
+
+    if (dataChanged) {
+      print(
+        '🔄 [SpectacularClientsGrid] didUpdateWidget - zmiana danych wykryta!',
+      );
       print(
         '   - Klienci: ${oldWidget.clients.length} -> ${widget.clients.length}',
       );
@@ -515,6 +543,30 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
       );
     }
 
+    // 🎨 KOLOR UŻYTKOWNIKA - jeśli ustawiony inny niż domyślny
+    if (client.colorCode != '#FFFFFF' && client.colorCode.isNotEmpty) {
+      try {
+        final customColor = Color(
+          int.parse('0xFF${client.colorCode.replaceAll('#', '')}'),
+        );
+
+        return LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            customColor.withOpacity(0.15),
+            AppThemePro.backgroundSecondary.withOpacity(0.95),
+            AppThemePro.backgroundPrimary,
+            customColor.withOpacity(0.08),
+          ],
+          stops: const [0.0, 0.3, 0.7, 1.0],
+        );
+      } catch (e) {
+        // Jeśli parsowanie koloru się nie powiedzie, użyj domyślnego
+        debugPrint('Błąd parsowania koloru klienta: ${client.colorCode}');
+      }
+    }
+
     // 🔹 PODSTAWOWE KARTY - bez gradientu, tylko solid color
     return LinearGradient(
       begin: Alignment.topLeft,
@@ -536,6 +588,21 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
       return AppThemePro.accentGold.withOpacity(
         0.6 + (_premiumGlowController.value * 0.2),
       );
+    }
+
+    // 🎨 Użyj koloru klienta jeśli jest ustawiony
+    if (client.colorCode != '#FFFFFF' && client.colorCode.isNotEmpty) {
+      try {
+        final customColor = Color(
+          int.parse('0xFF${client.colorCode.replaceAll('#', '')}'),
+        );
+        return customColor.withOpacity(0.4);
+      } catch (e) {
+        // Jeśli parsowanie się nie powiedzie, użyj domyślnego
+        debugPrint(
+          'Błąd parsowania koloru klienta dla obramowania: ${client.colorCode}',
+        );
+      }
     }
 
     return AppThemePro.borderSecondary.withOpacity(0.3);

@@ -195,10 +195,6 @@ class _ClientOverviewTabState extends State<ClientOverviewTab>
 
           // Kolor oznaczenia
           _buildColorSection(),
-          const SizedBox(height: 24),
-
-          // Quick stats (jeśli dostępne)
-          if (widget.additionalData != null) _buildQuickStatsSection(),
         ],
       ),
     );
@@ -378,7 +374,7 @@ class _ClientOverviewTabState extends State<ClientOverviewTab>
               labelText: 'Imię i nazwisko / Nazwa*',
               hintText: 'Wprowadź pełne imię i nazwisko',
               prefixIcon: const Icon(Icons.badge_rounded),
-              helperText: 'Zapisywane jako "fullName" w Firebase',
+              helperText: '',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: AppThemePro.borderPrimary),
@@ -680,35 +676,6 @@ class _ClientOverviewTabState extends State<ClientOverviewTab>
                 ),
               );
             }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickStatsSection() {
-    // TODO: Implement quick stats from additional data
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppThemePro.elevatedSurfaceDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader(
-            'Szybki podgląd',
-            Icons.dashboard_rounded,
-            'Podstawowe statystyki klienta',
-          ),
-          const SizedBox(height: 20),
-
-          const Center(
-            child: Text(
-              '📊 Statystyki będą wyświetlane po zapisaniu klienta',
-              style: TextStyle(
-                color: AppThemePro.textSecondary,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
           ),
         ],
       ),

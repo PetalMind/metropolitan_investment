@@ -303,6 +303,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         // FALLBACK: Stara metoda przez OptimizedProductService
         await _loadDataViaProducts();
       }
+
+      // 🚀 ZAWSZE ładowane dane inwestycji po załadowaniu klientów
+      await _loadInvestmentData();
     } catch (e) {
       print('❌ [EnhancedClientsScreen] Krytyczny błąd ładowania: $e');
       if (mounted) {
@@ -844,7 +847,12 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
   /// Odświeżenie danych
   Future<void> _refreshData() async {
+    print(
+      '🔄 [EnhancedClientsScreen] _refreshData() - rozpoczynanie odświeżania...',
+    );
     await _loadInitialData();
+    // 🚀 ZAWSZE odśwież dane inwestycji po odświeżeniu klientów
+    await _loadInvestmentData();
     _showSuccessSnackBar('Dane zostały odświeżone');
   }
 
@@ -876,6 +884,23 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         } catch (e) {
           _showErrorSnackBar('Błąd podczas zapisywania: $e');
         }
+      },
+      // 🚀 NOWY: Callback do odświeżania danych w dialogu
+      onDataRefresh: () async {
+        print('🔄 [EnhancedClientsScreen] Odświeżanie danych dla dialogu...');
+
+        // Załaduj fresh dane inwestycji dla dialogu
+        await _loadInvestmentData();
+
+        // Zwróć zaktualizowane dane
+        final refreshedData = {
+          'investorSummaries': _investorSummaries,
+          'clientInvestments': _clientInvestments,
+          'clientStats': _clientStats,
+        };
+
+        print('✅ [EnhancedClientsScreen] Dane odświeżone dla dialogu');
+        return refreshedData;
       },
     );
   }
@@ -1667,5 +1692,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         _isLoading = false;
       });
     }
+
+    // Zawsze załaduj dane inwestycji na końcu
+    await _loadInvestmentData();
   }
 }
