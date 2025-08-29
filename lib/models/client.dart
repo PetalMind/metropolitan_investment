@@ -20,6 +20,86 @@ enum ClientType {
   final String displayName;
 }
 
+enum ContactPreference {
+  email('Email'),
+  phone('Telefon'),
+  sms('SMS'),
+  postal('Poczta tradycyjna'),
+  none('Brak kontaktu');
+
+  const ContactPreference(this.displayName);
+  final String displayName;
+}
+
+enum CommunicationLanguage {
+  polish('Polski'),
+  english('Angielski'),
+  german('Niemiecki'),
+  french('Francuski');
+
+  const CommunicationLanguage(this.displayName);
+  final String displayName;
+}
+
+class ContactPreferences {
+  final ContactPreference primary;
+  final ContactPreference? secondary;
+  final CommunicationLanguage language;
+  final bool allowMarketing;
+  final bool allowNotifications;
+  final List<String> availableHours; // np. ["09:00-17:00"]
+  final String? notes;
+
+  const ContactPreferences({
+    this.primary = ContactPreference.email,
+    this.secondary,
+    this.language = CommunicationLanguage.polish,
+    this.allowMarketing = true,
+    this.allowNotifications = true,
+    this.availableHours = const ["09:00-17:00"],
+    this.notes,
+  });
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'primaryContact': primary.name,
+      'secondaryContact': secondary?.name,
+      'language': language.name,
+      'allowMarketing': allowMarketing,
+      'allowNotifications': allowNotifications,
+      'availableHours': availableHours,
+      'notes': notes,
+    };
+  }
+
+  factory ContactPreferences.fromFirestore(Map<String, dynamic>? data) {
+    if (data == null) return const ContactPreferences();
+
+    return ContactPreferences(
+      primary: ContactPreference.values.firstWhere(
+        (e) => e.name == data['primaryContact'],
+        orElse: () => ContactPreference.email,
+      ),
+      secondary: data['secondaryContact'] != null
+          ? ContactPreference.values.firstWhere(
+              (e) => e.name == data['secondaryContact'],
+              orElse: () => ContactPreference.phone,
+            )
+          : null,
+      language: CommunicationLanguage.values.firstWhere(
+        (e) => e.name == data['language'],
+        orElse: () => CommunicationLanguage.polish,
+      ),
+      allowMarketing: data['allowMarketing'] ?? true,
+      allowNotifications: data['allowNotifications'] ?? true,
+      availableHours: List<String>.from(
+        data['availableHours'] ?? ["09:00-17:00"],
+      ),
+      notes: data['notes'],
+    );
+  }
+}
+
 class Client {
   final String id; // UUID from Firestore doc.id
   final String? excelId; // Original numeric ID from Excel
@@ -38,6 +118,7 @@ class Client {
   final DateTime updatedAt;
   final bool isActive;
   final Map<String, dynamic> additionalInfo;
+  final ContactPreferences contactPreferences; // 🚀 NOWE POLE
 
   Client({
     required this.id,
@@ -57,6 +138,8 @@ class Client {
     required this.updatedAt,
     this.isActive = true,
     this.additionalInfo = const {},
+    this.contactPreferences =
+        const ContactPreferences(), // 🚀 DOMYŚLNE WARTOŚCI
   });
 
   factory Client.fromFirestore(DocumentSnapshot doc) {

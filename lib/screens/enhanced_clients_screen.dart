@@ -10,6 +10,7 @@ import '../widgets/enhanced_clients/collapsible_search_header_fixed.dart'
 import '../widgets/enhanced_clients/spectacular_clients_grid.dart';
 import '../widgets/enhanced_clients/simple_clients_grid.dart';
 import '../widgets/enhanced_clients/enhanced_clients_header.dart';
+import '../widgets/enhanced_client_dialog/enhanced_client_dialog.dart';
 
 /// 🎨 SPEKTAKULARNY EKRAN KLIENTÓW Z EFEKTEM WOW
 ///
@@ -849,9 +850,15 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
   /// Pokaż formularz klienta
   void _showClientForm([Client? client]) {
-    ClientDialog.show(
+    // 🚀 NOWY: Użyj Enhanced Client Dialog zamiast starszego ClientDialog
+    EnhancedClientDialog.show(
       context: context,
       client: client,
+      additionalData: {
+        'investorSummaries': _investorSummaries,
+        'clientInvestments': _clientInvestments,
+        'clientStats': _clientStats,
+      },
       onSave: (savedClient) async {
         try {
           if (client == null) {
