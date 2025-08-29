@@ -209,8 +209,10 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
                           ),
                         ),
                       ),
-                      child: TabBar(
-                        labelColor: AppThemePro.accentGold,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: TabBar(
+                          labelColor: AppThemePro.accentGold,
                         unselectedLabelColor: AppThemePro.textSecondary,
                         indicatorColor: AppThemePro.accentGold,
                         tabs: const [
@@ -223,6 +225,7 @@ class _TotalCapitalEditDialogState extends State<TotalCapitalEditDialog> {
                             text: 'Historia zmian',
                           ),
                         ],
+                        ),
                       ),
                     ),
 

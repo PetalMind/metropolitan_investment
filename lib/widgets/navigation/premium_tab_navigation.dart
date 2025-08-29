@@ -176,46 +176,49 @@ class _PremiumTabNavigationState extends State<PremiumTabNavigation>
   }
 
   Widget _buildTabBar() {
-    return TabBar(
-      controller: widget.tabController,
-      isScrollable: !widget.isTablet && widget.tabs.length > 3,
-      labelColor: AppThemePro.accentGold,
-      unselectedLabelColor: AppThemePro.textSecondary,
-      indicatorColor: AppThemePro.accentGold,
-      indicatorWeight: 3,
-      indicatorSize: TabBarIndicatorSize.label,
-      dividerColor: Colors.transparent,
-      splashFactory: NoSplash.splashFactory,
-      overlayColor: WidgetStateProperty.all(Colors.transparent),
-      labelStyle: TextStyle(
-        fontSize: widget.isTablet ? 15 : 13,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.4,
-      ),
-      unselectedLabelStyle: TextStyle(
-        fontSize: widget.isTablet ? 15 : 13,
-        fontWeight: FontWeight.w400,
-        letterSpacing: 0.2,
-      ),
-      indicator: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: LinearGradient(
-          colors: [
-            AppThemePro.accentGold.withValues(alpha: 0.25),
-            AppThemePro.accentGold.withValues(alpha: 0.1),
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+    return Material(
+      color: Colors.transparent,
+      child: TabBar(
+        controller: widget.tabController,
+        isScrollable: !widget.isTablet && widget.tabs.length > 3,
+        labelColor: AppThemePro.accentGold,
+        unselectedLabelColor: AppThemePro.textSecondary,
+        indicatorColor: AppThemePro.accentGold,
+        indicatorWeight: 3,
+        indicatorSize: TabBarIndicatorSize.label,
+        dividerColor: Colors.transparent,
+        splashFactory: NoSplash.splashFactory,
+        overlayColor: WidgetStateProperty.all(Colors.transparent),
+        labelStyle: TextStyle(
+          fontSize: widget.isTablet ? 15 : 13,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.4,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppThemePro.accentGold.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        unselectedLabelStyle: TextStyle(
+          fontSize: widget.isTablet ? 15 : 13,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.2,
+        ),
+        indicator: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [
+              AppThemePro.accentGold.withValues(alpha: 0.25),
+              AppThemePro.accentGold.withValues(alpha: 0.1),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: AppThemePro.accentGold.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        tabs: widget.tabs.map((tab) => _buildAnimatedTab(tab)).toList(),
       ),
-      tabs: widget.tabs.map((tab) => _buildAnimatedTab(tab)).toList(),
     );
   }
 

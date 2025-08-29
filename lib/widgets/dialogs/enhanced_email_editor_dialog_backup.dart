@@ -322,8 +322,10 @@ Zespół Metropolitan Investment''';
   Widget _buildTabBar() {
     return Container(
       color: AppThemePro.backgroundSecondary,
-      child: TabBar(
-        controller: _tabController,
+      child: Material(
+        color: Colors.transparent,
+        child: TabBar(
+          controller: _tabController,
         tabs: const [
           Tab(icon: Icon(Icons.edit), text: 'Edytor'),
           Tab(icon: Icon(Icons.settings), text: 'Ustawienia'),
@@ -332,6 +334,7 @@ Zespół Metropolitan Investment''';
         labelColor: AppThemePro.accentGold,
         unselectedLabelColor: Colors.grey,
         indicatorColor: AppThemePro.accentGold,
+        ),
       ),
     );
   }

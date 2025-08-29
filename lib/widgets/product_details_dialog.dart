@@ -952,9 +952,11 @@ class _EnhancedProductDetailsDialogState
           ),
         ],
       ),
-      child: TabBar(
-        controller: _tabController,
-        tabs: [
+      child: Material(
+        color: Colors.transparent,
+        child: TabBar(
+          controller: _tabController,
+          tabs: [
           Tab(
             child: Row(
               mainAxisSize: MainAxisSize.min,

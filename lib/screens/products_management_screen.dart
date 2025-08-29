@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:fl_chart/fl_chart.dart';
 import '../theme/app_theme.dart';
 import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
@@ -11,7 +10,6 @@ import '../services/firebase_functions_products_service.dart' as fb;
 import '../services/unified_product_service.dart' as unified;
 import '../services/optimized_product_service.dart'; // 🚀 NOWY IMPORT
 import '../services/product_management_service.dart'; // 🚀 NOWY: Centralny serwis zarządzania
-import '../services/cache_management_service.dart'; // 🚀 NOWY: Zarządzanie cache
 import '../services/unified_investor_count_service.dart'; // 🚀 NOWY: Serwis liczby inwestorów
 import '../adapters/product_statistics_adapter.dart';
 import '../widgets/product_card_widget.dart';
@@ -19,8 +17,7 @@ import '../widgets/product_filter_widget.dart';
 import '../widgets/metropolitan_loading_system.dart';
 import '../widgets/dialogs/product_details_dialog.dart';
 import '../widgets/product_management/product_type_distribution_widget.dart';
-// Zastąpiono starymi dialogami modułowy system email
-// import '../widgets/dialogs/enhanced_email_editor_dialog.dart'; // 🚀 ZMIENIONE: Używamy tego samego co premium_investor_analytics_screen
+import '../widgets/dialogs/enhanced_email_editor_dialog 2.dart';
 import '../widgets/common/synchronized_product_values_widget.dart'; // 🚀 NOWY: Zsynchronizowane wartości
 
 // RBAC: wspólny tooltip dla braku uprawnień
@@ -64,8 +61,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   late final OptimizedProductService _optimizedProductService; // 🚀 NOWY SERWIS
   late final ProductManagementService
   _productManagementService; // 🚀 NOWY: Centralny serwis
-  late final CacheManagementService
-  _cacheManagementService; // 🚀 NOWY: Zarządzanie cache
   late final AnalyticsMigrationService
   _analyticsMigrationService; // 🚀 NOWY: Serwis migracji analityki
   late final AnimationController _fadeController;
@@ -121,7 +116,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   }
 
   // Responsywność
-  bool get _isTablet => MediaQuery.of(context).size.width > 768;
+  // bool get _isTablet => MediaQuery.of(context).size.width > 768;
 
   @override
   void initState() {
@@ -625,8 +620,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     _optimizedProductService = OptimizedProductService(); // 🚀 NOWY SERWIS
     _productManagementService =
         ProductManagementService(); // 🚀 NOWY: Centralny serwis
-    _cacheManagementService =
-        CacheManagementService(); // 🚀 NOWY: Zarządzanie cache
     _analyticsMigrationService =
         AnalyticsMigrationService(); // 🚀 NOWY: Serwis migracji analityki
   }
@@ -943,40 +936,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     }
   }
 
-  /// Odświeża statystyki po przełączeniu trybu wyświetlania
-  Future<void> _refreshStatistics() async {
-    if (_statistics == null) return;
-
-    try {
-      fb.ProductStatistics newStats;
-
-      if (_useOptimizedMode && _optimizedResult?.statistics != null) {
-        // Użyj statystyk z OptimizedProductsResult
-        newStats = _convertGlobalStatsToFBStatsViAdapter(
-          _optimizedResult!.statistics!,
-        );
-      } else if (_showDeduplicatedView) {
-        newStats = await _deduplicatedProductService
-            .getDeduplicatedProductStatistics()
-            .then(
-              (stats) => ProductStatisticsAdapter.adaptFromUnifiedToFB(stats),
-            );
-      } else {
-        newStats = await _productService.getProductStatistics();
-      }
-
-      if (mounted) {
-        setState(() {
-          _statistics = newStats;
-        });
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ [ProductsManagementScreen] Błąd odświeżania statystyk: $e');
-      }
-    }
-  }
-
   /// 🚀 NOWA METODA: Konwertuje OptimizedProduct na DeduplicatedProduct
   DeduplicatedProduct _convertOptimizedToDeduplicatedProduct(
     OptimizedProduct opt,
@@ -1079,58 +1038,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         _slideController.forward();
       }
     });
-  }
-
-  Future<void> _refreshData() async {
-    if (_isRefreshing || !mounted) return;
-
-    if (mounted) {
-      setState(() {
-        _isRefreshing = true;
-      });
-    }
-
-    // Dodaj efekt wibracji dla lepszego UX
-    HapticFeedback.mediumImpact();
-
-    try {
-      // 🚀 NOWE: Wyczyść cache liczby inwestorów przy każdym odświeżaniu
-      try {
-        final investorCountService = UnifiedInvestorCountService();
-        investorCountService.clearAllCache();
-        debugPrint(
-          '✅ [ProductsManagement] Cache liczby inwestorów wyczyszczony przy odświeżaniu',
-        );
-      } catch (e) {
-        debugPrint('⚠️ [ProductsManagement] Błąd czyszczenia cache: $e');
-      }
-
-      if (_useProductManagementService) {
-        // 🚀 NOWE: Odśwież przez ProductManagementService
-        await _productManagementService.refreshCache();
-        await _loadDataWithProductManagementService();
-      } else if (_useOptimizedMode) {
-        // 🚀 NOWE: Odśwież cache w OptimizedProductService
-        await _optimizedProductService.refreshProducts();
-        await _loadOptimizedData();
-      } else {
-        // Legacy: Odśwież cache na serwerze
-        await _productService.refreshCache();
-        await _loadLegacyData();
-      }
-
-      if (kDebugMode) {
-        print(
-          '🔄 [ProductsManagementScreen] Dane odświeżone (mode: ${_useOptimizedMode ? "optimized" : "legacy"})',
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isRefreshing = false;
-        });
-      }
-    }
   }
 
   void _applyFiltersAndSearch() {
@@ -1841,13 +1748,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       '🔄 [ProductsManagement] setState zakończone, wywołuję _applyFiltersAndSearch',
     );
     _applyFiltersAndSearch();
-  }
-
-  void _toggleViewMode() {
-    setState(() {
-      _viewMode = _viewMode == ViewMode.grid ? ViewMode.list : ViewMode.grid;
-    });
-    HapticFeedback.lightImpact();
   }
 
   @override
@@ -3698,44 +3598,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
 
   // 🚀 NOWE METODY: Integracja z zoptymalizowanymi serwisami
 
-  /// Odświeża cache używając nowych zoptymalizowanych serwisów
-  Future<void> _refreshWithOptimizedServices() async {
-    try {
-      // Wyczyść cache wszystkich serwisów
-      _analyticsMigrationService.clearAllCache();
-      await _productManagementService.clearAllCache();
-
-      // Reloaduj dane
-      await _loadInitialData();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.rocket_launch, color: Colors.white),
-                SizedBox(width: 8),
-                Text('🚀 Cache odświeżony z optymalizacjami'),
-              ],
-            ),
-            backgroundColor: AppTheme.successPrimary,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Błąd odświeżania: $e'),
-            backgroundColor: AppTheme.errorPrimary,
-          ),
-        );
-      }
-    }
-  }
-
-
   // 🚀 DODANE: Funkcje email dokładnie takie same jak w premium_investor_analytics_screen
   void _toggleEmailMode() {
     setState(() {
@@ -3870,28 +3732,23 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       investorSummaries.add(investorSummary);
     }
 
-    // 🚀 NOWY: Używamy modułowego EmailEditorWidget
+    // 🚀 NOWY: Używamy EnhancedEmailEditorDialog zamiast EmailEditorWidget
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
-        child: EmailEditorWidget(
-          investors: investorSummaries,
-          onEmailSent: () {
-            Navigator.of(context).pop();
-            _toggleEmailMode(); // 🚀 DODANE: Używamy tej samej logiki co premium_investor_analytics_screen
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('✅ Emaile zostały wysłane'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          },
-          initialSubject: 'Informacje o produktach - Metropolitan Investment',
-          showAsDialog: true,
-        ),
+      builder: (context) => EnhancedEmailEditorDialog(
+        selectedInvestors: investorSummaries,
+        onEmailSent: () {
+          Navigator.of(context).pop();
+          _toggleEmailMode(); // 🚀 DODANE: Używamy tej samej logiki co premium_investor_analytics_screen
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Emaile zostały wysłane'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        },
+        initialSubject: 'Informacje o produktach - Metropolitan Investment',
       ),
     );
   }
@@ -3974,22 +3831,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   }
 
   // 🚀 DODANE: Funkcje selekcji jak w premium_investor_analytics_screen
-  void _selectAllProducts() {
-    setState(() {
-      _selectedProductIds = _filteredDeduplicatedProducts
-          .map((product) => product.id)
-          .toSet();
-    });
-  }
-
-  void _deselectAllProducts() {
-    setState(() {
-      _selectedProductIds.clear();
-    });
-  }
-
-  void _clearSelection() => _deselectAllProducts();
-
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppTheme.errorColor),

@@ -196,8 +196,10 @@ W razie pytań prosimy o kontakt.
             ],
           ),
           const SizedBox(height: 20),
-          TabBar(
-            controller: _tabController,
+          Material(
+            color: Colors.transparent,
+            child: TabBar(
+              controller: _tabController,
             tabs: const [
               Tab(icon: Icon(Icons.people), text: 'Odbiorcy'),
               Tab(icon: Icon(Icons.edit), text: 'Treść'),
@@ -207,6 +209,7 @@ W razie pytań prosimy o kontakt.
             labelColor: AppTheme.secondaryGold,
             unselectedLabelColor: AppTheme.textSecondary,
             indicatorColor: AppTheme.secondaryGold,
+            ),
           ),
         ],
       ),

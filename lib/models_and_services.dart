@@ -126,7 +126,6 @@ export 'services/universal_investment_service.dart'
 export 'services/smtp_service.dart'; // 🚀 NOWE: Serwis konfiguracji i testowania SMTP
 export 'services/calendar_service.dart'; // 🚀 NOWE: Serwis kalendarza
 export 'services/calendar_notification_service.dart'; // 🚀 NOWE: Serwis powiadomień kalendarza
-export 'services/email_history_service.dart'; // 🚀 NOWE: Serwis historii wysłanych emaili
 
 // Voting status change model
 // VotingStatusChange is exported via models/voting_status_change.dart above
@@ -183,7 +182,7 @@ export 'widgets/dialogs/investor_email_dialog.dart'; // ⭐ NOWE: Dialog wysyła
 
 // Enhanced investor analytics dialogs
 export 'widgets/investor_analytics/dialogs/enhanced_investor_details_dialog.dart'; // 🚀 ENHANCED: Najnowocześniejszy dialog inwestora z tab navigation, history, voting, responsive design
-export 'widgets/dialogs/enhanced_email_editor_dialog_new.dart'; // 🚀 NOWE: Zaawansowany edytor maili z Quill
+export 'widgets/dialogs/enhanced_email_editor_dialog 2.dart'; // 🚀 NOWE: Zaawansowany edytor maili z Quill
 export 'widgets/dialogs/investor_export_dialog.dart'; // ⭐ NOWE: Dialog eksportu danych
 export 'widgets/dialogs/product_history_dialog.dart'; // ⭐ NOWE: Dialog historii zmian produktu
 

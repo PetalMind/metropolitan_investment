@@ -426,66 +426,100 @@ Zespół Metropolitan Investment''';
     );
   }
   
-  /// Builds a predefined color palette widget for quick color selection
-  Widget _buildPredefinedColorPalette(Function(Color) onColorSelected) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppThemePro.backgroundSecondary,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppThemePro.borderSecondary),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Szybki wybór kolorów',
-            style: TextStyle(
-              color: AppThemePro.textPrimary,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
+  /// Builds circle color selector for primary colors
+  Widget _buildCircleColorSelector(Function(Color) onColorSelected) {
+    final primaryColors = [
+      Colors.black,
+      Colors.red,
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.pink,
+      Colors.teal,
+      Colors.brown,
+      Colors.white,
+    ];
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      alignment: WrapAlignment.center,
+      children: primaryColors.map((color) {
+        return GestureDetector(
+          onTap: () => onColorSelected(color),
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: color == Colors.white
+                    ? AppThemePro.borderSecondary
+                    : Colors.transparent,
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 3,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: color == Colors.white
+                ? Icon(
+                    Icons.format_color_text,
+                    color: AppThemePro.textSecondary,
+                    size: 14,
+                  )
+                : null,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Builds square color selector for additional colors
+  Widget _buildSquareColorSelector(Function(Color) onColorSelected) {
+    final additionalColors = [
+      const Color(0xFF1976D2), // Professional blue
+      const Color(0xFFD4AF37), // Gold accent
+      const Color(0xFF2E2E2E), // Dark gray
+      const Color(0xFF666666), // Light gray
+      const Color(0xFF4CAF50), // Success green
+      const Color(0xFFF44336), // Error red
+      const Color(0xFFC90e0e), // Custom dark red (test color)
+      Colors.pink,
+      Colors.teal,
+    ];
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      alignment: WrapAlignment.center,
+      children: additionalColors.map((color) {
+        return GestureDetector(
+          onTap: () => onColorSelected(color),
+          child: Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.transparent, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 3,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _predefinedColors.map((color) {
-              return GestureDetector(
-                onTap: () => onColorSelected(color),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: color == Colors.white 
-                        ? AppThemePro.borderSecondary 
-                        : Colors.transparent,
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 2,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                  child: color == Colors.white
-                    ? Icon(
-                        Icons.format_color_text,
-                        color: AppThemePro.textSecondary,
-                        size: 16,
-                      )
-                    : null,
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
+        );
+      }).toList(),
     );
   }
   

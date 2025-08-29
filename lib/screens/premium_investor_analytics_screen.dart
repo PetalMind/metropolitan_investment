@@ -17,6 +17,7 @@ import '../models_and_services.dart'; // Centralny export wszystkich modeli i se
 // Zastąpiono starymi dialogami modułowy system email
 // import '../widgets/dialogs/investor_email_dialog.dart';
 // import '../widgets/dialogs/investor_export_dialog.dart';
+import '../widgets/dialogs/enhanced_email_editor_dialog\ 2.dart';
 import '../services/investor_analytics_service.dart'
     as ia_service; // Tylko dla InvestorAnalyticsResult conflict resolution
 import '../widgets/premium_analytics/system_stats_widget.dart';
@@ -1754,6 +1755,7 @@ class _PremiumInvestorAnalyticsScreenState
             ),
           );
         },
+        initialSubject: 'Informacje o inwestorach - Metropolitan Investment',
       ),
     );
   }

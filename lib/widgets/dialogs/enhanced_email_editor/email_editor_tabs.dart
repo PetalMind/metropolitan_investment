@@ -22,8 +22,10 @@ class EmailEditorTabs extends StatelessWidget {
           bottom: BorderSide(color: AppThemePro.borderPrimary),
         ),
       ),
-      child: TabBar(
-        controller: tabController,
+      child: Material(
+        color: Colors.transparent,
+        child: TabBar(
+          controller: tabController,
         tabs: [
           _buildTab(
             icon: Icons.edit,
@@ -49,6 +51,7 @@ class EmailEditorTabs extends StatelessWidget {
         unselectedLabelStyle: TextStyle(
           fontSize: isMobile ? 12 : 14,
           fontWeight: FontWeight.w500,
+        ),
         ),
       ),
     );

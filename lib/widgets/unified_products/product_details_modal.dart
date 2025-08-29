@@ -594,8 +594,10 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       ),
       child: SafeArea(
         bottom: false,
-        child: TabBar(
-          controller: _tabController,
+        child: Material(
+          color: Colors.transparent,
+          child: TabBar(
+            controller: _tabController,
           // 🎨 IMPROVED STYLING
           indicatorColor: AppTheme.primaryAccent,
           indicatorWeight: 3,
@@ -664,6 +666,7 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
               isTablet,
             ),
           ],
+          ),
         ),
       ),
     );

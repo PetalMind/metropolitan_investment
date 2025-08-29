@@ -273,8 +273,10 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog>
           bottom: BorderSide(color: AppTheme.borderPrimary, width: 1),
         ),
       ),
-      child: TabBar(
-        controller: _tabController,
+      child: Material(
+        color: Colors.transparent,
+        child: TabBar(
+          controller: _tabController,
         tabs: [
           Tab(
             child: Row(
@@ -301,6 +303,7 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog>
         unselectedLabelColor: AppTheme.textTertiary,
         indicatorColor: AppTheme.secondaryGold,
         indicatorWeight: 3,
+        ),
       ),
     );
   }

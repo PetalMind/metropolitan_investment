@@ -257,8 +257,10 @@ class _EnhancedPremiumAnalyticsDashboardState
   Widget _buildEnhancedTabBar() {
     return Container(
       color: AppTheme.backgroundSecondary,
-      child: TabBar(
-        controller: _tabController,
+      child: Material(
+        color: Colors.transparent,
+        child: TabBar(
+          controller: _tabController,
         isScrollable: true,
         indicatorColor: AppTheme.secondaryGold,
         labelColor: AppTheme.secondaryGold,
@@ -270,6 +272,7 @@ class _EnhancedPremiumAnalyticsDashboardState
           Tab(text: '👑 Większość', icon: Icon(Icons.gavel, size: 16)),
           Tab(text: '🚀 Functions', icon: Icon(Icons.functions, size: 16)),
         ],
+        ),
       ),
     );
   }

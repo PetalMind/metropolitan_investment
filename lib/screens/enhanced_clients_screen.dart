@@ -9,6 +9,7 @@ import '../widgets/enhanced_clients/collapsible_search_header_fixed.dart'
     as CollapsibleHeader;
 import '../widgets/enhanced_clients/spectacular_clients_grid.dart';
 import '../widgets/enhanced_clients/enhanced_clients_header.dart';
+import '../widgets/dialogs/enhanced_email_editor_dialog 2.dart';
 import '../widgets/enhanced_client_dialog/enhanced_client_dialog.dart';
 
 /// 🎨 SPEKTAKULARNY EKRAN KLIENTÓW Z EFEKTEM WOW
@@ -720,11 +721,11 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
       if (!mounted) return;
 
-      // 🚀 WZOROWANE NA PREMIUM ANALYTICS: Używamy EmailEditorWidget
+      // 🚀 WZOROWANE NA PREMIUM ANALYTICS: Używamy EnhancedEmailEditorDialog
       showDialog(
         context: context,
-        builder: (context) => EmailEditorWidget(
-          investors: investorsData,
+        builder: (context) => EnhancedEmailEditorDialog(
+          selectedInvestors: investorsData,
           onEmailSent: () {
             Navigator.of(context).pop();
             _toggleEmailMode(); // Wyłącz tryb email po wysłaniu
@@ -736,7 +737,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             );
           },
           initialSubject: 'Informacje o klientach - Metropolitan Investment',
-          showAsDialog: true,
         ),
       );
     } catch (e) {

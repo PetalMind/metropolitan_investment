@@ -540,8 +540,10 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
           bottom: BorderSide(color: AppThemePro.borderPrimary, width: 1),
         ),
       ),
-      child: TabBar(
-        controller: _tabController,
+      child: Material(
+        color: Colors.transparent,
+        child: TabBar(
+          controller: _tabController,
         isScrollable: false,
         indicatorColor: AppThemePro.accentGold,
         indicatorWeight: 3,
@@ -597,6 +599,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
             ),
           );
         }).toList(),
+        ),
       ),
     );
   }

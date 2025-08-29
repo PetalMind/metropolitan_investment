@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart' as html;
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
 
@@ -47,18 +46,8 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
   // Debounce timer for preview updates to avoid rapid rebuilds
   Timer? _previewDebounceTimer;
   
-  // 🚀 ULTRA-RESPONSIVE STATE MANAGEMENT
+  // Auto-hide UI state when editor has focus
   bool _isEditorFocused = false;
-  bool _isKeyboardVisible = false;
-  bool _showFloatingToolbar = false;
-  bool _isGestureMode = false;
-  double _keyboardHeight = 0.0;
-  int _currentRecipientIndex = 0;
-  bool _isSwipingRecipients = false;
-  
-  // Gesture detection
-  final _gestureKey = GlobalKey();
-  double _lastPanPosition = 0.0;
 
   // ⭐ Custom font sizes map - numeric values for precise control
   static const Map<String, String> _customFontSizes = {
@@ -86,51 +75,29 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
     '32px': '32',
   };
 
-  // ⭐ Custom font families with Google Fonts and web-safe fallbacks
+  // ⭐ Custom font families with web-safe fallbacks
   static const Map<String, String> _customFontFamilies = {
-    // System fonts
     'Arial': 'Arial, sans-serif',
     'Helvetica': 'Helvetica, Arial, sans-serif',
     'Times New Roman': 'Times New Roman, Times, serif',
     'Georgia': 'Georgia, serif',
     'Verdana': 'Verdana, sans-serif',
     'Calibri': 'Calibri, sans-serif',
-    
-    // Google Fonts - popular choices for professional documents
     'Roboto': 'Roboto, sans-serif',
     'Open Sans': 'Open Sans, sans-serif',
     'Lato': 'Lato, sans-serif',
     'Source Sans Pro': 'Source Sans Pro, sans-serif',
     'Montserrat': 'Montserrat, sans-serif',
-    'Poppins': 'Poppins, sans-serif',
-    'Nunito': 'Nunito, sans-serif',
-    'Inter': 'Inter, sans-serif',
-    'Work Sans': 'Work Sans, sans-serif',
-    'Fira Sans': 'Fira Sans, sans-serif',
-    
-    // Serif Google Fonts
-    'Merriweather': 'Merriweather, serif',
-    'Playfair Display': 'Playfair Display, serif',
-    'Crimson Text': 'Crimson Text, serif',
-    'Libre Baskerville': 'Libre Baskerville, serif',
-    
-    // Monospace
-    'Courier New': 'Courier New, Courier, monospace',
-    'Fira Code': 'Fira Code, monospace',
-    'Source Code Pro': 'Source Code Pro, monospace',
-    
-    // Display fonts
     'Oswald': 'Oswald, sans-serif',
-    'Raleway': 'Raleway, sans-serif',
+    'Courier New': 'Courier New, Courier, monospace',
+    'Monaco': 'Monaco, Consolas, monospace',
   };
 
   // ⭐ Mobile-friendly reduced font families
   static const Map<String, String> _mobileFontFamilies = {
     'Arial': 'Arial, sans-serif',
-    'Roboto': 'Roboto, sans-serif',
-    'Open Sans': 'Open Sans, sans-serif', 
     'Times New Roman': 'Times New Roman, serif',
-    'Merriweather': 'Merriweather, serif',
+    'Georgia': 'Georgia, serif',
     'Courier New': 'Courier New, monospace',
   };
 
@@ -183,53 +150,10 @@ class _EnhancedEmailEditorDialogState extends State<EnhancedEmailEditorDialog>
 
   final _emailAndExportService = EmailAndExportService();
 
-  /// Preloads Google Fonts used in the font family picker
-  Future<void> _preloadGoogleFonts() async {
-    try {
-      // Preload most commonly used Google Fonts
-      final fontsToPreload = [
-        GoogleFonts.roboto(),
-        GoogleFonts.openSans(),
-        GoogleFonts.lato(),
-        GoogleFonts.sourceSans3(), // Source Sans Pro
-        GoogleFonts.montserrat(),
-        GoogleFonts.poppins(),
-        GoogleFonts.nunito(),
-        GoogleFonts.inter(),
-        GoogleFonts.workSans(),
-        GoogleFonts.firaSans(),
-        GoogleFonts.merriweather(),
-        GoogleFonts.playfairDisplay(),
-        GoogleFonts.crimsonText(),
-        GoogleFonts.libreBaskerville(),
-        GoogleFonts.firaCode(),
-        GoogleFonts.sourceCodePro(),
-        GoogleFonts.oswald(),
-        GoogleFonts.raleway(),
-      ];
-      
-      // Preload fonts silently in background
-      for (final textStyle in fontsToPreload) {
-        GoogleFonts.getFont(textStyle.fontFamily!);
-      }
-      
-      if (kDebugMode) {
-        print('📝 [GoogleFonts] Successfully preloaded ${fontsToPreload.length} Google Fonts');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ [GoogleFonts] Error preloading fonts: $e');
-      }
-    }
-  }
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    
-    // Preload Google Fonts for better performance
-    _preloadGoogleFonts();
 
     // Initialize QuillController with proper configuration
     _quillController = QuillController.basic();
@@ -420,494 +344,177 @@ Zespół Metropolitan Investment''';
   }
   
   /// Handle editor focus change - control UI visibility based on focus
-  /// 🧠 SMART FOCUS DETECTION WITH GESTURE ACTIVATION
   void _onEditorFocusChange() {
+    // Check if ANY editor focus node has focus
     final hasAnyFocus = _editorFocusNode.hasFocus || 
         _individualFocusNodes.values.any((node) => node.hasFocus);
     
     if (hasAnyFocus != _isEditorFocused) {
       setState(() {
         _isEditorFocused = hasAnyFocus;
-        
-        // 🎯 Auto-enable gesture mode on focus
-        if (hasAnyFocus && MediaQuery.of(context).size.width < 600) {
-          _isGestureMode = true;
-          _showFloatingToolbar = true;
-        }
-      });
-      
-      // 🌊 Trigger fluid animation
-      _animateToFocusMode(hasAnyFocus);
-    }
-  }
-  
-  /// 🌊 Smooth animation when entering/exiting focus mode
-  void _animateToFocusMode(bool hasFocus) {
-    if (hasFocus && MediaQuery.of(context).size.width < 600) {
-      // Mobile focus mode - minimal UI, maximum editor space
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted) {
-          setState(() {
-            _showFloatingToolbar = true;
-          });
-        }
       });
     }
-  }
-  
-  // 👆 GESTURE HANDLERS FOR SWIPE & INTERACTIONS
-  
-  void _handlePanStart(DragStartDetails details) {
-    _lastPanPosition = details.localPosition.dx;
-    if (_useIndividualContent && widget.selectedInvestors.length > 1) {
-      setState(() {
-        _isSwipingRecipients = true;
-      });
-    }
-  }
-  
-  void _handlePanUpdate(DragUpdateDetails details) {
-    if (!_isSwipingRecipients) return;
-    
-    final currentPosition = details.localPosition.dx;
-    final deltaX = currentPosition - _lastPanPosition;
-    
-    // Minimum swipe distance to trigger change
-    if (deltaX.abs() > 50) {
-      if (deltaX > 0 && _currentRecipientIndex > 0) {
-        // Swipe right - previous recipient
-        _switchToPreviousRecipient();
-      } else if (deltaX < 0 && _currentRecipientIndex < widget.selectedInvestors.length - 1) {
-        // Swipe left - next recipient
-        _switchToNextRecipient();
-      }
-      _lastPanPosition = currentPosition;
-    }
-  }
-  
-  void _handlePanEnd(DragEndDetails details) {
-    if (_isSwipingRecipients) {
-      setState(() {
-        _isSwipingRecipients = false;
-      });
-    }
-  }
-  
-  void _handleDoubleTap() {
-    // Double tap to toggle floating toolbar
-    if (_isEditorFocused) {
-      setState(() {
-        _showFloatingToolbar = !_showFloatingToolbar;
-      });
-    }
-  }
-  
-  // 🔄 RECIPIENT SWITCHING METHODS
-  
-  void _switchToPreviousRecipient() {
-    if (_currentRecipientIndex > 0) {
-      setState(() {
-        _currentRecipientIndex--;
-        final newRecipientId = widget.selectedInvestors[_currentRecipientIndex].client.id;
-        _selectedRecipientForEditing = newRecipientId;
-      });
-      _updatePreview();
-      _showRecipientSwitchFeedback('poprzedni');
-    }
-  }
-  
-  void _switchToNextRecipient() {
-    if (_currentRecipientIndex < widget.selectedInvestors.length - 1) {
-      setState(() {
-        _currentRecipientIndex++;
-        final newRecipientId = widget.selectedInvestors[_currentRecipientIndex].client.id;
-        _selectedRecipientForEditing = newRecipientId;
-      });
-      _updatePreview();
-      _showRecipientSwitchFeedback('następny');
-    }
-  }
-  
-  void _showRecipientSwitchFeedback(String direction) {
-    final currentInvestor = widget.selectedInvestors[_currentRecipientIndex];
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.swipe_left, color: Colors.white, size: 16),
-            const SizedBox(width: 8),
-            Text('Przełączono na: ${currentInvestor.client.name}'),
-          ],
-        ),
-        backgroundColor: AppThemePro.accentGold,
-        duration: const Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-  
-  void _showRecipientQuickSwitcher() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: AppThemePro.backgroundPrimary,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppThemePro.borderSecondary,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Wybierz odbiorcę',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppThemePro.textPrimary,
-                ),
-              ),
-            ),
-            SizedBox(
-              height: 300,
-              child: ListView.builder(
-                itemCount: widget.selectedInvestors.length,
-                itemBuilder: (context, index) {
-                  final investor = widget.selectedInvestors[index];
-                  final isSelected = index == _currentRecipientIndex;
-                  
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: isSelected ? AppThemePro.accentGold : AppThemePro.backgroundSecondary,
-                      child: Text(
-                        investor.client.name.isNotEmpty ? investor.client.name[0].toUpperCase() : '?',
-                        style: TextStyle(
-                          color: isSelected ? Colors.black : AppThemePro.textSecondary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    title: Text(
-                      investor.client.name,
-                      style: TextStyle(
-                        color: isSelected ? AppThemePro.accentGold : AppThemePro.textPrimary,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                    subtitle: Text('${investor.investmentCount} inwestycji'),
-                    trailing: isSelected ? Icon(Icons.check, color: AppThemePro.accentGold) : null,
-                    onTap: () {
-                      setState(() {
-                        _currentRecipientIndex = index;
-                        _selectedRecipientForEditing = investor.client.id;
-                      });
-                      _updatePreview();
-                      Navigator.pop(context);
-                    },
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
   }
 
   // ⭐ Custom Color Picker Methods
   
-  /// Shows custom color picker using flutter_colorpicker and predefined colors
-  Future<void> _showCustomColorPicker(BuildContext context, {
+  /// Shows an enhanced color picker dialog with predefined palette and custom color wheel
+  Future<Color?> _showEnhancedColorPicker(BuildContext context, {
     required bool isBackground,
+    Color? currentColor,
   }) async {
-    final controller = _getCurrentController();
-    final selection = controller.selection;
+    Color pickerColor = currentColor ?? Colors.black;
     
-    if (!selection.isValid) {
-      // If no text is selected, show an alert
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
+    return showDialog<Color>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
           backgroundColor: AppThemePro.backgroundPrimary,
           title: Text(
-            'Wybierz tekst',
-            style: TextStyle(color: AppThemePro.textPrimary),
+            isBackground ? 'Wybierz kolor tła' : 'Wybierz kolor tekstu',
+            style: TextStyle(
+              color: AppThemePro.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          content: Text(
-            'Najpierw zaznacz tekst, którego kolor chcesz zmienić.',
-            style: TextStyle(color: AppThemePro.textSecondary),
+          content: SizedBox(
+            width: 350,
+            height: 500,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Predefined color palette
+                  _buildPredefinedColorPalette((Color color) {
+                    pickerColor = color;
+                  }),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Divider with label
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: AppThemePro.borderSecondary)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'Lub wybierz custom kolor',
+                          style: TextStyle(
+                            color: AppThemePro.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: AppThemePro.borderSecondary)),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Custom color picker wheel
+                  ColorPicker(
+                    pickerColor: pickerColor,
+                    onColorChanged: (Color color) {
+                      pickerColor = color;
+                    },
+                    colorPickerWidth: 300,
+                    pickerAreaHeightPercent: 0.7,
+                    enableAlpha: false,
+                    displayThumbColor: true,
+                    paletteType: PaletteType.hueWheel,
+                    labelTypes: const [ColorLabelType.hex],
+                    hexInputBar: true,
+                    pickerAreaBorderRadius: BorderRadius.circular(8),
+                  ),
+                ],
+              ),
+            ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: Text(
-                'OK',
-                style: TextStyle(color: AppThemePro.accentGold),
+                'Anuluj',
+                style: TextStyle(color: AppThemePro.textSecondary),
               ),
             ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(pickerColor),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppThemePro.accentGold,
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Wybierz'),
+            ),
           ],
-        ),
-      );
-      return;
-    }
-    
-    Color? selectedColor = await showDialog<Color>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        Color pickerColor = Colors.black;
-        Color? finalColor;
-        
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              backgroundColor: AppThemePro.backgroundPrimary,
-              title: Text(
-                isBackground ? 'Wybierz kolor tła' : 'Wybierz kolor tekstu',
-                style: TextStyle(
-                  color: AppThemePro.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: SizedBox(
-                width: 350,
-                height: 400,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Quick color selection with circles and squares
-                      Text(
-                        'Szybki wybór kolorów',
-                        style: TextStyle(
-                          color: AppThemePro.textSecondary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildCircleColorSelector((color) {
-                        if (kDebugMode) {
-                          print('🔴 [CircleColor] Selected: $color (hex: #${color.red.toRadixString(16).padLeft(2, '0')}${color.green.toRadixString(16).padLeft(2, '0')}${color.blue.toRadixString(16).padLeft(2, '0')})');
-                        }
-                        setState(() {
-                          pickerColor = color;
-                          finalColor = color;
-                        });
-                      }),
-                      const SizedBox(height: 12),
-                      _buildSquareColorSelector((color) {
-                        if (kDebugMode) {
-                          print('🟦 [SquareColor] Selected: $color (hex: #${color.red.toRadixString(16).padLeft(2, '0')}${color.green.toRadixString(16).padLeft(2, '0')}${color.blue.toRadixString(16).padLeft(2, '0')})');
-                        }
-                        setState(() {
-                          pickerColor = color;
-                          finalColor = color;
-                        });
-                      }),
-                      
-                      const SizedBox(height: 20),
-                      
-                      // Divider
-                      Row(
-                        children: [
-                          Expanded(child: Divider(color: AppThemePro.borderSecondary)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              'Lub wybierz dokładny kolor',
-                              style: TextStyle(
-                                color: AppThemePro.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          Expanded(child: Divider(color: AppThemePro.borderSecondary)),
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Advanced color picker
-                      ColorPicker(
-                        pickerColor: pickerColor,
-                        onColorChanged: (Color color) {
-                          if (kDebugMode) {
-                            print('🎨 [ColorPicker] Wheel changed: $color (hex: #${color.red.toRadixString(16).padLeft(2, '0')}${color.green.toRadixString(16).padLeft(2, '0')}${color.blue.toRadixString(16).padLeft(2, '0')})');
-                          }
-                          setState(() {
-                            pickerColor = color;
-                            finalColor = color;
-                          });
-                        },
-                        colorPickerWidth: 280,
-                        pickerAreaHeightPercent: 0.7,
-                        enableAlpha: false,
-                        displayThumbColor: true,
-                        paletteType: PaletteType.hsl,
-                        labelTypes: const [ColorLabelType.hex],
-                        hexInputBar: true,
-                        pickerAreaBorderRadius: BorderRadius.circular(8),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(
-                    'Anuluj',
-                    style: TextStyle(color: AppThemePro.textSecondary),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(finalColor ?? pickerColor),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppThemePro.accentGold,
-                    foregroundColor: Colors.black,
-                  ),
-                  child: const Text('Zastosuj'),
-                ),
-              ],
-            );
-          },
         );
       },
     );
-    
-    // Apply the selected color to the text
-    if (selectedColor != null) {
-      _applyColorToSelection(selectedColor, isBackground: isBackground);
-    }
   }
   
-  /// Builds circle color selector for primary colors
-  Widget _buildCircleColorSelector(Function(Color) onColorSelected) {
-    final primaryColors = [
-      Colors.black,
-      Colors.red,
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.brown,
-      Colors.white,
-    ];
-    
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      alignment: WrapAlignment.center,
-      children: primaryColors.map((color) {
-        return GestureDetector(
-          onTap: () => onColorSelected(color),
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: color == Colors.white 
-                  ? AppThemePro.borderSecondary 
-                  : Colors.transparent,
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 3,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: color == Colors.white
-              ? Icon(
-                  Icons.format_color_text,
-                  color: AppThemePro.textSecondary,
-                  size: 14,
-                )
-              : null,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  /// Builds square color selector for additional colors
-  Widget _buildSquareColorSelector(Function(Color) onColorSelected) {
-    final additionalColors = [
-      const Color(0xFF1976D2), // Professional blue
-      const Color(0xFFD4AF37), // Gold accent
-      const Color(0xFF2E2E2E), // Dark gray
-      const Color(0xFF666666), // Light gray
-      const Color(0xFF4CAF50), // Success green
-      const Color(0xFFF44336), // Error red
-      const Color(0xFFC90e0e), // Custom dark red (test color)
-      Colors.pink,
-      Colors.teal,
-    ];
-    
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      alignment: WrapAlignment.center,
-      children: additionalColors.map((color) {
-        return GestureDetector(
-          onTap: () => onColorSelected(color),
-          child: Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: Colors.transparent,
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 3,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-  
-  /// Builds custom color button for QuillSimpleToolbar
-  QuillToolbarCustomButtonOptions _buildCustomColorButton({
-    required bool isBackground,
-    required bool isMobile,
-  }) {
-    return QuillToolbarCustomButtonOptions(
-      icon: Icon(
-        isBackground ? Icons.format_color_fill : Icons.format_color_text,
-        size: isMobile ? 18 : 20,
-        color: AppThemePro.textPrimary,
+  /// Builds a predefined color palette widget for quick color selection
+  Widget _buildPredefinedColorPalette(Function(Color) onColorSelected) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundSecondary,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppThemePro.borderSecondary),
       ),
-      tooltip: isBackground ? 'Kolor tła' : 'Kolor tekstu',
-      onPressed: () => _showCustomColorPicker(context, isBackground: isBackground),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Szybki wybór kolorów',
+            style: TextStyle(
+              color: AppThemePro.textPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _predefinedColors.map((color) {
+              return GestureDetector(
+                onTap: () => onColorSelected(color),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: color == Colors.white 
+                        ? AppThemePro.borderSecondary 
+                        : Colors.transparent,
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: color == Colors.white
+                    ? Icon(
+                        Icons.format_color_text,
+                        color: AppThemePro.textSecondary,
+                        size: 16,
+                      )
+                    : null,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
-
+  
   /// Applies selected color to the current text selection
   void _applyColorToSelection(Color color, {required bool isBackground}) {
     final controller = _getCurrentController();
@@ -915,37 +522,14 @@ Zespół Metropolitan Investment''';
     
     if (!selection.isValid) return;
     
-    // Prawidłowa konwersja Color na hex string
-    final hexColor = '#${color.red.toRadixString(16).padLeft(2, '0')}'
-        '${color.green.toRadixString(16).padLeft(2, '0')}'
-        '${color.blue.toRadixString(16).padLeft(2, '0')}';
+    final hexColor = '#${color.r.round().toRadixString(16).padLeft(2, '0')}'
+        '${color.g.round().toRadixString(16).padLeft(2, '0')}'
+        '${color.b.round().toRadixString(16).padLeft(2, '0')}';
     
-    if (kDebugMode) {
-      print('🎨 [ColorPicker] Applying color: $color');
-      print('   - Red: ${color.red} -> ${color.red.toRadixString(16).padLeft(2, '0')}');
-      print('   - Green: ${color.green} -> ${color.green.toRadixString(16).padLeft(2, '0')}');  
-      print('   - Blue: ${color.blue} -> ${color.blue.toRadixString(16).padLeft(2, '0')}');
-      print('   - Final hex: $hexColor (background: $isBackground)');
-      print('   - Selection: ${selection.baseOffset}-${selection.extentOffset}');
-    }
-    
-    try {
-      if (isBackground) {
-        controller.formatSelection(Attribute.fromKeyValue('background', hexColor));
-      } else {
-        controller.formatSelection(Attribute.fromKeyValue('color', hexColor));
-      }
-      
-      if (kDebugMode) {
-        print('✅ [ColorPicker] Color applied successfully');
-        // Check what's actually in the document now
-        final delta = controller.document.toDelta();
-        print('📄 [ColorPicker] Document delta after color: ${delta.toJson()}');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ [ColorPicker] Error applying color: $e');
-      }
+    if (isBackground) {
+      controller.formatSelection(Attribute.fromKeyValue('background', hexColor));
+    } else {
+      controller.formatSelection(Attribute.fromKeyValue('color', hexColor));
     }
     
     // Trigger preview update
@@ -1120,10 +704,7 @@ Zespół Metropolitan Investment''';
           _createEnhancedConverterOptions(),
         );
 
-        var html = converter.convert();
-
-        // Add Google Fonts CSS to HTML for proper font rendering
-        html = _addGoogleFontsToHtml(html);
+        final html = converter.convert();
 
         if (kDebugMode) {
           print('✅ [EnhancedConversion] Enhanced conversion successful, HTML length: ${html.length}');
@@ -1137,10 +718,7 @@ Zespół Metropolitan Investment''';
         }
 
         // Fallback to basic HTML conversion
-        var html = _convertPlainTextToBasicHtml(plainText);
-        
-        // Add Google Fonts even to fallback HTML
-        html = _addGoogleFontsToHtml(html);
+        final html = _convertPlainTextToBasicHtml(plainText);
         
         if (kDebugMode) {
           print('🔄 [EnhancedConversion] Using fallback conversion, HTML length: ${html.length}');
@@ -1164,47 +742,6 @@ Zespół Metropolitan Investment''';
         return '<p>Błąd podczas konwersji treści.</p>';
       }
     }
-  }
-
-  /// **FUNKCJA DODAWANIA GOOGLE FONTS DO HTML**
-  ///
-  /// Dodaje Google Fonts CSS link do HTML head dla proper font rendering
-  String _addGoogleFontsToHtml(String html) {
-    // Generate Google Fonts URL for used fonts
-    final googleFontsUrl = 'https://fonts.googleapis.com/css2?family='
-        'Roboto:wght@300;400;500;700&'
-        'family=Open+Sans:wght@300;400;600;700&'
-        'family=Lato:wght@300;400;700&'
-        'family=Source+Sans+Pro:wght@300;400;600;700&'
-        'family=Montserrat:wght@300;400;500;600;700&'
-        'family=Poppins:wght@300;400;500;600;700&'
-        'family=Nunito:wght@300;400;600;700&'
-        'family=Inter:wght@300;400;500;600;700&'
-        'family=Work+Sans:wght@300;400;500;600;700&'
-        'family=Fira+Sans:wght@300;400;500;600;700&'
-        'family=Merriweather:wght@300;400;700&'
-        'family=Playfair+Display:wght@400;700&'
-        'family=Crimson+Text:wght@400;600;700&'
-        'family=Libre+Baskerville:wght@400;700&'
-        'family=Fira+Code:wght@300;400;500&'
-        'family=Source+Code+Pro:wght@300;400;500&'
-        'family=Oswald:wght@300;400;500;600&'
-        'family=Raleway:wght@300;400;500;600;700&'
-        'display=swap';
-    
-    final googleFontsLink = '<link href="$googleFontsUrl" rel="stylesheet">';
-    
-    // Try to inject into <head>
-    if (html.contains('<head>')) {
-      html = html.replaceFirst('<head>', '<head>\n$googleFontsLink');
-    } else if (html.contains('<html>')) {
-      html = html.replaceFirst('<html>', '<html><head>\n$googleFontsLink\n</head>');
-    } else {
-      // If no HTML structure, add it at the beginning
-      html = '$googleFontsLink\n$html';
-    }
-    
-    return html;
   }
 
   /// **UPROSZCZONA FUNKCJA DODAWANIA SZCZEGÓŁÓW INWESTYCJI**
@@ -1456,46 +993,33 @@ Zespół Metropolitan Investment''';
     );
   }
 
-  /// 📱 ULTRA-MOBILE LAYOUT WITH GESTURES
   Widget _buildMobileEditorLayout(bool isMobile, bool isSmallScreen) {
-    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-    final isKeyboardVisible = keyboardHeight > 100;
-    
-    return Stack(
+    return Column(
       children: [
-        // Main editor column
-        Column(
-          children: [
-            // 💯 Swipeable recipient selector - only when NOT focused
-            if (_useIndividualContent && !_isEditorFocused)
-              _buildSwipeableRecipientBar(isMobile),
-            
-            // 🎯 Editor takes ALL available space
-            Expanded(
-              child: GestureDetector(
-                key: _gestureKey,
-                onPanStart: _handlePanStart,
-                onPanUpdate: _handlePanUpdate,
-                onPanEnd: _handlePanEnd,
-                onDoubleTap: _handleDoubleTap,
-                child: _buildEditorContainer(isMobile, isSmallScreen),
-              ),
-            ),
-          ],
-        ),
-        
-        // 🎆 FLOATING QUICK ACTIONS (simplified for now)
-        if (_showFloatingToolbar && _isEditorFocused)
-          Positioned(
-            right: 16,
-            bottom: isKeyboardVisible ? keyboardHeight + 16 : 80,
-            child: FloatingActionButton(
-              mini: true,
-              onPressed: () => _getCurrentController().formatSelection(Attribute.bold),
-              backgroundColor: AppThemePro.accentGold,
-              child: const Icon(Icons.format_bold, color: Colors.black),
+        // Mobile: recipient list as dropdown - animated
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+          height: (_useIndividualContent && !_isEditorFocused) ? null : 0,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 300),
+            opacity: (_useIndividualContent && !_isEditorFocused) ? 1.0 : 0.0,
+            child: Column(
+              children: [
+                if (_useIndividualContent) _buildMobileRecipientSelector(isMobile),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: (_useIndividualContent && !_isEditorFocused) ? (isMobile ? 8 : 12) : 0,
+                ),
+              ],
             ),
           ),
+        ),
+        
+        // Editor takes full width on mobile - expands when recipient selector is hidden
+        Expanded(
+          child: _buildEditorContainer(isMobile, isSmallScreen),
+        ),
       ],
     );
   }
@@ -1535,94 +1059,6 @@ Zespół Metropolitan Investment''';
     );
   }
 
-  /// 🎆 SWIPEABLE RECIPIENT BAR - like Instagram stories
-  Widget _buildSwipeableRecipientBar(bool isMobile) {
-    if (!_useIndividualContent || widget.selectedInvestors.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final currentInvestor = widget.selectedInvestors.isNotEmpty 
-        ? widget.selectedInvestors[_currentRecipientIndex.clamp(0, widget.selectedInvestors.length - 1)]
-        : widget.selectedInvestors.first;
-    
-    return Container(
-      height: 44,
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppThemePro.accentGold.withValues(alpha: 0.1),
-            AppThemePro.backgroundSecondary.withValues(alpha: 0.8),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppThemePro.accentGold.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          // Previous button
-          if (_currentRecipientIndex > 0)
-            IconButton(
-              icon: Icon(Icons.chevron_left, color: AppThemePro.accentGold, size: 20),
-              onPressed: _switchToPreviousRecipient,
-              padding: const EdgeInsets.all(8),
-            ),
-          
-          // Current recipient with avatar
-          Expanded(
-            child: GestureDetector(
-              onTap: _showRecipientQuickSwitcher,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: AppThemePro.accentGold,
-                    child: Text(
-                      currentInvestor.client.name.isNotEmpty 
-                          ? currentInvestor.client.name[0].toUpperCase() 
-                          : '?',
-                      style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      currentInvestor.client.name,
-                      style: TextStyle(
-                        color: AppThemePro.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${_currentRecipientIndex + 1}/${widget.selectedInvestors.length}',
-                    style: TextStyle(
-                      color: AppThemePro.textSecondary,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          // Next button
-          if (_currentRecipientIndex < widget.selectedInvestors.length - 1)
-            IconButton(
-              icon: Icon(Icons.chevron_right, color: AppThemePro.accentGold, size: 20),
-              onPressed: _switchToNextRecipient,
-              padding: const EdgeInsets.all(8),
-            ),
-        ],
-      ),
-    );
-  }
-  
-  /// Legacy mobile recipient selector (keeping for fallback)
   Widget _buildMobileRecipientSelector(bool isMobile) {
     if (!_useIndividualContent || widget.selectedInvestors.isEmpty) {
       return const SizedBox.shrink();
@@ -1719,9 +1155,9 @@ Zespół Metropolitan Investment''';
                   // ⭐ Enhanced font options with custom configurations
                   showFontFamily: !isMobile, // Hide on mobile - too complex
                   showFontSize: !isMobile,
-                  // Colors - disabled default, will add custom ones
-                  showColorButton: false,
-                  showBackgroundColorButton: false,
+                  // Colors
+                  showColorButton: true,
+                  showBackgroundColorButton: !isMobile,
                   // Headers and structure
                   showHeaderStyle: true,
                   showQuote: !isMobile,
@@ -1761,7 +1197,7 @@ Zespół Metropolitan Investment''';
                       tooltip: 'Rodzaj czcionki',
                     ),
                     
-                    // Enhanced color buttons with custom color picker
+                    // Enhanced color buttons (always available)
                     color: QuillToolbarColorButtonOptions(
                       tooltip: 'Kolor tekstu',
                     ),
@@ -1783,12 +1219,6 @@ Zespół Metropolitan Investment''';
                   toolbarSize: isMobile ? 32 : 36,
                   toolbarSectionSpacing: isMobile ? 2 : 4,
                   toolbarIconAlignment: WrapAlignment.center,
-                  
-                  // Custom color buttons
-                  customButtons: [
-                    _buildCustomColorButton(isBackground: false, isMobile: isMobile),
-                    _buildCustomColorButton(isBackground: true, isMobile: isMobile),
-                  ],
                 ),
               ),
             ),
@@ -1848,7 +1278,19 @@ Zespół Metropolitan Investment''';
             spacing: isSmallScreen ? 4 : 8,
             runSpacing: isSmallScreen ? 4 : 8,
             children: [
-         
+              ElevatedButton.icon(
+                onPressed: _insertVoting,
+                icon: const Icon(Icons.how_to_vote, size: 16),
+                label: const Text('Dodaj głosowanie'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppThemePro.statusInfo.withValues(alpha: 0.2),
+                  foregroundColor: AppThemePro.statusInfo,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 8 : 12,
+                    vertical: isSmallScreen ? 6 : 8,
+                  ),
+                ),
+              ),
               ElevatedButton.icon(
                 onPressed: _clearEditor,
                 icon: const Icon(Icons.clear, size: 16),
@@ -2198,19 +1640,25 @@ Zespół Metropolitan Investment''';
                   style: {
                     "body": html.Style(
                       backgroundColor: _previewDarkMode ? const Color(0xFF1a1a1a) : Colors.white,
+                      color: _previewDarkMode ? Colors.white : Colors.black,
                       margin: html.Margins.all(0),
                       padding: html.HtmlPaddings.all(16),
                     ),
-                    // DON'T override colors for these elements - let inline styles work
-                    // "p": html.Style(), // Removed color override
-                    // "div": html.Style(), // Removed color override  
-                    // "span": html.Style(), // Removed color override
-                    "table": html.Style(
-                      margin: html.Margins.all(8),
+                    "p": html.Style(
+                      color: _previewDarkMode ? Colors.white : Colors.black,
                     ),
-                    // Headers can still have theme colors as fallback
+                    "div": html.Style(
+                      color: _previewDarkMode ? Colors.white : Colors.black,
+                    ),
+                    "span": html.Style(
+                      color: _previewDarkMode ? Colors.white : Colors.black,
+                    ),
                     "h1, h2, h3, h4, h5, h6": html.Style(
                       color: _previewDarkMode ? Colors.white : Colors.black,
+                    ),
+                    // Remove global font family override to respect individual element styles
+                    "table": html.Style(
+                      margin: html.Margins.all(8),
                     ),
                   },
                 ),
@@ -2315,6 +1763,15 @@ Zespół Metropolitan Investment''';
                       Icons.bug_report,
                       color: Colors.orange,
                       size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Debug HTML',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -4839,7 +4296,7 @@ Zespół Metropolitan Investment''';
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           minimumSize: const Size(0, 32),
-        ),
+        ),email_editor_tabs.dart 
       ),
     );
   }
