@@ -1068,6 +1068,11 @@ class _EnhancedProductDetailsDialogState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Statystyki finansowe produktu z headera
+        _buildEnhancedFinancialMetrics(),
+
+        const SizedBox(height: 24),
+
         // Szczegółowe informacje specyficzne dla typu produktu
         _buildProductSpecificDetails(),
 
@@ -2496,6 +2501,257 @@ class _EnhancedProductDetailsDialogState
   /// Formatuje datę
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+
+  /// Buduje sekcję ze statystykami finansowymi produktu
+
+  Widget _buildFinancialMetricsLoading() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.backgroundTertiary.withOpacity(0.3),
+            AppTheme.backgroundSecondary.withOpacity(0.5),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppTheme.borderPrimary.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.backgroundTertiary,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: AppTheme.backgroundTertiary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: List.generate(
+              4,
+              (index) => Expanded(
+                child: Container(
+                  margin: EdgeInsets.only(right: index < 3 ? 16 : 0),
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: AppTheme.backgroundTertiary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFinancialMetricsEmpty() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.backgroundTertiary.withOpacity(0.3),
+            AppTheme.backgroundSecondary.withOpacity(0.5),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppTheme.borderPrimary.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.analytics_outlined,
+              size: 48,
+              color: AppTheme.textSecondary.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Brak danych finansowych',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Statystyki będą dostępne po załadowaniu danych inwestorów.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.textSecondary.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFinancialMetricCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    return TweenAnimationBuilder(
+      duration: const Duration(milliseconds: 800),
+      tween: Tween<double>(begin: 0, end: 1),
+      builder: (context, animValue, child) {
+        return Transform.translate(
+          offset: Offset(0, 20 * (1 - animValue)),
+          child: Opacity(
+            opacity: animValue,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.backgroundSecondary.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: color.withOpacity(0.3),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(icon, color: color, size: 18),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          title,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.textSecondary,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty)
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Metody obliczeniowe dla statystyk
+  double _computeTotalInvestmentAmount() {
+    double sum = 0.0;
+    final processedIds = <String>{};
+
+    for (final investor in _investors) {
+      for (final investment in investor.investments) {
+        if (investment.productName != widget.product.name) continue;
+        if (processedIds.contains(investment.id)) continue;
+        processedIds.add(investment.id);
+        sum += investment.investmentAmount;
+      }
+    }
+    return sum;
+  }
+
+  double _computeTotalRemainingCapital() {
+    double sum = 0.0;
+    final processedIds = <String>{};
+
+    for (final investor in _investors) {
+      for (final investment in investor.investments) {
+        if (investment.productName != widget.product.name) continue;
+        if (processedIds.contains(investment.id)) continue;
+        processedIds.add(investment.id);
+        sum += investment.remainingCapital;
+      }
+    }
+    return sum;
+  }
+
+  double _computeTotalCapitalSecured() {
+    final totalRemaining = _computeTotalRemainingCapital();
+    final totalForRestructuring = _computeTotalCapitalForRestructuring();
+    return (totalRemaining - totalForRestructuring).clamp(0.0, double.infinity);
+  }
+
+  double _computeTotalCapitalForRestructuring() {
+    double sum = 0.0;
+    final processedIds = <String>{};
+
+    for (final investor in _investors) {
+      for (final investment in investor.investments) {
+        if (investment.productName != widget.product.name) continue;
+        if (processedIds.contains(investment.id)) continue;
+        processedIds.add(investment.id);
+        sum += investment.capitalForRestructuring;
+      }
+    }
+    return sum;
   }
 }
 
