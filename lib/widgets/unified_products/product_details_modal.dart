@@ -74,9 +74,6 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     if ((widget.product.id != oldWidget.product.id ||
             widget.product.name != oldWidget.product.name) &&
         !_isRefreshing) {
-      debugPrint(
-        '🔄 [ProductDetailsModal] didUpdateWidget - odświeżanie danych',
-      );
       _loadModalData(forceRefresh: true);
     }
   }
@@ -173,9 +170,6 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   /// 🎯 NOWA METODA: Ładowanie centralnych danych modalu
   Future<void> _loadModalData({bool forceRefresh = false}) async {
     if (_isLoadingModalData) {
-      debugPrint(
-        '⚠️ [ProductDetailsModal] _loadModalData już w toku - pomijam',
-      );
       return;
     }
 
@@ -187,7 +181,6 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
     }
 
     try {
-      debugPrint('🎯 [ProductDetailsModal] Ładowanie danych modalu...');
 
       final modalData = await _modalService.getProductModalData(
         product: widget.product,
@@ -199,16 +192,8 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
           _modalData = modalData;
           _isLoadingModalData = false;
         });
-
-        debugPrint('✅ [ProductDetailsModal] Dane modalu załadowane:');
-        debugPrint('  - Inwestorzy: ${modalData.investors.length}');
-        debugPrint(
-          '  - Suma inwestycji: ${modalData.statistics.totalInvestmentAmount}',
-        );
-        debugPrint('  - Execution time: ${modalData.executionTime}ms');
       }
     } catch (e) {
-      debugPrint('❌ [ProductDetailsModal] Błąd ładowania danych modalu: $e');
       if (mounted) {
         setState(() {
           _modalError = e.toString();
@@ -221,7 +206,6 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
   void refreshAfterInvestmentEdit() {
     if (mounted && !_isRefreshing) {
       _isRefreshing = true;
-      debugPrint(
         '🔄 [ProductDetailsModal] Odświeżanie danych po edycji inwestycji',
       );
 
@@ -235,10 +219,8 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
                 _isRefreshing = false;
               });
             }
-            debugPrint('✅ [ProductDetailsModal] Dane odświeżone po edycji');
           })
           .catchError((e) {
-            debugPrint('❌ [ProductDetailsModal] Błąd odświeżania: $e');
             if (mounted) {
               setState(() {
                 _isRefreshing = false;
@@ -367,16 +349,13 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
         onClose: () => Navigator.of(context).pop(),
         onDataChanged: () async {
           // 🎯 NOWY: Callback do pełnego odświeżenia danych modalu po edycji kapitału
-          debugPrint(
             '🔄 [ProductDetailsModal] Header data changed - refreshing all data',
           );
           try {
             await _modalService.clearAllCache();
             await _loadModalData(forceRefresh: true);
           } catch (e) {
-            debugPrint(
-              '⚠️ [ProductDetailsModal] Error refreshing after header change: $e',
-            );
+            // Error refreshing after header change
           }
         },
       );
@@ -890,20 +869,14 @@ class _ProductDetailsModalState extends State<ProductDetailsModal>
       error: _investorsError,
       isEditModeEnabled: canEdit, // RBAC: tylko administratorzy mogą edytować
       onRefresh: () async {
-        // 🎯 NOWY: Odśwież dane modalu
-        debugPrint(
-          '🔄 [ProductDetailsModal] onRefresh wywołany - odświeżanie danych',
-        );
-
+        // Refresh modal data
         try {
           await _modalService.clearAllCache();
-          debugPrint('✅ [ProductDetailsModal] Cache wyczyszczony');
         } catch (e) {
-          debugPrint('⚠️ [ProductDetailsModal] Błąd czyszczenia cache: $e');
+          // Handle refresh error silently
         }
 
         await _loadModalData(forceRefresh: true);
-        debugPrint('✅ [ProductDetailsModal] onRefresh ukończony');
       },
     );
   }

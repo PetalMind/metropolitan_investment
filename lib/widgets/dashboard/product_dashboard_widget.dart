@@ -2444,31 +2444,24 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   UnifiedDashboardStatistics _convertGlobalStatsToUnified(
     GlobalProductStatistics globalStats,
   ) {
-    // 🚀 FIX: Oblicz rzeczywisty kapitał zabezpieczony z inwestycji
-    // Backend zwraca zawsze 0, więc obliczamy po stronie frontendu
-    double realCapitalSecured = 0;
-    print('🔍 [ProductDashboard] Obliczanie kapitału zabezpieczonego dla ${_investments.length} inwestycji');
-    
-    for (final investment in _investments) {
-      final investmentCapitalForRestructuring = _getCapitalForRestructuring(investment);
-      final calculatedSecured = investment.calculatedCapitalSecuredByRealEstate; // 🚀 Użyj nowego gettera
-      realCapitalSecured += calculatedSecured;
-      
-      // 🔍 DEBUG: Log szczegółów obliczenia
-      if (investment.remainingCapital > 0) {
-        print('  • ${investment.id}: remainingCapital=${investment.remainingCapital}, capitalForRestructuring=${investmentCapitalForRestructuring}, secured=${calculatedSecured}');
-      }
-    }
-    
-    print('🔍 [ProductDashboard] Łączny kapitał zabezpieczony: $realCapitalSecured PLN');
-
+    // 🚀 FIX: Użyj tej samej szacunkowej metody co w analityce
     // Szacuj kapitał do restrukturyzacji jako 5% całkowitej wartości (benchmark)
     final estimatedCapitalForRestructuring = globalStats.totalValue * 0.05;
+
+    // Szacuj kapitał zabezpieczony jako pozostały kapitał minus do restrukturyzacji
+    final estimatedCapitalSecured =
+        (globalStats.totalRemainingCapital - estimatedCapitalForRestructuring)
+            .clamp(0.0, double.infinity);
+
+    print('  • Total Remaining Capital: ${globalStats.totalRemainingCapital}');
+    print(
+      '  • Estimated Capital for Restructuring (5%): $estimatedCapitalForRestructuring',
+    );
 
     return UnifiedDashboardStatistics(
       totalInvestmentAmount: globalStats.totalValue,
       totalRemainingCapital: globalStats.totalRemainingCapital,
-      totalCapitalSecured: realCapitalSecured,
+      totalCapitalSecured: estimatedCapitalSecured,
       totalCapitalForRestructuring: estimatedCapitalForRestructuring,
       totalViableCapital:
           globalStats.totalRemainingCapital, // Całość jako viable
@@ -2479,7 +2472,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       averageRemainingCapital: globalStats.totalProducts > 0
           ? globalStats.totalRemainingCapital / globalStats.totalProducts
           : 0,
-      dataSource: 'OptimizedProductService (converted)',
+      dataSource: 'OptimizedProductService (estimated method)',
       calculatedAt: DateTime.now(),
     );
   }

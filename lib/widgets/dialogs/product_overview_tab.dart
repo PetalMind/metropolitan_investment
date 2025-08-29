@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 // CENTRALNY IMPORT zgodnie z wytycznymi (models + services)
 import '../../models_and_services.dart';
 import '../../theme/app_theme.dart';
@@ -20,8 +21,11 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   final UnifiedProductModalService _modalService = UnifiedProductModalService();
+  final UltraPreciseProductInvestorsService _investorsService =
+      UltraPreciseProductInvestorsService();
 
   ProductModalData? _modalData;
+  UltraPreciseProductInvestorsResult? _investorsResult;
   bool _isLoading = false;
   String? _error;
 
@@ -38,15 +42,43 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
       _error = null;
     });
     try {
-      // ⭐ UJEDNOLICONE POBIERANIE: Używamy UnifiedProductModalService
+      // ⭐ UJEDNOLICONE POBIERANIE: Używamy UnifiedProductModalService dla podstawowych danych
       final modalData = await _modalService.getProductModalData(
         product: widget.product,
         forceRefresh: false,
       );
 
+      // ⭐ DODANE: Pobieramy inwestorów używając UltraPreciseProductInvestorsService
+      UltraPreciseProductInvestorsResult? investorsResult;
+
+      // Sprawdź czy produkt ma zunifikowane ID
+      final productId = widget.product.id;
+      if (productId.contains('_') &&
+          (productId.startsWith('apartment_') ||
+              productId.startsWith('bond_') ||
+              productId.startsWith('loan_') ||
+              productId.startsWith('share_'))) {
+        if (kDebugMode) {
+          print(
+            '🎯 [ProductOverviewTab] Używam ultra-precyzyjnego serwisu z productId: $productId',
+          );
+        }
+        investorsResult = await _investorsService.getByProductId(productId);
+      } else {
+        if (kDebugMode) {
+          print(
+            '🎯 [ProductOverviewTab] Używam ultra-precyzyjnego serwisu z productName: ${widget.product.name}',
+          );
+        }
+        investorsResult = await _investorsService.getByProductName(
+          widget.product.name,
+        );
+      }
+
       if (mounted) {
         setState(() {
           _modalData = modalData;
+          _investorsResult = investorsResult;
           _isLoading = false;
         });
       }
@@ -55,6 +87,7 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
         setState(() {
           _error = e.toString();
           _modalData = null; // fallback do przekazanych danych
+          _investorsResult = null;
           _isLoading = false;
         });
       }
@@ -197,30 +230,6 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
               ),
 
             if (!_isLoading && _error == null) ...[
-              // ⭐ INFORMACJA O ŹRÓDLE DANYCH
-              Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.infoPrimary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppTheme.infoPrimary.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
-                      color: AppTheme.infoPrimary,
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                ),
-              ),
-
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: SlideTransition(
@@ -229,6 +238,8 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildProductSpecificDetails(product),
+                      const SizedBox(height: 24),
+                      _buildInvestmentMetricsSection(product),
                       const SizedBox(height: 24),
                       _buildBasicInformation(product),
                       if (product.description.isNotEmpty) ...[
@@ -783,5 +794,581 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
         ],
       ),
     );
+  }
+
+  /// Buduje sekcję z metrykami inwestycji
+  Widget _buildInvestmentMetricsSection(UnifiedProduct product) {
+    // Oblicz wartości metryk na podstawie danych modalnych
+    final totalInvestmentAmount = _computeTotalInvestmentAmount(product);
+    final totalRemainingCapital = _computeTotalRemainingCapital(product);
+    final totalCapitalSecured = _computeTotalCapitalSecured(product);
+    final totalCapitalForRestructuring = _computeTotalCapitalForRestructuring(
+      product,
+    );
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+      builder: (context, animValue, child) {
+        return Transform.translate(
+          offset: Offset(0, 20 * (1 - animValue)),
+          child: Opacity(
+            opacity: animValue,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppTheme.secondaryGold.withOpacity(0.08),
+                    AppTheme.backgroundSecondary.withOpacity(0.4),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppTheme.secondaryGold.withOpacity(0.25),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.secondaryGold.withOpacity(0.1),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header sekcji
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppTheme.secondaryGold.withOpacity(0.2),
+                              AppTheme.secondaryGold.withOpacity(0.4),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppTheme.secondaryGold.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.account_balance_wallet,
+                          color: AppTheme.secondaryGold,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Metryki Inwestycji',
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(
+                                    color: AppTheme.secondaryGold,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.3,
+                                  ),
+                            ),
+                            Text(
+                              'Podsumowanie kapitału inwestorów',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: AppTheme.textTertiary,
+                                    letterSpacing: 0.1,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Status indicator
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              _modalData != null &&
+                                  _modalData!.investors.isNotEmpty
+                              ? AppTheme.successPrimary.withOpacity(0.15)
+                              : AppTheme.neutralPrimary.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color:
+                                _modalData != null &&
+                                    _modalData!.investors.isNotEmpty
+                                ? AppTheme.successPrimary.withOpacity(0.3)
+                                : AppTheme.neutralPrimary.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _modalData != null &&
+                                      _modalData!.investors.isNotEmpty
+                                  ? Icons.check_circle
+                                  : Icons.pending,
+                              size: 14,
+                              color:
+                                  _investorsResult != null &&
+                                      _investorsResult!.investors.isNotEmpty
+                                  ? AppTheme.successPrimary
+                                  : AppTheme.neutralPrimary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _investorsResult != null &&
+                                      _investorsResult!.investors.isNotEmpty
+                                  ? 'Dane dostępne'
+                                  : 'Ładowanie...',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color:
+                                        _investorsResult != null &&
+                                            _investorsResult!
+                                                .investors
+                                                .isNotEmpty
+                                        ? AppTheme.successPrimary
+                                        : AppTheme.neutralPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Metryki w responsywnej siatce
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isWide = constraints.maxWidth > 800;
+                      final isMedium = constraints.maxWidth > 500;
+
+                      if (isWide) {
+                        // 4 kolumny na dużych ekranach
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: _buildInvestmentMetricCard(
+                                title: 'Całkowita Kwota Inwestycji',
+                                value: CurrencyFormatter.formatCurrency(
+                                  totalInvestmentAmount,
+                                ),
+                                icon: Icons.attach_money,
+                                color: AppTheme.primaryColor,
+                                subtitle: 'Suma wszystkich inwestycji',
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildInvestmentMetricCard(
+                                title: 'Pozostały Kapitał',
+                                value: CurrencyFormatter.formatCurrency(
+                                  totalRemainingCapital,
+                                ),
+                                icon: Icons.account_balance,
+                                color: AppTheme.successPrimary,
+                                subtitle: 'Dostępny kapitał inwestorów',
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildInvestmentMetricCard(
+                                title: 'Zabezpieczony Kapitał',
+                                value: CurrencyFormatter.formatCurrency(
+                                  totalCapitalSecured,
+                                ),
+                                icon: Icons.security,
+                                color: AppTheme.secondaryGold,
+                                subtitle: 'Kapitał po restrukturyzacji',
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildInvestmentMetricCard(
+                                title: 'Kapitał na Restrukturyzację',
+                                value: CurrencyFormatter.formatCurrency(
+                                  totalCapitalForRestructuring,
+                                ),
+                                icon: Icons.build,
+                                color: AppTheme.warningPrimary,
+                                subtitle: 'Przeznaczony na zmiany',
+                              ),
+                            ),
+                          ],
+                        );
+                      } else if (isMedium) {
+                        // 2 kolumny na średnich ekranach
+                        return Column(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildInvestmentMetricCard(
+                                    title: 'Całkowita Kwota Inwestycji',
+                                    value: CurrencyFormatter.formatCurrency(
+                                      totalInvestmentAmount,
+                                    ),
+                                    icon: Icons.attach_money,
+                                    color: AppTheme.primaryColor,
+                                    subtitle: 'Suma wszystkich inwestycji',
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: _buildInvestmentMetricCard(
+                                    title: 'Pozostały Kapitał',
+                                    value: CurrencyFormatter.formatCurrency(
+                                      totalRemainingCapital,
+                                    ),
+                                    icon: Icons.account_balance,
+                                    color: AppTheme.successPrimary,
+                                    subtitle: 'Dostępny kapitał inwestorów',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildInvestmentMetricCard(
+                                    title: 'Zabezpieczony Kapitał',
+                                    value: CurrencyFormatter.formatCurrency(
+                                      totalCapitalSecured,
+                                    ),
+                                    icon: Icons.security,
+                                    color: AppTheme.secondaryGold,
+                                    subtitle: 'Kapitał po restrukturyzacji',
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: _buildInvestmentMetricCard(
+                                    title: 'Kapitał na Restrukturyzację',
+                                    value: CurrencyFormatter.formatCurrency(
+                                      totalCapitalForRestructuring,
+                                    ),
+                                    icon: Icons.build,
+                                    color: AppTheme.warningPrimary,
+                                    subtitle: 'Przeznaczony na zmiany',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      } else {
+                        // 1 kolumna na małych ekranach
+                        return Column(
+                          children: [
+                            _buildInvestmentMetricCard(
+                              title: 'Całkowita Kwota Inwestycji',
+                              value: CurrencyFormatter.formatCurrency(
+                                totalInvestmentAmount,
+                              ),
+                              icon: Icons.attach_money,
+                              color: AppTheme.primaryColor,
+                              subtitle: 'Suma wszystkich inwestycji',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildInvestmentMetricCard(
+                              title: 'Pozostały Kapitał',
+                              value: CurrencyFormatter.formatCurrency(
+                                totalRemainingCapital,
+                              ),
+                              icon: Icons.account_balance,
+                              color: AppTheme.successPrimary,
+                              subtitle: 'Dostępny kapitał inwestorów',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildInvestmentMetricCard(
+                              title: 'Zabezpieczony Kapitał',
+                              value: CurrencyFormatter.formatCurrency(
+                                totalCapitalSecured,
+                              ),
+                              icon: Icons.security,
+                              color: AppTheme.secondaryGold,
+                              subtitle: 'Kapitał po restrukturyzacji',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildInvestmentMetricCard(
+                              title: 'Kapitał na Restrukturyzację',
+                              value: CurrencyFormatter.formatCurrency(
+                                totalCapitalForRestructuring,
+                              ),
+                              icon: Icons.build,
+                              color: AppTheme.warningPrimary,
+                              subtitle: 'Przeznaczony na zmiany',
+                            ),
+                          ],
+                        );
+                      }
+                    },
+                  ),
+
+                  // Dodatkowe informacje statystyczne
+                  if (_investorsResult != null &&
+                      _investorsResult!.investors.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.backgroundPrimary.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.borderSecondary.withOpacity(0.2),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildStatItem(
+                            label: 'Liczba Inwestorów',
+                            value: _investorsResult!.investors.length
+                                .toString(),
+                            icon: Icons.people,
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: AppTheme.borderSecondary.withOpacity(0.3),
+                          ),
+                          _buildStatItem(
+                            label: 'Średnia Inwestycja',
+                            value: _investorsResult!.investors.isNotEmpty
+                                ? CurrencyFormatter.formatCurrency(
+                                    totalInvestmentAmount /
+                                        _investorsResult!.investors.length,
+                                  )
+                                : '0 zł',
+                            icon: Icons.trending_up,
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: AppTheme.borderSecondary.withOpacity(0.3),
+                          ),
+                          _buildStatItem(
+                            label: 'Efektywność',
+                            value: totalInvestmentAmount > 0
+                                ? '${((totalRemainingCapital / totalInvestmentAmount) * 100).toStringAsFixed(1)}%'
+                                : '0%',
+                            icon: Icons.pie_chart,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Buduje kartę metryki inwestycji
+  Widget _buildInvestmentMetricCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    return TweenAnimationBuilder(
+      duration: const Duration(milliseconds: 1000),
+      tween: Tween<double>(begin: 0, end: 1),
+      builder: (context, animValue, child) {
+        return Transform.scale(
+          scale: 0.95 + (0.05 * animValue),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: color.withOpacity(0.25), width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.1),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Ikona i tytuł
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(icon, color: color, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Wartość
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
+                // Podtytuł
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textTertiary,
+                    letterSpacing: 0.1,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Buduje element statystyki
+  Widget _buildStatItem({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 20, color: AppTheme.textSecondary),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textTertiary,
+            fontSize: 10,
+            letterSpacing: 0.1,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  // Metody obliczeniowe dla statystyk
+  double _computeTotalInvestmentAmount(UnifiedProduct product) {
+    if (_investorsResult == null) return 0.0;
+    double sum = 0.0;
+    final processedIds = <String>{};
+
+    for (final investor in _investorsResult!.investors) {
+      for (final investment in investor.investments) {
+        if (investment.productName != product.name) continue;
+        if (processedIds.contains(investment.id)) continue;
+        processedIds.add(investment.id);
+        sum += investment.investmentAmount;
+      }
+    }
+    return sum;
+  }
+
+  double _computeTotalRemainingCapital(UnifiedProduct product) {
+    if (_investorsResult == null) return 0.0;
+    double sum = 0.0;
+    final processedIds = <String>{};
+
+    for (final investor in _investorsResult!.investors) {
+      for (final investment in investor.investments) {
+        if (investment.productName != product.name) continue;
+        if (processedIds.contains(investment.id)) continue;
+        processedIds.add(investment.id);
+        sum += investment.remainingCapital;
+      }
+    }
+    return sum;
+  }
+
+  double _computeTotalCapitalSecured(UnifiedProduct product) {
+    final totalRemaining = _computeTotalRemainingCapital(product);
+    final totalForRestructuring = _computeTotalCapitalForRestructuring(product);
+    return (totalRemaining - totalForRestructuring).clamp(0.0, double.infinity);
+  }
+
+  double _computeTotalCapitalForRestructuring(UnifiedProduct product) {
+    if (_investorsResult == null) return 0.0;
+    double sum = 0.0;
+    final processedIds = <String>{};
+
+    for (final investor in _investorsResult!.investors) {
+      for (final investment in investor.investments) {
+        if (investment.productName != product.name) continue;
+        if (processedIds.contains(investment.id)) continue;
+        processedIds.add(investment.id);
+        sum += investment.capitalForRestructuring;
+      }
+    }
+    return sum;
   }
 }

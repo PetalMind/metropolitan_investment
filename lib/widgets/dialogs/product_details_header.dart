@@ -71,12 +71,9 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     final opacity = (0.3 + 0.7 * widget.collapseFactor).clamp(0.0, 1.0);
 
     // ⭐ DEBUG: Dodaj debug info
-    debugPrint(
+    print(
       '🔍 [ProductDetailsHeader] Building header for: ${widget.product.name}',
     );
-    debugPrint('   - isCollapsed: ${widget.isCollapsed}');
-    debugPrint('   - collapseFactor: ${widget.collapseFactor}');
-    debugPrint('   - investors count: ${widget.investors.length}');
 
     return Container(
       width: double.infinity,
@@ -150,11 +147,6 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
 
-    debugPrint('🔍 [ProductDetailsHeader] Building main info:');
-    debugPrint('   - Product name: ${widget.product.name}');
-    debugPrint('   - Product type: ${widget.product.productType}');
-    debugPrint('   - Is mobile: $isMobile');
-    debugPrint('   - Is collapsed: ${widget.isCollapsed}');
 
     if (isMobile || widget.isCollapsed) {
       return _buildMobileMainInfo();

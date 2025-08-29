@@ -48,7 +48,6 @@ class _ProductFilterWidgetState extends State<ProductFilterWidget>
     _currentSortField = widget.initialSortField;
     _currentSortDirection = widget.initialSortDirection;
     
-    print('🔧 [ProductFilterWidget] initState - sortField: ${_currentSortField.displayName}, direction: ${_currentSortDirection.displayName}');
 
     _initializeFromCriteria();
   }
@@ -102,13 +101,6 @@ class _ProductFilterWidgetState extends State<ProductFilterWidget>
   }
 
   void _applyFilters() {
-    print('🔧 [ProductFilterWidget] _applyFilters wywołane');
-    print('🔧 [ProductFilterWidget] Wybrane typy: ${_selectedTypes.map((t) => t.displayName).join(", ")}');
-    print('🔧 [ProductFilterWidget] Wybrane statusy: ${_selectedStatuses.map((s) => s.displayName).join(", ")}');
-    print('🔧 [ProductFilterWidget] Firma: "${_companyController.text}"');
-    print('🔧 [ProductFilterWidget] Kwota min: "${_minAmountController.text}"');
-    print('🔧 [ProductFilterWidget] Kwota max: "${_maxAmountController.text}"');
-    print('🔧 [ProductFilterWidget] Zakres dat: $_dateRange');
     
     final criteria = ProductFilterCriteria(
       productTypes: _selectedTypes.isNotEmpty ? _selectedTypes.toList() : null,
@@ -134,11 +126,7 @@ class _ProductFilterWidgetState extends State<ProductFilterWidget>
       createdBefore: _dateRange?.end,
     );
 
-    print('🔧 [ProductFilterWidget] Zbudowane kryteria: productTypes=${criteria.productTypes?.map((t) => t.displayName).join(", ")}, statuses=${criteria.statuses?.map((s) => s.displayName).join(", ")}');
-    print('🔧 [ProductFilterWidget] widget.onFilterChanged is null? ${widget.onFilterChanged == null}');
-    print('🔧 [ProductFilterWidget] Wywołuję callback onFilterChanged...');
     widget.onFilterChanged(criteria);
-    print('🔧 [ProductFilterWidget] Callback onFilterChanged wywołany pomyślnie!');
   }
 
   void _clearFilters() {
@@ -157,11 +145,7 @@ class _ProductFilterWidgetState extends State<ProductFilterWidget>
   }
 
   void _applySorting() {
-    print('🔄 [ProductFilterWidget] _applySorting wywołane: ${_currentSortField.displayName} (${_currentSortDirection.displayName})');
-    print('🔄 [ProductFilterWidget] widget.onSortChanged is null? ${widget.onSortChanged == null}');
-    print('🔄 [ProductFilterWidget] Wywołuję callback onSortChanged...');
     widget.onSortChanged(_currentSortField, _currentSortDirection);
-    print('🔄 [ProductFilterWidget] Callback wywołany pomyślnie!');
   }
 
   @override
@@ -259,7 +243,6 @@ class _ProductFilterWidgetState extends State<ProductFilterWidget>
   }
 
   Widget _buildSortingTab() {
-    print('🔧 [ProductFilterWidget] _buildSortingTab - aktualny sortField: ${_currentSortField.displayName}');
     
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -270,27 +253,21 @@ class _ProductFilterWidgetState extends State<ProductFilterWidget>
           const SizedBox(height: 12),
 
           ...ProductSortField.values.map((field) {
-            print('🏗️ [ProductFilterWidget] Budowanie opcji sortowania: ${field.displayName}');
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: GestureDetector(
                 onTap: () {
-                  print('🎯 [ProductFilterWidget] KLIKNIĘTO sortowanie po: ${field.displayName}');
-                  print('🎯 [ProductFilterWidget] Poprzednie pole: ${_currentSortField.displayName}');
                   setState(() {
                     if (_currentSortField == field) {
                       _currentSortDirection =
                           _currentSortDirection == SortDirection.ascending
                           ? SortDirection.descending
                           : SortDirection.ascending;
-                      print('🔄 [ProductFilterWidget] Zmiana kierunku na: ${_currentSortDirection.displayName}');
                     } else {
                       _currentSortField = field;
                       _currentSortDirection = SortDirection.ascending;
-                      print('🔄 [ProductFilterWidget] Zmiana pola na: ${field.displayName}');
                     }
                   });
-                  print('🚀 [ProductFilterWidget] Wywołuję _applySorting...');
                   _applySorting();
                 },
                 behavior: HitTestBehavior.opaque,

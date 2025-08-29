@@ -1876,8 +1876,7 @@ class _EnhancedProductDetailsDialogState
       ),
     );
   }
-
-  /// Szczegóły dla apartamentów
+    /// Szczegóły dla apartamentów
   Widget _buildApartmentsDetails() {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -1998,13 +1997,14 @@ class _EnhancedProductDetailsDialogState
               if (widget.product.additionalInfo['hasStorage'] == true) ...[
                 const SizedBox(width: 8),
                 _buildAmenityChip('Komórka', Icons.storage),
+                ],
               ],
-            ],
-          ),
-        ],
-      ),
-    );
+            ),
+          ],
+        ),
+      );
   }
+
 
   /// Szczegóły dla innych produktów
   Widget _buildOtherProductDetails() {

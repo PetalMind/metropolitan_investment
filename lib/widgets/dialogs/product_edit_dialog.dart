@@ -203,7 +203,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
     });
 
     try {
-      print(
         '🔍 [InvestorEditDialog] Ładowanie ultra-precyzyjnych danych dla produktu: ${widget.product.name}',
       );
 
@@ -223,21 +222,13 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
         _isLoadingUltraPrecise = false;
       });
 
-      print(
         '✅ [InvestorEditDialog] Ultra-precyzyjne dane załadowane: ${result.totalCount} inwestorów',
       );
-      print('  - Strategia wyszukiwania: ${result.searchStrategy}');
-      print('  - Klucz wyszukiwania: ${result.searchKey}');
-      print('  - Czas wykonania: ${result.executionTime}ms');
 
       // Jeśli znaleziono rozbieżności, pokaż ostrzeżenie
       if (result.totalCount != _productInvestments.length) {
-        print('⚠️ [InvestorEditDialog] Rozbieżność w liczbie inwestorów:');
-        print('  - Lokalne dane: ${_productInvestments.length}');
-        print('  - Ultra-precyzyjne: ${result.totalCount}');
       }
     } catch (e) {
-      print(
         '❌ [InvestorEditDialog] Błąd ładowania ultra-precyzyjnych danych: $e',
       );
 
@@ -1302,19 +1293,15 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
         );
 
         _modifiedInvestments[investment.id] = modifiedInvestment;
-        print(
           '🔍 [InvestorEditDialog] Zmodyfikowano inwestycję ${investment.id}:',
         );
-        print(
           '  - investmentAmount: ${investment.investmentAmount} → $newInvestmentAmount',
         );
-        print(
           '  - remainingCapital: ${investment.remainingCapital} → $newRemainingCapital',
         );
       }
     }
 
-    print(
       '🔍 [InvestorEditDialog] Zebrano ${_modifiedInvestments.length} zmian',
     );
   }
@@ -1378,7 +1365,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
 
       // 🔍 WYCZYŚĆ WSZYSTKIE CACHE PO ZAPISIE
       try {
-        print('🗑️ [InvestorEditDialog] Czyszczenie cache...');
 
         // Wyczyść główny cache danych
         _cacheService.invalidateCache();
@@ -1405,9 +1391,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
           }
         }
 
-        print('✅ [InvestorEditDialog] Cache wyczyszczony pomyślnie');
       } catch (cacheError) {
-        print('⚠️ [InvestorEditDialog] Błąd czyszczenia cache: $cacheError');
         // Nie przerywaj procesu - cache można wyczyścić później
       }
 
@@ -1454,7 +1438,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
   /// 🚀 NOWA METODA: Waliduje zmiany z ultra-precyzyjnymi danymi
   Future<void> _validateWithUltraPreciseData() async {
     try {
-      print('🔍 [InvestorEditDialog] Walidacja z ultra-precyzyjnymi danymi...');
 
       // Odśwież ultra-precyzyjne dane przed zapisem
       await _loadUltraPreciseInvestorData();
@@ -1464,18 +1447,13 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
         final ultraPreciseCount = _ultraPreciseResult!.totalCount;
 
         if (localCount != ultraPreciseCount) {
-          print('⚠️ [InvestorEditDialog] Rozbieżność w danych przed zapisem:');
-          print('  - Lokalne: $localCount');
-          print('  - Ultra-precyzyjne: $ultraPreciseCount');
 
           // Pokaż dialog ostrzeżenia (opcjonalnie)
           // Można dodać dialog z pytaniem czy kontynuować
         }
 
-        print('✅ [InvestorEditDialog] Walidacja ukończona');
       }
     } catch (e) {
-      print('❌ [InvestorEditDialog] Błąd walidacji ultra-precyzyjnej: $e');
       // Nie przerywaj procesu zapisywania - walidacja jest tylko informacyjna
     }
   }
@@ -2278,7 +2256,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
   /// 🚀 Odświeża dane inwestycji po skalowaniu
   Future<void> _refreshInvestmentData() async {
     try {
-      print('🔄 [InvestorEditDialog] Odświeżam dane inwestycji...');
 
       // Wymuś odświeżenie cache
       await _cacheService.forceRefreshFromFirebase();
@@ -2314,7 +2291,6 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
 
       final newInvestments = uniqueInvestments.values.toList();
 
-      print(
         '🔄 [InvestorEditDialog] Zaktualizowano ${newInvestments.length} inwestycji',
       );
 
@@ -2337,9 +2313,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
         _initializeControllers();
       });
 
-      print('✅ [InvestorEditDialog] Dane odświeżone pomyślnie');
     } catch (e) {
-      print('❌ [InvestorEditDialog] Błąd odświeżania danych: $e');
     }
   }
 

@@ -50,7 +50,7 @@ class _EnhancedProductDetailsDialogState
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _tabController.animateTo(1); // Przełącz na zakładkę "Inwestorzy"
-          debugPrint(
+          print(
             '🎯 [ProductDetailsDialog] Automatycznie przełączono na zakładkę "Inwestorzy" dla inwestycji: ${widget.highlightInvestmentId}',
           );
         }
@@ -66,7 +66,7 @@ class _EnhancedProductDetailsDialogState
 
   Future<void> _loadInvestors() async {
     try {
-      debugPrint(
+      print(
         '🔄 [ProductDetailsDialog] Loading investors for product: ${widget.product.name}',
       );
 
@@ -77,7 +77,7 @@ class _EnhancedProductDetailsDialogState
 
       final investors = await _service.getInvestorsForProduct(widget.product);
 
-      debugPrint(
+      print(
         '✅ [ProductDetailsDialog] Loaded ${investors.length} investors',
       );
 
@@ -87,9 +87,7 @@ class _EnhancedProductDetailsDialogState
           _isLoadingInvestors = false;
         });
       }
-    } catch (e, stackTrace) {
-      debugPrint('❌ [ProductDetailsDialog] Error loading investors: $e');
-      debugPrint('Stack trace: $stackTrace');
+    } catch (e) {
 
       if (mounted) {
         setState(() {
@@ -163,11 +161,10 @@ class _EnhancedProductDetailsDialogState
                   _tabController.animateTo(tabIndex);
                 },
                 onDataChanged: () async {
-                  debugPrint(
+                  print(
                     '🔄 [ProductDetailsDialog] onDataChanged wywołane...',
                   );
                   await _loadInvestors();
-                  debugPrint('✅ [ProductDetailsDialog] Dane odświeżone');
                 },
               ),
 

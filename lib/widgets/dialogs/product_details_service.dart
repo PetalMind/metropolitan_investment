@@ -12,10 +12,6 @@ class ProductDetailsService {
     UnifiedProduct product,
   ) async {
     try {
-      print('🔄 [ProductDetailsService] Używam zoptymalizowanego serwisu...');
-      print('  - Nazwa: "${product.name}"');
-      print('  - Typ: ${product.productType.displayName}');
-      print('  - ID: ${product.id}');
 
       // ⭐ ZAWSZE UŻYWAJ PRAWDZIWEGO ID Z FIREBASE
       final isDeduplicated = product.additionalInfo['isDeduplicated'] == true;
@@ -41,18 +37,12 @@ class ProductDetailsService {
       print(
         '✅ [ProductDetailsService] Załadowano ${investors.length} inwestorów (zsynchronizowane z DeduplicatedProductService)',
       );
-      print('📊 [ProductDetailsService] Statystyki Firebase Functions:');
-      print('   - totalCount: ${result.totalCount}');
       print(
         '   - totalCapital: ${result.statistics.totalCapital.toStringAsFixed(2)}',
       );
-      print('   - searchStrategy: ${result.searchStrategy}');
-      print('   - executionTime: ${result.executionTime}ms');
-      print('   - fromCache: ${result.fromCache}');
 
       return investors;
     } catch (e) {
-      print('❌ [ProductDetailsService] Błąd podczas ładowania inwestorów: $e');
       rethrow;
     }
   }

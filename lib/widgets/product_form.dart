@@ -237,19 +237,8 @@ class _ProductFormState extends State<ProductForm> {
                     if (_formKey.currentState?.validate() ?? false) {
                       _formKey.currentState?.save();
                       // LOGUJEMY WSZYSTKO DO KONSOLI
-                      debugPrint('[ProductForm] _name: $_name');
-                      debugPrint('[ProductForm] _type: $_type');
-                      debugPrint('[ProductForm] _companyId: $_companyId');
-                      debugPrint('[ProductForm] _companyName: $_companyName');
-                      debugPrint('[ProductForm] _interestRate: $_interestRate');
-                      debugPrint('[ProductForm] _sharesCount: $_sharesCount');
-                      debugPrint('[ProductForm] _sharePrice: $_sharePrice');
-                      debugPrint('[ProductForm] _currency: $_currency');
-                      debugPrint('[ProductForm] _exchangeRate: $_exchangeRate');
-                      debugPrint(
                         '[ProductForm] _isPrivateIssue: $_isPrivateIssue',
                       );
-                      debugPrint('[ProductForm] _isActive: $_isActive');
                       try {
                         widget.onSave(
                           Product(
@@ -274,22 +263,17 @@ class _ProductFormState extends State<ProductForm> {
                           ),
                         );
                       } catch (e, stack) {
-                        debugPrint(
                           '[ProductForm] BŁĄD PRZY ZAPISIE PRODUKTU: $e',
                         );
-                        debugPrint('[ProductForm] STACK TRACE: $stack');
 
                         // Specjalne logowanie dla błędu Firestore o indeksie
                         if (e.toString().contains(
                           'cloud_firestore/failed-precondition',
                         )) {
-                          debugPrint(
                             '[ProductForm] ⚠️ FIRESTORE INDEX ERROR DETECTED! ⚠️',
                           );
-                          debugPrint(
                             '[ProductForm] Musisz utworzyć indeks w Firestore Console.',
                           );
-                          debugPrint(
                             '[ProductForm] Pełny błąd: ${e.toString()}',
                           );
 
@@ -299,11 +283,9 @@ class _ProductFormState extends State<ProductForm> {
                           );
                           final match = regex.firstMatch(e.toString());
                           if (match != null) {
-                            debugPrint(
                               '[ProductForm] 🔗 LINK DO UTWORZENIA INDEKSU: ${match.group(0)}',
                             );
                           } else {
-                            debugPrint(
                               '[ProductForm] Nie znaleziono linku w błędzie. Sprawdź konsolę Firebase ręcznie.',
                             );
                           }
@@ -311,7 +293,6 @@ class _ProductFormState extends State<ProductForm> {
 
                         // Inne typy błędów Firestore
                         if (e.toString().contains('firebase')) {
-                          debugPrint(
                             '[ProductForm] Firebase error type: ${e.runtimeType}',
                           );
                         }
