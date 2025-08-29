@@ -20,6 +20,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `cd functions && firebase functions:log` - View function logs
 - `cd functions && firebase emulators:start --only functions` - Local testing
 - `cd functions && npm run test` - Run function tests (test_analytics.js)
+- `cd functions && npm run serve` - Start local emulator
+- `cd functions && npm run logs` - View function logs
 
 ### Data Management & Migration
 - `npm run upload` - Upload JSON data to Firebase using upload.js
@@ -35,9 +37,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run validate-investments` - Validate investment data integrity
 
 ### Testing
+- `flutter test` - Run all tests
 - `flutter test test/widget_test.dart` - Run specific test file
 - `flutter test test/premium_analytics_filtering_test.dart` - Run analytics filtering tests
 - `flutter test test/enhanced_voting_status_service_test.dart` - Run voting status tests
+- `flutter test test/optimized_analytics_test.dart` - Run optimized analytics tests
+- `flutter test test/voting_status_changes_test.dart` - Run voting status change tests
 
 ## Architecture Overview
 
@@ -205,7 +210,7 @@ context.goToClientDetails(id)
 
 ### Firebase Functions Communication
 ```dart
-// Always use europe-west1 region
+// Always use europe-west1 region (critical for performance - closer to Poland)
 final result = await FirebaseFunctions.instanceFor(region: 'europe-west1')
     .httpsCallable('getOptimizedInvestorAnalytics')
     .call(data);
@@ -264,6 +269,7 @@ dart: ^3.8.1
 
 # State Management
 provider: ^6.1.2
+riverpod: ^2.5.1
 flutter_riverpod: ^2.5.1
 
 # Navigation  
@@ -274,13 +280,47 @@ firebase_core: ^4.0.0
 cloud_firestore: ^6.0.0
 cloud_functions: ^6.0.0
 firebase_auth: ^6.0.0
+firebase_analytics: ^12.0.0
+firebase_storage: ^13.0.0
 
 # Charts & Analytics
 fl_chart: ^1.0.0
 syncfusion_flutter_charts: ^30.2.4
+syncfusion_flutter_datagrid: ^30.2.4
+
+# File Handling & Export
+excel: ^4.0.6
+pdf: ^3.11.1
+printing: ^5.13.2
+csv: ^6.0.0
 
 # UI Enhancement
 responsive_framework: ^1.5.1
 shimmer: ^3.0.0
 material_design_icons_flutter: ^7.0.7296
+cached_network_image: ^3.4.1
+lottie: ^3.1.2
+flutter_svg: ^2.0.10+1
+google_fonts: ^6.2.1
 ```
+
+## Critical Development Rules
+
+### Import Pattern (Strictly Enforced)
+```dart
+// ✅ CORRECT - Always import from central barrel export
+import '../models_and_services.dart';
+
+// ❌ INCORRECT - Never import individual model files
+import '../models/client.dart';
+import '../services/client_service.dart';
+```
+
+### Field Mapping Convention (Critical)
+The codebase uses semantic product IDs and bilingual field mapping:
+- Product IDs: `bond_0001`, `loan_0005`, `apartment_0045` (NOT UUIDs)
+- Code properties are in English, Firebase fields may be Polish (legacy)
+- Models handle automatic mapping via `fromFirestore()`/`toFirestore()`
+
+### Firebase Region Requirement
+All Firebase Functions calls MUST use `europe-west1` region for performance optimization.

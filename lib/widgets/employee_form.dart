@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import '../models/employee.dart';
 import '../services/employee_service.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_theme_professional.dart';
 import '../widgets/animated_button.dart';
 
 class EmployeeForm extends StatefulWidget {
   final Employee? employee;
+  final Function(Employee)? onDelete;
 
-  const EmployeeForm({super.key, this.employee});
+  const EmployeeForm({super.key, this.employee, this.onDelete});
 
   @override
   State<EmployeeForm> createState() => _EmployeeFormState();
@@ -228,6 +230,38 @@ class _EmployeeFormState extends State<EmployeeForm> {
     }
   }
 
+  void _confirmDelete() {
+    if (widget.employee != null && widget.onDelete != null) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Usuń pracownika'),
+          content: Text(
+            'Czy na pewno chcesz usunąć pracownika "${widget.employee!.fullName}"?\n\nTa akcja jest nieodwracalna.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Anuluj'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close confirmation dialog
+                Navigator.of(context).pop(); // Close employee form
+                widget.onDelete!(widget.employee!);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: AppThemePro.statusError,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Usuń'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -425,24 +459,47 @@ class _EmployeeFormState extends State<EmployeeForm> {
                       ),
                       const SizedBox(height: 24),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          TextButton(
-                            onPressed: _isLoading
-                                ? null
-                                : () => Navigator.of(context).pop(),
-                            child: const Text('Anuluj'),
-                          ),
-                          const SizedBox(width: 12),
-                          AnimatedButton(
-                            onPressed: _isLoading ? null : _submitForm,
-                            isLoading: _isLoading,
-                            child: Text(
-                              widget.employee == null
-                                  ? 'Dodaj pracownika'
-                                  : 'Zapisz zmiany',
-                              style: const TextStyle(color: Colors.white),
-                            ),
+                          // Delete button (only shown when editing existing employee)
+                          if (widget.employee != null &&
+                              widget.onDelete != null)
+                            FilledButton.icon(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () => _confirmDelete(),
+                              icon: const Icon(Icons.delete_outline),
+                              label: const Text('Usuń pracownika'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppThemePro.statusError,
+                                foregroundColor: Colors.white,
+                              ),
+                            )
+                          else
+                            const SizedBox.shrink(),
+
+                          // Action buttons
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TextButton(
+                                onPressed: _isLoading
+                                    ? null
+                                    : () => Navigator.of(context).pop(),
+                                child: const Text('Anuluj'),
+                              ),
+                              const SizedBox(width: 12),
+                              AnimatedButton(
+                                onPressed: _isLoading ? null : _submitForm,
+                                isLoading: _isLoading,
+                                child: Text(
+                                  widget.employee == null
+                                      ? 'Dodaj pracownika'
+                                      : 'Zapisz zmiany',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

@@ -33,7 +33,6 @@ class AppRoutes {
   static const String products = '/products';
   static const String companies = '/companies';
   static const String employees = '/employees';
-  static const String analytics = '/analytics';
   static const String investorAnalytics = '/investor-analytics';
   static const String calendar = '/calendar';
   static const String unifiedProducts = '/unified-products';
@@ -384,15 +383,7 @@ class AppRouter {
             ],
           ),
 
-          // === ANALITYKA ===
-          GoRoute(
-            path: AppRoutes.analytics,
-            pageBuilder: (context, state) => _buildPageWithTransition(
-              context,
-              state,
-              const AnalyticsScreenRefactored(),
-            ),
-          ),
+   
 
           GoRoute(
             path: AppRoutes.investorAnalytics,

@@ -1945,7 +1945,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                 onPressed: _selectedProducts.isNotEmpty
                     ? _showEmailDialog
                     : null,
-                icon: const Icon(Icons.email, size: 18),
+                icon: const Icon(Icons.email_rounded, size: 18),
                 label: Text('${_selectedProducts.length}'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _selectedProducts.isNotEmpty
@@ -1972,7 +1972,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                 onPressed: _selectedProducts.isNotEmpty
                     ? _showExportFormatDialog
                     : null,
-                icon: const Icon(Icons.download, size: 18),
+                icon: const Icon(Icons.download_rounded, size: 18),
                 label: Text('${_selectedProducts.length}'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _selectedProducts.isNotEmpty
@@ -2034,7 +2034,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                     ),
                   ),
                   child: const Icon(
-                    Icons.email,
+                    Icons.email_rounded,
                     color: AppTheme.secondaryGold,
                     size: 18,
                   ),
@@ -2061,7 +2061,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                     ),
                   ),
                   child: const Icon(
-                    Icons.download,
+                    Icons.download_rounded,
                     color: AppTheme.primaryColor,
                     size: 18,
                   ),
@@ -4026,7 +4026,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       ),
       child: Row(
         children: [
-          Icon(Icons.email, color: Colors.blue, size: 24),
+          Icon(Icons.email_rounded, color: Colors.blue, size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -4161,7 +4161,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
               color: Colors.blue.withOpacity(0.2),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.email, color: Colors.blue, size: 20),
+            child: Icon(Icons.email_rounded, color: Colors.blue, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(

@@ -562,7 +562,12 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             _showSuccessSnackBar('Klient został zaktualizowany');
           }
 
-          // Odśwież dane po zapisaniu
+          // Zamknij dialog natychmiast po zapisie
+          if (context.mounted) {
+            Navigator.of(context).pop();
+          }
+
+          // Odśwież dane w tle po zamknięciu dialogu
           await _refreshData();
         } catch (e) {
           _showErrorSnackBar('Błąd podczas zapisywania: $e');

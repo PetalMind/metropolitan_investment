@@ -5,6 +5,10 @@ import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/employee_form.dart';
 import '../widgets/animated_button.dart';
+import '../widgets/employee_table_widget.dart';
+import '../widgets/employee_cards_widget.dart';
+import '../widgets/employee_search_filters_widget.dart';
+import '../theme/app_theme_professional.dart';
 
 // RBAC: wspólny tooltip dla braku uprawnień
 const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
@@ -16,17 +20,32 @@ class EmployeesScreen extends StatefulWidget {
   State<EmployeesScreen> createState() => _EmployeesScreenState();
 }
 
-class _EmployeesScreenState extends State<EmployeesScreen> {
+class _EmployeesScreenState extends State<EmployeesScreen>
+    with TickerProviderStateMixin {
   final EmployeeService _employeeService = EmployeeService();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _sortColumn = 'lastName';
   bool _sortAscending = true;
   String? _selectedBranch;
+  String? _selectedStatus;
+  String? _selectedPosition;
   List<String> _branches = [];
+  List<String> _positions = [
+    'Manager',
+    'Analityk',
+    'Konsultant',
+    'Dyrektor',
+    'Asystent',
+    'Specjalista',
+  ];
+  bool _isTableView = false;
 
   // Debouncing timer for search
   Timer? _searchTimer;
+
+  // Animation controllers
+  late AnimationController _viewSwitchController;
 
   // RBAC getter
   bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
@@ -35,12 +54,19 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   void initState() {
     super.initState();
     _loadBranches();
+    _loadPositions();
+
+    _viewSwitchController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _searchTimer?.cancel();
+    _viewSwitchController.dispose();
     super.dispose();
   }
 
@@ -54,6 +80,21 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
     } catch (e) {
       debugPrint('Error loading branches: $e');
     }
+  }
+
+  Future<void> _loadPositions() async {
+    // Using static positions for now
+    // In a real app, you would fetch from the service
+    setState(() {
+      _positions = [
+        'Manager',
+        'Analityk',
+        'Konsultant',
+        'Dyrektor',
+        'Asystent',
+        'Specjalista',
+      ];
+    });
   }
 
   void _onSearchChanged(String value) {
@@ -78,11 +119,41 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
     });
   }
 
+  void _onStatusFilterChanged(String? status) {
+    setState(() {
+      _selectedStatus = status;
+    });
+  }
+
+  void _onPositionFilterChanged(String? position) {
+    setState(() {
+      _selectedPosition = position;
+    });
+  }
+
+  void _toggleView() {
+    setState(() {
+      _isTableView = !_isTableView;
+    });
+
+    if (_isTableView) {
+      _viewSwitchController.reverse();
+    } else {
+      _viewSwitchController.forward();
+    }
+  }
+
   void _showEmployeeForm({Employee? employee}) {
     showDialog(
       context: context,
-      builder: (context) => EmployeeForm(employee: employee),
-    ).then((_) => _loadBranches()); // Refresh branches after form closes
+      builder: (context) => EmployeeForm(
+        employee: employee,
+        onDelete: employee != null ? _deleteEmployee : null,
+      ),
+    ).then((_) {
+      _loadBranches();
+      _loadPositions();
+    });
   }
 
   void _deleteEmployee(Employee employee) {
@@ -140,6 +211,21 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
           .toList();
     }
 
+    // Filter by status
+    if (_selectedStatus != null) {
+      final isActive = _selectedStatus == 'Aktywny';
+      filtered = filtered
+          .where((employee) => employee.isActive == isActive)
+          .toList();
+    }
+
+    // Filter by position
+    if (_selectedPosition != null) {
+      filtered = filtered
+          .where((employee) => employee.position == _selectedPosition)
+          .toList();
+    }
+
     // Filter by search query
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
@@ -174,6 +260,9 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
         case 'createdAt':
           comparison = a.createdAt.compareTo(b.createdAt);
           break;
+        case 'isActive':
+          comparison = a.isActive == b.isActive ? 0 : (a.isActive ? -1 : 1);
+          break;
         default:
           comparison = a.lastName.compareTo(b.lastName);
       }
@@ -183,419 +272,267 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
     return filtered;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundPrimary,
-      appBar: AppBar(
-        title: const Text('Zarządzanie pracownikami'),
-        backgroundColor: AppTheme.backgroundSecondary,
-        actions: [
-          Tooltip(
-            message: canEdit ? 'Dodaj pracownika' : kRbacNoPermissionTooltip,
-            child: AnimatedButton(
-              onPressed: canEdit ? () => _showEmployeeForm() : null,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.add, color: canEdit ? Colors.white : Colors.grey),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Dodaj pracownika',
-                    style: TextStyle(
-                      color: canEdit ? Colors.white : Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
+  Widget _buildStatisticsBar(int totalEmployees, int filteredEmployees) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundSecondary,
+        border: Border(
+          bottom: BorderSide(color: AppThemePro.borderPrimary, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Total employees stat
+          Expanded(
+            child: _buildStatCard(
+              icon: Icons.people,
+              title: 'Łącznie pracowników',
+              value: totalEmployees.toString(),
+              color: AppThemePro.accentGold,
+              subtitle: 'w systemie',
             ),
           ),
+          
           const SizedBox(width: 16),
+
+          // Filtered employees stat
+          Expanded(
+            child: _buildStatCard(
+              icon: Icons.filter_list,
+              title: 'Wyświetlane',
+              value: filteredEmployees.toString(),
+              color: AppThemePro.statusInfo,
+              subtitle: 'po filtrach',
+            ),
+          ),
+          
+          const SizedBox(width: 16),
+          
+          // Active employees percentage
+          Expanded(
+            child: _buildStatCard(
+              icon: Icons.verified_user,
+              title: 'Aktywni',
+              value: totalEmployees > 0
+                  ? '${((filteredEmployees / totalEmployees) * 100).round()}%'
+                  : '0%',
+              color: AppThemePro.statusSuccess,
+              subtitle: 'z całości',
+            ),
+          ),
         ],
       ),
-      body: Column(
+    );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Search and filters
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: AppTheme.backgroundSecondary,
-            child: Column(
-              children: [
-                Row(
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppThemePro.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 10, color: color.withOpacity(0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final shouldShowTableView = screenWidth > 900 && _isTableView;
+
+    return Scaffold(
+      backgroundColor: AppThemePro.backgroundPrimary,
+      appBar: AppBar(
+        title: const Text('Zarządzanie pracownikami'),
+        backgroundColor: AppThemePro.backgroundSecondary,
+        actions: [
+          // View toggle for larger screens
+          if (screenWidth > 900) ...[
+            Tooltip(
+              message: _isTableView
+                  ? 'Przełącz na karty'
+                  : 'Przełącz na tabelę',
+              child: IconButton(
+                onPressed: _toggleView,
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: Icon(
+                    _isTableView ? Icons.grid_view : Icons.table_rows,
+                    key: ValueKey(_isTableView),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+
+          // Add employee button for smaller screens
+          if (screenWidth <= 900)
+            Tooltip(
+              message: canEdit ? 'Dodaj pracownika' : kRbacNoPermissionTooltip,
+              child: AnimatedButton(
+                onPressed: canEdit ? () => _showEmployeeForm() : null,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: _onSearchChanged,
-                        decoration: const InputDecoration(
-                          labelText: 'Szukaj pracowników',
-                          prefixIcon: Icon(Icons.search),
-                          border: OutlineInputBorder(),
-                          hintText: 'Wpisz imię, nazwisko, email...',
-                        ),
-                      ),
+                    Icon(
+                      Icons.add,
+                      color: canEdit ? Colors.white : Colors.grey,
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedBranch,
-                        decoration: const InputDecoration(
-                          labelText: 'Filia',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: [
-                          const DropdownMenuItem<String>(
-                            value: null,
-                            child: Text('Wszystkie filie'),
-                          ),
-                          ..._branches.map((branch) {
-                            return DropdownMenuItem<String>(
-                              value: branch,
-                              child: Text(branch),
-                            );
-                          }),
-                        ],
-                        onChanged: _onBranchFilterChanged,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    DropdownButton<String>(
-                      value: _sortColumn,
-                      onChanged: (value) {
-                        if (value != null) {
-                          _onSort(value, _sortAscending);
-                        }
-                      },
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'lastName',
-                          child: Text('Nazwisko'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'firstName',
-                          child: Text('Imię'),
-                        ),
-                        DropdownMenuItem(value: 'email', child: Text('Email')),
-                        DropdownMenuItem(
-                          value: 'position',
-                          child: Text('Stanowisko'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'branchCode',
-                          child: Text('Filia'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'createdAt',
-                          child: Text('Data utworzenia'),
-                        ),
-                      ],
-                    ),
-                    IconButton(
-                      onPressed: () => _onSort(_sortColumn, !_sortAscending),
-                      icon: Icon(
-                        _sortAscending
-                            ? Icons.arrow_upward
-                            : Icons.arrow_downward,
+                    const SizedBox(width: 8),
+                    Text(
+                      'Dodaj',
+                      style: TextStyle(
+                        color: canEdit ? Colors.white : Colors.grey,
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
-          ),
-
-          // Employees table
-          Expanded(
-            child: StreamBuilder<List<Employee>>(
-              stream: _searchQuery.isEmpty && _selectedBranch == null
-                  ? _employeeService.getEmployees()
-                  : _selectedBranch != null && _searchQuery.isEmpty
-                  ? _employeeService.getEmployeesByBranch(_selectedBranch!)
-                  : _employeeService.searchEmployees(_searchQuery),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: PremiumShimmerLoadingWidget.fullScreen(),
-                  );
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 64,
-                          color: AppTheme.errorPrimary,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Błąd podczas wczytywania danych',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Błąd: ${snapshot.error}',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: AppTheme.textSecondary),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => setState(() {}),
-                          child: const Text('Spróbuj ponownie'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                final employees = snapshot.data ?? [];
-                final filteredEmployees = _filterAndSortEmployees(employees);
-
-                if (filteredEmployees.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.people_outlined,
-                          size: 64,
-                          color: AppTheme.textTertiary,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _searchQuery.isEmpty && _selectedBranch == null
-                              ? 'Brak pracowników w systemie'
-                              : 'Nie znaleziono pracowników',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _searchQuery.isEmpty && _selectedBranch == null
-                              ? 'Dodaj pierwszego pracownika, aby rozpocząć'
-                              : 'Spróbuj zmienić kryteria wyszukiwania',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: AppTheme.textSecondary),
-                        ),
-                        if (_searchQuery.isEmpty &&
-                            _selectedBranch == null) ...[
-                          const SizedBox(height: 24),
-                          Tooltip(
-                            message: canEdit
-                                ? 'Dodaj pierwszego pracownika'
-                                : kRbacNoPermissionTooltip,
-                            child: AnimatedButton(
-                              onPressed: canEdit
-                                  ? () => _showEmployeeForm()
-                                  : null,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.add,
-                                    color: canEdit ? Colors.white : Colors.grey,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Dodaj pierwszego pracownika',
-                                    style: TextStyle(
-                                      color: canEdit
-                                          ? Colors.white
-                                          : Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                }
-
-                return DataTableWidget<Employee>(
-                  items: filteredEmployees,
-                  columns: [
-                    DataTableColumn<Employee>(
-                      label: 'Imię',
-                      value: (employee) => employee.firstName,
-                      sortable: true,
-                      width: 120,
-                      widget: (employee) => Text(
-                        employee.firstName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                    ),
-                    DataTableColumn<Employee>(
-                      label: 'Nazwisko',
-                      value: (employee) => employee.lastName,
-                      sortable: true,
-                      width: 130,
-                      widget: (employee) => Text(
-                        employee.lastName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                    ),
-                    DataTableColumn<Employee>(
-                      label: 'Email',
-                      value: (employee) => employee.email,
-                      sortable: true,
-                      width: 200,
-                      widget: (employee) => Text(
-                        employee.email,
-                        style: const TextStyle(color: AppTheme.textSecondary),
-                      ),
-                    ),
-                    DataTableColumn<Employee>(
-                      label: 'Telefon',
-                      value: (employee) => employee.phone,
-                      width: 130,
-                      widget: (employee) => Text(
-                        employee.phone.isNotEmpty ? employee.phone : '-',
-                        style: const TextStyle(color: AppTheme.textSecondary),
-                      ),
-                    ),
-                    DataTableColumn<Employee>(
-                      label: 'Stanowisko',
-                      value: (employee) => employee.position,
-                      sortable: true,
-                      width: 160,
-                      widget: (employee) => Text(
-                        employee.position,
-                        style: const TextStyle(color: AppTheme.textSecondary),
-                      ),
-                    ),
-                    DataTableColumn<Employee>(
-                      label: 'Filia',
-                      value: (employee) => employee.branchCode,
-                      sortable: true,
-                      width: 80,
-                      widget: (employee) => Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppTheme.primaryColor,
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          employee.branchCode,
-                          style: const TextStyle(
-                            color: AppTheme.primaryColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    DataTableColumn<Employee>(
-                      label: 'Status',
-                      value: (employee) =>
-                          employee.isActive ? 'Aktywny' : 'Nieaktywny',
-                      width: 100,
-                      widget: (employee) => Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: employee.isActive
-                              ? AppTheme.successPrimary.withValues(alpha: 0.1)
-                              : AppTheme.errorPrimary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: employee.isActive
-                                ? AppTheme.successPrimary
-                                : AppTheme.errorPrimary,
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          employee.isActive ? 'Aktywny' : 'Nieaktywny',
-                          style: TextStyle(
-                            color: employee.isActive
-                                ? AppTheme.successPrimary
-                                : AppTheme.errorPrimary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    DataTableColumn<Employee>(
-                      label: 'Data utworzenia',
-                      value: (employee) =>
-                          '${employee.createdAt.day.toString().padLeft(2, '0')}.${employee.createdAt.month.toString().padLeft(2, '0')}.${employee.createdAt.year}',
-                      sortable: true,
-                      width: 120,
-                      widget: (employee) => Text(
-                        '${employee.createdAt.day.toString().padLeft(2, '0')}.${employee.createdAt.month.toString().padLeft(2, '0')}.${employee.createdAt.year}',
-                        style: const TextStyle(color: AppTheme.textTertiary),
-                      ),
-                    ),
-                    DataTableColumn<Employee>(
-                      label: 'Akcje',
-                      value: (employee) => '',
-                      width: 120,
-                      widget: (employee) => Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Tooltip(
-                            message: canEdit
-                                ? 'Edytuj'
-                                : kRbacNoPermissionTooltip,
-                            child: IconButton(
-                              onPressed: canEdit
-                                  ? () => _showEmployeeForm(employee: employee)
-                                  : null,
-                              icon: Icon(
-                                Icons.edit,
-                                color: canEdit
-                                    ? AppTheme.secondaryGold
-                                    : Colors.grey,
-                              ),
-                            ),
-                          ),
-                          Tooltip(
-                            message: canEdit
-                                ? 'Usuń'
-                                : kRbacNoPermissionTooltip,
-                            child: IconButton(
-                              onPressed: canEdit
-                                  ? () => _deleteEmployee(employee)
-                                  : null,
-                              icon: Icon(
-                                Icons.delete,
-                                color: canEdit
-                                    ? AppTheme.errorPrimary
-                                    : Colors.grey,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  onRowTap: (employee) => _showEmployeeForm(employee: employee),
-                );
-              },
-            ),
-          ),
+          const SizedBox(width: 16),
         ],
+      ),
+      body: StreamBuilder<List<Employee>>(
+        stream: _employeeService.getEmployees(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: PremiumShimmerLoadingWidget.fullScreen(),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: AppThemePro.statusError,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Błąd podczas wczytywania danych',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Błąd: ${snapshot.error}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppThemePro.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('Spróbuj ponownie'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final allEmployees = snapshot.data ?? [];
+          final filteredEmployees = _filterAndSortEmployees(allEmployees);
+
+          return Column(
+            children: [
+              // Statistics bar at the top
+              _buildStatisticsBar(
+                allEmployees.length,
+                filteredEmployees.length,
+              ),
+
+              // Search and filters
+              EmployeeSearchAndFiltersWidget(
+                onSearchChanged: _onSearchChanged,
+                onBranchFilterChanged: _onBranchFilterChanged,
+                onStatusFilterChanged: _onStatusFilterChanged,
+                onPositionFilterChanged: _onPositionFilterChanged,
+                branches: _branches,
+                positions: _positions,
+                currentSearchQuery: _searchQuery,
+                selectedBranch: _selectedBranch,
+                selectedStatus: _selectedStatus,
+                selectedPosition: _selectedPosition,
+              ),
+
+              // Main content
+              Expanded(
+                child: shouldShowTableView
+                    ? EmployeeTableWidget(
+                        employees: filteredEmployees,
+                        onEdit: (employee) =>
+                            _showEmployeeForm(employee: employee),
+                        onDelete: _deleteEmployee,
+                        onRowTap: (employee) =>
+                            _showEmployeeForm(employee: employee),
+                        canEdit: canEdit,
+                        sortColumn: _sortColumn,
+                        sortAscending: _sortAscending,
+                        onSort: _onSort,
+                      )
+                    : EmployeeCardsWidget(
+                        employees: filteredEmployees,
+                        onEdit: (employee) =>
+                            _showEmployeeForm(employee: employee),
+                        onDelete: _deleteEmployee,
+                        onTap: (employee) =>
+                            _showEmployeeForm(employee: employee),
+                        canEdit: canEdit,
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

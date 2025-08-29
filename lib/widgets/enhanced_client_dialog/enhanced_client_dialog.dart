@@ -207,35 +207,16 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
         ),
       );
 
-      // Zapisz klienta i poczekaj na zakończenie (w tym odświeżenie danych)
+      // Zapisz klienta - callback sam zamknie dialog
       await widget.onSave(client);
 
-      // Reset states po udanym zapisie
+      // Reset states po udanym zapisie (jeśli dialog jeszcze istnieje)
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _hasUnsavedChanges = false; // Reset unsaved changes flag
+          _hasUnsavedChanges = false;
         });
       }
-
-      // Zamknij dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-        HapticFeedback.mediumImpact();
-      }
-
-      // Pokaż komunikat o sukcesie (w parent context)
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('✅ Klient został zapisany i dane odświeżone'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
