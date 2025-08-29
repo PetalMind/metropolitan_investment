@@ -109,6 +109,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
   // Email functionality
   bool _isSelectionMode = false;
   bool _isEmailMode = false; // 🚀 NOWY: Tryb email
+  bool _isExportMode = false; // 🚀 NOWY: Tryb eksportu
   Set<String> _selectedProductIds = <String>{};
 
 
@@ -2036,28 +2037,61 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       actions: [
         // Email functionality w trybie selekcji - Enhanced UI
         if (_isSelectionMode) ...[
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: ElevatedButton.icon(
-              onPressed: _selectedProducts.isNotEmpty ? _showEmailDialog : null,
-              icon: const Icon(Icons.email, size: 18),
-              label: Text('${_selectedProducts.length}'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _selectedProducts.isNotEmpty
-                    ? AppTheme.secondaryGold
-                    : AppTheme.textSecondary.withValues(alpha: 0.3),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+          // Przycisk email w trybie selekcji
+          if (_isEmailMode) ...[
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              child: ElevatedButton.icon(
+                onPressed: _selectedProducts.isNotEmpty
+                    ? _showEmailDialog
+                    : null,
+                icon: const Icon(Icons.email, size: 18),
+                label: Text('${_selectedProducts.length}'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _selectedProducts.isNotEmpty
+                      ? AppTheme.secondaryGold
+                      : AppTheme.textSecondary.withValues(alpha: 0.3),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  elevation: _selectedProducts.isNotEmpty ? 4 : 0,
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                elevation: _selectedProducts.isNotEmpty ? 4 : 0,
               ),
             ),
-          ),
+          ]
+          // Przycisk eksportu w trybie selekcji
+          else if (_isExportMode) ...[
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              child: ElevatedButton.icon(
+                onPressed: _selectedProducts.isNotEmpty
+                    ? _showExportFormatDialog
+                    : null,
+                icon: const Icon(Icons.download, size: 18),
+                label: Text('${_selectedProducts.length}'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _selectedProducts.isNotEmpty
+                      ? AppTheme.secondaryGold
+                      : AppTheme.textSecondary.withValues(alpha: 0.3),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  elevation: _selectedProducts.isNotEmpty ? 4 : 0,
+                ),
+              ),
+            ),
+          ],
+          // Przycisk anulowania selekcji
           IconButton(
             icon: Container(
               padding: const EdgeInsets.all(6),
@@ -2077,35 +2111,71 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             onPressed: () {
               setState(() {
                 _isSelectionMode = false;
+                _isEmailMode = false;
+                _isExportMode = false;
                 _selectedProductIds.clear();
               });
             },
             tooltip: 'Anuluj selekcję',
           ),
         ] else ...[
-          // Przycisk rozpoczęcia selekcji email - Enhanced UI
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppTheme.secondaryGold.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppTheme.secondaryGold.withValues(alpha: 0.3),
+          // Przyciski rozpoczęcia trybów poza selekcją
+          Row(
+            children: [
+              // Przycisk trybu email
+              IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.secondaryGold.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppTheme.secondaryGold.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.email,
+                    color: AppTheme.secondaryGold,
+                    size: 18,
+                  ),
                 ),
+                onPressed: () {
+                  setState(() {
+                    _isSelectionMode = true;
+                    _isEmailMode = true;
+                    _isExportMode = false;
+                  });
+                },
+                tooltip: '📧 Tryb email - wybierz produkty do wysłania maili',
               ),
-              child: const Icon(
-                Icons.email,
-                color: AppTheme.secondaryGold,
-                size: 18,
+              const SizedBox(width: 4),
+              // Przycisk trybu eksportu
+              IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.download,
+                    color: AppTheme.primaryColor,
+                    size: 18,
+                  ),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isSelectionMode = true;
+                    _isExportMode = true;
+                    _isEmailMode = false;
+                  });
+                },
+                tooltip: '📊 Tryb eksportu - wybierz produkty do eksportu',
               ),
-            ),
-            onPressed: () {
-              setState(() {
-                _isSelectionMode = true;
-              });
-            },
-            tooltip: '📧 Wybierz produkty do email',
+            ],
           ),
         ],
 
@@ -2156,6 +2226,18 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Column(
             children: [
+              // Banner dla trybu eksportu
+              if (_isExportMode) _buildExportModeBanner(),
+              // Banner dla trybu email
+              if (_isEmailMode) _buildEmailModeBanner(),
+
+              // Sekcja akcji dla trybu eksportu
+              if (_isExportMode && _selectedProductIds.isNotEmpty)
+                _buildExportActionSection(),
+              // Sekcja akcji dla trybu email
+              if (_isEmailMode && _selectedProductIds.isNotEmpty)
+                _buildEmailActionSection(),
+
               // Enhanced search bar with gradient border
               Container(
                 decoration: BoxDecoration(
@@ -3653,13 +3735,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     }
   }
 
-  /// Sprawdza status cache wszystkich serwisów
-  void _checkCacheStatus() {
-    final migrationStatus = _analyticsMigrationService.getMigrationStatus();
-    print('📊 [Products] Status migracji analityki: $migrationStatus');
-
-    print('📊 [Products] Cache ProductManagementService sprawdzony');
-  }
 
   // 🚀 DODANE: Funkcje email dokładnie takie same jak w premium_investor_analytics_screen
   void _toggleEmailMode() {
@@ -3668,8 +3743,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       if (_isEmailMode) {
         _isSelectionMode = true;
         _selectedProductIds.clear();
-        // Wyłącz tryb eksportu jeśli był aktywny (jeśli istnieje)
-        // _isExportMode = false; // Nie ma takiej zmiennej w products_management
+        // Wyłącz tryb eksportu jeśli był aktywny
+        _isExportMode = false;
       } else {
         _isSelectionMode = false;
         _selectedProductIds.clear();
@@ -3691,6 +3766,40 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             label: 'Anuluj',
             textColor: AppTheme.backgroundPrimary,
             onPressed: _toggleEmailMode,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _toggleExportMode() {
+    setState(() {
+      _isExportMode = !_isExportMode;
+      if (_isExportMode) {
+        _isSelectionMode = true;
+        _selectedProductIds.clear();
+        // Wyłącz tryb email jeśli był aktywny
+        _isEmailMode = false;
+      } else {
+        _isSelectionMode = false;
+        _selectedProductIds.clear();
+      }
+    });
+
+    if (_isExportMode) {
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Tryb eksportu aktywny - wybierz produkty do eksportu',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: AppTheme.secondaryGold,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Anuluj',
+            textColor: AppTheme.backgroundPrimary,
+            onPressed: _toggleExportMode,
           ),
         ),
       );
@@ -3783,6 +3892,83 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           initialSubject: 'Informacje o produktach - Metropolitan Investment',
           showAsDialog: true,
         ),
+      ),
+    );
+  }
+
+  void _showExportFormatDialog() {
+    if (_selectedProductIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '❌ Najpierw wybierz produkty do eksportu\n💡 Użyj trybu eksportu aby wybrać produkty',
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+
+      if (!_isExportMode && !_isSelectionMode) {
+        _toggleExportMode();
+      }
+      return;
+    }
+
+    if (_selectedProducts.isEmpty) {
+      _showErrorSnackBar('Nie wybrano żadnych produktów');
+      return;
+    }
+
+    // Konwertuj wybrane produkty na InvestorSummary dla kompatybilności z InvestorExportDialog
+    final List<InvestorSummary> investorSummaries = [];
+
+    for (final product in _selectedProducts) {
+      // Utwórz tymczasowego klienta z danymi produktu
+      final client = Client(
+        id: product.companyId,
+        name: product.companyName,
+        email: '',
+        phone: '',
+        pesel: null,
+        companyName: product.companyName,
+        address: '',
+        notes: '',
+        isActive: product.status == ProductStatus.active,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      // Tworzenie InvestorSummary z prawidłowymi parametrami
+      final investorSummary = InvestorSummary(
+        client: client,
+        investments: [], // Puste - eksport będzie dotyczył produktów
+        totalRemainingCapital: product.totalRemainingCapital,
+        totalSharesValue: 0.0,
+        totalValue: product.totalValue,
+        totalInvestmentAmount: product.totalValue,
+        totalRealizedCapital: 0.0,
+        capitalSecuredByRealEstate: 0.0,
+        capitalForRestructuring: 0.0,
+        investmentCount: product.totalInvestments,
+      );
+      investorSummaries.add(investorSummary);
+    }
+
+    // Używamy istniejącego InvestorExportDialog
+    showDialog(
+      context: context,
+      builder: (context) => InvestorExportDialog(
+        selectedInvestors: investorSummaries,
+        onExportComplete: () {
+          Navigator.of(context).pop();
+          _toggleExportMode();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Eksport zakończony pomyślnie'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        },
       ),
     );
   }
@@ -3927,6 +4113,257 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       default:
         return null; // Nieznany typ
     }
+  }
+
+  /// Buduje banner dla trybu eksportu
+  Widget _buildExportModeBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.secondaryGold.withOpacity(0.1),
+            AppTheme.secondaryGold.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.secondaryGold.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.file_download, color: AppTheme.secondaryGold, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tryb eksportu aktywny',
+                  style: TextStyle(
+                    color: AppTheme.secondaryGold,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Zaznacz produkty do eksportu lub wybierz wszystkie',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _toggleExportMode,
+            icon: Icon(Icons.close, color: AppTheme.textSecondary),
+            tooltip: 'Wyłącz tryb eksportu',
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Buduje banner dla trybu email
+  Widget _buildEmailModeBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.withOpacity(0.1), Colors.blue.withOpacity(0.05)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withOpacity(0.3), width: 1),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.email, color: Colors.blue, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tryb email aktywny',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Zaznacz produkty do wysłania maili lub wybierz wszystkie',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _toggleEmailMode,
+            icon: Icon(Icons.close, color: AppTheme.textSecondary),
+            tooltip: 'Wyłącz tryb email',
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Buduje sekcję akcji dla trybu eksportu
+  Widget _buildExportActionSection() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.secondaryGold.withOpacity(0.15),
+            AppTheme.secondaryGold.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.secondaryGold.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.secondaryGold.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.file_download,
+              color: AppTheme.secondaryGold,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Wybrano ${_selectedProductIds.length} produktów',
+                  style: TextStyle(
+                    color: AppTheme.secondaryGold,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Kliknij "Dokończ eksport" aby wyeksportować dane produktów',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton.icon(
+            onPressed: _showExportFormatDialog,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.secondaryGold,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              elevation: 2,
+            ),
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text(
+              'Dokończ eksport',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Buduje sekcję akcji dla trybu email
+  Widget _buildEmailActionSection() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.blue.withOpacity(0.15),
+            Colors.blue.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withOpacity(0.3), width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.email, color: Colors.blue, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Wybrano ${_selectedProductIds.length} produktów',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Kliknij "Wyślij e-maile" aby wysłać informacje o produktach',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton.icon(
+            onPressed: _showEmailDialog,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              elevation: 2,
+            ),
+            icon: const Icon(Icons.send_rounded, size: 18),
+            label: const Text(
+              'Wyślij e-maile',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

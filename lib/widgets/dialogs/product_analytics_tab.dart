@@ -161,7 +161,7 @@ class _ProductAnalyticsTabState extends State<ProductAnalyticsTab>
                 Text(
                   'Analiza Produktu',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppTheme.primaryColor,
+                    color: AppTheme.secondaryGold,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

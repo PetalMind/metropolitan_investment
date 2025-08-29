@@ -156,9 +156,6 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
   }
 
   void _onTabChanged(int newIndex) {
-    print(
-      '🎯 [EnhancedClientDialog] Przełączono na tab: ${_tabs[newIndex].label}',
-    );
     HapticFeedback.lightImpact();
 
     // Validate current form state before switching
@@ -201,30 +198,44 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
       _formKey.currentState!.save();
       final client = _formData.toClient();
 
+      // Show saving snackbar before closing dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('💾 Zapisywanie klienta...'),
+          backgroundColor: AppThemePro.statusInfo,
+          duration: Duration(seconds: 1),
+        ),
+      );
+
       // Zapisz klienta i poczekaj na zakończenie (w tym odświeżenie danych)
       await widget.onSave(client);
 
-      // Reset loading state po udanym zapisie
+      // Reset states po udanym zapisie
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _hasUnsavedChanges = false; // Reset unsaved changes flag
         });
       }
 
       // Zamknij dialog
-      Navigator.of(context).pop();
-      HapticFeedback.mediumImpact();
-      
-      // Pokaż komunikat o sukcesie
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Klient został zapisany i dane odświeżone'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        Navigator.of(context).pop();
+        HapticFeedback.mediumImpact();
       }
+
+      // Pokaż komunikat o sukcesie (w parent context)
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Klient został zapisany i dane odświeżone'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -329,12 +340,12 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: AppThemePro.overlayDark.withOpacity(0.3),
+                  color: AppThemePro.overlayDark.withValues(alpha: 0.3),
                   blurRadius: 30,
                   offset: const Offset(0, 10),
                 ),
                 BoxShadow(
-                  color: AppThemePro.accentGold.withOpacity(0.1),
+                  color: AppThemePro.accentGold.withValues(alpha: 0.1),
                   blurRadius: 60,
                   offset: const Offset(0, 20),
                 ),
@@ -372,7 +383,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
           gradient: LinearGradient(
             colors: [
               AppThemePro.primaryDark,
-              AppThemePro.primaryDark.withOpacity(0.9),
+              AppThemePro.primaryDark.withValues(alpha: 0.9),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -383,7 +394,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
           ),
           border: Border(
             bottom: BorderSide(
-              color: AppThemePro.accentGold.withOpacity(0.3),
+              color: AppThemePro.accentGold.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -404,7 +415,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
                       gradient: LinearGradient(
                         colors: [
                           AppThemePro.accentGold,
-                          AppThemePro.accentGold.withOpacity(0.8),
+                          AppThemePro.accentGold.withValues(alpha: 0.8),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -412,7 +423,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: AppThemePro.accentGold.withOpacity(0.3),
+                          color: AppThemePro.accentGold.withValues(alpha: 0.3),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -457,10 +468,10 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.2),
+                            color: Colors.orange.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
-                              color: Colors.orange.withOpacity(0.5),
+                              color: Colors.orange.withValues(alpha: 0.5),
                               width: 1,
                             ),
                           ),
@@ -497,10 +508,10 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
             // Close button
             Container(
               decoration: BoxDecoration(
-                color: AppThemePro.surfaceInteractive.withOpacity(0.5),
+                color: AppThemePro.surfaceInteractive.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: AppThemePro.borderSecondary.withOpacity(0.5),
+                  color: AppThemePro.borderSecondary.withValues(alpha: 0.5),
                   width: 1,
                 ),
               ),
@@ -516,28 +527,6 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildShortcutHint(String keys, String action) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppThemePro.backgroundSecondary.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: AppThemePro.borderSecondary.withOpacity(0.3),
-          width: 0.5,
-        ),
-      ),
-      child: Text(
-        '$keys: $action',
-        style: const TextStyle(
-          fontSize: 11,
-          color: AppThemePro.textTertiary,
-          fontWeight: FontWeight.w500,
         ),
       ),
     );
@@ -593,7 +582,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
                             vertical: 1,
                           ),
                           decoration: BoxDecoration(
-                            color: AppThemePro.textTertiary.withOpacity(0.2),
+                            color: AppThemePro.textTertiary.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(2),
                           ),
                           child: Text(

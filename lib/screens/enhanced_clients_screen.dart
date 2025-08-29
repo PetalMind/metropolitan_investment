@@ -8,7 +8,6 @@ import '../theme/app_theme_professional.dart';
 import '../widgets/enhanced_clients/collapsible_search_header_fixed.dart'
     as CollapsibleHeader;
 import '../widgets/enhanced_clients/spectacular_clients_grid.dart';
-import '../widgets/enhanced_clients/simple_clients_grid.dart';
 import '../widgets/enhanced_clients/enhanced_clients_header.dart';
 import '../widgets/enhanced_client_dialog/enhanced_client_dialog.dart';
 
@@ -33,17 +32,12 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   // Services - UŻYWAMY JUŻ ISTNIEJĄCYCH SERWISÓW + DODATKOWY FALLBACK + OPTIMIZED SERVICE
   final IntegratedClientService _integratedClientService =
       IntegratedClientService();
-  final UnifiedDashboardStatisticsService _dashboardStatsService =
-      UnifiedDashboardStatisticsService();
-  final ClientService _clientService = ClientService(); // 🚀 DODATKOWY FALLBACK
   final OptimizedProductService _optimizedProductService =
       OptimizedProductService(); // 🚀 GŁÓWNY SERWIS jak w Premium Analytics
   final EnhancedClientService _enhancedClientService =
       EnhancedClientService(); // 🚀 NOWY: Server-side optimized service
   final InvestorAnalyticsService _investorAnalyticsService =
       InvestorAnalyticsService(); // 🚀 NOWY: Pobieranie danych inwestycji
-  final InvestmentService _investmentService =
-      InvestmentService(); // 🚀 NOWY: Pobieranie inwestycji per klient
 
   // Controllers
   final TextEditingController _searchController = TextEditingController();
@@ -67,6 +61,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
   // State
   bool _isLoading = true;
+  bool _isSearching = false; // 🚀 NOWE: Stan ładowania tylko dla wyszukiwania
   bool _isLoadingMore = false;
   bool _showActiveOnly = false;
   String _errorMessage = '';
@@ -74,6 +69,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   // Filtering & sorting
   final String _sortBy = 'fullName';
   String _currentSearchQuery = '';
+  String _lastServerSearchQuery =
+      ''; // 🚀 NOWE: Śledzenie ostatniego zapytania do serwera
 
   // Multi-selection
   bool _isSelectionMode = false;
@@ -317,337 +314,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     }
   }
 
-  /// Załaduj dane początkowe wykorzystując OptimizedProductService (jak Premium Analytics) z fallbackiem
-  Future<void> _loadInitialDataOLD() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-
-    try {
-      print('🔄 [EnhancedClientsScreen] Rozpoczynam ładowanie danych...');
-
-      // 🚀 KROK 1: Spróbuj OptimizedProductService (jak Premium Analytics)
-      print('🎯 [EnhancedClientsScreen] Próbując OptimizedProductService...');
-
-      try {
-        final optimizedResult = await _optimizedProductService
-            .getAllProductsOptimized(
-              forceRefresh: true,
-              includeStatistics: true,
-              maxProducts: 10000,
-            );
-
-        print('✅ [KROK 1] OptimizedProductService SUCCESS');
-        print('   - Produkty: ${optimizedResult.products.length}');
-        print('   - Statystyki: ${optimizedResult.statistics != null}');
-
-        // Wyciągnij unikalnych klientów z produktów (tylko IDs)
-        final Set<String> uniqueClientIds = {};
-        for (final product in optimizedResult.products) {
-          for (final investor in product.topInvestors) {
-            uniqueClientIds.add(investor.clientId);
-          }
-        }
-
-        print(
-          '📋 [KROK 1] Znaleziono ${uniqueClientIds.length} unikalnych ID klientów',
-        );
-
-        // Pobierz pełne dane klientów z Firestore za pomocą EnhancedClientService (SERVER-SIDE)
-        print(
-          '🚀 [KROK 1] Używam EnhancedClientService do pobierania ${uniqueClientIds.length} klientów...',
-        );
-        final enhancedResult = await _enhancedClientService.getClientsByIds(
-          uniqueClientIds.toList(),
-          includeStatistics: true,
-          maxClients: 1000,
-        );
-
-        if (!enhancedResult.hasError && enhancedResult.clients.isNotEmpty) {
-          print(
-            '✅ [KROK 1] EnhancedClientService SUCCESS - pobrano ${enhancedResult.clients.length} klientów w ${enhancedResult.duration}',
-          );
-
-          // Utwórz statystyki z OptimizedProductService + EnhancedClientService
-          ClientStats? clientStats;
-          if (optimizedResult.statistics != null &&
-              enhancedResult.statistics != null) {
-            clientStats = ClientStats(
-              totalClients: enhancedResult.clients.length,
-              totalInvestments: optimizedResult.statistics!.totalInvestors,
-              totalRemainingCapital:
-                  optimizedResult.statistics!.totalRemainingCapital,
-              averageCapitalPerClient: enhancedResult.clients.isNotEmpty
-                  ? optimizedResult.statistics!.totalRemainingCapital /
-                        enhancedResult.clients.length
-                  : 0.0,
-              lastUpdated: DateTime.now().toIso8601String(),
-              source: 'OptimizedProductService+EnhancedClientService',
-            );
-          }
-
-          // Filtruj aktywnych klientów
-          final activeClients = enhancedResult.clients
-              .where((client) => client.isActive)
-              .toList();
-
-          // Aktualizuj state
-          if (mounted) {
-            setState(() {
-              _allClients = enhancedResult.clients;
-              _activeClients = activeClients;
-              _clientStats = clientStats;
-              _isLoading = false;
-            });
-
-            print(
-              '✅ [SUCCESS] Dane załadowane z OptimizedProductService+EnhancedClientService:',
-            );
-            print(
-              '   - ${enhancedResult.clients.length} klientów (${enhancedResult.foundCount}/${enhancedResult.requestedCount})',
-            );
-            print('   - ${activeClients.length} aktywnych');
-            print('   - ${enhancedResult.notFoundCount} nie znalezionych');
-            print('   - Czas: ${enhancedResult.duration}');
-            if (clientStats != null) {
-              print('   - ${clientStats.totalInvestments} inwestycji');
-              print(
-                '   - ${clientStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału',
-              );
-              print('   - Źródło: ${clientStats.source}');
-            }
-
-            _applyCurrentFilters();
-            return; // SUCCESS - zakończ tutaj
-          }
-        } else {
-          print(
-            '⚠️ [KROK 1] EnhancedClientService failed: ${enhancedResult.error}',
-          );
-          print('🔄 [KROK 1] Przechodzę na fallback ClientService...');
-        }
-
-        // FALLBACK: Jeśli EnhancedClientService nie działa, użyj ClientService.getClientsByIds
-        final List<Client> fullClients = await _clientService.getClientsByIds(
-          uniqueClientIds.toList(),
-        );
-        print(
-          '✅ [KROK 1] FALLBACK: Pobrano ${fullClients.length} pełnych danych klientów z ClientService',
-        );
-
-        // Jeśli nie udało się pobrać wszystkich klientów, utwórz fallback z OptimizedInvestor
-        final List<Client> allClientsFromOptimized = [];
-        final foundClientIds = fullClients.map((c) => c.id).toSet();
-
-        // Dodaj pełne dane klientów
-        allClientsFromOptimized.addAll(fullClients);
-
-        // Dla brakujących klientów, utwórz obiekt Client z dostępnych danych OptimizedInvestor
-        for (final product in optimizedResult.products) {
-          for (final investor in product.topInvestors) {
-            if (!foundClientIds.contains(investor.clientId)) {
-              final client = Client(
-                id: investor.clientId,
-                name: investor.clientName,
-                email: '', // Nie dostępne w OptimizedInvestor
-                phone: '', // Nie dostępne w OptimizedInvestor
-                address: '', // Nie dostępne w OptimizedInvestor
-                type: ClientType.individual, // Domyślne
-                votingStatus: investor.votingStatus ?? VotingStatus.undecided,
-                isActive:
-                    investor.totalRemaining > 0, // Aktywny jeśli ma kapitał
-                createdAt: DateTime.now(),
-                updatedAt: DateTime.now(),
-                additionalInfo: {
-                  'source': 'OptimizedInvestor_fallback',
-                  'investmentCount': investor.investmentCount,
-                  'totalAmount': investor.totalAmount,
-                  'totalRemaining': investor.totalRemaining,
-                },
-              );
-
-              allClientsFromOptimized.add(client);
-              foundClientIds.add(
-                investor.clientId,
-              ); // Dodaj do zestawu aby uniknąć duplikatów
-            }
-          }
-        }
-
-        print(
-          '✅ [KROK 1] FALLBACK: Łącznie ${allClientsFromOptimized.length} klientów (${fullClients.length} pełnych + ${allClientsFromOptimized.length - fullClients.length} fallback)',
-        );
-
-        // Filtruj aktywnych klientów (mających inwestycje)
-        final activeClients = allClientsFromOptimized
-            .where((client) => client.isActive)
-            .toList();
-
-        // Utwórz statystyki z OptimizedProductService
-        ClientStats? clientStats;
-        if (optimizedResult.statistics != null) {
-          clientStats = ClientStats(
-            totalClients: allClientsFromOptimized.length,
-            totalInvestments: optimizedResult
-                .statistics!
-                .totalInvestors, // Używa totalInvestors jako aproksymacji
-            totalRemainingCapital:
-                optimizedResult.statistics!.totalRemainingCapital,
-            averageCapitalPerClient: allClientsFromOptimized.isNotEmpty
-                ? optimizedResult.statistics!.totalRemainingCapital /
-                      allClientsFromOptimized.length
-                : 0.0,
-            lastUpdated: DateTime.now().toIso8601String(),
-            source: 'OptimizedProductService+ClientService',
-          );
-          print('✅ [KROK 1] Utworzono statystyki z OptimizedProductService');
-        }
-
-        // Aktualizuj state
-        if (mounted) {
-          setState(() {
-            _allClients = allClientsFromOptimized;
-            _activeClients = activeClients;
-            _clientStats = clientStats;
-            _isLoading = false;
-          });
-
-          print(
-            '✅ [SUCCESS] Dane załadowane z OptimizedProductService+ClientService:',
-          );
-          print('   - ${allClientsFromOptimized.length} klientów');
-          print('   - ${activeClients.length} aktywnych');
-          if (clientStats != null) {
-            print('   - ${clientStats.totalInvestments} inwestycji');
-            print(
-              '   - ${clientStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału',
-            );
-            print('   - Źródło: ${clientStats.source}');
-          }
-
-          _applyCurrentFilters();
-          return; // SUCCESS - nie potrzebujemy fallback
-        }
-      } catch (e) {
-        print('❌ [KROK 1] OptimizedProductService failed: $e');
-        print('🔄 [KROK 1] Przechodzę na fallback IntegratedClientService...');
-      }
-
-      // 🚀 KROK 2: Fallback do IntegratedClientService (oryginalna metoda)
-      List<Client> allClients = [];
-      try {
-        allClients = await _integratedClientService.getAllClients(
-          page: 1,
-          pageSize: 50000,
-          sortBy: _sortBy,
-          forceRefresh: false,
-        );
-        print(
-          '✅ [KROK 2] Pobrano ${allClients.length} klientów z IntegratedClientService',
-        );
-      } catch (e) {
-        print('❌ [KROK 2] Błąd IntegratedClientService: $e');
-        // Fallback do ClientService
-        try {
-          final stream = _clientService.getClients(limit: 10000);
-          allClients = await stream.first;
-          print(
-            '🔄 [KROK 2 FALLBACK] Pobrano ${allClients.length} klientów z ClientService',
-          );
-        } catch (fallbackError) {
-          print(
-            '❌ [KROK 2 FALLBACK] ClientService też nie działa: $fallbackError',
-          );
-          allClients = [];
-        }
-      }
-
-      // KROK 3: Pobierz aktywnych klientów (opcjonalne)
-      List<Client> activeClients = [];
-      try {
-        activeClients = await _integratedClientService.getActiveClients();
-        print('✅ [KROK 3] Pobrano ${activeClients.length} aktywnych klientów');
-      } catch (e) {
-        print('❌ [KROK 3] Błąd pobierania aktywnych klientów: $e');
-        activeClients = allClients.where((client) => client.isActive).toList();
-        print(
-          '🔄 [KROK 3 FALLBACK] Lokalnie przefiltrowano do ${activeClients.length} aktywnych',
-        );
-      }
-
-      // KROK 4: Pobierz statystyki (opcjonalne)
-      ClientStats? clientStats;
-      try {
-        clientStats = await _integratedClientService.getClientStats();
-        print('✅ [KROK 4] Pobrano statystyki klientów');
-      } catch (e) {
-        print('❌ [KROK 4] Błąd pobierania statystyk klientów: $e');
-        try {
-          final dashboardStats = await _dashboardStatsService
-              .getStatisticsFromInvestments();
-          clientStats = ClientStats(
-            totalClients: allClients.length,
-            totalInvestments: dashboardStats.totalInvestments,
-            totalRemainingCapital: dashboardStats.totalRemainingCapital,
-            averageCapitalPerClient: allClients.isNotEmpty
-                ? dashboardStats.totalRemainingCapital / allClients.length
-                : 0.0,
-            lastUpdated: DateTime.now().toIso8601String(),
-            source: 'dashboard-stats-fallback',
-          );
-          print('🔄 [KROK 4 FALLBACK] Utworzono statystyki z dashboard stats');
-        } catch (dashboardError) {
-          print(
-            '❌ [KROK 4 FALLBACK] Dashboard stats też nie działa: $dashboardError',
-          );
-          // NIE TWORZYMY clientStats - zostaje null
-          print('🔄 [KROK 4 FALLBACK FINAL] Pozostawiam clientStats jako null');
-        }
-      }
-
-      // Aktualizuj state po pomyślnym ładowaniu
-      if (mounted) {
-        print('📊 [EnhancedClientsScreen] Wyniki ładowania (fallback):');
-        print('   - Wszyscy klienci: ${allClients.length}');
-        print('   - Aktywni klienci: ${activeClients.length}');
-        print('   - Statystyki: ${clientStats?.source ?? 'brak'}');
-
-        setState(() {
-          _allClients = allClients;
-          _activeClients = activeClients;
-          _clientStats = clientStats; // może być null
-          _isLoading = false;
-        });
-
-        // 🎉 SUCCESS: Podsumowanie załadowanych danych
-        print('✅ [SUCCESS] Dane załadowane pomyślnie (fallback):');
-        print('   - ${allClients.length} klientów');
-        print('   - ${activeClients.length} aktywnych');
-        if (clientStats != null) {
-          print('   - ${clientStats.totalInvestments} inwestycji');
-          print(
-            '   - ${clientStats.totalRemainingCapital.toStringAsFixed(2)} PLN kapitału',
-          );
-          print('   - Źródło: ${clientStats.source}');
-        } else {
-          print('   - Brak statystyk - wszystkie serwisy zawiodły');
-        }
-
-        // Zastosuj filtrowanie jeśli potrzeba
-        _applyCurrentFilters();
-      }
-    } catch (e) {
-      print('❌ [EnhancedClientsScreen] Krytyczny błąd ładowania: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Błąd podczas ładowania danych: $e';
-        });
-      }
-    }
-  }
-
   /// Zastosuj obecne filtry do listy klientów
   void _applyCurrentFilters() {
     // Filtrowanie zostanie zastosowane przez getter _displayedClients
@@ -762,22 +428,32 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
     final query = _searchController.text.trim();
 
-    // Dla krótkich zapytań (1-2 znaki) używaj lokalnego filtrowania
+    // Dla krótkich zapytań (1-2 znaki) używaj lokalnego filtrowania - BEZ ładowania
     if (query.length <= 2) {
       setState(() {
         _currentSearchQuery = query;
+        _isSearching = false; // Nie szukamy już
       });
+      return;
+    }
+
+    // Sprawdź czy to jest to samo zapytanie co ostatnio
+    if (query == _lastServerSearchQuery) {
+      print('🔄 [Search] To samo zapytanie, pomijam: "$query"');
       return;
     }
 
     // Dla dłuższych zapytań używaj serwera z debouncing
     setState(() {
       _currentSearchQuery = query;
-      _isLoading = true;
+      _isSearching = true; // 🚀 Ustaw stan wyszukiwania
+      _lastServerSearchQuery = query; // Zapisz ostatnie zapytanie
     });
 
     try {
       if (query.isNotEmpty) {
+        print('🔍 [Search] Wyszukiwanie na serwerze: "$query"');
+
         // Użyj Firebase Functions/Integrated Service do wyszukiwania
         final results = await _integratedClientService.getAllClients(
           page: 1,
@@ -787,21 +463,27 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           forceRefresh: false,
         );
 
-        setState(() {
-          _allClients = results;
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _allClients = results;
+            _isSearching = false; // 🚀 Zakończ wyszukiwanie
+          });
+        }
+
+        print('✅ [Search] Znaleziono ${results.length} klientów dla: "$query"');
       } else {
         // Jeśli brak zapytania, przeładuj wszystkich klientów
+        print('🔄 [Search] Brak zapytania - przeładowanie wszystkich klientów');
         await _loadInitialData();
       }
 
       // Zastosuj filtry po wczytaniu
       _applyCurrentFilters();
     } catch (e) {
+      print('❌ [Search] Błąd podczas wyszukiwania: $e');
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isSearching = false; // 🚀 Zakończ wyszukiwanie nawet przy błędzie
           _errorMessage = 'Błąd podczas wyszukiwania: $e';
         });
       }
@@ -886,17 +568,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         }
       },
     );
-  }
-
-  Future<void> _clearCache() async {
-    try {
-      // Użyj IntegratedClientService do czyszczenia cache
-      _integratedClientService.clearAllCache();
-      await _refreshData();
-      _showSuccessSnackBar('Cache został wyczyszczony i dane odświeżone');
-    } catch (e) {
-      _showErrorSnackBar('Błąd podczas czyszczenia cache: $e');
-    }
   }
 
   void _showSuccessSnackBar(String message) {
@@ -1049,11 +720,11 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
       if (!mounted) return;
 
-      // 🚀 WZOROWANE NA PREMIUM ANALYTICS: Używamy EnhancedEmailEditorDialog
+      // 🚀 WZOROWANE NA PREMIUM ANALYTICS: Używamy EmailEditorWidget
       showDialog(
         context: context,
-        builder: (context) => EnhancedEmailEditorDialog(
-          selectedInvestors: investorsData,
+        builder: (context) => EmailEditorWidget(
+          investors: investorsData,
           onEmailSent: () {
             Navigator.of(context).pop();
             _toggleEmailMode(); // Wyłącz tryb email po wysłaniu
@@ -1064,55 +735,13 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
               ),
             );
           },
+          initialSubject: 'Informacje o klientach - Metropolitan Investment',
+          showAsDialog: true,
         ),
       );
     } catch (e) {
       _showErrorSnackBar('Błąd podczas przygotowywania danych: $e');
     }
-  }
-
-  /// Edytuje wybranych klientów
-  Future<void> _editSelectedClients() async {
-    if (_selectedClients.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('❌ Najpierw wybierz klientów do edycji'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    if (_selectedClients.length == 1) {
-      // Edytuj pojedynczego klienta
-      _showClientForm(_selectedClients.first);
-    } else {
-      // Edycja grupowa - pokaż dialog z opcjami
-      // Group edit (batch edit) removed — feature simplified to only Email & Export
-    }
-  }
-
-  // Batch edit removed per UX decision: only Email & Export modes remain.
-
-  /// Edytuje klientów pojedynczo
-  void _editClientsIndividually() {
-    if (_selectedClients.isNotEmpty) {
-      for (final client in _selectedClients) {
-        _showClientForm(client);
-      }
-      // Edit mode removed - no toggle
-    }
-  }
-
-  /// Pokazuje formularz edycji wsadowej
-  void _showBatchEditForm() {
-    // TODO: Implementacja formularza edycji wsadowej
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🚧 Funkcja edycji wsadowej w budowie'),
-        backgroundColor: Colors.orange,
-      ),
-    );
   }
 
   /// Eksportuje wybranych klientów do różnych formatów (wzorowane na premium_investor_analytics_screen)
@@ -1424,6 +1053,23 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   }
 
   Widget _buildContent() {
+    // 🚀 Pokaż loading tylko podczas wyszukiwania, nie podczas ładowania początkowego
+    if (_isSearching) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Wyszukiwanie klientów...',
+              style: TextStyle(color: AppThemePro.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (_isLoading) {
       return const Center(child: PremiumShimmerLoadingWidget.fullScreen());
     }
@@ -1440,7 +1086,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       onRefresh: _refreshData,
       child: SpectacularClientsGrid(
         clients: _displayedClients,
-        isLoading: _isLoading,
+        isLoading:
+            _isLoading || _isSearching, // 🚀 Uwzględnij stan wyszukiwania
         isSelectionMode: _isSelectionMode || _isExportMode || _isEmailMode,
         selectedClientIds: _selectedClientIds,
         scrollController: _scrollController,

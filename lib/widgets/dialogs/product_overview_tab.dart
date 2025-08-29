@@ -1123,61 +1123,8 @@ class _ProductOverviewTabState extends State<ProductOverviewTab>
                       }
                     },
                   ),
-
-                  // Dodatkowe informacje statystyczne
-                  if (_investorsResult != null &&
-                      _investorsResult!.investors.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppTheme.backgroundPrimary.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppTheme.borderSecondary.withOpacity(0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildStatItem(
-                            label: 'Liczba Inwestorów',
-                            value: _investorsResult!.investors.length
-                                .toString(),
-                            icon: Icons.people,
-                          ),
-                          Container(
-                            width: 1,
-                            height: 40,
-                            color: AppTheme.borderSecondary.withOpacity(0.3),
-                          ),
-                          _buildStatItem(
-                            label: 'Średnia Inwestycja',
-                            value: _investorsResult!.investors.isNotEmpty
-                                ? CurrencyFormatter.formatCurrency(
-                                    totalInvestmentAmount /
-                                        _investorsResult!.investors.length,
-                                  )
-                                : '0 zł',
-                            icon: Icons.trending_up,
-                          ),
-                          Container(
-                            width: 1,
-                            height: 40,
-                            color: AppTheme.borderSecondary.withOpacity(0.3),
-                          ),
-                          _buildStatItem(
-                            label: 'Efektywność',
-                            value: totalInvestmentAmount > 0
-                                ? '${((totalRemainingCapital / totalInvestmentAmount) * 100).toStringAsFixed(1)}%'
-                                : '0%',
-                            icon: Icons.pie_chart,
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
-                ],
+    
               ),
             ),
           ),
