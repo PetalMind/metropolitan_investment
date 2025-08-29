@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_theme_professional.dart';
 import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
 import '../services/firebase_functions_products_service.dart' as fb;
@@ -84,6 +85,15 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
 
   // RBAC getter
   bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
+
+  // Getter określający czy dane są dostępne i przyciski mogą być aktywne
+  bool get _areDataAvailable {
+    return !_isLoading &&
+        _error == null &&
+        (_filteredDeduplicatedProducts.isNotEmpty ||
+            _filteredOptimizedProducts.isNotEmpty ||
+            _filteredProducts.isNotEmpty);
+  }
 
   // Kontrolery wyszukiwania i filtrowania
   final TextEditingController _searchController = TextEditingController();
@@ -1861,12 +1871,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF1A1B23), Color(0xFF2A2D3A), Color(0xFF1A1B23)],
-              stops: [0.0, 0.5, 1.0],
-            ),
+            color: AppThemePro.backgroundSecondary,
           ),
           child: SafeArea(
             child: Padding(
@@ -1881,7 +1886,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                       children: [
                         Icon(
                           Icons.inventory_2,
-                          color: AppTheme.secondaryGold,
+                          color: AppThemePro.accentGold,
                           size: 28,
                         ),
                         const SizedBox(width: 12),
@@ -1892,7 +1897,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                                 : 'Zarządzanie Produktami',
                             style: Theme.of(context).textTheme.headlineSmall
                                 ?.copyWith(
-                                  color: AppTheme.textOnPrimary,
+                                  color: AppThemePro.textPrimary,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: -0.5,
                                 ),
@@ -1910,10 +1915,10 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.secondaryGold.withValues(alpha: 0.15),
+                        color: AppThemePro.accentGold.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: AppTheme.secondaryGold.withValues(alpha: 0.3),
+                          color: AppThemePro.accentGold.withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),
@@ -1922,7 +1927,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                             ? '✨ ${_filteredDeduplicatedProducts.length} z ${_deduplicatedProducts.length} unikalnych produktów'
                             : '📊 ${_filteredProducts.length} z ${_allProducts.length} produktów',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.secondaryGold,
+                          color: AppThemePro.accentGold,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1949,9 +1954,11 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                 label: Text('${_selectedProducts.length}'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _selectedProducts.isNotEmpty
-                      ? AppTheme.secondaryGold
-                      : AppTheme.textSecondary.withValues(alpha: 0.3),
-                  foregroundColor: Colors.white,
+                      ? AppThemePro.accentGold
+                      : AppThemePro.textSecondary.withValues(alpha: 0.3),
+                  foregroundColor: _selectedProducts.isNotEmpty
+                      ? AppThemePro.primaryDark
+                      : AppThemePro.textPrimary,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,
@@ -1976,9 +1983,11 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                 label: Text('${_selectedProducts.length}'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _selectedProducts.isNotEmpty
-                      ? AppTheme.secondaryGold
-                      : AppTheme.textSecondary.withValues(alpha: 0.3),
-                  foregroundColor: Colors.white,
+                      ? AppThemePro.accentGold
+                      : AppThemePro.textSecondary.withValues(alpha: 0.3),
+                  foregroundColor: _selectedProducts.isNotEmpty
+                      ? AppThemePro.primaryDark
+                      : AppThemePro.textPrimary,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,
@@ -1996,15 +2005,15 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
             icon: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: AppTheme.errorColor.withValues(alpha: 0.2),
+                color: AppThemePro.statusError.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: AppTheme.errorColor.withValues(alpha: 0.3),
+                  color: AppThemePro.statusError.withValues(alpha: 0.3),
                 ),
               ),
               child: const Icon(
                 Icons.close,
-                color: AppTheme.errorColor,
+                color: AppThemePro.statusError,
                 size: 18,
               ),
             ),
@@ -2023,57 +2032,89 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           Row(
             children: [
               // Przycisk trybu email
-              IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.secondaryGold.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppTheme.secondaryGold.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: const Icon(
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                child: ElevatedButton.icon(
+                  onPressed: _areDataAvailable
+                      ? () {
+                          setState(() {
+                            _isSelectionMode = true;
+                            _isEmailMode = true;
+                            _isExportMode = false;
+                          });
+                        }
+                      : null,
+                  icon: Icon(
                     Icons.email_rounded,
-                    color: AppTheme.secondaryGold,
                     size: 18,
+                    color: _areDataAvailable
+                        ? AppThemePro.primaryDark
+                        : AppThemePro.textMuted,
                   ),
-                ),
-                onPressed: () {
-                  setState(() {
-                    _isSelectionMode = true;
-                    _isEmailMode = true;
-                    _isExportMode = false;
-                  });
-                },
-                tooltip: '📧 Tryb email - wybierz produkty do wysłania maili',
-              ),
-              const SizedBox(width: 4),
-              // Przycisk trybu eksportu
-              IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                  label: const Text('Mail'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _areDataAvailable
+                        ? AppThemePro.accentGold
+                        : AppThemePro.textMuted.withValues(alpha: 0.3),
+                    foregroundColor: _areDataAvailable
+                        ? AppThemePro.primaryDark
+                        : AppThemePro.textMuted,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
                     ),
-                  ),
-                  child: const Icon(
-                    Icons.download_rounded,
-                    color: AppTheme.primaryColor,
-                    size: 18,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: _areDataAvailable ? 3 : 0,
+                    shadowColor: _areDataAvailable
+                        ? AppThemePro.accentGold.withValues(alpha: 0.3)
+                        : Colors.transparent,
                   ),
                 ),
-                onPressed: () {
-                  setState(() {
-                    _isSelectionMode = true;
-                    _isExportMode = true;
-                    _isEmailMode = false;
-                  });
-                },
-                tooltip: '📊 Tryb eksportu - wybierz produkty do eksportu',
+              ),
+              const SizedBox(width: 8),
+              // Przycisk trybu eksportu
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                child: ElevatedButton.icon(
+                  onPressed: _areDataAvailable
+                      ? () {
+                          setState(() {
+                            _isSelectionMode = true;
+                            _isExportMode = true;
+                            _isEmailMode = false;
+                          });
+                        }
+                      : null,
+                  icon: Icon(
+                    Icons.download_rounded,
+                    size: 18,
+                    color: _areDataAvailable
+                        ? AppThemePro.primaryDark
+                        : AppThemePro.textMuted,
+                  ),
+                  label: const Text('Eksportuj'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _areDataAvailable
+                        ? AppThemePro.accentGold
+                        : AppThemePro.textMuted.withValues(alpha: 0.3),
+                    foregroundColor: _areDataAvailable
+                        ? AppThemePro.primaryDark
+                        : AppThemePro.textMuted,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: _areDataAvailable ? 3 : 0,
+                    shadowColor: _areDataAvailable
+                        ? AppThemePro.accentGold.withValues(alpha: 0.3)
+                        : Colors.transparent,
+                  ),
+                ),
               ),
             ],
           ),

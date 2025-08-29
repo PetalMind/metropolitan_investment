@@ -173,15 +173,9 @@ class MainNavigationItems {
       subRoutes: [AppRoutes.employees, '/employees/'],
     ),
     NavigationItem(
-      route: AppRoutes.analytics,
-      label: 'Zawansowana Analityka',
-      icon: Icons.analytics_outlined,
-      selectedIcon: Icons.analytics,
-    ),
-    NavigationItem(
       route: AppRoutes.investorAnalytics,
       label: 'Analiza Inwestorów',
-      icon: Icons.group_outlined,
+      icon: Icons.analytics_outlined,
       selectedIcon: Icons.group,
     ),
 

@@ -500,28 +500,6 @@ class _EmployeeCardState extends State<EmployeeCard>
                                 ],
                               ),
                             ),
-
-                            // Date
-                            const SizedBox(height: 8),
-                            TweenAnimationBuilder<double>(
-                              duration: const Duration(milliseconds: 1000),
-                              tween: Tween(begin: 0.0, end: 1.0),
-                              builder: (context, value, child) {
-                                return Transform.translate(
-                                  offset: Offset(20 * (1 - value), 0),
-                                  child: Opacity(
-                                    opacity: value,
-                                    child: Text(
-                                      'Utworzono: ${widget.employee.createdAt.day.toString().padLeft(2, '0')}.${widget.employee.createdAt.month.toString().padLeft(2, '0')}.${widget.employee.createdAt.year}',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppTheme.textTertiary,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
                           ],
                         ),
                       ),

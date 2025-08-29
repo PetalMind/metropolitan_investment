@@ -41,6 +41,9 @@ class _EnhancedProductDetailsDialogState
   // double _scrollOffset = 0.0; // Commented out as not currently used
   static const double _headerCollapseThreshold = 100.0;
 
+  // Edit mode state
+  bool _isEditMode = false;
+
   @override
   void initState() {
     super.initState();
@@ -1066,6 +1069,82 @@ class _EnhancedProductDetailsDialogState
     }
   }
 
+  /// Handles toggling edit mode
+  void _toggleEditMode() {
+    setState(() {
+      _isEditMode = !_isEditMode;
+    });
+
+    if (_isEditMode) {
+      // Switch to investors tab when entering edit mode
+      _tabController.animateTo(1);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Tryb edycji aktywny. Kliknij inwestora aby edytować jego inwestycje.'),
+          backgroundColor: AppTheme.secondaryGold,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Wyjście z trybu edycji'),
+          backgroundColor: AppTheme.infoPrimary,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Handles editing a specific investor
+  Future<void> _handleEditInvestor(InvestorSummary investor) async {
+    try {
+      // Show the investor edit dialog
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => InvestorEditDialog(
+          investor: investor,
+          product: widget.product,
+          onSaved: () {
+            // Refresh investors data after changes
+            _loadInvestors();
+          },
+        ),
+      );
+
+      if (result == true) {
+        // Refresh the investors data
+        await _loadInvestors();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✓ Zaktualizowano dane inwestora: ${investor.client.name}'),
+              backgroundColor: AppTheme.successPrimary,
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Błąd podczas otwierania dialogu edycji inwestora: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd podczas otwierania edytora: $e'),
+            backgroundColor: AppTheme.errorPrimary,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildOverviewTab() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1222,76 +1301,167 @@ class _EnhancedProductDetailsDialogState
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: _investors.map((investor) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: AppTheme.backgroundSecondary.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1)),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.all(16),
-            leading: CircleAvatar(
-              backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-              child: Icon(Icons.person, color: AppTheme.primaryColor),
-            ),
-            title: Text(
-              investor.client.name,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+      children: [
+        // Edit mode header
+        if (_isEditMode) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.secondaryGold.withOpacity(0.1),
+                  AppTheme.secondaryGold.withOpacity(0.05),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.secondaryGold.withOpacity(0.3),
+                width: 1,
               ),
             ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                if (investor.client.email.isNotEmpty)
-                  Text(
-                    investor.client.email,
+                Icon(
+                  Icons.edit_rounded,
+                  color: AppTheme.secondaryGold,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'TRYB EDYCJI AKTYWNY',
                     style: TextStyle(
-                      color: AppTheme.textSecondary.withOpacity(0.8),
+                      color: AppTheme.secondaryGold,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
                     ),
                   ),
-                if (investor.client.phone.isNotEmpty)
-                  Text(
-                    investor.client.phone,
-                    style: TextStyle(
-                      color: AppTheme.textSecondary.withOpacity(0.8),
-                    ),
-                  ),
-                const SizedBox(height: 4),
+                ),
                 Text(
-                  'Inwestycje: ${investor.investmentCount}',
+                  'Kliknij inwestora aby edytować',
                   style: TextStyle(
+                    color: AppTheme.textSecondary,
                     fontSize: 12,
-                    color: AppTheme.secondaryGold,
-                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 6,
-              ),
-              decoration: BoxDecoration(
-                color: AppTheme.secondaryGold.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                _formatCurrency(investor.viableRemainingCapital),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.secondaryGold,
-                ),
+          ),
+        ],
+        
+        // Investors list
+        ..._investors.map((investor) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundSecondary.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _isEditMode
+                    ? AppTheme.secondaryGold.withOpacity(0.3)
+                    : AppTheme.primaryColor.withOpacity(0.1),
+                width: _isEditMode ? 2 : 1,
               ),
             ),
-          ),
-        );
-      }).toList(),
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(16),
+              leading: CircleAvatar(
+                backgroundColor: _isEditMode
+                    ? AppTheme.secondaryGold.withOpacity(0.2)
+                    : AppTheme.primaryColor.withOpacity(0.1),
+                child: Icon(
+                  _isEditMode ? Icons.edit : Icons.person,
+                  color: _isEditMode
+                      ? AppTheme.secondaryGold
+                      : AppTheme.primaryColor,
+                ),
+              ),
+              title: Text(
+                investor.client.name,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: _isEditMode
+                      ? AppTheme.secondaryGold
+                      : AppTheme.textPrimary,
+                ),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (investor.client.email.isNotEmpty)
+                    Text(
+                      investor.client.email,
+                      style: TextStyle(
+                        color: AppTheme.textSecondary.withOpacity(0.8),
+                      ),
+                    ),
+                  if (investor.client.phone.isNotEmpty)
+                    Text(
+                      investor.client.phone,
+                      style: TextStyle(
+                        color: AppTheme.textSecondary.withOpacity(0.8),
+                      ),
+                    ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        'Inwestycje: ${investor.investmentCount}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.secondaryGold,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (_isEditMode) ...[
+                        const SizedBox(width: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.secondaryGold.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'EDYTUJ',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.secondaryGold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.secondaryGold.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _formatCurrency(investor.viableRemainingCapital),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.secondaryGold,
+                  ),
+                ),
+              ),
+              onTap: _isEditMode ? () => _handleEditInvestor(investor) : null,
+            ),
+          );
+        }).toList(),
+      ],
     );
   }
 

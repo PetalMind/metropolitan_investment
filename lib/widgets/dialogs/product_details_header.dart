@@ -39,6 +39,9 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     with TickerProviderStateMixin {
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
+  
+  // ⭐ NOWE: Stan trybu edycji
+  bool _isEditMode = false;
 
 
   @override
@@ -58,6 +61,43 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
   void dispose() {
     _fadeController.dispose();
     super.dispose();
+  }
+
+  // ⭐ NOWE: Metoda przełączania trybu edycji
+  void _toggleEditMode() {
+    setState(() {
+      _isEditMode = !_isEditMode;
+    });
+
+    // Powiadom parent dialog o zmianie stanu edycji
+    widget.onEditModeChanged?.call(_isEditMode);
+
+    // Jeśli włączamy tryb edycji, przełącz na zakładkę "Inwestorzy" (index 1)
+    if (_isEditMode) {
+      widget.onTabChanged?.call(1);
+
+      // Pokaż komunikat z instrukcjami
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.edit, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Tryb edycji włączony. Kliknij na inwestora, aby go edytować.',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.primaryAccent,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   @override
@@ -121,6 +161,45 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
+        // ⭐ NOWE: Przycisk edycji/wyjścia z trybu edycji
+        if (!_isEditMode) ...[
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryAccent.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.primaryAccent.withOpacity(0.3), width: 1),
+            ),
+            child: IconButton(
+              onPressed: _toggleEditMode,
+              icon: const Icon(Icons.edit, color: Colors.white, size: 20),
+              style: IconButton.styleFrom(
+                padding: const EdgeInsets.all(8),
+                minimumSize: const Size(36, 36),
+              ),
+              tooltip: 'Edytuj inwestycje',
+            ),
+          ),
+        ] else ...[
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green.withOpacity(0.3), width: 1),
+            ),
+            child: IconButton(
+              onPressed: _toggleEditMode,
+              icon: const Icon(Icons.check, color: Colors.white, size: 20),
+              style: IconButton.styleFrom(
+                padding: const EdgeInsets.all(8),
+                minimumSize: const Size(36, 36),
+              ),
+              tooltip: 'Zakończ edycję',
+            ),
+          ),
+        ],
+        
         // Przycisk zamknięcia
         Container(
           decoration: BoxDecoration(
