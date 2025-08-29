@@ -66,6 +66,8 @@ class _EmailEditorWidgetState extends State<EmailEditorWidget>
   // Stan komponentu
   bool _isLoading = false;
   bool _includeInvestmentDetails = true;
+  bool _useIndividualContent =
+      true; // Dodane - kontroluje tryb Globalna/Indywidualna
   String? _error;
   EmailEditorResult? _lastResult;
   String? _selectedPreviewRecipient;
@@ -321,6 +323,15 @@ Zespół Metropolitan Investment''';
         });
       }
     });
+  }
+
+  /// Synchronizuje zawartość między kontrolerami przy przełączaniu trybów
+  void _syncContentBetweenControllers() {
+    // Tutaj można dodać logikę synchronizacji jeśli są różne kontrolery dla różnych trybów
+    // Na razie tylko odświeżamy podgląd
+    if (mounted) {
+      _updatePreview();
+    }
   }
 
   @override
@@ -753,6 +764,85 @@ Zespół Metropolitan Investment''';
                         });
                       },
                     ),
+                    const SizedBox(height: 16),
+                    // Przełącznik Globalna/Indywidualna
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppThemePro.backgroundPrimary,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppThemePro.borderSecondary),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () => setState(() {
+                              _useIndividualContent = false;
+                              _syncContentBetweenControllers();
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: !_useIndividualContent
+                                    ? AppThemePro.accentGold
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Text(
+                                ' xd',
+                                style: TextStyle(
+                                  color: !_useIndividualContent
+                                      ? Colors.black
+                                      : AppThemePro.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => setState(() {
+                              _useIndividualContent = true;
+                              _syncContentBetweenControllers();
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _useIndividualContent
+                                    ? AppThemePro.accentGold
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Text(
+                                'Indywidualna',
+                                style: TextStyle(
+                                  color: _useIndividualContent
+                                      ? Colors.black
+                                      : AppThemePro.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _useIndividualContent
+                          ? 'Każdy inwestor otrzyma tylko swoje inwestycje'
+                          : 'Wszyscy inwestorzy otrzymają informacje o wszystkich inwestycjach',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppThemePro.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1122,7 +1212,7 @@ Zespół Metropolitan Investment''';
             duration: const Duration(milliseconds: 200),
             child: Icon(
               Icons.person,
-              key: ValueKey('mobile_person_icon_${_selectedPreviewRecipient}'),
+              key: ValueKey('mobile_person_icon_$_selectedPreviewRecipient'),
               color: AppThemePro.accentGold,
               size: 16,
             ),
@@ -1141,7 +1231,7 @@ Zespół Metropolitan Investment''';
                 );
               },
               child: DropdownButton<String>(
-                key: ValueKey('mobile_dropdown_${_selectedPreviewRecipient}'),
+                key: ValueKey('mobile_dropdown_$_selectedPreviewRecipient'),
                 value: _selectedPreviewRecipient,
                 onChanged: (String? newValue) {
                   if (newValue != null) {
@@ -1208,7 +1298,7 @@ Zespół Metropolitan Investment''';
             duration: const Duration(milliseconds: 200),
             child: Icon(
               Icons.person,
-              key: ValueKey('person_icon_${_selectedPreviewRecipient}'),
+              key: ValueKey('person_icon_$_selectedPreviewRecipient'),
               color: AppThemePro.accentGold,
               size: 16,
             ),
@@ -1236,7 +1326,7 @@ Zespół Metropolitan Investment''';
                 );
               },
               child: DropdownButtonHideUnderline(
-                key: ValueKey('dropdown_${_selectedPreviewRecipient}'),
+                key: ValueKey('dropdown_$_selectedPreviewRecipient'),
                 child: DropdownButton<String>(
                   value: _getValidatedPreviewRecipient(),
                   isExpanded: true,

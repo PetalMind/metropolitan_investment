@@ -3736,62 +3736,155 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       return;
     }
 
-    // Konwertuj wybrane produkty na InvestorSummary dla kompatybilności
-    // Używamy tej samej logiki co w premium_investor_analytics_screen
-    final List<InvestorSummary> investorSummaries = [];
-
-    for (final product in _selectedProducts) {
-      // Utwórz tymczasowego klienta z danymi produktu
-      final client = Client(
-        id: product.companyId,
-        name: product.companyName,
-        email:
-            '', // Będzie można edytować w dialogu - zgodnie z premium_investor_analytics_screen
-        phone: '',
-        pesel: null,
-        companyName: product.companyName,
-        address: '',
-        notes: '',
-        isActive: product.status == ProductStatus.active,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      // Tworzenie InvestorSummary z prawidłowymi parametrami - jak w premium_investor_analytics_screen
-      final investorSummary = InvestorSummary(
-        client: client,
-        investments: [], // Puste - dialog pozwoli na edycję
-        totalRemainingCapital: product.totalRemainingCapital,
-        totalSharesValue: 0.0,
-        totalValue: product.totalValue,
-        totalInvestmentAmount: product.totalValue,
-        totalRealizedCapital: 0.0,
-        capitalSecuredByRealEstate: 0.0,
-        capitalForRestructuring: 0.0,
-        investmentCount: product.totalInvestments,
-      );
-      investorSummaries.add(investorSummary);
+    // 🚀 NOWE: Pokaż loading podczas pobierania inwestorów
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
     }
 
-    // 🚀 NOWY: Używamy EnhancedEmailEditorDialog zamiast EmailEditorWidget
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => EnhancedEmailEditorDialog(
-        selectedInvestors: investorSummaries,
-        onEmailSent: () {
-          Navigator.of(context).pop();
-          _toggleEmailMode(); // 🚀 DODANE: Używamy tej samej logiki co premium_investor_analytics_screen
+    try {
+      // 🚀 NOWE: Pobierz prawdziwych inwestorów dla wszystkich wybranych produktów
+      final Set<InvestorSummary> allInvestors = {};
+
+      for (final product in _selectedProducts) {
+        try {
+          if (kDebugMode) {
+            print(
+              '📧 [_showEmailDialog] Pobieram inwestorów dla produktu: ${product.name} (ID: ${product.id})',
+            );
+          }
+
+          // Użyj UltraPreciseProductInvestorsService do pobrania inwestorów
+          final result = await _ultraPreciseInvestorsService
+              .getProductInvestors(
+                productId: product.id,
+                productName: product.name,
+                searchStrategy: 'productId',
+              );
+
+          if (result.isSuccess && result.investors.isNotEmpty) {
+            // Dodaj wszystkich inwestorów z tego produktu
+            allInvestors.addAll(result.investors);
+            if (kDebugMode) {
+              print(
+                '📧 [_showEmailDialog] Dodano ${result.investors.length} inwestorów z produktu: ${product.name}',
+              );
+            }
+          } else {
+            if (kDebugMode) {
+              print(
+                '⚠️ [_showEmailDialog] Brak inwestorów dla produktu: ${product.name} (błąd: ${result.error})',
+              );
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print(
+              '❌ [_showEmailDialog] Błąd pobierania inwestorów dla ${product.name}: $e',
+            );
+          }
+          // Kontynuuj z następnym produktem
+        }
+      }
+
+      // Konwertuj Set na List dla dialogu
+      final uniqueInvestors = allInvestors.toList();
+
+      if (kDebugMode) {
+        print(
+          '📧 [_showEmailDialog] Łącznie zebrano ${uniqueInvestors.length} unikalnych inwestorów z ${_selectedProducts.length} produktów',
+        );
+        for (final investor in uniqueInvestors.take(3)) {
+          print(
+            '   - ${investor.client.name}: ${investor.client.email} (${investor.investmentCount} inwestycji)',
+          );
+        }
+        if (uniqueInvestors.length > 3) {
+          print('   ... i ${uniqueInvestors.length - 3} więcej');
+        }
+      }
+
+      // Jeśli nie znaleziono żadnych inwestorów, pokaż ostrzeżenie ale pozwól kontynuować
+      if (uniqueInvestors.isEmpty) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Emaile zostały wysłane'),
-              backgroundColor: Colors.green,
+            SnackBar(
+              content: Text(
+                '⚠️ Nie znaleziono inwestorów dla wybranych produktów\nMożesz dodać odbiorców ręcznie w edytorze email',
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
             ),
           );
-        },
-        initialSubject: 'Informacje o produktach - Metropolitan Investment',
-      ),
-    );
+        }
+      }
+
+      // 🚀 NOWE: Używamy EnhancedEmailEditorDialog z prawdziwymi inwestorami
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => EnhancedEmailEditorDialog(
+            selectedInvestors: uniqueInvestors,
+            onEmailSent: () {
+              Navigator.of(context).pop();
+              _toggleEmailMode(); // 🚀 DODANE: Używamy tej samej logiki co premium_investor_analytics_screen
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('✅ Emaile zostały wysłane'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            initialSubject: 'Informacje o produktach - Metropolitan Investment',
+          ),
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [_showEmailDialog] Błąd podczas pobierania inwestorów: $e');
+      }
+
+      // Fallback: pokaż dialog z pustą listą inwestorów
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '⚠️ Błąd pobierania inwestorów: $e\nOtwieram edytor z pustą listą - możesz dodać odbiorców ręcznie',
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 5),
+          ),
+        );
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => EnhancedEmailEditorDialog(
+            selectedInvestors: [], // Pusta lista jako fallback
+            onEmailSent: () {
+              Navigator.of(context).pop();
+              _toggleEmailMode();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('✅ Emaile zostały wysłane'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            initialSubject: 'Informacje o produktach - Metropolitan Investment',
+          ),
+        );
+      }
+    } finally {
+      // Ukryj loading
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _showExportFormatDialog() {

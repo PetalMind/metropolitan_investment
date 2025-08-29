@@ -630,31 +630,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
       ),
       child: Row(
         children: [
-          // Progress indicator
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Postęp formularza',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppThemePro.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                LinearProgressIndicator(
-                  value: (_tabController.index + 1) / _tabs.length,
-                  backgroundColor: AppThemePro.borderPrimary,
-                  valueColor: AlwaysStoppedAnimation(AppThemePro.accentGold),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 24),
-
+        
           // Action buttons
           Row(
             children: [

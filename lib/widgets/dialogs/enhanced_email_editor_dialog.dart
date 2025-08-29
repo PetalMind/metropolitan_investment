@@ -1321,21 +1321,24 @@ Zespół Metropolitan Investment''';
                   ),
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: _insertGlobalInvestmentList,
-                icon: const Icon(Icons.account_tree, size: 16),
-                label: const Text('Lista globalna'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.accentGold.withValues(
-                    alpha: 0.2,
-                  ),
-                  foregroundColor: AppThemePro.accentGold,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isSmallScreen ? 8 : 12,
-                    vertical: isSmallScreen ? 6 : 8,
+              // Show global list button only in global mode
+              if (!_useIndividualContent) ...[
+                ElevatedButton.icon(
+                  onPressed: _insertGlobalInvestmentList,
+                  icon: const Icon(Icons.account_tree, size: 16),
+                  label: const Text('Lista globalna'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppThemePro.accentGold.withValues(
+                      alpha: 0.2,
+                    ),
+                    foregroundColor: AppThemePro.accentGold,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSmallScreen ? 8 : 12,
+                      vertical: isSmallScreen ? 6 : 8,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
 
@@ -1374,6 +1377,118 @@ Zespół Metropolitan Investment''';
             onChanged: (value) => setState(() => _isGroupEmail = value),
             activeColor: AppThemePro.accentGold,
             secondary: Icon(Icons.group, color: AppThemePro.accentGold),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppThemePro.backgroundPrimary,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppThemePro.borderSecondary),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.content_copy,
+                      color: AppThemePro.accentGold,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Tryb treści',
+                      style: TextStyle(
+                        color: AppThemePro.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppThemePro.backgroundSecondary,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppThemePro.borderSecondary),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: () => setState(() {
+                          _useIndividualContent = false;
+                          _syncContentBetweenControllers();
+                        }),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: !_useIndividualContent
+                                ? AppThemePro.accentGold
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Text(
+                            'Globalna xd',
+                            style: TextStyle(
+                              color: !_useIndividualContent
+                                  ? Colors.black
+                                  : AppThemePro.textSecondary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => setState(() {
+                          _useIndividualContent = true;
+                          _syncContentBetweenControllers();
+                        }),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _useIndividualContent
+                                ? AppThemePro.accentGold
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Text(
+                            'Indywidualna',
+                            style: TextStyle(
+                              color: _useIndividualContent
+                                  ? Colors.black
+                                  : AppThemePro.textSecondary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _useIndividualContent
+                      ? 'Każdy odbiorca może mieć inną treść wiadomości'
+                      : 'Ta sama treść dla wszystkich odbiorców',
+                  style: TextStyle(
+                    color: AppThemePro.textSecondary,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
           ),
           const Divider(height: 48),
           _buildSectionHeader('Zarządzanie Odbiorcami', Icons.people_outline),
@@ -2860,64 +2975,31 @@ Zespół Metropolitan Investment''';
                       ),
                     )
                   else
-                    // Toggle between global and individual content
+                    // Show typing indicator when editing
                     Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppThemePro.backgroundPrimary,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppThemePro.borderSecondary),
+                        color: AppThemePro.accentGold.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          GestureDetector(
-                            onTap: () => setState(() {
-                              _useIndividualContent = false;
-                              _syncContentBetweenControllers();
-                            }),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: !_useIndividualContent 
-                                    ? AppThemePro.accentGold 
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: Text(
-                                'Globalna',
-                                style: TextStyle(
-                                  color: !_useIndividualContent 
-                                      ? Colors.black 
-                                      : AppThemePro.textSecondary,
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
+                          Icon(
+                            Icons.edit,
+                            size: 12,
+                            color: AppThemePro.accentGold,
                           ),
-                          GestureDetector(
-                            onTap: () => setState(() {
-                              _useIndividualContent = true;
-                              _syncContentBetweenControllers();
-                            }),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: _useIndividualContent 
-                                    ? AppThemePro.accentGold 
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: Text(
-                                'Indywidualna',
-                                style: TextStyle(
-                                  color: _useIndividualContent 
-                                      ? Colors.black 
-                                      : AppThemePro.textSecondary,
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 12,
-                                ),
-                              ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Edycja...',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppThemePro.accentGold,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
@@ -3662,221 +3744,6 @@ Zespół Metropolitan Investment''';
     }
   }
 
-  
-  /// Converts new investment list format to HTML
-  String _convertNewInvestmentListToHtml(
-    String investorName,
-    String investmentsList,
-    String totalsList,
-  ) {
-    final buffer = StringBuffer();
-
-    buffer.writeln(
-      '<div style="margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #d4af37;">',
-    );
-    buffer.writeln(
-      '<h3 style="color: #d4af37; margin-bottom: 16px;">📊 Szczegółowe inwestycje: $investorName</h3>',
-    );
-
-    // Parse investments from list format
-    final lines = investmentsList
-        .split('\n')
-        .where((line) => line.trim().isNotEmpty)
-        .toList();
-    String? currentProduct;
-    List<String> currentDetails = [];
-
-    for (final line in lines) {
-      final trimmed = line.trim();
-      if (!trimmed.startsWith('•') && !trimmed.startsWith('  •')) {
-        // This is a product name
-        if (currentProduct != null && currentDetails.isNotEmpty) {
-          // Output previous product
-          buffer.writeln(
-            '<p style="margin: 8px 0; font-size: 14px; line-height: 1.5;">',
-          );
-          buffer.writeln('<strong>$currentProduct</strong><br>');
-          for (final detail in currentDetails) {
-            buffer.writeln('$detail<br>');
-          }
-          buffer.writeln('</p>');
-        }
-        currentProduct = trimmed;
-        currentDetails.clear();
-      } else if (trimmed.startsWith('•') || trimmed.startsWith('  •')) {
-        // This is a detail line
-        final cleanDetail = trimmed.replaceFirst(RegExp(r'^\s*•\s*'), '• ');
-        currentDetails.add(cleanDetail);
-      }
-    }
-
-    // Output last product
-    if (currentProduct != null && currentDetails.isNotEmpty) {
-      buffer.writeln(
-        '<p style="margin: 8px 0; font-size: 14px; line-height: 1.5;">',
-      );
-      buffer.writeln('<strong>$currentProduct</strong><br>');
-      for (final detail in currentDetails) {
-        buffer.writeln('$detail<br>');
-      }
-      buffer.writeln('</p>');
-    }
-
-    // Add totals section
-    if (totalsList.isNotEmpty) {
-      buffer.writeln(
-        '<div style="margin-top: 16px; padding: 12px; background-color: #d4af37; color: white; border-radius: 6px;">',
-      );
-      buffer.writeln('<strong>RAZEM</strong><br>');
-
-      final totalLines = totalsList
-          .split('\n')
-          .where((line) => line.trim().isNotEmpty);
-      for (final totalLine in totalLines) {
-        final trimmed = totalLine.trim();
-        if (trimmed.startsWith('•') || trimmed.startsWith('  •')) {
-          final cleanDetail = trimmed.replaceFirst(RegExp(r'^\s*•\s*'), '• ');
-          buffer.writeln('$cleanDetail<br>');
-        }
-      }
-      buffer.writeln('</div>');
-    }
-
-    buffer.writeln('</div>');
-    return buffer.toString();
-  }
-  
-  /// Converts detailed plain text table to HTML table (for individual investor detailed tables)
-  String _convertDetailedPlainTextTableToHtml(String investorName, String tableRows, String totalRow) {
-    final buffer = StringBuffer();
-    
-    // Simple text formatting without HTML table
-    buffer.writeln(
-      '<div style="margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #d4af37;">',
-    );
-    buffer.writeln('<h3 style="color: #d4af37; margin-bottom: 16px;">📊 Szczegółowe inwestycje: $investorName</h3>');
-    
-    // Convert table rows to simple text lines
-    final rows = tableRows.split('\n').where((row) => row.trim().isNotEmpty);
-    for (final row in rows) {
-      final columns = row.split('|').map((col) => col.trim()).toList();
-      
-      if (columns.length >= 6) {
-        buffer.writeln(
-          '<p style="margin: 8px 0; font-size: 14px; line-height: 1.5;">',
-        );
-        buffer.writeln('<strong>${columns[0]}</strong><br>');
-        buffer.writeln('• Kwota inwestycji: ${columns[1]}<br>');
-        buffer.writeln('• Kapitał pozostały: ${columns[2]}<br>');
-        buffer.writeln('• Kapitał zabezpieczony: ${columns[3]}<br>');
-        buffer.writeln('• Kapitał do restrukturyzacji: ${columns[4]}<br>');
-        if (columns[5].isNotEmpty) {
-          buffer.writeln('• Wierzyciel: ${columns[5]}<br>');
-        }
-        buffer.writeln('</p>');
-      }
-    }
-    
-    // Total row as simple text
-    if (totalRow.isNotEmpty) {
-      final totalColumns = totalRow.split('|').map((col) => col.trim()).toList();
-      if (totalColumns.length >= 5) {
-        buffer.writeln(
-          '<div style="margin-top: 16px; padding: 12px; background-color: #d4af37; color: white; border-radius: 6px;">',
-        );
-        buffer.writeln(
-          '<h4 style="margin: 0 0 8px 0; color: white;">PODSUMOWANIE:</h4>',
-        );
-        buffer.writeln('<p style="margin: 4px 0; font-weight: bold;">');
-        buffer.writeln('• Łączna kwota inwestycji: ${totalColumns[1]}<br>');
-        buffer.writeln('• Łączny kapitał pozostały: ${totalColumns[2]}<br>');
-        buffer.writeln(
-          '• Łączny kapitał zabezpieczony: ${totalColumns[3]}<br>',
-        );
-        buffer.writeln(
-          '• Łączny kapitał do restrukturyzacji: ${totalColumns[4]}',
-        );
-        buffer.writeln('</p>');
-        buffer.writeln('</div>');
-      }
-    }
-    
-    buffer.writeln('</div>');
-    
-    return buffer.toString();
-  }
-  
-  /// Converts detailed aggregated plain text table to simple text format
-  String _convertDetailedAggregatedTableToHtml(String tableRows, String totalRow) {
-    final buffer = StringBuffer();
-    
-    // Simple text formatting without HTML table
-    buffer.writeln(
-      '<div style="margin: 20px 0; padding: 20px; background-color: #f0f8ff; border-radius: 8px; border-left: 4px solid #d4af37;">',
-    );
-    buffer.writeln('<h3 style="color: #d4af37; margin-bottom: 16px;">📊 Zbiorcze podsumowanie inwestycji</h3>');
-    
-    // Convert table rows to simple text lines
-    final rows = tableRows.split('\n').where((row) => row.trim().isNotEmpty);
-    for (final row in rows) {
-      final columns = row.split('|').map((col) => col.trim()).toList();
-      
-      if (columns.length >= 5) {
-        buffer.writeln(
-          '<p style="margin: 12px 0; font-size: 14px; line-height: 1.6; padding: 12px; background-color: white; border-radius: 6px; border-left: 3px solid #d4af37;">',
-        );
-        buffer.writeln(
-          '<strong style="color: #2c2c2c; font-size: 16px;">${columns[0]}</strong><br>',
-        );
-        buffer.writeln(
-          '• Liczba inwestycji: <strong>${columns[1]}</strong><br>',
-        );
-        buffer.writeln(
-          '• Kapitał pozostały: <strong>${columns[2]}</strong><br>',
-        );
-        buffer.writeln(
-          '• Kapitał zabezpieczony: <strong>${columns[3]}</strong><br>',
-        );
-        buffer.writeln(
-          '• Kapitał do restrukturyzacji: <strong>${columns[4]}</strong>',
-        );
-        buffer.writeln('</p>');
-      }
-    }
-    
-    // Total row as simple text
-    if (totalRow.isNotEmpty) {
-      final totalColumns = totalRow.split('|').map((col) => col.trim()).toList();
-      if (totalColumns.length >= 5) {
-        buffer.writeln(
-          '<div style="margin-top: 16px; padding: 16px; background-color: #d4af37; color: white; border-radius: 8px;">',
-        );
-        buffer.writeln(
-          '<h4 style="margin: 0 0 12px 0; color: white; font-size: 18px;">📈 ŁĄCZNE PODSUMOWANIE:</h4>',
-        );
-        buffer.writeln(
-          '<p style="margin: 0; font-size: 16px; font-weight: bold; line-height: 1.5;">',
-        );
-        buffer.writeln('• Łączna liczba inwestycji: ${totalColumns[1]}<br>');
-        buffer.writeln('• Łączny kapitał pozostały: ${totalColumns[2]}<br>');
-        buffer.writeln(
-          '• Łączny kapitał zabezpieczony: ${totalColumns[3]}<br>',
-        );
-        buffer.writeln(
-          '• Łączny kapitał do restrukturyzacji: ${totalColumns[4]}',
-        );
-        buffer.writeln('</p>');
-        buffer.writeln('</div>');
-      }
-    }
-    
-    buffer.writeln('</div>');
-    
-    return buffer.toString();
-  }
-  
-
-
   /// Debug method to analyze Quill content
   void _debugQuillContent() {
     if (kDebugMode) {
@@ -4296,7 +4163,7 @@ Zespół Metropolitan Investment''';
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           minimumSize: const Size(0, 32),
-        ),email_editor_tabs.dart 
+        ),
       ),
     );
   }
