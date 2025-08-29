@@ -164,7 +164,7 @@ class _CollapsibleSearchHeaderState extends State<CollapsibleSearchHeader>
       ]),
       builder: (context, child) {
         // 🚀 DYNAMICZNA WYSOKOŚĆ - 240px gdy rozwinięty (więcej miejsca na statystyki), 80px gdy zwinięty
-        final headerHeight = widget.isCollapsed ? 80.0 : 240.0;
+        final headerHeight = widget.isCollapsed ? 80.0 : 280.0;
 
         return AnimatedContainer(
           duration: const Duration(milliseconds: 400),

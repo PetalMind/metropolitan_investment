@@ -564,12 +564,26 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
             ),
           ],
         ),
-        child: IconButton(
+        child: TextButton.icon(
           onPressed: widget.onAddClient,
           icon: Icon(
             Icons.person_add_rounded,
             color: AppThemePro.accentGold,
             size: 20,
+          ),
+          label: Text(
+            'Dodaj klienta',
+            style: TextStyle(
+              color: AppThemePro.accentGold,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
       ),
@@ -636,7 +650,7 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
         ),
         child: Stack(
           children: [
-            IconButton(
+            TextButton.icon(
               onPressed: !widget.canEdit ? null : widget.onToggleExport,
               icon: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -649,6 +663,25 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                       ? AppThemePro.statusError
                       : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
                   size: 20,
+                ),
+              ),
+              label: Text(
+                widget.isExportMode ? 'Zakończ' : 'Eksportuj dane',
+                style: TextStyle(
+                  color: widget.isExportMode
+                      ? AppThemePro.statusError
+                      : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
@@ -739,7 +772,7 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
         ),
         child: Stack(
           children: [
-            IconButton(
+            TextButton.icon(
               onPressed: !widget.canEdit ? null : widget.onToggleEmail,
               icon: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -752,6 +785,25 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                       ? AppThemePro.statusError
                       : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
                   size: 20,
+                ),
+              ),
+              label: Text(
+                widget.isEmailMode ? 'Zakończ' : 'Wyślij maila',
+                style: TextStyle(
+                  color: widget.isEmailMode
+                      ? AppThemePro.statusError
+                      : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),

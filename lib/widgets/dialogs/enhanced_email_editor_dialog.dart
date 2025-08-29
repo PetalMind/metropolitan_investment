@@ -1143,7 +1143,7 @@ Zespół Metropolitan Investment''';
               child: QuillSimpleToolbar(
                 controller: _getCurrentController(),
                 config: QuillSimpleToolbarConfig(
-                  multiRowsDisplay: true,
+                  multiRowsDisplay: !isSmallScreen,
                   // Basic text styling
                   showBoldButton: true,
                   showItalicButton: true,

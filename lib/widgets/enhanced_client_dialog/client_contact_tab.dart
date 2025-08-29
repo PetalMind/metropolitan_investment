@@ -307,7 +307,7 @@ class _ClientContactTabState extends State<ClientContactTab>
                       prefixIcon: const Icon(Icons.email_outlined),
                       suffixIcon: _buildEmailValidationIcon(),
                       helperText:
-                          'Opcjonalny - używany do komunikacji i raportów',
+                          '',
                       errorText: _emailError,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),

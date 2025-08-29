@@ -28,6 +28,10 @@ class SpectacularClientsGrid extends StatefulWidget {
   final Map<String, InvestorSummary>? investorSummaries; // clientId -> InvestorSummary
   final Map<String, List<Investment>>? clientInvestments; // clientId -> List<Investment>
 
+  // 🚀 NOWE: Tryby specjalne dla różnych kolorów zaznaczania
+  final bool isEmailMode; // Tryb email - niebieskie zaznaczanie
+  final bool isExportMode; // Tryb eksport - zielone zaznaczanie
+
   SpectacularClientsGrid({
     super.key,
     required this.clients,
@@ -41,6 +45,8 @@ class SpectacularClientsGrid extends StatefulWidget {
     this.scrollController,
     this.investorSummaries, // 🚀 NOWE
     this.clientInvestments, // 🚀 NOWE
+    this.isEmailMode = false, // 🚀 NOWE
+    this.isExportMode = false, // 🚀 NOWE
   });
 
   @override
@@ -432,7 +438,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     );
   }
 
-  /// 🚀 SHADOWS DLA KART - uwzględnia top inwestorów
+  /// 🚀 SHADOWS DLA KART - uwzględnia top inwestorów i tryby zaznaczania
   List<BoxShadow> _buildCardShadows(
     Client client,
     bool isSelected,
@@ -444,7 +450,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     shadows.add(
       BoxShadow(
         color: isSelected
-            ? AppThemePro.accentGold.withOpacity(0.4)
+            ? _getSelectionColor().withOpacity(0.4)
             : AppThemePro.overlayMedium.withOpacity(0.15),
         blurRadius: isSelected ? 25 : 15,
         spreadRadius: isSelected ? 3 : 1,
@@ -470,7 +476,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     if (isSelected) {
       shadows.add(
         BoxShadow(
-          color: AppThemePro.accentGold.withOpacity(0.2),
+          color: _getSelectionColor().withOpacity(0.2),
           blurRadius: 40,
           spreadRadius: 0,
           offset: const Offset(0, 0),
@@ -491,20 +497,42 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     return shadows;
   }
 
+  /// 🚀 NOWE: Helper metoda do pobierania koloru zaznaczania
+  Color _getSelectionColor() {
+    if (widget.isEmailMode) {
+      return AppThemePro.statusInfo; // Niebieski dla email
+    } else if (widget.isExportMode) {
+      return AppThemePro.statusSuccess; // Zielony dla eksportu
+    } else {
+      return AppThemePro.accentGold; // Złoty dla normalnego zaznaczania
+    }
+  }
+
   LinearGradient _buildCardGradient(
     Client client,
     bool isSelected, [
     bool isTopInvestor = false,
   ]) {
     if (isSelected) {
+      // 🚀 NOWE: Różne gradienty zaznaczania w zależności od trybu
+      Color selectionColor;
+      if (widget.isEmailMode) {
+        selectionColor = AppThemePro.statusInfo; // Niebieski dla email
+      } else if (widget.isExportMode) {
+        selectionColor = AppThemePro.statusSuccess; // Zielony dla eksportu
+      } else {
+        selectionColor =
+            AppThemePro.bondsBlue; // Złoty dla normalnego zaznaczania
+      }
+
       return LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          AppThemePro.accentGold.withOpacity(0.15),
+          selectionColor.withOpacity(0.15),
           AppThemePro.backgroundSecondary.withOpacity(0.95),
           AppThemePro.backgroundPrimary,
-          AppThemePro.accentGold.withOpacity(0.08),
+          selectionColor.withOpacity(0.08),
         ],
         stops: const [0.0, 0.3, 0.7, 1.0],
       );
@@ -581,7 +609,18 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
 
   Color _getBorderColor(Client client, bool isSelected, bool isTopInvestor) {
     if (isSelected) {
-      return AppThemePro.accentGold.withOpacity(0.8);
+      // 🚀 NOWE: Różne kolory zaznaczania w zależności od trybu
+      if (widget.isEmailMode) {
+        return AppThemePro.statusInfo.withOpacity(0.8); // Niebieski dla email
+      } else if (widget.isExportMode) {
+        return AppThemePro.statusSuccess.withOpacity(
+          0.8,
+        ); // Zielony dla eksportu
+      } else {
+        return AppThemePro.accentGold.withOpacity(
+          0.8,
+        ); // Złoty dla normalnego zaznaczania
+      }
     }
 
     if (isTopInvestor) {
@@ -609,7 +648,8 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   }
 
   double _getBorderWidth(Client client, bool isSelected, bool isTopInvestor) {
-    if (isSelected) return 2.5;
+    if (isSelected)
+      return 2.5; // Zwiększona szerokość dla wszystkich zaznaczonych kart
     if (isTopInvestor) return 2.0 + (_premiumGlowController.value * 0.5);
     return 1.2;
   }
@@ -1018,19 +1058,19 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
         height: 32,
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.secondaryGold
+              ? _getSelectionColor().withOpacity(0.9)
               : Colors.white.withOpacity(0.3),
           shape: BoxShape.circle,
           border: Border.all(
             color: isSelected
-                ? AppTheme.secondaryGold
-                : AppTheme.borderSecondary,
+                ? _getSelectionColor()
+                : AppThemePro.borderSecondary,
             width: 2,
           ),
         ),
         child: Icon(
           isSelected ? Icons.check : Icons.circle_outlined,
-          color: isSelected ? Colors.white : AppTheme.textSecondary,
+          color: isSelected ? Colors.white : AppThemePro.textSecondary,
           size: 18,
         ),
       ),

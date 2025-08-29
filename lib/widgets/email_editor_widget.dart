@@ -456,6 +456,7 @@ Zespół Metropolitan Investment''';
   Widget _buildEditorTab() {
     final screenSize = MediaQuery.of(context).size;
     final isSmallScreen = screenSize.width < 600;
+    final isVerySmallScreen = screenSize.width < 400;
 
     return Container(
       padding: EdgeInsets.all(isSmallScreen ? 12.0 : 16.0),
@@ -475,59 +476,84 @@ Zespół Metropolitan Investment''';
           ),
           const SizedBox(height: 16),
 
-          // Pasek narzędzi Quill
-          QuillSimpleToolbar(
-            controller: _quillController,
-            config: const QuillSimpleToolbarConfig(
-              multiRowsDisplay: true,
-              // Basic text styling
-              showBoldButton: true,
-              showItalicButton: true,
-              showUnderLineButton: true,
-              showStrikeThrough: true,
-              showSubscript: true,
-              showSuperscript: true,
-              showSmallButton: true,
-              // Font options - simplified to avoid dropdown conflicts  
-              showFontFamily: false,
-              showFontSize: false,
-              // Colors
-              showColorButton: true,
-              showBackgroundColorButton: true,
-              // Headers and structure
-              showHeaderStyle: true,
-              showQuote: true,
-              showInlineCode: true,
-              showCodeBlock: true,
-              // Lists and indentation
-              showListBullets: true,
-              showListNumbers: true,
-              showListCheck: true,
-              showIndent: true,
-              // Alignment
-              showAlignmentButtons: true,
-              showLeftAlignment: true,
-              showCenterAlignment: true,
-              showRightAlignment: true,
-              showJustifyAlignment: true,
-              showDirection: false,
-              // Links and actions
-              showLink: true,
-              showUndo: true,
-              showRedo: true,
-              showClearFormat: true,
-              showSearchButton: false,
-              // Layout
-              toolbarSize: 36,
-              toolbarSectionSpacing: 4,
-              toolbarIconAlignment: WrapAlignment.center,
+          // Pasek narzędzi Quill - ZNACZNIE POPRAWIONY DLA MAŁYCH EKRANÓW
+          Container(
+            constraints: BoxConstraints(
+              maxHeight: isVerySmallScreen
+                  ? 80
+                  : isSmallScreen
+                  ? 120
+                  : 200,
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: QuillSimpleToolbar(
+                controller: _quillController,
+                config: QuillSimpleToolbarConfig(
+                  multiRowsDisplay:
+                      !isSmallScreen, // Wyłącz multi-rows na małych ekranach
+                  // Basic text styling - ukryj niektóre na bardzo małych ekranach
+                  showBoldButton: true,
+                  showItalicButton: true,
+                  showUnderLineButton: !isVerySmallScreen,
+                  showStrikeThrough: !isVerySmallScreen,
+                  showSubscript: false, // Ukryj zawsze na małych ekranach
+                  showSuperscript: false, // Ukryj zawsze na małych ekranach
+                  showSmallButton: false, // Ukryj zawsze na małych ekranach
+                  // Font options - ukryj na małych ekranach
+                  showFontFamily: false,
+                  showFontSize: false,
+                  // Colors - ukryj na bardzo małych ekranach
+                  showColorButton: !isVerySmallScreen,
+                  showBackgroundColorButton:
+                      false, // Ukryj zawsze na małych ekranach
+                  // Headers and structure
+                  showHeaderStyle: !isVerySmallScreen,
+                  showQuote: !isVerySmallScreen,
+                  showInlineCode: false, // Ukryj na małych ekranach
+                  showCodeBlock: false, // Ukryj na małych ekranach
+                  // Lists and indentation - podstawowe tylko
+                  showListBullets: true,
+                  showListNumbers: true,
+                  showListCheck: false, // Ukryj na małych ekranach
+                  showIndent: false, // Ukryj na małych ekranach
+                  // Alignment - ukryj na bardzo małych ekranach
+                  showAlignmentButtons: !isVerySmallScreen,
+                  showLeftAlignment: !isVerySmallScreen,
+                  showCenterAlignment: !isVerySmallScreen,
+                  showRightAlignment: !isVerySmallScreen,
+                  showJustifyAlignment: false, // Ukryj zawsze
+                  showDirection: false,
+                  // Links and actions
+                  showLink: !isVerySmallScreen,
+                  showUndo: true,
+                  showRedo: true,
+                  showClearFormat: false, // Ukryj na małych ekranach
+                  showSearchButton: false,
+                  // Layout
+                  toolbarSize: isVerySmallScreen
+                      ? 28
+                      : isSmallScreen
+                      ? 32
+                      : 36,
+                  toolbarSectionSpacing: isVerySmallScreen
+                      ? 1
+                      : isSmallScreen
+                      ? 2
+                      : 4,
+                  toolbarIconAlignment: WrapAlignment.center,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 8),
 
-          // Edytor Quill
+          // Edytor Quill - ZABEZPIECZONY PRZED ZNIKANIEM
           Expanded(
             child: Container(
+              constraints: const BoxConstraints(
+                minHeight: 150, // Minimalna wysokość żeby nie zniknął
+              ),
               decoration: BoxDecoration(
                 border: Border.all(color: AppThemePro.borderPrimary),
                 borderRadius: BorderRadius.circular(8),
@@ -1416,18 +1442,13 @@ Zespół Metropolitan Investment''';
           'size': InlineStyleType(
             fn: (value, _) {
               // Obsługa różnych formatów rozmiaru z flutter_quill
-              if (value is String) {
-                if (value == 'small') return 'font-size: 0.75em';
-                if (value == 'large') return 'font-size: 1.5em';
-                if (value == 'huge') return 'font-size: 2.5em';
-                // Numeryczne wartości jako px
-                final numValue = double.tryParse(value);
-                if (numValue != null) {
-                  return 'font-size: ${numValue}px';
-                }
-                return 'font-size: $value';
-              } else if (value is num) {
-                return 'font-size: ${value}px';
+              if (value == 'small') return 'font-size: 0.75em';
+              if (value == 'large') return 'font-size: 1.5em';
+              if (value == 'huge') return 'font-size: 2.5em';
+              // Numeryczne wartości jako px
+              final numValue = double.tryParse(value);
+              if (numValue != null) {
+                return 'font-size: ${numValue}px';
               }
               return 'font-size: $value';
             },
@@ -1446,7 +1467,7 @@ Zespół Metropolitan Investment''';
           // === WCIĘCIA ===
           'indent': InlineStyleType(
             fn: (value, _) {
-              final indentValue = value is String ? int.tryParse(value) ?? 0 : (value as num).toInt();
+              final indentValue = int.tryParse(value) ?? 0;
               return 'margin-left: ${indentValue * 30}px'; // 30px na poziom wcięcia
             },
           ),

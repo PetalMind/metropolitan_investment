@@ -599,30 +599,36 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   Widget _buildStatsWidget(ClientStats stats) {
     return Container(
       padding: const EdgeInsets.all(16),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _buildStatCard(
-              'Klienci',
-              stats.totalClients.toString(),
-              Icons.people,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: _buildStatCard(
-              'Inwestycje',
-              stats.totalInvestments.toString(),
-              Icons.trending_up,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: _buildStatCard(
-              'Kapitał',
-              '${(stats.totalRemainingCapital / 1000000).toStringAsFixed(1)}M PLN',
-              Icons.attach_money,
-            ),
+   
+          // Statystyki
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Klienci',
+                  stats.totalClients.toString(),
+                  Icons.people,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  'Inwestycje',
+                  stats.totalInvestments.toString(),
+                  Icons.trending_up,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  'Kapitał',
+                  '${(stats.totalRemainingCapital / 1000000).toStringAsFixed(1)}M PLN',
+                  Icons.attach_money,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1110,6 +1116,10 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         // 🚀 NOWE: Przekaż dane inwestycji
         investorSummaries: _investorSummaries,
         clientInvestments: _clientInvestments,
+
+        // 🚀 NOWE: Przekaż tryby specjalne dla różnych kolorów zaznaczania
+        isEmailMode: _isEmailMode,
+        isExportMode: _isExportMode,
       ),
     );
   }
