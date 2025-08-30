@@ -613,7 +613,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
                   ),
                 ),
                 child: Text(
-                  'Inwestycja ${index + 1}',
+                  'Inwestycja ${investment.productName}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppThemePro.accentGold,
                     fontWeight: FontWeight.w600,
@@ -625,7 +625,7 @@ class _InvestorEditDialogState extends State<InvestorEditDialog>
 
               if (investment.id.isNotEmpty)
                 Text(
-                  'ID: ${investment.id}',
+                  '${investment.productType}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppThemePro.textMuted,
                     fontFamily: 'monospace',

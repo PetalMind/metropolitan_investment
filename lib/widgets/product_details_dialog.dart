@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../models_and_services.dart';
 import 'premium_error_widget.dart';
 import 'dialogs/product_delete_dialog.dart';
+import 'dialogs/total_capital_edit_dialog.dart';
 
 /// Enhanced widget do wyświetlania szczegółów produktu w modal dialog
 class EnhancedProductDetailsDialog extends StatefulWidget {
@@ -1145,7 +1146,64 @@ class _EnhancedProductDetailsDialogState
     }
   }
 
-  Widget _buildOverviewTab() {
+  /// Handles editing total capital for all investors
+  Future<void> _handleEditTotalCapital() async {
+    try {
+      // Calculate current total capital and get investments
+      final currentTotalCapital = _computeTotalRemainingCapital();
+      final allInvestments = <Investment>[];
+      
+      for (final investor in _investors) {
+        for (final investment in investor.investments) {
+          if (investment.productName == widget.product.name) {
+            allInvestments.add(investment);
+          }
+        }
+      }
+
+      // Show the total capital edit dialog
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => TotalCapitalEditDialog(
+          product: widget.product,
+          currentTotalCapital: currentTotalCapital,
+          investments: allInvestments,
+          onChanged: () {
+            // Refresh investors data after changes
+            _loadInvestors();
+          },
+        ),
+      );
+
+      if (result == true) {
+        // Refresh the investors data
+        await _loadInvestors();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✓ Zaktualizowano kapitał pozostały dla wszystkich inwestorów'),
+              backgroundColor: AppTheme.successPrimary,
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Błąd podczas otwierania dialogu edycji kapitału: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd podczas otwierania edytora kapitału: $e'),
+            backgroundColor: AppTheme.errorPrimary,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }  Widget _buildOverviewTab() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2169,13 +2227,13 @@ class _EnhancedProductDetailsDialogState
               if (widget.product.additionalInfo['hasStorage'] == true) ...[
                 const SizedBox(width: 8),
                 _buildAmenityChip('Komórka', Icons.storage),
-                ],
               ],
-            ),
-          ],
+            ],
+          ),
         ),
       );
   }
+}
 
 
   /// Szczegóły dla innych produktów
@@ -2924,115 +2982,5 @@ class _EnhancedProductDetailsDialogState
       }
     }
     return sum;
-  }
-}
-
-// --- Helpers for modern information card ---------------------------------
-class _InfoItem {
-  final String label;
-  final String value;
-  _InfoItem({required this.label, required this.value});
-}
-
-class _AnimatedInfoTile extends StatefulWidget {
-  final _InfoItem item;
-  const _AnimatedInfoTile({Key? key, required this.item}) : super(key: key);
-
-  @override
-  State<_AnimatedInfoTile> createState() => _AnimatedInfoTileState();
-}
-
-class _AnimatedInfoTileState extends State<_AnimatedInfoTile> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnim;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(duration: const Duration(milliseconds: 160), vsync: this);
-    _scaleAnim = Tween<double>(begin: 1.0, end: 0.985).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) => _controller.reverse(),
-      onTapCancel: () => _controller.reverse(),
-      child: ScaleTransition(
-        scale: _scaleAnim,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppTheme.backgroundSecondary.withOpacity(0.06),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.borderSecondary.withOpacity(0.08)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.item.label,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textTertiary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            widget.item.value,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppTheme.textPrimary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Copy action
-              InkWell(
-                borderRadius: BorderRadius.circular(8),
-                onTap: () async {
-                  await Clipboard.setData(ClipboardData(text: widget.item.value));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${widget.item.label} skopiowane'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.backgroundSecondary.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.copy, size: 16, color: AppTheme.textTertiary),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

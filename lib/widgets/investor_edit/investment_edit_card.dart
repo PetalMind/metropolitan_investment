@@ -55,7 +55,7 @@ class InvestmentEditCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  'Inwestycja ${index + 1}',
+                  '${investment.productName}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppThemePro.accentGold,
                     fontWeight: FontWeight.w600,
@@ -92,17 +92,6 @@ class InvestmentEditCard extends StatelessWidget {
           ),
 
           const SizedBox(height: 12),
-
-          // Informacje o inwestycji
-          Text(
-            'ID: ${investment.id}',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppThemePro.textSecondary,
-              fontFamily: 'monospace',
-            ),
-          ),
-
-          const SizedBox(height: 16),
 
           // Pola edycji w kompaktowym układzie
           Column(

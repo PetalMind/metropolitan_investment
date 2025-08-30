@@ -5,6 +5,7 @@ import '../../models_and_services.dart'; // Centralized import
 import '../premium_error_widget.dart';
 import 'product_details_service.dart';
 import 'investor_edit_dialog.dart'; // ⭐ NOWE: Import dialogu edycji
+import 'total_capital_edit_dialog.dart'; // ✅ Import for edit-total-capital dialog
 import '../../services/universal_investment_service.dart'
     as universal; // 🚀 UNIFIED DATA
 
@@ -444,6 +445,83 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
     final averageInvestmentsPerInvestor = activeInvestorsCount > 0
         ? (totalInvestmentCount / activeInvestorsCount).toStringAsFixed(1)
         : '0.0';
+
+    // Jeśli tryb edycji jest włączony - ukryj statystyki i pokaż kafelek "Edytuj Kapitał pozostały"
+    if (widget.isEditModeEnabled) {
+      // Zbierz wszystkie inwestycje powiązane z produktem (flatten)
+      final allInvestments = <Investment>[];
+      for (final inv in currentInvestors) {
+        allInvestments.addAll(_getProductInvestments(inv));
+      }
+
+      // Oblicz bieżący kapitał pozostały - preferuj wartość z produktu, fallback na sumę inwestycji
+      final double currentTotalRemaining =
+          widget.product.remainingCapital ??
+          allInvestments.fold(0.0, (s, e) => s + e.remainingCapital);
+
+      return Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () async {
+                // Otwórz dialog edycji kapitału
+                final result = await showDialog<bool?>(
+                  context: context,
+                  barrierDismissible: true,
+                  builder: (context) => TotalCapitalEditDialog(
+                    product: widget.product,
+                    currentTotalCapital: currentTotalRemaining,
+                    investments: allInvestments,
+                    onChanged: () async {
+                      // Odśwież dane po zapisaniu
+                      await _refreshLocalInvestorData();
+                      widget.onRefresh();
+                    },
+                  ),
+                );
+
+                if (result == true) {
+                  _showSuccessSnackBar('Kapitał został zaktualizowany.');
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.warningPrimary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.warningPrimary.withOpacity(0.25),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.edit, color: AppTheme.warningPrimary, size: 20),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Edytuj Kapitał pozostały',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: AppTheme.warningPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Kliknij aby przeskalować kapitał inwestorów',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textTertiary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     return Row(
       children: [
