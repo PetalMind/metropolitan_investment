@@ -3240,14 +3240,35 @@ Zespół Metropolitan Investment''';
   void _syncContentBetweenControllers() {
     if (_useIndividualContent) {
       // Copy global content to all individual controllers if they're empty
-      final globalContent = _quillController.document.toDelta().toJson();
       for (final controller in _individualControllers.values) {
         if (controller.document.isEmpty()) {
-          controller.document = Document.fromJson(globalContent);
+          // If individual controller is empty, insert default template
+          const defaultTemplate = '''Szanowni Państwo,
+
+Przesyłamy aktualne informacje dotyczące Państwa inwestycji w Metropolitan Investment.
+
+Poniżej znajdą Państwo szczegółowe podsumowanie swojego portfela inwestycyjnego.
+
+W razie pytań prosimy o kontakt z naszym działem obsługi klienta.
+
+Z poważaniem,
+Zespół Metropolitan Investment''';
+
+          try {
+            controller.document.insert(0, defaultTemplate);
+            controller.updateSelection(
+              TextSelection.collapsed(offset: defaultTemplate.length),
+              ChangeSource.local,
+            );
+          } catch (e) {
+            debugPrint(
+              'Error inserting default template to individual controller: $e',
+            );
+          }
         }
       }
     }
-    
+
     // Force preview refresh after switching modes
     _updatePreview();
   }

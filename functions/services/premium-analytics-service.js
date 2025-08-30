@@ -232,11 +232,11 @@ async function processInvestorsData(clients, investments, filters) {
         unviableInvestments: client.unviableInvestments || [],
       },
       investments: processedInvestments,
-      viableRemainingCapital: totalViableCapital,
-      unifiedTotalValue: unifiedTotalValue,
+      viableRemainingCapital: isNaN(totalViableCapital) || !isFinite(totalViableCapital) ? 0 : totalViableCapital,
+      unifiedTotalValue: isNaN(unifiedTotalValue) || !isFinite(unifiedTotalValue) ? 0 : unifiedTotalValue,
       totalInvestmentAmount: processedInvestments.reduce((sum, inv) => sum + getUnifiedField(inv.originalData, 'investmentAmount'), 0),
-      capitalSecuredByRealEstate: totalCapitalSecuredByRealEstate,
-      capitalForRestructuring: totalCapitalForRestructuring,
+      capitalSecuredByRealEstate: isNaN(totalCapitalSecuredByRealEstate) || !isFinite(totalCapitalSecuredByRealEstate) ? 0 : totalCapitalSecuredByRealEstate,
+      capitalForRestructuring: isNaN(totalCapitalForRestructuring) || !isFinite(totalCapitalForRestructuring) ? 0 : totalCapitalForRestructuring,
       investmentCount: clientInvestments.length,
     });
   });
@@ -354,7 +354,7 @@ function calculateMajorityAnalysis(investors, majorityThreshold = 51.0) {
     : 0;
 
   // Indeks koncentracji (Herfindahl-Hirschman Index)
-  const concentrationIndex = majorityCapitals.length > 0
+  const concentrationIndex = majorityCapitals.length > 0 && accumulatedCapital > 0
     ? majorityCapitals.reduce((sum, capital) => {
       const marketShare = capital / accumulatedCapital;
       return sum + (marketShare * marketShare);
@@ -449,9 +449,9 @@ function calculateVotingAnalysis(investors) {
 
     votingPower[status] = {
       votes: count,
-      capital: capital,
-      percentage: percentageByVotingStatus[status],
-      averageCapital: averageCapitalByStatus[status]
+      capital: isNaN(capital) || !isFinite(capital) ? 0 : capital,
+      percentage: isNaN(percentageByVotingStatus[status]) || !isFinite(percentageByVotingStatus[status]) ? 0 : percentageByVotingStatus[status],
+      averageCapital: isNaN(averageCapitalByStatus[status]) || !isFinite(averageCapitalByStatus[status]) ? 0 : averageCapitalByStatus[status]
     };
   });
 
@@ -535,15 +535,15 @@ function calculatePerformanceMetrics(investors) {
     }, 0) / (capitals.length - 1)
     : 0;
 
-  const standardDeviation = Math.sqrt(variance);
-  const coefficientOfVariation = averageInvestment > 0
+  const standardDeviation = !isNaN(variance) && isFinite(variance) ? Math.sqrt(variance) : 0;
+  const coefficientOfVariation = averageInvestment > 0 && standardDeviation >= 0
     ? standardDeviation / averageInvestment
     : 0;
 
   const riskMetrics = {
-    variance,
+    variance: isNaN(variance) || !isFinite(variance) ? 0 : variance,
     standardDeviation,
-    coefficientOfVariation,
+    coefficientOfVariation: isNaN(coefficientOfVariation) || !isFinite(coefficientOfVariation) ? 0 : coefficientOfVariation,
     range: sortedCapitals.length > 0
       ? sortedCapitals[sortedCapitals.length - 1] - sortedCapitals[0]
       : 0
@@ -583,15 +583,19 @@ function calculateTrendAnalysis(investors) {
   // Symulacja analizy trendów (w rzeczywistości byłoby to oparte na danych historycznych)
   const capitals = investors.map(investor => safeToDouble(investor.viableRemainingCapital));
   const totalCapital = capitals.reduce((a, b) => a + b, 0);
-  const averageCapital = totalCapital / capitals.length;
+  const averageCapital = capitals.length > 0 ? totalCapital / capitals.length : 0;
 
   // Oblicz zmienność jako proxy dla volatility
-  const variance = capitals.reduce((sum, capital) => {
-    const diff = capital - averageCapital;
-    return sum + (diff * diff);
-  }, 0) / capitals.length;
+  const variance = capitals.length > 0
+    ? capitals.reduce((sum, capital) => {
+      const diff = capital - averageCapital;
+      return sum + (diff * diff);
+    }, 0) / capitals.length
+    : 0;
 
-  const volatilityIndex = Math.sqrt(variance) / averageCapital;
+  const volatilityIndex = averageCapital > 0 && !isNaN(variance) && isFinite(variance)
+    ? Math.sqrt(variance) / averageCapital
+    : 0;
 
   let volatilityLevel = 'low';
   if (volatilityIndex > 0.3) volatilityLevel = 'high';
@@ -599,7 +603,9 @@ function calculateTrendAnalysis(investors) {
 
   // Symulacja momentum na podstawie rozkładu kapitału
   const sortedCapitals = [...capitals].sort((a, b) => b - a);
-  const top20Capital = sortedCapitals.slice(0, Math.ceil(capitals.length * 0.2)).reduce((a, b) => a + b, 0);
+  const top20Capital = sortedCapitals.length > 0
+    ? sortedCapitals.slice(0, Math.ceil(capitals.length * 0.2)).reduce((a, b) => a + b, 0)
+    : 0;
   const top20Percentage = totalCapital > 0 ? (top20Capital / totalCapital) * 100 : 0;
 
   let momentumDirection = 'neutral';
@@ -622,11 +628,11 @@ function calculateTrendAnalysis(investors) {
     },
     volatility: {
       level: volatilityLevel,
-      index: volatilityIndex
+      index: isNaN(volatilityIndex) || !isFinite(volatilityIndex) ? 0 : volatilityIndex
     },
     momentum: {
       direction: momentumDirection,
-      strength: momentumStrength
+      strength: isNaN(momentumStrength) || !isFinite(momentumStrength) ? 0 : momentumStrength
     },
     cyclical: {
       phase: 'expansion', // Symulacja

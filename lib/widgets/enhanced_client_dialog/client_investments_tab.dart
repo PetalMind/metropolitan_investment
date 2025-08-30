@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
 import 'client_overview_tab.dart'; // For ClientFormData
@@ -34,6 +35,14 @@ class _ClientInvestmentsTabState extends State<ClientInvestmentsTab>
   // 🚀 UŻYWAJ ISTNIEJĄCYCH SERWISÓW Z models_and_services.dart
   final InvestorAnalyticsService _investorAnalyticsService =
       InvestorAnalyticsService();
+
+  // Formatowanie kwot z separatorem tysięcy
+  String formatAmount(num amount) {
+    // Użyj NumberFormat z pakietu intl
+    return amount == null
+        ? '0'
+        : NumberFormat('#,##0', 'pl_PL').format(amount).replaceAll(',', ' ');
+  }
 
   // State
   List<Investment> _investments = [];
@@ -648,7 +657,7 @@ class _ClientInvestmentsTabState extends State<ClientInvestmentsTab>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  investment.id,
+                                  investment.productName,
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
@@ -674,17 +683,17 @@ class _ClientInvestmentsTabState extends State<ClientInvestmentsTab>
                       // Financial info
                       Row(
                         children: [
-                          Expanded(
+                            Expanded(
                             child: _buildInvestmentMetric(
                               'Kwota inwestycji',
-                              '${investment.investmentAmount.toStringAsFixed(0)} zł',
+                              '${formatAmount(investment.investmentAmount)} zł',
                               Icons.payments_rounded,
                             ),
-                          ),
-                          Expanded(
+                            ),
+                            Expanded(
                             child: _buildInvestmentMetric(
                               'Pozostały kapitał',
-                              '${investment.remainingCapital.toStringAsFixed(0)} zł',
+                              '${formatAmount(investment.remainingCapital)} zł',
                               Icons.account_balance_rounded,
                             ),
                           ),

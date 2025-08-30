@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models_and_services.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme_professional.dart';
@@ -66,6 +67,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   bool _isLoadingMore = false;
   bool _showActiveOnly = false;
   String _errorMessage = '';
+
+  // 🚀 NOWE: Stan ładowania danych inwestycji
+  bool _isInvestmentDataLoaded = false;
 
   // Filtering & sorting
   final String _sortBy = 'fullName';
@@ -186,129 +190,83 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     });
   }
 
-  /// 🚀 NOWA METODA: Załaduj WSZYSTKICH klientów bezpośrednio z bazy
+  /// 🚀 NOWA METODA: Załaduj WSZYSTKICH klientów bezpośrednio z Firebase Functions
   Future<void> _loadInitialData() async {
     setState(() {
       _isLoading = true;
+      _isInvestmentDataLoaded = false; // Reset stanu danych inwestycji
       _errorMessage = '';
     });
 
     try {
       print(
-        '🔄 [EnhancedClientsScreen] Rozpoczynam ładowanie WSZYSTKICH klientów...',
+        '🔄 [EnhancedClientsScreen] Rozpoczynam ładowanie WSZYSTKICH klientów z Firebase Functions...',
       );
 
-      // 🚀 KROK 1: Pobierz WSZYSTKICH klientów bezpośrednio z bazy
+      // 🚀 KROK 1: Pobierz WSZYSTKICH klientów przez Firebase Functions
       print(
-        '🎯 [EnhancedClientsScreen] Pobieranie WSZYSTKICH klientów z bazy...',
+        '🎯 [EnhancedClientsScreen] Pobieranie WSZYSTKICH klientów przez Firebase Functions...',
       );
 
-      final enhancedResult = await _enhancedClientService.getAllActiveClients(
-        limit: 10000,
-        includeInactive: true, // Pobierz wszystkich, łącznie z nieaktywnymi
-        forceRefresh: true,
-      );
+      final functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
+      final clientsResult = await functions
+          .httpsCallable('getAllActiveClientsFunction')
+          .call({
+            'options': {'limit': 10000, 'includeInactive': true},
+          });
 
-      if (!enhancedResult.hasError && enhancedResult.clients.isNotEmpty) {
+      if (clientsResult.data['success'] == true) {
+        final clientsData = clientsResult.data['clients'] as List<dynamic>;
+        final clients = clientsData
+            .map((clientData) => Client.fromServerMap(clientData))
+            .toList();
+
         print(
-          '✅ [KROK 1] EnhancedClientService SUCCESS - pobrano ${enhancedResult.clients.length} WSZYSTKICH klientów',
+          '✅ [KROK 1] Firebase Functions SUCCESS - pobrano ${clients.length} WSZYSTKICH klientów',
         );
 
-        // 🚀 KROK 2: Opcjonalnie wzbogać o dane inwestycyjne
-        try {
-          final optimizedResult = await _optimizedProductService
-              .getAllProductsOptimized(
-                forceRefresh: true,
-                includeStatistics: true,
-                maxProducts: 10000,
-              );
-
-          print(
-            '✅ [KROK 2] OptimizedProductService SUCCESS - ${optimizedResult.products.length} produktów',
+        // Utwórz statystyki klientów
+        final statistics = clientsResult.data['statistics'];
+        ClientStats? clientStats;
+        if (statistics != null) {
+          clientStats = ClientStats(
+            totalClients: clients.length,
+            totalInvestments: statistics['totalClients'] ?? 0,
+            totalRemainingCapital:
+                0.0, // Będzie zaktualizowane po załadowaniu inwestycji
+            averageCapitalPerClient: 0.0,
+            lastUpdated: DateTime.now().toIso8601String(),
+            source: 'Firebase Functions - Enhanced Clients Service',
           );
-
-          // Utwórz statystyki kombinowane
-          ClientStats? clientStats;
-          if (optimizedResult.statistics != null &&
-              enhancedResult.statistics != null) {
-            clientStats = ClientStats(
-              totalClients: enhancedResult.clients.length,
-              totalInvestments: optimizedResult.statistics!.totalInvestors,
-              totalRemainingCapital:
-                  optimizedResult.statistics!.totalRemainingCapital,
-              averageCapitalPerClient: enhancedResult.clients.isNotEmpty
-                  ? optimizedResult.statistics!.totalRemainingCapital /
-                        enhancedResult.clients.length
-                  : 0.0,
-              lastUpdated: DateTime.now().toIso8601String(),
-              source: 'EnhancedClientService+OptimizedProductService',
-            );
-          }
-
-          setState(() {
-            _allClients = enhancedResult.clients;
-            _activeClients = enhancedResult.clients
-                .where((c) => c.isActive != false)
-                .toList();
-            _clientStats = clientStats;
-            _isLoading = false;
-          });
-
-          print(
-            '✅ [SUCCESS] Dane załadowane z EnhancedClientService+OptimizedProductService:',
-          );
-          print('    - ${enhancedResult.clients.length} klientów WSZYSTKICH');
-          print(
-            '    - ${enhancedResult.statistics?.activeClients ?? 0} aktywnych',
-          );
-          print('    - ${optimizedResult.products.length} produktów');
-          print(
-            '    - ${optimizedResult.statistics?.totalRemainingCapital.toStringAsFixed(2) ?? '0'} PLN kapitału',
-          );
-          print('    - Źródło: EnhancedClientService+OptimizedProductService');
-
-          // 🚀 NOWE: Pobierz dane inwestycji i kapitału
-          await _loadInvestmentData();
-        } catch (productError) {
-          print('⚠️ [KROK 2] OptimizedProductService failed: $productError');
-
-          // Kontynuuj tylko z klientami bez danych inwestycyjnych
-          setState(() {
-            _allClients = enhancedResult.clients;
-            _activeClients = enhancedResult.clients
-                .where((c) => c.isActive != false)
-                .toList();
-            _clientStats = enhancedResult.statistics?.toClientStats();
-            _isLoading = false;
-          });
-
-          print(
-            '✅ [SUCCESS] Dane załadowane tylko z EnhancedClientService (bez inwestycji)',
-          );
-          print('    - ${enhancedResult.clients.length} klientów WSZYSTKICH');
-          print(
-            '    - ${enhancedResult.statistics?.activeClients ?? 0} aktywnych',
-          );
-
-          // 🚀 NOWE: Pobierz dane inwestycji i kapitału
-          await _loadInvestmentData();
         }
-      } else {
+
+        setState(() {
+          _allClients = clients;
+          _activeClients = clients.where((c) => c.isActive != false).toList();
+          _clientStats = clientStats;
+        });
+
+        print('✅ [SUCCESS] Dane klientów załadowane z Firebase Functions:');
+        print('    - ${clients.length} klientów WSZYSTKICH');
         print(
-          '⚠️ [KROK 1] EnhancedClientService failed: ${enhancedResult.error}',
+          '    - ${clients.where((c) => c.isActive != false).length} aktywnych',
         );
+        print('    - Źródło: Firebase Functions - getAllActiveClientsFunction');
 
-        // FALLBACK: Stara metoda przez OptimizedProductService
-        await _loadDataViaProducts();
+        // 🚀 KROK 2: Pobierz dane inwestycji przez Firebase Functions
+        await _loadInvestmentDataFromFirebase();
+      } else {
+        throw Exception(
+          clientsResult.data['error'] ??
+              'Nieznany błąd podczas pobierania klientów',
+        );
       }
-
-      // 🚀 ZAWSZE ładowane dane inwestycji po załadowaniu klientów
-      await _loadInvestmentData();
     } catch (e) {
       print('❌ [EnhancedClientsScreen] Krytyczny błąd ładowania: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _isInvestmentDataLoaded = false;
           _errorMessage = 'Błąd podczas ładowania danych: $e';
         });
       }
@@ -535,7 +493,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     );
     await _loadInitialData();
     // 🚀 ZAWSZE odśwież dane inwestycji po odświeżeniu klientów
-    await _loadInvestmentData();
+    await _loadInvestmentDataFromFirebase();
     _showSuccessSnackBar('Dane zostały odświeżone');
   }
 
@@ -910,7 +868,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppThemePro.accentGold.withOpacity(0.8),
+            AppThemePro.bondsBlue.withOpacity(0.8),
             AppThemePro.accentGold.withOpacity(0.6),
           ],
           begin: Alignment.centerLeft,
@@ -919,7 +877,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: AppThemePro.accentGold.withOpacity(0.3),
+            color: AppThemePro.bondsBlue.withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1081,8 +1039,23 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       );
     }
 
-    if (_isLoading) {
-      return const Center(child: PremiumShimmerLoadingWidget.fullScreen());
+    // 🚀 NOWE: Nie pokazuj kart klientów dopóki dane inwestycji się nie załadują
+    if (_isLoading || !_isInvestmentDataLoaded) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const PremiumShimmerLoadingWidget.fullScreen(),
+            const SizedBox(height: 16),
+            Text(
+              _isLoading
+                  ? 'Ładowanie klientów...'
+                  : 'Ładowanie danych inwestycji...',
+              style: TextStyle(color: AppThemePro.textSecondary),
+            ),
+          ],
+        ),
+      );
     }
 
     if (_errorMessage.isNotEmpty) {
@@ -1112,7 +1085,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         },
         onLoadMore: _hasMoreData ? _loadMoreClients : null,
         hasMoreData: _hasMoreData,
-        
+
         // 🚀 NOWE: Przekaż dane inwestycji
         investorSummaries: _investorSummaries,
         clientInvestments: _clientInvestments,
@@ -1210,41 +1183,103 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     );
   }
 
-  /// 🚀 NOWA METODA: Ładowanie danych inwestycji i kapitału dla wszystkich klientów
-  Future<void> _loadInvestmentData() async {
-    print('💰 [InvestmentData] Ładowanie danych inwestycji dla ${_allClients.length} klientów...');
-    
+  /// 🚀 NOWA METODA: Ładowanie danych inwestycji przez Firebase Functions
+  Future<void> _loadInvestmentDataFromFirebase() async {
+    print(
+      '💰 [InvestmentData] Ładowanie danych inwestycji przez Firebase Functions...',
+    );
+
     try {
-      // Użyj InvestorAnalyticsService do pobierania wszystkich danych inwestorów
-      final allInvestorSummaries = await _investorAnalyticsService.getAllInvestorsForAnalysis(
-        includeInactive: true, // Pobierz wszystkich klientów
-      );
-      
-      print('✅ [InvestmentData] Pobrano ${allInvestorSummaries.length} podsumowań inwestorów');
-      
-      // Utwórz mapę clientId -> InvestorSummary
-      final Map<String, InvestorSummary> summariesMap = {};
-      final Map<String, List<Investment>> investmentsMap = {};
-      
-      for (final summary in allInvestorSummaries) {
-        summariesMap[summary.client.id] = summary;
-        investmentsMap[summary.client.id] = summary.investments;
-        
-        print('💰 ${summary.client.name}: ${summary.totalRemainingCapital.toStringAsFixed(2)} PLN (${summary.investmentCount} inwestycji)');
+      final functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
+      final analyticsResult = await functions
+          .httpsCallable('getPremiumInvestorAnalytics')
+          .call({
+            'page': 1,
+            'pageSize': 10000,
+            'sortBy': 'viableRemainingCapital',
+            'sortAscending': false,
+            'includeInactive': true,
+            'forceRefresh': true,
+          });
+
+      if (analyticsResult.data['success'] == true) {
+        final investorsData =
+            analyticsResult.data['data']['investors'] as List<dynamic>;
+        final investors = investorsData
+            .map((investorData) => InvestorSummary.fromMap(investorData))
+            .toList();
+
+        print(
+          '✅ [InvestmentData] Pobrano ${investors.length} podsumowań inwestorów przez Firebase Functions',
+        );
+
+        // Utwórz mapę clientId -> InvestorSummary
+        final Map<String, InvestorSummary> summariesMap = {};
+        final Map<String, List<Investment>> investmentsMap = {};
+
+        for (final summary in investors) {
+          summariesMap[summary.client.id] = summary;
+          investmentsMap[summary.client.id] = summary.investments;
+
+          print(
+            '💰 ${summary.client.name}: ${summary.totalRemainingCapital.toStringAsFixed(2)} PLN (${summary.investmentCount} inwestycji)',
+          );
+        }
+
+        // Zaktualizuj statystyki klientów z danymi inwestycji
+        if (_clientStats != null) {
+          final totalCapital = investors.fold<double>(
+            0.0,
+            (sum, investor) => sum + investor.totalRemainingCapital,
+          );
+          final updatedStats = ClientStats(
+            totalClients: _clientStats!.totalClients,
+            totalInvestments: investors.fold<int>(
+              0,
+              (sum, investor) => sum + investor.investmentCount,
+            ),
+            totalRemainingCapital: totalCapital,
+            averageCapitalPerClient: _clientStats!.totalClients > 0
+                ? totalCapital / _clientStats!.totalClients
+                : 0.0,
+            lastUpdated: DateTime.now().toIso8601String(),
+            source: 'Firebase Functions - Premium Analytics',
+          );
+
+          setState(() {
+            _clientStats = updatedStats;
+          });
+        }
+
+        setState(() {
+          _investorSummaries = summariesMap;
+          _clientInvestments = investmentsMap;
+          _isInvestmentDataLoaded =
+              true; // 🚀 Ustaw flagę że dane są załadowane
+          _isLoading = false; // Zakończ ładowanie
+        });
+
+        print(
+          '✅ [InvestmentData] Zaktualizowano dane inwestycji dla ${summariesMap.length} klientów',
+        );
+        print(
+          '🎯 [InvestmentData] Dane inwestycji przekazane do SpectacularClientsGrid - karty klientów będą widoczne!',
+        );
+      } else {
+        throw Exception(
+          analyticsResult.data['error'] ??
+              'Nieznany błąd podczas pobierania danych inwestycji',
+        );
       }
-      
-      setState(() {
-        _investorSummaries = summariesMap;
-        _clientInvestments = investmentsMap;
-      });
-      
-      print('✅ [InvestmentData] Zaktualizowano dane inwestycji dla ${summariesMap.length} klientów');
-      print(
-        '🎯 [InvestmentData] Dane inwestycji przekazane do SpectacularClientsGrid - premium animacje powinny działać!',
-      );
     } catch (e) {
-      print('⚠️ [InvestmentData] Błąd ładowania danych inwestycji: $e');
-      // Nie przerywamy ładowania - klienci mogą być wyświetleni bez danych inwestycji
+      print(
+        '⚠️ [InvestmentData] Błąd ładowania danych inwestycji przez Firebase Functions: $e',
+      );
+      // Nie przerywamy ładowania - ustaw flagę że dane są załadowane (nawet jeśli puste)
+      setState(() {
+        _isInvestmentDataLoaded = true;
+        _isLoading = false;
+      });
     }
   }
 
@@ -1339,6 +1374,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     }
 
     // Zawsze załaduj dane inwestycji na końcu
-    await _loadInvestmentData();
+    await _loadInvestmentDataFromFirebase();
   }
 }
