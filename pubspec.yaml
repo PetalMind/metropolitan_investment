@@ -135,9 +135,9 @@ flutter:
 
   # Assets
   assets:
-    - assets/fonts/
     - assets/logos/
 
+  # Font configuration for Enhanced Email Editor - Local fonts for Flutter app          weight: 700
 # Font configuration for Enhanced Email Editor
 fonts:
   - family: Calibri

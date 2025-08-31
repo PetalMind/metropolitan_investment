@@ -81,6 +81,7 @@ class _WowEmailEditorDialogState extends State<WowEmailEditorDialog>
   String? _error;
   List<EmailSendResult>? _results;
   String _currentPreviewHtml = '';
+  double _previewZoomLevel = 1.0;
   
   // 🎪 KONTROLERY ANIMACJI DLA MAKSYMALNEGO WOW
   late AnimationController _settingsAnimationController;
@@ -318,6 +319,25 @@ Zespół Metropolitan Investment''';
     });
   }
   
+  // 🔍 ZOOM CONTROLS FOR PREVIEW
+  void _zoomInPreview() {
+    setState(() {
+      _previewZoomLevel = (_previewZoomLevel + 0.1).clamp(0.5, 2.0);
+    });
+  }
+
+  void _zoomOutPreview() {
+    setState(() {
+      _previewZoomLevel = (_previewZoomLevel - 0.1).clamp(0.5, 2.0);
+    });
+  }
+
+  void _resetPreviewZoom() {
+    setState(() {
+      _previewZoomLevel = 1.0;
+    });
+  }
+  
   // 🎨 KONWERSJA DO HTML
   String _convertQuillToHtml() {
     try {
@@ -335,6 +355,9 @@ Zespół Metropolitan Investment''';
               'bold': InlineStyleType(fn: (value, _) => 'font-weight: bold'),
               'italic': InlineStyleType(fn: (value, _) => 'font-style: italic'),
               'underline': InlineStyleType(fn: (value, _) => 'text-decoration: underline'),
+              'strike': InlineStyleType(
+                fn: (value, _) => 'text-decoration: line-through',
+              ),
               'color': InlineStyleType(fn: (value, _) => 'color: $value'),
               'background': InlineStyleType(fn: (value, _) => 'background-color: $value'),
               'font': InlineStyleType(fn: (value, _) {
@@ -618,18 +641,21 @@ Zespół Metropolitan Investment''';
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(24),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                        child: Column(
-                          children: [
-                            _buildWowHeader(isMobile, isTablet),
-                            Expanded(child: _buildWowMainContent(isMobile, isTablet)),
-                            if (_error != null) _buildWowErrorBanner(),
-                            if (_results != null) _buildWowResultsBanner(),
-                            if (_isLoading) _buildWowLoadingBanner(),
-                            _buildWowActions(canEdit, isMobile, isTablet),
-                          ],
-                        ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildWowHeader(isMobile, isTablet),
+                          Flexible(
+                            fit: FlexFit.loose,
+                            child: SingleChildScrollView(
+                              child: _buildWowMainContent(isMobile, isTablet),
+                            ),
+                          ),
+                          if (_error != null) _buildWowErrorBanner(),
+                          if (_results != null) _buildWowResultsBanner(),
+                          if (_isLoading) _buildWowLoadingBanner(),
+                          _buildWowActions(canEdit, isMobile, isTablet),
+                        ],
                       ),
                     ),
                   ),
@@ -767,13 +793,13 @@ Zespół Metropolitan Investment''';
     );
   }
   
-  // 📝 WOW GŁÓWNA TREŚĆ Z PRIORYTETEM NA EDYTOR
   Widget _buildWowMainContent(bool isMobile, bool isTablet) {
     return Container(
       padding: EdgeInsets.all(isMobile ? 12 : 20),
       child: Form(
         key: _formKey,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             // 📧 ZWIJANE USTAWIENIA Z WOW EFEKTAMI
             AnimatedBuilder(
@@ -790,8 +816,9 @@ Zespół Metropolitan Investment''';
             SizedBox(height: _isSettingsCollapsed ? 8 : 20),
             
             // ✍️ EDYTOR Z MAKSYMALNYM PRIORYTETEM RESPONSYWNOŚCI
-            Expanded(
+            Flexible(
               flex: isMobile ? 4 : 3, // Większy priorytet na mobile
+              fit: FlexFit.loose,
               child: AnimatedBuilder(
                 animation: _editorBounceAnimation,
                 builder: (context, child) {
@@ -807,8 +834,9 @@ Zespół Metropolitan Investment''';
             
             // 👁️ LIVE PREVIEW PANEL (jeśli włączony)
             if (_isPreviewVisible)
-              Expanded(
+              Flexible(
                 flex: 2,
+                fit: FlexFit.loose,
                 child: _buildLivePreviewPanel(isMobile, isTablet),
               ),
             
@@ -1584,6 +1612,7 @@ Zespół Metropolitan Investment''';
                           showBoldButton: true,
                           showItalicButton: true,
                           showUnderLineButton: true,
+                          showStrikeThrough: true,
                           showFontFamily: !isMobile || isTablet, // Pokaż na tablet
                           showFontSize: !isMobile || isTablet,    // Pokaż na tablet
                           showColorButton: true,
@@ -1693,6 +1722,7 @@ Zespół Metropolitan Investment''';
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               // 🎭 HEADER Z DARK/LIGHT TOGGLE
               Container(
@@ -1722,6 +1752,100 @@ Zespół Metropolitan Investment''';
                       ),
                     ),
                     const Spacer(),
+                    
+                    // 🔍 ZOOM CONTROLS
+                    if (!isMobile) ...[
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppThemePro.accentGold.withValues(alpha: 0.2),
+                              AppThemePro.accentGold.withValues(alpha: 0.1),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppThemePro.accentGold.withValues(
+                              alpha: 0.4,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Zoom Out
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(16),
+                                  bottomLeft: Radius.circular(16),
+                                ),
+                                onTap: _zoomOutPreview,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  child: Icon(
+                                    Icons.zoom_out,
+                                    color: AppThemePro.accentGold,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Zoom Level Display
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.symmetric(
+                                  vertical: BorderSide(
+                                    color: AppThemePro.accentGold.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                '${(_previewZoomLevel * 100).round()}%',
+                                style: TextStyle(
+                                  color: AppThemePro.accentGold,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            // Zoom In
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: const BorderRadius.only(
+                                  topRight: Radius.circular(16),
+                                  bottomRight: Radius.circular(16),
+                                ),
+                                onTap: _zoomInPreview,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  child: Icon(
+                                    Icons.zoom_in,
+                                    color: AppThemePro.accentGold,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     
                     // 🌓 DARK/LIGHT THEME TOGGLE
                     Container(
@@ -1778,7 +1902,8 @@ Zespół Metropolitan Investment''';
               ),
               
               // 📱 PREVIEW CONTENT
-              Expanded(
+              Flexible(
+                fit: FlexFit.loose,
                 child: Container(
                   margin: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -1799,34 +1924,52 @@ Zespół Metropolitan Investment''';
                     borderRadius: BorderRadius.circular(16),
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(20),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        child: html.Html(
-                          key: ValueKey('$_currentPreviewHtml-$_isPreviewDarkTheme'),
-                          data: _currentPreviewHtml.isEmpty ? '<p>Napisz coś w edytorze...</p>' : _currentPreviewHtml,
-                          style: {
-                            'body': html.Style(
-                              fontSize: html.FontSize(14),
-                              fontFamily: 'Arial, sans-serif',
-                              lineHeight: html.LineHeight(1.5),
-                              color: _isPreviewDarkTheme ? Colors.white : Colors.black,
-                              backgroundColor: _isPreviewDarkTheme ? const Color(0xFF1a1a1a) : Colors.white,
+                      child: Transform.scale(
+                        scale: _previewZoomLevel,
+                        alignment: Alignment.topCenter,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: html.Html(
+                            key: ValueKey(
+                              '$_currentPreviewHtml-$_isPreviewDarkTheme',
                             ),
-                            'h3': html.Style(
-                              color: const Color(0xFFD4AF37),
-                              fontSize: html.FontSize(18),
-                              fontWeight: FontWeight.bold,
-                            ),
-                            'p': html.Style(
-                              color: _isPreviewDarkTheme ? Colors.white70 : Colors.black87,
-                            ),
-                            'strong': html.Style(
-                              color: _isPreviewDarkTheme ? Colors.white : Colors.black,
-                            ),
-                            'hr': html.Style(
-                              border: Border.all(color: const Color(0xFFD4AF37)),
-                            ),
-                          },
+                            data: _currentPreviewHtml.isEmpty
+                                ? '<p>Napisz coś w edytorze...</p>'
+                                : _currentPreviewHtml,
+                            style: {
+                              'body': html.Style(
+                                fontSize: html.FontSize(14),
+                                fontFamily: 'Arial, sans-serif',
+                                lineHeight: html.LineHeight(1.5),
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                backgroundColor: _isPreviewDarkTheme
+                                    ? const Color(0xFF1a1a1a)
+                                    : Colors.white,
+                              ),
+                              'h3': html.Style(
+                                color: const Color(0xFFD4AF37),
+                                fontSize: html.FontSize(18),
+                                fontWeight: FontWeight.bold,
+                              ),
+                              'p': html.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white70
+                                    : Colors.black87,
+                              ),
+                              'strong': html.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                              ),
+                              'hr': html.Style(
+                                border: Border.all(
+                                  color: const Color(0xFFD4AF37),
+                                ),
+                              ),
+                            },
+                          ),
                         ),
                       ),
                     ),

@@ -983,6 +983,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         final isSelected = _selectedProductIds.contains(product.id);
 
         return Container(
+          key: ValueKey('deduplicated-product-${product.id}'),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(color: AppThemePro.borderPrimary, width: 0.5),
@@ -1055,6 +1056,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         final isSelected = _selectedProductIds.contains(investment.id);
 
         return Container(
+          key: ValueKey('investment-${investment.id}'),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(color: AppThemePro.borderPrimary, width: 0.5),
@@ -1564,6 +1566,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
             final isLast = index == selectedInvestments.length - 1;
 
             return Container(
+              key: ValueKey('multiple-investment-${investment.id}'),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
                 border: isLast
@@ -1605,6 +1608,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   Expanded(
                     flex: 1,
                     child: Container(
+                      key: ValueKey('multiple-product-type-${investment.id}'),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 4,
@@ -1640,6 +1644,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   Expanded(
                     flex: 1,
                     child: Container(
+                      key: ValueKey('multiple-product-status-${investment.id}'),
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
@@ -1702,6 +1707,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
               // 🎨 NOWE: Badge z liczbą terminów wymagających uwagi
               if (warningCount > 0) ...[
                 Container(
+                  key: ValueKey('timeline-warning-badge-${investment.id}'),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 6,
@@ -1881,6 +1887,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         child: Row(
           children: [
             Container(
+              key: ValueKey('timeline-icon-null-${label}'),
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: AppThemePro.textMuted.withOpacity(0.1),
@@ -1949,6 +1956,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       child: Row(
         children: [
           Container(
+            key: ValueKey('timeline-icon-${label}-${date.toIso8601String()}'),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: statusColor.withOpacity(0.1),
@@ -2005,6 +2013,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
               if (showWarning && (isToday || isNearDue)) ...[
                 const SizedBox(height: 2),
                 Container(
+                  key: ValueKey(
+                    'timeline-urgent-badge-${label}-${date.toIso8601String()}',
+                  ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 6,
                     vertical: 2,
@@ -2156,6 +2167,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
           ),
           const SizedBox(width: 16),
           Container(
+            key: ValueKey('risk-status-${label}-${value}'),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: statusData.color.withOpacity(0.1),
@@ -2229,6 +2241,9 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                       Row(
                         children: [
                           Container(
+                            key: ValueKey(
+                              'summary-tile-icon-${data.title}-${index}',
+                            ),
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: data.color.withOpacity(0.2),
@@ -2606,6 +2621,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
             final isLast = index == selectedProducts.length - 1;
 
             return Container(
+              key: ValueKey('optimized-product-${product.id}'),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
                 border: isLast
@@ -2658,6 +2674,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   Expanded(
                     flex: 1,
                     child: Container(
+                      key: ValueKey('optimized-product-type-${product.id}'),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 4,
@@ -2695,6 +2712,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   Expanded(
                     flex: 1,
                     child: Container(
+                      key: ValueKey('optimized-product-status-${product.id}'),
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(

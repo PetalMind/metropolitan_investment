@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../widgets/dialogs/wow_email_editor_dialog.dart';
+import '../screens/wow_email_editor_screen.dart';
 import '../models_and_services.dart';
 
-/// **PRZYKŁAD UŻYCIA WOW DIALOGU EDYTORA EMAIL**
+/// **PRZYKŁAD UŻYCIA WOW EKRANU EDYTORA EMAIL**
 /// 
-/// Pokazuje najpiękniejszy dialog edytora email w Flutter
+/// Pokazuje najpiękniejszy ekran edytora email w Flutter
 class RedesignedDialogExample extends StatelessWidget {
   const RedesignedDialogExample({super.key});
 
@@ -94,7 +94,7 @@ class RedesignedDialogExample extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Najpiękniejszy dialog edytora email w Flutter z glassmorphism, zaawansowanymi animacjami i perfekcyjnym responsive design.',
+              'Najpiękniejszy ekran edytora email w Flutter z glassmorphism, zaawansowanymi animacjami i perfekcyjnym responsive design.',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 16,
@@ -217,7 +217,7 @@ class RedesignedDialogExample extends StatelessWidget {
         onPressed: () => _openRedesignedDialog(context),
         icon: const Icon(Icons.launch, color: Colors.black),
         label: const Text(
-          'Otwórz WOW Dialog ✨',
+          'Otwórz WOW Screen ✨',
           style: TextStyle(
             color: Colors.black,
             fontSize: 16,
@@ -253,7 +253,7 @@ class RedesignedDialogExample extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 const Text(
-                  'Jak korzystać z WOW dialogu:',
+                  'Jak korzystać z WOW ekranu:',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -358,19 +358,22 @@ class RedesignedDialogExample extends StatelessWidget {
       ),
     ];
 
-    // Otwórz WOW dialog
-    showDialog(
-      context: context,
-      builder: (context) => WowEmailEditorDialog(
-        selectedInvestors: mockInvestors,
-        onEmailSent: () {
-          Navigator.of(context).pop();
-          _showSuccessMessage(context);
-        },
-        initialSubject: 'WOW Email Editor - Ultimate UI/UX Test ✨',
-        initialMessage: 'To jest przykład użycia najpiękniejszego dialogu edytora email w Flutter z glassmorphism, zaawansowanymi animacjami i perfekcyjnym responsive design.',
+    // Otwórz WOW screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WowEmailEditorScreen(
+          selectedInvestors: mockInvestors,
+          initialSubject: 'WOW Email Editor - Ultimate UI/UX Test ✨',
+          initialMessage:
+              'To jest przykład użycia najpiękniejszego ekranu edytora email w Flutter z glassmorphism, zaawansowanymi animacjami i perfekcyjnym responsive design.',
+        ),
       ),
-    );
+    ).then((result) {
+      if (result == true) {
+        _showSuccessMessage(context);
+      }
+    });
   }
 
   void _showSuccessMessage(BuildContext context) {
@@ -380,7 +383,7 @@ class RedesignedDialogExample extends StatelessWidget {
           children: [
             Icon(Icons.check_circle, color: Colors.white),
             SizedBox(width: 8),
-            Text('Dialog został zamknięty - tutaj byłaby logika wysyłania'),
+            Text('Ekran został zamknięty - tutaj byłaby logika wysyłania'),
           ],
         ),
         backgroundColor: const Color(0xFF4CAF50),
