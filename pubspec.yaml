@@ -137,3 +137,66 @@ flutter:
   assets:
     - assets/fonts/
     - assets/logos/
+
+# Font configuration for Enhanced Email Editor
+fonts:
+  - family: Calibri
+    fonts:
+      - asset: assets/fonts/calibri_regular.ttf
+        weight: 400
+      - asset: assets/fonts/calibri_bold.ttf
+        weight: 700
+  - family: Times New Roman
+    fonts:
+      - asset: assets/fonts/times_new_roman_regular.ttf
+        weight: 400
+      - asset: assets/fonts/times_new_roman_bold.ttf
+        weight: 700
+  - family: Aptos
+    fonts:
+      - asset: assets/fonts/aptos_regular.ttf
+        weight: 400
+      - asset: assets/fonts/aptos_bold.ttf
+        weight: 700
+  - family: Georgia
+    fonts:
+      - asset: assets/fonts/georgia_regular.ttf
+        weight: 400
+      - asset: assets/fonts/georgia_bold.ttf
+        weight: 700
+  - family: Arial
+    fonts:
+      - asset: assets/fonts/arial_regular.ttf
+        weight: 400
+      - asset: assets/fonts/arial_bold.ttf
+        weight: 700
+  - family: Book Antiqua
+    fonts:
+      - asset: assets/fonts/book_antiqua_regular.ttf
+        weight: 400
+      - asset: assets/fonts/book_antiqua_bold.ttf
+        weight: 700
+  - family: Archivo Black
+    fonts:
+      - asset: assets/fonts/archivo_black_regular.ttf
+        weight: 400
+      - asset: assets/fonts/archivo_black_bold.ttf
+        weight: 700
+  - family: Comic Neue
+    fonts:
+      - asset: assets/fonts/comic_neue_regular.ttf
+        weight: 400
+      - asset: assets/fonts/comic_neue_bold.ttf
+        weight: 700
+  - family: Kalam
+    fonts:
+      - asset: assets/fonts/kalam_regular.ttf
+        weight: 400
+      - asset: assets/fonts/kalam_bold.ttf
+        weight: 700
+  - family: Century Gothic
+    fonts:
+      - asset: assets/fonts/century_gothic_regular.ttf
+        weight: 400
+      - asset: assets/fonts/century_gothic_bold.ttf
+        weight: 700

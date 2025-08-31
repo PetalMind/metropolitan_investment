@@ -324,8 +324,6 @@ class _TrendAnalysisWidgetState extends State<TrendAnalysisWidget>
                   _buildTrendMetrics(),
                   const SizedBox(height: 24),
                   _buildInteractiveChart(),
-                  const SizedBox(height: 24),
-                  _buildPredictionSection(),
                 ],
               ),
             ),

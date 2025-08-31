@@ -1,0 +1,65 @@
+{
+  "fonts": [
+    {
+      "displayName": "Calibri",
+      "fontFamily": "Calibri",
+      "cssName": "Nunito",
+      "category": "sans-serif"
+    },
+    {
+      "displayName": "Times New Roman",
+      "fontFamily": "Times New Roman",
+      "cssName": "Tinos",
+      "category": "serif"
+    },
+    {
+      "displayName": "Aptos",
+      "fontFamily": "Aptos",
+      "cssName": "Open Sans",
+      "category": "sans-serif"
+    },
+    {
+      "displayName": "Georgia",
+      "fontFamily": "Georgia",
+      "cssName": "Georgia",
+      "category": "serif"
+    },
+    {
+      "displayName": "Arial",
+      "fontFamily": "Arial",
+      "cssName": "Arimo",
+      "category": "sans-serif"
+    },
+    {
+      "displayName": "Book Antiqua",
+      "fontFamily": "Book Antiqua",
+      "cssName": "EB Garamond",
+      "category": "serif"
+    },
+    {
+      "displayName": "Archivo Black",
+      "fontFamily": "Archivo Black",
+      "cssName": "Archivo Black",
+      "category": "sans-serif"
+    },
+    {
+      "displayName": "Comic Neue",
+      "fontFamily": "Comic Neue",
+      "cssName": "Comic Neue",
+      "category": "sans-serif"
+    },
+    {
+      "displayName": "Kalam",
+      "fontFamily": "Kalam",
+      "cssName": "Kalam",
+      "category": "sans-serif"
+    },
+    {
+      "displayName": "Century Gothic",
+      "fontFamily": "Century Gothic",
+      "cssName": "Century Gothic",
+      "category": "sans-serif"
+    }
+  ],
+  "lastUpdated": "2025-08-31T11:33:40.877Z"
+}

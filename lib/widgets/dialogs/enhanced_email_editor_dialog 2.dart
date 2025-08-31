@@ -901,7 +901,7 @@ Zespół Metropolitan Investment''';
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isMobile ? 'Edytor Email' : 'Zaawansowany Edytor Email',
+                  isMobile ? 'Edytor Email' : 'Zaawansowany Edytor Email xd',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: isMobile ? 16 : isSmallScreen ? 18 : 20,

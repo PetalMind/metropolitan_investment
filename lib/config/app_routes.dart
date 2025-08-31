@@ -13,6 +13,7 @@ import '../screens/analytics_screen_refactored.dart';
 import '../screens/product_dashboard_screen.dart';
 import '../widgets/auth_wrapper.dart';
 import '../widgets/main_layout.dart';
+import '../examples/redesigned_dialog_example.dart';
 import '../providers/auth_provider.dart';
 import '../screens/settings/smtp_settings_screen.dart';
 import '../screens/settings_screen.dart';
@@ -65,6 +66,7 @@ class AppRoutes {
   static const String smtpSettings = '/settings/smtp';
   static const String reports = '/reports';
   static const String notifications = '/notifications';
+  static const String testDialog = '/test-dialog';
 
   // === POMOCNICZE METODY ===
 
@@ -439,6 +441,16 @@ class AppRouter {
               context,
               state,
               const NotificationsScreen(),
+            ),
+          ),
+
+          // === TEST DIALOG ===
+          GoRoute(
+            path: AppRoutes.testDialog,
+            pageBuilder: (context, state) => _buildPageWithTransition(
+              context,
+              state,
+              const RedesignedDialogExample(),
             ),
           ),
         ],
