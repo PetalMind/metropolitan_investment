@@ -25,6 +25,11 @@ class AuthService {
   // Check if user is logged in
   bool get isLoggedIn => _auth.currentUser != null;
 
+  // Update last login time in Firebase
+  Future<void> updateLastLoginInFirebase(String uid) async {
+    await _updateUserLastLogin(uid);
+  }
+
   // Check if auto login should be performed
   Future<bool> shouldAutoLogin() async {
     _preferencesService ??= await UserPreferencesService.getInstance();

@@ -202,6 +202,8 @@ class _LoginScreenState extends State<LoginScreen>
       // Play success sound
       await _playLoginSuccessSound();
       
+      // Last login time is already updated in AuthProvider when using signIn
+      
       if (mounted) {
         context.go(AppRoutes.dashboard);
       }

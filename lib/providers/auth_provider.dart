@@ -43,7 +43,11 @@ class AuthProvider extends ChangeNotifier {
 
           // Update last login timestamp if user is signing in
           if (_preferencesService != null) {
-            await _preferencesService!.setLastLoginTimestamp(DateTime.now());
+            final now = DateTime.now();
+            await _preferencesService!.setLastLoginTimestamp(now);
+
+            // Update last login timestamp in Firebase
+            await _authService.updateLastLoginInFirebase(user.uid);
           }
         } else {
           _userProfile = null;
