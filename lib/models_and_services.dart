@@ -182,7 +182,7 @@ export 'widgets/dialogs/investor_email_dialog.dart'; // ⭐ NOWE: Dialog wysyła
 
 // Enhanced investor analytics dialogs
 export 'widgets/investor_analytics/dialogs/enhanced_investor_details_dialog.dart'; // 🚀 ENHANCED: Najnowocześniejszy dialog inwestora z tab navigation, history, voting, responsive design
-export 'widgets/dialogs/enhanced_email_editor_dialog 2.dart'; // 🚀 NOWE: Zaawansowany edytor maili z Quill
+export 'screens/wow_email_editor_screen.dart'; // 🚀 NOWE: WOW Email Editor Screen - zastępuje dialog
 export 'widgets/dialogs/investor_export_dialog.dart'; // ⭐ NOWE: Dialog eksportu danych
 export 'widgets/dialogs/product_history_dialog.dart'; // ⭐ NOWE: Dialog historii zmian produktu
 

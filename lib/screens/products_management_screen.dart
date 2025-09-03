@@ -18,7 +18,7 @@ import '../widgets/product_filter_widget.dart';
 import '../widgets/metropolitan_loading_system.dart';
 import '../widgets/dialogs/product_details_dialog.dart';
 import '../widgets/product_management/product_type_distribution_widget.dart';
-import '../widgets/dialogs/enhanced_email_editor_dialog 2.dart';
+import '../screens/wow_email_editor_screen.dart';
 import '../widgets/common/synchronized_product_values_widget.dart'; // 🚀 NOWY: Zsynchronizowane wartości
 
 // RBAC: wspólny tooltip dla braku uprawnień
@@ -3820,26 +3820,28 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         }
       }
 
-      // 🚀 NOWE: Używamy EnhancedEmailEditorDialog z prawdziwymi inwestorami
+      // 🚀 NOWE: Używamy WowEmailEditorScreen z prawdziwymi inwestorami
       if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => EnhancedEmailEditorDialog(
-            selectedInvestors: uniqueInvestors,
-            onEmailSent: () {
-              Navigator.of(context).pop();
-              _toggleEmailMode(); // 🚀 DODANE: Używamy tej samej logiki co premium_investor_analytics_screen
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('✅ Emaile zostały wysłane'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            initialSubject: 'Informacje o produktach - Metropolitan Investment',
+        final result = await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => WowEmailEditorScreen(
+              selectedInvestors: uniqueInvestors,
+              initialSubject:
+                  'Informacje o produktach - Metropolitan Investment',
+            ),
           ),
         );
+
+        // Sprawdź czy emaile zostały wysłane pomyślnie
+        if (result == true && mounted) {
+          _toggleEmailMode(); // 🚀 DODANE: Używamy tej samej logiki co premium_investor_analytics_screen
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Emaile zostały wysłane'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (kDebugMode) {
@@ -3858,24 +3860,26 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           ),
         );
 
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => EnhancedEmailEditorDialog(
-            selectedInvestors: [], // Pusta lista jako fallback
-            onEmailSent: () {
-              Navigator.of(context).pop();
-              _toggleEmailMode();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('✅ Emaile zostały wysłane'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            initialSubject: 'Informacje o produktach - Metropolitan Investment',
+        final result = await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => WowEmailEditorScreen(
+              selectedInvestors: [], // Pusta lista jako fallback
+              initialSubject:
+                  'Informacje o produktach - Metropolitan Investment',
+            ),
           ),
         );
+
+        // Sprawdź czy emaile zostały wysłane pomyślnie
+        if (result == true && mounted) {
+          _toggleEmailMode();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Emaile zostały wysłane'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } finally {
       // Ukryj loading
@@ -3887,7 +3891,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     }
   }
 
-  void _showExportFormatDialog() {
+  Future<void> _showExportFormatDialog() async {
     if (_selectedProductIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -3910,23 +3914,133 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       return;
     }
 
-    // Konwertuj wybrane produkty na InvestorSummary dla kompatybilności z InvestorExportDialog
+    // 🚀 NOWE: Pokaż loading podczas pobierania inwestorów
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
+    try {
+      // 🚀 NOWE: Pobierz prawdziwych inwestorów dla wszystkich wybranych produktów
+      final Set<InvestorSummary> allInvestors = {};
+
+      for (final product in _selectedProducts) {
+        if (kDebugMode) {
+          print(
+            '🔍 [ProductsManagement] Pobieranie inwestorów dla produktu: ${product.name}',
+          );
+        }
+
+        try {
+          // Użyj ultra-precyzyjnego serwisu dla pobrania inwestorów produktu
+          final result = await _ultraPreciseInvestorsService.getByProductName(
+            product.name,
+            forceRefresh: false,
+          );
+
+          if (result.isSuccess && result.investors.isNotEmpty) {
+            allInvestors.addAll(result.investors);
+            if (kDebugMode) {
+              print(
+                '✅ [ProductsManagement] Znaleziono ${result.investors.length} inwestorów dla ${product.name}',
+              );
+            }
+          } else {
+            if (kDebugMode) {
+              print(
+                '⚠️ [ProductsManagement] Brak inwestorów dla produktu: ${product.name}',
+              );
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print(
+              '❌ [ProductsManagement] Błąd pobierania inwestorów dla ${product.name}: $e',
+            );
+          }
+        }
+      }
+
+      // Konwertuj Set na List dla dialogu
+      final uniqueInvestors = allInvestors.toList();
+
+      if (kDebugMode) {
+        print('📊 [ProductsManagement] Podsumowanie eksportu:');
+        print('  - Wybrane produkty: ${_selectedProducts.length}');
+        print('  - Znalezieni inwestorzy: ${uniqueInvestors.length}');
+        print('  - Unikalni inwestorzy: ${allInvestors.length}');
+      }
+
+      // Jeśli nie znaleziono żadnych inwestorów, pokaż ostrzeżenie ale pozwól kontynuować
+      if (uniqueInvestors.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '⚠️ Nie znaleziono inwestorów dla wybranych produktów.\n'
+                'Eksport zostanie przeprowadzony z danymi produktów.',
+              ),
+              backgroundColor: AppTheme.warningPrimary,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+
+        // Fallback: użyj danych produktów jako sztucznych inwestorów
+        final fallbackInvestors = _createFallbackInvestorsFromProducts();
+        _showExportDialogWithInvestors(fallbackInvestors);
+      } else {
+        // Użyj prawdziwych inwestorów
+        _showExportDialogWithInvestors(uniqueInvestors);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [ProductsManagement] Błąd podczas pobierania inwestorów: $e');
+      }
+
+      // Fallback: pokaż dialog z produktami jako sztucznymi inwestorami
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '⚠️ Błąd pobierania inwestorów. Eksport zostanie przeprowadzony z danymi produktów.',
+            ),
+            backgroundColor: AppTheme.warningPrimary,
+          ),
+        );
+      }
+
+      final fallbackInvestors = _createFallbackInvestorsFromProducts();
+      _showExportDialogWithInvestors(fallbackInvestors);
+    } finally {
+      // Ukryj loading
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  /// 🚀 NOWA METODA: Tworzy sztucznych inwestorów z danych produktów (fallback)
+  List<InvestorSummary> _createFallbackInvestorsFromProducts() {
     final List<InvestorSummary> investorSummaries = [];
 
     for (final product in _selectedProducts) {
-      // Utwórz tymczasowego klienta z danymi produktu
+      // Utwórz tymczasowego klienta z danymi produktu (z unikalnym ID)
       final client = Client(
-        id: product.companyId,
-        name: product.companyName,
-        email: '',
+        id: 'product_${product.id}', // Unikalny prefix dla produktów
+        name: '${product.companyName} - ${product.name}',
+        email: 'product@${product.companyId}.company',
         phone: '',
         pesel: null,
         companyName: product.companyName,
         address: '',
-        notes: '',
+        notes: 'Dane wygenerowane z produktu: ${product.name}',
         isActive: product.status == ProductStatus.active,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        createdAt: product.earliestInvestmentDate,
+        updatedAt: product.latestInvestmentDate,
       );
 
       // Tworzenie InvestorSummary z prawidłowymi parametrami
@@ -3945,18 +4059,22 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       investorSummaries.add(investorSummary);
     }
 
-    // Używamy istniejącego InvestorExportDialog
+    return investorSummaries;
+  }
+
+  /// 🚀 NOWA METODA: Pokazuje dialog eksportu z listą inwestorów
+  void _showExportDialogWithInvestors(List<InvestorSummary> investors) {
     showDialog(
       context: context,
       builder: (context) => InvestorExportDialog(
-        selectedInvestors: investorSummaries,
+        selectedInvestors: investors,
         onExportComplete: () {
           Navigator.of(context).pop();
           _toggleExportMode();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('✅ Eksport zakończony pomyślnie'),
-              backgroundColor: Colors.green,
+              backgroundColor: AppTheme.successColor,
             ),
           );
         },

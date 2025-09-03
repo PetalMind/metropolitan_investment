@@ -5,9 +5,73 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart' as html_package;
 import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
+
+/// 🎨 CUSTOM ATTRIBUTES FOR ADVANCED FONT HANDLING
+class CustomAttributes {
+  // Custom font attribute for font family selection
+  static final font = Attribute<String>('font', AttributeScope.inline, 'Arial');
+
+  // Additional custom attributes for future extensions
+  static final letterSpacing = Attribute<double>(
+    'letterSpacing',
+    AttributeScope.inline,
+    0.0,
+  );
+  static final lineHeight = Attribute<double>(
+    'lineHeight',
+    AttributeScope.inline,
+    1.0,
+  );
+}
+
+/// 🎨 FONT FAMILY CONFIGURATION
+class FontFamilyConfig {
+  static const Map<String, String> availableFonts = {
+    'Arial': 'Arial',
+    'Helvetica': 'Helvetica',
+    'Times New Roman': 'Times New Roman',
+    'Courier New': 'Courier New',
+    'Verdana': 'Verdana',
+    'Georgia': 'Georgia',
+    'Trebuchet MS': 'Trebuchet MS',
+    'Tahoma': 'Tahoma',
+    'Calibri': 'Calibri',
+    'Segoe UI': 'Segoe UI',
+    'Open Sans': 'Open Sans',
+    'Roboto': 'Roboto',
+    'Lato': 'Lato',
+    'Montserrat': 'Montserrat',
+  };
+
+  static const String defaultFont = 'Arial';
+
+  /// Get CSS font family with fallbacks
+  static String getCssFontFamily(String fontName) {
+    const fontFallbacks = {
+      'Arial': 'Arial, "Helvetica Neue", Helvetica, sans-serif',
+      'Helvetica': 'Helvetica, "Helvetica Neue", Arial, sans-serif',
+      'Times New Roman': '"Times New Roman", Times, serif',
+      'Courier New': '"Courier New", Courier, monospace',
+      'Verdana': 'Verdana, Geneva, sans-serif',
+      'Georgia': 'Georgia, "Times New Roman", Times, serif',
+      'Trebuchet MS':
+          '"Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Tahoma, sans-serif',
+      'Tahoma': 'Tahoma, Geneva, sans-serif',
+      'Calibri': 'Calibri, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+      'Segoe UI': '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+      'Open Sans':
+          '"Open Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+      'Roboto': 'Roboto, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+      'Lato': 'Lato, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+      'Montserrat':
+          'Montserrat, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+    };
+
+    return fontFallbacks[fontName] ?? '$fontName, Arial, sans-serif';
+  }
+}
 
 /// **🚀 WOW EMAIL EDITOR SCREEN - NAJPIĘKNIEJSZY SCREEN W FLUTTER! 🚀**
 ///
@@ -48,116 +112,19 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   final _subjectController = TextEditingController();
   final _additionalEmailController = TextEditingController();
 
-  // 🎨 GOOGLE FONTS ONLY - CURATED COLLECTION WITH CATEGORIES
-  static final Map<
-    String,
-    TextStyle Function({double? fontSize, FontWeight? fontWeight, Color? color})
-  >
-  _googleFonts = {
-    // Sans-serif fonts
-    'Roboto': GoogleFonts.roboto,
-    'Open Sans': GoogleFonts.openSans,
-    'Lato': GoogleFonts.lato,
-    'Montserrat': GoogleFonts.montserrat,
-    'Poppins': GoogleFonts.poppins,
-    'Inter': GoogleFonts.inter,
-    'Source Sans 3': GoogleFonts.sourceSans3,
-    'Nunito': GoogleFonts.nunito,
-    'PT Sans': GoogleFonts.ptSans,
-    'Ubuntu': GoogleFonts.ubuntu,
-    'Work Sans': GoogleFonts.workSans,
-    'Raleway': GoogleFonts.raleway,
-    'Fira Sans': GoogleFonts.firaSans,
-    'Mulish': GoogleFonts.mulish,
-
-    // Serif fonts
-    'Playfair Display': GoogleFonts.playfairDisplay,
-    'Merriweather': GoogleFonts.merriweather,
-    'Libre Baskerville': GoogleFonts.libreBaskerville,
-    'Crimson Text': GoogleFonts.crimsonText,
-    'EB Garamond': GoogleFonts.ebGaramond,
-    'Lora': GoogleFonts.lora,
-    'Source Serif 4': GoogleFonts.sourceSerif4,
-    'Cormorant Garamond': GoogleFonts.cormorantGaramond,
-    'Noto Serif': GoogleFonts.notoSerif,
-
-    // Monospace fonts
-    'Fira Code': GoogleFonts.firaCode,
-    'Source Code Pro': GoogleFonts.sourceCodePro,
-    'JetBrains Mono': GoogleFonts.jetBrainsMono,
-    'Roboto Mono': GoogleFonts.robotoMono,
-    'Ubuntu Mono': GoogleFonts.ubuntuMono,
-    'Space Mono': GoogleFonts.spaceMono,
-
-    // Decorative fonts
-    'Archivo Black': GoogleFonts.archivoBlack,
-    'Comic Neue': GoogleFonts.comicNeue,
-    'Kalam': GoogleFonts.kalam,
-    'Oswald': GoogleFonts.oswald,
-    'Pacifico': GoogleFonts.pacifico,
-    'Dancing Script': GoogleFonts.dancingScript,
-    'Righteous': GoogleFonts.righteous,
-    'Fredoka': GoogleFonts.fredoka,
-  };
-
-  // Font categories for organized display
-  static const Map<String, List<String>> _fontCategories = {
-    'Sans-serif': [
-      'Roboto',
-      'Open Sans',
-      'Lato',
-      'Montserrat',
-      'Poppins',
-      'Inter',
-      'Source Sans 3',
-      'Nunito',
-      'PT Sans',
-      'Ubuntu',
-      'Work Sans',
-      'Raleway',
-      'Fira Sans',
-      'Mulish',
-    ],
-    'Serif': [
-      'Playfair Display',
-      'Merriweather',
-      'Libre Baskerville',
-      'Crimson Text',
-      'EB Garamond',
-      'Lora',
-      'Source Serif 4',
-      'Cormorant Garamond',
-      'Noto Serif',
-    ],
-    'Monospace': [
-      'Fira Code',
-      'Source Code Pro',
-      'JetBrains Mono',
-      'Roboto Mono',
-      'Ubuntu Mono',
-      'Space Mono',
-    ],
-    'Decorative': [
-      'Archivo Black',
-      'Comic Neue',
-      'Kalam',
-      'Oswald',
-      'Pacifico',
-      'Dancing Script',
-      'Righteous',
-      'Fredoka',
-    ],
-  };
-
+  // 📏 ENHANCED FONT SIZES WITH COMPLETE RANGE
   static const Map<String, String> _fontSizes = {
+    'Bardzo mały (10px)': '10',
     'Mały (12px)': '12',
     'Normalny (14px)': '14',
     'Średni (16px)': '16',
     'Duży (18px)': '18',
-    'Bardzo duży (24px)': '24',
+    'Większy (20px)': '20',
+    'Duży nagłówek (24px)': '24',
+    'Bardzo duży (28px)': '28',
     'Ogromny (32px)': '32',
-    'Mini (10px)': '10',
-    'Nagłówek (28px)': '28',
+    'Gigantyczny (36px)': '36',
+    'Maksymalny (48px)': '48',
   };
 
   // 🎭 STAN SCREEN Z WOW EFEKTAMI
@@ -190,178 +157,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   final Map<String, String> _recipientEmails = {};
   final List<String> _additionalEmails = [];
 
-  // 🎨 SELECTED GOOGLE FONT TRACKING
-  String _selectedFontFamily = 'Roboto';
 
-  // 🎨 GOOGLE FONTS HELPER METHODS
-  String _getFontFamilyForHtml(String fontName) {
-    // Wszystkie fonty to już Google Fonts, return proper CSS
-    return '"$fontName", sans-serif';
-  }
-
-  List<DropdownMenuItem<String>> _buildCategorizedFontItems() {
-    List<DropdownMenuItem<String>> items = [];
-
-    // Iteruj przez każdą kategorię i dodaj jej fonty
-    _fontCategories.forEach((category, fonts) {
-      // Dodaj separator kategorii (ale nie jako wybieralny element)
-      // Dodaj fonty z tej kategorii
-      for (String fontName in fonts) {
-        if (_googleFonts.containsKey(fontName)) {
-          items.add(
-            DropdownMenuItem<String>(
-              value: fontName,
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Category indicator
-                        Container(
-                          width: 3,
-                          height: 16,
-                          color: _getCategoryColor(category),
-                          margin: EdgeInsets.only(right: 8),
-                        ),
-                        Flexible(
-                          child: Text(
-                            fontName,
-                            style: _getGoogleFontTextStyle(
-                              fontName,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppThemePro.textPrimary,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Padding(
-                      padding: EdgeInsets.only(left: 11),
-                      child: Text(
-                        'Przykład tekstu 123 • $category',
-                        style: _getGoogleFontTextStyle(
-                          fontName,
-                          fontSize: 12,
-                          color: AppThemePro.textSecondary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }
-      }
-    });
-
-    return items;
-  }
-
-  Color _getCategoryColor(String category) {
-    switch (category) {
-      case 'Sans-serif':
-        return Colors.blue;
-      case 'Serif':
-        return Colors.green;
-      case 'Monospace':
-        return Colors.orange;
-      case 'Decorative':
-        return Colors.purple;
-      default:
-        return AppThemePro.accentGold;
-    }
-  }
-
-  String _getGoogleFontsImportUrl() {
-    // Generuj URL dla wszystkich Google Fonts
-    final googleFonts = _googleFonts.keys
-        .map((font) => font.replaceAll(' ', '+'))
-        .toList();
-
-    if (googleFonts.isEmpty) return '';
-
-    return 'https://fonts.googleapis.com/css2?${googleFonts.map((font) => 'family=$font:wght@300;400;600;700').join('&')}&display=swap';
-  }
-
-  // 🎨 PRELOAD GOOGLE FONTS TO ENSURE AVAILABILITY
-  Future<void> _preloadGoogleFonts() async {
-    try {
-      // Preload wszystkie Google Fonts z listy używając funkcji
-      for (final fontName in _googleFonts.keys) {
-        final fontFunction = _googleFonts[fontName]!;
-        fontFunction(); // Call the Google Font function to preload
-      }
-
-      debugPrint(
-        '🎨 Google Fonts preloaded successfully: ${_googleFonts.length} fonts',
-      );
-      
-      // Also add foundation CSS imports for web compatibility
-      _injectGoogleFontsCSSForWeb();
-    } catch (e) {
-      debugPrint('⚠️ Error preloading Google Fonts: $e');
-    }
-  }
-
-  void _injectGoogleFontsCSSForWeb() {
-    try {
-      // Generate CSS font-family names that match our Google Fonts
-      final fontFamilyNames = <String>[];
-      for (final fontName in _googleFonts.keys) {
-        fontFamilyNames.add('"$fontName"');
-      }
-      
-      debugPrint('🌐 Available Google Font families: ${fontFamilyNames.join(', ')}');
-      
-      // Note: GoogleFonts package handles CSS loading automatically
-      // This is just for debugging and verification
-    } catch (e) {
-      debugPrint('⚠️ Error setting up web fonts: $e');
-    }
-  }
-
-  // 🎨 GET GOOGLE FONT FOR FLUTTER WIDGETS
-  TextStyle _getGoogleFontTextStyle(
-    String fontName, {
-    double? fontSize,
-    FontWeight? fontWeight,
-    Color? color,
-  }) {
-    try {
-      // Use Google Fonts function from mapping
-      final fontFunction = _googleFonts[fontName];
-      if (fontFunction != null) {
-        return fontFunction(
-          fontSize: fontSize,
-          fontWeight: fontWeight,
-          color: color,
-        );
-      } else {
-        // Fallback to Roboto if font not found
-        return GoogleFonts.roboto(
-          fontSize: fontSize,
-          fontWeight: fontWeight,
-          color: color,
-        );
-      }
-    } catch (e) {
-      debugPrint('Error loading Google Font $fontName: $e');
-      // Fallback to Roboto on error
-      return GoogleFonts.roboto(
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-        color: color,
-      );
-    }
-  }
 
   @override
   void initState() {
@@ -372,9 +168,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   void _initializeWowScreen() {
     _quillController = QuillController.basic();
     _editorFocusNode = FocusNode();
-
-    // 🎨 PRELOAD GOOGLE FONTS
-    _preloadGoogleFonts();
 
     // 🎪 INICJALIZACJA WOW ANIMACJI
     _settingsAnimationController = AnimationController(
@@ -485,19 +278,12 @@ Zespół Metropolitan Investment''';
       _quillController.clear();
       _quillController.document.insert(0, content);
       
-      // Zastosuj domyślną czcionkę do całego tekstu
-      if (content.isNotEmpty) {
-        _quillController.formatText(
-          0,
-          content.length,
-          Attribute.fromKeyValue('font', _selectedFontFamily)
-        );
-      }
-      
       _quillController.updateSelection(
         TextSelection.collapsed(offset: content.length),
         ChangeSource.local,
       );
+      
+      debugPrint('🎨 Initial content loaded');
     } catch (e) {
       debugPrint('Error initializing content: $e');
     }
@@ -505,6 +291,7 @@ Zespół Metropolitan Investment''';
 
   @override
   void dispose() {
+    _previewUpdateTimer?.cancel(); // Clean up timer
     _quillController.removeListener(_updatePreviewContent);
     _quillController.dispose();
     _editorFocusNode.dispose();
@@ -519,14 +306,57 @@ Zespół Metropolitan Investment''';
     super.dispose();
   }
 
-  // 🎪 REAL-TIME PREVIEW UPDATER
+  // 🎪 ENHANCED REAL-TIME PREVIEW UPDATER WITH DEBOUNCING
+  Timer? _previewUpdateTimer;
+  
   void _updatePreviewContent() {
-    setState(() {
-      _currentPreviewHtml = _convertQuillToHtml();
-      if (_includeInvestmentDetails) {
-        _currentPreviewHtml = _addInvestmentDetailsToHtml(_currentPreviewHtml);
+    // Cancel previous timer to debounce rapid changes
+    _previewUpdateTimer?.cancel();
+
+    _previewUpdateTimer = Timer(const Duration(milliseconds: 150), () {
+      if (mounted) {
+        setState(() {
+          try {
+            _currentPreviewHtml = _convertQuillToHtml();
+            if (_includeInvestmentDetails) {
+              _currentPreviewHtml = _addInvestmentDetailsToHtml(
+                _currentPreviewHtml,
+              );
+            }
+            debugPrint('🔄 Preview updated successfully');
+          } catch (e) {
+            debugPrint('⚠️ Preview update error: $e');
+            // Fallback to plain text if conversion fails
+            final plainText = _quillController.document.toPlainText();
+            _currentPreviewHtml =
+                '<p>${plainText.isNotEmpty ? plainText : 'Wpisz treść wiadomości...'}</p>';
+          }
+        });
       }
     });
+  }
+
+  // 🎪 FORCE IMMEDIATE PREVIEW UPDATE (FOR CRITICAL CHANGES)
+  void _forcePreviewUpdate() {
+    _previewUpdateTimer?.cancel();
+    if (mounted) {
+      setState(() {
+        try {
+          _currentPreviewHtml = _convertQuillToHtml();
+          if (_includeInvestmentDetails) {
+            _currentPreviewHtml = _addInvestmentDetailsToHtml(
+              _currentPreviewHtml,
+            );
+          }
+          debugPrint('� Preview force updated');
+        } catch (e) {
+          debugPrint('⚠️ Force preview update error: $e');
+          final plainText = _quillController.document.toPlainText();
+          _currentPreviewHtml =
+              '<p>${plainText.isNotEmpty ? plainText : 'Wpisz treść wiadomości...'}</p>';
+        }
+      });
+    }
   }
 
   // 📝 DODAWANIE SZCZEGÓŁÓW INWESTYCJI DO HTML Z KOLOROWYMI IKONKAMI (BEZ ANIMACJI)
@@ -595,33 +425,50 @@ Zespół Metropolitan Investment''';
         })
         .join('\n');
 
-    // Dodajemy style z dynamicznym Google Fonts import
-    final googleFontsUrl = _getGoogleFontsImportUrl();
+    // Dodajemy podstawowe style
     final styles =
         '''
 <style>
-${googleFontsUrl.isNotEmpty ? '@import url(\'$googleFontsUrl\');' : ''}
-body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.6; }
-* { font-family: inherit !important; }
+body { 
+  margin: 0; 
+  padding: 20px; 
+  font-family: Arial, sans-serif; 
+  line-height: 1.6; 
+}
+* { 
+  font-family: inherit !important; 
+}
 </style>
 ''';
 
-    // Ensure we have proper HTML structure with font loading
+    // Ensure we have proper HTML structure
     String finalHtml = baseHtml;
+    
     if (!baseHtml.contains('<html>') && !baseHtml.contains('<body>')) {
       finalHtml =
-          '<html><head><meta charset="UTF-8">$styles</head><body>$baseHtml$investmentHtml</body></html>';
+          '''
+<html>
+<head>
+  <meta charset="UTF-8">
+  $styles
+</head>
+<body>
+  <div>
+    $baseHtml$investmentHtml
+  </div>
+</body>
+</html>''';
     } else if (baseHtml.contains('</head>')) {
       finalHtml = baseHtml
           .replaceAll('</head>', '$styles</head>')
-          .replaceAll('</body>', '$investmentHtml</body>');
+          .replaceAll('</body>', '<div>$investmentHtml</div></body>');
     } else if (baseHtml.contains('</body>')) {
       finalHtml = baseHtml.replaceAll(
         '</body>',
-        '$styles$investmentHtml</body>',
+        '$styles<div>$investmentHtml</div></body>',
       );
     } else {
-      finalHtml = baseHtml + styles + investmentHtml;
+      finalHtml = '<div>$baseHtml$styles$investmentHtml</div>';
     }
 
     return finalHtml;
@@ -663,7 +510,7 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
     });
   }
 
-  // 🎨 KONWERSJA DO HTML
+  // 🎨 ENHANCED KONWERSJA DO HTML Z PEŁNYM WSPARCIEM FORMATOWANIA
   String _convertQuillToHtml() {
     try {
       if (_quillController.document.length <= 1) return '<p></p>';
@@ -676,7 +523,10 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
         ConverterOptions(
           converterOptions: OpConverterOptions(
             inlineStylesFlag: true,
+            allowBackgroundClasses: false,
+            paragraphTag: 'p',
             inlineStyles: InlineStyles({
+              // ✅ PODSTAWOWE FORMATOWANIE TEKSTU
               'bold': InlineStyleType(fn: (value, _) => 'font-weight: bold'),
               'italic': InlineStyleType(fn: (value, _) => 'font-style: italic'),
               'underline': InlineStyleType(
@@ -685,86 +535,175 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
               'strike': InlineStyleType(
                 fn: (value, _) => 'text-decoration: line-through',
               ),
-              'color': InlineStyleType(fn: (value, _) => 'color: $value'),
-              'background': InlineStyleType(
-                fn: (value, _) => 'background-color: $value',
+
+              // 🎨 KOLORY TEKSTU I TŁA
+              'color': InlineStyleType(
+                fn: (value, _) {
+                  if (value.isEmpty) return null;
+                  // Ensure proper color format
+                  String colorValue = value;
+                  if (!colorValue.startsWith('#') &&
+                      !colorValue.startsWith('rgb')) {
+                    // If it's a color name or other format, keep as is
+                    colorValue = value;
+                  }
+                  debugPrint('🎨 Converting color: $value → $colorValue');
+                  return 'color: $colorValue !important';
+                },
               ),
+              'background': InlineStyleType(
+                fn: (value, _) {
+                  if (value.isEmpty) return null;
+                  String colorValue = value;
+                  if (!colorValue.startsWith('#') &&
+                      !colorValue.startsWith('rgb')) {
+                    colorValue = value;
+                  }
+                  debugPrint('🎨 Converting background: $value → $colorValue');
+                  return 'background-color: $colorValue !important';
+                },
+              ),
+
+              // 🔤 ENHANCED FONT FAMILY HANDLING WITH CUSTOM ATTRIBUTES
               'font': InlineStyleType(
                 fn: (value, _) {
                   if (value.isEmpty) return null;
-
-                  // Try exact match first w Google Fonts
-                  if (_googleFonts.containsKey(value)) {
-                    return 'font-family: ${_getFontFamilyForHtml(value)} !important';
-                  }
-
-                  // Try case-insensitive match
-                  final lowerValue = value.toLowerCase();
-                  for (final entry in _googleFonts.entries) {
-                    if (entry.key.toLowerCase() == lowerValue) {
-                      return 'font-family: ${_getFontFamilyForHtml(entry.key)} !important';
-                    }
-                  }
-
-                  // Try partial match for common font names
-                  for (final entry in _googleFonts.entries) {
-                    if (entry.key.toLowerCase().contains(lowerValue) ||
-                        lowerValue.contains(entry.key.toLowerCase())) {
-                      return 'font-family: ${_getFontFamilyForHtml(entry.key)} !important';
-                    }
-                  }
-
-                  // Clean value and apply with quotes if needed (fallback)
-                  final cleanValue = value.replaceAll('"', '').trim();
-                  final needsQuotes =
-                      cleanValue.contains(' ') || cleanValue.contains('-');
-                  final fontValue = needsQuotes ? '"$cleanValue"' : cleanValue;
-                  return 'font-family: $fontValue, sans-serif !important';
+                  
+                  // Use our FontFamilyConfig for proper CSS font families
+                  final cssFontFamily = FontFamilyConfig.getCssFontFamily(
+                    value,
+                  );
+                  debugPrint(
+                    '🎨 Converting custom font to HTML: $value → $cssFontFamily',
+                  );
+                  return 'font-family: $cssFontFamily !important';
                 },
               ),
-              // NOWE: Dedykowana obsługa font-family attribute
               'font-family': InlineStyleType(
                 fn: (value, _) {
                   if (value.isEmpty) return null;
-
-                  // Preferuj font-family nad font jeśli dostępne
-                  // Try exact match first w Google Fonts
-                  if (_googleFonts.containsKey(value)) {
-                    return 'font-family: ${_getFontFamilyForHtml(value)} !important';
-                  }
-
-                  // Try case-insensitive match
-                  final lowerValue = value.toLowerCase();
-                  for (final entry in _googleFonts.entries) {
-                    if (entry.key.toLowerCase() == lowerValue) {
-                      return 'font-family: ${_getFontFamilyForHtml(entry.key)} !important';
-                    }
-                  }
-
-                  // Clean value and apply with quotes if needed (fallback)
-                  final cleanValue = value.replaceAll('"', '').trim();
-                  final needsQuotes =
-                      cleanValue.contains(' ') || cleanValue.contains('-');
-                  final fontValue = needsQuotes ? '"$cleanValue"' : cleanValue;
-                  return 'font-family: $fontValue, sans-serif !important';
+                  
+                  // Use our FontFamilyConfig for proper CSS font families
+                  final cssFontFamily = FontFamilyConfig.getCssFontFamily(
+                    value,
+                  );
+                  debugPrint(
+                    '🎨 Converting font-family to HTML: $value → $cssFontFamily',
+                  );
+                  return 'font-family: $cssFontFamily !important';
                 },
               ),
+
+              // 📏 ENHANCED FONT SIZE HANDLING
               'size': InlineStyleType(
                 fn: (value, _) {
                   if (value.isEmpty) return null;
 
-                  // Extract number from value if it's formatted like "Normalny (14px)"
-                  final sizeMatch = RegExp(r'\((\d+)px\)').firstMatch(value);
-                  if (sizeMatch != null) {
-                    return 'font-size: ${sizeMatch.group(1)}px !important';
+                  debugPrint('🎨 Converting size: $value');
+
+                  // Handle predefined sizes from _fontSizes map
+                  if (_fontSizes.containsKey(value)) {
+                    final sizeValue = _fontSizes[value]!;
+                    debugPrint(
+                      '🎨 Found predefined size: $value → ${sizeValue}px',
+                    );
+                    return 'font-size: ${sizeValue}px !important';
                   }
 
-                  // Check if it's a plain number
+                  // Extract number from formatted value like "Normalny (14px)"
+                  final sizeMatch = RegExp(r'\((\d+)px\)').firstMatch(value);
+                  if (sizeMatch != null) {
+                    final size = sizeMatch.group(1)!;
+                    debugPrint(
+                      '🎨 Extracted size from format: $value → ${size}px',
+                    );
+                    return 'font-size: ${size}px !important';
+                  }
+
+                  // Handle plain numbers
                   if (RegExp(r'^\d+$').hasMatch(value)) {
+                    debugPrint('🎨 Plain number size: $value → ${value}px');
                     return 'font-size: ${value}px !important';
                   }
 
+                  // Handle sizes with units
+                  if (RegExp(
+                    r'^\d+(\.\d+)?(px|pt|em|rem|%)$',
+                  ).hasMatch(value)) {
+                    debugPrint('🎨 Size with unit: $value');
+                    return 'font-size: $value !important';
+                  }
+
+                  // Fallback for any other size format
+                  debugPrint('🎨 Fallback size: $value');
                   return 'font-size: $value !important';
+                },
+              ),
+
+              // 📐 TEXT ALIGNMENT
+              'align': InlineStyleType(
+                fn: (value, _) {
+                  if (value.isEmpty) return null;
+                  debugPrint('🎨 Converting alignment: $value');
+                  // Ensure proper alignment values
+                  const validAlignments = [
+                    'left',
+                    'center',
+                    'right',
+                    'justify',
+                  ];
+                  final alignment = validAlignments.contains(value)
+                      ? value
+                      : 'left';
+                  return 'text-align: $alignment !important';
+                },
+              ),
+
+              // 📝 LIST FORMATTING (enhanced)
+              'list': InlineStyleType(
+                fn: (value, _) {
+                  if (value.isEmpty) return null;
+                  debugPrint('🎨 Converting list: $value');
+                  // Add proper list styling
+                  return 'margin-left: 20px; padding-left: 10px;';
+                },
+              ),
+
+              // 🎭 TEXT INDENTATION
+              'indent': InlineStyleType(
+                fn: (value, _) {
+                  if (value.isEmpty) return null;
+                  final indentValue = int.tryParse(value.toString()) ?? 1;
+                  final indentPx = indentValue * 30; // 30px per indent level
+                  debugPrint('🎨 Converting indent: $value → ${indentPx}px');
+                  return 'margin-left: ${indentPx}px !important';
+                },
+              ),
+
+              // 🔗 LINK FORMATTING (enhanced)
+              'link': InlineStyleType(
+                fn: (value, _) {
+                  if (value.isEmpty) return null;
+                  debugPrint('🎨 Converting link: $value');
+                  return 'color: #0066cc !important; text-decoration: underline !important;';
+                },
+              ),
+
+              // 📏 LINE HEIGHT
+              'line-height': InlineStyleType(
+                fn: (value, _) {
+                  if (value.isEmpty) return null;
+                  debugPrint('🎨 Converting line-height: $value');
+                  return 'line-height: $value !important';
+                },
+              ),
+
+              // 🎨 LETTER SPACING
+              'letter-spacing': InlineStyleType(
+                fn: (value, _) {
+                  if (value.isEmpty) return null;
+                  debugPrint('🎨 Converting letter-spacing: $value');
+                  return 'letter-spacing: $value !important';
                 },
               ),
             }),
@@ -772,9 +711,75 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
         ),
       );
 
-      return converter.convert();
+      final htmlOutput = converter.convert();
+
+      // 🔍 VALIDATE AND ENHANCE HTML OUTPUT
+      String finalHtml = htmlOutput;
+
+      // Ensure we have basic HTML structure for email compatibility
+      if (!finalHtml.contains('<html>')) {
+        finalHtml =
+            '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Content</title>
+  <style>
+    body { 
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important; 
+      line-height: 1.6 !important; 
+      color: #333333 !important; 
+      margin: 0; 
+      padding: 20px; 
+    }
+    p { margin: 0 0 16px 0 !important; }
+    h1 { font-size: 32px !important; margin: 16px 0 8px 0 !important; }
+    h2 { font-size: 24px !important; margin: 16px 0 8px 0 !important; }
+    h3 { font-size: 20px !important; margin: 16px 0 8px 0 !important; }
+    ul, ol { margin: 0 0 16px 20px !important; padding-left: 20px !important; }
+    li { margin: 0 0 8px 0 !important; }
+    blockquote { 
+      margin: 16px 20px !important; 
+      padding: 16px !important; 
+      background-color: #f9f9f9 !important; 
+      border-left: 4px solid #ccc !important; 
+      font-style: italic !important; 
+    }
+    a { color: #0066cc !important; text-decoration: underline !important; }
+    strong, b { font-weight: bold !important; }
+    em, i { font-style: italic !important; }
+    u { text-decoration: underline !important; }
+    strike, s { text-decoration: line-through !important; }
+    code { 
+      background-color: #f4f4f4 !important; 
+      padding: 2px 4px !important; 
+      font-family: "Courier New", monospace !important; 
+      font-size: 14px !important; 
+    }
+    pre { 
+      background-color: #f4f4f4 !important; 
+      padding: 12px !important; 
+      font-family: "Courier New", monospace !important; 
+      white-space: pre-wrap !important; 
+      margin: 0 0 16px 0 !important; 
+    }
+  </style>
+</head>
+<body>
+  $finalHtml
+</body>
+</html>''';
+      }
+
+      debugPrint('🎨 HTML conversion completed with enhanced structure');
+      return finalHtml;
     } catch (e) {
-      return '<p>${_quillController.document.toPlainText()}</p>';
+      debugPrint('⚠️ HTML conversion error: $e');
+      final plainText = _quillController.document.toPlainText();
+      final defaultFontFamily = 'Arial, sans-serif';
+      return '<div style="font-family: $defaultFontFamily !important; font-size: 16px; line-height: 1.6;"><p>$plainText</p></div>';
     }
   }
 
@@ -931,6 +936,54 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
     return buffer.toString();
   }
 
+  // 🧪 TESTING HELPER - ADD SAMPLE FORMATTED CONTENT
+  void _addSampleContent() {
+    final sampleContent = '''Witam Szanownych Państwa!
+
+To jest przykład wiadomości z różnymi formatowaniami:
+
+BOLD TEXT - pogrubione
+Italic text - kursywa  
+Underlined text - podkreślone
+Strikethrough text - przekreślone
+
+Lista punktowana:
+• Pierwszy punkt
+• Drugi punkt z ważną informacją
+• Trzeci punkt
+
+Lista numerowana:
+1. Krok pierwszy
+2. Krok drugi  
+3. Krok trzeci
+
+Link do strony: https://metropolitan-investment.pl
+
+"To jest cytat z ważnym komunikatem"
+
+Kod przykładowy: console.log("Hello World!");
+
+Z poważaniem,
+Zespół Metropolitan Investment''';
+
+    try {
+      _quillController.clear();
+      _quillController.document.insert(0, sampleContent);
+
+      _quillController.updateSelection(
+        TextSelection.collapsed(offset: sampleContent.length),
+        ChangeSource.local,
+      );
+
+      // Force immediate preview update
+      _forcePreviewUpdate();
+
+      debugPrint('🧪 Sample content loaded for testing');
+    } catch (e) {
+      debugPrint('Error loading sample content: $e');
+    }
+  }
+
   String _formatCurrency(double amount) {
     return '${amount.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\\d{1,3})(?=(\\d{3})+(?!\\d))'), (Match m) => '${m[1]} ')} PLN';
   }
@@ -984,8 +1037,13 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
         _results = [
           EmailSendResult(
             success: true,
-            recipient: 'test@example.com',
-            message: 'Email wysłany pomyślnie',
+            messageId: 'test-message-id',
+            clientEmail: 'test@example.com',
+            clientName: 'Test Client',
+            investmentCount: 1,
+            totalAmount: 0.0,
+            executionTimeMs: 2000,
+            template: 'test-template',
           ),
         ];
         _isLoading = false;
@@ -1011,10 +1069,10 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
     return _getEnabledRecipientsCount() + _additionalEmails.length;
   }
 
-  // 🎨 CUSTOM GOOGLE FONTS SELECTOR Z PODGLĄDEM CZCIONKI
-  Widget _buildCustomFontSelector(bool isMobile) {
+  // 🎨 CUSTOM FONT TOOLBAR BUILDER
+  Widget _buildCustomFontToolbar(bool isMobile) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.all(isMobile ? 8 : 12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -1027,16 +1085,11 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: AppThemePro.accentGold.withValues(alpha: 0.3),
-          width: 1,
         ),
       ),
       child: Row(
-        // Parent (_SingleChildViewport / horizontal ScrollView) can provide
-        // unbounded horizontal constraints. Use MainAxisSize.min and
-        // Flexible(FlexFit.loose) instead of Expanded to allow children to
-        // size themselves without forcing infinite expansion.
-        mainAxisSize: MainAxisSize.min,
         children: [
+          // Font Family Dropdown
           Icon(
             Icons.font_download_outlined,
             color: AppThemePro.accentGold,
@@ -1051,116 +1104,103 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
               fontWeight: FontWeight.w600,
             ),
           ),
-          SizedBox(width: 12),
-          Flexible(
-            fit: FlexFit.loose,
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedFontFamily,
-                // remove isExpanded when using Flexible with loose fit
-                isExpanded: false,
-                icon: Icon(
-                  Icons.arrow_drop_down,
-                  color: AppThemePro.accentGold,
-                ),
-                style: TextStyle(color: AppThemePro.textPrimary),
-                dropdownColor: AppThemePro.backgroundSecondary,
-                items: _buildCategorizedFontItems(),
-                onChanged: (String? newFont) {
-                  if (newFont != null) {
-                    setState(() {
-                      _selectedFontFamily = newFont;
-                    });
-                    _applyFontToSelection(newFont);
-                  }
-                },
-              ),
-            ),
-          ),
+          SizedBox(width: 8),
+          Expanded(child: _buildFontFamilyDropdown()),
         ],
       ),
     );
   }
 
-  // 🎨 APPLY SELECTED FONT TO CURRENT SELECTION
-  void _applyFontToSelection(String fontName) {
-    if (fontName.isEmpty || !_googleFonts.containsKey(fontName)) {
-      debugPrint('⚠️ Invalid font name: $fontName');
-      return;
-    }
-    
-    final selection = _quillController.selection;
-    final docLength = _quillController.document.length;
-    
-    debugPrint('🎨 Applying font: $fontName, docLength: $docLength, selection: ${selection.isValid ? "${selection.start}-${selection.end}" : "invalid"}');
-    
+  // 🎨 FONT FAMILY DROPDOWN WIDGET
+  Widget _buildFontFamilyDropdown() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundSecondary.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppThemePro.borderSecondary.withValues(alpha: 0.5),
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _getCurrentFontFamily(),
+          isExpanded: true,
+          style: TextStyle(color: AppThemePro.textPrimary, fontSize: 14),
+          dropdownColor: AppThemePro.backgroundSecondary,
+          icon: Icon(
+            Icons.keyboard_arrow_down,
+            color: AppThemePro.textSecondary,
+            size: 18,
+          ),
+          items: FontFamilyConfig.availableFonts.entries.map((entry) {
+            return DropdownMenuItem<String>(
+              value: entry.key,
+              child: Text(
+                entry.value,
+                style: TextStyle(
+                  fontFamily: entry.key,
+                  fontSize: 14,
+                  color: AppThemePro.textPrimary,
+                ),
+              ),
+            );
+          }).toList(),
+          onChanged: (String? newFont) {
+            if (newFont != null) {
+              _applyFontFamily(newFont);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  // 🎨 GET CURRENT FONT FAMILY FROM SELECTION
+  String _getCurrentFontFamily() {
     try {
-      // Update state first for immediate UI feedback
-      setState(() {
-        _selectedFontFamily = fontName;
-      });
-      
-      // SAFE APPROACH: Sprawdź czy mamy jakikolwiek tekst
-      if (docLength <= 1) {
-        debugPrint('📝 Empty document, just updating selected font for future typing');
-        _updatePreviewContent();
-        return;
-      }
-      
-      // Walidacja selection przed użyciem
-      if (selection.isValid && !selection.isCollapsed && 
-          selection.start >= 0 && selection.end <= docLength && 
-          selection.start < selection.end) {
-        
-        final selectionLength = selection.end - selection.start;
-        debugPrint('🎯 Applying to selection: start=${selection.start}, length=$selectionLength');
-        
-        // Apply font only to valid selection
-        _quillController.formatText(
-          selection.start, 
-          selectionLength, 
-          Attribute.fromKeyValue('font', fontName)
-        );
-        debugPrint('🎨 Successfully applied font to selection');
-        
-      } else {
-        // Apply to entire document with safe bounds
-        final safeLength = docLength - 1; // Exclude trailing newline
-        if (safeLength > 0) {
-          debugPrint('🎯 Applying to entire document: length=$safeLength');
-          
-          _quillController.formatText(
-            0,
-            safeLength,
-            Attribute.fromKeyValue('font', fontName)
-          );
-          debugPrint('🎨 Successfully applied font to entire document');
+      final style = _quillController.getSelectionStyle();
+      final fontAttribute = style.attributes[CustomAttributes.font.key];
+
+      if (fontAttribute != null && fontAttribute.value != null) {
+        final fontValue = fontAttribute.value.toString();
+        debugPrint('🎨 Current font from selection: $fontValue');
+
+        // Check if it's one of our predefined fonts
+        if (FontFamilyConfig.availableFonts.containsKey(fontValue)) {
+          return fontValue;
         }
       }
-      
-      // Force rebuild of editor with new styles
-      Future.microtask(() {
-        setState(() {}); // Rebuild editor with new customStyles
-      });
-      
-      _updatePreviewContent();
-      
+
+      debugPrint('🎨 No font attribute found, using default');
+      return FontFamilyConfig.defaultFont;
     } catch (e) {
-      debugPrint('⚠️ Primary font application failed: $e');
+      debugPrint('🎨 Error getting current font: $e');
+      return FontFamilyConfig.defaultFont;
+    }
+  }
+
+  // 🎨 APPLY FONT FAMILY TO SELECTION
+  void _applyFontFamily(String fontFamily) {
+    try {
+      debugPrint('🎨 Applying font family: $fontFamily');
+
+      // Create custom font attribute
+      final fontAttribute = Attribute<String>(
+        'font',
+        AttributeScope.inline,
+        fontFamily,
+      );
       
-      // SIMPLE FALLBACK: Set font for future typing only
-      try {
-        setState(() {
-          _selectedFontFamily = fontName;
-        });
-        
-        // Force preview update to show the change at least in HTML
-        _updatePreviewContent();
-        
-        debugPrint('🎨 Fallback: Updated selected font for future content');
-      } catch (e2) {
-        debugPrint('⚠️ Even fallback failed: $e2');
-      }
+      // Apply to current selection
+      _quillController.formatSelection(fontAttribute);
+
+      // Update preview immediately
+      _forcePreviewUpdate();
+
+      debugPrint('🎨 Font family applied successfully');
+    } catch (e) {
+      debugPrint('🎨 Error applying font family: $e');
     }
   }
 
@@ -1607,8 +1647,10 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
             title: 'Szczegóły inwestycji',
             subtitle: 'Dołącz informacje o inwestycjach',
             value: _includeInvestmentDetails,
-            onChanged: (value) =>
-                setState(() => _includeInvestmentDetails = value),
+            onChanged: (value) {
+              setState(() => _includeInvestmentDetails = value);
+              _forcePreviewUpdate(); // Immediately update preview when toggling investment details
+            },
             icon: Icons.attach_money_outlined,
           ),
         ),
@@ -2255,10 +2297,10 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
                         config: QuillEditorConfig(
                           customStyles: DefaultStyles(
                             paragraph: DefaultTextBlockStyle(
-                              _getGoogleFontTextStyle(
-                                _selectedFontFamily,
+                              TextStyle(
                                 fontSize: 16,
                                 color: AppThemePro.textPrimary,
+                                fontFamily: FontFamilyConfig.defaultFont,
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -2266,11 +2308,11 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
                               null,
                             ),
                             h1: DefaultTextBlockStyle(
-                              _getGoogleFontTextStyle(
-                                _selectedFontFamily,
+                              TextStyle(
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
                                 color: AppThemePro.textPrimary,
+                                fontFamily: FontFamilyConfig.defaultFont,
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -2278,11 +2320,11 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
                               null,
                             ),
                             h2: DefaultTextBlockStyle(
-                              _getGoogleFontTextStyle(
-                                _selectedFontFamily,
+                              TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
                                 color: AppThemePro.textPrimary,
+                                fontFamily: FontFamilyConfig.defaultFont,
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -2290,11 +2332,11 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
                               null,
                             ),
                             h3: DefaultTextBlockStyle(
-                              _getGoogleFontTextStyle(
-                                _selectedFontFamily,
+                              TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                                 color: AppThemePro.textPrimary,
+                                fontFamily: FontFamilyConfig.defaultFont,
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -2302,10 +2344,10 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
                               null,
                             ),
                             placeHolder: DefaultTextBlockStyle(
-                              _getGoogleFontTextStyle(
-                                _selectedFontFamily,
+                              TextStyle(
                                 fontSize: 16,
                                 color: AppThemePro.textSecondary,
+                                fontFamily: FontFamilyConfig.defaultFont,
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -2350,36 +2392,63 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
                           ),
                           child: Column(
                             children: [
-                              // 🎨 CUSTOM GOOGLE FONTS SELECTOR Z PODGLĄDEM
-                              _buildCustomFontSelector(isMobile),
+                              // � CUSTOM FONT FAMILY DROPDOWN
+                              _buildCustomFontToolbar(isMobile),
+                              
                               SizedBox(height: 8),
-                              // 🎯 POZOSTAŁE NARZĘDZIA QUILL TOOLBAR (BEZ FONT FAMILY)
+                              
+                              // �🎯 ENHANCED QUILL TOOLBAR WITH ALL FORMATTING OPTIONS
                               QuillSimpleToolbar(
                                 controller: _quillController,
                                 config: QuillSimpleToolbarConfig(
+                                  // 🎨 LAYOUT & DISPLAY
                                   multiRowsDisplay: !isMobile,
+                                  showDividers: true,
+
+                                  // ✏️ BASIC TEXT FORMATTING
                                   showBoldButton: true,
                                   showItalicButton: true,
                                   showUnderLineButton: true,
                                   showStrikeThrough: true,
-                                  showFontFamily:
-                                      false, // WYŁĄCZONE - UŻYWAMY CUSTOM
+                                  showInlineCode: true,
+                                  showClearFormat: true,
+
+                                  // 🔤 FONT & SIZE CONTROLS
+                                  showFontFamily: true,
                                   showFontSize: true,
+                                  
+                                  // 🎨 COLOR CONTROLS
                                   showColorButton: true,
                                   showBackgroundColorButton: true,
+                                  
+                                  // 📝 STRUCTURAL FORMATTING
                                   showHeaderStyle: true,
+                                  showQuote: true,
+                                  showCodeBlock:
+                                      !isMobile, // Hide on mobile for space
+                                  // 📋 LIST CONTROLS
                                   showListBullets: true,
                                   showListNumbers: true,
                                   showListCheck: true,
-                                  showCodeBlock: !isMobile,
-                                  showQuote: true,
+                                  
+                                  // 📐 ALIGNMENT & INDENTATION
+                                  showAlignmentButtons: true,
+                                  showDirection:
+                                      false, // Usually not needed for emails
                                   showIndent: true,
+                                  
+                                  // 🔗 LINKS & MEDIA
                                   showLink: true,
+                                  showSearchButton:
+                                      false, // Not needed for email editor
+                                  // ↩️ UNDO/REDO
                                   showUndo: true,
                                   showRedo: true,
-                                  showClearFormat: true,
+                                  
+                                  // 🎛️ BASIC BUTTON OPTIONS (WORKING CONFIGURATION)
                                   buttonOptions:
                                       QuillSimpleToolbarButtonOptions(
+                                        // 📏 FONT SIZE OPTIONS
                                         fontSize:
                                             QuillToolbarFontSizeButtonOptions(
                                               items: _fontSizes.map(
@@ -2389,6 +2458,8 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
                                               tooltip: 'Rozmiar tekstu',
                                               initialValue: '14',
                                             ),
+                                    
+                                        // 🎨 COLOR OPTIONS
                                         color: QuillToolbarColorButtonOptions(
                                           tooltip: 'Kolor tekstu',
                                         ),
@@ -2473,13 +2544,55 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
                     ),
                     SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        'Podgląd wiadomości',
-                        style: TextStyle(
-                          color: AppThemePro.textPrimary,
-                          fontSize: isMobile ? 16 : 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Podgląd wiadomości',
+                            style: TextStyle(
+                              color: AppThemePro.textPrimary,
+                              fontSize: isMobile ? 16 : 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppThemePro.statusSuccess.withValues(
+                                alpha: 0.1,
+                              ),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: AppThemePro.statusSuccess.withValues(
+                                  alpha: 0.3,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.font_download,
+                                  size: 14,
+                                  color: AppThemePro.statusSuccess,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Standardowy edytor Flutter Quill',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppThemePro.statusSuccess,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     // Zoom Controls
@@ -2554,64 +2667,230 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
                       child: html_package.Html(
                         data: _currentPreviewHtml,
                         style: {
+                          // 📝 BASIC ELEMENTS
                           'body': html_package.Style(
                             color: _isPreviewDarkTheme
                                 ? Colors.white
                                 : Colors.black,
-                            fontFamily: 'Arial',
+                            fontFamily: 'Arial, sans-serif',
                             lineHeight: html_package.LineHeight.number(1.6),
+                            fontSize: html_package.FontSize(16),
                           ),
+                          
+                          // 🏷️ HEADERS
                           'h1': html_package.Style(
                             color: _isPreviewDarkTheme
                                 ? Colors.white
                                 : Colors.black,
                             fontWeight: FontWeight.bold,
-                            fontSize: html_package.FontSize.large,
+                            fontSize: html_package.FontSize(32),
+                            margin: html_package.Margins.only(
+                              top: 16,
+                              bottom: 8,
+                            ),
                           ),
                           'h2': html_package.Style(
                             color: _isPreviewDarkTheme
                                 ? Colors.white
                                 : Colors.black,
                             fontWeight: FontWeight.bold,
-                            fontSize: html_package.FontSize.medium,
+                            fontSize: html_package.FontSize(24),
+                            margin: html_package.Margins.only(
+                              top: 16,
+                              bottom: 8,
+                            ),
                           ),
                           'h3': html_package.Style(
                             color: _isPreviewDarkTheme
                                 ? Colors.white
                                 : Colors.black,
                             fontWeight: FontWeight.bold,
+                            fontSize: html_package.FontSize(20),
+                            margin: html_package.Margins.only(
+                              top: 16,
+                              bottom: 8,
+                            ),
                           ),
+                          'h4': html_package.Style(
+                            color: _isPreviewDarkTheme
+                                ? Colors.white
+                                : Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: html_package.FontSize(18),
+                            margin: html_package.Margins.only(
+                              top: 16,
+                              bottom: 8,
+                            ),
+                          ),
+                          'h5': html_package.Style(
+                            color: _isPreviewDarkTheme
+                                ? Colors.white
+                                : Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: html_package.FontSize(16),
+                            margin: html_package.Margins.only(
+                              top: 16,
+                              bottom: 8,
+                            ),
+                          ),
+                          'h6': html_package.Style(
+                            color: _isPreviewDarkTheme
+                                ? Colors.white
+                                : Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: html_package.FontSize(14),
+                            margin: html_package.Margins.only(
+                              top: 16,
+                              bottom: 8,
+                            ),
+                          ),
+                          
+                          // 📝 PARAGRAPHS AND TEXT
                           'p': html_package.Style(
                             color: _isPreviewDarkTheme
                                 ? Colors.white
                                 : Colors.black,
                             margin: html_package.Margins.only(bottom: 16),
-                          ),
-                          'strong': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          'em': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            fontStyle: FontStyle.italic,
-                          ),
-                          'u': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            textDecoration: TextDecoration.underline,
+                            lineHeight: html_package.LineHeight.number(1.6),
                           ),
                           'div': html_package.Style(
                             color: _isPreviewDarkTheme
                                 ? Colors.white
                                 : Colors.black,
+                            lineHeight: html_package.LineHeight.number(1.6),
+                          ),
+                          'span': html_package.Style(
+                            color: _isPreviewDarkTheme
+                                ? Colors.white
+                                : Colors.black,
+                          ),
+
+                          // ✏️ TEXT FORMATTING
+                          'strong': html_package.Style(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          'b': html_package.Style(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          'em': html_package.Style(
+                            fontStyle: FontStyle.italic),
+                          'i': html_package.Style(fontStyle: FontStyle.italic),
+                          'u': html_package.Style(
+                            textDecoration: TextDecoration.underline,
+                          ),
+                          's': html_package.Style(
+                            textDecoration: TextDecoration.lineThrough,
+                          ),
+                          'del': html_package.Style(
+                            textDecoration: TextDecoration.lineThrough,
+                          ),
+
+                          // 📋 LISTS
+                          'ul': html_package.Style(
+                            color: _isPreviewDarkTheme
+                                ? Colors.white
+                                : Colors.black,
+                            margin: html_package.Margins.only(
+                              left: 20,
+                              bottom: 16,
+                            ),
+                            padding: html_package.HtmlPaddings.only(left: 20),
+                          ),
+                          'ol': html_package.Style(
+                            color: _isPreviewDarkTheme
+                                ? Colors.white
+                                : Colors.black,
+                            margin: html_package.Margins.only(
+                              left: 20,
+                              bottom: 16,
+                            ),
+                            padding: html_package.HtmlPaddings.only(left: 20),
+                          ),
+                          'li': html_package.Style(
+                            color: _isPreviewDarkTheme
+                                ? Colors.white
+                                : Colors.black,
+                            margin: html_package.Margins.only(bottom: 8),
+                            lineHeight: html_package.LineHeight.number(1.5),
+                          ),
+
+                          // 💬 QUOTES AND CODE
+                          'blockquote': html_package.Style(
+                            color: _isPreviewDarkTheme
+                                ? Colors.white70
+                                : Colors.black87,
+                            margin: html_package.Margins.only(
+                              left: 20,
+                              right: 20,
+                              bottom: 16,
+                            ),
+                            padding: html_package.HtmlPaddings.all(16),
+                            backgroundColor: _isPreviewDarkTheme
+                                ? Colors.grey[800]
+                                : Colors.grey[100],
+                            fontStyle: FontStyle.italic,
+                          ),
+                          'code': html_package.Style(
+                            backgroundColor: _isPreviewDarkTheme
+                                ? Colors.grey[800]
+                                : Colors.grey[200],
+                            color: _isPreviewDarkTheme
+                                ? Colors.white
+                                : Colors.black,
+                            fontFamily: 'Courier New, monospace',
+                            padding: html_package.HtmlPaddings.symmetric(
+                              horizontal: 4,
+                              vertical: 2,
+                            ),
+                            fontSize: html_package.FontSize(14),
+                          ),
+                          'pre': html_package.Style(
+                            backgroundColor: _isPreviewDarkTheme
+                                ? Colors.grey[900]
+                                : Colors.grey[100],
+                            color: _isPreviewDarkTheme
+                                ? Colors.white
+                                : Colors.black,
+                            fontFamily: 'Courier New, monospace',
+                            padding: html_package.HtmlPaddings.all(12),
+                            margin: html_package.Margins.only(bottom: 16),
+                          ),
+
+                          // 🔗 LINKS
+                          'a': html_package.Style(
+                            color: _isPreviewDarkTheme
+                                ? Colors.lightBlue[300]
+                                : Colors.blue[700],
+                            textDecoration: TextDecoration.underline,
+                          ),
+
+                          // 📊 TABLES (basic styling)
+                          'table': html_package.Style(
+                            width: html_package.Width(
+                              100,
+                              html_package.Unit.percent,
+                            ),
+                            margin: html_package.Margins.only(bottom: 16),
+                          ),
+                          'th': html_package.Style(
+                            backgroundColor: _isPreviewDarkTheme
+                                ? Colors.grey[700]
+                                : Colors.grey[200],
+                            color: _isPreviewDarkTheme
+                                ? Colors.white
+                                : Colors.black,
+                            fontWeight: FontWeight.bold,
+                            padding: html_package.HtmlPaddings.all(8),
+                          ),
+                          'td': html_package.Style(
+                            color: _isPreviewDarkTheme
+                                ? Colors.white
+                                : Colors.black,
+                            padding: html_package.HtmlPaddings.all(8),
                           ),
                         },
                         onLinkTap: (url, attributes, element) {
+                          debugPrint('🔗 Link tapped: $url');
                           // Handle link taps if needed
                         },
                       ),
@@ -2681,6 +2960,12 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
                 label: 'Podgląd',
                 color: AppThemePro.accentGold,
                 onPressed: _togglePreviewVisibility,
+              ),
+              _buildWowActionButton(
+                icon: Icons.science_outlined,
+                label: 'Przykładowa treść',
+                color: AppThemePro.statusSuccess,
+                onPressed: _addSampleContent,
               ),
               _buildWowActionButton(
                 icon: Icons.clear,
@@ -2982,15 +3267,4 @@ body { margin: 0; padding: 20px; font-family: Arial, sans-serif; line-height: 1.
   }
 }
 
-// 📧 KLASA POMOCNICZA DLA REZULTATÓW
-class EmailSendResult {
-  final bool success;
-  final String recipient;
-  final String message;
 
-  EmailSendResult({
-    required this.success,
-    required this.recipient,
-    required this.message,
-  });
-}

@@ -238,7 +238,7 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
               Expanded(
                 child: _buildStatItem(
                   'Łączny Kapitał',
-                  '${totalCapital.toStringAsFixed(0)} PLN',
+                  '${totalCapital.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ')} PLN',
                   Icons.monetization_on_outlined,
                 ),
               ),

@@ -779,7 +779,7 @@ class _EnhancedInvestorDetailsDialogState
     });
   }
 
-  void _openEmailDialog() {
+  Future<void> _openEmailDialog() async {
     // Sprawdź czy klient ma adres email
     if (widget.investor.client.email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -821,13 +821,15 @@ class _EnhancedInvestorDetailsDialogState
     }
 
     // Otwórz zaawansowany edytor emaila dla pojedynczego inwestora
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => EnhancedEmailEditorDialog(
-        selectedInvestors: [widget.investor], // Przekaż pojedynczego inwestora
-        initialSubject: 'Aktualizacja portfela inwestycyjnego - ${widget.investor.client.name}',
-        initialMessage: '''Szanowny/a ${widget.investor.client.name},
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => WowEmailEditorScreen(
+          selectedInvestors: [
+            widget.investor,
+          ], // Przekaż pojedynczego inwestora
+          initialSubject:
+              'Aktualizacja portfela inwestycyjnego - ${widget.investor.client.name}',
+          initialMessage: '''Szanowny/a ${widget.investor.client.name},
 
 Przesyłamy aktualne informacje dotyczące Pana/Pani inwestycji w Metropolitan Investment.
 
@@ -837,33 +839,33 @@ W razie pytań prosimy o kontakt z naszym działem obsługi klienta.
 
 Z poważaniem,
 Zespół Metropolitan Investment''',
-        onEmailSent: () {
-          // Callback po wysłaniu emaila
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.white, size: 16),
-                    const SizedBox(width: 8),
-                    Text('Email wysłany do: ${widget.investor.client.name}'),
-                  ],
-                ),
-                backgroundColor: AppThemePro.statusSuccess,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 3),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            );
-          }
-          
-          // Opcjonalnie: wywołaj callback refresh
-          if (widget.onUpdate != null) {
-            widget.onUpdate!();
-          }
-        },
+        ),
       ),
     );
+
+    // Sprawdź czy emaile zostały wysłane pomyślnie
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Text('Email wysłany do: ${widget.investor.client.name}'),
+            ],
+          ),
+          backgroundColor: AppThemePro.statusSuccess,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+      
+      // Opcjonalnie: wywołaj callback refresh
+      if (widget.onUpdate != null) {
+        widget.onUpdate!();
+      }
+    }
   }
 
   Widget _buildHeaderButton({

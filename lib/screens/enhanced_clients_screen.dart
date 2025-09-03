@@ -10,7 +10,7 @@ import '../widgets/enhanced_clients/collapsible_search_header_fixed.dart'
     as CollapsibleHeader;
 import '../widgets/enhanced_clients/spectacular_clients_grid.dart';
 import '../widgets/enhanced_clients/enhanced_clients_header.dart';
-import '../widgets/dialogs/enhanced_email_editor_dialog 2.dart';
+import '../screens/wow_email_editor_screen.dart';
 import '../widgets/enhanced_client_dialog/enhanced_client_dialog.dart';
 
 /// 🎨 SPEKTAKULARNY EKRAN KLIENTÓW Z EFEKTEM WOW
@@ -690,24 +690,28 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
       if (!mounted) return;
 
-      // 🚀 WZOROWANE NA PREMIUM ANALYTICS: Używamy EnhancedEmailEditorDialog
-      showDialog(
-        context: context,
-        builder: (context) => EnhancedEmailEditorDialog(
-          selectedInvestors: investorsData,
-          onEmailSent: () {
-            Navigator.of(context).pop();
-            _toggleEmailMode(); // Wyłącz tryb email po wysłaniu
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('✅ Emaile zostały wysłane do ${clientsWithEmail.length} odbiorców'),
-                backgroundColor: AppThemePro.statusSuccess,
-              ),
-            );
-          },
-          initialSubject: 'Informacje o klientach - Metropolitan Investment',
+      // 🚀 NOWE: Używamy WowEmailEditorScreen zamiast dialogu
+      final result = await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => WowEmailEditorScreen(
+            selectedInvestors: investorsData,
+            initialSubject: 'Informacje o klientach - Metropolitan Investment',
+          ),
         ),
       );
+
+      // Sprawdź czy emaile zostały wysłane pomyślnie
+      if (result == true && mounted) {
+        _toggleEmailMode(); // Wyłącz tryb email po wysłaniu
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ Emaile zostały wysłane do ${clientsWithEmail.length} odbiorców',
+            ),
+            backgroundColor: AppThemePro.statusSuccess,
+          ),
+        );
+      }
     } catch (e) {
       _showErrorSnackBar('Błąd podczas przygotowywania danych: $e');
     }

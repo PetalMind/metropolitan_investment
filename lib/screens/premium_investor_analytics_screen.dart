@@ -17,7 +17,7 @@ import '../models_and_services.dart'; // Centralny export wszystkich modeli i se
 // Zastąpiono starymi dialogami modułowy system email
 // import '../widgets/dialogs/investor_email_dialog.dart';
 // import '../widgets/dialogs/investor_export_dialog.dart';
-import '../widgets/dialogs/enhanced_email_editor_dialog\ 2.dart';
+import '../screens/wow_email_editor_screen.dart';
 import '../services/investor_analytics_service.dart'
     as ia_service; // Tylko dla InvestorAnalyticsResult conflict resolution
 import '../widgets/premium_analytics/system_stats_widget.dart';
@@ -1741,23 +1741,27 @@ class _PremiumInvestorAnalyticsScreenState
       return;
     }
 
-    showDialog(
-      context: context,
-      builder: (context) => EnhancedEmailEditorDialog(
-        selectedInvestors: investorsWithEmail,
-        onEmailSent: () {
-          Navigator.of(context).pop();
-          _toggleEmailMode(); // Wyłącz tryb email po wysłaniu
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('✅ Emaile zostały wysłane do ${investorsWithEmail.length} odbiorców'),
-              backgroundColor: AppThemePro.statusSuccess,
-            ),
-          );
-        },
-        initialSubject: 'Informacje o inwestorach - Metropolitan Investment',
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => WowEmailEditorScreen(
+          selectedInvestors: investorsWithEmail,
+          initialSubject: 'Informacje o inwestorach - Metropolitan Investment',
+        ),
       ),
     );
+
+    // Sprawdź czy emaile zostały wysłane pomyślnie
+    if (result == true && mounted) {
+      _toggleEmailMode(); // Wyłącz tryb email po wysłaniu
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '✅ Emaile zostały wysłane do ${investorsWithEmail.length} odbiorców',
+          ),
+          backgroundColor: AppThemePro.statusSuccess,
+        ),
+      );
+    }
   }
 
   // Stub implementations for missing methods
