@@ -540,41 +540,190 @@ Zespół Metropolitan Investment''';
     );
   }
   
-  Future<void> _sendEmails() async {
+    Future<void> _sendEmails() async {
     if (!_formKey.currentState!.validate()) {
       setState(() {
         _error = 'Proszę wypełnić wszystkie wymagane pola.';
       });
       return;
     }
-    
+
+    if (!_hasValidEmails()) {
+      setState(() {
+        _error = 'Brak prawidłowych odbiorców do wysłania wiadomości.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
+      _showDetailedProgress = true;
       _error = null;
+      _results = null;
+      _debugLogs.clear();
+      _loadingMessage = 'Przygotowywanie wiadomości...';
     });
-    
+
     try {
-      final emailHtml = _convertQuillToHtml();
-      await Future.delayed(const Duration(seconds: 2));
-      debugPrint('Email HTML: $emailHtml');
+
+      final selectedRecipients = widget.selectedInvestors
+          .where((inv) => _recipientEnabled[inv.client.id] ?? false)
+          .toList();
+
+      _totalEmailsToSend = selectedRecipients.length + _additionalEmails.length;
+      _currentEmailIndex = 0;
+
+      // Build a raw HTML map per-recipient using the editor's content
+      Map<String, String>? completeEmailHtmlByClient;
+      String? aggregatedEmailHtmlForAdditionals;
+
+      if (selectedRecipients.isNotEmpty) {
+        completeEmailHtmlByClient = <String, String>{};
+
+        for (final investor in selectedRecipients) {
+          // Choose controller (individual or global)
+          final controllerToUse = (_useIndividualContent && _individualControllers.containsKey(investor.client.id))
+              ? _individualControllers[investor.client.id]! : _quillController;
+
+          // **NOWE PODEJŚCIE: Użyj naszej niezawodnej konwersji**
+          final workingHtml = _convertQuillToReliableHtml(controllerToUse);
+
+          // DEBUGGING: Check individual content
+          final plainTextContent = controllerToUse.document.toPlainText();
+          if (kDebugMode) {
+            print(
+              '🔍 [EmailDebug] Individual content for ${investor.client.name}:',
+            );
+            print('Plain text length: ${plainTextContent.length}');
+            print('Working HTML length: ${workingHtml.length}');
+            print('Working HTML: $workingHtml');
+          }
+
+          // **ZAWSZE DODAJ SZCZEGÓŁY INWESTYCJI**
+          final investorSpecificHtml = _ensureInvestmentDetails(
+            workingHtml,
+            specificInvestor: investor,
+          );
+
+          if (kDebugMode) {
+            print(
+              '✅ [EmailDebug] Final HTML for ${investor.client.name} - length: ${investorSpecificHtml.length}',
+            );
+          }
+
+          completeEmailHtmlByClient[investor.client.id] = investorSpecificHtml;
+
+          if (kDebugMode) {
+            print('📋 [EmailDialog] Processed HTML for ${investor.client.name} (${investor.client.id}): ${investorSpecificHtml.length} chars');
+            print('📋 [EmailDialog] First 500 chars: ${investorSpecificHtml.substring(0, math.min(500, investorSpecificHtml.length))}');
+          }
+        }
+      }
+
+      // **NOWE PODEJŚCIE: Convert main content for additional emails**
+      final workingHtml = _convertQuillToReliableHtml(_quillController);
+
+      // DEBUGGING: Check what we get from Quill
+      final plainTextContent = _quillController.document.toPlainText();
+      if (kDebugMode) {
+        print('🔍 [EmailDebug] Plain text content:');
+        print(plainTextContent);
+        print('🔍 [EmailDebug] Plain text length: ${plainTextContent.length}');
+        print('🔍 [EmailDebug] Working HTML from reliable conversion:');
+        print(workingHtml);
+        print('🔍 [EmailDebug] Working HTML length: ${workingHtml.length}');
+      }
+
+      // **ZAWSZE DODAJ ZBIORCZE SZCZEGÓŁY** dla dodatkowych odbiorców
+      final processedHtml = _ensureInvestmentDetails(
+        workingHtml,
+        allInvestors: selectedRecipients,
+      );
+
+      if (kDebugMode) {
+        print(
+          '✅ [EmailDebug] Main processed HTML with investment details - length: ${processedHtml.length}',
+        );
+      }
       
+      // Generate aggregated email HTML for additional recipients if needed
+      if (_additionalEmails.isNotEmpty) {
+        // For additional emails, use aggregated content
+        aggregatedEmailHtmlForAdditionals = _ensureInvestmentDetails(
+          workingHtml,
+          allInvestors: selectedRecipients,
+        );
+
+        if (kDebugMode) {
+          print('📋 [EmailDialog] Aggregated processed HTML length: ${aggregatedEmailHtmlForAdditionals.length} chars');
+        }
+      }
+
+      if (kDebugMode) {
+        print('📤 [EmailDialog] Wysyłam emaile (nowa metoda z kompletnym HTML):');
+        print('   - Odbiorcy: ${selectedRecipients.length}');
+        print('   - Dodatkowe emaile: ${_additionalEmails.length}');
+        print('   - Complete email HTML map size: ${completeEmailHtmlByClient?.length ?? 0}');
+        print('   - Aggregated email HTML length: ${aggregatedEmailHtmlForAdditionals?.length ?? 0}');
+      }
+
+      // Send HTML content using the proper email service method
+      // The service will properly handle the HTML content with investment details
+      if (kDebugMode) {
+        print('📤 [EmailDialog] Sending emails:');
+        print('   - selectedRecipients: ${selectedRecipients.length}');
+        print('   - additionalEmails: ${_additionalEmails.length}');
+        print('   - includeInvestmentDetails: $_includeInvestmentDetails');
+        print('   - completeEmailHtmlByClient: ${completeEmailHtmlByClient?.keys.length ?? 0} clients');
+        if (completeEmailHtmlByClient != null) {
+          completeEmailHtmlByClient.forEach((clientId, html) {
+            print('     - $clientId: ${html.length} chars');
+          });
+        }
+      }
+
+      final results = await _emailAndExportService.sendCustomEmailsToMixedRecipients(
+        investors: selectedRecipients,
+        additionalEmails: _additionalEmails,
+        subject: _subjectController.text,
+        htmlContent: processedHtml, // Send the processed HTML that includes investment tables
+        includeInvestmentDetails:
+            false, // IMPORTANT: Set to false to avoid duplication since we're providing complete HTML
+        investmentDetailsByClient: completeEmailHtmlByClient, // Pass individual investment details if available
+        aggregatedInvestmentsForAdditionals: aggregatedEmailHtmlForAdditionals, // Pass aggregated details for additional emails
+        senderEmail: _senderEmailController.text,
+        senderName: _senderNameController.text,
+      );
+
       setState(() {
-        _results = [
-          EmailSendResult(
-            success: true,
-            recipient: 'test@example.com',
-            message: 'Email wysłany pomyślnie',
-          ),
-        ];
-        _isLoading = false;
+        _results = results;
+        _loadingMessage = 'Wysyłanie zakończone.';
       });
       
-      widget.onEmailSent();
+      // Play sound effects based on results
+      _playResultSoundEffects(results);
     } catch (e) {
       setState(() {
-        _error = 'Błąd podczas wysyłania: $e';
-        _isLoading = false;
+        _error = 'Wystąpił nieoczekiwany błąd: $e';
+        _loadingMessage = 'Błąd wysyłania.';
       });
+    } finally {
+      setState(() {
+        _isLoading = false;
+        _showDetailedProgress = false;
+      });
+
+      // Show summary snackbar
+      if (_results != null && mounted) {
+        final successful = _results!.where((r) => r.success).length;
+        final failed = _results!.length - successful;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Wysyłanie zakończone. Pomyślnie: $successful, Błędy: $failed.'),
+            backgroundColor: failed > 0 ? AppThemePro.statusError : AppThemePro.statusSuccess,
+          ),
+        );
+      }
     }
   }
   

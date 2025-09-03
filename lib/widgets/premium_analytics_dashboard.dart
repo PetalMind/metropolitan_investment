@@ -238,6 +238,8 @@ class _PremiumAnalyticsDashboardState extends State<PremiumAnalyticsDashboard>
         _buildActionButton(
           icon: Icons.download_rounded,
           label: 'Eksport',
+          text: 'Eksportuj wybrane dane',
+          showText: true,
           onTap: _exportData,
           color: AppTheme.secondaryGold,
         ),
@@ -246,6 +248,8 @@ class _PremiumAnalyticsDashboardState extends State<PremiumAnalyticsDashboard>
         _buildActionButton(
           icon: Icons.fullscreen_rounded,
           label: 'Pełny ekran',
+          text: 'Pełny ekran',
+          showText: true,
           onTap: _toggleFullscreen,
           color: AppTheme.warningColor,
         ),
@@ -258,6 +262,8 @@ class _PremiumAnalyticsDashboardState extends State<PremiumAnalyticsDashboard>
     required String label,
     VoidCallback? onTap,
     required Color color,
+    String? text,
+    bool showText = false,
   }) {
     return Tooltip(
       message: label,
@@ -269,7 +275,23 @@ class _PremiumAnalyticsDashboardState extends State<PremiumAnalyticsDashboard>
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.all(12),
-            child: Icon(icon, color: color, size: 20),
+            child: showText && text != null
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, color: color, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        text,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  )
+                : Icon(icon, color: color, size: 20),
           ),
         ),
       ),

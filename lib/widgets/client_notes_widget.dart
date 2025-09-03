@@ -32,7 +32,6 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
   List<ClientNote> _filteredNotes = [];
   bool _isLoading = false;
   bool _isSearchBarVisible = true;
-  double _scrollOffset = 0.0;
   
   NoteCategory? _selectedCategory;
   NotePriority? _selectedPriority;
@@ -63,7 +62,6 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
     if (shouldHideSearchBar != !_isSearchBarVisible) {
       setState(() {
         _isSearchBarVisible = !shouldHideSearchBar;
-        _scrollOffset = currentOffset;
       });
     }
   }
@@ -806,28 +804,6 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
               ),
               textAlign: TextAlign.center,
             ),
-            if (_notes.isEmpty && !widget.isReadOnly) ...[
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () => _showNoteDialog(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppThemePro.accentGold,
-                  foregroundColor: AppThemePro.primaryDark,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text(
-                  'Dodaj pierwszą notatkę',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -835,7 +811,7 @@ class _ClientNotesWidgetState extends State<ClientNotesWidget> {
   }
 }
 
-class ProfessionalNoteListItem extends StatelessWidget {
+class ProfessionalNoteListItem extends StatefulWidget {
   final ClientNote note;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
@@ -846,6 +822,13 @@ class ProfessionalNoteListItem extends StatelessWidget {
     this.onEdit,
     this.onDelete,
   });
+
+  @override
+  State<ProfessionalNoteListItem> createState() => _ProfessionalNoteListItemState();
+}
+
+class _ProfessionalNoteListItemState extends State<ProfessionalNoteListItem> {
+  bool _isExpanded = false;
 
   Color _getPriorityColor(NotePriority priority) {
     switch (priority) {
@@ -894,6 +877,15 @@ class ProfessionalNoteListItem extends StatelessWidget {
     return Icon(iconData, color: iconColor, size: 20);
   }
 
+  bool _isLongContent() {
+    // Check if content would need more than 3 lines
+    final lines = widget.note.content.split('\n');
+    if (lines.length > 3) return true;
+    
+    // Estimate if any single line is very long (more than ~50 characters)
+    return lines.any((line) => line.length > 50);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -917,14 +909,14 @@ class ProfessionalNoteListItem extends StatelessWidget {
             // Nagłówek notatki z priorytetem
             Row(
               children: [
-                _getCategoryIcon(note.category),
+                _getCategoryIcon(widget.note.category),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        note.title,
+                        widget.note.title,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -944,22 +936,22 @@ class ProfessionalNoteListItem extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: _getPriorityColor(
-                                note.priority,
+                                widget.note.priority,
                               ).withOpacity(0.15),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
                                 color: _getPriorityColor(
-                                  note.priority,
+                                  widget.note.priority,
                                 ).withOpacity(0.5),
                                 width: 1,
                               ),
                             ),
                             child: Text(
-                              note.priority.displayName,
+                              widget.note.priority.displayName,
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: _getPriorityColor(note.priority),
+                                color: _getPriorityColor(widget.note.priority),
                                 letterSpacing: 0.2,
                               ),
                             ),
@@ -979,7 +971,7 @@ class ProfessionalNoteListItem extends StatelessWidget {
                               ),
                             ),
                             child: Text(
-                              note.category.displayName,
+                              widget.note.category.displayName,
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
@@ -994,7 +986,7 @@ class ProfessionalNoteListItem extends StatelessWidget {
                   ),
                 ),
                 // Menu akcji
-                if (onEdit != null || onDelete != null)
+                if (widget.onEdit != null || widget.onDelete != null)
                   Container(
                     decoration: BoxDecoration(
                       color: AppThemePro.surfaceInteractive,
@@ -1019,11 +1011,11 @@ class ProfessionalNoteListItem extends StatelessWidget {
                         ),
                       ),
                       onSelected: (value) {
-                        if (value == 'edit' && onEdit != null) onEdit!();
-                        if (value == 'delete' && onDelete != null) onDelete!();
+                        if (value == 'edit' && widget.onEdit != null) widget.onEdit!();
+                        if (value == 'delete' && widget.onDelete != null) widget.onDelete!();
                       },
                       itemBuilder: (context) => [
-                        if (onEdit != null)
+                        if (widget.onEdit != null)
                           PopupMenuItem<String>(
                             value: 'edit',
                             child: Row(
@@ -1045,7 +1037,7 @@ class ProfessionalNoteListItem extends StatelessWidget {
                               ],
                             ),
                           ),
-                        if (onDelete != null)
+                        if (widget.onDelete != null)
                           PopupMenuItem<String>(
                             value: 'delete',
                             child: Row(
@@ -1074,35 +1066,76 @@ class ProfessionalNoteListItem extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Treść notatki
-            Container(
+            // Treść notatki - expandable and scrollable
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
               width: double.infinity,
+              constraints: BoxConstraints(
+                maxHeight: _isExpanded ? 200 : 80, // Max height when expanded
+              ),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppThemePro.backgroundSecondary,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppThemePro.borderPrimary, width: 1),
               ),
-              child: Text(
-                note.content,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppThemePro.textPrimary,
-                  height: 1.5,
-                  fontWeight: FontWeight.w400,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: _isExpanded ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
+                      child: Text(
+                        widget.note.content,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppThemePro.textPrimary,
+                          height: 1.5,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: _isExpanded ? null : 3,
+                        overflow: _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  // Show expand/collapse button only for long content
+                  if (_isLongContent()) ...[
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: () => setState(() => _isExpanded = !_isExpanded),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                            size: 16,
+                            color: AppThemePro.accentGold,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _isExpanded ? 'Zwiń' : 'Rozwiń',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppThemePro.accentGold,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
 
             // Tagi
-            if (note.tags.isNotEmpty) ...[
+            if (widget.note.tags.isNotEmpty) ...[
               const SizedBox(height: 12),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: note.tags
+                children: widget.note.tags
                     .take(5) // Limit do 5 tagów
                     .map(
                       (tag) => Container(
@@ -1152,7 +1185,7 @@ class ProfessionalNoteListItem extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    note.authorName,
+                    widget.note.authorName,
                     style: TextStyle(
                       color: AppThemePro.textMuted,
                       fontSize: 12,
@@ -1167,14 +1200,14 @@ class ProfessionalNoteListItem extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    DateFormat('dd.MM.yyyy HH:mm').format(note.createdAt),
+                    DateFormat('dd.MM.yyyy HH:mm').format(widget.note.createdAt),
                     style: TextStyle(
                       color: AppThemePro.textMuted,
                       fontSize: 12,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
-                  if (note.updatedAt != note.createdAt) ...[
+                  if (widget.note.updatedAt != widget.note.createdAt) ...[
                     const SizedBox(width: 16),
                     Icon(
                       Icons.edit_outlined,
@@ -1183,7 +1216,7 @@ class ProfessionalNoteListItem extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      DateFormat('dd.MM.yyyy HH:mm').format(note.updatedAt),
+                      DateFormat('dd.MM.yyyy HH:mm').format(widget.note.updatedAt),
                       style: TextStyle(
                         color: AppThemePro.textMuted,
                         fontSize: 12,

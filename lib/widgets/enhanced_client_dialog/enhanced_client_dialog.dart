@@ -556,7 +556,6 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
                     children: [
                       Icon(tab.icon, size: 18),
                       const SizedBox(width: 6),
-                      Text(tab.label),
                       if (index < 2) // Show numbers for first two tabs
                         Container(
                           margin: const EdgeInsets.only(left: 4),

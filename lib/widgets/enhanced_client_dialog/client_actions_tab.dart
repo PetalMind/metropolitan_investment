@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
+import '../client_notes_widget.dart'; // Import ClientNotesWidget
 import 'client_overview_tab.dart'; // For ClientFormData
+import '../calendar/premium_calendar_event_dialog.dart';
+import '../../screens/wow_email_editor_screen.dart';
 
 /// Client Actions Tab
 /// - Opens the existing EnhancedEmailEditorDialog for email flows
@@ -30,12 +34,16 @@ class _ClientActionsTabState extends State<ClientActionsTab>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   final ClientNotesService _clientNotesService = ClientNotesService();
   final CalendarService _calendarService = CalendarService();
+  final InvestmentChangeHistoryService _investmentHistoryService = InvestmentChangeHistoryService();
+  final EmailHistoryService _emailHistoryService = EmailHistoryService();
 
   final _notesController = TextEditingController();
   late final AnimationController _cardController;
 
   List<ClientNote> _clientNotes = [];
   List<dynamic> _clientDocuments = [];
+  List<InvestmentChangeHistory> _investmentHistory = [];
+  List<EmailHistory> _emailHistory = [];
 
   @override
   bool get wantKeepAlive => true;
@@ -68,16 +76,32 @@ class _ClientActionsTabState extends State<ClientActionsTab>
   Future<void> _loadClientData() async {
     _clientNotes = [];
     _clientDocuments = [];
+    _investmentHistory = [];
+    _emailHistory = [];
 
     if (widget.client == null) return;
 
     final clientId = widget.client!.id;
 
     try {
+      // Load notes
       final notes = await _clientNotesService.getClientNotes(clientId);
-      setState(() => _clientNotes = notes);
+      
+      // Load investment change history
+      final investmentHistory = await _investmentHistoryService.getClientHistory(clientId);
+      
+      // Load email history
+      final emailHistory = await _emailHistoryService.getEmailHistoryForClient(clientId);
+      
+      if (mounted) {
+        setState(() {
+          _clientNotes = notes;
+          _investmentHistory = investmentHistory;
+          _emailHistory = emailHistory;
+        });
+      }
     } catch (e) {
-      debugPrint('Błąd ładowania notatek: $e');
+      debugPrint('Błąd ładowania danych klienta: $e');
     }
   }
 
@@ -127,10 +151,10 @@ class _ClientActionsTabState extends State<ClientActionsTab>
                     children: [
                       Expanded(
                         child: _buildQuickActionCard(
-                          'Telefon',
-                          Icons.phone_rounded,
-                          AppThemePro.statusSuccess,
-                          () => _makePhoneCall(),
+                          'Email',
+                          Icons.email_rounded,
+                          AppThemePro.accentGold,
+                          () => _sendEmail(),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -203,36 +227,41 @@ class _ClientActionsTabState extends State<ClientActionsTab>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionHeader(
-                    'Notatki',
-                    Icons.notes_rounded,
-                    'Zapisz ważne informacje o kliencie',
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _notesController,
-                    decoration: const InputDecoration(
-                      labelText: 'Dodaj notatkę...',
-                      prefixIcon: Icon(Icons.edit_note_rounded),
-                      alignLabelWithHint: true,
-                    ),
-                    maxLines: 4,
-                    minLines: 3,
-                  ),
-                  const SizedBox(height: 20),
-                  if (_clientNotes.isNotEmpty) ...[
-                    Text(
-                      'Historia notatek',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppThemePro.textPrimary,
+
+                  if (widget.client != null) ...[
+                    SizedBox(
+                      height: 600, // Fixed height for the notes widget
+                      child: ClientNotesWidget(
+                        clientId: widget.client!.id,
+                        clientName: widget.client!.name,
+                        currentUserId: FirebaseAuth.instance.currentUser?.uid ?? 'unknown',
+                        currentUserName: FirebaseAuth.instance.currentUser?.displayName ?? 
+                                       FirebaseAuth.instance.currentUser?.email ?? 'Nieznany użytkownik',
+                        isReadOnly: false,
                       ),
                     ),
+                  ] else ...[
+                    // Fallback for new clients
+                    TextFormField(
+                      controller: _notesController,
+                      decoration: const InputDecoration(
+                        labelText: 'Notatki (zapisane po utworzeniu klienta)',
+                        prefixIcon: Icon(Icons.edit_note_rounded),
+                        alignLabelWithHint: true,
+                        enabled: false,
+                      ),
+                      maxLines: 4,
+                      minLines: 3,
+                    ),
                     const SizedBox(height: 12),
-                    ..._clientNotes
-                        .map((note) => _buildNoteCard(note))
-                        .toList(),
+                    Text(
+                      'Zaawansowane notatki będą dostępne po zapisaniu klienta',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppThemePro.textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -243,59 +272,7 @@ class _ClientActionsTabState extends State<ClientActionsTab>
     );
   }
 
-  Widget _buildNoteCard(ClientNote note) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppThemePro.backgroundSecondary.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppThemePro.borderSecondary.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            note.content,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppThemePro.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(
-                Icons.person_rounded,
-                size: 12,
-                color: AppThemePro.textTertiary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                note.authorName,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppThemePro.textTertiary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                _formatDate(note.createdAt),
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppThemePro.textTertiary,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildDocumentsSection() {
     return TweenAnimationBuilder<double>(
@@ -455,22 +432,38 @@ class _ClientActionsTabState extends State<ClientActionsTab>
                   _buildSectionHeader(
                     'Historia aktywności',
                     Icons.history_rounded,
-                    'Ostatnie operacje i zmiany',
+                    'Ostatnie zmiany i operacje',
                   ),
                   const SizedBox(height: 20),
-
-                  const Center(
+                  
+                  // Tab controls for different history types
+                  DefaultTabController(
+                    length: 2,
                     child: Column(
                       children: [
-                        Icon(
-                          Icons.timeline_rounded,
-                          size: 48,
-                          color: AppThemePro.textTertiary,
+                        TabBar(
+                          labelColor: AppThemePro.accentGold,
+                          unselectedLabelColor: AppThemePro.textSecondary,
+                          indicatorColor: AppThemePro.accentGold,
+                          tabs: const [
+                            Tab(
+                              icon: Icon(Icons.trending_up_rounded),
+                              text: 'Zmiany inwestycji',
+                            ),
+                            Tab(
+                              icon: Icon(Icons.email_rounded),
+                              text: 'Historia emaili',
+                            ),
+                          ],
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Historia będzie dostępna wkrótce',
-                          style: TextStyle(color: AppThemePro.textTertiary),
+                        SizedBox(
+                          height: 400, // Fixed height for tab content
+                          child: TabBarView(
+                            children: [
+                              _buildInvestmentHistoryTab(),
+                              _buildEmailHistoryTab(),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -481,6 +474,274 @@ class _ClientActionsTabState extends State<ClientActionsTab>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildInvestmentHistoryTab() {
+    if (_investmentHistory.isEmpty) {
+      return _buildEmptyHistoryState(
+        'Brak historii zmian inwestycji',
+        Icons.trending_up_rounded,
+        'Historia zmian zostanie utworzona przy pierwszej modyfikacji danych inwestycyjnych.',
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _investmentHistory.length,
+      itemBuilder: (context, index) {
+        final change = _investmentHistory[index];
+        return _buildInvestmentChangeCard(change);
+      },
+    );
+  }
+
+  Widget _buildEmailHistoryTab() {
+    if (_emailHistory.isEmpty) {
+      return _buildEmptyHistoryState(
+        'Brak historii emaili',
+        Icons.email_rounded,
+        'Historia emaili zostanie utworzona po wysłaniu pierwszej wiadomości do klienta.',
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _emailHistory.length,
+      itemBuilder: (context, index) {
+        final email = _emailHistory[index];
+        return _buildEmailHistoryCard(email);
+      },
+    );
+  }
+
+  Widget _buildEmptyHistoryState(String title, IconData icon, String description) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppThemePro.accentGold.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              size: 48,
+              color: AppThemePro.accentGold.withOpacity(0.6),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppThemePro.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: TextStyle(
+              fontSize: 14,
+              color: AppThemePro.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvestmentChangeCard(InvestmentChangeHistory change) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundSecondary.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppThemePro.borderSecondary.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getChangeTypeColor(change.changeType).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  InvestmentChangeType.fromValue(change.changeType).displayName,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: _getChangeTypeColor(change.changeType),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _formatDateTime(change.changedAt),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppThemePro.textTertiary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            change.changeDescription,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppThemePro.textPrimary,
+            ),
+          ),
+          if (change.fieldChanges.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...change.fieldChanges.map((fieldChange) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Text(
+                fieldChange.changeDescription,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppThemePro.textSecondary,
+                ),
+              ),
+            )),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                Icons.person_rounded,
+                size: 12,
+                color: AppThemePro.textTertiary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                change.userName,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppThemePro.textTertiary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmailHistoryCard(EmailHistory email) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.backgroundSecondary.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppThemePro.borderSecondary.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getEmailStatusColor(email.status).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _getEmailStatusIcon(email.status),
+                      size: 12,
+                      color: _getEmailStatusColor(email.status),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _getEmailStatusText(email.status),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _getEmailStatusColor(email.status),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _formatDateTime(email.sentAt),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppThemePro.textTertiary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            email.subject,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppThemePro.textPrimary,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                Icons.email_rounded,
+                size: 12,
+                color: AppThemePro.textTertiary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '${email.recipients.length} odbiorca(ów)',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppThemePro.textTertiary,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Icon(
+                Icons.person_rounded,
+                size: 12,
+                color: AppThemePro.textTertiary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                email.senderName.isNotEmpty ? email.senderName : email.senderEmail,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppThemePro.textTertiary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -530,6 +791,74 @@ class _ClientActionsTabState extends State<ClientActionsTab>
     return '${date.day}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 
+  String _formatDateTime(DateTime date) {
+    return '${date.day}.${date.month.toString().padLeft(2, '0')}.${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  Color _getChangeTypeColor(String changeType) {
+    switch (changeType) {
+      case 'field_update':
+        return AppThemePro.statusInfo;
+      case 'bulk_update':
+        return AppThemePro.statusWarning;
+      case 'import':
+        return AppThemePro.statusInfo; // Using statusInfo instead of accentBlue
+      case 'manual_entry':
+        return AppThemePro.statusSuccess;
+      case 'system_update':
+        return AppThemePro.accentGoldMuted; // Using accentGoldMuted instead of accentPurple
+      case 'correction':
+        return AppThemePro.statusError;
+      default:
+        return AppThemePro.textSecondary;
+    }
+  }
+
+  Color _getEmailStatusColor(EmailStatus status) {
+    switch (status) {
+      case EmailStatus.pending:
+        return AppThemePro.statusWarning;
+      case EmailStatus.sending:
+        return AppThemePro.statusInfo;
+      case EmailStatus.sent:
+        return AppThemePro.statusSuccess;
+      case EmailStatus.failed:
+        return AppThemePro.statusError;
+      case EmailStatus.partiallyFailed:
+        return AppThemePro.statusWarning;
+    }
+  }
+
+  IconData _getEmailStatusIcon(EmailStatus status) {
+    switch (status) {
+      case EmailStatus.pending:
+        return Icons.schedule_rounded;
+      case EmailStatus.sending:
+        return Icons.sync_rounded;
+      case EmailStatus.sent:
+        return Icons.check_circle_rounded;
+      case EmailStatus.failed:
+        return Icons.error_rounded;
+      case EmailStatus.partiallyFailed:
+        return Icons.warning_rounded;
+    }
+  }
+
+  String _getEmailStatusText(EmailStatus status) {
+    switch (status) {
+      case EmailStatus.pending:
+        return 'Oczekuje';
+      case EmailStatus.sending:
+        return 'Wysyłanie';
+      case EmailStatus.sent:
+        return 'Wysłany';
+      case EmailStatus.failed:
+        return 'Błąd';
+      case EmailStatus.partiallyFailed:
+        return 'Częściowo nieudany';
+    }
+  }
+
   Color _getDocumentTypeColor(String type) {
     switch (type.toUpperCase()) {
       case 'PDF':
@@ -567,24 +896,42 @@ class _ClientActionsTabState extends State<ClientActionsTab>
   }
 
   // Action methods
-  void _makePhoneCall() {
-    HapticFeedback.mediumImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('📞 Dzwonię na numer ${widget.formData.phone}'),
-        backgroundColor: AppThemePro.statusSuccess,
-      ),
-    );
+  void _sendEmail() {
+    HapticFeedback.lightImpact();
+    if (widget.client != null) {
+      // Create InvestorSummary from client data using the factory method
+      final investorSummary = InvestorSummary.withoutCalculations(
+        widget.client!,
+        [], // Empty investments list for now - would need actual investments from service
+      );
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => WowEmailEditorScreen(
+            selectedInvestors: [investorSummary],
+            initialSubject: 'Wiadomość dla ${widget.client!.name}',
+            initialMessage: 'Szanowny(a) ${widget.client!.name},\n\n',
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Brak danych klienta do wysłania emaila'),
+          backgroundColor: AppThemePro.statusWarning,
+        ),
+      );
+    }
   }
 
   void _scheduleMeeting() {
     HapticFeedback.lightImpact();
     if (widget.client != null) {
       final now = DateTime.now().add(const Duration(days: 7));
-      final event = CalendarEvent(
+      final initialEvent = CalendarEvent(
         id: '',
         title: 'Spotkanie z ${widget.client!.name}',
-        description: 'Automatycznie utworzone wydarzenie',
+        description: 'Spotkanie z klientem',
         startDate: now,
         endDate: now.add(const Duration(hours: 1)),
         location: '',
@@ -596,24 +943,20 @@ class _ClientActionsTabState extends State<ClientActionsTab>
         updatedAt: now,
       );
 
-      _calendarService
-          .createEvent(event)
-          .then((created) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('📅 Utworzono wydarzenie: ${created.title}'),
-                backgroundColor: AppThemePro.statusInfo,
-              ),
-            );
-          })
-          .catchError((e) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Błąd tworzenia wydarzenia'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          });
+      PremiumCalendarEventDialog.show(
+        context,
+        event: initialEvent,
+        initialDate: now,
+        onEventChanged: (event) {
+          // Event was created/updated successfully
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('📅 Utworzono wydarzenie: ${event.title}'),
+              backgroundColor: AppThemePro.statusSuccess,
+            ),
+          );
+        },
+      );
       return;
     }
 

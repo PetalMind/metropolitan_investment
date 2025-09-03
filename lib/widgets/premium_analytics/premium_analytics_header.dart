@@ -582,7 +582,7 @@ class _PremiumAnalyticsHeaderState extends State<PremiumAnalyticsHeader>
         ),
         child: Stack(
           children: [
-            IconButton(
+            TextButton.icon(
               onPressed: !widget.canEdit ? null : widget.onToggleExport,
               icon: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -595,6 +595,25 @@ class _PremiumAnalyticsHeaderState extends State<PremiumAnalyticsHeader>
                       ? AppThemePro.statusError
                       : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
                   size: 20,
+                ),
+              ),
+              label: Text(
+                widget.isExportMode ? 'Zakończ' : 'Eksportuj wybrane dane',
+                style: TextStyle(
+                  color: widget.isExportMode
+                      ? AppThemePro.statusError
+                      : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
@@ -685,7 +704,7 @@ class _PremiumAnalyticsHeaderState extends State<PremiumAnalyticsHeader>
         ),
         child: Stack(
           children: [
-            IconButton(
+            TextButton.icon(
               onPressed: !widget.canEdit ? null : widget.onToggleEmail,
               icon: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -698,6 +717,25 @@ class _PremiumAnalyticsHeaderState extends State<PremiumAnalyticsHeader>
                       ? AppThemePro.statusError
                       : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
                   size: 20,
+                ),
+              ),
+              label: Text(
+                widget.isEmailMode ? 'Zakończ' : 'Wyślij e-mail',
+                style: TextStyle(
+                  color: widget.isEmailMode
+                      ? AppThemePro.statusError
+                      : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart' as html_package;
@@ -140,6 +141,12 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   List<EmailSendResult>? _results;
   String _currentPreviewHtml = '';
   double _previewZoomLevel = 1.0;
+  
+  // 📊 ENHANCED LOADING STATE
+  String _loadingMessage = 'Przygotowywanie wiadomości...';
+  int _emailsSent = 0;
+  int _totalEmailsToSend = 0;
+  double _loadingProgress = 0.0;
 
   // 🎪 KONTROLERY ANIMACJI DLA MAKSYMALNEGO WOW
   late AnimationController _settingsAnimationController;
@@ -1067,31 +1074,83 @@ Zespół Metropolitan Investment''';
       return;
     }
 
+    // Initialize progress tracking
+    final enabledInvestors = widget.selectedInvestors
+        .where((investor) => _recipientEnabled[investor.client.id] ?? false)
+        .toList();
+    
+    final allEmails = <String>[
+      ...enabledInvestors.map((inv) => inv.client.email),
+      ..._additionalEmails,
+    ].where((email) => email.isNotEmpty).toList();
+
     setState(() {
       _isLoading = true;
       _error = null;
+      _totalEmailsToSend = allEmails.length;
+      _emailsSent = 0;
+      _loadingProgress = 0.0;
+      _loadingMessage = 'Przygotowywanie wiadomości...';
     });
 
-    try {
-      final emailHtml = _convertQuillToHtml();
-      await Future.delayed(const Duration(seconds: 2));
-      debugPrint('Email HTML: $emailHtml');
-
+    if (allEmails.isEmpty) {
       setState(() {
-        _results = [
-          EmailSendResult(
-            success: true,
-            messageId: 'test-message-id',
-            clientEmail: 'test@example.com',
-            clientName: 'Test Client',
-            investmentCount: 1,
-            totalAmount: 0.0,
-            executionTimeMs: 2000,
-            template: 'test-template',
-          ),
-        ];
+        _error = 'Brak aktywnych odbiorców email.';
         _isLoading = false;
       });
+      return;
+    }
+
+    try {
+      // Step 1: Preparing HTML
+      setState(() {
+        _loadingMessage = 'Konwertowanie treści do HTML...';
+        _loadingProgress = 0.1;
+      });
+      
+      final emailHtml = _convertQuillToHtml();
+      final finalHtml = _includeInvestmentDetails 
+          ? _addInvestmentDetailsToHtml(emailHtml)
+          : emailHtml;
+
+      // Step 2: Connecting to email service
+      setState(() {
+        _loadingMessage = 'Łączenie z serwerem email...';
+        _loadingProgress = 0.2;
+      });
+
+      // Step 3: Sending emails
+      setState(() {
+        _loadingMessage = 'Wysyłanie $_totalEmailsToSend wiadomości...';
+        _loadingProgress = 0.3;
+      });
+
+      final emailService = EmailAndExportService();
+      
+      final results = await emailService.sendCustomEmailsToMixedRecipients(
+        investors: enabledInvestors,
+        additionalEmails: _additionalEmails,
+        subject: _subjectController.text,
+        htmlContent: finalHtml,
+        includeInvestmentDetails: _includeInvestmentDetails,
+        senderEmail: _senderEmailController.text,
+        senderName: _senderNameController.text,
+      );
+
+      // Update final progress
+      final successfulEmails = results.where((r) => r.success).length;
+      setState(() {
+        _emailsSent = results.length;
+        _loadingProgress = 1.0;
+        _loadingMessage = 'Wysłano $successfulEmails z ${results.length} wiadomości';
+        _results = results;
+        _isLoading = false;
+      });
+
+      // 🔊 Play success sound if emails were sent successfully
+      if (successfulEmails > 0) {
+        _playSuccessSound();
+      }
 
       // Powrót do poprzedniego ekranu z wynikiem
       if (mounted) {
@@ -1101,7 +1160,20 @@ Zespół Metropolitan Investment''';
       setState(() {
         _error = 'Błąd podczas wysyłania: $e';
         _isLoading = false;
+        _loadingMessage = 'Błąd wysyłania';
+        _loadingProgress = 0.0;
       });
+    }
+  }
+
+  // 🔊 PLAY SUCCESS SOUND FOR EMAIL SENDING
+  void _playSuccessSound() {
+    try {
+      // Use Flutter's built-in SystemSound for success
+      SystemSound.play(SystemSoundType.alert);
+      debugPrint('🔊 Success sound played');
+    } catch (e) {
+      debugPrint('⚠️ Could not play success sound: $e');
     }
   }
 
@@ -3332,43 +3404,111 @@ Zespół Metropolitan Investment''';
   Widget _buildWowLoadingBanner() {
     return Container(
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppThemePro.statusInfo.withValues(alpha: 0.1),
-            AppThemePro.statusInfo.withValues(alpha: 0.05),
+            AppThemePro.statusInfo.withValues(alpha: 0.15),
+            AppThemePro.accentGold.withValues(alpha: 0.1),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppThemePro.statusInfo),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppThemePro.statusInfo, width: 2),
         boxShadow: [
           BoxShadow(
-            color: AppThemePro.statusInfo.withValues(alpha: 0.1),
-            blurRadius: 15,
-            spreadRadius: 1,
+            color: AppThemePro.statusInfo.withValues(alpha: 0.2),
+            blurRadius: 20,
+            spreadRadius: 2,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppThemePro.statusInfo),
-              strokeWidth: 2,
-            ),
+          // Header row with spinning indicator
+          Row(
+            children: [
+              SizedBox(
+                width: 32,
+                height: 32,
+                child: CircularProgressIndicator(
+                  value: _loadingProgress > 0 ? _loadingProgress : null,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppThemePro.accentGold),
+                  backgroundColor: AppThemePro.statusInfo.withValues(alpha: 0.2),
+                  strokeWidth: 3,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Wysyłanie Wiadomości Email',
+                      style: TextStyle(
+                        color: AppThemePro.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _loadingMessage,
+                      style: TextStyle(
+                        color: AppThemePro.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Wysyłanie wiadomości...',
-              style: TextStyle(color: AppThemePro.textPrimary, fontSize: 14),
+          
+          // Progress bar and counter (if progress is available)
+          if (_loadingProgress > 0) ...[
+            const SizedBox(height: 16),
+            Column(
+              children: [
+                // Progress bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: _loadingProgress,
+                    backgroundColor: AppThemePro.backgroundSecondary,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppThemePro.accentGold),
+                    minHeight: 6,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Progress text
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${(_loadingProgress * 100).toInt()}% ukończone',
+                      style: TextStyle(
+                        color: AppThemePro.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (_totalEmailsToSend > 0)
+                      Text(
+                        '$_emailsSent / $_totalEmailsToSend emaili',
+                        style: TextStyle(
+                          color: AppThemePro.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
             ),
-          ),
+          ],
         ],
       ),
     );

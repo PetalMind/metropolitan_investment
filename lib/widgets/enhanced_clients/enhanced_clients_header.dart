@@ -463,8 +463,7 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                 _buildExportButton(),
                 const SizedBox(width: 8),
                 _buildEmailButton(),
-                const SizedBox(width: 8),
-                _buildLegendButton(), // 🎯 NOWY PRZYCISK LEGENDY
+        
               ],
             )
           : PopupMenuButton<String>(
@@ -599,7 +598,7 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
     );
   }
 
-  Widget _buildExportButton() {
+  Widget _buildExportButton({String? text, bool showText = false}) {
     const kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
 
     return Tooltip(
@@ -674,16 +673,44 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                   size: 20,
                 ),
               ),
-              label: Text(
-                widget.isExportMode ? 'Zakończ' : 'Eksportuj wybrane dane',
-                style: TextStyle(
-                  color: widget.isExportMode
-                      ? AppThemePro.statusError
-                      : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              label: showText && text != null
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.isExportMode ? 'Zakończ' : 'Eksportuj wybrane dane',
+                          style: TextStyle(
+                            color: widget.isExportMode
+                                ? AppThemePro.statusError
+                                : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          text,
+                          style: TextStyle(
+                            color: widget.isExportMode
+                                ? AppThemePro.statusError
+                                : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w400,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      widget.isExportMode ? 'Zakończ' : 'Eksportuj wybrane dane',
+                      style: TextStyle(
+                        color: widget.isExportMode
+                            ? AppThemePro.statusError
+                            : (widget.canEdit ? AppThemePro.accentGold : Colors.grey),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,

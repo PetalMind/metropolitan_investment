@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/auth_provider.dart';
 import '../theme/app_theme_professional.dart';
 import '../widgets/metropolitan_logo_widget.dart';
 import '../config/app_routes.dart';
+import '../models_and_services.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -198,7 +198,13 @@ class _LoginScreenState extends State<LoginScreen>
     if (success && mounted) {
       // Success haptic feedback
       HapticFeedback.mediumImpact();
-      context.go(AppRoutes.dashboard);
+      
+      // Play success sound
+      await _playLoginSuccessSound();
+      
+      if (mounted) {
+        context.go(AppRoutes.dashboard);
+      }
     } else if (mounted) {
       // Error haptic feedback
       HapticFeedback.heavyImpact();
@@ -234,6 +240,16 @@ class _LoginScreenState extends State<LoginScreen>
         duration: const Duration(seconds: 4),
       ),
     );
+  }
+
+  Future<void> _playLoginSuccessSound() async {
+    try {
+      // Play login success sound using AudioService
+      await AudioService.instance.playEmailSuccessSound();
+      debugPrint('🔊 Login success sound played');
+    } catch (e) {
+      debugPrint('⚠️ Could not play login success sound: $e');
+    }
   }
 
   @override

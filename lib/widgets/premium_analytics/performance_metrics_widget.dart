@@ -279,7 +279,6 @@ class _PerformanceMetricsWidgetState extends State<PerformanceMetricsWidget>
     final tabs = [
       {'label': 'KPI Ogólne', 'icon': Icons.dashboard_rounded},
       {'label': 'Struktura', 'icon': Icons.pie_chart_rounded},
-      {'label': 'Aktywność', 'icon': Icons.timeline_rounded},
       {'label': 'Ranking', 'icon': Icons.leaderboard_rounded},
     ];
 
@@ -371,8 +370,6 @@ class _PerformanceMetricsWidgetState extends State<PerformanceMetricsWidget>
       case 1:
         return _buildStructureTab();
       case 2:
-        return _buildActivityTab();
-      case 3:
         return _buildRankingTab();
       default:
         return _buildKPIGeneralTab();
@@ -413,19 +410,6 @@ class _PerformanceMetricsWidgetState extends State<PerformanceMetricsWidget>
     );
   }
 
-  Widget _buildActivityTab() {
-    return Column(
-      children: [
-        _buildActivityMetrics(),
-        const SizedBox(height: 32),
-        _buildNewInvestorsChart(),
-        if (_showAdvancedMetrics) ...[
-          const SizedBox(height: 32),
-          _buildCashFlowDynamicsChart(),
-        ],
-      ],
-    );
-  }
 
   Widget _buildRankingTab() {
     return Column(
@@ -890,66 +874,6 @@ class _PerformanceMetricsWidgetState extends State<PerformanceMetricsWidget>
     );
   }
 
-  Widget _buildActivityMetrics() {
-    final activity = _calculateActivityMetrics();
-    
-    return Row(
-      children: [
-        Expanded(
-          child: _buildActivityCard('Nowi Inwestorzy (Miesięcznie)', activity['newMonthly']!, Icons.person_add_rounded, AppThemePro.statusSuccess),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildActivityCard('Dynamika Wpłat', activity['cashflowGrowth']!, Icons.trending_up_rounded, AppThemePro.accentGold),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildActivityCard('Aktywni (30 dni)', activity['activeInvestors']!, Icons.flash_on_rounded, AppThemePro.statusInfo),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActivityCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color.withValues(alpha: 0.1),
-            AppThemePro.surfaceElevated,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: TextStyle(
-              color: AppThemePro.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: AppThemePro.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildNewInvestorsChart() {
     return Container(
       height: 300,
@@ -1010,7 +934,7 @@ class _PerformanceMetricsWidgetState extends State<PerformanceMetricsWidget>
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
                   LineChartBarData(
-                    spots: _generateNewInvestorsData(),
+                    spots: [], // Removed _generateNewInvestorsData()
                     isCurved: true,
                     color: AppThemePro.statusSuccess,
                     barWidth: 3,
@@ -1129,7 +1053,7 @@ class _PerformanceMetricsWidgetState extends State<PerformanceMetricsWidget>
               child: Text(
                 '$rank',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.black,
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
                 ),
@@ -1393,8 +1317,8 @@ class _PerformanceMetricsWidgetState extends State<PerformanceMetricsWidget>
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
-                maxY: _getMaxCashFlowValue() * 1.2,
-                barGroups: _buildCashFlowBarGroups(),
+                maxY: 100000, // Removed _getMaxCashFlowValue() * 1.2
+                barGroups: [], // Removed _buildCashFlowBarGroups()
                 titlesData: FlTitlesData(
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
@@ -1586,46 +1510,6 @@ class _PerformanceMetricsWidgetState extends State<PerformanceMetricsWidget>
       'Średnie\n(100K-500K)': medium.toString(),
       'Duże\n(500K-1M)': large.toString(),
       'VIP\n(>1M)': vip.toString(),
-    };
-  }
-
-  Map<String, String> _calculateActivityMetrics() {
-    if (widget.allInvestors.isEmpty) {
-      return {
-        'newMonthly': '0',
-        'cashflowGrowth': '0%',
-        'activeInvestors': '0',
-      };
-    }
-
-    // Oblicz prawdziwą liczbę aktywnych inwestorów
-    final activeInvestors = widget.allInvestors
-        .where((investor) => investor.totalRemainingCapital > 0)
-        .length;
-
-    // Oblicz całkowity kapitał pozostały
-    final totalRemainingCapital = widget.allInvestors.fold<double>(
-      0.0, (sum, investor) => sum + investor.totalRemainingCapital
-    );
-
-    // Oblicz całkowity kapitał zrealizowany
-    final totalRealizedCapital = widget.allInvestors.fold<double>(
-      0.0, (sum, investor) => sum + investor.totalRealizedCapital
-    );
-
-    // Oszacuj wzrost na podstawie stosunku zrealizowanego do pozostałego
-    final totalCapital = totalRemainingCapital + totalRealizedCapital;
-    final growthPercentage = totalCapital > 0 
-        ? ((totalRealizedCapital / totalCapital) * 100).toStringAsFixed(1)
-        : '0.0';
-
-    // Oszacuj nowych inwestorów jako 15% wszystkich inwestorów (założenie biznesowe)
-    final newMonthlyEstimate = (widget.allInvestors.length * 0.15).round();
-
-    return {
-      'newMonthly': newMonthlyEstimate.toString(),
-      'cashflowGrowth': '+$growthPercentage%',
-      'activeInvestors': activeInvestors.toString(),
     };
   }
 
@@ -1978,93 +1862,8 @@ class _PerformanceMetricsWidgetState extends State<PerformanceMetricsWidget>
     ];
   }
 
-  List<FlSpot> _generateNewInvestorsData() {
-    if (widget.allInvestors.isEmpty) {
-      return List.generate(6, (index) => FlSpot(index.toDouble(), 0));
-    }
-
-    // Generuj dane na podstawie rozłożenia inwestorów
-    // Symuluj wzrost w czasie na podstawie liczby inwestorów
-    final baseCount = widget.allInvestors.length / 6; // Średnia na miesiąc
-    final growthFactor = 1.15; // 15% wzrostu
-    
-    return List.generate(6, (index) {
-      final monthlyCount = baseCount * math.pow(growthFactor, index / 6);
-      return FlSpot(index.toDouble(), monthlyCount.clamp(0, double.infinity));
-    });
-  }
-
-  List<BarChartGroupData> _buildCashFlowBarGroups() {
-    if (widget.allInvestors.isEmpty) {
-      return List.generate(6, (index) => BarChartGroupData(
-        x: index,
-        barRods: [
-          BarChartRodData(
-            toY: 0,
-            gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [
-                AppThemePro.accentGoldMuted,
-                AppThemePro.accentGold,
-              ],
-            ),
-            width: 30,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-          ),
-        ],
-      ));
-    }
-
-    // Oblicz przepływy pieniężne na podstawie rzeczywistych danych
-    final totalInvestmentAmount = widget.allInvestors.fold<double>(
-      0.0, (sum, investor) => sum + investor.totalInvestmentAmount
-    );
-
-    // Symuluj przepływy w czasie - rozłóż kapitał na 6 miesięcy z wzrostem
-    final baseFlow = totalInvestmentAmount / 6;
-    final growthFactor = 1.12; // 12% wzrost miesięczny
-    
-    return List.generate(6, (index) {
-      final monthlyFlow = baseFlow * math.pow(growthFactor, index / 6);
-      return BarChartGroupData(
-        x: index,
-        barRods: [
-          BarChartRodData(
-            toY: monthlyFlow.clamp(0, double.infinity),
-            gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [
-                AppThemePro.accentGoldMuted,
-                AppThemePro.accentGold,
-              ],
-            ),
-            width: 30,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-          ),
-        ],
-      );
-    });
-  }
-
   // Helper methods
   
-  double _getMaxCashFlowValue() {
-    if (widget.allInvestors.isEmpty) return 1000000;
-    
-    final totalInvestmentAmount = widget.allInvestors.fold<double>(
-      0.0, (sum, investor) => sum + investor.totalInvestmentAmount
-    );
-    
-    // Zwróć maksimum z przepływów (najwyższa wartość z symulacji wzrostu)
-    final baseFlow = totalInvestmentAmount / 6;
-    final growthFactor = 1.12;
-    final maxFlow = baseFlow * math.pow(growthFactor, 1.0); // Najwyższy wzrost
-    
-    return maxFlow.clamp(100000, double.infinity);
-  }
-
   String _formatCurrency(double value) {
     if (value >= 1000000) {
       return '${(value / 1000000).toStringAsFixed(1)}M PLN';

@@ -158,16 +158,6 @@ class _TrendAnalysisWidgetState extends State<TrendAnalysisWidget>
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context),
-            _buildContent(),
-          ],
-        ),
-      ),
     );
   }
 
@@ -322,8 +312,7 @@ class _TrendAnalysisWidgetState extends State<TrendAnalysisWidget>
               child: Column(
                 children: [
                   _buildTrendMetrics(),
-                  const SizedBox(height: 24),
-                  _buildInteractiveChart(),
+        
                 ],
               ),
             ),

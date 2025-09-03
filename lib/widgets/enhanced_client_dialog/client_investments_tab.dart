@@ -56,7 +56,7 @@ class _ClientInvestmentsTabState extends State<ClientInvestmentsTab>
 
   // Filters
   String _selectedProductType = 'Wszystkie';
-  bool _showActiveOnly = true;
+  bool _showActiveOnly = false;
 
   @override
   bool get wantKeepAlive => true;

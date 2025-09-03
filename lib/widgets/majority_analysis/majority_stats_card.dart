@@ -165,83 +165,10 @@ class _MajorityStatsCardState extends State<MajorityStatsCard>
                 fontWeight: FontWeight.w500,
               ),
             ),
-            AnimatedBuilder(
-              animation: _percentageAnimation,
-              builder: (context, child) {
-                return Text(
-                  '${_percentageAnimation.value.toStringAsFixed(1)}%',
-                  style: TextStyle(
-                    color: AppThemePro.accentGold,
-                    fontSize: widget.isTablet ? 20 : 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                );
-              },
-            ),
+          
           ],
         ),
         const SizedBox(height: 16),
-        AnimatedBuilder(
-          animation: _progressAnimation,
-          builder: (context, child) {
-            return Stack(
-              children: [
-                Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: AppThemePro.backgroundTertiary,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                Container(
-                  height: 8,
-                  width:
-                      MediaQuery.of(context).size.width *
-                      _progressAnimation.value *
-                      0.8,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppThemePro.accentGold,
-                        AppThemePro.accentGoldMuted,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(4),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppThemePro.accentGold.withValues(alpha: 0.3),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '0%',
-              style: TextStyle(color: AppThemePro.textMuted, fontSize: 12),
-            ),
-            Text(
-              '${widget.majorityThreshold.toStringAsFixed(0)}%',
-              style: TextStyle(
-                color: AppThemePro.statusSuccess,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Text(
-              '100%',
-              style: TextStyle(color: AppThemePro.textMuted, fontSize: 12),
-            ),
-          ],
-        ),
       ],
     );
   }
