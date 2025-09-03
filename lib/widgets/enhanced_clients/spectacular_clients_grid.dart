@@ -156,9 +156,12 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   }
 
   void _setupCardKeys() {
-    _cardKeys.clear();
-    for (int i = 0; i < widget.clients.length; i++) {
-      _cardKeys.add(GlobalKey());
+    // Only clear and recreate keys if the length has changed
+    if (_cardKeys.length != widget.clients.length) {
+      _cardKeys.clear();
+      for (int i = 0; i < widget.clients.length; i++) {
+        _cardKeys.add(GlobalKey());
+      }
     }
   }
 
@@ -173,9 +176,12 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   void didUpdateWidget(SpectacularClientsGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
 
+    // Check if the length changed - this requires key recreation
+    bool lengthChanged = widget.clients.length != oldWidget.clients.length;
+    
     // Sprawdź czy zmieniła się długość listy lub dane inwestycji
     bool dataChanged =
-        widget.clients.length != oldWidget.clients.length ||
+        lengthChanged ||
         widget.investorSummaries != oldWidget.investorSummaries;
 
     // Sprawdź czy zmieniły się właściwości klientów (np. colorCode)
@@ -199,7 +205,10 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     }
 
     if (dataChanged) {
-      _setupCardKeys();
+      // Only recreate keys if length changed to avoid duplicate GlobalKey errors
+      if (lengthChanged) {
+        _setupCardKeys();
+      }
       _identifyTopInvestors(); // 🚀 Re-identify top investors
       _staggerController.reset();
       _staggerController.forward();

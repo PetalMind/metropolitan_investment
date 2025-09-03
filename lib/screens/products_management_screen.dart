@@ -4069,7 +4069,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       builder: (context) => InvestorExportDialog(
         selectedInvestors: investors,
         onExportComplete: () {
-          Navigator.of(context).pop();
+          // Dialog already handles its own closure, so we don't call Navigator.of(context).pop() here
           _toggleExportMode();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

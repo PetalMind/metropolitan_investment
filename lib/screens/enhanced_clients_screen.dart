@@ -842,7 +842,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         selectedInvestors: investorsData,
         onExportComplete: () {
           if (mounted && context.mounted) {
-            Navigator.of(context).pop();
+            // Dialog already handles its own closure, so we don't call Navigator.of(context).pop() here
             _toggleExportMode(); // Wyłącz tryb eksportu
             _showSuccessSnackBar('✅ Eksport zakończony pomyślnie');
           }

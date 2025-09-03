@@ -1690,7 +1690,7 @@ class _PremiumInvestorAnalyticsScreenState
       builder: (context) => InvestorExportDialog(
         selectedInvestors: _selectedInvestors,
         onExportComplete: () {
-          Navigator.of(context).pop();
+          // Dialog already handles its own closure, so we don't call Navigator.of(context).pop() here
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('✅ Eksport zakończony pomyślnie'),
@@ -2938,7 +2938,7 @@ class _PremiumInvestorAnalyticsScreenState
       builder: (context) => InvestorExportDialog(
         selectedInvestors: _selectedInvestors,
         onExportComplete: () {
-          Navigator.pop(context);
+          // Dialog already handles its own closure, so we don't call Navigator.pop(context) here
           _toggleExportMode();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
