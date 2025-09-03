@@ -10,6 +10,7 @@ import '../widgets/enhanced_clients/collapsible_search_header_fixed.dart'
     as CollapsibleHeader;
 import '../widgets/enhanced_clients/spectacular_clients_grid.dart';
 import '../widgets/enhanced_clients/enhanced_clients_header.dart';
+import '../widgets/enhanced_clients/clients_legend_widget.dart';
 import '../screens/wow_email_editor_screen.dart';
 import '../widgets/enhanced_client_dialog/enhanced_client_dialog.dart';
 
@@ -86,6 +87,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
   // Header collapse state
   bool _isHeaderCollapsed = false;
+  
+  // 🎯 NOWE: Stan legendy
+  bool _isLegendExpanded = false;
 
   // Pagination state
   bool _hasMoreData = false;
@@ -484,6 +488,14 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       _showActiveOnly = !_showActiveOnly;
       _applyCurrentFilters();
     });
+  }
+
+  /// 🎯 NOWE: Przełączanie widoczności legendy
+  void _toggleLegend() {
+    setState(() {
+      _isLegendExpanded = !_isLegendExpanded;
+    });
+    HapticFeedback.lightImpact();
   }
 
   /// Odświeżenie danych
@@ -962,65 +974,77 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     }
     return Scaffold(
       backgroundColor: AppThemePro.backgroundPrimary,
-      body: Column(
-        children: [
-          // 🚀 NOWY: Enhanced responsywny header z animacjami (wzorowany na premium analytics)
-          EnhancedClientsHeader(
-            isTablet: _isTablet,
-            canEdit: canEdit,
-            totalCount: _allClients.length,
-            isLoading: _isLoading,
-            isSelectionMode: _isSelectionMode,
-            isEmailMode: _isEmailMode,
-            isExportMode: _isExportMode,
-            selectedClientIds: _selectedClientIds,
-            displayedClients: _displayedClients,
-            onAddClient: () => _showClientForm(),
-            onToggleEmail: _toggleEmailMode,
-            onToggleExport: _toggleExportMode,
-            onSelectAll: _selectAllClients,
-            onClearSelection: _clearSelection,
-          ),
+      body: SingleChildScrollView( // 🎯 DODANE: Zabezpieczenie przed overflow
+        child: Column(
+          children: [
+            // 🚀 NOWY: Enhanced responsywny header z animacjami (wzorowany na premium analytics)
+            EnhancedClientsHeader(
+              isTablet: _isTablet,
+              canEdit: canEdit,
+              totalCount: _allClients.length,
+              isLoading: _isLoading,
+              isSelectionMode: _isSelectionMode,
+              isEmailMode: _isEmailMode,
+              isExportMode: _isExportMode,
+              selectedClientIds: _selectedClientIds,
+              displayedClients: _displayedClients,
+              onAddClient: () => _showClientForm(),
+              onToggleEmail: _toggleEmailMode,
+              onToggleExport: _toggleExportMode,
+              onSelectAll: _selectAllClients,
+              onClearSelection: _clearSelection,
+              onToggleLegend: _toggleLegend, // 🎯 NOWY CALLBACK
+            ),
 
-          // 🚀 NOWY: Export Mode Banner (wzorowane na premium analytics)
-          if (_isExportMode) _buildExportModeBanner(),
-          
-          // 🚀 NOWY: Email Mode Banner
-          if (_isEmailMode) _buildEmailModeBanner(),
-          
-          // 🚀 NOWY: Edit Mode Banner
-          // edit mode removed
+            // 🚀 NOWY: Export Mode Banner (wzorowane na premium analytics)
+            if (_isExportMode) _buildExportModeBanner(),
+            
+            // 🚀 NOWY: Email Mode Banner
+            if (_isEmailMode) _buildEmailModeBanner(),
+            
+            // 🚀 NOWY: Edit Mode Banner
+            // edit mode removed
 
-          // 🎨 LEGACY COLLAPSIBLE SEARCH HEADER - TYLKO DLA WYSZUKIWANIA I FILTRÓW
-          CollapsibleHeader.CollapsibleSearchHeader(
-            searchController: _searchController,
-            isCollapsed:
-                _isHeaderCollapsed, // 🚀 KONTROLUJE UKRYWANIE STATYSTYK
-            onSearchChanged: (query) {
-              _currentSearchQuery = query;
-              _performSearch();
-            },
-            statsWidget: _clientStats != null
-                ? _buildStatsWidget(_clientStats!)
-                : null,
-            showActiveOnly: _showActiveOnly,
-            onToggleActiveOnly: _toggleActiveClients,
-            activeClientsCount: _activeClients.length,
-            isSelectionMode: _isSelectionMode,
-            onSelectionModeToggle: () {
-              if (_isSelectionMode) {
-                _exitSelectionMode();
-              } else {
-                _enterSelectionMode();
-              }
-            },
-            additionalActions:
-                null, // 🚀 USUNIĘTE: actions są teraz w nowym headerze
-          ),
+            // 🎯 NOWA LEGENDA - wyjaśnienia oznaczeń
+            ClientsLegendWidget(
+              isExpanded: _isLegendExpanded,
+              onToggle: _toggleLegend,
+            ),
 
-          // 🎨 SPECTACULAR CLIENTS GRID - POZOSTAŁA PRZESTRZEŃ
-          Expanded(child: _buildContent()),
-        ],
+            // 🎨 LEGACY COLLAPSIBLE SEARCH HEADER - TYLKO DLA WYSZUKIWANIA I FILTRÓW
+            CollapsibleHeader.CollapsibleSearchHeader(
+              searchController: _searchController,
+              isCollapsed:
+                  _isHeaderCollapsed, // 🚀 KONTROLUJE UKRYWANIE STATYSTYK
+              onSearchChanged: (query) {
+                _currentSearchQuery = query;
+                _performSearch();
+              },
+              statsWidget: _clientStats != null
+                  ? _buildStatsWidget(_clientStats!)
+                  : null,
+              showActiveOnly: _showActiveOnly,
+              onToggleActiveOnly: _toggleActiveClients,
+              activeClientsCount: _activeClients.length,
+              isSelectionMode: _isSelectionMode,
+              onSelectionModeToggle: () {
+                if (_isSelectionMode) {
+                  _exitSelectionMode();
+                } else {
+                  _enterSelectionMode();
+                }
+              },
+              additionalActions:
+                  null, // 🚀 USUNIĘTE: actions są teraz w nowym headerze
+            ),
+
+            // 🎨 SPECTACULAR CLIENTS GRID - OKREŚLONA WYSOKOŚĆ
+            SizedBox(
+              height: MediaQuery.of(context).size.height - 300, // 🎯 OKREŚLONA WYSOKOŚĆ
+              child: _buildContent(),
+            ),
+          ],
+        ),
       ),
     );
   }

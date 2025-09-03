@@ -244,7 +244,7 @@ class _EmployeeActionsWidgetState extends State<EmployeeActionsWidget>
                     if (widget.onExport != null)
                       _ActionButton(
                         icon: Icons.download,
-                        tooltip: 'Eksportuj dane',
+                        tooltip: 'Eksportuj wybrane dane',
                         onPressed: widget.onExport!,
                         color: AppTheme.secondaryGold,
                       ),

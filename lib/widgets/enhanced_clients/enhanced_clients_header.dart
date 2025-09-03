@@ -51,6 +51,9 @@ class EnhancedClientsHeader extends StatefulWidget {
   final VoidCallback onToggleExport;
   final VoidCallback onSelectAll;
   final VoidCallback onClearSelection;
+  
+  // 🎯 NOWE: Callback dla legendy
+  final VoidCallback? onToggleLegend;
 
   const EnhancedClientsHeader({
     super.key,
@@ -68,6 +71,7 @@ class EnhancedClientsHeader extends StatefulWidget {
     required this.onToggleExport,
     required this.onSelectAll,
     required this.onClearSelection,
+    this.onToggleLegend, // 🎯 OPCJONALNE
   });
 
   @override
@@ -459,6 +463,8 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                 _buildExportButton(),
                 const SizedBox(width: 8),
                 _buildEmailButton(),
+                const SizedBox(width: 8),
+                _buildLegendButton(), // 🎯 NOWY PRZYCISK LEGENDY
               ],
             )
           : PopupMenuButton<String>(
@@ -477,6 +483,9 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                     break;
                   case 'email':
                     if (widget.canEdit) widget.onToggleEmail();
+                    break;
+                  case 'legend': // 🎯 NOWA OPCJA
+                    widget.onToggleLegend?.call();
                     break;
                 }
               },
@@ -666,7 +675,7 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                 ),
               ),
               label: Text(
-                widget.isExportMode ? 'Zakończ' : 'Eksportuj dane',
+                widget.isExportMode ? 'Zakończ' : 'Eksportuj wybrane dane',
                 style: TextStyle(
                   color: widget.isExportMode
                       ? AppThemePro.statusError
@@ -827,6 +836,61 @@ class _EnhancedClientsHeaderState extends State<EnhancedClientsHeader>
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// 🎯 NOWY: Przycisk legendy z objaśnieniami
+  Widget _buildLegendButton() {
+    return Tooltip(
+      message: 'Wyświetl objaśnienia oznaczeń i kolorów',
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [
+              AppThemePro.statusInfo.withOpacity(0.1),
+              AppThemePro.statusInfo.withOpacity(0.05),
+            ],
+          ),
+          border: Border.all(
+            color: AppThemePro.statusInfo.withOpacity(0.3),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppThemePro.statusInfo.withOpacity(0.1),
+              blurRadius: 6,
+              spreadRadius: 0.5,
+            ),
+          ],
+        ),
+        child: TextButton.icon(
+          onPressed: widget.onToggleLegend,
+          icon: Icon(
+            Icons.help_outline,
+            color: AppThemePro.statusInfo,
+            size: 20,
+          ),
+          label: Text(
+            'Legenda',
+            style: TextStyle(
+              color: AppThemePro.statusInfo,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
         ),
       ),
     );

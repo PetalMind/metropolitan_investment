@@ -166,7 +166,12 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   }
 
   void _initializeWowScreen() {
-    _quillController = QuillController.basic();
+    if (widget.initialMessage != null && widget.initialMessage!.isNotEmpty) {
+      final doc = Document()..insert(0, widget.initialMessage!);
+      _quillController = QuillController(document: doc, selection: const TextSelection.collapsed(offset: 0));
+    } else {
+      _quillController = QuillController.basic();
+    }
     _editorFocusNode = FocusNode();
 
     // 🎪 INICJALIZACJA WOW ANIMACJI
@@ -526,7 +531,6 @@ body {
             allowBackgroundClasses: false,
             paragraphTag: 'p',
             inlineStyles: InlineStyles({
-              // ✅ PODSTAWOWE FORMATOWANIE TEKSTU
               'bold': InlineStyleType(fn: (value, _) => 'font-weight: bold'),
               'italic': InlineStyleType(fn: (value, _) => 'font-style: italic'),
               'underline': InlineStyleType(
@@ -535,48 +539,64 @@ body {
               'strike': InlineStyleType(
                 fn: (value, _) => 'text-decoration: line-through',
               ),
-
-              // 🎨 SIMPLIFIED COLOR HANDLING (TEXT & BACKGROUND)
+              // 🎨 LEPSZA OBSŁUGA KOLORÓW (HEX/RGB)
               'color': InlineStyleType(
                 fn: (value, _) {
                   if (value.toString().isEmpty) return null;
-                  
                   String colorValue = value.toString();
                   debugPrint('🎨 Converting color: $colorValue');
-                  
-                  // If it's already a hex color, use it as is
                   if (colorValue.startsWith('#')) {
                     return 'color: $colorValue !important';
                   }
-                  
-                  // If it's just hex without #, add it
                   if (RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(colorValue)) {
                     return 'color: #$colorValue !important';
                   }
-                  
-                  // For any other format, try to use as is
+                  // rgb() format
+                  if (RegExp(r'^rgb\((\d{1,3}), ?(\d{1,3}), ?(\d{1,3})\)$').hasMatch(colorValue)) {
+                    return 'color: $colorValue !important';
+                  }
+                  // fallback: try to use as is
                   return 'color: $colorValue !important';
                 },
               ),
               'background': InlineStyleType(
                 fn: (value, _) {
                   if (value.toString().isEmpty) return null;
-                  
                   String colorValue = value.toString();
                   debugPrint('🎨 Converting background: $colorValue');
-                  
-                  // If it's already a hex color, use it as is
                   if (colorValue.startsWith('#')) {
                     return 'background-color: $colorValue !important';
                   }
-                  
-                  // If it's just hex without #, add it
                   if (RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(colorValue)) {
                     return 'background-color: #$colorValue !important';
                   }
-                  
-                  // For any other format, try to use as is
+                  if (RegExp(r'^rgb\((\d{1,3}), ?(\d{1,3}), ?(\d{1,3})\)$').hasMatch(colorValue)) {
+                    return 'background-color: $colorValue !important';
+                  }
                   return 'background-color: $colorValue !important';
+                },
+              ),
+              // Ostrzeżenie/fallback dla niestandardowych fontów
+              'font': InlineStyleType(
+                fn: (value, _) {
+                  if (value.isEmpty) return null;
+                  final cssFontFamily = FontFamilyConfig.getCssFontFamily(value);
+                  final knownFonts = FontFamilyConfig.availableFonts.keys;
+                  if (!knownFonts.contains(value)) {
+                    debugPrint('⚠️ Uwaga: font "$value" może nie być wspierany przez klienty poczty.');
+                  }
+                  return 'font-family: $cssFontFamily !important';
+                },
+              ),
+              'font-family': InlineStyleType(
+                fn: (value, _) {
+                  if (value.isEmpty) return null;
+                  final cssFontFamily = FontFamilyConfig.getCssFontFamily(value);
+                  final knownFonts = FontFamilyConfig.availableFonts.keys;
+                  if (!knownFonts.contains(value)) {
+                    debugPrint('⚠️ Uwaga: font "$value" może nie być wspierany przez klienty poczty.');
+                  }
+                  return 'font-family: $cssFontFamily !important';
                 },
               ),
 
@@ -732,10 +752,9 @@ body {
       // 🔍 VALIDATE AND ENHANCE HTML OUTPUT
       String finalHtml = htmlOutput;
 
-      // Ensure we have basic HTML structure for email compatibility
+      // Kompatybilność email: tabela jako główny layout
       if (!finalHtml.contains('<html>')) {
-        finalHtml =
-            '''
+        finalHtml = '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -748,8 +767,11 @@ body {
       line-height: 1.6 !important; 
       color: #333333 !important; 
       margin: 0; 
-      padding: 20px; 
+      padding: 0; 
+      background: #fff !important;
     }
+    table.email-main { width: 100%; max-width: 700px; margin: 0 auto; background: #fff; border-collapse: collapse; }
+    td.email-content { padding: 20px; }
     p { margin: 0 0 16px 0 !important; }
     h1 { font-size: 32px !important; margin: 16px 0 8px 0 !important; }
     h2 { font-size: 24px !important; margin: 16px 0 8px 0 !important; }
@@ -784,7 +806,13 @@ body {
   </style>
 </head>
 <body>
-  $finalHtml
+  <table class="email-main" role="presentation" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td class="email-content">
+        $finalHtml
+      </td>
+    </tr>
+  </table>
 </body>
 </html>''';
       }
@@ -2818,11 +2846,9 @@ Zespół Metropolitan Investment''';
                             color: _isPreviewDarkTheme
                                 ? Colors.white
                                 : Colors.black,
-                            fontFamily: 'Arial, sans-serif',
                             lineHeight: html_package.LineHeight.number(1.6),
                             fontSize: html_package.FontSize(16),
                           ),
-                          
                           // 🏷️ HEADERS
                           'h1': html_package.Style(
                             color: _isPreviewDarkTheme

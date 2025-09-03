@@ -2051,7 +2051,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                         ? AppThemePro.primaryDark
                         : AppThemePro.textMuted,
                   ),
-                  label: const Text('Mail'),
+                  label: const Text('Wyślij e-mail'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _areDataAvailable
                         ? AppThemePro.accentGold
@@ -2094,7 +2094,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                         ? AppThemePro.primaryDark
                         : AppThemePro.textMuted,
                   ),
-                  label: const Text('Eksportuj'),
+                  label: const Text('Eksportuj wybrane dane'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _areDataAvailable
                         ? AppThemePro.accentGold

@@ -55,12 +55,6 @@ class _MainLayoutState extends State<MainLayout> {
                 ? widget
                       .child // Na mobile tylko content bez rail
                 : _buildDesktopLayout(notificationService, isTablet),
-
-            // Floating Action Button
-            floatingActionButton: (isTablet || isDesktop)
-                ? _buildQuickActionsFAB()
-                : null,
-            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           );
         },
       ),
