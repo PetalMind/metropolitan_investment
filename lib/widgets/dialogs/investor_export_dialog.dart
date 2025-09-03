@@ -676,7 +676,7 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
         _isLoading = false;
       });
 
-      if (result.success && context.mounted) {
+      if (result.success && mounted) {
         // Dla Excel - pokaż tylko komunikat o sukcesie, ale NIE zamykaj dialogu
         if (_exportFormat == 'excel') {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -691,7 +691,9 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
           // NIE wywołuj widget.onExportComplete() - zostaw dialog otwarty
         } else {
           // Dla PDF i Word pokaż dialog potwierdzenia pobierania
-          _showDownloadConfirmationDialog(result);
+          if (mounted) {
+            _showDownloadConfirmationDialog(result);
+          }
         }
       }
 
@@ -711,8 +713,11 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
   }
 
   void _copyToClipboard(String text) {
+    // Kopiuj do schowka bez używania kontekstu
     Clipboard.setData(ClipboardData(text: text));
-    if (context.mounted) {
+    
+    // Pokaż komunikat tylko jeśli kontekst jest wciąż dostępny
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('📋 Link skopiowany do schowka'),
@@ -727,13 +732,16 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
     String requestedBy,
   ) async {
     try {
-      final clientSideService = ClientSideExcelExportService();
+      // Używamy nowego ujednoliconego serwisu eksportu zamiast ClientSideExcelExportService
+      // W ten sposób zapewniamy, że Excel będzie miał identyczne dane i format jak PDF/Word
+      final unifiedExportService = UnifiedExportService();
       
       // Generuj nazwę pliku w formacie Excel_metropolitan_YYYY-MM-DD.xlsx
       final currentDate = DateTime.now().toIso8601String().split('T')[0]; // YYYY-MM-DD
       final exportTitle = 'Excel_metropolitan_$currentDate';
       
-      final result = await clientSideService.generateInvestorsExcel(
+      // Używamy metody generateUnifiedExcel zamiast generateInvestorsExcel
+      final result = await unifiedExportService.generateUnifiedExcel(
         investors: widget.selectedInvestors,
         options: {
           'includePersonalData': _includeContactInfo,
@@ -752,95 +760,109 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
   }
 
   void _openDownloadUrl(String url) {
+    // Zapisz potrzebne dane przed jakimikolwiek operacjami asynchronicznymi
+    final String format = _exportFormat;
+    final String? resultData = _result?.data;
+    final String? resultFilename = _result?.filename;
+    final VoidCallback completeCallback = widget.onExportComplete;
+
+    // Pokaż komunikat przed rozpoczęciem pobierania
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⏳ Rozpoczynam pobieranie pliku...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+    
     // Dla Excel pobierz jako base64 dane z client-side
-    if (_exportFormat == 'excel' && _result != null && _result!.data.isNotEmpty) {
-      final contentType = _getContentTypeForFormat(_exportFormat);
-      downloadBase64File(_result!.data, _result!.filename, contentType).then((_) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('✅ Plik Excel ${_result!.filename} został pobrany'),
-              backgroundColor: AppThemePro.statusSuccess,
-            ),
-          );
-          // Zamknij dialog po pomyślnym pobraniu Excel
-          widget.onExportComplete();
-        }
-      }).catchError((e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('❌ Błąd pobierania Excel: $e'),
-              backgroundColor: AppThemePro.statusError,
-            ),
-          );
-        }
+    if (format == 'excel' && resultData != null && resultData.isNotEmpty) {
+      final contentType = _getContentTypeForFormat(format);
+
+      // Zamknij dialog przed asynchronicznymi operacjami
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      // Opóźnij pobieranie
+      Future.delayed(const Duration(milliseconds: 300), () {
+        downloadBase64File(
+          resultData,
+          resultFilename ?? 'export.xlsx',
+          contentType,
+        ).then((_) => completeCallback()).catchError((_) => completeCallback());
       });
       return;
     }
 
     // Sprawdź czy to base64 z zaawansowanego eksportu (PDF/Word)
-    if (_result != null && 
-        ['pdf', 'word'].contains(_exportFormat) && 
-        _result!.data.isNotEmpty && 
-        !_result!.data.startsWith('http')) {
+    if (resultData != null &&
+        ['pdf', 'word'].contains(format) &&
+        resultData.isNotEmpty &&
+        !resultData.startsWith('http')) {
       
       // To jest base64 data z zaawansowanego eksportu
-      final contentType = _getContentTypeForFormat(_exportFormat);
-      downloadBase64File(_result!.data, _result!.filename, contentType).then((_) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('📥 Plik został pobrany')),
-          );
-        }
-      }).catchError((e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('❌ Błąd pobierania: $e')),
-          );
-        }
+      final contentType = _getContentTypeForFormat(format);
+
+      // Zamknij dialog przed asynchronicznymi operacjami
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      // Opóźnij pobieranie
+      Future.delayed(const Duration(milliseconds: 300), () {
+        downloadBase64File(
+          resultData,
+          resultFilename ?? 'export.$format',
+          contentType,
+        ).then((_) => completeCallback()).catchError((_) => completeCallback());
       });
       return;
     }
 
     // Jeśli to wygląda jak bezpośredni link (http/https) -> otwórz / pobierz
     final isUrl = url.startsWith('http://') || url.startsWith('https://');
+    // Reużywamy zmiennych zdefiniowanych wcześniej
 
     if (isUrl) {
-      downloadFileFromUrl(url, filename: _result?.filename).then((_) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('📥 Pobieranie rozpoczęte')),
-          );
-        }
-      }).catchError((e) {
-        // Fallback: skopiuj do schowka
-        _copyToClipboard(url);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Nie udało się automatycznie pobrać pliku. Link skopiowany.')),
-          );
-        }
+      // Zamknij dialog przed asynchronicznymi operacjami
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      // Opóźnij pobieranie
+      Future.delayed(const Duration(milliseconds: 300), () {
+        downloadFileFromUrl(
+          url,
+          filename: resultFilename,
+        ).then((_) => completeCallback()).catchError((_) {
+          // Fallback: skopiuj do schowka (bez odwołania do kontekstu)
+          Clipboard.setData(ClipboardData(text: url));
+          completeCallback();
+        });
       });
       return;
     }
 
     // Jeśli to nie jest URL, możemy traktować to jako surowe dane (CSV/JSON)
-    final filename = _result?.filename ?? 'export.${_exportFormat}';
-    downloadRawData(url, filename).then((_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('📥 Plik zapisany (tymczasowo) i otwarty')),
-        );
-      }
-    }).catchError((e) {
-      // Jeśli nic nie zadziałało, skopiuj zawartość
-      _copyToClipboard(url);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nie udało się zapisać pliku; dane skopiowane do schowka')),
-        );
-      }
+    final filename = resultFilename ?? 'export.${_exportFormat}';
+
+    // Zamknij dialog przed asynchronicznymi operacjami
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+    
+    // Opóźnij pobieranie
+    Future.delayed(const Duration(milliseconds: 300), () {
+      downloadRawData(
+        url,
+        filename,
+      ).then((_) => completeCallback()).catchError((_) {
+        // Jeśli nic nie zadziałało, skopiuj zawartość (bez odwołania do kontekstu)
+        Clipboard.setData(ClipboardData(text: url));
+        completeCallback();
+      });
     });
   }
 
@@ -988,91 +1010,54 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
 
   /// Pobiera wygenerowany plik
   void _downloadGeneratedFile(ExportResult result) {
-    try {
-      // Dla Excel zawsze pobierz jako base64 z client-side
-      if (_exportFormat == 'excel' && result.data.isNotEmpty) {
-        final contentType = _getContentTypeForFormat(_exportFormat);
-        downloadBase64File(result.data, result.filename, contentType)
-            .then((_) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('✅ Plik ${result.filename} został pobrany'),
-                    backgroundColor: AppThemePro.statusSuccess,
-                  ),
-                );
-                // Wywołaj callback po pomyślnym pobraniu
-                widget.onExportComplete();
-              }
-            })
-            .catchError((e) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('❌ Błąd pobierania Excel: $e'),
-                    backgroundColor: AppThemePro.statusError,
-                  ),
-                );
-              }
-            });
-      } else if (['pdf', 'word'].contains(_exportFormat) &&
-          result.data.isNotEmpty) {
-        // Pobierz plik binarny z base64 (PDF/Word)
-        final contentType = _getContentTypeForFormat(_exportFormat);
-        downloadBase64File(result.data, result.filename, contentType).then((_) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('✅ Plik ${result.filename} został pobrany'),
-                backgroundColor: AppThemePro.statusSuccess,
-              ),
-            );
-            // Wywołaj callback po pomyślnym pobraniu
-            widget.onExportComplete();
-          }
-        }).catchError((e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('❌ Błąd pobierania: $e'),
-                backgroundColor: AppThemePro.statusError,
-              ),
-            );
-          }
-        });
-      } else {
-        // Pobierz jako raw data (CSV/JSON - fallback)
-        downloadRawData(result.data, result.filename).then((_) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('✅ Plik ${result.filename} został pobrany'),
-                backgroundColor: AppThemePro.statusSuccess,
-              ),
-            );
-            // Wywołaj callback po pomyślnym pobraniu
-            widget.onExportComplete();
-          }
-        }).catchError((e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('❌ Błąd pobierania: $e'),
-                backgroundColor: AppThemePro.statusError,
-              ),
-            );
-          }
-        });
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Błąd pobierania pliku: $e'),
-            backgroundColor: AppThemePro.statusError,
-          ),
-        );
-      }
+    // Zapisz wszystkie potrzebne dane przed zamknięciem dialogu
+    final String fileName = result.filename;
+    final String fileData = result.data;
+    final String format = _exportFormat;
+    final VoidCallback completeCallback = widget.onExportComplete;
+
+    // Pokaż komunikat przed zamknięciem dialogu
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⏳ Przygotowuję plik $fileName do pobrania...'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
+    
+    // Zamknij dialog przed rozpoczęciem asynchronicznych operacji
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+    
+    // Opóźnienie aby dać czas na zamknięcie dialogu
+    Future.delayed(const Duration(milliseconds: 300), () {
+      try {
+        final String contentType = _getContentTypeForFormat(format);
+
+        if (format == 'excel') {
+          // Excel
+          downloadBase64File(fileData, fileName, contentType)
+              .then((_) => completeCallback())
+              .catchError((_) => completeCallback());
+        } 
+        else if (['pdf', 'word'].contains(format)) {
+          // PDF lub Word
+          downloadBase64File(fileData, fileName, contentType)
+              .then((_) => completeCallback())
+              .catchError((_) => completeCallback());
+        } 
+        else {
+          // Fallback
+          downloadRawData(fileData, fileName)
+              .then((_) => completeCallback())
+              .catchError((_) => completeCallback());
+        }
+      } catch (e) {
+        // Wywołaj callback nawet w przypadku błędu
+        completeCallback();
+      }
+    });
   }
 }

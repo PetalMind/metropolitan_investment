@@ -161,13 +161,15 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
     // Validate current form state before switching
     if (_formKey.currentState?.validate() == false) {
       // Show warning about validation errors
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('⚠️ Popraw błędy walidacji w bieżącej sekcji'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
-        ),
-      );
+      if (mounted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Popraw błędy walidacji w bieżącej sekcji'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -181,12 +183,14 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
 
   Future<void> _saveClient() async {
     if (!_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Popraw błędy walidacji przed zapisaniem'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Popraw błędy walidacji przed zapisaniem'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
@@ -198,17 +202,24 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
       _formKey.currentState!.save();
       final client = _formData.toClient();
 
-      // Show saving snackbar before closing dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('💾 Zapisywanie klienta...'),
-          backgroundColor: AppThemePro.statusInfo,
-          duration: Duration(seconds: 1),
-        ),
-      );
+      // Show saving snackbar before calling onSave
+      if (mounted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('💾 Zapisywanie klienta...'),
+            backgroundColor: AppThemePro.statusInfo,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
 
-      // Zapisz klienta - callback sam zamknie dialog
+      // Zapisz klienta - callback powinien być szybki
       await widget.onSave(client);
+
+      // 🚀 POPRAWKA: Zamknij dialog po udanym zapisie
+      if (mounted && context.mounted) {
+        Navigator.of(context).pop();
+      }
 
       // Reset states po udanym zapisie (jeśli dialog jeszcze istnieje)
       if (mounted) {
@@ -218,7 +229,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Błąd podczas zapisywania: $e'),
