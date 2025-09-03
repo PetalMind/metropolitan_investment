@@ -1185,8 +1185,8 @@ class _PremiumInvestorAnalyticsScreenState
       isTablet: _isTablet,
       viewMode: majority_widget.ViewMode.cards, // Domyślny tryb widoku
       onInvestorTap: (investor) {
-        // Tutaj można dodać nawigację do szczegółów inwestora
-        print('Tapped investor: ${investor.client.name}');
+        // Nawiguj do sekcji Klienci z parametrem klienta do pokazania w dialogu
+        context.go('/clients?showClient=${investor.client.id}');
       },
     );
   }

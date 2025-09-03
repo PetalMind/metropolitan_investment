@@ -7,12 +7,14 @@ class MajorityHoldersList extends StatefulWidget {
   final List<InvestorSummary> majorityHolders;
   final bool isTablet;
   final VoidCallback? onInvestorTap;
+  final Function(InvestorSummary)? onInvestorSelected;
 
   const MajorityHoldersList({
     super.key,
     required this.majorityHolders,
     this.isTablet = false,
     this.onInvestorTap,
+    this.onInvestorSelected,
   });
 
   @override
@@ -22,10 +24,6 @@ class MajorityHoldersList extends StatefulWidget {
 class _MajorityHoldersListState extends State<MajorityHoldersList>
     with TickerProviderStateMixin {
   late AnimationController _listController;
-  late List<AnimationController> _itemControllers;
-  late List<Animation<double>> _slideAnimations;
-  late List<Animation<double>> _fadeAnimations;
-  late List<Animation<double>> _scaleAnimations;
 
   @override
   void initState() {
@@ -39,55 +37,12 @@ class _MajorityHoldersListState extends State<MajorityHoldersList>
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-
-    // Tworzymy osobne kontrolery dla każdego elementu
-    _itemControllers = List.generate(
-      widget.majorityHolders.length,
-      (index) => AnimationController(
-        duration: const Duration(milliseconds: 400),
-        vsync: this,
-      ),
-    );
-
-    // Animacje przesunięcia, przezroczystości i skali
-    _slideAnimations = _itemControllers
-        .map(
-          (controller) => Tween<double>(begin: 50.0, end: 0.0).animate(
-            CurvedAnimation(parent: controller, curve: Curves.easeOutCubic),
-          ),
-        )
-        .toList();
-
-    _fadeAnimations = _itemControllers
-        .map(
-          (controller) => Tween<double>(begin: 0.0, end: 1.0).animate(
-            CurvedAnimation(parent: controller, curve: Curves.easeInOut),
-          ),
-        )
-        .toList();
-
-    _scaleAnimations = _itemControllers
-        .map(
-          (controller) => Tween<double>(begin: 0.8, end: 1.0).animate(
-            CurvedAnimation(parent: controller, curve: Curves.elasticOut),
-          ),
-        )
-        .toList();
   }
 
   void _startStaggeredAnimations() {
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {
         _listController.forward();
-
-        // Animujemy elementy z opóźnieniem
-        for (int i = 0; i < _itemControllers.length; i++) {
-          Future.delayed(Duration(milliseconds: 100 * i), () {
-            if (mounted) {
-              _itemControllers[i].forward();
-            }
-          });
-        }
       }
     });
   }
@@ -95,9 +50,6 @@ class _MajorityHoldersListState extends State<MajorityHoldersList>
   @override
   void dispose() {
     _listController.dispose();
-    for (final controller in _itemControllers) {
-      controller.dispose();
-    }
     super.dispose();
   }
 
@@ -204,25 +156,7 @@ class _MajorityHoldersListState extends State<MajorityHoldersList>
           final index = entry.key;
           final investor = entry.value;
 
-          return AnimatedBuilder(
-            animation: Listenable.merge([
-              _slideAnimations[index],
-              _fadeAnimations[index],
-              _scaleAnimations[index],
-            ]),
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(0, _slideAnimations[index].value),
-                child: Transform.scale(
-                  scale: _scaleAnimations[index].value,
-                  child: Opacity(
-                    opacity: _fadeAnimations[index].value,
-                    child: _buildInvestorCard(investor, index),
-                  ),
-                ),
-              );
-            },
-          );
+          return _buildInvestorCard(investor, index);
         }).toList(),
       ),
     );
@@ -245,17 +179,8 @@ class _MajorityHoldersListState extends State<MajorityHoldersList>
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
-            // Animacja naciśnięcia
-            _animatePress(index);
+            widget.onInvestorSelected?.call(investor);
             widget.onInvestorTap?.call();
-          },
-          onHover: (hovering) {
-            // Mikrointerakcja hover
-            if (hovering) {
-              _itemControllers[index].forward();
-            } else {
-              _itemControllers[index].reverse();
-            }
           },
           child: Container(
             padding: const EdgeInsets.all(16),
@@ -389,20 +314,18 @@ class _MajorityHoldersListState extends State<MajorityHoldersList>
   }
 
   String _formatCurrency(double amount) {
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)}M PLN';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K PLN';
-    } else {
-      return '${amount.toStringAsFixed(0)} PLN';
-    }
+    // Format tysiączny z separatorami
+    final formattedValue = amount.toStringAsFixed(0);
+    return '${_formatWithThousandsSeparator(formattedValue)} PLN';
   }
 
-  void _animatePress(int index) {
-    _itemControllers[index].reverse().then((_) {
-      if (mounted) {
-        _itemControllers[index].forward();
-      }
-    });
+  /// Formatuje liczbę z separatorami tysięcy (np. 1 000 000)
+  String _formatWithThousandsSeparator(String value) {
+    // Usuń ewentualne przecinki i kropki
+    value = value.replaceAll(RegExp(r'[,.]'), '');
+
+    // Dodaj separatory tysięcy
+    final regex = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+    return value.replaceAllMapped(regex, (match) => '${match[1]} ');
   }
 }

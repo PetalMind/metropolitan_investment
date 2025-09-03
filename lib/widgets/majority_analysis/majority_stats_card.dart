@@ -239,13 +239,9 @@ class _MajorityStatsCardState extends State<MajorityStatsCard>
               if (isInteger) {
                 displayValue = value.toString();
               } else {
-                if (value >= 1000000) {
-                  displayValue = '${(value / 1000000).toStringAsFixed(1)}M';
-                } else if (value >= 1000) {
-                  displayValue = '${(value / 1000).toStringAsFixed(1)}K';
-                } else {
-                  displayValue = value.toStringAsFixed(0);
-                }
+                // Format tysiączny z separatorami
+                final formattedValue = value.toStringAsFixed(0);
+                displayValue = _formatWithThousandsSeparator(formattedValue);
               }
 
               return Text(
@@ -262,5 +258,15 @@ class _MajorityStatsCardState extends State<MajorityStatsCard>
         ],
       ),
     );
+  }
+
+  /// Formatuje liczbę z separatorami tysięcy (np. 1 000 000)
+  String _formatWithThousandsSeparator(String value) {
+    // Usuń ewentualne przecinki i kropki
+    value = value.replaceAll(RegExp(r'[,.]'), '');
+
+    // Dodaj separatory tysięcy
+    final regex = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+    return value.replaceAllMapped(regex, (match) => '${match[1]} ');
   }
 }
