@@ -126,6 +126,7 @@ export 'services/universal_investment_service.dart'
 export 'services/smtp_service.dart'; // 🚀 NOWE: Serwis konfiguracji i testowania SMTP
 export 'services/calendar_service.dart'; // 🚀 NOWE: Serwis kalendarza
 export 'services/calendar_notification_service.dart'; // 🚀 NOWE: Serwis powiadomień kalendarza
+export 'services/client_side_excel_export_service.dart'; // 🚀 NOWE: Generowanie Excel po stronie klienta
 
 // Voting status change model
 // VotingStatusChange is exported via models/voting_status_change.dart above

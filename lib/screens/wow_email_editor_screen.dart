@@ -348,7 +348,7 @@ Zespół Metropolitan Investment''';
               _currentPreviewHtml,
             );
           }
-          debugPrint('� Preview force updated');
+          debugPrint('🔄 Preview force updated');
         } catch (e) {
           debugPrint('⚠️ Force preview update error: $e');
           final plainText = _quillController.document.toPlainText();
@@ -536,30 +536,46 @@ body {
                 fn: (value, _) => 'text-decoration: line-through',
               ),
 
-              // 🎨 KOLORY TEKSTU I TŁA
+              // 🎨 SIMPLIFIED COLOR HANDLING (TEXT & BACKGROUND)
               'color': InlineStyleType(
                 fn: (value, _) {
-                  if (value.isEmpty) return null;
-                  // Ensure proper color format
-                  String colorValue = value;
-                  if (!colorValue.startsWith('#') &&
-                      !colorValue.startsWith('rgb')) {
-                    // If it's a color name or other format, keep as is
-                    colorValue = value;
+                  if (value.toString().isEmpty) return null;
+                  
+                  String colorValue = value.toString();
+                  debugPrint('🎨 Converting color: $colorValue');
+                  
+                  // If it's already a hex color, use it as is
+                  if (colorValue.startsWith('#')) {
+                    return 'color: $colorValue !important';
                   }
-                  debugPrint('🎨 Converting color: $value → $colorValue');
+                  
+                  // If it's just hex without #, add it
+                  if (RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(colorValue)) {
+                    return 'color: #$colorValue !important';
+                  }
+                  
+                  // For any other format, try to use as is
                   return 'color: $colorValue !important';
                 },
               ),
               'background': InlineStyleType(
                 fn: (value, _) {
-                  if (value.isEmpty) return null;
-                  String colorValue = value;
-                  if (!colorValue.startsWith('#') &&
-                      !colorValue.startsWith('rgb')) {
-                    colorValue = value;
+                  if (value.toString().isEmpty) return null;
+                  
+                  String colorValue = value.toString();
+                  debugPrint('🎨 Converting background: $colorValue');
+                  
+                  // If it's already a hex color, use it as is
+                  if (colorValue.startsWith('#')) {
+                    return 'background-color: $colorValue !important';
                   }
-                  debugPrint('🎨 Converting background: $value → $colorValue');
+                  
+                  // If it's just hex without #, add it
+                  if (RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(colorValue)) {
+                    return 'background-color: #$colorValue !important';
+                  }
+                  
+                  // For any other format, try to use as is
                   return 'background-color: $colorValue !important';
                 },
               ),
@@ -1106,9 +1122,116 @@ Zespół Metropolitan Investment''';
           ),
           SizedBox(width: 8),
           Expanded(child: _buildFontFamilyDropdown()),
+          
+          SizedBox(width: 16),
+          
+          // Simple Color Pickers
+          _buildSimpleColorPicker(),
         ],
       ),
     );
+  }
+
+  // 🎨 SIMPLE COLOR PICKER
+  Widget _buildSimpleColorPicker() {
+    const colors = [
+      Colors.black,
+      Colors.red,
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+      Colors.brown,
+    ];
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Text Color
+        PopupMenuButton<Color>(
+          icon: Icon(
+            Icons.format_color_text,
+            color: AppThemePro.accentGold,
+            size: 20,
+          ),
+          tooltip: 'Kolor tekstu',
+          onSelected: _applyTextColor,
+          itemBuilder: (context) => colors.map((color) {
+            return PopupMenuItem<Color>(
+              value: color,
+              child: Row(
+                children: [
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.grey),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    _getColorName(color),
+                    style: TextStyle(color: AppThemePro.textPrimary),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+        
+        SizedBox(width: 8),
+        
+        // Background Color
+        PopupMenuButton<Color>(
+          icon: Icon(
+            Icons.format_color_fill,
+            color: AppThemePro.accentGold,
+            size: 20,
+          ),
+          tooltip: 'Kolor tła',
+          onSelected: _applyBackgroundColor,
+          itemBuilder: (context) => colors.map((color) {
+            return PopupMenuItem<Color>(
+              value: color,
+              child: Row(
+                children: [
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.grey),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    _getColorName(color),
+                    style: TextStyle(color: AppThemePro.textPrimary),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  // 🎨 GET COLOR NAME FOR DISPLAY
+  String _getColorName(Color color) {
+    if (color == Colors.black) return 'Czarny';
+    if (color == Colors.red) return 'Czerwony';
+    if (color == Colors.blue) return 'Niebieski';
+    if (color == Colors.green) return 'Zielony';
+    if (color == Colors.orange) return 'Pomarańczowy';
+    if (color == Colors.purple) return 'Fioletowy';
+    if (color == Colors.teal) return 'Turkusowy';
+    if (color == Colors.brown) return 'Brązowy';
+    return 'Inny';
   }
 
   // 🎨 FONT FAMILY DROPDOWN WIDGET
@@ -1160,7 +1283,7 @@ Zespół Metropolitan Investment''';
   String _getCurrentFontFamily() {
     try {
       final style = _quillController.getSelectionStyle();
-      final fontAttribute = style.attributes[CustomAttributes.font.key];
+      final fontAttribute = style.attributes['font'];
 
       if (fontAttribute != null && fontAttribute.value != null) {
         final fontValue = fontAttribute.value.toString();
@@ -1185,14 +1308,8 @@ Zespół Metropolitan Investment''';
     try {
       debugPrint('🎨 Applying font family: $fontFamily');
 
-      // Create custom font attribute
-      final fontAttribute = Attribute<String>(
-        'font',
-        AttributeScope.inline,
-        fontFamily,
-      );
-      
-      // Apply to current selection
+      // Use correct attribute creation for Flutter Quill
+      final fontAttribute = Attribute.fromKeyValue('font', fontFamily);
       _quillController.formatSelection(fontAttribute);
 
       // Update preview immediately
@@ -1201,6 +1318,42 @@ Zespół Metropolitan Investment''';
       debugPrint('🎨 Font family applied successfully');
     } catch (e) {
       debugPrint('🎨 Error applying font family: $e');
+    }
+  }
+
+  // 🎨 APPLY COLOR TO SELECTION
+  void _applyTextColor(Color color) {
+    try {
+      debugPrint('🎨 Applying text color: $color');
+      
+      // Convert color to hex string using newer API
+      final hexColor = '#${color.r.toInt().toRadixString(16).padLeft(2, '0')}${color.g.toInt().toRadixString(16).padLeft(2, '0')}${color.b.toInt().toRadixString(16).padLeft(2, '0')}';
+      
+      final colorAttribute = Attribute.fromKeyValue('color', hexColor);
+      _quillController.formatSelection(colorAttribute);
+      _forcePreviewUpdate();
+      
+      debugPrint('🎨 Text color applied successfully');
+    } catch (e) {
+      debugPrint('🎨 Error applying text color: $e');
+    }
+  }
+
+  // 🎨 APPLY BACKGROUND COLOR TO SELECTION
+  void _applyBackgroundColor(Color color) {
+    try {
+      debugPrint('🎨 Applying background color: $color');
+      
+      // Convert color to hex string using newer API
+      final hexColor = '#${color.r.toInt().toRadixString(16).padLeft(2, '0')}${color.g.toInt().toRadixString(16).padLeft(2, '0')}${color.b.toInt().toRadixString(16).padLeft(2, '0')}';
+      
+      final backgroundAttribute = Attribute.fromKeyValue('background', hexColor);
+      _quillController.formatSelection(backgroundAttribute);
+      _forcePreviewUpdate();
+      
+      debugPrint('🎨 Background color applied successfully');
+    } catch (e) {
+      debugPrint('🎨 Error applying background color: $e');
     }
   }
 
@@ -2386,11 +2539,9 @@ Zespół Metropolitan Investment''';
                       ),
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
-                        child: Container(
-                          constraints: BoxConstraints(
-                            minWidth: isMobile ? 400 : 600,
-                          ),
+                        child: IntrinsicWidth(
                           child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               // � CUSTOM FONT FAMILY DROPDOWN
                               _buildCustomFontToolbar(isMobile),
@@ -2405,21 +2556,24 @@ Zespół Metropolitan Investment''';
                                   multiRowsDisplay: !isMobile,
                                   showDividers: true,
 
-                                  // ✏️ BASIC TEXT FORMATTING
+                                  // ✏️ BASIC TEXT FORMATTING (Enhanced)
                                   showBoldButton: true,
                                   showItalicButton: true,
                                   showUnderLineButton: true,
                                   showStrikeThrough: true,
                                   showInlineCode: true,
                                   showClearFormat: true,
+                                  showSmallButton: true,
+                                  showSubscript: !isMobile,
+                                  showSuperscript: !isMobile,
 
                                   // 🔤 FONT & SIZE CONTROLS
-                                  showFontFamily: true,
+                                  showFontFamily: false, // We have custom font dropdown
                                   showFontSize: true,
                                   
-                                  // 🎨 COLOR CONTROLS
-                                  showColorButton: true,
-                                  showBackgroundColorButton: true,
+                                  // 🎨 COLOR CONTROLS - Disabled (using custom)
+                                  showColorButton: false,
+                                  showBackgroundColorButton: false,
                                   
                                   // 📝 STRUCTURAL FORMATTING
                                   showHeaderStyle: true,
@@ -2448,7 +2602,7 @@ Zespół Metropolitan Investment''';
                                   // 🎛️ BASIC BUTTON OPTIONS (WORKING CONFIGURATION)
                                   buttonOptions:
                                       QuillSimpleToolbarButtonOptions(
-                                        // 📏 FONT SIZE OPTIONS
+                                        // 📏 FONT SIZE OPTIONS (Enhanced)
                                         fontSize:
                                             QuillToolbarFontSizeButtonOptions(
                                               items: _fontSizes.map(
@@ -2459,7 +2613,7 @@ Zespół Metropolitan Investment''';
                                               initialValue: '14',
                                             ),
                                     
-                                        // 🎨 COLOR OPTIONS
+                                        // 🎨 ENHANCED COLOR OPTIONS
                                         color: QuillToolbarColorButtonOptions(
                                           tooltip: 'Kolor tekstu',
                                         ),
@@ -2580,15 +2734,7 @@ Zespół Metropolitan Investment''';
                                   size: 14,
                                   color: AppThemePro.statusSuccess,
                                 ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Standardowy edytor Flutter Quill',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppThemePro.statusSuccess,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                                
                               ],
                             ),
                           ),

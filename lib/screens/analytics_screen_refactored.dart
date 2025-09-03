@@ -1278,7 +1278,7 @@ class _AnalyticsScreenRefactoredState extends State<AnalyticsScreenRefactored>
                       .last;
                   return SideTitleWidget(
                     space: 8,
-                    meta: meta,
+                    axisSide: meta.axisSide,
                     child: Text(
                       month,
                       style: const TextStyle(
