@@ -6,8 +6,8 @@ import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
 import '../client_notes_widget.dart'; // Import ClientNotesWidget
 import 'client_overview_tab.dart'; // For ClientFormData
-import '../calendar/premium_calendar_event_dialog.dart';
-import '../../screens/wow_email_editor_screen.dart';
+import '../email_history_widget.dart';
+import '../investment_history_widget.dart';
 
 /// Client Actions Tab
 /// - Opens the existing EnhancedEmailEditorDialog for email flows
@@ -33,17 +33,13 @@ class ClientActionsTab extends StatefulWidget {
 class _ClientActionsTabState extends State<ClientActionsTab>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   final ClientNotesService _clientNotesService = ClientNotesService();
-  final CalendarService _calendarService = CalendarService();
-  final InvestmentChangeHistoryService _investmentHistoryService = InvestmentChangeHistoryService();
-  final EmailHistoryService _emailHistoryService = EmailHistoryService();
+  final UniversalInvestmentService _investmentService = UniversalInvestmentService.instance;
 
   final _notesController = TextEditingController();
   late final AnimationController _cardController;
 
-  List<ClientNote> _clientNotes = [];
-  List<dynamic> _clientDocuments = [];
-  List<InvestmentChangeHistory> _investmentHistory = [];
-  List<EmailHistory> _emailHistory = [];
+  List<Investment> _clientInvestments = [];
+  bool _investmentsLoading = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -74,34 +70,33 @@ class _ClientActionsTabState extends State<ClientActionsTab>
   }
 
   Future<void> _loadClientData() async {
-    _clientNotes = [];
-    _clientDocuments = [];
-    _investmentHistory = [];
-    _emailHistory = [];
+    _clientInvestments = [];
 
     if (widget.client == null) return;
 
-    final clientId = widget.client!.id;
-
     try {
-      // Load notes
-      final notes = await _clientNotesService.getClientNotes(clientId);
-      
-      // Load investment change history
-      final investmentHistory = await _investmentHistoryService.getClientHistory(clientId);
-      
-      // Load email history
-      final emailHistory = await _emailHistoryService.getEmailHistoryForClient(clientId);
+      if (mounted) {
+        setState(() {
+          _investmentsLoading = true;
+        });
+      }
+
+      // Load client investments
+      final investments = await _investmentService.getInvestmentsForClient(widget.client!.id);
       
       if (mounted) {
         setState(() {
-          _clientNotes = notes;
-          _investmentHistory = investmentHistory;
-          _emailHistory = emailHistory;
+          _clientInvestments = investments;
+          _investmentsLoading = false;
         });
       }
     } catch (e) {
       debugPrint('Błąd ładowania danych klienta: $e');
+      if (mounted) {
+        setState(() {
+          _investmentsLoading = false;
+        });
+      }
     }
   }
 
@@ -299,42 +294,42 @@ class _ClientActionsTabState extends State<ClientActionsTab>
                         ),
                       ),
                       IconButton(
-                        onPressed: _uploadDocument,
+                        onPressed: null, // Disabled until document service is implemented
                         icon: const Icon(Icons.add_rounded),
                         style: IconButton.styleFrom(
-                          backgroundColor: AppThemePro.accentGold.withOpacity(
-                            0.1,
-                          ),
-                          foregroundColor: AppThemePro.accentGold,
+                          backgroundColor: AppThemePro.textMuted.withOpacity(0.1),
+                          foregroundColor: AppThemePro.textMuted,
                         ),
-                        tooltip: 'Dodaj dokument',
+                        tooltip: 'Funkcja niedostępna - brak serwisu dokumentów',
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
 
-                  if (_clientDocuments.isEmpty)
-                    const Center(
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.folder_open_rounded,
-                            size: 48,
-                            color: AppThemePro.textTertiary,
+                  const Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.folder_open_rounded,
+                          size: 48,
+                          color: AppThemePro.textTertiary,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Funkcja dokumentów niedostępna',
+                          style: TextStyle(color: AppThemePro.textTertiary),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Wymaga implementacji serwisu dokumentów',
+                          style: TextStyle(
+                            color: AppThemePro.textMuted,
+                            fontSize: 12,
                           ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Brak dokumentów',
-                            style: TextStyle(color: AppThemePro.textTertiary),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    // When a documents service is available, map documents here
-                    ..._clientDocuments
-                        .map((doc) => _buildDocumentCard(doc))
-                        .toList(),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -478,40 +473,180 @@ class _ClientActionsTabState extends State<ClientActionsTab>
   }
 
   Widget _buildInvestmentHistoryTab() {
-    if (_investmentHistory.isEmpty) {
+    if (widget.client == null) {
       return _buildEmptyHistoryState(
-        'Brak historii zmian inwestycji',
+        'Brak danych klienta',
         Icons.trending_up_rounded,
-        'Historia zmian zostanie utworzona przy pierwszej modyfikacji danych inwestycyjnych.',
+        'Wybierz klienta aby zobaczyć historię zmian inwestycji.',
       );
     }
 
-    return ListView.builder(
+    if (_investmentsLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Ładowanie inwestycji klienta...'),
+          ],
+        ),
+      );
+    }
+
+    if (_clientInvestments.isEmpty) {
+      return _buildEmptyHistoryState(
+        'Brak inwestycji',
+        Icons.trending_up_rounded,
+        'Ten klient nie ma jeszcze żadnych inwestycji.',
+      );
+    }
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      itemCount: _investmentHistory.length,
-      itemBuilder: (context, index) {
-        final change = _investmentHistory[index];
-        return _buildInvestmentChangeCard(change);
-      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Overview header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppThemePro.accentGold.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppThemePro.accentGold.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.trending_up_rounded,
+                  color: AppThemePro.accentGold,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Historia zmian inwestycji',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppThemePro.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        '${_clientInvestments.length} ${_getInvestmentText(_clientInvestments.length)}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppThemePro.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Investment history for each investment
+          ..._clientInvestments.map((investment) => Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppThemePro.surfaceCard,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppThemePro.borderPrimary),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Investment header
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppThemePro.backgroundSecondary,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        topRight: Radius.circular(12),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppThemePro.accentGold.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(
+                            Icons.account_balance_wallet_rounded,
+                            size: 16,
+                            color: AppThemePro.accentGold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                investment.productName,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppThemePro.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                'ID: ${investment.id}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppThemePro.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Investment history widget
+                  InvestmentHistoryWidget(
+                    investmentId: investment.id,
+                    isCompact: true,
+                    maxEntries: 5,
+                  ),
+                ],
+              ),
+            ),
+          )),
+        ],
+      ),
     );
   }
 
   Widget _buildEmailHistoryTab() {
-    if (_emailHistory.isEmpty) {
+    if (widget.client == null) {
       return _buildEmptyHistoryState(
-        'Brak historii emaili',
+        'Brak danych klienta',
         Icons.email_rounded,
-        'Historia emaili zostanie utworzona po wysłaniu pierwszej wiadomości do klienta.',
+        'Wybierz klienta aby zobaczyć historię emaili.',
       );
     }
 
-    return ListView.builder(
+    return Padding(
       padding: const EdgeInsets.all(16),
-      itemCount: _emailHistory.length,
-      itemBuilder: (context, index) {
-        final email = _emailHistory[index];
-        return _buildEmailHistoryCard(email);
-      },
+      child: EmailHistoryWidget(
+        clientId: widget.client!.id,
+        title: null, // No title since we have tab title
+        isCompact: false,
+        maxEntries: 20, // Limit to 20 most recent emails
+      ),
     );
   }
 
@@ -795,6 +930,63 @@ class _ClientActionsTabState extends State<ClientActionsTab>
     return '${date.day}.${date.month.toString().padLeft(2, '0')}.${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
+  String _getInvestmentText(int count) {
+    if (count == 1) return 'inwestycja';
+    if (count >= 2 && count <= 4) return 'inwestycje';
+    return 'inwestycji';
+  }
+
+  DateTime _getNextBusinessDay(DateTime from) {
+    DateTime candidate = from.add(const Duration(days: 1));
+    // Skip weekend (Saturday = 6, Sunday = 7)
+    while (candidate.weekday == DateTime.saturday || candidate.weekday == DateTime.sunday) {
+      candidate = candidate.add(const Duration(days: 1));
+    }
+    // Set to 10:00 AM
+    return DateTime(candidate.year, candidate.month, candidate.day, 10, 0);
+  }
+
+  String _generateMeetingDescription() {
+    final client = widget.client!;
+    final investmentCount = _clientInvestments.length;
+    
+    String description = 'Spotkanie biznesowe z klientem ${client.name}';
+    
+    if (investmentCount > 0) {
+      description += '\n\nKlient posiada $investmentCount ${_getInvestmentText(investmentCount)}.';
+    }
+    
+    if (client.email.isNotEmpty) {
+      description += '\nKontakt email: ${client.email}';
+    }
+    
+    if (client.phone.isNotEmpty) {
+      description += '\nKontakt telefoniczny: ${client.phone}';
+    }
+
+    return description;
+  }
+
+  String _getSuggestedMeetingLocation() {
+    // Could be enhanced with user preferences or company settings
+    return 'Biuro Metropolitan Investment';
+  }
+
+  List<String> _buildParticipantsList() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final participants = <String>[];
+    
+    if (currentUser?.email != null) {
+      participants.add(currentUser!.email!);
+    }
+    
+    if (widget.client!.email.isNotEmpty) {
+      participants.add(widget.client!.email);
+    }
+    
+    return participants;
+  }
+
   Color _getChangeTypeColor(String changeType) {
     switch (changeType) {
       case 'field_update':
@@ -899,10 +1091,10 @@ class _ClientActionsTabState extends State<ClientActionsTab>
   void _sendEmail() {
     HapticFeedback.lightImpact();
     if (widget.client != null) {
-      // Create InvestorSummary from client data using the factory method
+      // Create InvestorSummary from client data with real investments
       final investorSummary = InvestorSummary.withoutCalculations(
         widget.client!,
-        [], // Empty investments list for now - would need actual investments from service
+        _clientInvestments,
       );
 
       Navigator.of(context).push(
@@ -927,18 +1119,22 @@ class _ClientActionsTabState extends State<ClientActionsTab>
   void _scheduleMeeting() {
     HapticFeedback.lightImpact();
     if (widget.client != null) {
-      final now = DateTime.now().add(const Duration(days: 7));
+      final now = DateTime.now();
+      // Schedule for next business day (Monday-Friday)
+      final suggestedDate = _getNextBusinessDay(now);
+      final currentUser = FirebaseAuth.instance.currentUser;
+      
       final initialEvent = CalendarEvent(
         id: '',
         title: 'Spotkanie z ${widget.client!.name}',
-        description: 'Spotkanie z klientem',
-        startDate: now,
-        endDate: now.add(const Duration(hours: 1)),
-        location: '',
+        description: _generateMeetingDescription(),
+        startDate: suggestedDate,
+        endDate: suggestedDate.add(const Duration(hours: 1)),
+        location: _getSuggestedMeetingLocation(),
         category: CalendarEventCategory.client,
         status: CalendarEventStatus.tentative,
-        participants: [],
-        createdBy: '',
+        participants: _buildParticipantsList(),
+        createdBy: currentUser?.uid ?? '',
         createdAt: now,
         updatedAt: now,
       );
@@ -946,7 +1142,7 @@ class _ClientActionsTabState extends State<ClientActionsTab>
       PremiumCalendarEventDialog.show(
         context,
         event: initialEvent,
-        initialDate: now,
+        initialDate: suggestedDate,
         onEventChanged: (event) {
           // Event was created/updated successfully
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1002,9 +1198,7 @@ class _ClientActionsTabState extends State<ClientActionsTab>
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              setState(() {
-                _clientDocuments.remove(document);
-              });
+              // Document removal would be handled by document service when available
               HapticFeedback.mediumImpact();
             },
             child: const Text('Usuń'),

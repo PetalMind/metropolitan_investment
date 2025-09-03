@@ -72,12 +72,6 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   @override
   void initState() {
     super.initState();
-    print(
-      '🎨 [SpectacularClientsGrid] initState - klienci: ${widget.clients.length}',
-    );
-    print(
-      '💰 [SpectacularClientsGrid] initState - dane inwestycji: ${widget.investorSummaries?.length ?? 0}',
-    );
     _initializeAnimations();
     _setupCardKeys();
     _identifyTopInvestors();
@@ -134,9 +128,7 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
   void _identifyTopInvestors() {
     if (widget.investorSummaries == null || widget.investorSummaries!.isEmpty) {
       _topInvestorIds.clear();
-      print(
-        '🚫 [SpectacularClientsGrid] Brak danych inwestycji - premium animacje wyłączone',
-      );
+   
       return;
     }
 
@@ -156,16 +148,10 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
     // Weź top 50 inwestorów
     _topInvestorIds = sortedClients.take(50).map((client) => client.id).toSet();
 
-    print('🎯 [SpectacularClientsGrid] TOP 50 INWESTORÓW ZIDENTYFIKOWANYCH:');
-    print('   - Łącznie klientów z danymi inwestycji: ${sortedClients.length}');
-    print('   - Top 50 inwestorów: ${_topInvestorIds.length}');
     if (_topInvestorIds.isNotEmpty) {
       final topInvestor = sortedClients.first;
       final topSummary = widget.investorSummaries![topInvestor.id]!;
-      print(
-        '   - Największy inwestor: ${topInvestor.name} - ${topSummary.totalRemainingCapital.toStringAsFixed(2)} PLN',
-      );
-      print('   - Premium animacje AKTYWNE dla top inwestorów!');
+  
     }
   }
 
@@ -206,24 +192,13 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
             newClient.email != oldClient.email ||
             newClient.phone != oldClient.phone) {
           dataChanged = true;
-          print(
-            '🔄 [SpectacularClientsGrid] Wykryto zmianę właściwości klienta: ${newClient.name}',
-          );
+    
           break;
         }
       }
     }
 
     if (dataChanged) {
-      print(
-        '🔄 [SpectacularClientsGrid] didUpdateWidget - zmiana danych wykryta!',
-      );
-      print(
-        '   - Klienci: ${oldWidget.clients.length} -> ${widget.clients.length}',
-      );
-      print(
-        '   - Dane inwestycji: ${oldWidget.investorSummaries?.length ?? 0} -> ${widget.investorSummaries?.length ?? 0}',
-      );
       _setupCardKeys();
       _identifyTopInvestors(); // 🚀 Re-identify top investors
       _staggerController.reset();
@@ -333,12 +308,6 @@ class _SpectacularClientsGridState extends State<SpectacularClientsGrid>
       client.id,
     ); // 🚀 Czy to top inwestor?
 
-    // 🚀 DEBUG: Log premium status
-    if (isTopInvestor) {
-      print(
-        '✨ [SpectacularClientsGrid] ${client.name} jest TOP INWESTOREM - premium animacje włączone!',
-      );
-    }
 
     final cardAnimation = _getCardAnimation(client.id);
 

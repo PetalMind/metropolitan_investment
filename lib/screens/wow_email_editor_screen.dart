@@ -1137,6 +1137,14 @@ Zespół Metropolitan Investment''';
         senderName: _senderNameController.text,
       );
 
+      // 📊 Save email history after successful sending
+      setState(() {
+        _loadingMessage = 'Zapisywanie historii emaili...';
+        _loadingProgress = 0.9;
+      });
+
+      await _saveEmailHistory(results, finalHtml);
+
       // Update final progress
       final successfulEmails = results.where((r) => r.success).length;
       setState(() {
@@ -1163,6 +1171,159 @@ Zespół Metropolitan Investment''';
         _loadingMessage = 'Błąd wysyłania';
         _loadingProgress = 0.0;
       });
+    }
+  }
+
+  // 📊 SAVE EMAIL HISTORY
+  Future<void> _saveEmailHistory(
+    List<EmailSendResult> results,
+    String htmlContent,
+  ) async {
+    try {
+      final emailHistoryService = EmailHistoryService();
+
+      // Prepare recipients list from enabled investors and additional emails
+      final recipients = <EmailRecipient>[];
+
+      // Add enabled investors as recipients
+      for (final investor in widget.selectedInvestors) {
+        if (_recipientEnabled[investor.client.id] ?? false) {
+          final result = results.firstWhere(
+            (r) => r.clientEmail == investor.client.email,
+            orElse: () => EmailSendResult(
+              success: false,
+              messageId: '',
+              clientEmail: investor.client.email.isNotEmpty
+                  ? investor.client.email
+                  : '',
+              clientName: investor.client.name,
+              investmentCount: 0,
+              totalAmount: 0,
+              executionTimeMs: 0,
+              template: 'mixed_html',
+            ),
+          );
+
+          recipients.add(
+            EmailRecipient(
+              clientId: investor.client.id,
+              clientName: investor.client.name,
+              emailAddress: investor.client.email.isNotEmpty
+                  ? investor.client.email
+                  : '',
+              isCustomEmail: false,
+              deliveryStatus: result.success
+                  ? DeliveryStatus.delivered
+                  : DeliveryStatus.failed,
+              deliveryError: result.error,
+              deliveredAt: result.success ? DateTime.now() : null,
+              messageId: result.messageId.isNotEmpty ? result.messageId : null,
+            ),
+          );
+        }
+      }
+
+      // Add additional emails as recipients
+      for (final email in _additionalEmails) {
+        final result = results.firstWhere(
+          (r) => r.clientEmail == email,
+          orElse: () => EmailSendResult(
+            success: false,
+            messageId: '',
+            clientEmail: email,
+            clientName: email,
+            investmentCount: 0,
+            totalAmount: 0,
+            executionTimeMs: 0,
+            template: 'mixed_html',
+          ),
+        );
+
+        recipients.add(
+          EmailRecipient(
+            clientId:
+                'additional_${email.hashCode}', // Generate unique ID for additional emails
+            clientName: email,
+            emailAddress: email,
+            isCustomEmail: true,
+            deliveryStatus: result.success
+                ? DeliveryStatus.delivered
+                : DeliveryStatus.failed,
+            deliveryError: result.error,
+            deliveredAt: result.success ? DateTime.now() : null,
+            messageId: result.messageId.isNotEmpty ? result.messageId : null,
+          ),
+        );
+      }
+
+      // Determine overall email status
+      final totalRecipients = recipients.length;
+      final successfulDeliveries = recipients
+          .where((r) => r.deliveryStatus == DeliveryStatus.delivered)
+          .length;
+
+      EmailStatus emailStatus;
+      if (successfulDeliveries == 0) {
+        emailStatus = EmailStatus.failed;
+      } else if (successfulDeliveries == totalRecipients) {
+        emailStatus = EmailStatus.sent;
+      } else {
+        emailStatus = EmailStatus.partiallyFailed;
+      }
+
+      // Calculate total execution time
+      final totalExecutionTime = results.fold<int>(
+        0,
+        (sum, result) => sum + result.executionTimeMs,
+      );
+
+      // Convert Quill content to plain text for backup
+      final plainTextContent = _quillController.document.toPlainText();
+
+      // Create email history entry
+      final emailHistory = EmailHistory(
+        id: '', // Will be set by Firestore
+        senderEmail: _senderEmailController.text,
+        senderName: _senderNameController.text,
+        recipients: recipients,
+        subject: _subjectController.text,
+        plainTextContent: plainTextContent,
+        includeInvestmentDetails: _includeInvestmentDetails,
+        sentAt: DateTime.now(),
+        status: emailStatus,
+        messageId: results.isNotEmpty && results.first.messageId.isNotEmpty
+            ? results.first.messageId
+            : null,
+        errorMessage: emailStatus == EmailStatus.failed
+            ? results.where((r) => !r.success).map((r) => r.error).join(', ')
+            : null,
+        executionTimeMs: totalExecutionTime,
+        metadata: {
+          'editorVersion': 'wow_email_editor_v1',
+          'totalRecipients': totalRecipients,
+          'successfulDeliveries': successfulDeliveries,
+          'enabledInvestorsCount': widget.selectedInvestors
+              .where((inv) => _recipientEnabled[inv.client.id] ?? false)
+              .length,
+          'additionalEmailsCount': _additionalEmails.length,
+        },
+      );
+
+      // Save to email history
+      final savedHistoryId = await emailHistoryService.saveEmailHistory(
+        emailHistory,
+      );
+
+      if (savedHistoryId != null) {
+        debugPrint(
+          '📊 Email history saved successfully with ID: $savedHistoryId',
+        );
+      } else {
+        debugPrint('⚠️ Failed to save email history');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error saving email history: $e');
+      // Don't throw error - this is not critical for email sending
     }
   }
 

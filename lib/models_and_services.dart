@@ -81,8 +81,7 @@ export 'services/email_service.dart';
 export 'services/email_history_service.dart'; // 🚀 NOWE: Historia wysłanych emaili
 export 'services/email_and_export_service.dart'; // 🚀 NOWE: Email i eksport danych
 export 'services/audio_service.dart'; // 🚀 NOWE: Efekty dźwiękowe
-export 'services/email_editor_service_v2.dart'
-    hide EmailTemplate; // 🚀 NOWE: Modularny serwis edytora emaili
+export 'services/email_editor_service_v2.dart'; // 🚀 NOWE: Modularny serwis edytora emaili
 export 'services/user_preferences_service.dart';
 export 'services/advanced_analytics_service.dart'
     hide AdvancedDashboardMetrics, RiskMetrics, PerformanceMetrics;

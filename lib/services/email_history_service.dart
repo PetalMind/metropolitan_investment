@@ -24,26 +24,88 @@ class EmailHistoryService extends BaseService {
       cacheKey,
       () async {
         try {
+        // We need to fetch all recent emails and filter client-side
+        // because Firebase Functions save different structure than Dart app
           final query = FirebaseFirestore.instance
-              .collection(_collectionName)
-              .where('recipients', arrayContains: {
-                'clientId': clientId,
-              })
+            .collection(_collectionName)
               .orderBy('sentAt', descending: true)
-              .limit(50); // Limit do 50 ostatnich emaili
+            .limit(200); // Increased limit to ensure we get client's emails
 
           final snapshot = await query.get();
           
-          return snapshot.docs
+        final allEmails = snapshot.docs
               .map((doc) => EmailHistory.fromFirestore(doc))
               .toList();
-              
-        } catch (e) {
+          
+        // Filter emails that include this client
+        final clientEmails = <EmailHistory>[];
+
+        for (final email in allEmails) {
+          bool includesClient = false;
+
+          // Check if any recipient matches this client
+          for (final recipient in email.recipients) {
+            if (recipient.clientId == clientId) {
+              includesClient = true;
+              break;
+            }
+
+            // For Firebase Functions records, also try email-based matching
+            if (email.metadata?['source'] == 'firebase_functions' &&
+                recipient.emailAddress.isNotEmpty) {
+              // Try to find if this email belongs to our client
+              final foundClientId = await findClientIdByEmail(
+                recipient.emailAddress,
+              );
+              if (foundClientId == clientId) {
+                includesClient = true;
+                break;
+              }
+            }
+          }
+
+          if (includesClient) {
+            clientEmails.add(email);
+          }
+        }
+
+        // Limit to 50 most recent for performance
+        return clientEmails.take(50).toList();
+      } catch (e) {
           logError('getEmailHistoryForClient', e);
           return <EmailHistory>[];
         }
       },
-    ) ?? <EmailHistory>[];
+    );
+  }
+
+  /// Enhanced method to find clientId by email address
+  /// This helps match Firebase Functions records to actual clients
+  Future<String?> findClientIdByEmail(String emailAddress) async {
+    if (emailAddress.isEmpty) return null;
+
+    final cacheKey = 'client_id_by_email_$emailAddress';
+
+    return await getCachedData<String?>(cacheKey, () async {
+      try {
+        // Query clients collection to find matching email
+        final clientQuery = FirebaseFirestore.instance
+            .collection('clients')
+            .where('email', isEqualTo: emailAddress)
+            .limit(1);
+
+        final snapshot = await clientQuery.get();
+
+        if (snapshot.docs.isNotEmpty) {
+          return snapshot.docs.first.id;
+        }
+
+        return null;
+      } catch (e) {
+        logError('findClientIdByEmail', e);
+        return null;
+      }
+    });
   }
 
   /// Pobiera wszystkie historie emaili (dla administratorów)
@@ -82,7 +144,7 @@ class EmailHistoryService extends BaseService {
           return <EmailHistory>[];
         }
       },
-    ) ?? <EmailHistory>[];
+    );
   }
 
   /// Zapisuje nowy wpis historii emaila
@@ -195,7 +257,7 @@ class EmailHistoryService extends BaseService {
           return EmailClientStatistics.empty(clientId);
         }
       },
-    ) ?? EmailClientStatistics.empty(clientId);
+    );
   }
 
   /// Usuwa stare wpisy historii (dla maintenance)

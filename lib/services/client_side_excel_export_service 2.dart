@@ -236,7 +236,7 @@ class ClientSideExcelExportService extends BaseService {
     }
 
     if (includeInvestmentDetails) {
-      headers.addAll(['Liczba Inwestycji', 'Nazwa Inwestycji', 'Rodzaje Produktów']);
+      headers.addAll(['Liczba Inwestycji', 'Rodzaje Produktów']);
     }
 
     if (includeFinancialSummary) {
@@ -301,13 +301,6 @@ class ClientSideExcelExportService extends BaseService {
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: row)).value = IntCellValue(investor.investmentCount);
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row)).cellStyle = numberStyle;
 
-      // Nazwa Inwestycji
-      final investmentNames = investor.investments
-          .map((inv) => inv.productName)
-          .join(', ');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: row)).value = TextCellValue(investmentNames);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: col - 1, rowIndex: row)).cellStyle = dataStyle;
-
       // Rodzaje Produktów
       final productTypes = investor.investments
           .map((inv) => _translateProductType(inv.productType))
@@ -354,7 +347,6 @@ class ClientSideExcelExportService extends BaseService {
       15,  // Telefon
       30,  // Adres
       10,  // Liczba Inwestycji
-      25,  // Nazwa Inwestycji
       20,  // Rodzaje Produktów
       18,  // Łączna Kwota
       18,  // Pozostały Kapitał

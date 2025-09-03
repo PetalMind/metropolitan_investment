@@ -10,10 +10,7 @@ class EmailHistory {
   final String senderName;
   final List<EmailRecipient> recipients;
   final String subject;
-  final String htmlContent;
   final String plainTextContent;
-  final EmailType emailType;
-  final EmailTemplate template;
   final bool includeInvestmentDetails;
   final DateTime sentAt;
   final EmailStatus status;
@@ -28,10 +25,7 @@ class EmailHistory {
     required this.senderName,
     required this.recipients,
     required this.subject,
-    required this.htmlContent,
     required this.plainTextContent,
-    required this.emailType,
-    required this.template,
     required this.includeInvestmentDetails,
     required this.sentAt,
     required this.status,
@@ -45,6 +39,12 @@ class EmailHistory {
   factory EmailHistory.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     
+    // Check if this is a Firebase Functions record (has 'operation' and 'results' fields)
+    if (data.containsKey('operation') && data.containsKey('results')) {
+      return _fromFirebaseFunctionsRecord(doc.id, data);
+    }
+
+    // Standard Dart app record
     return EmailHistory(
       id: doc.id,
       senderEmail: data['senderEmail'] ?? '',
@@ -53,16 +53,7 @@ class EmailHistory {
           ?.map((r) => EmailRecipient.fromJson(r as Map<String, dynamic>))
           .toList() ?? [],
       subject: data['subject'] ?? '',
-      htmlContent: data['htmlContent'] ?? '',
       plainTextContent: data['plainTextContent'] ?? '',
-      emailType: EmailType.values.firstWhere(
-        (e) => e.name == data['emailType'],
-        orElse: () => EmailType.individual,
-      ),
-      template: EmailTemplate.values.firstWhere(
-        (e) => e.name == data['template'],
-        orElse: () => EmailTemplate.custom,
-      ),
       includeInvestmentDetails: data['includeInvestmentDetails'] ?? false,
       sentAt: (data['sentAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       status: EmailStatus.values.firstWhere(
@@ -76,6 +67,90 @@ class EmailHistory {
     );
   }
 
+  /// Creates EmailHistory from Firebase Functions record format
+  static EmailHistory _fromFirebaseFunctionsRecord(
+    String id,
+    Map<String, dynamic> data,
+  ) {
+    final results = data['results'] as List<dynamic>? ?? [];
+    final recipients = <EmailRecipient>[];
+
+    // Convert Firebase Functions results to EmailRecipient objects
+    for (final result in results) {
+      final resultData = result as Map<String, dynamic>;
+
+      // Generate clientId for recipients
+      String clientId;
+      final email = resultData['recipientEmail'] ?? '';
+
+      if (resultData['recipientType'] == 'additional') {
+        // For additional emails, use a consistent hash-based ID
+        clientId = 'additional_${email.hashCode.abs()}';
+      } else {
+        // For investor recipients, try to use a more meaningful ID
+        // In the future, this could be enhanced to do actual client lookup
+        clientId = 'fb_investor_${email.hashCode.abs()}';
+      }
+
+      recipients.add(
+        EmailRecipient(
+          clientId: clientId,
+          clientName: resultData['recipientName'] ?? '',
+          emailAddress: email,
+          isCustomEmail: resultData['recipientType'] == 'additional',
+          deliveryStatus: (resultData['success'] == true)
+              ? DeliveryStatus.delivered
+              : DeliveryStatus.failed,
+          deliveryError: resultData['error'],
+          deliveredAt: (resultData['success'] == true)
+              ? (data['sentAt'] as Timestamp?)?.toDate()
+              : null,
+          messageId: resultData['messageId'],
+        ),
+      );
+    }
+
+    // Determine overall status
+    final successful = data['successful'] as int? ?? 0;
+    final failed = data['failed'] as int? ?? 0;
+    final total = successful + failed;
+
+    EmailStatus status;
+    if (successful == 0) {
+      status = EmailStatus.failed;
+    } else if (failed == 0) {
+      status = EmailStatus.sent;
+    } else {
+      status = EmailStatus.partiallyFailed;
+    }
+
+    return EmailHistory(
+      id: id,
+      senderEmail: data['senderEmail'] ?? '',
+      senderName: data['senderName'] ?? '',
+      recipients: recipients,
+      subject: data['subject'] ?? '',
+      plainTextContent: '', // Firebase Functions don't save plain text
+      includeInvestmentDetails: data['includeInvestmentDetails'] ?? false,
+      sentAt: (data['sentAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      status: status,
+      messageId: null, // Firebase Functions don't save a single messageId
+      errorMessage: failed > 0
+          ? 'Niektóre emaile nie zostały dostarczone'
+          : null,
+      executionTimeMs: data['executionTimeMs'] ?? 0,
+      metadata: {
+        'source': 'firebase_functions',
+        'operation': data['operation'],
+        'totalRecipients': total,
+        'successfulDeliveries': successful,
+        'failedDeliveries': failed,
+        'investorCount': data['investorCount'] ?? 0,
+        'additionalEmailCount': data['additionalEmailCount'] ?? 0,
+      },
+    );
+  }
+
   /// Konwertuje EmailHistory do Map dla Firestore
   Map<String, dynamic> toFirestore() {
     return {
@@ -83,10 +158,7 @@ class EmailHistory {
       'senderName': senderName,
       'recipients': recipients.map((r) => r.toJson()).toList(),
       'subject': subject,
-      'htmlContent': htmlContent,
       'plainTextContent': plainTextContent,
-      'emailType': emailType.name,
-      'template': template.name,
       'includeInvestmentDetails': includeInvestmentDetails,
       'sentAt': Timestamp.fromDate(sentAt),
       'status': status.name,
@@ -104,10 +176,7 @@ class EmailHistory {
     String? senderName,
     List<EmailRecipient>? recipients,
     String? subject,
-    String? htmlContent,
     String? plainTextContent,
-    EmailType? emailType,
-    EmailTemplate? template,
     bool? includeInvestmentDetails,
     DateTime? sentAt,
     EmailStatus? status,
@@ -122,10 +191,7 @@ class EmailHistory {
       senderName: senderName ?? this.senderName,
       recipients: recipients ?? this.recipients,
       subject: subject ?? this.subject,
-      htmlContent: htmlContent ?? this.htmlContent,
       plainTextContent: plainTextContent ?? this.plainTextContent,
-      emailType: emailType ?? this.emailType,
-      template: template ?? this.template,
       includeInvestmentDetails: includeInvestmentDetails ?? this.includeInvestmentDetails,
       sentAt: sentAt ?? this.sentAt,
       status: status ?? this.status,
@@ -146,8 +212,6 @@ Temat: $subject
 Odbiorcy: $successCount/$recipientCount pomyślnie
 Wysłano: ${sentAt.toLocal().toString().split('.')[0]}
 Nadawca: $senderName <$senderEmail>
-Typ: ${emailType.displayName}
-Szablon: ${template.displayName}
 Status: ${status.displayName}
 ${errorMessage != null ? 'Błąd: $errorMessage' : ''}
 Czas wykonania: ${executionTimeMs}ms
@@ -229,29 +293,6 @@ class EmailRecipient {
       messageId: messageId ?? this.messageId,
     );
   }
-}
-
-/// Typ emaila
-enum EmailType {
-  individual('Pojedynczy'),
-  batch('Grupowy'),
-  newsletter('Newsletter'),
-  notification('Powiadomienie');
-
-  const EmailType(this.displayName);
-  final String displayName;
-}
-
-/// Szablon emaila
-enum EmailTemplate {
-  custom('Niestandardowy'),
-  summary('Podsumowanie'),
-  detailed('Szczegółowy'),
-  reminder('Przypomnienie'),
-  notification('Powiadomienie');
-
-  const EmailTemplate(this.displayName);
-  final String displayName;
 }
 
 /// Status emaila

@@ -186,13 +186,34 @@ class _EmailHistoryWidgetState extends State<EmailHistoryWidget> {
             ),
           ),
 
-          // Email entries
-          ...List.generate(_emailHistory.length, (index) {
-            return _buildCompactEmailEntry(
-              _emailHistory[index],
-              index == _emailHistory.length - 1,
-            );
-          }),
+          // Email entries - limit height and make scrollable for compact view
+          if (_emailHistory.isNotEmpty)
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxHeight: 200, // Limit height for compact view
+              ),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _emailHistory.length,
+                itemBuilder: (context, index) {
+                  return _buildCompactEmailEntry(
+                    _emailHistory[index],
+                    index == _emailHistory.length - 1,
+                  );
+                },
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Brak historii emaili',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppThemePro.textMuted),
+                textAlign: TextAlign.center,
+              ),
+            ),
         ],
       ),
     );
@@ -250,13 +271,31 @@ class _EmailHistoryWidgetState extends State<EmailHistoryWidget> {
             ),
           ),
 
-          // Email entries
-          ...List.generate(_emailHistory.length, (index) {
-            return _buildDetailedEmailEntry(
-              _emailHistory[index],
-              index == _emailHistory.length - 1,
-            );
-          }),
+          // Email entries - wrapped in Expanded and ListView to prevent overflow
+          Expanded(
+            child: _emailHistory.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text(
+                        'Brak historii emaili dla tego klienta',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppThemePro.textMuted,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _emailHistory.length,
+                    itemBuilder: (context, index) {
+                      return _buildDetailedEmailEntry(
+                        _emailHistory[index],
+                        index == _emailHistory.length - 1,
+                      );
+                    },
+                  ),
+          ),
         ],
       ),
     );
@@ -331,14 +370,6 @@ class _EmailHistoryWidgetState extends State<EmailHistoryWidget> {
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    Text(
-                      email.template.displayName,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppThemePro.textMuted,
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
@@ -456,13 +487,12 @@ class _EmailHistoryWidgetState extends State<EmailHistoryWidget> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildDetailRow('Nadawca', '${email.senderName} <${email.senderEmail}>'),
+                _buildDetailRow('Tytuł', '${email.subject} <${email.subject}>'),
                 const SizedBox(height: 8),
-                _buildDetailRow('Odbiorca', '${recipientForClient.clientName} <${recipientForClient.emailAddress}>'),
-                const SizedBox(height: 8),
-                _buildDetailRow('Typ emaila', email.emailType.displayName),
-                const SizedBox(height: 8),
-                _buildDetailRow('Szablon', email.template.displayName),
+                _buildDetailRow(
+                  'Odbiorca',
+                  '${recipientForClient.clientName} <${recipientForClient.emailAddress}>',
+                ),
                 if (email.includeInvestmentDetails) ...[
                   const SizedBox(height: 8),
                   _buildDetailRow('Szczegóły inwestycji', 'Dołączone'),
@@ -475,8 +505,7 @@ class _EmailHistoryWidgetState extends State<EmailHistoryWidget> {
                   const SizedBox(height: 8),
                   _buildDetailRow('Błąd wysyłania', email.errorMessage!, isError: true),
                 ],
-                const SizedBox(height: 8),
-                _buildDetailRow('Czas wykonania', '${email.executionTimeMs} ms'),
+              
               ],
             ),
           ),
