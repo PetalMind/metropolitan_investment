@@ -81,6 +81,10 @@ dependencies:
   
   # Form handling
   form_validator: ^2.1.1
+  email_validator: ^2.1.17
+  
+  # Security
+  html: ^0.15.4
   
   # File handling
   file_picker: ^10.2.3
