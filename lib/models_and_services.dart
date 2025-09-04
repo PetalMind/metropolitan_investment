@@ -17,6 +17,7 @@ export 'models/investment_change_history.dart'; // 🚀 NOWE: Historia zmian inw
 export 'models/investor_edit_models.dart'; // 🚀 NOWE: Modele dla edycji inwestora
 export 'models/email_history.dart'; // 🚀 NOWE: Historia wysłanych emaili
 export 'models/smtp_settings.dart'; // 🚀 NOWE: Modele ustawień SMTP
+export 'models/email_scheduling_models.dart'; // 🚀 NOWE: Modele planowania emaili
 
 // Calendar models exports  
 export 'models/calendar/calendar_event.dart'; // 🚀 NOWE: Model wydarzeń kalendarza
@@ -123,6 +124,8 @@ export 'services/universal_investment_service.dart'
     hide
         ValidationResult; // 🚀 UNIWERSALNY: Centralny serwis wszystkich operacji na inwestycjach
 export 'services/smtp_service.dart'; // 🚀 NOWE: Serwis konfiguracji i testowania SMTP
+export 'services/email_scheduling_service.dart'; // 🚀 NOWE: Serwis planowania wysyłek emaili
+export 'services/email_advanced_formatting_service.dart'; // 🚀 NOWE: Serwis zaawansowanego formatowania emaili
 export 'services/calendar_service.dart'; // 🚀 NOWE: Serwis kalendarza
 export 'services/calendar_notification_service.dart'; // 🚀 NOWE: Serwis powiadomień kalendarza
 export 'services/client_side_excel_export_service.dart'; // 🚀 NOWE: Generowanie Excel po stronie klienta

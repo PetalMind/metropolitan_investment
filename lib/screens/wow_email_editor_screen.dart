@@ -9,6 +9,8 @@ import 'package:flutter_html/flutter_html.dart' as html_package;
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
 import '../services/email_html_converter_service.dart';
+import '../widgets/email/email_scheduling_widget.dart';
+import '../services/email_scheduling_service.dart';
 
 
 /// 🎨 CUSTOM ATTRIBUTES FOR ADVANCED FONT HANDLING
@@ -166,6 +168,12 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   final Map<String, String> _recipientEmails = {};
   final List<String> _additionalEmails = [];
 
+  // 📅 EMAIL SCHEDULING FUNCTIONALITY
+  late EmailSchedulingService _emailSchedulingService;
+  DateTime? _scheduledDateTime;
+  bool _isSchedulingEnabled = false;
+  String? _schedulingError;
+
   // 💾 AUTO-SAVE FUNCTIONALITY
   Timer? _autoSaveTimer;
   bool _hasUnsavedChanges = false;
@@ -192,6 +200,10 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
     // 💾 INITIALIZE AUTO-SAVE SERVICE
     _initializeAutoSave();
+
+    // 📅 INITIALIZE EMAIL SCHEDULING SERVICE
+    _emailSchedulingService = EmailSchedulingService();
+    _emailSchedulingService.start();
 
     // 🎪 INICJALIZACJA WOW ANIMACJI
     _settingsAnimationController = AnimationController(
@@ -251,7 +263,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     _initializeRecipients();
     _loadSmtpEmail();
 
-    // 🎪 REAL-TIME PREVIEW LISTENER
+    // 🎪 REAL-TIME PREVIEW LISTENER (Added once - cleanup in dispose())
     _quillController.addListener(_updatePreviewContent);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -326,7 +338,7 @@ Zespół Metropolitan Investment''';
       // Set up auto-save timer (every 30 seconds)
       _startAutoSaveTimer();
 
-      // Add listeners for content changes
+      // Add listeners for content changes (cleanup in dispose())
       _quillController.addListener(_onContentChanged);
       _subjectController.addListener(_onContentChanged);
       _senderNameController.addListener(_onContentChanged);
@@ -551,22 +563,34 @@ Zespół Metropolitan Investment''';
 
   @override
   void dispose() {
-    _previewUpdateTimer?.cancel(); // Clean up timer
-    _autoSaveTimer?.cancel(); // Clean up auto-save timer
+    // 🧹 PROPER CLEANUP - Cancel all timers first
+    _previewUpdateTimer?.cancel();
+    _autoSaveTimer?.cancel();
+
+    // 🧹 REMOVE ALL LISTENERS (Memory leak fix)
     _quillController.removeListener(_updatePreviewContent);
-    _quillController.removeListener(
-      _onContentChanged,
-    ); // Remove auto-save listener
+    _quillController.removeListener(_onContentChanged);
+    _subjectController.removeListener(_onContentChanged);
+    _senderNameController.removeListener(_onContentChanged);
+    _senderEmailController.removeListener(_onContentChanged);
+
+    // 🧹 DISPOSE ALL CONTROLLERS
     _quillController.dispose();
     _editorFocusNode.dispose();
     _senderEmailController.dispose();
     _senderNameController.dispose();
     _subjectController.dispose();
     _additionalEmailController.dispose();
+    
+    // 🧹 DISPOSE ALL ANIMATION CONTROLLERS
     _settingsAnimationController.dispose();
     _editorAnimationController.dispose();
     _mainScreenController.dispose();
     _recipientsAnimationController.dispose();
+    
+    // 🧹 STOP SERVICES
+    _emailSchedulingService.stop();
+    
     super.dispose();
   }
 
@@ -932,12 +956,71 @@ Zespół Metropolitan Investment''';
     );
   }
 
+  // 📅 SCHEDULING FUNCTIONS
+  void _onSchedulingDateTimeChanged(DateTime? dateTime) {
+    setState(() {
+      _scheduledDateTime = dateTime;
+      _isSchedulingEnabled = dateTime != null;
+      _schedulingError = null;
+    });
+  }
+
+  String _formatScheduledDateTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = dateTime.difference(now);
+
+    if (difference.inDays == 0) {
+      return 'dzisiaj o ${_formatTime(dateTime)}';
+    } else if (difference.inDays == 1) {
+      return 'jutro o ${_formatTime(dateTime)}';
+    } else if (difference.inDays < 7) {
+      final weekday = _getWeekdayName(dateTime.weekday);
+      return '$weekday o ${_formatTime(dateTime)}';
+    } else {
+      return '${dateTime.day}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.year} o ${_formatTime(dateTime)}';
+    }
+  }
+
+  String _formatTime(DateTime dateTime) {
+    return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _getWeekdayName(int weekday) {
+    const weekdays = [
+      'poniedziałek',
+      'wtorek',
+      'środę',
+      'czwartek',
+      'piątek',
+      'sobotę',
+      'niedzielę',
+    ];
+    return weekdays[weekday - 1];
+  }
+
   Future<void> _sendEmails() async {
     if (!_formKey.currentState!.validate()) {
       setState(() {
         _error = 'Proszę wypełnić wszystkie wymagane pola.';
       });
       return;
+    }
+
+    // Validate scheduling if enabled
+    if (_isSchedulingEnabled) {
+      if (_scheduledDateTime == null) {
+        setState(() {
+          _schedulingError = 'Wybierz datę i godzinę wysyłki.';
+        });
+        return;
+      }
+
+      if (_scheduledDateTime!.isBefore(DateTime.now())) {
+        setState(() {
+          _schedulingError = 'Data wysyłki nie może być w przeszłości.';
+        });
+        return;
+      }
     }
 
     // Initialize progress tracking
@@ -956,7 +1039,9 @@ Zespół Metropolitan Investment''';
       _totalEmailsToSend = allEmails.length;
       _emailsSent = 0;
       _loadingProgress = 0.0;
-      _loadingMessage = 'Przygotowywanie wiadomości...';
+      _loadingMessage = _isSchedulingEnabled
+          ? 'Planowanie wysyłki...'
+          : 'Przygotowywanie wiadomości...';
     });
 
     if (allEmails.isEmpty) {
@@ -984,7 +1069,78 @@ Zespół Metropolitan Investment''';
             )
           : emailHtml;
 
-      // Step 2: Connecting to email service
+      // Handle scheduled vs immediate sending
+      if (_isSchedulingEnabled && _scheduledDateTime != null) {
+        // Schedule email for later
+        setState(() {
+          _loadingMessage = 'Planowanie wysyłki emaila...';
+          _loadingProgress = 0.5;
+        });
+
+        final _ = await _emailSchedulingService.scheduleEmail(
+          recipients: enabledInvestors,
+          subject: _subjectController.text,
+          htmlContent: finalHtml,
+          scheduledDateTime: _scheduledDateTime!,
+          senderEmail: _senderEmailController.text,
+          senderName: _senderNameController.text,
+          includeInvestmentDetails: _includeInvestmentDetails,
+          additionalRecipients: Map.fromIterable(
+            _additionalEmails,
+            key: (email) => email,
+            value: (email) => email,
+          ),
+          notes: 'Zaplanowane z edytora emaili',
+          createdBy: 'current_user', // TODO: Get actual user ID
+        );
+
+        setState(() {
+          _loadingMessage = 'Email zaplanowany pomyślnie';
+          _loadingProgress = 1.0;
+          _isLoading = false;
+        });
+
+        // Clear draft after scheduling
+        await _preferencesService.clearEmailDraft();
+        setState(() {
+          _hasUnsavedChanges = false;
+          _lastAutoSaveTime = null;
+        });
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.schedule, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Email zaplanowany na ${_formatScheduledDateTime(_scheduledDateTime!)}',
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'OK',
+                textColor: Colors.white,
+                onPressed: () {},
+              ),
+            ),
+          );
+        }
+
+        // Return to previous screen
+        if (mounted) {
+          Navigator.of(context).pop(true);
+        }
+        return;
+      }
+
+      // Step 2: Connecting to email service (immediate sending)
       setState(() {
         _loadingMessage = 'Łączenie z serwerem email...';
         _loadingProgress = 0.2;
@@ -1045,9 +1201,11 @@ Zespół Metropolitan Investment''';
       }
     } catch (e) {
       setState(() {
-        _error = 'Błąd podczas wysyłania: $e';
+        _error =
+            'Błąd podczas ${_isSchedulingEnabled ? 'planowania' : 'wysyłania'}: $e';
         _isLoading = false;
-        _loadingMessage = 'Błąd wysyłania';
+        _loadingMessage =
+            'Błąd ${_isSchedulingEnabled ? 'planowania' : 'wysyłania'}';
         _loadingProgress = 0.0;
       });
     }
@@ -1866,6 +2024,16 @@ Zespół Metropolitan Investment''';
 
           // Email Options
           _buildEmailOptions(isMobile),
+
+          SizedBox(height: isMobile ? 16 : 24),
+
+          // Email Scheduling
+          EmailSchedulingWidget(
+            initialDateTime: _scheduledDateTime,
+            onDateTimeChanged: _onSchedulingDateTimeChanged,
+            isEnabled: !_isLoading,
+            errorText: _schedulingError,
+          ),
         ],
       ),
     );
@@ -2823,7 +2991,7 @@ Zespół Metropolitan Investment''';
                               
                               SizedBox(height: 8),
                               
-                              // �🎯 ENHANCED QUILL TOOLBAR WITH ALL FORMATTING OPTIONS
+                              // 🎯 ENHANCED QUILL TOOLBAR - ULEPSZONA KONFIGURACJA
                               QuillSimpleToolbar(
                                 controller: _quillController,
                                 config: QuillSimpleToolbarConfig(
@@ -2831,7 +2999,7 @@ Zespół Metropolitan Investment''';
                                   multiRowsDisplay: !isMobile,
                                   showDividers: true,
 
-                                  // ✏️ BASIC TEXT FORMATTING (Enhanced)
+                                  // ✏️ BASIC TEXT FORMATTING (Enhanced - wszystkie funkcje włączone)
                                   showBoldButton: true,
                                   showItalicButton: true,
                                   showUnderLineButton: true,
@@ -2839,22 +3007,24 @@ Zespół Metropolitan Investment''';
                                   showInlineCode: true,
                                   showClearFormat: true,
                                   showSmallButton: true,
-                                  showSubscript: !isMobile,
-                                  showSuperscript: !isMobile,
+                                  showSubscript:
+                                      true, // Włączone na wszystkich urządzeniach
+                                  showSuperscript:
+                                      true, // Włączone na wszystkich urządzeniach
 
                                   // 🔤 FONT & SIZE CONTROLS
                                   showFontFamily: false, // We have custom font dropdown
                                   showFontSize: true,
                                   
-                                  // 🎨 COLOR CONTROLS - Disabled (using custom)
-                                  showColorButton: false,
-                                  showBackgroundColorButton: false,
+                                  // 🎨 COLOR CONTROLS - Włączone ponownie
+                                  showColorButton: true,
+                                  showBackgroundColorButton: true,
                                   
-                                  // 📝 STRUCTURAL FORMATTING
+                                  // 📝 STRUCTURAL FORMATTING (wszystkie włączone)
                                   showHeaderStyle: true,
                                   showQuote: true,
-                                  showCodeBlock:
-                                      !isMobile, // Hide on mobile for space
+                                  showCodeBlock: true, // Włączone na mobile
+                                  
                                   // 📋 LIST CONTROLS
                                   showListBullets: true,
                                   showListNumbers: true,
@@ -2870,11 +3040,12 @@ Zespół Metropolitan Investment''';
                                   showLink: true,
                                   showSearchButton:
                                       false, // Not needed for email editor
+                                  
                                   // ↩️ UNDO/REDO
                                   showUndo: true,
                                   showRedo: true,
                                   
-                                  // 🎛️ BASIC BUTTON OPTIONS (WORKING CONFIGURATION)
+                                  // 🎛️ ENHANCED BUTTON OPTIONS
                                   buttonOptions:
                                       QuillSimpleToolbarButtonOptions(
                                         // 📏 FONT SIZE OPTIONS (Enhanced)
@@ -3743,8 +3914,10 @@ Zespół Metropolitan Investment''';
           Expanded(
             child: ElevatedButton.icon(
               onPressed: canEdit ? _sendEmails : null,
-              icon: Icon(Icons.send),
-              label: Text('Wyślij wiadomości'),
+              icon: Icon(_isSchedulingEnabled ? Icons.schedule : Icons.send),
+              label: Text(
+                _isSchedulingEnabled ? 'Zaplanuj wysyłkę' : 'Wyślij wiadomości',
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppThemePro.accentGold,
                 foregroundColor: AppThemePro.primaryDark,
