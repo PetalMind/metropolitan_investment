@@ -84,6 +84,7 @@ export 'services/email_and_export_service.dart'; // 🚀 NOWE: Email i eksport d
 export 'services/audio_service.dart'; // 🚀 NOWE: Efekty dźwiękowe
 export 'services/email_editor_service_v2.dart'; // 🚀 NOWE: Modularny serwis edytora emaili
 export 'services/user_preferences_service.dart';
+export 'services/dashboard_audio_service.dart'; // 🔊 AUDIO: Dashboard startup sounds
 export 'services/advanced_analytics_service.dart'
     hide AdvancedDashboardMetrics, RiskMetrics, PerformanceMetrics;
 export 'services/investor_analytics_service.dart' hide InvestorAnalyticsResult;
@@ -130,6 +131,7 @@ export 'services/calendar_service.dart'; // 🚀 NOWE: Serwis kalendarza
 export 'services/calendar_notification_service.dart'; // 🚀 NOWE: Serwis powiadomień kalendarza
 export 'services/client_side_excel_export_service.dart'; // 🚀 NOWE: Generowanie Excel po stronie klienta
 export 'services/unified_export_service.dart'; // 🚀 NOWE: Ujednolicony serwis eksportu (Excel, PDF, Word)
+export 'services/simple_audio_test.dart'; // 🧪 TEST: Prosty serwis testowania audio
 
 // 🎨 FONT MANAGEMENT SYSTEM
 export 'services/font_family_service.dart'; // 🚀 LEGACY: Basic font service

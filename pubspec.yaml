@@ -140,6 +140,8 @@ flutter:
   # Assets
   assets:
     - assets/logos/
+    - assets/audio/
+    
 
   # Font configuration for Enhanced Email Editor - Local fonts for Flutter app          weight: 700
 # Font configuration for Enhanced Email Editor

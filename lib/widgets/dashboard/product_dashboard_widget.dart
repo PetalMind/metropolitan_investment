@@ -39,6 +39,8 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       OptimizedProductService(); // 🚀 NOWY
   final UnifiedDashboardStatisticsService _statisticsService =
       UnifiedDashboardStatisticsService();
+  final DashboardAudioService _audioService =
+      DashboardAudioService(); // 🔊 AUDIO
 
   // State
   bool _isLoading = true;
@@ -81,7 +83,20 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   void initState() {
     super.initState();
     _initializeAnimations();
+    _initializeAudio();
     _loadData();
+  }
+
+  void _initializeAudio() async {
+    if (!mounted) return; // Early return if widget is disposed
+
+    try {
+      await _audioService.initialize();
+    } catch (e) {
+      if (kDebugMode && mounted) {
+        print('⚠️ [ProductDashboard] Audio initialization failed: $e');
+      }
+    }
   }
 
   void _initializeAnimations() {
@@ -115,64 +130,109 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
 
   Future<void> _loadData() async {
     try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-
-      // Load user profile
-      final currentUser = _authService.currentUser;
-      if (currentUser != null) {
-        _userProfile = await _authService.getUserProfile(currentUser.uid);
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+          _error = null;
+        });
       }
 
-      // 🚀 NOWE: Używaj zoptymalizowanego serwisu - JEDNO WYWOŁANIE zamiast setek
-      final optimizedResult = await _optimizedProductService
-          .getAllProductsOptimized(forceRefresh: true, includeStatistics: true);
-
-      _optimizedProducts = optimizedResult.products;
-
-      // 🚀 OPTYMALIZACJA: Nie rób dodatkowego wywołania getAllInvestments - użyj danych z OptimizedProductService
-      if (kDebugMode) {
-        print(
-          '🚀 [ProductDashboardWidget] Używam danych z OptimizedProductService - brak dodatkowych wywołań!',
-        );
-        print(
-          '🚀 [ProductDashboardWidget] Produkty: ${optimizedResult.products.length}',
-        );
-      }
-
-      // 🚀 NOWE: Używaj OptimizedProduct bezpośrednio, nie konwertuj na Investment
-      // Investment jest zbyt różne od OptimizedProduct - zostaw puste i użyj _optimizedProducts
-      _investments =
-          []; // Puste - używamy _optimizedProducts zamiast _investments
-
-      if (kDebugMode) {
-        print(
-          '🚀 [ProductDashboardWidget] Używam ${_optimizedProducts.length} OptimizedProducts bezpośrednio',
-        );
-      }
-
-      // Load dashboard statistics
-      if (optimizedResult.statistics != null) {
-        // 🚀 FIXED: Konwertuj GlobalProductStatistics na UnifiedDashboardStatistics
-        _dashboardStatistics = _convertGlobalStatsToUnified(
-          optimizedResult.statistics!,
-        );
+      // Load user profile (non-critical, don't fail if this fails)
+      try {
+        final currentUser = _authService.currentUser;
+        if (currentUser != null) {
+          _userProfile = await _authService.getUserProfile(currentUser.uid);
+        }
+      } catch (e) {
         if (kDebugMode) {
           print(
-            '🎯 [ProductDashboardWidget] Używam statystyk z OptimizedProductService',
+            '⚠️ [ProductDashboard] Nie udało się załadować profilu użytkownika: $e',
           );
         }
-      } else {
-        // Fallback na serwis inwestorów
-        _dashboardStatistics = await _statisticsService
-            .getStatisticsFromInvestors();
+        // Continue without user profile
+      }
+
+      // 🔊 AUDIO: Play startup sound during loading screen when user is authenticated
+      await _playStartupSoundIfAuthenticated();
+
+      // Load products with retry mechanism
+      OptimizedProductsResult? optimizedResult;
+      try {
+        optimizedResult = await _optimizedProductService
+            .getAllProductsOptimized(
+              forceRefresh: true,
+              includeStatistics: true,
+            );
+        _optimizedProducts = optimizedResult.products;
+      } catch (e) {
         if (kDebugMode) {
-          print(
-            '🔄 [ProductDashboardWidget] Fallback na UnifiedDashboardStatisticsService',
-          );
+          print('❌ [ProductDashboard] Błąd podczas ładowania produktów: $e');
         }
+        // Try without statistics as fallback
+        try {
+          optimizedResult = await _optimizedProductService
+              .getAllProductsOptimized(
+                forceRefresh: false,
+                includeStatistics: false,
+              );
+          _optimizedProducts = optimizedResult.products;
+        } catch (e2) {
+          if (kDebugMode) {
+            print('❌ [ProductDashboard] Fallback również nie powiódł się: $e2');
+          }
+          // Use empty list as final fallback
+          _optimizedProducts = [];
+        }
+      }
+
+      if (kDebugMode) {
+        print(
+          '🚀 [ProductDashboardWidget] Załadowano ${_optimizedProducts.length} produktów',
+        );
+      }
+
+      // Investment list remains empty as we use optimized products directly
+      _investments = [];
+
+      // Load dashboard statistics with fallback
+      try {
+        if (optimizedResult?.statistics != null) {
+          _dashboardStatistics = _convertGlobalStatsToUnified(
+            optimizedResult!.statistics!,
+          );
+          if (kDebugMode) {
+            print(
+              '🎯 [ProductDashboardWidget] Używam statystyk z OptimizedProductService',
+            );
+          }
+        } else {
+          // Fallback to statistics service
+          _dashboardStatistics = await _statisticsService
+              .getStatisticsFromInvestors();
+          if (kDebugMode) {
+            print(
+              '🔄 [ProductDashboardWidget] Fallback na UnifiedDashboardStatisticsService',
+            );
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('⚠️ [ProductDashboard] Nie udało się załadować statystyk: $e');
+        }
+        // Create empty statistics as fallback
+        _dashboardStatistics = UnifiedDashboardStatistics(
+          totalInvestmentAmount: 0.0,
+          totalRemainingCapital: 0.0,
+          totalCapitalSecured: 0.0,
+          totalCapitalForRestructuring: 0.0,
+          totalViableCapital: 0.0,
+          totalInvestments: _optimizedProducts.length,
+          activeInvestments: _optimizedProducts.length,
+          averageInvestmentAmount: 0.0,
+          averageRemainingCapital: 0.0,
+          dataSource: 'fallback (empty statistics)',
+          calculatedAt: DateTime.now(),
+        );
       }
 
       // Apply filtering and sorting
@@ -187,16 +247,15 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         });
       }
 
-      // Start animations
+      // Start animations immediately without delays
       _fadeController.forward();
-      await Future.delayed(const Duration(milliseconds: 200));
       _slideController.forward();
-      await Future.delayed(const Duration(milliseconds: 100));
       _scaleController.forward();
+
 
       if (kDebugMode) {
         print(
-          '✅ [ProductDashboard] Załadowano ${_optimizedProducts.length} produktów w ${optimizedResult.executionTime}ms (cache: ${optimizedResult.fromCache})',
+          '✅ [ProductDashboard] Załadowano ${_optimizedProducts.length} produktów${optimizedResult != null ? " w ${optimizedResult.executionTime}ms (cache: ${optimizedResult.fromCache})" : ""}',
         );
         print(
           '📊 [ProductDashboard] Statystyki dostępne: ${_dashboardStatistics != null}',
@@ -214,9 +273,12 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         }
       }
     } catch (e) {
+      if (kDebugMode) {
+        print('❌ [ProductDashboard] Błąd podczas ładowania: $e');
+      }
       if (mounted) {
         setState(() {
-          _error = 'Błąd podczas ładowania danych: $e';
+          _error = 'Błąd podczas ładowania danych dashboard. Spróbuj ponownie.';
           _isLoading = false;
         });
       }
@@ -228,7 +290,56 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     _slideController.dispose();
     _fadeController.dispose();
     _scaleController.dispose();
+    _audioService.dispose(); // 🔊 AUDIO: Dispose audio service
     super.dispose();
+  }
+
+  /// 🚀 Play startup sound only when user is authenticated and dashboard finishes loading
+  Future<void> _playStartupSoundIfAuthenticated() async {
+    if (!mounted) return; // Early return if widget is disposed
+
+    try {
+      // Check if user is properly authenticated
+      if (_userProfile != null && _userProfile!.isActive) {
+        if (kDebugMode) {
+          print(
+            '🚀 [ProductDashboard] User authenticated, playing startup sound...',
+          );
+          print(
+            '🚀 [ProductDashboard] User: ${_userProfile!.fullName} (${_userProfile!.email}) - Role: ${_userProfile!.role.toString().split('.').last}',
+          );
+        }
+
+        // Check mounted again before async operations
+        if (!mounted) return;
+
+        // Initialize audio service if needed
+        await _audioService.initialize();
+
+        // Check mounted one more time before playing sound
+        if (!mounted) return;
+
+        // Play startup success sound
+        await _audioService.playDashboardLoadSuccess();
+
+        if (kDebugMode && mounted) {
+          print('🚀 [ProductDashboard] Startup sound played successfully');
+        }
+      } else {
+        if (kDebugMode && mounted) {
+          print(
+            '🔇 [ProductDashboard] User not authenticated or inactive, skipping startup sound',
+          );
+          print(
+            '🔇 [ProductDashboard] UserProfile active: ${_userProfile?.isActive ?? false}',
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode && mounted) {
+        print('⚠️ [ProductDashboard] Startup sound failed: $e');
+      }
+    }
   }
 
   // Filtering and sorting methods
@@ -349,29 +460,35 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
   }
 
   void _updateSearch(String query) {
-    setState(() {
-      _searchQuery = query;
-      _applyFilteringAndSorting();
-    });
+    if (mounted) {
+      setState(() {
+        _searchQuery = query;
+        _applyFilteringAndSorting();
+      });
+    }
   }
 
   void _updateSort(String sortBy) {
-    setState(() {
-      if (_sortBy == sortBy) {
-        _sortAscending = !_sortAscending;
-      } else {
-        _sortBy = sortBy;
-        _sortAscending = true;
-      }
-      _applyFilteringAndSorting();
-    });
+    if (mounted) {
+      setState(() {
+        if (_sortBy == sortBy) {
+          _sortAscending = !_sortAscending;
+        } else {
+          _sortBy = sortBy;
+          _sortAscending = true;
+        }
+        _applyFilteringAndSorting();
+      });
+    }
   }
 
   void _updateTypeFilter(UnifiedProductType? type) {
-    setState(() {
-      _filterByType = type;
-      _applyFilteringAndSorting();
-    });
+    if (mounted) {
+      setState(() {
+        _filterByType = type;
+        _applyFilteringAndSorting();
+      });
+    }
   }
 
   void _updateStatusFilter(dynamic status) {
@@ -615,17 +732,19 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                 children: [
                   TextButton.icon(
                     onPressed: () {
-                      setState(() {
-                        if (_showDeduplicatedView) {
-                          _selectedProductIds = _filteredDeduplicatedProducts
-                              .map((prod) => prod.id)
-                              .toSet();
-                        } else {
-                          _selectedProductIds = _filteredInvestments
-                              .map((inv) => inv.id)
-                              .toSet();
-                        }
-                      });
+                      if (mounted) {
+                        setState(() {
+                          if (_showDeduplicatedView) {
+                            _selectedProductIds = _filteredDeduplicatedProducts
+                                .map((prod) => prod.id)
+                                .toSet();
+                          } else {
+                            _selectedProductIds = _filteredInvestments
+                                .map((inv) => inv.id)
+                                .toSet();
+                          }
+                        });
+                      }
                     },
                     icon: Icon(Icons.select_all, size: 18),
                     label: Text('Zaznacz wszystkie'),
@@ -636,9 +755,11 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                   const SizedBox(width: 8),
                   TextButton.icon(
                     onPressed: () {
-                      setState(() {
-                        _selectedProductIds.clear();
-                      });
+                      if (mounted) {
+                        setState(() {
+                          _selectedProductIds.clear();
+                        });
+                      }
                     },
                     icon: Icon(Icons.clear, size: 18),
                     label: Text('Wyczyść'),
@@ -926,13 +1047,15 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
                     _filterByProductStatus != null)
                   TextButton.icon(
                     onPressed: () {
-                      setState(() {
-                        _searchQuery = '';
-                        _filterByType = null;
-                        _filterByStatus = null;
-                        _filterByProductStatus = null;
-                        _applyFilteringAndSorting();
-                      });
+                      if (mounted) {
+                        setState(() {
+                          _searchQuery = '';
+                          _filterByType = null;
+                          _filterByStatus = null;
+                          _filterByProductStatus = null;
+                          _applyFilteringAndSorting();
+                        });
+                      }
                     },
                     icon: Icon(Icons.clear, size: 16),
                     label: Text('Wyczyść filtry'),
@@ -992,13 +1115,15 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
           child: CheckboxListTile(
             value: isSelected,
             onChanged: (bool? value) {
-              setState(() {
-                if (value == true) {
-                  _selectedProductIds.add(product.id);
-                } else {
-                  _selectedProductIds.remove(product.id);
-                }
-              });
+              if (mounted) {
+                setState(() {
+                  if (value == true) {
+                    _selectedProductIds.add(product.id);
+                  } else {
+                    _selectedProductIds.remove(product.id);
+                  }
+                });
+              }
             },
             title: Text(
               product.name,
@@ -1065,14 +1190,16 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
           child: CheckboxListTile(
             value: isSelected,
             onChanged: (bool? value) {
-              setState(() {
-                if (value == true) {
-                  _selectedProductIds.add(investment.id);
-                  _selectedInvestment = investment;
-                } else {
-                  _selectedProductIds.remove(investment.id);
-                }
-              });
+              if (mounted) {
+                setState(() {
+                  if (value == true) {
+                    _selectedProductIds.add(investment.id);
+                    _selectedInvestment = investment;
+                  } else {
+                    _selectedProductIds.remove(investment.id);
+                  }
+                });
+              }
             },
             title: Text(
               investment.productName.isNotEmpty

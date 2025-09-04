@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
@@ -1143,7 +1144,7 @@ Zespół Metropolitan Investment''';
 
       // 🔊 Play success sound if emails were sent successfully
       if (successfulEmails > 0) {
-        _playSuccessSound();
+        await _playSuccessSound();
         
         // 💾 Clear draft after successful sending
         await _preferencesService.clearEmailDraft();
@@ -1324,13 +1325,25 @@ Zespół Metropolitan Investment''';
   }
 
   // 🔊 PLAY SUCCESS SOUND FOR EMAIL SENDING
-  void _playSuccessSound() {
+  // 🔊 PLAY SUCCESS SOUND FOR EMAIL SENDING
+  Future<void> _playSuccessSound() async {
     try {
-      // Use Flutter's built-in SystemSound for success
-      SystemSound.play(SystemSoundType.alert);
-      debugPrint('🔊 Success sound played');
+      debugPrint('🔊 Starting email success sound playback...');
+
+      // Use AudioService to play custom email_sound.mp3
+      await AudioService.instance.playEmailSentSound();
+
+      debugPrint('🔊 Email success sound played using AudioService');
     } catch (e) {
-      debugPrint('⚠️ Could not play success sound: $e');
+      debugPrint('⚠️ AudioService playback failed: $e');
+
+      // Fallback to system sound if AudioService fails
+      try {
+        SystemSound.play(SystemSoundType.alert);
+        debugPrint('🔊 Fallback to system sound completed');
+      } catch (fallbackError) {
+        debugPrint('⚠️ System sound fallback also failed: $fallbackError');
+      }
     }
   }
 
@@ -2205,6 +2218,50 @@ Zespół Metropolitan Investment''';
           ),
         ),
         actions: [
+          // 🔊 TEST AUDIO BUTTON (for debugging)
+          if (kDebugMode)
+            IconButton(
+              icon: Icon(Icons.volume_up, color: AppTheme.secondaryGold),
+              onPressed: () async {
+                try {
+                  debugPrint('🧪 Manual audio test started...');
+                  await AudioService.instance.testAudio();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Audio test executed - check console'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('🧪 Manual audio test failed: $e');
+                }
+              },
+              tooltip: 'Test Audio (Debug)',
+            ),
+          // 🧪 SIMPLE AUDIO TEST BUTTON (for debugging)
+          if (kDebugMode)
+            IconButton(
+              icon: Icon(Icons.music_note, color: Colors.orange),
+              onPressed: () async {
+                try {
+                  debugPrint('🧪 Simple audio test started...');
+                  await SimpleAudioTest.testEmailSound();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Simple audio test - check console'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('🧪 Simple audio test failed: $e');
+                }
+              },
+              tooltip: 'Simple Audio Test (Debug)',
+            ),
           if (_isPreviewVisible)
             IconButton(
               icon: Icon(
@@ -2267,8 +2324,8 @@ Zespół Metropolitan Investment''';
                             // Results Banner
                             if (_results != null) _buildWowResultsBanner(),
 
-                            // Loading Banner
-                            if (_isLoading) _buildWowLoadingBanner(),
+                            // Loading Banner - HIDDEN: Loading is now shown in actions area
+                            // if (_isLoading) _buildWowLoadingBanner(),
 
                             // Email Settings
                             _buildWowEmailSettings(isMobile, isTablet),
@@ -4427,44 +4484,150 @@ Zespół Metropolitan Investment''';
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: Icon(Icons.close),
-              label: Text('Anuluj'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.textSecondary,
-                side: BorderSide(color: AppTheme.borderPrimary),
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+      child: _isLoading
+          ? _buildLoadingContentForActions()
+          : Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.close),
+                    label: Text('Anuluj'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.textSecondary,
+                      side: BorderSide(color: AppTheme.borderPrimary),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: canEdit ? _sendEmails : null,
+                    icon: Icon(
+                      _isSchedulingEnabled ? Icons.schedule : Icons.send,
+                    ),
+                    label: Text(
+                      _isSchedulingEnabled
+                          ? 'Zaplanuj wysyłkę'
+                          : 'Wyślij wiadomości',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.secondaryGold,
+                      foregroundColor: AppTheme.primaryColor,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  // 🔄 LOADING CONTENT FOR ACTIONS AREA
+  Widget _buildLoadingContentForActions() {
+    return Column(
+      children: [
+        // Header row with spinning indicator
+        Row(
+          children: [
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(
+                value: _loadingProgress > 0 ? _loadingProgress : null,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  AppTheme.secondaryGold,
+                ),
+                backgroundColor: AppTheme.secondaryGold.withOpacity(0.2),
+                strokeWidth: 3,
               ),
             ),
-          ),
-          SizedBox(width: 16),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: canEdit ? _sendEmails : null,
-              icon: Icon(_isSchedulingEnabled ? Icons.schedule : Icons.send),
-              label: Text(
-                _isSchedulingEnabled ? 'Zaplanuj wysyłkę' : 'Wyślij wiadomości',
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.secondaryGold,
-                foregroundColor: AppTheme.primaryColor,
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 2,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Wysyłanie Wiadomości Email',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _loadingMessage,
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             ),
+          ],
+        ),
+
+        // Progress bar and counter (if progress is available)
+        if (_loadingProgress > 0) ...[
+          const SizedBox(height: 16),
+          Column(
+            children: [
+              // Progress bar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: _loadingProgress,
+                  backgroundColor: AppTheme.backgroundSecondary,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppTheme.secondaryGold,
+                  ),
+                  minHeight: 6,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Progress text
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${(_loadingProgress * 100).toInt()}% ukończone',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (_totalEmailsToSend > 0)
+                    Text(
+                      '$_emailsSent / $_totalEmailsToSend emaili',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ),
         ],
-      ),
+      ],
     );
   }
 }

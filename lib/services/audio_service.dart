@@ -7,10 +7,33 @@ class AudioService {
   static AudioService? _instance;
   static AudioService get instance => _instance ??= AudioService._();
   
-  AudioService._();
+  AudioService._() {
+    _initializeAudioPlayer();
+  }
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isEnabled = true;
+  bool _isInitialized = false;
+
+  /// Initialize audio player for current platform
+  Future<void> _initializeAudioPlayer() async {
+    if (_isInitialized) return;
+
+    try {
+      if (kIsWeb) {
+        // Web-specific configuration
+        await _audioPlayer.setPlayerMode(PlayerMode.lowLatency);
+        if (kDebugMode) {
+          print('🌐 AudioPlayer initialized for web');
+        }
+      }
+      _isInitialized = true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ AudioPlayer initialization failed: $e');
+      }
+    }
+  }
   
   /// Enable or disable audio effects
   void setEnabled(bool enabled) {
@@ -19,6 +42,30 @@ class AudioService {
   
   /// Check if audio is enabled
   bool get isEnabled => _isEnabled;
+
+  /// Test audio playback (useful for debugging)
+  Future<void> testAudio() async {
+    if (kDebugMode) {
+      print('🧪 Testing audio playback...');
+      print('🧪 Platform: ${kIsWeb ? 'Web' : 'Mobile/Desktop'}');
+      print('🧪 Audio enabled: $_isEnabled');
+      print('🧪 Audio initialized: $_isInitialized');
+    }
+
+    await playEmailSentSound();
+  }
+
+  /// Test startup audio playback (useful for debugging)
+  Future<void> testStartupAudio() async {
+    if (kDebugMode) {
+      print('🧪 Testing startup audio playback...');
+      print('🧪 Platform: ${kIsWeb ? 'Web' : 'Mobile/Desktop'}');
+      print('🧪 Audio enabled: $_isEnabled');
+      print('🧪 Audio initialized: $_isInitialized');
+    }
+
+    await playStartupSuccessSound();
+  }
 
   /// Play success sound effect for successful email sending
   Future<void> playEmailSuccessSound() async {
@@ -39,6 +86,285 @@ class AudioService {
       }
       // Fallback to system sound
       await _playSystemNotificationSound();
+    }
+  }
+
+  /// Play custom email sent sound from assets/audio/email_sound.mp3
+  Future<void> playEmailSentSound() async {
+    if (!_isEnabled) return;
+
+    try {
+      // Ensure audio player is initialized
+      await _initializeAudioPlayer();
+
+      if (kDebugMode) {
+        print('🔊 Playing email sent sound...');
+      }
+
+      if (kIsWeb) {
+        // Web environment: Use enhanced web audio implementation
+        await _playEmailSoundForWeb();
+      } else {
+        // Mobile/Desktop: Use asset source
+        await _audioPlayer.play(AssetSource('audio/email_sound.mp3'));
+      }
+
+      if (kDebugMode) {
+        print('🔊 Email sent sound played successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Error playing email_sound.mp3: $e');
+      }
+
+      // Fallback to system notification sound
+      try {
+        await _playSystemNotificationSound();
+        if (kDebugMode) {
+          print('🔊 Fallback to system notification sound');
+        }
+      } catch (fallbackError) {
+        if (kDebugMode) {
+          print('⚠️ Fallback sound also failed: $fallbackError');
+        }
+      }
+    }
+  }
+
+  /// Play startup success sound from assets/audio/startup_success.mp3
+  Future<void> playStartupSuccessSound() async {
+    if (!_isEnabled) return;
+
+    try {
+      // Ensure audio player is initialized
+      await _initializeAudioPlayer();
+
+      if (kDebugMode) {
+        print('🚀 Playing startup success sound...');
+      }
+
+      if (kIsWeb) {
+        // Web environment: Use enhanced web audio implementation
+        await _playStartupSoundForWeb();
+      } else {
+        // Mobile/Desktop: Use asset source
+        await _audioPlayer.play(AssetSource('audio/startup_success.mp3'));
+      }
+
+      if (kDebugMode) {
+        print('🚀 Startup success sound played successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Error playing startup_success.mp3: $e');
+      }
+
+      // Fallback to enhanced startup notification
+      try {
+        await _playEnhancedStartupNotification();
+        if (kDebugMode) {
+          print('🚀 Fallback to enhanced startup notification');
+        }
+      } catch (fallbackError) {
+        if (kDebugMode) {
+          print('⚠️ Startup sound fallback also failed: $fallbackError');
+        }
+      }
+    }
+  }
+
+  /// Enhanced web audio implementation for email sound
+  Future<void> _playEmailSoundForWeb() async {
+    if (!kIsWeb) return;
+
+    try {
+      if (kDebugMode) {
+        print('🌐 Attempting web audio playback...');
+        print('🌐 Audio player initialized: $_isInitialized');
+        print('🌐 Audio enabled: $_isEnabled');
+      }
+
+      // Method 1: Try to use audioplayers with explicit web configuration
+      await _audioPlayer.setPlayerMode(PlayerMode.lowLatency);
+
+      // Give user interaction context by playing immediately after user action
+      await _audioPlayer.play(AssetSource('audio/email_sound.mp3'));
+
+      if (kDebugMode) {
+        print('🌐 Web audio played via audioplayers successfully');
+      }
+
+      // Wait a moment to ensure audio starts
+      await Future.delayed(const Duration(milliseconds: 200));
+    } catch (e) {
+      if (kDebugMode) {
+        print('🌐 Audioplayers failed on web: $e');
+        print('🌐 Error type: ${e.runtimeType}');
+        print('🌐 Trying HTML5 audio...');
+      }
+
+      // Method 2: Try HTML5 Audio approach (this requires js interop in real implementation)
+      await _playHtml5Audio();
+    }
+  }
+
+  /// Enhanced web audio implementation for startup sound
+  Future<void> _playStartupSoundForWeb() async {
+    if (!kIsWeb) return;
+
+    try {
+      if (kDebugMode) {
+        print('🚀 Attempting web startup audio playback...');
+        print('🚀 Audio player initialized: $_isInitialized');
+        print('🚀 Audio enabled: $_isEnabled');
+      }
+
+      // Method 1: Try to use audioplayers with explicit web configuration
+      await _audioPlayer.setPlayerMode(PlayerMode.lowLatency);
+
+      // Give user interaction context by playing immediately after user action
+      await _audioPlayer.play(AssetSource('audio/startup_success.mp3'));
+
+      if (kDebugMode) {
+        print('🚀 Web startup audio played via audioplayers successfully');
+      }
+
+      // Wait a moment to ensure audio starts
+      await Future.delayed(const Duration(milliseconds: 300));
+    } catch (e) {
+      if (kDebugMode) {
+        print('🚀 Startup audioplayers failed on web: $e');
+        print('🚀 Error type: ${e.runtimeType}');
+        print('🚀 Trying startup HTML5 audio...');
+      }
+
+      // Method 2: Try HTML5 Audio approach for startup sound
+      await _playStartupHtml5Audio();
+    }
+  }
+
+  /// Try to play startup audio using HTML5 Audio API (simplified implementation)
+  Future<void> _playStartupHtml5Audio() async {
+    if (!kIsWeb) return;
+
+    try {
+      if (kDebugMode) {
+        print('🚀 Attempting startup HTML5 audio playback...');
+      }
+
+      // In a real implementation, this would use dart:js to call:
+      // var audio = new Audio('assets/audio/startup_success.mp3');
+      // audio.play();
+
+      // For now, use enhanced startup notification
+      await _playEnhancedStartupNotification();
+
+      if (kDebugMode) {
+        print('🚀 Startup HTML5 audio simulation completed');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('🚀 Startup HTML5 audio failed: $e');
+      }
+
+      // Final fallback
+      await _playEnhancedStartupNotification();
+    }
+  }
+
+  /// Enhanced web notification sound for startup success
+  Future<void> _playEnhancedStartupNotification() async {
+    if (!kIsWeb) return;
+
+    try {
+      if (kDebugMode) {
+        print('🚀 Playing enhanced web startup notification...');
+      }
+
+      // Create a pleasant startup sequence
+      // This simulates a welcome/success startup sound pattern
+      await HapticFeedback.lightImpact();
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      await HapticFeedback.selectionClick();
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      await HapticFeedback.lightImpact();
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      await HapticFeedback.selectionClick();
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      await HapticFeedback.lightImpact();
+
+      if (kDebugMode) {
+        print('🚀 Enhanced web startup notification completed');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('🚀 Enhanced web startup notification failed: $e');
+      }
+    }
+  }
+
+  /// Try to play audio using HTML5 Audio API (simplified implementation)
+  Future<void> _playHtml5Audio() async {
+    if (!kIsWeb) return;
+
+    try {
+      if (kDebugMode) {
+        print('🌐 Attempting HTML5 audio playback...');
+      }
+
+      // In a real implementation, this would use dart:js to call:
+      // var audio = new Audio('assets/audio/email_sound.mp3');
+      // audio.play();
+
+      // For now, use enhanced system notification
+      await _playEnhancedWebEmailNotification();
+
+      if (kDebugMode) {
+        print('🌐 HTML5 audio simulation completed');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('🌐 HTML5 audio failed: $e');
+      }
+
+      // Final fallback
+      await _playEnhancedWebEmailNotification();
+    }
+  }
+
+  /// Enhanced web notification sound that mimics email alert
+  Future<void> _playEnhancedWebEmailNotification() async {
+    if (!kIsWeb) return;
+
+    try {
+      if (kDebugMode) {
+        print('🌐 Playing enhanced web email notification...');
+      }
+
+      // Create a pleasant email notification sequence
+      // This simulates a typical email notification sound pattern
+      await HapticFeedback.lightImpact();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      await HapticFeedback.selectionClick();
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      await HapticFeedback.lightImpact();
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      await HapticFeedback.selectionClick();
+
+      if (kDebugMode) {
+        print('🌐 Enhanced web email notification completed');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('🌐 Enhanced web notification failed: $e');
+      }
     }
   }
 

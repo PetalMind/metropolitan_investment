@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../widgets/dashboard/product_dashboard_widget.dart';
 import '../widgets/metropolitan_loading_system.dart';
 import '../theme/app_theme_professional.dart';
 import '../providers/auth_provider.dart';
+import '../models_and_services.dart';
 
 // RBAC: wspólny tooltip dla braku uprawnień
 const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
@@ -33,18 +35,23 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _simulateLoading();
+    _initializeDashboard();
   }
 
-  void _simulateLoading() async {
-    // Symulacja ładowania danych dashboard
-    await Future.delayed(const Duration(seconds: 3));
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+  /// Initialize dashboard
+  Future<void> _initializeDashboard() async {
+    setState(() {
+      _isLoading = false;
+    });
+
+    // Note: Startup sound is played by ProductDashboardWidget via DashboardAudioService
+    // when data loads successfully. No need to duplicate it here.
+    if (kDebugMode) {
+      debugPrint('🏠 Dashboard screen initialized - audio handled by widget');
     }
   }
+
+ 
 
   @override
   Widget build(BuildContext context) {
@@ -55,9 +62,9 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
         appBar: _buildAppBar(context),
         body: _isLoading
             ? const Center(
-                child: MetropolitanLoadingWidget.financial(showProgress: true),
+                child: MetropolitanLoadingWidget.products(),
               )
-            : ProductDashboardWidget(),
+            : const ProductDashboardWidget(),
       ),
     );
   }
@@ -105,7 +112,7 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
       elevation: 0,
       surfaceTintColor: Colors.transparent,
       actions: [
-        const SizedBox(width: 8),
+   
       ],
     );
   }

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test Audio Web</title>
+</head>
+
+<body>
+    <h1>Test odtwarzania dźwięku w przeglądarce</h1>
+
+    <button onclick="testAudio()">Test Email Sound</button>
+    <button onclick="testSystemSound()">Test System Sound</button>
+
+    <div id="status"></div>
+
+    <script>
+        function updateStatus(message) {
+            document.getElementById('status').innerHTML += '<p>' + message + '</p>';
+            console.log(message);
+        }
+
+        function testAudio() {
+            updateStatus('🔊 Próba odtworzenia audio/email_sound.mp3...');
+
+            try {
+                // Test 1: Bezpośrednie odtworzenie
+                const audio = new Audio('assets/audio/email_sound.mp3');
+                audio.play().then(() => {
+                    updateStatus('✅ Audio played successfully!');
+                }).catch(error => {
+                    updateStatus('❌ Audio play failed: ' + error.message);
+
+                    // Test 2: Alternatywna ścieżka
+                    tryAlternativePath();
+                });
+            } catch (error) {
+                updateStatus('❌ Audio creation failed: ' + error.message);
+            }
+        }
+
+        function tryAlternativePath() {
+            updateStatus('🔄 Próba alternatywnej ścieżki...');
+
+            try {
+                const audio = new Audio('./assets/audio/email_sound.mp3');
+                audio.play().then(() => {
+                    updateStatus('✅ Alternative path worked!');
+                }).catch(error => {
+                    updateStatus('❌ Alternative path failed: ' + error.message);
+                });
+            } catch (error) {
+                updateStatus('❌ Alternative path creation failed: ' + error.message);
+            }
+        }
+
+        function testSystemSound() {
+            updateStatus('🔔 Test systemowego powiadomienia...');
+
+            // Symulacja powiadomienia systemowego
+            if ('vibrate' in navigator) {
+                navigator.vibrate(200);
+                updateStatus('📳 Vibration triggered');
+            }
+
+            // Beep sound using Web Audio API
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.5);
+
+                updateStatus('🔊 Web Audio API beep played');
+            } catch (error) {
+                updateStatus('❌ Web Audio API failed: ' + error.message);
+            }
+        }
+
+        // Test autoplay policy
+        document.addEventListener('DOMContentLoaded', function () {
+            updateStatus('📋 Checking autoplay policy...');
+
+            if ('permissions' in navigator) {
+                navigator.permissions.query({ name: 'autoplay' }).then(function (result) {
+                    updateStatus('🔐 Autoplay permission: ' + result.state);
+                }).catch(function (error) {
+                    updateStatus('❌ Cannot check autoplay permission: ' + error.message);
+                });
+            } else {
+                updateStatus('ℹ️ Permissions API not available');
+            }
+        });
+    </script>
+</body>
+
+</html>
