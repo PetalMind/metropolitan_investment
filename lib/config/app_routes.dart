@@ -9,14 +9,14 @@ import '../screens/register_screen.dart';
 import '../screens/enhanced_clients_screen.dart';
 import '../screens/products_management_screen.dart'; // ✅ POWRÓT: Do oryginalnego ekranu z nowymi serwisami
 import '../screens/employees_screen.dart';
-import '../screens/analytics_screen_refactored.dart';
 import '../screens/product_dashboard_screen.dart';
 import '../widgets/auth_wrapper.dart';
 import '../widgets/main_layout.dart';
 import '../examples/redesigned_dialog_example.dart';
 import '../providers/auth_provider.dart';
 import '../screens/settings/smtp_settings_screen.dart';
-import '../screens/settings_screen.dart';
+import '../screens/settings_screen_responsive.dart';
+import '../screens/settings_demo.dart';
 import '../theme/app_theme.dart';
 
 /// Klasa definiująca wszystkie trasy aplikacji
@@ -64,6 +64,8 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String settings = '/settings';
   static const String smtpSettings = '/settings/smtp';
+  static const String settingsDemo =
+      '/settings/demo'; // 🎨 NEW: Settings demo route
   static const String reports = '/reports';
   static const String notifications = '/notifications';
   static const String testDialog = '/test-dialog';
@@ -90,6 +92,9 @@ class AppRoutes {
 
   /// Generuje ścieżkę do szczegółów pracownika
   static String employeeDetailsPath(String id) => '/employees/$id';
+
+  /// Generuje ścieżkę do demo ustawień
+  static String settingsDemoPath() => '/settings/demo';
 
   /// Lista tras publicznych (dostępnych bez autoryzacji)
   static const List<String> publicRoutes = [
@@ -415,7 +420,7 @@ class AppRouter {
             pageBuilder: (context, state) => _buildPageWithTransition(
               context,
               state,
-              const SettingsScreen(),
+              const ResponsiveSettingsScreen(), // 🎨 NEW: Amazing responsive settings!
             ),
             routes: [
               GoRoute(
@@ -424,6 +429,14 @@ class AppRouter {
                   context,
                   state,
                   const SmtpSettingsScreen(),
+                ),
+              ),
+              GoRoute(
+                path: 'demo',
+                pageBuilder: (context, state) => _buildPageWithTransition(
+                  context,
+                  state,
+                  const SettingsDemoScreen(), // 🚀 Settings showcase demo
                 ),
               ),
             ],
@@ -604,6 +617,11 @@ extension AppRouterExtensions on GoRouter {
   void goToEmployeeDetails(String id) {
     go(AppRoutes.employeeDetailsPath(id));
   }
+
+  /// Nawiguje do demo ustawień
+  void goToSettingsDemo() {
+    go(AppRoutes.settingsDemoPath());
+  }
 }
 
 /// Rozszerzenia dla BuildContext
@@ -626,6 +644,11 @@ extension BuildContextRouterExtensions on BuildContext {
   /// Nawiguje do edycji klienta
   void goToEditClient(String id) {
     go(AppRoutes.editClientPath(id));
+  }
+
+  /// Nawiguje do demo ustawień  
+  void goToSettingsDemo() {
+    go(AppRoutes.settingsDemoPath());
   }
 
   /// Sprawdza czy jesteśmy na danej trasie

@@ -933,9 +933,103 @@
         }, 0);
       });
     }
+
+  // === SERVICE WORKER CACHE FIX ===
+  // Fix for "Partial response (status code 206) is unsupported" error
+  if ('serviceWorker' in navigator) {
+    // Override the default service worker registration to handle cache errors
+    const originalRegister = navigator.serviceWorker.register;
+    navigator.serviceWorker.register = function (scriptURL, options) {
+      return originalRegister.call(this, scriptURL, options).then(function (registration) {
+        // Add error handling for cache operations
+        registration.addEventListener('message', function (event) {
+          if (event.data && event.data.type === 'cache-error') {
+            console.warn('Metropolitan Investment: Service worker cache error handled:', event.data.error);
+          }
+        });
+
+        // Monitor for cache errors
+        if ('caches' in window) {
+          // Override cache.put to handle partial responses
+          const originalPut = Cache.prototype.put;
+          Cache.prototype.put = function (request, response) {
+            // Check if response is partial (206)
+            if (response.status === 206) {
+              console.warn('Metropolitan Investment: Skipping cache of partial response for:', request.url);
+              return Promise.resolve(); // Skip caching partial responses
+            }
+            return originalPut.call(this, request, response);
+          };
+        }
+
+        return registration;
+      }).catch(function (error) {
+        console.error('Metropolitan Investment: Service worker registration failed:', error);
+        // Continue without service worker if registration fails
+        return null;
+      });
+    };
+  }
+
+  // === FIREBASE OAUTH DOMAIN FIX ===
+  // Handle OAuth domain authorization errors
+  window.addEventListener('error', function (event) {
+    if (event.message && event.message.includes('OAuth') && event.message.includes('domain')) {
+      console.warn('Metropolitan Investment: OAuth domain authorization issue detected. Please add your domain to Firebase Console.');
+      console.warn('Required action: Go to Firebase Console > Authentication > Settings > Authorized domains');
+      console.warn('Add domain: metropolitan-investment.pl');
+    }
+  });
+
+  // Enhanced error handling for Firebase operations
+  window.addEventListener('unhandledrejection', function (event) {
+    if (event.reason && event.reason.message) {
+      if (event.reason.message.includes('OAuth') || event.reason.message.includes('domain')) {
+        console.warn('Metropolitan Investment: Firebase OAuth domain issue:', event.reason.message);
+        event.preventDefault(); // Prevent default error handling
+      }
+    }
+  });
   </script>
 
   <script src="flutter_bootstrap.js" async></script>
+<!-- Custom Service Worker for Metropolitan Investment -->
+<script>
+  // Register custom service worker with enhanced error handling
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('flutter_service_worker.js')
+        .then(function (registration) {
+          console.log('Metropolitan Investment: Service worker registered successfully');
+
+          // Handle service worker updates
+          registration.addEventListener('updatefound', function () {
+            const newWorker = registration.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', function () {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New version available
+                  console.log('Metropolitan Investment: New service worker version available');
+                  // Optionally show update notification to user
+                }
+              });
+            }
+          });
+
+          // Listen for messages from service worker
+          navigator.serviceWorker.addEventListener('message', function (event) {
+            if (event.data && event.data.type === 'cache-error') {
+              console.warn('Metropolitan Investment: Service worker cache error:', event.data);
+            }
+          });
+        })
+        .catch(function (error) {
+          console.error('Metropolitan Investment: Service worker registration failed:', error);
+          // Continue without service worker - app will still work
+        });
+    });
+  }
+</script>
 </body>
 
 </html>
