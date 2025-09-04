@@ -145,13 +145,13 @@ class EmailHtmlConverterService {
   /// Build comprehensive inline styles for email compatibility
   static InlineStyles _buildInlineStyles() {
     return InlineStyles({
-      'bold': InlineStyleType(fn: (value, _) => 'font-weight: bold'),
-      'italic': InlineStyleType(fn: (value, _) => 'font-style: italic'),
+      'bold': InlineStyleType(fn: (value, _) => 'font-weight: bold !important'),
+      'italic': InlineStyleType(fn: (value, _) => 'font-style: italic !important'),
       'underline': InlineStyleType(
-        fn: (value, _) => 'text-decoration: underline',
+        fn: (value, _) => 'text-decoration: underline !important',
       ),
       'strike': InlineStyleType(
-        fn: (value, _) => 'text-decoration: line-through',
+        fn: (value, _) => 'text-decoration: line-through !important',
       ),
       'color': InlineStyleType(
         fn: (value, _) => _convertColorAttribute(value),
@@ -186,43 +186,175 @@ class EmailHtmlConverterService {
       'letter-spacing': InlineStyleType(
         fn: (value, _) => 'letter-spacing: $value !important',
       ),
+      // 🎨 Extended formatting support
+      'header': InlineStyleType(
+        fn: (value, _) => _convertHeaderAttribute(value),
+      ),
+      'blockquote': InlineStyleType(
+        fn: (value, _) => _convertBlockquoteAttribute(value),
+      ),
+      'code-block': InlineStyleType(
+        fn: (value, _) => _convertCodeBlockAttribute(value),
+      ),
+      'script': InlineStyleType(
+        fn: (value, _) => _convertScriptAttribute(value),
+      ),
+      'direction': InlineStyleType(
+        fn: (value, _) => 'direction: $value !important',
+      ),
+      'font-weight': InlineStyleType(
+        fn: (value, _) => _convertFontWeightAttribute(value),
+      ),
+      'font-size': InlineStyleType(
+        fn: (value, _) => _convertSizeAttribute(value),
+      ),
+      'text-align': InlineStyleType(
+        fn: (value, _) => _convertAlignAttribute(value),
+      ),
     });
   }
 
-  /// Convert color attribute with proper validation
+  /// Convert color attribute with proper validation and email client compatibility
   static String? _convertColorAttribute(dynamic value) {
     if (value.toString().isEmpty) return null;
-    String colorValue = value.toString();
+    String colorValue = value.toString().trim();
     debugPrint('🎨 Converting color: $colorValue');
     
+    // Handle hex colors with #
     if (colorValue.startsWith('#')) {
+      if (RegExp(r'^#[0-9a-fA-F]{3}$').hasMatch(colorValue)) {
+        // Convert 3-digit hex to 6-digit for better email client support
+        final r = colorValue[1];
+        final g = colorValue[2];
+        final b = colorValue[3];
+        colorValue = '#$r$r$g$g$b$b';
+      } else if (!RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(colorValue)) {
+        // Invalid hex, fallback to black
+        colorValue = '#000000';
+      }
       return 'color: $colorValue !important';
     }
+    
+    // Handle hex without # prefix
     if (RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(colorValue)) {
       return 'color: #$colorValue !important';
     }
-    if (RegExp(r'^rgb\((\d{1,3}), ?(\d{1,3}), ?(\d{1,3})\)$').hasMatch(colorValue)) {
+    if (RegExp(r'^[0-9a-fA-F]{3}$').hasMatch(colorValue)) {
+      final r = colorValue[0];
+      final g = colorValue[1];
+      final b = colorValue[2];
+      return 'color: #$r$r$g$g$b$b !important';
+    }
+    
+    // Handle RGB format
+    if (RegExp(r'^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$').hasMatch(colorValue)) {
       return 'color: $colorValue !important';
     }
-    return 'color: $colorValue !important';
+    
+    // Handle RGBA format - convert to RGB for email compatibility
+    final rgbaMatch = RegExp(r'^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*[\d.]+\s*\)$').firstMatch(colorValue);
+    if (rgbaMatch != null) {
+      final r = rgbaMatch.group(1);
+      final g = rgbaMatch.group(2);
+      final b = rgbaMatch.group(3);
+      return 'color: rgb($r, $g, $b) !important';
+    }
+    
+    // Handle HSL format - convert to standard named color or fallback
+    if (colorValue.startsWith('hsl(')) {
+      // For email compatibility, we'll use a fallback
+      debugPrint('⚠️ HSL color converted to fallback black for email compatibility');
+      return 'color: #000000 !important';
+    }
+    
+    // Handle named colors (CSS color names)
+    final namedColors = {
+      'black': '#000000', 'white': '#ffffff', 'red': '#ff0000', 'green': '#008000', 'blue': '#0000ff',
+      'yellow': '#ffff00', 'orange': '#ffa500', 'purple': '#800080', 'pink': '#ffc0cb', 'brown': '#a52a2a',
+      'gray': '#808080', 'grey': '#808080', 'silver': '#c0c0c0', 'gold': '#ffd700', 'navy': '#000080',
+      'teal': '#008080', 'lime': '#00ff00', 'aqua': '#00ffff', 'maroon': '#800000', 'olive': '#808000'
+    };
+    
+    final lowerColor = colorValue.toLowerCase();
+    if (namedColors.containsKey(lowerColor)) {
+      return 'color: ${namedColors[lowerColor]} !important';
+    }
+    
+    // Fallback for any unrecognized format
+    debugPrint('⚠️ Unrecognized color format: $colorValue, using fallback black');
+    return 'color: #000000 !important';
   }
 
-  /// Convert background color attribute
+  /// Convert background color attribute with enhanced email client compatibility
   static String? _convertBackgroundAttribute(dynamic value) {
     if (value.toString().isEmpty) return null;
-    String colorValue = value.toString();
+    String colorValue = value.toString().trim();
     debugPrint('🎨 Converting background: $colorValue');
     
+    // Handle hex colors with #
     if (colorValue.startsWith('#')) {
+      if (RegExp(r'^#[0-9a-fA-F]{3}$').hasMatch(colorValue)) {
+        // Convert 3-digit hex to 6-digit for better email client support
+        final r = colorValue[1];
+        final g = colorValue[2];
+        final b = colorValue[3];
+        colorValue = '#$r$r$g$g$b$b';
+      } else if (!RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(colorValue)) {
+        // Invalid hex, fallback to transparent
+        colorValue = 'transparent';
+      }
       return 'background-color: $colorValue !important';
     }
+    
+    // Handle hex without # prefix
     if (RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(colorValue)) {
       return 'background-color: #$colorValue !important';
     }
-    if (RegExp(r'^rgb\((\d{1,3}), ?(\d{1,3}), ?(\d{1,3})\)$').hasMatch(colorValue)) {
+    if (RegExp(r'^[0-9a-fA-F]{3}$').hasMatch(colorValue)) {
+      final r = colorValue[0];
+      final g = colorValue[1];
+      final b = colorValue[2];
+      return 'background-color: #$r$r$g$g$b$b !important';
+    }
+    
+    // Handle RGB format
+    if (RegExp(r'^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$').hasMatch(colorValue)) {
       return 'background-color: $colorValue !important';
     }
-    return 'background-color: $colorValue !important';
+    
+    // Handle RGBA format - convert to RGB for email compatibility
+    final rgbaMatch = RegExp(r'^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*[\d.]+\s*\)$').firstMatch(colorValue);
+    if (rgbaMatch != null) {
+      final r = rgbaMatch.group(1);
+      final g = rgbaMatch.group(2);
+      final b = rgbaMatch.group(3);
+      debugPrint('🎨 Converting RGBA to RGB for background color compatibility');
+      return 'background-color: rgb($r, $g, $b) !important';
+    }
+    
+    // Handle HSL format - convert to fallback transparent
+    if (colorValue.startsWith('hsl(')) {
+      debugPrint('⚠️ HSL background color converted to transparent for email compatibility');
+      return 'background-color: transparent !important';
+    }
+    
+    // Handle named colors (CSS color names)
+    final namedColors = {
+      'black': '#000000', 'white': '#ffffff', 'red': '#ff0000', 'green': '#008000', 'blue': '#0000ff',
+      'yellow': '#ffff00', 'orange': '#ffa500', 'purple': '#800080', 'pink': '#ffc0cb', 'brown': '#a52a2a',
+      'gray': '#808080', 'grey': '#808080', 'silver': '#c0c0c0', 'gold': '#ffd700', 'navy': '#000080',
+      'teal': '#008080', 'lime': '#00ff00', 'aqua': '#00ffff', 'maroon': '#800000', 'olive': '#808000',
+      'transparent': 'transparent'
+    };
+    
+    final lowerColor = colorValue.toLowerCase();
+    if (namedColors.containsKey(lowerColor)) {
+      return 'background-color: ${namedColors[lowerColor]} !important';
+    }
+    
+    // Fallback for any unrecognized format
+    debugPrint('⚠️ Unrecognized background color format: $colorValue, using fallback transparent');
+    return 'background-color: transparent !important';
   }
 
   /// Convert font attribute with fallbacks
@@ -235,7 +367,7 @@ class EmailHtmlConverterService {
     // Check if font requires Google Fonts
     if (FontFamilyService.isGoogleFont(fontName)) {
       debugPrint('🌐 Font "$fontName" is a Google Font - will be loaded for web compatibility.');
-    } else if (!FontFamilyService.isWebSafeFont(fontName)) {
+    } else {
       debugPrint('⚠️ Font "$fontName" may need fallbacks for email clients.');
     }
     
@@ -303,6 +435,55 @@ class EmailHtmlConverterService {
     return 'margin-left: ${indentPx}px !important';
   }
 
+  /// Convert header attribute (h1, h2, h3, etc.)
+  static String? _convertHeaderAttribute(dynamic value) {
+    if (value.toString().isEmpty) return null;
+    final headerLevel = int.tryParse(value.toString()) ?? 1;
+    final fontSize = [32, 28, 24, 20, 18, 16][headerLevel.clamp(1, 6) - 1];
+    debugPrint('🎨 Converting header: level $headerLevel → ${fontSize}px');
+    return 'font-size: ${fontSize}px !important; font-weight: 600 !important; margin: 16px 0 8px 0 !important; line-height: 1.2 !important';
+  }
+
+  /// Convert blockquote attribute
+  static String? _convertBlockquoteAttribute(dynamic value) {
+    debugPrint('🎨 Converting blockquote');
+    return 'margin: 16px 20px !important; padding: 16px !important; background-color: #f9f9f9 !important; border-left: 4px solid #ccc !important; font-style: italic !important';
+  }
+
+  /// Convert code block attribute
+  static String? _convertCodeBlockAttribute(dynamic value) {
+    debugPrint('🎨 Converting code block');
+    return 'background-color: #f4f4f4 !important; padding: 12px !important; font-family: "Courier New", monospace !important; white-space: pre-wrap !important; margin: 0 0 16px 0 !important; border-radius: 4px !important';
+  }
+
+  /// Convert script attribute (superscript/subscript)
+  static String? _convertScriptAttribute(dynamic value) {
+    if (value.toString().isEmpty) return null;
+    final scriptType = value.toString();
+    debugPrint('🎨 Converting script: $scriptType');
+    
+    if (scriptType == 'super') {
+      return 'vertical-align: super !important; font-size: 0.8em !important';
+    } else if (scriptType == 'sub') {
+      return 'vertical-align: sub !important; font-size: 0.8em !important';
+    }
+    return null;
+  }
+
+  /// Convert font weight attribute
+  static String? _convertFontWeightAttribute(dynamic value) {
+    if (value.toString().isEmpty) return null;
+    final weight = value.toString();
+    debugPrint('🎨 Converting font weight: $weight');
+    
+    // Convert numeric and text weights
+    final validWeights = ['100', '200', '300', '400', '500', '600', '700', '800', '900', 'normal', 'bold', 'bolder', 'lighter'];
+    if (validWeights.contains(weight)) {
+      return 'font-weight: $weight !important';
+    }
+    return 'font-weight: normal !important';
+  }
+
   /// Enhance HTML with email client compatibility
   static String _enhanceHtmlWithEmailCompatibility(String htmlOutput) {
     String finalHtml = htmlOutput;
@@ -350,50 +531,105 @@ class EmailHtmlConverterService {
     return finalHtml;
   }
 
-  /// Get email-compatible CSS styles
+  /// Get email-compatible CSS styles with enhanced formatting support
   static String _getEmailCompatibleStyles() {
     return '''
   <style>
+    /* Base styles for email compatibility */
     body { 
       font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important; 
       line-height: 1.6 !important; 
       color: #333333 !important; 
       margin: 0; 
       padding: 0; 
-      background: #fff !important;
+      background: #ffffff !important;
+      -webkit-text-size-adjust: 100% !important;
+      -ms-text-size-adjust: 100% !important;
     }
-    table.email-main { width: 100%; max-width: 700px; margin: 0 auto; background: #fff; border-collapse: collapse; }
-    td.email-content { padding: 20px; }
-    p { margin: 0 0 16px 0 !important; }
-    h1 { font-size: 32px !important; margin: 16px 0 8px 0 !important; }
-    h2 { font-size: 24px !important; margin: 16px 0 8px 0 !important; }
-    h3 { font-size: 20px !important; margin: 16px 0 8px 0 !important; }
+    
+    /* Email container structure */
+    table.email-main { width: 100% !important; max-width: 700px !important; margin: 0 auto !important; background: #ffffff !important; border-collapse: collapse !important; }
+    td.email-content { padding: 20px !important; }
+    
+    /* Typography improvements */
+    p { margin: 0 0 16px 0 !important; line-height: 1.6 !important; }
+    h1 { font-size: 32px !important; font-weight: 600 !important; margin: 24px 0 16px 0 !important; line-height: 1.2 !important; color: #1a1a1a !important; }
+    h2 { font-size: 28px !important; font-weight: 600 !important; margin: 20px 0 12px 0 !important; line-height: 1.3 !important; color: #1a1a1a !important; }
+    h3 { font-size: 24px !important; font-weight: 600 !important; margin: 18px 0 10px 0 !important; line-height: 1.3 !important; color: #1a1a1a !important; }
+    h4 { font-size: 20px !important; font-weight: 600 !important; margin: 16px 0 8px 0 !important; line-height: 1.4 !important; color: #1a1a1a !important; }
+    h5 { font-size: 18px !important; font-weight: 600 !important; margin: 14px 0 8px 0 !important; line-height: 1.4 !important; color: #1a1a1a !important; }
+    h6 { font-size: 16px !important; font-weight: 600 !important; margin: 12px 0 6px 0 !important; line-height: 1.4 !important; color: #1a1a1a !important; }
+    
+    /* Lists and indentation */
     ul, ol { margin: 0 0 16px 20px !important; padding-left: 20px !important; }
-    li { margin: 0 0 8px 0 !important; }
+    li { margin: 0 0 8px 0 !important; line-height: 1.6 !important; }
+    
+    /* Blockquotes and special formatting */
     blockquote { 
       margin: 16px 20px !important; 
       padding: 16px !important; 
       background-color: #f9f9f9 !important; 
-      border-left: 4px solid #ccc !important; 
-      font-style: italic !important; 
+      border-left: 4px solid #cccccc !important; 
+      font-style: italic !important;
+      border-radius: 4px !important;
     }
+    
+    /* Links and interactive elements */
     a { color: #0066cc !important; text-decoration: underline !important; }
+    a:hover { color: #0052a3 !important; }
+    
+    /* Text formatting */
     strong, b { font-weight: bold !important; }
     em, i { font-style: italic !important; }
     u { text-decoration: underline !important; }
     strike, s { text-decoration: line-through !important; }
+    sup { vertical-align: super !important; font-size: 0.8em !important; }
+    sub { vertical-align: sub !important; font-size: 0.8em !important; }
+    
+    /* Code formatting */
     code { 
       background-color: #f4f4f4 !important; 
-      padding: 2px 4px !important; 
-      font-family: "Courier New", monospace !important; 
-      font-size: 14px !important; 
+      padding: 2px 6px !important; 
+      font-family: "Courier New", Consolas, Monaco, monospace !important; 
+      font-size: 14px !important;
+      border-radius: 3px !important;
+      color: #d63384 !important;
     }
     pre { 
       background-color: #f4f4f4 !important; 
-      padding: 12px !important; 
-      font-family: "Courier New", monospace !important; 
+      padding: 16px !important; 
+      font-family: "Courier New", Consolas, Monaco, monospace !important; 
       white-space: pre-wrap !important; 
-      margin: 0 0 16px 0 !important; 
+      margin: 0 0 16px 0 !important;
+      border-radius: 4px !important;
+      border: 1px solid #e9ecef !important;
+      overflow-x: auto !important;
+    }
+    
+    /* Table formatting for better email client support */
+    table { border-collapse: collapse !important; width: 100% !important; }
+    th, td { padding: 8px 12px !important; text-align: left !important; border: 1px solid #ddd !important; }
+    th { background-color: #f8f9fa !important; font-weight: 600 !important; }
+    
+    /* Responsive design for mobile email clients */
+    @media only screen and (max-width: 600px) {
+      table.email-main { width: 100% !important; margin: 0 !important; }
+      td.email-content { padding: 15px !important; }
+      h1 { font-size: 28px !important; }
+      h2 { font-size: 24px !important; }
+      h3 { font-size: 20px !important; }
+    }
+    
+    /* Dark mode support for email clients that support it */
+    @media (prefers-color-scheme: dark) {
+      body { background-color: #1a1a1a !important; color: #ffffff !important; }
+      table.email-main { background-color: #1a1a1a !important; }
+      h1, h2, h3, h4, h5, h6 { color: #ffffff !important; }
+      blockquote { background-color: #2d2d2d !important; border-left-color: #555555 !important; }
+      code { background-color: #2d2d2d !important; color: #ff6b9d !important; }
+      pre { background-color: #2d2d2d !important; border-color: #555555 !important; }
+      th { background-color: #2d2d2d !important; }
+      th, td { border-color: #555555 !important; }
     }
   </style>''';
   }
@@ -516,68 +752,310 @@ class EmailHtmlConverterService {
     return buffer.toString();
   }
 
-  /// Convert investment details to styled HTML
+  /// Convert investment details to styled HTML with professional design
   static String _convertInvestmentDetailsToHtml(String investmentDetails) {
     return investmentDetails
         .split('\n')
         .where((line) => line.trim().isNotEmpty)
         .map((line) {
+          // Main header with elegant design
           if (line.startsWith('===')) {
+            final headerText = line.replaceAll('=', '').trim();
             return '''
-<div style="background: linear-gradient(135deg, #1a365d, #2b6cb0); color: white; padding: 20px; margin: 20px 0 10px 0; border-radius: 15px; font-weight: bold; font-size: 18px; text-align: center; box-shadow: 0 8px 25px rgba(26, 54, 93, 0.3);">
-  <span style="display: inline-block;">📊</span> $line
+<div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #60a5fa 100%); 
+           color: white; 
+           padding: 24px 32px; 
+           margin: 32px 0 24px 0; 
+           border-radius: 16px; 
+           font-weight: 700; 
+           font-size: 20px; 
+           text-align: center; 
+           box-shadow: 0 12px 32px rgba(30, 58, 138, 0.25), 0 4px 16px rgba(30, 58, 138, 0.15);
+           border: 1px solid rgba(255, 255, 255, 0.1);
+           position: relative;
+           overflow: hidden;">
+  <div style="position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);"></div>
+  <span style="display: inline-block; margin-right: 12px; font-size: 24px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">📊</span>
+  <span style="letter-spacing: 0.5px;">$headerText</span>
+  <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);"></div>
 </div>''';
           }
+
+          // Summary cards with modern card design
           if (line.startsWith('•')) {
             final cleanLine = line.substring(1).trim();
+            
             if (cleanLine.contains('Całkowita wartość inwestycji')) {
-              return '<div style="background: linear-gradient(135deg, #38a169, #48bb78); color: white; padding: 15px; margin: 10px 0; border-radius: 12px; font-weight: 600; box-shadow: 0 4px 15px rgba(56, 161, 105, 0.3);"><span style="font-size: 20px; margin-right: 10px;">💰</span>$cleanLine</div>';
+              return _createSummaryCard(
+                cleanLine,
+                '💎',
+                '#059669',
+                '#10b981',
+                '5, 150, 105',
+              );
             }
             if (cleanLine.contains('Kapitał pozostały')) {
-              return '<div style="background: linear-gradient(135deg, #3182ce, #4299e1); color: white; padding: 15px; margin: 10px 0; border-radius: 12px; font-weight: 600; box-shadow: 0 4px 15px rgba(49, 130, 206, 0.3);"><span style="font-size: 20px; margin-right: 10px;">💵</span>$cleanLine</div>';
+              return _createSummaryCard(
+                cleanLine,
+                '💰',
+                '#0369a1',
+                '#0ea5e9',
+                '3, 105, 161',
+              );
             }
             if (cleanLine.contains('Wartość udziałów')) {
-              return '<div style="background: linear-gradient(135deg, #d69e2e, #f6e05e); color: #2d3748; padding: 15px; margin: 10px 0; border-radius: 12px; font-weight: 600; box-shadow: 0 4px 15px rgba(214, 158, 46, 0.3);"><span style="font-size: 20px; margin-right: 10px;">📈</span>$cleanLine</div>';
+              return _createSummaryCard(
+                cleanLine,
+                '📈',
+                '#d97706',
+                '#f59e0b',
+                '217, 119, 6',
+              );
             }
             if (cleanLine.contains('Liczba inwestycji')) {
-              return '<div style="background: linear-gradient(135deg, #805ad5, #9f7aea); color: white; padding: 15px; margin: 10px 0; border-radius: 12px; font-weight: 600; box-shadow: 0 4px 15px rgba(128, 90, 213, 0.3);"><span style="font-size: 20px; margin-right: 10px;">🔢</span>$cleanLine</div>';
+              return _createSummaryCard(
+                cleanLine,
+                '🎯',
+                '#7c3aed',
+                '#8b5cf6',
+                '124, 58, 237',
+              );
             }
             if (cleanLine.contains('Liczba inwestorów')) {
-              return '<div style="background: linear-gradient(135deg, #e53e3e, #fc8181); color: white; padding: 15px; margin: 10px 0; border-radius: 12px; font-weight: 600; box-shadow: 0 4px 15px rgba(229, 62, 62, 0.3);"><span style="font-size: 20px; margin-right: 10px;">👥</span>$cleanLine</div>';
+              return _createSummaryCard(
+                cleanLine,
+                '👥',
+                '#dc2626',
+                '#ef4444',
+                '220, 38, 38',
+              );
             }
-            return '<div style="background: linear-gradient(135deg, #4a5568, #718096); color: white; padding: 12px; margin: 8px 0; border-radius: 10px;"><span style="margin-right: 8px;">•</span>$cleanLine</div>';
+            return _createSummaryCard(
+              cleanLine,
+              '•',
+              '#4b5563',
+              '#6b7280',
+              '75, 85, 99',
+            );
           }
+
+          // Investor cards with sophisticated design
           if (RegExp(r'^\d+\.').hasMatch(line)) {
-            return '<div style="background: linear-gradient(135deg, #2d3748, #4a5568); color: white; padding: 12px 15px; margin: 8px 0; border-radius: 10px; font-weight: 500; border-left: 4px solid #ffd700;"><span style="color: #ffd700; margin-right: 10px;">👤</span>$line</div>';
+            return '''
+<div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); 
+           color: #1e293b; 
+           padding: 20px 24px; 
+           margin: 16px 0; 
+           border-radius: 16px; 
+           font-weight: 600; 
+           font-size: 16px;
+           box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.04);
+           border: 1px solid #e2e8f0;
+           border-left: 6px solid #3b82f6;
+           position: relative;
+           transition: all 0.3s ease;">
+  <div style="display: flex; align-items: center;">
+    <span style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); 
+                 color: white; 
+                 width: 32px; 
+                 height: 32px; 
+                 border-radius: 50%; 
+                 display: inline-flex; 
+                 align-items: center; 
+                 justify-content: center; 
+                 margin-right: 16px; 
+                 font-size: 16px;
+                 box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">👤</span>
+    <span style="flex: 1; font-size: 17px; font-weight: 600; color: #1e293b;">$line</span>
+  </div>
+</div>''';
           }
+
+          // Detail cards with refined styling
           if (line.startsWith('   ')) {
             final cleanLine = line.trim();
+            
             if (cleanLine.contains('Email:')) {
-              return '<div style="background: linear-gradient(135deg, #4299e1, #63b3ed); color: white; padding: 8px 12px; margin: 4px 0 4px 30px; border-radius: 8px; font-size: 14px;"><span style="margin-right: 8px;">📧</span>$cleanLine</div>';
+              return _createDetailCard(
+                cleanLine,
+                '📧',
+                '#0ea5e9',
+                '#0284c7',
+                '14, 165, 233',
+              );
             }
             if (cleanLine.contains('Kapitał pozostały:')) {
-              return '<div style="background: linear-gradient(135deg, #48bb78, #68d391); color: white; padding: 8px 12px; margin: 4px 0 4px 30px; border-radius: 8px; font-size: 14px;"><span style="margin-right: 8px;">💰</span>$cleanLine</div>';
+              return _createDetailCard(
+                cleanLine,
+                '💰',
+                '#10b981',
+                '#059669',
+                '16, 185, 129',
+              );
             }
             if (cleanLine.contains('Wartość udziałów:')) {
-              return '<div style="background: linear-gradient(135deg, #f6e05e, #faf089); color: #2d3748; padding: 8px 12px; margin: 4px 0 4px 30px; border-radius: 8px; font-size: 14px;"><span style="margin-right: 8px;">📈</span>$cleanLine</div>';
+              return _createDetailCard(
+                cleanLine,
+                '📊',
+                '#f59e0b',
+                '#d97706',
+                '245, 158, 11',
+              );
             }
             if (cleanLine.contains('Liczba inwestycji:')) {
-              return '<div style="background: linear-gradient(135deg, #9f7aea, #b794f6); color: white; padding: 8px 12px; margin: 4px 0 4px 30px; border-radius: 8px; font-size: 14px;"><span style="margin-right: 8px;">🔢</span>$cleanLine</div>';
+              return _createDetailCard(
+                cleanLine,
+                '🎯',
+                '#8b5cf6',
+                '#7c3aed',
+                '139, 92, 246',
+              );
             }
             if (cleanLine.contains('Zabezpieczone nieruchomościami:')) {
-              return '<div style="background: linear-gradient(135deg, #ed8936, #f6ad55); color: white; padding: 8px 12px; margin: 4px 0 4px 30px; border-radius: 8px; font-size: 14px;"><span style="margin-right: 8px;">🏠</span>$cleanLine</div>';
+              return _createDetailCard(
+                cleanLine,
+                '🏠',
+                '#f97316',
+                '#ea580c',
+                '249, 115, 22',
+              );
             }
-            return '<div style="color: #4a5568; margin: 3px 0 3px 30px; font-size: 14px;">$cleanLine</div>';
+            
+            return '''
+<div style="color: #64748b; 
+           margin: 6px 0 6px 48px; 
+           font-size: 14px; 
+           padding: 8px 12px; 
+           background: #f8fafc; 
+           border-radius: 8px; 
+           border-left: 3px solid #cbd5e1;">$cleanLine</div>''';
           }
+
+          // Section headers
           if (line.contains('📊') || line.contains('👤') || line.contains('👥')) {
-            return '<div style="background: linear-gradient(135deg, #2b6cb0, #4299e1); color: white; padding: 15px; margin: 15px 0 8px 0; border-radius: 12px; font-weight: 600; font-size: 16px; text-align: center;"><span style="font-size: 24px; margin-right: 10px;">$line</span></div>';
+            return '''
+<div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+           color: white; 
+           padding: 18px 24px; 
+           margin: 24px 0 16px 0; 
+           border-radius: 14px; 
+           font-weight: 600; 
+           font-size: 18px; 
+           text-align: center;
+           box-shadow: 0 8px 20px rgba(30, 64, 175, 0.2);
+           border: 1px solid rgba(255, 255, 255, 0.1);">
+  <span style="font-size: 22px; margin-right: 12px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));">
+    ${line.contains('�')
+                ? '📊'
+                : line.contains('�👤')
+                ? '👤'
+                : '👥'}
+  </span>
+  <span style="letter-spacing: 0.3px;">$line</span>
+</div>''';
           }
+
+          // Elegant divider
           if (line.startsWith('---')) {
-            return '<div style="height: 2px; background: linear-gradient(90deg, transparent, #e2e8f0, transparent); margin: 20px 0;"></div>';
+            return '''
+<div style="margin: 32px 0; text-align: center;">
+  <div style="height: 1px; 
+             background: linear-gradient(90deg, transparent 0%, #cbd5e1 20%, #94a3b8 50%, #cbd5e1 80%, transparent 100%); 
+             margin: 16px 0;"></div>
+  <div style="display: inline-block; 
+             background: #f1f5f9; 
+             padding: 8px 16px; 
+             border-radius: 20px; 
+             color: #64748b; 
+             font-size: 12px; 
+             font-weight: 500; 
+             letter-spacing: 0.5px;
+             border: 1px solid #e2e8f0;">• • •</div>
+</div>''';
           }
-          return '<div style="margin: 5px 0;">$line</div>';
+
+          // Default styling for other content
+          return '''
+<div style="margin: 8px 0; 
+           color: #475569; 
+           font-size: 15px; 
+           line-height: 1.6; 
+           padding: 6px 0;">$line</div>''';
         })
         .join('\n');
+  }
+
+  /// Create a modern summary card
+  static String _createSummaryCard(
+    String content,
+    String icon,
+    String primaryColor,
+    String secondaryColor,
+    String shadowRgb,
+  ) {
+    return '''
+<div style="background: linear-gradient(135deg, $primaryColor 0%, $secondaryColor 100%); 
+           color: white; 
+           padding: 20px 24px; 
+           margin: 12px 0; 
+           border-radius: 14px; 
+           font-weight: 600; 
+           font-size: 16px;
+           box-shadow: 0 8px 24px rgba($shadowRgb, 0.2), 0 2px 8px rgba($shadowRgb, 0.1);
+           border: 1px solid rgba(255, 255, 255, 0.1);
+           position: relative;
+           overflow: hidden;">
+  <div style="position: absolute; top: 0; right: 0; width: 60px; height: 60px; background: rgba(255,255,255,0.05); border-radius: 50%; transform: translate(20px, -20px);"></div>
+  <div style="display: flex; align-items: center;">
+    <span style="background: rgba(255, 255, 255, 0.15); 
+                 width: 40px; 
+                 height: 40px; 
+                 border-radius: 12px; 
+                 display: inline-flex; 
+                 align-items: center; 
+                 justify-content: center; 
+                 margin-right: 16px; 
+                 font-size: 18px;
+                 backdrop-filter: blur(10px);
+                 border: 1px solid rgba(255, 255, 255, 0.1);">$icon</span>
+    <span style="flex: 1; font-size: 16px; letter-spacing: 0.2px;">$content</span>
+  </div>
+</div>''';
+  }
+
+  /// Create a refined detail card
+  static String _createDetailCard(
+    String content,
+    String icon,
+    String primaryColor,
+    String secondaryColor,
+    String shadowRgb,
+  ) {
+    return '''
+<div style="background: linear-gradient(135deg, $primaryColor 0%, $secondaryColor 100%); 
+           color: white; 
+           padding: 12px 16px; 
+           margin: 6px 0 6px 48px; 
+           border-radius: 10px; 
+           font-size: 14px;
+           font-weight: 500;
+           box-shadow: 0 4px 12px rgba($shadowRgb, 0.15), 0 1px 4px rgba($shadowRgb, 0.1);
+           border: 1px solid rgba(255, 255, 255, 0.1);
+           position: relative;">
+  <div style="display: flex; align-items: center;">
+    <span style="background: rgba(255, 255, 255, 0.15); 
+                 width: 28px; 
+                 height: 28px; 
+                 border-radius: 8px; 
+                 display: inline-flex; 
+                 align-items: center; 
+                 justify-content: center; 
+                 margin-right: 12px; 
+                 font-size: 14px;
+                 backdrop-filter: blur(5px);">$icon</span>
+    <span style="flex: 1; letter-spacing: 0.1px;">$content</span>
+  </div>
+</div>''';
   }
 
   /// Format currency

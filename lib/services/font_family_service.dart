@@ -1,73 +1,63 @@
-/// 🎨 Service for managing font families with web-safe vs Google Fonts distinction
+/// 🎨 Service for managing Google Fonts for professional email editor
 class FontFamilyService {
-  /// Web-safe fonts that don't require external loading
-  static const List<String> webSafeFonts = [
-    'Arial',
-    'Times New Roman',
-    'Courier New',
-    'Verdana',
-    'Georgia',
-    'Trebuchet MS',
-    'Tahoma',
-    'Calibri',
-    'Segoe UI',
-    'Helvetica',
-  ];
-
-  /// Google Fonts that require external loading
+  /// Premium Google Fonts for professional communication
   static const List<String> googleFonts = [
+    // 📰 Professional & Business
     'Open Sans',
     'Roboto',
     'Lato',
     'Montserrat',
+    'Source Sans Pro',
+    'Nunito Sans',
+    'Inter',
+    'Work Sans',
+    
+    // 📝 Elegant & Readable
+    'Merriweather',
+    'Playfair Display',
+    'Libre Baskerville',
+    'Crimson Text',
+    
+    // 🎨 Modern & Stylish
+    'Poppins',
+    'Raleway',
+    'Ubuntu',
+    'Nunito',
+    
+    // 💼 Corporate & Clean
+    'Roboto Condensed',
+    'Oswald',
+    'Fira Sans',
+    'PT Sans',
   ];
 
-  /// All available fonts
-  static List<String> get allFonts => [...webSafeFonts, ...googleFonts];
-
-  /// Check if a font is web-safe
-  static bool isWebSafeFont(String fontFamily) {
-    return webSafeFonts.contains(fontFamily);
-  }
+  /// All available fonts (Google Fonts only)
+  static List<String> get allFonts => googleFonts;
 
   /// Check if a font is a Google Font
   static bool isGoogleFont(String fontFamily) {
     return googleFonts.contains(fontFamily);
   }
 
-  /// Get CSS font family string with fallbacks
+  /// Get CSS font family string with professional fallbacks
   static String getCSSFontFamily(String fontFamily) {
-    switch (fontFamily) {
-      case 'Arial':
-        return 'Arial, "Helvetica Neue", Helvetica, sans-serif';
-      case 'Times New Roman':
-        return '"Times New Roman", Times, serif';
-      case 'Courier New':
-        return '"Courier New", Courier, monospace';
-      case 'Verdana':
-        return 'Verdana, Geneva, sans-serif';
-      case 'Georgia':
-        return 'Georgia, "Times New Roman", Times, serif';
-      case 'Trebuchet MS':
-        return '"Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Tahoma, sans-serif';
-      case 'Tahoma':
-        return 'Tahoma, Geneva, sans-serif';
-      case 'Calibri':
-        return 'Calibri, "Helvetica Neue", Arial, sans-serif';
-      case 'Segoe UI':
-        return '"Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif';
-      case 'Helvetica':
-        return 'Helvetica, "Helvetica Neue", Arial, sans-serif';
-      case 'Open Sans':
-        return '"Open Sans", "Helvetica Neue", Arial, sans-serif';
-      case 'Roboto':
-        return 'Roboto, "Helvetica Neue", Arial, sans-serif';
-      case 'Lato':
-        return 'Lato, "Helvetica Neue", Arial, sans-serif';
-      case 'Montserrat':
-        return 'Montserrat, "Helvetica Neue", Arial, sans-serif';
-      default:
-        return '$fontFamily, Arial, sans-serif';
+    // Determine appropriate fallback based on font category
+    String fallback;
+    
+    // Serif fonts get serif fallbacks
+    if (['Merriweather', 'Playfair Display', 'Libre Baskerville', 'Crimson Text'].contains(fontFamily)) {
+      fallback = 'Georgia, "Times New Roman", serif';
+    } 
+    // All other Google Fonts get sans-serif fallbacks
+    else {
+      fallback = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+    }
+    
+    // Return font with appropriate quotes and fallbacks
+    if (fontFamily.contains(' ')) {
+      return '"$fontFamily", $fallback';
+    } else {
+      return '$fontFamily, $fallback';
     }
   }
 

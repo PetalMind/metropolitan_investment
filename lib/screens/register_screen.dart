@@ -431,7 +431,6 @@ class _RegisterScreenState extends State<RegisterScreen>
         const MetropolitanLogoWidget.splash(
           size: 130,
           color: AppThemePro.accentGold,
-          animated: false,
         ),
         const SizedBox(height: 24),
         Text(

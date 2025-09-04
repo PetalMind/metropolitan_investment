@@ -4,24 +4,20 @@ import '../theme/app_theme_professional.dart';
 
 /// 🏛️ **Metropolitan Investment Logo Widget**
 ///
-/// Profesjonalny widget logo z efektami premium i animacjami
+/// Profesjonalny widget logo z efektami premium
 /// Wykorzystuje SVG logo firmy z zaawansowanymi stylami wizualnymi
 ///
 /// **Funkcjonalności:**
 /// • 🎨 Dynamiczne kolory (złoty akcent + białe logo)
-/// • ✨ Animacje hover i loading
 /// • 📱 Responsywny design
 /// • 🔧 Konfigurowalny rozmiar
-/// • 🌟 Efekty 3D i świecenia
+/// • 🌟 Efekty hover
 class MetropolitanLogoWidget extends StatefulWidget {
   /// Rozmiar logo (szerokość)
   final double size;
 
   /// Kolor logo (domyślnie biały)
   final Color? color;
-
-  /// Czy logo ma być animowane
-  final bool animated;
 
   /// Czy logo ma efekt hover
   final bool enableHover;
@@ -36,7 +32,6 @@ class MetropolitanLogoWidget extends StatefulWidget {
     super.key,
     this.size = 120.0,
     this.color,
-    this.animated = false,
     this.enableHover = true,
     this.onTap,
     this.style = MetropolitanLogoStyle.premium,
@@ -47,7 +42,6 @@ class MetropolitanLogoWidget extends StatefulWidget {
     super.key,
     this.size = 40.0,
     this.color,
-    this.animated = false,
     this.enableHover = true,
     this.onTap,
   }) : style = MetropolitanLogoStyle.simple;
@@ -57,7 +51,6 @@ class MetropolitanLogoWidget extends StatefulWidget {
     super.key,
     this.size = 160.0,
     this.color,
-    this.animated = true,
     this.enableHover = false,
     this.onTap,
   }) : style = MetropolitanLogoStyle.premium;
@@ -67,7 +60,6 @@ class MetropolitanLogoWidget extends StatefulWidget {
     super.key,
     this.size = 80.0,
     this.color,
-    this.animated = false,
     this.enableHover = true,
     this.onTap,
   }) : style = MetropolitanLogoStyle.minimal;
@@ -76,55 +68,10 @@ class MetropolitanLogoWidget extends StatefulWidget {
   State<MetropolitanLogoWidget> createState() => _MetropolitanLogoWidgetState();
 }
 
-class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget>
-    with TickerProviderStateMixin {
-  late AnimationController _rotationController;
-  late AnimationController _scaleController;
-  late AnimationController _glowController;
-
-  late Animation<double> _rotationAnimation;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _glowAnimation;
-
+class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget> {
   @override
   void initState() {
     super.initState();
-    _initializeAnimations();
-    if (widget.animated) {
-      _startAnimations();
-    }
-  }
-
-  void _initializeAnimations() {
-    _rotationController = AnimationController(
-      duration: const Duration(seconds: 8),
-      vsync: this,
-    );
-
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-
-    _glowController = AnimationController(
-      duration: const Duration(seconds: 3),
-      vsync: this,
-    );
-
-    _rotationAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _rotationController, curve: Curves.linear),
-    );
-
-    _scaleAnimation = _scaleController;
-
-    _glowAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
-    );
-  }
-
-  void _startAnimations() {
-    _rotationController.repeat();
-    _glowController.repeat(reverse: true);
   }
 
   void _onHoverEnter() {
@@ -138,14 +85,6 @@ class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget>
   }
 
   @override
-  void dispose() {
-    _rotationController.dispose();
-    _scaleController.dispose();
-    _glowController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final logoColor = widget.color ?? AppThemePro.textPrimary;
 
@@ -154,22 +93,7 @@ class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget>
       child: MouseRegion(
         onEnter: (_) => _onHoverEnter(),
         onExit: (_) => _onHoverExit(),
-        child: AnimatedBuilder(
-          animation: Listenable.merge([
-            _rotationAnimation,
-            _scaleAnimation,
-            _glowAnimation,
-          ]),
-          builder: (context, child) {
-            return Transform.scale(
-              scale: 1.0 + (_scaleAnimation.value * 0.05),
-              child: Transform.rotate(
-                angle: widget.animated ? _rotationAnimation.value * 0.1 : 0,
-                child: _buildLogoContainer(logoColor),
-              ),
-            );
-          },
-        ),
+        child: _buildLogoContainer(logoColor),
       ),
     );
   }
@@ -200,7 +124,7 @@ class _MetropolitanLogoWidgetState extends State<MetropolitanLogoWidget>
       width: widget.size,
       height: widget.size * 0.75,
       decoration: BoxDecoration(
-        color: AppThemePro.surfaceCard.withOpacity(0.8),
+        color: AppThemePro.surfaceCard.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppThemePro.borderPrimary, width: 1),
       ),

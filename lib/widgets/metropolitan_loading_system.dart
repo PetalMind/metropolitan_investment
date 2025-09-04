@@ -323,7 +323,6 @@ class _MetropolitanLoadingWidgetState extends State<MetropolitanLoadingWidget>
             margin: const EdgeInsets.only(bottom: 32),
             child: const MetropolitanLogoWidget(
               size: 100,
-              animated: true,
               style: MetropolitanLogoStyle.premium,
             ),
           ),

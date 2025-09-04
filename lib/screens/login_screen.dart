@@ -353,7 +353,6 @@ class _LoginScreenState extends State<LoginScreen>
         const MetropolitanLogoWidget.splash(
           size: 280,
           color: AppThemePro.accentGold,
-          animated: false,
         ),
         const SizedBox(height: 12),
       ],

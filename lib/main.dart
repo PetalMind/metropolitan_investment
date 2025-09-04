@@ -91,13 +91,36 @@ Future<void> _preloadGoogleFonts() async {
     // Preload all Google Fonts used in the email editor
     await Future.wait([
       GoogleFonts.pendingFonts([
+        // 📰 Professional & Business
         GoogleFonts.openSans(),
         GoogleFonts.roboto(),
         GoogleFonts.lato(),
         GoogleFonts.montserrat(),
+        GoogleFonts.sourceSans3(),
+        GoogleFonts.nunitoSans(),
+        GoogleFonts.inter(),
+        GoogleFonts.workSans(),
+        
+        // 📝 Elegant & Readable
+        GoogleFonts.merriweather(),
+        GoogleFonts.playfairDisplay(),
+        GoogleFonts.libreBaskerville(),
+        GoogleFonts.crimsonText(),
+        
+        // 🎨 Modern & Stylish
+        GoogleFonts.poppins(),
+        GoogleFonts.raleway(),
+        GoogleFonts.ubuntu(),
+        GoogleFonts.nunito(),
+        
+        // 💼 Corporate & Clean
+        GoogleFonts.robotoCondensed(),
+        GoogleFonts.oswald(),
+        GoogleFonts.firaSans(),
+        GoogleFonts.ptSans(),
       ]),
     ]);
-    debugPrint('🎨 Google Fonts preloaded successfully');
+    debugPrint('🎨 All Google Fonts (20 fonts) preloaded successfully');
   } catch (e) {
     debugPrint('⚠️ Failed to preload Google Fonts: $e');
   }

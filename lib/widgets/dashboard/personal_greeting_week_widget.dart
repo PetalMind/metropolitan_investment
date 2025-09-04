@@ -202,7 +202,6 @@ class _PersonalGreetingWeekWidgetState
             margin: const EdgeInsets.only(bottom: 24),
             child: const MetropolitanLogoWidget.splash(
               size: 280,
-              animated: false,
             ),
           ),
         ),
