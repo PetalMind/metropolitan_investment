@@ -245,7 +245,7 @@ class _EmailSchedulingWidgetState extends State<EmailSchedulingWidget>
           Icon(
             _isSchedulingEnabled ? Icons.schedule : Icons.send,
             color: _isSchedulingEnabled
-                ? AppTheme.primaryColor
+                ? AppTheme.loansColor
                 : theme.iconTheme.color,
             size: 24,
           ),
@@ -257,11 +257,11 @@ class _EmailSchedulingWidgetState extends State<EmailSchedulingWidget>
                 Text(
                   _isSchedulingEnabled
                       ? 'Wysyłka zaplanowana'
-                      : 'Wyślij natychmiast',
+                      : 'Wysyłka zaplanowana',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: _isSchedulingEnabled
-                        ? AppTheme.infoPrimary
+                        ? AppTheme.loansColor
                         : theme.textTheme.titleMedium?.color,
                   ),
                 ),
@@ -361,7 +361,7 @@ class _EmailSchedulingWidgetState extends State<EmailSchedulingWidget>
       backgroundColor: theme.colorScheme.surface,
       side: BorderSide(
         color: isSelected
-            ? AppTheme.primaryColor
+            ? AppTheme.loansColor
             : theme.dividerColor.withOpacity(0.3),
       ),
     );
@@ -375,8 +375,8 @@ class _EmailSchedulingWidgetState extends State<EmailSchedulingWidget>
         icon: const Icon(Icons.event),
         label: const Text('Wybierz własną datę i godzinę'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppTheme.primaryColor,
-          side: BorderSide(color: AppTheme.primaryColor),
+          foregroundColor: AppTheme.loansColor,
+          side: BorderSide(color: AppTheme.loansColor),
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
@@ -396,7 +396,7 @@ class _EmailSchedulingWidgetState extends State<EmailSchedulingWidget>
       ),
       child: Row(
         children: [
-          Icon(Icons.schedule, color: AppTheme.primaryColor, size: 20),
+          Icon(Icons.schedule, color: AppTheme.loansColor, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -406,7 +406,7 @@ class _EmailSchedulingWidgetState extends State<EmailSchedulingWidget>
                   'Wysyłka: ${_formatDateTime(_selectedDateTime!)}',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryColor,
+                    color: AppTheme.loansColor,
                   ),
                 ),
                 if (timeLeft.inMinutes > 0)

@@ -234,9 +234,9 @@ class EmailHtmlConverterService {
     
     // Check if font requires Google Fonts
     if (FontFamilyService.isGoogleFont(fontName)) {
-      debugPrint('📤 Font "$fontName" requires Google Fonts. Email may need additional setup.');
+      debugPrint('🌐 Font "$fontName" is a Google Font - will be loaded for web compatibility.');
     } else if (!FontFamilyService.isWebSafeFont(fontName)) {
-      debugPrint('⚠️ Warning: font "$fontName" may not be supported by email clients.');
+      debugPrint('⚠️ Font "$fontName" may need fallbacks for email clients.');
     }
     
     debugPrint('🎨 Converting font to HTML: $fontName → $cssFontFamily');
@@ -310,6 +310,8 @@ class EmailHtmlConverterService {
     // Detect Google Fonts usage
     final requiredGoogleFonts = FontFamilyService.extractFontsFromHtml(htmlOutput);
     final googleFontsLinks = FontFamilyService.generateGoogleFontsHtml(requiredGoogleFonts);
+    
+    debugPrint('🎨 Detected fonts in HTML: $requiredGoogleFonts');
 
     // Add email-compatible structure if not present
     if (!finalHtml.contains('<html>') && !finalHtml.contains('<body>')) {

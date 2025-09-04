@@ -7,6 +7,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme_professional.dart';
 import 'providers/auth_provider.dart';
@@ -41,6 +42,9 @@ Future<void> main() async {
     // 🚀 NOWE: Inicjalizuj serwis planowania emaili
     final emailSchedulingService = EmailSchedulingService();
     emailSchedulingService.start();
+    
+    // 🎨 PRELOAD GOOGLE FONTS for email editor
+    await _preloadGoogleFonts();
   } catch (e) {
     // Silent fail for production
   }
@@ -78,5 +82,23 @@ class MetropolitanInvestmentApp extends StatelessWidget {
         Locale('en', 'US'),
       ],
     );
+  }
+}
+
+/// 🎨 PRELOAD GOOGLE FONTS FOR EMAIL EDITOR
+Future<void> _preloadGoogleFonts() async {
+  try {
+    // Preload all Google Fonts used in the email editor
+    await Future.wait([
+      GoogleFonts.pendingFonts([
+        GoogleFonts.openSans(),
+        GoogleFonts.roboto(),
+        GoogleFonts.lato(),
+        GoogleFonts.montserrat(),
+      ]),
+    ]);
+    debugPrint('🎨 Google Fonts preloaded successfully');
+  } catch (e) {
+    debugPrint('⚠️ Failed to preload Google Fonts: $e');
   }
 }
