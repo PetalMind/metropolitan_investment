@@ -166,6 +166,13 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   final Map<String, String> _recipientEmails = {};
   final List<String> _additionalEmails = [];
 
+  // 💾 AUTO-SAVE FUNCTIONALITY
+  Timer? _autoSaveTimer;
+  bool _hasUnsavedChanges = false;
+  bool _isAutoSaving = false;
+  DateTime? _lastAutoSaveTime;
+  late UserPreferencesService _preferencesService;
+
 
 
   @override
@@ -182,6 +189,9 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       _quillController = QuillController.basic();
     }
     _editorFocusNode = FocusNode();
+
+    // 💾 INITIALIZE AUTO-SAVE SERVICE
+    _initializeAutoSave();
 
     // 🎪 INICJALIZACJA WOW ANIMACJI
     _settingsAnimationController = AnimationController(
@@ -303,10 +313,250 @@ Zespół Metropolitan Investment''';
     }
   }
 
+  // 💾 AUTO-SAVE FUNCTIONALITY IMPLEMENTATION
+
+  /// Initialize auto-save functionality
+  Future<void> _initializeAutoSave() async {
+    try {
+      _preferencesService = await UserPreferencesService.getInstance();
+
+      // Check for existing draft and offer recovery
+      await _checkForDraftRecovery();
+
+      // Set up auto-save timer (every 30 seconds)
+      _startAutoSaveTimer();
+
+      // Add listeners for content changes
+      _quillController.addListener(_onContentChanged);
+      _subjectController.addListener(_onContentChanged);
+      _senderNameController.addListener(_onContentChanged);
+      _senderEmailController.addListener(_onContentChanged);
+
+      debugPrint('💾 Auto-save initialized successfully');
+    } catch (e) {
+      debugPrint('❌ Error initializing auto-save: $e');
+    }
+  }
+
+  /// Check for existing draft and offer recovery
+  Future<void> _checkForDraftRecovery() async {
+    if (!_preferencesService.hasEmailDraft()) return;
+
+    final draft = _preferencesService.getSavedEmailDraft();
+    if (draft == null) return;
+
+    final age = _preferencesService.getEmailDraftAgeInMinutes() ?? 0;
+
+    // Show recovery dialog
+    if (mounted) {
+      final shouldRecover = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.restore, color: Colors.orange),
+              SizedBox(width: 12),
+              Text('Odzyskaj szkic'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Znaleziono zapisany szkic wiadomości sprzed $age minut.'),
+              const SizedBox(height: 12),
+              Text('Czy chcesz odzyskać wcześniej zapisaną treść?'),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Temat: ${draft['subject']}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Podgląd: ${(draft['content'] as String).substring(0, (draft['content'] as String).length > 100 ? 100 : (draft['content'] as String).length)}...',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Odrzuć szkic'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Odzyskaj szkic'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldRecover == true) {
+        await _recoverDraft(draft);
+      } else {
+        await _preferencesService.clearEmailDraft();
+      }
+    }
+  }
+
+  /// Recover draft content
+  Future<void> _recoverDraft(Map<String, dynamic> draft) async {
+    try {
+      // Restore text content
+      _subjectController.text = draft['subject'] ?? '';
+      _senderNameController.text = draft['senderName'] ?? '';
+      _senderEmailController.text = draft['senderEmail'] ?? '';
+
+      // Restore Quill content
+      final content = draft['content'] as String;
+      if (content.isNotEmpty) {
+        _quillController.clear();
+        _quillController.document.insert(0, content);
+      }
+
+      // Restore recipients
+      final recipients = draft['recipients'] as Map<String, bool>? ?? {};
+      _recipientEnabled.clear();
+      _recipientEnabled.addAll(recipients);
+
+      // Restore additional emails
+      final additionalEmails = draft['additionalEmails'] as List<String>? ?? [];
+      _additionalEmails.clear();
+      _additionalEmails.addAll(additionalEmails);
+
+      // Restore settings
+      _includeInvestmentDetails = draft['includeDetails'] ?? true;
+      _isGroupEmail = draft['isGroupEmail'] ?? false;
+
+      setState(() {
+        _hasUnsavedChanges = false;
+      });
+
+      // Force preview update
+      _forcePreviewUpdate();
+
+      debugPrint('✅ Draft recovered successfully');
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Szkic został pomyślnie odzyskany'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error recovering draft: $e');
+    }
+  }
+
+  /// Start auto-save timer
+  void _startAutoSaveTimer() {
+    _autoSaveTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (_hasUnsavedChanges && !_isAutoSaving) {
+        _performAutoSave();
+      }
+    });
+  }
+
+  /// Handle content changes
+  void _onContentChanged() {
+    setState(() {
+      _hasUnsavedChanges = true;
+    });
+  }
+
+  /// Perform auto-save
+  Future<void> _performAutoSave() async {
+    if (_isAutoSaving) return;
+
+    setState(() {
+      _isAutoSaving = true;
+    });
+
+    try {
+      final content = _quillController.document.toPlainText();
+      final subject = _subjectController.text;
+      final senderName = _senderNameController.text;
+      final senderEmail = _senderEmailController.text;
+
+      final success = await _preferencesService.saveEmailDraft(
+        content: content,
+        subject: subject,
+        senderName: senderName,
+        senderEmail: senderEmail,
+        recipients: Map.from(_recipientEnabled),
+        additionalEmails: List.from(_additionalEmails),
+        includeDetails: _includeInvestmentDetails,
+        isGroupEmail: _isGroupEmail,
+      );
+
+      if (success) {
+        setState(() {
+          _hasUnsavedChanges = false;
+          _lastAutoSaveTime = DateTime.now();
+        });
+        debugPrint('💾 Auto-save completed successfully');
+      }
+    } catch (e) {
+      debugPrint('❌ Auto-save failed: $e');
+    } finally {
+      setState(() {
+        _isAutoSaving = false;
+      });
+    }
+  }
+
+  /// Manual save trigger
+  Future<void> _saveManually() async {
+    await _performAutoSave();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.save, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Szkic został zapisany'),
+            ],
+          ),
+          backgroundColor: Colors.blue,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _previewUpdateTimer?.cancel(); // Clean up timer
+    _autoSaveTimer?.cancel(); // Clean up auto-save timer
     _quillController.removeListener(_updatePreviewContent);
+    _quillController.removeListener(
+      _onContentChanged,
+    ); // Remove auto-save listener
     _quillController.dispose();
     _editorFocusNode.dispose();
     _senderEmailController.dispose();
@@ -635,16 +885,45 @@ Zespół Metropolitan Investment''';
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Wyczyść edytor'),
-        content: const Text('Czy na pewno chcesz wyczyścić całą treść?'),
+        content: const Text(
+          'Czy na pewno chcesz wyczyścić całą treść? Spowoduje to również usunięcie zapisanego szkicu.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Anuluj'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               _quillController.clear();
+              _subjectController.clear();
+
+              // Clear draft
+              await _preferencesService.clearEmailDraft();
+
+              setState(() {
+                _hasUnsavedChanges = false;
+                _lastAutoSaveTime = null;
+              });
+              
               Navigator.of(context).pop();
+              
+              // Show confirmation
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(Icons.delete_sweep, color: Colors.white),
+                        SizedBox(width: 12),
+                        Text('Edytor i szkic zostały wyczyszczone'),
+                      ],
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
             },
             child: const Text('Wyczyść'),
           ),
@@ -750,6 +1029,14 @@ Zespół Metropolitan Investment''';
       // 🔊 Play success sound if emails were sent successfully
       if (successfulEmails > 0) {
         _playSuccessSound();
+        
+        // 💾 Clear draft after successful sending
+        await _preferencesService.clearEmailDraft();
+        setState(() {
+          _hasUnsavedChanges = false;
+          _lastAutoSaveTime = null;
+        });
+        debugPrint('🗑️ Draft cleared after successful email sending');
       }
 
       // Powrót do poprzedniego ekranu z wynikiem
@@ -1416,6 +1703,9 @@ Zespół Metropolitan Investment''';
               ],
             ),
           ),
+          // 💾 AUTO-SAVE STATUS INDICATOR
+          _buildAutoSaveIndicator(isMobile),
+          SizedBox(width: isMobile ? 8 : 12),
           IconButton(
             icon: Icon(
               _isSettingsCollapsed ? Icons.expand_more : Icons.expand_less,
@@ -1429,6 +1719,138 @@ Zespół Metropolitan Investment''';
         ],
       ),
     );
+  }
+
+  // 💾 AUTO-SAVE STATUS INDICATOR
+  Widget _buildAutoSaveIndicator(bool isMobile) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: Container(
+        key: ValueKey(
+          '${_isAutoSaving}_${_hasUnsavedChanges}_${_lastAutoSaveTime?.millisecondsSinceEpoch}',
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 8 : 12,
+          vertical: isMobile ? 6 : 8,
+        ),
+        decoration: BoxDecoration(
+          color: _getAutoSaveIndicatorColor().withValues(alpha: 0.1),
+          border: Border.all(
+            color: _getAutoSaveIndicatorColor().withValues(alpha: 0.3),
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_isAutoSaving) ...[
+              SizedBox(
+                width: isMobile ? 12 : 14,
+                height: isMobile ? 12 : 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(
+                    _getAutoSaveIndicatorColor(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Zapisuję...',
+                style: TextStyle(
+                  color: _getAutoSaveIndicatorColor(),
+                  fontSize: isMobile ? 11 : 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ] else if (_hasUnsavedChanges) ...[
+              Icon(
+                Icons.edit,
+                size: isMobile ? 12 : 14,
+                color: _getAutoSaveIndicatorColor(),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Niezapisane',
+                style: TextStyle(
+                  color: _getAutoSaveIndicatorColor(),
+                  fontSize: isMobile ? 11 : 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ] else if (_lastAutoSaveTime != null) ...[
+              Icon(
+                Icons.check_circle,
+                size: isMobile ? 12 : 14,
+                color: _getAutoSaveIndicatorColor(),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _getLastSaveText(),
+                style: TextStyle(
+                  color: _getAutoSaveIndicatorColor(),
+                  fontSize: isMobile ? 11 : 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ] else ...[
+              Icon(
+                Icons.fiber_new,
+                size: isMobile ? 12 : 14,
+                color: _getAutoSaveIndicatorColor(),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Nowy',
+                style: TextStyle(
+                  color: _getAutoSaveIndicatorColor(),
+                  fontSize: isMobile ? 11 : 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+            // Manual save button
+            if (!_isAutoSaving) ...[
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: _saveManually,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  child: Icon(
+                    Icons.save,
+                    size: isMobile ? 12 : 14,
+                    color: _getAutoSaveIndicatorColor().withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getAutoSaveIndicatorColor() {
+    if (_isAutoSaving) return Colors.blue;
+    if (_hasUnsavedChanges) return Colors.orange;
+    if (_lastAutoSaveTime != null) return Colors.green;
+    return Colors.grey;
+  }
+
+  String _getLastSaveText() {
+    if (_lastAutoSaveTime == null) return 'Niezapisane';
+
+    final now = DateTime.now();
+    final difference = now.difference(_lastAutoSaveTime!);
+
+    if (difference.inSeconds < 60) {
+      return 'Zapisano';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}min temu';
+    } else {
+      return '${difference.inHours}h temu';
+    }
   }
 
   Widget _buildWowMainContent(bool isMobile, bool isTablet) {
@@ -2951,6 +3373,14 @@ Zespół Metropolitan Investment''';
                 label: 'Wstaw szczegóły inwestycji',
                 color: AppThemePro.bondsBlue,
                 onPressed: _insertInvestmentDetails,
+              ),
+              _buildWowActionButton(
+                icon: Icons.save_outlined,
+                label: 'Zapisz szkic',
+                color: _hasUnsavedChanges
+                    ? AppThemePro.statusWarning
+                    : AppThemePro.statusSuccess,
+                onPressed: _saveManually,
               ),
               _buildWowActionButton(
                 icon: Icons.visibility_outlined,
