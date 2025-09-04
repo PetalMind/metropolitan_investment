@@ -1297,9 +1297,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   Future<void> _loadInvestmentDataFromFirebase() async {
     if (!mounted) return; // 🛡️ SPRAWDZENIE: czy widget jest aktywny
     
-    print(
-      '💰 [InvestmentData] Ładowanie danych inwestycji przez Firebase Functions...',
-    );
+  
 
     try {
       final functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
@@ -1354,9 +1352,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             summariesMap[summary.client.id] = summary;
             investmentsMap[summary.client.id] = summary.investments;
 
-            print(
-              '💰 ${summary.client.name}: ${summary.totalRemainingCapital.toStringAsFixed(2)} PLN (${summary.investmentCount} inwestycji)',
-            );
+      
           } else {
             print('⚠️ [InvestmentData] Pomiń inwestora z pustym client.id');
           }

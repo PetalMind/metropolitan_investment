@@ -131,6 +131,9 @@ export 'services/calendar_notification_service.dart'; // 🚀 NOWE: Serwis powia
 export 'services/client_side_excel_export_service.dart'; // 🚀 NOWE: Generowanie Excel po stronie klienta
 export 'services/unified_export_service.dart'; // 🚀 NOWE: Ujednolicony serwis eksportu (Excel, PDF, Word)
 
+// 🎨 FONT MANAGEMENT SYSTEM
+export 'services/font_family_service.dart'; // 🚀 LEGACY: Basic font service
+
 // Voting status change model
 // VotingStatusChange is exported via models/voting_status_change.dart above
 
@@ -192,6 +195,7 @@ export 'widgets/dialogs/product_history_dialog.dart'; // ⭐ NOWE: Dialog histor
 
 // Email system widgets
 export 'widgets/email_editor_widget.dart'; // 🚀 NOWE: Reusable widget edytora emaili
+export 'widgets/email/email_scheduling_widget.dart'; // 🚀 NOWE: Widget planowania wysyłek emaili
 
 // Premium Analytics Components
 export 'widgets/premium_analytics/premium_analytics_header.dart'; // 🚀 NOWE: Nowoczesny responsywny header

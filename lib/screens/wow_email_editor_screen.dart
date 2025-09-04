@@ -7,10 +7,8 @@ import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart' as html_package;
 
 import '../../models_and_services.dart';
-import '../../theme/app_theme_professional.dart';
+import '../theme/app_theme.dart';
 import '../services/email_html_converter_service.dart';
-import '../widgets/email/email_scheduling_widget.dart';
-import '../services/email_scheduling_service.dart';
 
 
 /// 🎨 CUSTOM ATTRIBUTES FOR ADVANCED FONT HANDLING
@@ -31,50 +29,18 @@ class CustomAttributes {
   );
 }
 
-/// 🎨 FONT FAMILY CONFIGURATION
+/// 🎨 LEGACY FONT FAMILY CONFIGURATION - DEPRECATED
+/// Use FontFamilyService instead for better separation and Google Fonts support
 class FontFamilyConfig {
-  static const Map<String, String> availableFonts = {
-    'Arial': 'Arial',
-    'Helvetica': 'Helvetica',
-    'Times New Roman': 'Times New Roman',
-    'Courier New': 'Courier New',
-    'Verdana': 'Verdana',
-    'Georgia': 'Georgia',
-    'Trebuchet MS': 'Trebuchet MS',
-    'Tahoma': 'Tahoma',
-    'Calibri': 'Calibri',
-    'Segoe UI': 'Segoe UI',
-    'Open Sans': 'Open Sans',
-    'Roboto': 'Roboto',
-    'Lato': 'Lato',
-    'Montserrat': 'Montserrat',
+  static Map<String, String> get availableFonts => {
+    for (String font in FontFamilyService.allFonts) font: font
   };
 
-  static const String defaultFont = 'Arial';
+  static String get defaultFont => 'Arial';
 
   /// Get CSS font family with fallbacks
   static String getCssFontFamily(String fontName) {
-    const fontFallbacks = {
-      'Arial': 'Arial, "Helvetica Neue", Helvetica, sans-serif',
-      'Helvetica': 'Helvetica, "Helvetica Neue", Arial, sans-serif',
-      'Times New Roman': '"Times New Roman", Times, serif',
-      'Courier New': '"Courier New", Courier, monospace',
-      'Verdana': 'Verdana, Geneva, sans-serif',
-      'Georgia': 'Georgia, "Times New Roman", Times, serif',
-      'Trebuchet MS':
-          '"Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Tahoma, sans-serif',
-      'Tahoma': 'Tahoma, Geneva, sans-serif',
-      'Calibri': 'Calibri, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-      'Segoe UI': '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
-      'Open Sans':
-          '"Open Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-      'Roboto': 'Roboto, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-      'Lato': 'Lato, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-      'Montserrat':
-          'Montserrat, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-    };
-
-    return fontFallbacks[fontName] ?? '$fontName, Arial, sans-serif';
+    return FontFamilyService.getCSSFontFamily(fontName);
   }
 }
 
@@ -143,7 +109,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   bool _isPreviewDarkTheme = false;
   String? _error;
   List<EmailSendResult>? _results;
-  String _currentPreviewHtml = '';
+  String _currentPreviewHtml =
+      '<div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #666; font-style: italic;"><p>Ładowanie podglądu...</p></div>';
   double _previewZoomLevel = 1.0;
   
   // 📊 ENHANCED LOADING STATE
@@ -605,23 +572,48 @@ Zespół Metropolitan Investment''';
       if (mounted) {
         setState(() {
           try {
-            _currentPreviewHtml = EmailHtmlConverterService.convertQuillToHtml(
+            debugPrint('🔄 Starting preview update...');
+            debugPrint(
+              '📝 Quill document length: ${_quillController.document.length}',
+            );
+            debugPrint(
+              '📄 Plain text: "${_quillController.document.toPlainText()}"',
+            );
+
+            // 🎨 UŻYJ PROFESJONALNEGO SERWISU KONWERSJI DLA PODGLĄDU
+            _currentPreviewHtml =
+                EmailHtmlConverterService.convertQuillToHtmlForPreview(
               _quillController,
             );
+            
+            debugPrint(
+              '🎨 Initial HTML: ${_currentPreviewHtml.length} characters',
+            );
+            debugPrint(
+              '🎨 HTML preview: ${_currentPreviewHtml.substring(0, _currentPreviewHtml.length > 200 ? 200 : _currentPreviewHtml.length)}...',
+            );
+
+            // 📧 DODAJ SZCZEGÓŁY INWESTYCJI JEŚLI WŁĄCZONE (dla podglądu używamy plain text)
             if (_includeInvestmentDetails) {
-              _currentPreviewHtml =
-                  EmailHtmlConverterService.addInvestmentDetailsToHtml(
-                _currentPreviewHtml,
-                    widget.selectedInvestors,
+              final investmentDetailsText = _generateInvestmentDetailsText();
+              _currentPreviewHtml +=
+                  '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">' +
+                  investmentDetailsText.replaceAll('\n', '<br>') +
+                  '</div>';
+              debugPrint(
+                '💼 Investment details added: ${_currentPreviewHtml.length} characters',
               );
             }
-            debugPrint('🔄 Preview updated successfully');
+            
+            debugPrint('🎪 Preview updated with EmailHtmlConverterService');
           } catch (e) {
             debugPrint('⚠️ Preview update error: $e');
             // Fallback to plain text if conversion fails
             final plainText = _quillController.document.toPlainText();
+            debugPrint('📄 Fallback plain text: "$plainText"');
             _currentPreviewHtml =
-                '<p>${plainText.isNotEmpty ? plainText : 'Wpisz treść wiadomości...'}</p>';
+                '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">${plainText.isNotEmpty ? plainText.replaceAll('\n', '<br>') : 'Wpisz treść wiadomości...'}</div>';
+            debugPrint('🔄 Fallback HTML: $_currentPreviewHtml');
           }
         });
       }
@@ -634,29 +626,39 @@ Zespół Metropolitan Investment''';
     if (mounted) {
       setState(() {
         try {
-          _currentPreviewHtml = EmailHtmlConverterService.convertQuillToHtml(
+          debugPrint('🚀 Force preview update starting...');
+
+          // 🎨 UŻYJ NOWEJ FUNKCJI KONWERSJI QUILL DO HTML DLA PODGLĄDU
+          _currentPreviewHtml =
+              EmailHtmlConverterService.convertQuillToHtmlForPreview(
             _quillController,
           );
+          
+          debugPrint(
+            '🎨 Force update - HTML generated: ${_currentPreviewHtml.length} characters',
+          );
+
+          // 📧 DODAJ SZCZEGÓŁY INWESTYCJI JEŚLI WŁĄCZONE (dla podglądu)
           if (_includeInvestmentDetails) {
-            _currentPreviewHtml =
-                EmailHtmlConverterService.addInvestmentDetailsToHtml(
-              _currentPreviewHtml,
-                  widget.selectedInvestors,
-            );
+            final investmentDetailsText = _generateInvestmentDetailsText();
+            _currentPreviewHtml +=
+                '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">' +
+                investmentDetailsText.replaceAll('\n', '<br>') +
+                '</div>';
+            debugPrint('💼 Force update - Investment details added');
           }
-          debugPrint('🔄 Preview force updated');
+          
+          debugPrint('🎪 Preview force updated with EmailHtmlConverterService');
         } catch (e) {
           debugPrint('⚠️ Force preview update error: $e');
           final plainText = _quillController.document.toPlainText();
           _currentPreviewHtml =
-              '<p>${plainText.isNotEmpty ? plainText : 'Wpisz treść wiadomości...'}</p>';
+              '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">${plainText.isNotEmpty ? plainText.replaceAll('\n', '<br>') : 'Wpisz treść wiadomości...'}</div>';
+          debugPrint('🔄 Force update fallback applied');
         }
       });
     }
   }
-
-  // 📝 DODAWANIE SZCZEGÓŁÓW INWESTYCJI DO HTML Z KOLOROWYMI IKONKAMI (BEZ ANIMACJI)
-
 
   // 🎪 TOGGLE PREVIEW VISIBILITY
   void _togglePreviewVisibility() {
@@ -887,12 +889,42 @@ Zespół Metropolitan Investment''';
         ChangeSource.local,
       );
 
-      // Force immediate preview update
+      // Force immediate preview update to test new conversion function
       _forcePreviewUpdate();
 
-      debugPrint('🧪 Sample content loaded for testing');
+      debugPrint(
+        '🧪 Sample content loaded for testing - preview should update immediately',
+      );
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.science, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Załadowano przykładową treść do testowania!'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
     } catch (e) {
       debugPrint('Error loading sample content: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Błąd podczas ładowania przykładowej treści'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
   }
 
@@ -1392,13 +1424,13 @@ Zespół Metropolitan Investment''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppThemePro.accentGold.withValues(alpha: 0.1),
-            AppThemePro.bondsBlue.withValues(alpha: 0.1),
+            AppTheme.secondaryGold.withOpacity( 0.1),
+            AppTheme.primaryColor.withOpacity( 0.1),
           ],
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppThemePro.accentGold.withValues(alpha: 0.3),
+          color: AppTheme.secondaryGold.withOpacity( 0.3),
         ),
       ),
       child: Row(
@@ -1406,14 +1438,14 @@ Zespół Metropolitan Investment''';
           // Font Family Dropdown
           Icon(
             Icons.font_download_outlined,
-            color: AppThemePro.accentGold,
+            color: AppTheme.secondaryGold,
             size: 20,
           ),
           SizedBox(width: 8),
           Text(
             'Czcionka:',
             style: TextStyle(
-              color: AppThemePro.textPrimary,
+              color: AppTheme.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -1450,7 +1482,7 @@ Zespół Metropolitan Investment''';
         PopupMenuButton<Color>(
           icon: Icon(
             Icons.format_color_text,
-            color: AppThemePro.accentGold,
+            color: AppTheme.secondaryGold,
             size: 20,
           ),
           tooltip: 'Kolor tekstu',
@@ -1472,7 +1504,7 @@ Zespół Metropolitan Investment''';
                   SizedBox(width: 8),
                   Text(
                     _getColorName(color),
-                    style: TextStyle(color: AppThemePro.textPrimary),
+                    style: TextStyle(color: AppTheme.textPrimary),
                   ),
                 ],
               ),
@@ -1486,7 +1518,7 @@ Zespół Metropolitan Investment''';
         PopupMenuButton<Color>(
           icon: Icon(
             Icons.format_color_fill,
-            color: AppThemePro.accentGold,
+            color: AppTheme.secondaryGold,
             size: 20,
           ),
           tooltip: 'Kolor tła',
@@ -1508,7 +1540,7 @@ Zespół Metropolitan Investment''';
                   SizedBox(width: 8),
                   Text(
                     _getColorName(color),
-                    style: TextStyle(color: AppThemePro.textPrimary),
+                    style: TextStyle(color: AppTheme.textPrimary),
                   ),
                 ],
               ),
@@ -1532,47 +1564,52 @@ Zespół Metropolitan Investment''';
     return 'Inny';
   }
 
-  // 🎨 FONT FAMILY DROPDOWN WIDGET
+  // 🎨 ENHANCED FONT SELECTION WIDGET
   Widget _buildFontFamilyDropdown() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: AppThemePro.backgroundSecondary.withValues(alpha: 0.8),
+        color: AppTheme.backgroundSecondary.withOpacity(0.8),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppThemePro.borderSecondary.withValues(alpha: 0.5),
-        ),
+        border: Border.all(color: AppTheme.borderPrimary.withOpacity(0.3)),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _getCurrentFontFamily(),
-          isExpanded: true,
-          style: TextStyle(color: AppThemePro.textPrimary, fontSize: 14),
-          dropdownColor: AppThemePro.backgroundSecondary,
-          icon: Icon(
-            Icons.keyboard_arrow_down,
-            color: AppThemePro.textSecondary,
-            size: 18,
-          ),
-          items: FontFamilyConfig.availableFonts.entries.map((entry) {
-            return DropdownMenuItem<String>(
-              value: entry.key,
-              child: Text(
-                entry.value,
-                style: TextStyle(
-                  fontFamily: entry.key,
-                  fontSize: 14,
-                  color: AppThemePro.textPrimary,
-                ),
-              ),
-            );
-          }).toList(),
-          onChanged: (String? newFont) {
-            if (newFont != null) {
-              _applyFontFamily(newFont);
-            }
-          },
+      child: DropdownButton<String>(
+        value: _getCurrentFontFamily(),
+        onChanged: (String? newFont) {
+          if (newFont != null) {
+            _applyFontFamily(newFont);
+          }
+        },
+        style: TextStyle(
+          color: AppTheme.textPrimary,
+          fontSize: 14,
         ),
+        dropdownColor: AppTheme.backgroundSecondary,
+        underline: const SizedBox.shrink(),
+        icon: Icon(Icons.arrow_drop_down, color: AppTheme.textSecondary),
+        items: FontFamilyService.allFonts.map((String font) {
+          return DropdownMenuItem<String>(
+            value: font,
+            child: Row(
+              children: [
+                Text(
+                  font,
+                  style: TextStyle(
+                    fontFamily: font,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (FontFamilyService.isGoogleFont(font))
+                  Icon(
+                    Icons.cloud,
+                    size: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -1588,18 +1625,19 @@ Zespół Metropolitan Investment''';
         debugPrint('🎨 Current font from selection: $fontValue');
 
         // Check if it's one of our predefined fonts
-        if (FontFamilyConfig.availableFonts.containsKey(fontValue)) {
+        if (FontFamilyService.allFonts.contains(fontValue)) {
           return fontValue;
         }
       }
 
       debugPrint('🎨 No font attribute found, using default');
-      return FontFamilyConfig.defaultFont;
+      return 'Arial';
     } catch (e) {
       debugPrint('🎨 Error getting current font: $e');
-      return FontFamilyConfig.defaultFont;
+      return 'Arial';
     }
   }
+
 
   // 🎨 APPLY FONT FAMILY TO SELECTION
   void _applyFontFamily(String fontFamily) {
@@ -1624,14 +1662,14 @@ Zespół Metropolitan Investment''';
     try {
       debugPrint('🎨 Applying text color: $color');
       
-      // Convert color to hex string using newer API
-      final hexColor = '#${color.r.toInt().toRadixString(16).padLeft(2, '0')}${color.g.toInt().toRadixString(16).padLeft(2, '0')}${color.b.toInt().toRadixString(16).padLeft(2, '0')}';
+      // Convert color to hex string using correct API
+      final hexColor = '#${(color.r * 255.0).round().toRadixString(16).padLeft(2, '0')}${(color.g * 255.0).round().toRadixString(16).padLeft(2, '0')}${(color.b * 255.0).round().toRadixString(16).padLeft(2, '0')}';
       
       final colorAttribute = Attribute.fromKeyValue('color', hexColor);
       _quillController.formatSelection(colorAttribute);
       _forcePreviewUpdate();
       
-      debugPrint('🎨 Text color applied successfully');
+      debugPrint('🎨 Text color applied successfully: $hexColor');
     } catch (e) {
       debugPrint('🎨 Error applying text color: $e');
     }
@@ -1642,14 +1680,14 @@ Zespół Metropolitan Investment''';
     try {
       debugPrint('🎨 Applying background color: $color');
       
-      // Convert color to hex string using newer API
-      final hexColor = '#${color.r.toInt().toRadixString(16).padLeft(2, '0')}${color.g.toInt().toRadixString(16).padLeft(2, '0')}${color.b.toInt().toRadixString(16).padLeft(2, '0')}';
+      // Convert color to hex string using correct API
+      final hexColor = '#${(color.r * 255.0).round().toRadixString(16).padLeft(2, '0')}${(color.g * 255.0).round().toRadixString(16).padLeft(2, '0')}${(color.b * 255.0).round().toRadixString(16).padLeft(2, '0')}';
       
       final backgroundAttribute = Attribute.fromKeyValue('background', hexColor);
       _quillController.formatSelection(backgroundAttribute);
       _forcePreviewUpdate();
       
-      debugPrint('🎨 Background color applied successfully');
+      debugPrint('🎨 Background color applied successfully: $hexColor');
     } catch (e) {
       debugPrint('🎨 Error applying background color: $e');
     }
@@ -1658,18 +1696,18 @@ Zespół Metropolitan Investment''';
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppThemePro.backgroundPrimary,
+      backgroundColor: AppTheme.backgroundPrimary,
       appBar: AppBar(
-        backgroundColor: AppThemePro.backgroundSecondary,
+        backgroundColor: AppTheme.backgroundSecondary,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppThemePro.textPrimary),
+          icon: Icon(Icons.arrow_back, color: AppTheme.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Edytor Email',
           style: TextStyle(
-            color: AppThemePro.textPrimary,
+            color: AppTheme.textPrimary,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -1678,7 +1716,7 @@ Zespół Metropolitan Investment''';
             IconButton(
               icon: Icon(
                 _isPreviewDarkTheme ? Icons.light_mode : Icons.dark_mode,
-                color: AppThemePro.accentGold,
+                color: AppTheme.secondaryGold,
               ),
               onPressed: _togglePreviewTheme,
               tooltip: 'Zmień motyw podglądu',
@@ -1686,7 +1724,7 @@ Zespół Metropolitan Investment''';
           IconButton(
             icon: Icon(
               _isPreviewVisible ? Icons.visibility_off : Icons.visibility,
-              color: AppThemePro.accentGold,
+              color: AppTheme.secondaryGold,
             ),
             onPressed: _togglePreviewVisibility,
             tooltip: _isPreviewVisible ? 'Ukryj podgląd' : 'Pokaż podgląd',
@@ -1716,8 +1754,8 @@ Zespół Metropolitan Investment''';
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          AppThemePro.backgroundPrimary,
-                          AppThemePro.backgroundSecondary.withValues(
+                          AppTheme.backgroundPrimary,
+                          AppTheme.backgroundSecondary.withValues(
                             alpha: 0.8,
                           ),
                         ],
@@ -1790,32 +1828,32 @@ Zespół Metropolitan Investment''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppThemePro.accentGold.withValues(alpha: 0.1),
-            AppThemePro.bondsBlue.withValues(alpha: 0.1),
+            AppTheme.secondaryGold.withOpacity( 0.1),
+            AppTheme.primaryColor.withOpacity( 0.1),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border(
           top: BorderSide(
-            color: AppThemePro.accentGold.withValues(alpha: 0.3),
+            color: AppTheme.secondaryGold.withOpacity( 0.3),
             width: 2,
           ),
           left: BorderSide(
-            color: AppThemePro.accentGold.withValues(alpha: 0.3),
+            color: AppTheme.secondaryGold.withOpacity( 0.3),
             width: 2,
           ),
           right: BorderSide(
-            color: AppThemePro.accentGold.withValues(alpha: 0.3),
+            color: AppTheme.secondaryGold.withOpacity( 0.3),
             width: 2,
           ),
           bottom: BorderSide(
-            color: AppThemePro.accentGold.withValues(alpha: 0.3),
+            color: AppTheme.secondaryGold.withOpacity( 0.3),
             width: 2,
           ),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppThemePro.accentGold.withValues(alpha: 0.1),
+            color: AppTheme.secondaryGold.withOpacity( 0.1),
             blurRadius: 20,
             spreadRadius: 2,
           ),
@@ -1827,13 +1865,13 @@ Zespół Metropolitan Investment''';
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppThemePro.accentGold, AppThemePro.bondsBlue],
+                colors: [AppTheme.secondaryGold, AppTheme.primaryColor],
               ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               Icons.email_outlined,
-              color: AppThemePro.primaryDark,
+              color: AppTheme.primaryColor,
               size: 24,
             ),
           ),
@@ -1845,7 +1883,7 @@ Zespół Metropolitan Investment''';
                 Text(
                   'Profesjonalny Edytor Email',
                   style: TextStyle(
-                    color: AppThemePro.textPrimary,
+                    color: AppTheme.textPrimary,
                     fontSize: isMobile ? 18 : 22,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1854,7 +1892,7 @@ Zespół Metropolitan Investment''';
                 Text(
                   'Wyślij spersonalizowane wiadomości do inwestorów',
                   style: TextStyle(
-                    color: AppThemePro.textSecondary,
+                    color: AppTheme.textSecondary,
                     fontSize: isMobile ? 14 : 16,
                   ),
                 ),
@@ -1867,7 +1905,7 @@ Zespół Metropolitan Investment''';
           IconButton(
             icon: Icon(
               _isSettingsCollapsed ? Icons.expand_more : Icons.expand_less,
-              color: AppThemePro.accentGold,
+              color: AppTheme.secondaryGold,
             ),
             onPressed: _toggleSettingsCollapse,
             tooltip: _isSettingsCollapsed
@@ -1892,9 +1930,9 @@ Zespół Metropolitan Investment''';
           vertical: isMobile ? 6 : 8,
         ),
         decoration: BoxDecoration(
-          color: _getAutoSaveIndicatorColor().withValues(alpha: 0.1),
+          color: _getAutoSaveIndicatorColor().withOpacity( 0.1),
           border: Border.all(
-            color: _getAutoSaveIndicatorColor().withValues(alpha: 0.3),
+            color: _getAutoSaveIndicatorColor().withOpacity( 0.3),
             width: 1,
           ),
           borderRadius: BorderRadius.circular(20),
@@ -1908,8 +1946,8 @@ Zespół Metropolitan Investment''';
                 height: isMobile ? 12 : 14,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(
-                    _getAutoSaveIndicatorColor(),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppTheme.secondaryGold,
                   ),
                 ),
               ),
@@ -1978,7 +2016,7 @@ Zespół Metropolitan Investment''';
                   child: Icon(
                     Icons.save,
                     size: isMobile ? 12 : 14,
-                    color: _getAutoSaveIndicatorColor().withValues(alpha: 0.7),
+                    color: _getAutoSaveIndicatorColor().withOpacity( 0.7),
                   ),
                 ),
               ),
@@ -2050,18 +2088,18 @@ Zespół Metropolitan Investment''';
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppThemePro.backgroundSecondary.withValues(alpha: 0.9),
-                AppThemePro.backgroundPrimary.withValues(alpha: 0.7),
+                AppTheme.backgroundSecondary.withOpacity( 0.9),
+                AppTheme.backgroundPrimary.withOpacity( 0.7),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: AppThemePro.borderSecondary.withValues(alpha: 0.3),
+              color: AppTheme.borderPrimary.withOpacity( 0.3),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
+                color: Colors.black.withOpacity( 0.1),
                 blurRadius: 15,
                 spreadRadius: 1,
               ),
@@ -2203,34 +2241,34 @@ Zespół Metropolitan Investment''';
         labelText: label,
         hintText: hint,
         prefixIcon: icon != null
-            ? Icon(icon, color: AppThemePro.accentGold)
+            ? Icon(icon, color: AppTheme.secondaryGold)
             : null,
         filled: true,
-        fillColor: AppThemePro.backgroundSecondary.withValues(alpha: 0.3),
+        fillColor: AppTheme.backgroundSecondary.withOpacity( 0.3),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppThemePro.borderSecondary),
+          borderSide: BorderSide(color: AppTheme.borderPrimary),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: AppThemePro.borderSecondary.withValues(alpha: 0.3),
+            color: AppTheme.borderPrimary.withOpacity( 0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppThemePro.accentGold, width: 2),
+          borderSide: BorderSide(color: AppTheme.secondaryGold, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppThemePro.statusError, width: 2),
+          borderSide: BorderSide(color: AppTheme.errorPrimary, width: 2),
         ),
-        labelStyle: TextStyle(color: AppThemePro.textSecondary),
+        labelStyle: TextStyle(color: AppTheme.textSecondary),
         hintStyle: TextStyle(
-          color: AppThemePro.textSecondary.withValues(alpha: 0.7),
+          color: AppTheme.textSecondary.withOpacity( 0.7),
         ),
       ),
-      style: TextStyle(color: AppThemePro.textPrimary),
+      style: TextStyle(color: AppTheme.textPrimary),
     );
   }
 
@@ -2280,14 +2318,14 @@ Zespół Metropolitan Investment''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppThemePro.backgroundSecondary.withValues(alpha: 0.5),
-            AppThemePro.backgroundPrimary.withValues(alpha: 0.3),
+            AppTheme.backgroundSecondary.withOpacity( 0.5),
+            AppTheme.backgroundPrimary.withOpacity( 0.3),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: (value ? AppThemePro.accentGold : AppThemePro.borderSecondary)
-              .withValues(alpha: 0.3),
+          color: (value ? AppTheme.secondaryGold : AppTheme.borderPrimary)
+              .withOpacity( 0.3),
         ),
       ),
       child: Row(
@@ -2296,13 +2334,13 @@ Zespół Metropolitan Investment''';
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: value
-                  ? AppThemePro.accentGold.withValues(alpha: 0.1)
-                  : AppThemePro.borderSecondary.withValues(alpha: 0.1),
+                  ? AppTheme.secondaryGold.withOpacity( 0.1)
+                  : AppTheme.borderPrimary.withOpacity( 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
-              color: value ? AppThemePro.accentGold : AppThemePro.textSecondary,
+              color: value ? AppTheme.secondaryGold : AppTheme.textSecondary,
               size: 20,
             ),
           ),
@@ -2314,7 +2352,7 @@ Zespół Metropolitan Investment''';
                 Text(
                   title,
                   style: TextStyle(
-                    color: AppThemePro.textPrimary,
+                    color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                   ),
@@ -2323,7 +2361,7 @@ Zespół Metropolitan Investment''';
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: AppThemePro.textSecondary,
+                    color: AppTheme.textSecondary,
                     fontSize: 12,
                   ),
                 ),
@@ -2333,8 +2371,8 @@ Zespół Metropolitan Investment''';
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: AppThemePro.accentGold,
-            activeTrackColor: AppThemePro.accentGold.withValues(alpha: 0.3),
+            activeColor: AppTheme.secondaryGold,
+            activeTrackColor: AppTheme.secondaryGold.withOpacity( 0.3),
           ),
         ],
       ),
@@ -2353,13 +2391,13 @@ Zespół Metropolitan Investment''';
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppThemePro.statusError.withValues(alpha: 0.1),
-              AppThemePro.statusError.withValues(alpha: 0.05),
+              AppTheme.errorPrimary.withOpacity( 0.1),
+              AppTheme.errorPrimary.withOpacity( 0.05),
             ],
           ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppThemePro.statusError.withValues(alpha: 0.3),
+            color: AppTheme.errorPrimary.withOpacity( 0.3),
           ),
         ),
         child: Column(
@@ -2368,7 +2406,7 @@ Zespół Metropolitan Investment''';
               children: [
                 Icon(
                   Icons.warning_outlined,
-                  color: AppThemePro.statusError,
+                  color: AppTheme.errorPrimary,
                   size: 24,
                 ),
                 SizedBox(width: 12),
@@ -2376,7 +2414,7 @@ Zespół Metropolitan Investment''';
                   child: Text(
                     'Brak odbiorców email. Dodaj inwestorów lub dodatkowe adresy email.',
                     style: TextStyle(
-                      color: AppThemePro.textPrimary,
+                      color: AppTheme.textPrimary,
                       fontSize: 14,
                     ),
                   ),
@@ -2389,7 +2427,7 @@ Zespół Metropolitan Investment''';
               width: double.infinity,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppThemePro.accentGold, AppThemePro.bondsBlue],
+                  colors: [AppTheme.secondaryGold, AppTheme.primaryColor],
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -2405,12 +2443,12 @@ Zespół Metropolitan Investment''';
                 },
                 icon: Icon(
                   Icons.person_add_outlined,
-                  color: AppThemePro.primaryDark,
+                  color: AppTheme.primaryColor,
                 ),
                 label: Text(
                   'Dodaj odbiorców',
                   style: TextStyle(
-                    color: AppThemePro.primaryDark,
+                    color: AppTheme.primaryColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -2438,13 +2476,13 @@ Zespół Metropolitan Investment''';
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppThemePro.statusSuccess.withValues(alpha: 0.1),
-                AppThemePro.statusSuccess.withValues(alpha: 0.05),
+                AppTheme.successPrimary.withOpacity( 0.1),
+                AppTheme.successPrimary.withOpacity( 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: AppThemePro.statusSuccess.withValues(alpha: 0.3),
+              color: AppTheme.successPrimary.withOpacity( 0.3),
             ),
           ),
           child: Column(
@@ -2456,7 +2494,7 @@ Zespół Metropolitan Investment''';
                   children: [
                     Icon(
                       Icons.people_outlined,
-                      color: AppThemePro.statusSuccess,
+                      color: AppTheme.successPrimary,
                       size: 24,
                     ),
                     SizedBox(width: 12),
@@ -2464,7 +2502,7 @@ Zespół Metropolitan Investment''';
                       child: Text(
                         'Odbiorcy (${_getTotalRecipientsCount()})',
                         style: TextStyle(
-                          color: AppThemePro.textPrimary,
+                          color: AppTheme.textPrimary,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
@@ -2475,7 +2513,7 @@ Zespół Metropolitan Investment''';
                         _isRecipientsCollapsed
                             ? Icons.expand_more
                             : Icons.expand_less,
-                        color: AppThemePro.accentGold,
+                        color: AppTheme.secondaryGold,
                       ),
                       onPressed: _toggleRecipientsCollapse,
                       tooltip: _isRecipientsCollapsed
@@ -2506,14 +2544,14 @@ Zespół Metropolitan Investment''';
                               children: [
                                 Icon(
                                   Icons.person_add_outlined,
-                                  color: AppThemePro.accentGold,
+                                  color: AppTheme.secondaryGold,
                                   size: 20,
                                 ),
                                 SizedBox(width: 8),
                                 Text(
                                   'Dodatkowi odbiorcy',
                                   style: TextStyle(
-                                    color: AppThemePro.textPrimary,
+                                    color: AppTheme.textPrimary,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 16,
                                   ),
@@ -2524,7 +2562,7 @@ Zespół Metropolitan Investment''';
                                   icon: Icon(Icons.add, size: 16),
                                   label: Text('Dodaj'),
                                   style: TextButton.styleFrom(
-                                    foregroundColor: AppThemePro.accentGold,
+                                    foregroundColor: AppTheme.secondaryGold,
                                   ),
                                 ),
                               ],
@@ -2539,32 +2577,32 @@ Zespół Metropolitan Investment''';
                                     decoration: InputDecoration(
                                       hintText: 'Wpisz adres email...',
                                       filled: true,
-                                      fillColor: AppThemePro.backgroundSecondary
-                                          .withValues(alpha: 0.3),
+                                      fillColor: AppTheme.backgroundSecondary
+                                          .withOpacity( 0.3),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                         borderSide: BorderSide(
-                                          color: AppThemePro.borderSecondary
-                                              .withValues(alpha: 0.3),
+                                          color: AppTheme.borderPrimary
+                                              .withOpacity( 0.3),
                                         ),
                                       ),
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                         borderSide: BorderSide(
-                                          color: AppThemePro.borderSecondary
-                                              .withValues(alpha: 0.3),
+                                          color: AppTheme.borderPrimary
+                                              .withOpacity( 0.3),
                                         ),
                                       ),
                                       focusedBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                         borderSide: BorderSide(
-                                          color: AppThemePro.accentGold,
+                                          color: AppTheme.secondaryGold,
                                           width: 2,
                                         ),
                                       ),
                                     ),
                                     style: TextStyle(
-                                      color: AppThemePro.textPrimary,
+                                      color: AppTheme.textPrimary,
                                     ),
                                     onSubmitted: (_) => _addAdditionalEmail(),
                                   ),
@@ -2574,8 +2612,8 @@ Zespół Metropolitan Investment''';
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: [
-                                        AppThemePro.accentGold,
-                                        AppThemePro.bondsBlue,
+                                        AppTheme.secondaryGold,
+                                        AppTheme.primaryColor,
                                       ],
                                     ),
                                     borderRadius: BorderRadius.circular(12),
@@ -2584,7 +2622,7 @@ Zespół Metropolitan Investment''';
                                     onPressed: _addAdditionalEmail,
                                     icon: Icon(
                                       Icons.add,
-                                      color: AppThemePro.primaryDark,
+                                      color: AppTheme.primaryColor,
                                     ),
                                     tooltip: 'Dodaj email',
                                   ),
@@ -2601,17 +2639,17 @@ Zespół Metropolitan Investment''';
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                     colors: [
-                                      AppThemePro.backgroundSecondary
-                                          .withValues(alpha: 0.5),
-                                      AppThemePro.backgroundPrimary.withValues(
+                                      AppTheme.backgroundSecondary
+                                          .withOpacity( 0.5),
+                                      AppTheme.backgroundPrimary.withValues(
                                         alpha: 0.3,
                                       ),
                                     ],
                                   ),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: AppThemePro.borderSecondary
-                                        .withValues(alpha: 0.3),
+                                    color: AppTheme.borderPrimary
+                                        .withOpacity( 0.3),
                                   ),
                                 ),
                                 child: Column(
@@ -2620,7 +2658,7 @@ Zespół Metropolitan Investment''';
                                     Text(
                                       'Dodani odbiorcy:',
                                       style: TextStyle(
-                                        color: AppThemePro.textPrimary,
+                                        color: AppTheme.textPrimary,
                                         fontWeight: FontWeight.w600,
                                         fontSize: 14,
                                       ),
@@ -2634,17 +2672,17 @@ Zespół Metropolitan Investment''';
                                           label: Text(
                                             email,
                                             style: TextStyle(
-                                              color: AppThemePro.textPrimary,
+                                              color: AppTheme.textPrimary,
                                               fontSize: 12,
                                             ),
                                           ),
-                                          backgroundColor: AppThemePro
-                                              .accentGold
-                                              .withValues(alpha: 0.1),
+                                          backgroundColor: AppTheme
+                                              .secondaryGold
+                                              .withOpacity( 0.1),
                                           deleteIcon: Icon(
                                             Icons.close,
                                             size: 16,
-                                            color: AppThemePro.statusError,
+                                            color: AppTheme.errorPrimary,
                                           ),
                                           onDeleted: () =>
                                               _removeAdditionalEmail(email),
@@ -2653,8 +2691,8 @@ Zespół Metropolitan Investment''';
                                               16,
                                             ),
                                             side: BorderSide(
-                                              color: AppThemePro.accentGold
-                                                  .withValues(alpha: 0.3),
+                                              color: AppTheme.secondaryGold
+                                                  .withOpacity( 0.3),
                                             ),
                                           ),
                                         );
@@ -2671,7 +2709,7 @@ Zespół Metropolitan Investment''';
                               Text(
                                 'Inwestorzy:',
                                 style: TextStyle(
-                                  color: AppThemePro.textSecondary,
+                                  color: AppTheme.textSecondary,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14,
                                 ),
@@ -2695,19 +2733,19 @@ Zespół Metropolitan Investment''';
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                         colors: [
-                                          AppThemePro.backgroundSecondary
-                                              .withValues(alpha: 0.3),
-                                          AppThemePro.backgroundPrimary
-                                              .withValues(alpha: 0.2),
+                                          AppTheme.backgroundSecondary
+                                              .withOpacity( 0.3),
+                                          AppTheme.backgroundPrimary
+                                              .withOpacity( 0.2),
                                         ],
                                       ),
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
                                         color: isEnabled
-                                            ? AppThemePro.statusSuccess
-                                                  .withValues(alpha: 0.3)
-                                            : AppThemePro.statusError
-                                                  .withValues(alpha: 0.3),
+                                            ? AppTheme.successPrimary
+                                                  .withOpacity( 0.3)
+                                            : AppTheme.errorPrimary
+                                                  .withOpacity( 0.3),
                                       ),
                                     ),
                                     child: Row(
@@ -2717,8 +2755,8 @@ Zespół Metropolitan Investment''';
                                           height: 8,
                                           decoration: BoxDecoration(
                                             color: isEnabled
-                                                ? AppThemePro.statusSuccess
-                                                : AppThemePro.statusError,
+                                                ? AppTheme.successPrimary
+                                                : AppTheme.errorPrimary,
                                             borderRadius: BorderRadius.circular(
                                               4,
                                             ),
@@ -2734,12 +2772,10 @@ Zespół Metropolitan Investment''';
                                                 client.name,
                                                 style: TextStyle(
                                                   color: isEnabled
-                                                      ? AppThemePro.textPrimary
-                                                      : AppThemePro
+                                                      ? AppTheme.textPrimary
+                                                      : AppTheme
                                                             .textSecondary
-                                                            .withValues(
-                                                              alpha: 0.6,
-                                                            ),
+                                                            .withOpacity(0.6),
                                                   fontWeight: FontWeight.w600,
                                                   fontSize: 14,
                                                 ),
@@ -2749,13 +2785,11 @@ Zespół Metropolitan Investment''';
                                                 client.email,
                                                 style: TextStyle(
                                                   color: isEnabled
-                                                      ? AppThemePro
+                                                      ? AppTheme
                                                             .textSecondary
-                                                      : AppThemePro
+                                                      : AppTheme
                                                             .textSecondary
-                                                            .withValues(
-                                                              alpha: 0.5,
-                                                            ),
+                                                            .withOpacity(0.5),
                                                   fontSize: 12,
                                                 ),
                                               ),
@@ -2770,7 +2804,7 @@ Zespół Metropolitan Investment''';
                                                   value ?? true;
                                             });
                                           },
-                                          activeColor: AppThemePro.accentGold,
+                                          activeColor: AppTheme.secondaryGold,
                                         ),
                                       ],
                                     ),
@@ -2802,18 +2836,18 @@ Zespół Metropolitan Investment''';
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppThemePro.backgroundSecondary.withValues(alpha: 0.8),
-                  AppThemePro.backgroundPrimary.withValues(alpha: 0.6),
+                  AppTheme.backgroundSecondary.withOpacity( 0.8),
+                  AppTheme.backgroundPrimary.withOpacity( 0.6),
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppThemePro.accentGold.withValues(alpha: 0.5),
+                color: AppTheme.secondaryGold.withOpacity( 0.5),
                 width: 2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppThemePro.accentGold.withValues(alpha: 0.1),
+                  color: AppTheme.secondaryGold.withOpacity( 0.1),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),
@@ -2833,13 +2867,13 @@ Zespół Metropolitan Investment''';
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            AppThemePro.accentGold.withValues(alpha: 0.1),
-                            AppThemePro.bondsBlue.withValues(alpha: 0.1),
+                            AppTheme.secondaryGold.withOpacity( 0.1),
+                            AppTheme.primaryColor.withOpacity( 0.1),
                           ],
                         ),
                         border: Border(
                           bottom: BorderSide(
-                            color: AppThemePro.borderSecondary.withValues(
+                            color: AppTheme.borderPrimary.withValues(
                               alpha: 0.3,
                             ),
                             width: 1,
@@ -2850,7 +2884,7 @@ Zespół Metropolitan Investment''';
                         children: [
                           Icon(
                             Icons.edit_outlined,
-                            color: AppThemePro.accentGold,
+                            color: AppTheme.secondaryGold,
                             size: 24,
                           ),
                           SizedBox(width: 12),
@@ -2858,7 +2892,7 @@ Zespół Metropolitan Investment''';
                             child: Text(
                               'Edytor treści',
                               style: TextStyle(
-                                color: AppThemePro.textPrimary,
+                                color: AppTheme.textPrimary,
                                 fontSize: isMobile ? 16 : 18,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -2869,7 +2903,7 @@ Zespół Metropolitan Investment''';
                               _isEditorExpanded
                                   ? Icons.fullscreen_exit
                                   : Icons.fullscreen,
-                              color: AppThemePro.accentGold,
+                              color: AppTheme.secondaryGold,
                             ),
                             onPressed: _toggleEditorExpansion,
                             tooltip: _isEditorExpanded
@@ -2895,7 +2929,7 @@ Zespół Metropolitan Investment''';
                             paragraph: DefaultTextBlockStyle(
                               TextStyle(
                                 fontSize: 16,
-                                color: AppThemePro.textPrimary,
+                                color: AppTheme.textPrimary,
                                 fontFamily: FontFamilyConfig.defaultFont,
                               ),
                               HorizontalSpacing.zero,
@@ -2907,7 +2941,7 @@ Zespół Metropolitan Investment''';
                               TextStyle(
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
-                                color: AppThemePro.textPrimary,
+                                color: AppTheme.textPrimary,
                                 fontFamily: FontFamilyConfig.defaultFont,
                               ),
                               HorizontalSpacing.zero,
@@ -2919,7 +2953,7 @@ Zespół Metropolitan Investment''';
                               TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: AppThemePro.textPrimary,
+                                color: AppTheme.textPrimary,
                                 fontFamily: FontFamilyConfig.defaultFont,
                               ),
                               HorizontalSpacing.zero,
@@ -2931,7 +2965,43 @@ Zespół Metropolitan Investment''';
                               TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: AppThemePro.textPrimary,
+                                color: AppTheme.textPrimary,
+                                fontFamily: FontFamilyConfig.defaultFont,
+                              ),
+                              HorizontalSpacing.zero,
+                              VerticalSpacing.zero,
+                              VerticalSpacing.zero,
+                              null,
+                            ),
+                            h4: DefaultTextBlockStyle(
+                              TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                                fontFamily: FontFamilyConfig.defaultFont,
+                              ),
+                              HorizontalSpacing.zero,
+                              VerticalSpacing.zero,
+                              VerticalSpacing.zero,
+                              null,
+                            ),
+                            h5: DefaultTextBlockStyle(
+                              TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                                fontFamily: FontFamilyConfig.defaultFont,
+                              ),
+                              HorizontalSpacing.zero,
+                              VerticalSpacing.zero,
+                              VerticalSpacing.zero,
+                              null,
+                            ),
+                            h6: DefaultTextBlockStyle(
+                              TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
                                 fontFamily: FontFamilyConfig.defaultFont,
                               ),
                               HorizontalSpacing.zero,
@@ -2942,7 +3012,7 @@ Zespół Metropolitan Investment''';
                             placeHolder: DefaultTextBlockStyle(
                               TextStyle(
                                 fontSize: 16,
-                                color: AppThemePro.textSecondary,
+                                color: AppTheme.textSecondary,
                                 fontFamily: FontFamilyConfig.defaultFont,
                               ),
                               HorizontalSpacing.zero,
@@ -2963,17 +3033,17 @@ Zespół Metropolitan Investment''';
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            AppThemePro.backgroundSecondary.withValues(
+                            AppTheme.backgroundSecondary.withValues(
                               alpha: 0.9,
                             ),
-                            AppThemePro.backgroundPrimary.withValues(
+                            AppTheme.backgroundPrimary.withValues(
                               alpha: 0.7,
                             ),
                           ],
                         ),
                         border: Border(
                           top: BorderSide(
-                            color: AppThemePro.borderSecondary.withValues(
+                            color: AppTheme.borderPrimary.withValues(
                               alpha: 0.3,
                             ),
                             width: 1,
@@ -3093,18 +3163,18 @@ Zespół Metropolitan Investment''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppThemePro.backgroundSecondary.withValues(alpha: 0.9),
-            AppThemePro.backgroundPrimary.withValues(alpha: 0.7),
+            AppTheme.backgroundSecondary.withOpacity( 0.9),
+            AppTheme.backgroundPrimary.withOpacity( 0.7),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppThemePro.accentGold.withValues(alpha: 0.5),
+          color: AppTheme.secondaryGold.withOpacity( 0.5),
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppThemePro.accentGold.withValues(alpha: 0.1),
+            color: AppTheme.secondaryGold.withOpacity( 0.1),
             blurRadius: 20,
             spreadRadius: 2,
           ),
@@ -3124,13 +3194,13 @@ Zespół Metropolitan Investment''';
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      AppThemePro.accentGold.withValues(alpha: 0.1),
-                      AppThemePro.bondsBlue.withValues(alpha: 0.1),
+                      AppTheme.secondaryGold.withOpacity( 0.1),
+                      AppTheme.primaryColor.withOpacity( 0.1),
                     ],
                   ),
                   border: Border(
                     bottom: BorderSide(
-                      color: AppThemePro.borderSecondary.withValues(alpha: 0.3),
+                      color: AppTheme.borderPrimary.withOpacity( 0.3),
                       width: 1,
                     ),
                   ),
@@ -3139,7 +3209,7 @@ Zespół Metropolitan Investment''';
                   children: [
                     Icon(
                       Icons.visibility_outlined,
-                      color: AppThemePro.accentGold,
+                      color: AppTheme.secondaryGold,
                       size: 24,
                     ),
                     SizedBox(width: 12),
@@ -3150,7 +3220,7 @@ Zespół Metropolitan Investment''';
                           Text(
                             'Podgląd wiadomości',
                             style: TextStyle(
-                              color: AppThemePro.textPrimary,
+                              color: AppTheme.textPrimary,
                               fontSize: isMobile ? 16 : 18,
                               fontWeight: FontWeight.bold,
                             ),
@@ -3162,12 +3232,12 @@ Zespół Metropolitan Investment''';
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: AppThemePro.statusSuccess.withValues(
+                              color: AppTheme.successPrimary.withValues(
                                 alpha: 0.1,
                               ),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: AppThemePro.statusSuccess.withValues(
+                                color: AppTheme.successPrimary.withValues(
                                   alpha: 0.3,
                                 ),
                               ),
@@ -3178,7 +3248,7 @@ Zespół Metropolitan Investment''';
                                 Icon(
                                   Icons.font_download,
                                   size: 14,
-                                  color: AppThemePro.statusSuccess,
+                                  color: AppTheme.successPrimary,
                                 ),
                                 
                               ],
@@ -3194,7 +3264,7 @@ Zespół Metropolitan Investment''';
                           icon: Icon(Icons.zoom_out, size: 20),
                           onPressed: _zoomOutPreview,
                           tooltip: 'Pomniejsz',
-                          color: AppThemePro.textSecondary,
+                          color: AppTheme.textSecondary,
                         ),
                         Container(
                           padding: EdgeInsets.symmetric(
@@ -3202,7 +3272,7 @@ Zespół Metropolitan Investment''';
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppThemePro.backgroundSecondary.withValues(
+                            color: AppTheme.backgroundSecondary.withValues(
                               alpha: 0.5,
                             ),
                             borderRadius: BorderRadius.circular(8),
@@ -3210,7 +3280,7 @@ Zespół Metropolitan Investment''';
                           child: Text(
                             '${(_previewZoomLevel * 100).round()}%',
                             style: TextStyle(
-                              color: AppThemePro.textPrimary,
+                              color: AppTheme.textPrimary,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -3220,13 +3290,13 @@ Zespół Metropolitan Investment''';
                           icon: Icon(Icons.zoom_in, size: 20),
                           onPressed: _zoomInPreview,
                           tooltip: 'Powiększ',
-                          color: AppThemePro.textSecondary,
+                          color: AppTheme.textSecondary,
                         ),
                         IconButton(
                           icon: Icon(Icons.refresh, size: 20),
                           onPressed: _resetPreviewZoom,
                           tooltip: 'Resetuj zoom',
-                          color: AppThemePro.textSecondary,
+                          color: AppTheme.textSecondary,
                         ),
                       ],
                     ),
@@ -3256,7 +3326,23 @@ Zespół Metropolitan Investment''';
                         ),
                       ),
                       padding: EdgeInsets.all(16),
-                      child: html_package.Html(
+                      child: Builder(
+                        builder: (context) {
+                          debugPrint(
+                            '🖼️ Rendering preview HTML: "${_currentPreviewHtml.substring(0, _currentPreviewHtml.length > 100 ? 100 : _currentPreviewHtml.length)}..."',
+                          );
+
+                          if (_currentPreviewHtml.isEmpty) {
+                            return Text(
+                              'Brak treści do podglądu',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            );
+                          }
+
+                          return html_package.Html(
                         data: _currentPreviewHtml,
                         style: {
                           // 📝 BASIC ELEMENTS
@@ -3483,6 +3569,8 @@ Zespół Metropolitan Investment''';
                           debugPrint('🔗 Link tapped: $url');
                           // Handle link taps if needed
                         },
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -3504,13 +3592,13 @@ Zespół Metropolitan Investment''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppThemePro.backgroundSecondary.withValues(alpha: 0.8),
-            AppThemePro.backgroundPrimary.withValues(alpha: 0.6),
+            AppTheme.backgroundSecondary.withOpacity( 0.8),
+            AppTheme.backgroundPrimary.withOpacity( 0.6),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppThemePro.accentGold.withValues(alpha: 0.2),
+          color: AppTheme.secondaryGold.withOpacity( 0.2),
         ),
       ),
       child: Column(
@@ -3520,14 +3608,14 @@ Zespół Metropolitan Investment''';
             children: [
               Icon(
                 Icons.electric_bolt,
-                color: AppThemePro.accentGold,
+                color: AppTheme.secondaryGold,
                 size: 24,
               ),
               SizedBox(width: 12),
               Text(
                 'Szybkie akcje',
                 style: TextStyle(
-                  color: AppThemePro.textPrimary,
+                  color: AppTheme.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -3542,33 +3630,33 @@ Zespół Metropolitan Investment''';
               _buildWowActionButton(
                 icon: Icons.attach_money_outlined,
                 label: 'Wstaw szczegóły inwestycji',
-                color: AppThemePro.bondsBlue,
+                color: AppTheme.primaryColor,
                 onPressed: _insertInvestmentDetails,
               ),
               _buildWowActionButton(
                 icon: Icons.save_outlined,
                 label: 'Zapisz szkic',
                 color: _hasUnsavedChanges
-                    ? AppThemePro.statusWarning
-                    : AppThemePro.statusSuccess,
+                    ? AppTheme.secondaryAmber
+                    : AppTheme.successPrimary,
                 onPressed: _saveManually,
               ),
               _buildWowActionButton(
                 icon: Icons.visibility_outlined,
                 label: 'Podgląd',
-                color: AppThemePro.accentGold,
+                color: AppTheme.secondaryGold,
                 onPressed: _togglePreviewVisibility,
               ),
               _buildWowActionButton(
                 icon: Icons.science_outlined,
                 label: 'Przykładowa treść',
-                color: AppThemePro.statusSuccess,
+                color: AppTheme.successPrimary,
                 onPressed: _addSampleContent,
               ),
               _buildWowActionButton(
                 icon: Icons.clear,
                 label: 'Wyczyść edytor',
-                color: AppThemePro.statusError,
+                color: AppTheme.errorPrimary,
                 onPressed: _clearEditor,
               ),
             ],
@@ -3592,13 +3680,13 @@ Zespół Metropolitan Investment''';
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [color.withValues(alpha: 0.1), color.withValues(alpha: 0.05)],
+          colors: [color.withOpacity( 0.1), color.withOpacity( 0.05)],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withOpacity( 0.3)),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.1),
+            color: color.withOpacity( 0.1),
             blurRadius: 10,
             spreadRadius: 1,
           ),
@@ -3660,15 +3748,15 @@ Zespół Metropolitan Investment''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppThemePro.statusError.withValues(alpha: 0.1),
-            AppThemePro.statusError.withValues(alpha: 0.05),
+            AppTheme.errorPrimary.withOpacity( 0.1),
+            AppTheme.errorPrimary.withOpacity( 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppThemePro.statusError),
+        border: Border.all(color: AppTheme.errorPrimary),
         boxShadow: [
           BoxShadow(
-            color: AppThemePro.statusError.withValues(alpha: 0.1),
+            color: AppTheme.errorPrimary.withOpacity( 0.1),
             blurRadius: 15,
             spreadRadius: 1,
           ),
@@ -3676,18 +3764,18 @@ Zespół Metropolitan Investment''';
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: AppThemePro.statusError, size: 24),
+          Icon(Icons.error_outline, color: AppTheme.errorPrimary, size: 24),
           SizedBox(width: 12),
           Expanded(
             child: Text(
               _error!,
-              style: TextStyle(color: AppThemePro.textPrimary, fontSize: 14),
+              style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
             ),
           ),
           IconButton(
             icon: Icon(Icons.close, size: 20),
             onPressed: () => setState(() => _error = null),
-            color: AppThemePro.textSecondary,
+            color: AppTheme.textSecondary,
           ),
         ],
       ),
@@ -3704,15 +3792,15 @@ Zespół Metropolitan Investment''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppThemePro.statusSuccess.withValues(alpha: 0.1),
-            AppThemePro.statusSuccess.withValues(alpha: 0.05),
+            AppTheme.successPrimary.withOpacity( 0.1),
+            AppTheme.successPrimary.withOpacity( 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppThemePro.statusSuccess),
+        border: Border.all(color: AppTheme.successPrimary),
         boxShadow: [
           BoxShadow(
-            color: AppThemePro.statusSuccess.withValues(alpha: 0.1),
+            color: AppTheme.successPrimary.withOpacity( 0.1),
             blurRadius: 15,
             spreadRadius: 1,
           ),
@@ -3722,7 +3810,7 @@ Zespół Metropolitan Investment''';
         children: [
           Icon(
             Icons.check_circle_outline,
-            color: AppThemePro.statusSuccess,
+            color: AppTheme.successPrimary,
             size: 24,
           ),
           SizedBox(width: 12),
@@ -3733,7 +3821,7 @@ Zespół Metropolitan Investment''';
                 Text(
                   'Wiadomości wysłane pomyślnie!',
                   style: TextStyle(
-                    color: AppThemePro.textPrimary,
+                    color: AppTheme.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
@@ -3742,7 +3830,7 @@ Zespół Metropolitan Investment''';
                 Text(
                   'Liczba wysłanych wiadomości: ${_results!.length}',
                   style: TextStyle(
-                    color: AppThemePro.textSecondary,
+                    color: AppTheme.textSecondary,
                     fontSize: 14,
                   ),
                 ),
@@ -3764,15 +3852,15 @@ Zespół Metropolitan Investment''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppThemePro.statusInfo.withValues(alpha: 0.15),
-            AppThemePro.accentGold.withValues(alpha: 0.1),
+            AppTheme.secondaryGold.withOpacity( 0.15),
+            AppTheme.secondaryGold.withOpacity( 0.1),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppThemePro.statusInfo, width: 2),
+        border: Border.all(color: AppTheme.secondaryGold, width: 2),
         boxShadow: [
           BoxShadow(
-            color: AppThemePro.statusInfo.withValues(alpha: 0.2),
+            color: AppTheme.secondaryGold.withOpacity( 0.2),
             blurRadius: 20,
             spreadRadius: 2,
             offset: const Offset(0, 4),
@@ -3789,8 +3877,8 @@ Zespół Metropolitan Investment''';
                 height: 32,
                 child: CircularProgressIndicator(
                   value: _loadingProgress > 0 ? _loadingProgress : null,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppThemePro.accentGold),
-                  backgroundColor: AppThemePro.statusInfo.withValues(alpha: 0.2),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.secondaryGold),
+                  backgroundColor: AppTheme.secondaryGold.withOpacity( 0.2),
                   strokeWidth: 3,
                 ),
               ),
@@ -3802,7 +3890,7 @@ Zespół Metropolitan Investment''';
                     Text(
                       'Wysyłanie Wiadomości Email',
                       style: TextStyle(
-                        color: AppThemePro.textPrimary,
+                        color: AppTheme.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -3811,7 +3899,7 @@ Zespół Metropolitan Investment''';
                     Text(
                       _loadingMessage,
                       style: TextStyle(
-                        color: AppThemePro.textSecondary,
+                        color: AppTheme.textSecondary,
                         fontSize: 14,
                       ),
                     ),
@@ -3831,8 +3919,8 @@ Zespół Metropolitan Investment''';
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: _loadingProgress,
-                    backgroundColor: AppThemePro.backgroundSecondary,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppThemePro.accentGold),
+                    backgroundColor: AppTheme.backgroundSecondary,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.secondaryGold),
                     minHeight: 6,
                   ),
                 ),
@@ -3844,7 +3932,7 @@ Zespół Metropolitan Investment''';
                     Text(
                       '${(_loadingProgress * 100).toInt()}% ukończone',
                       style: TextStyle(
-                        color: AppThemePro.textSecondary,
+                        color: AppTheme.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -3853,7 +3941,7 @@ Zespół Metropolitan Investment''';
                       Text(
                         '$_emailsSent / $_totalEmailsToSend emaili',
                         style: TextStyle(
-                          color: AppThemePro.textSecondary,
+                          color: AppTheme.textSecondary,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -3877,17 +3965,17 @@ Zespół Metropolitan Investment''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppThemePro.backgroundSecondary.withValues(alpha: 0.9),
-            AppThemePro.backgroundPrimary.withValues(alpha: 0.7),
+            AppTheme.backgroundSecondary.withOpacity( 0.9),
+            AppTheme.backgroundPrimary.withOpacity( 0.7),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppThemePro.accentGold.withValues(alpha: 0.3),
+          color: AppTheme.secondaryGold.withOpacity( 0.3),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppThemePro.accentGold.withValues(alpha: 0.1),
+            color: AppTheme.secondaryGold.withOpacity( 0.1),
             blurRadius: 20,
             spreadRadius: 2,
           ),
@@ -3901,8 +3989,8 @@ Zespół Metropolitan Investment''';
               icon: Icon(Icons.close),
               label: Text('Anuluj'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppThemePro.textSecondary,
-                side: BorderSide(color: AppThemePro.borderSecondary),
+                foregroundColor: AppTheme.textSecondary,
+                side: BorderSide(color: AppTheme.borderPrimary),
                 padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -3919,8 +4007,8 @@ Zespół Metropolitan Investment''';
                 _isSchedulingEnabled ? 'Zaplanuj wysyłkę' : 'Wyślij wiadomości',
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppThemePro.accentGold,
-                foregroundColor: AppThemePro.primaryDark,
+                backgroundColor: AppTheme.secondaryGold,
+                foregroundColor: AppTheme.primaryColor,
                 padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

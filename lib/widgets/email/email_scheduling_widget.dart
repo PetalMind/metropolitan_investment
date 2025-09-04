@@ -261,7 +261,7 @@ class _EmailSchedulingWidgetState extends State<EmailSchedulingWidget>
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: _isSchedulingEnabled
-                        ? AppTheme.primaryColor
+                        ? AppTheme.infoPrimary
                         : theme.textTheme.titleMedium?.color,
                   ),
                 ),
@@ -280,7 +280,7 @@ class _EmailSchedulingWidgetState extends State<EmailSchedulingWidget>
           Switch.adaptive(
             value: _isSchedulingEnabled,
             onChanged: widget.isEnabled ? _toggleScheduling : null,
-            activeColor: AppTheme.primaryColor,
+            activeColor: AppTheme.infoPrimary,
           ),
         ],
       ),

@@ -185,23 +185,7 @@ class ApartmentProductsMigrator {
       (sum, p) => sum + (p['metadata']['totalAmount'] as double),
     );
 
-    print('  🏠 Unikalne produkty: ${products.length}');
-    print('  💼 Łączne inwestycje: $totalInvestments');
-    print('  💰 Łączna wartość: ${totalAmount.toStringAsFixed(2)} PLN');
-    print(
-      '  📊 Średnia na produkt: ${(totalAmount / products.length).toStringAsFixed(2)} PLN',
-    );
-
-    // Pokaż przykłady
-    print('\n📋 PRZYKŁADY PRODUKTÓW:');
-    for (int i = 0; i < 5 && i < products.length; i++) {
-      final p = products[i];
-      final meta = p['metadata'] as Map<String, dynamic>;
-      print('  ${i + 1}. ${p['name']} (${p['companyName']})');
-      print(
-        '     💰 ${meta['totalAmount']} PLN (${meta['totalInvestments']} inwestycji)',
-      );
-    }
+   
 
     return products;
   }

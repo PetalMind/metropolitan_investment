@@ -186,7 +186,6 @@ class FinalFirebaseUploader {
       print('✅ Top inwestycje: ${topInvestments.docs.length}');
       for (var doc in topInvestments.docs) {
         final data = doc.data();
-        print('   💰 ${data['klient']}: ${data['kwota_inwestycji']} PLN');
       }
 
       // Test 3: Obligacje

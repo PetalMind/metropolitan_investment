@@ -13,231 +13,91 @@ class IntegratedClientService extends BaseService {
   );
   static final ClientService _fallbackService = ClientService();
 
-  /// Pobiera wszystkich klientów - próbuje Firebase Functions, fallback to ClientService
+  /// Pobiera wszystkich klientów - używa bezpośrednio ClientService (Firebase Functions wyłączone ze względu na błędy)
   Future<List<Client>> getAllClients({
     int page = 1,
-    int pageSize = 10000, // Zwiększony domyślny limit
+    int pageSize = 10000,
     String? searchQuery,
     String sortBy = 'fullName',
     bool forceRefresh = false,
     Function(double progress, String stage)? onProgress,
   }) async {
-    print('🚀 [getAllClients] START - pageSize: $pageSize');
+    print('🚀 [getAllClients] START - używam bezpośrednio ClientService (Firebase Functions wyłączone)');
+    
     try {
-      onProgress?.call(0.1, 'Próba połączenia z Firebase Functions...');
+      onProgress?.call(0.1, 'Pobieranie klientów z Firestore...');
 
-      // 🔍 ENHANCED DEBUGGING
-      print('   - Region: europe-west1');
-      print('   - Funkcja: getAllClients');
-      print(
-        '   - Parametry: page=$page, pageSize=$pageSize, search="$searchQuery"',
+      // Używaj bezpośrednio ClientService zamiast problematycznych Firebase Functions
+      final clients = await _fallbackService.loadAllClientsWithProgress(
+        onProgress: (progress, stage) {
+          onProgress?.call(0.1 + (progress * 0.7), stage);
+        },
       );
 
-      // Najpierw spróbuj Firebase Functions z zwiększonym timeout
-      final result = await _functions
-          .httpsCallable('getAllClients')
-          .call({
-            'page': page,
-            'pageSize': pageSize,
-            'searchQuery': searchQuery?.trim().isEmpty == true
-                ? null
-                : searchQuery?.trim(),
-            'sortBy': sortBy,
-            'forceRefresh': forceRefresh,
-          })
-          .timeout(
-            const Duration(seconds: 15), // Zwiększony timeout z 10s do 15s
-            onTimeout: () =>
-                throw Exception('Firebase Functions timeout po 15s'),
-          );
+      print('🔍 [getAllClients] Pobrał ${clients.length} klientów z bazy');
 
-      print('   - Otrzymano odpowiedź z Firebase Functions');
-      final data = result.data;
-      print('   - Data type: ${data?.runtimeType}');
-
-      if (data == null || data['clients'] == null) {
-        final dataStr = data?.toString() ?? 'null';
-        final preview = dataStr.length > 100
-            ? dataStr.substring(0, 100)
-            : dataStr;
-        throw Exception('Brak danych z Firebase Functions - data=$preview...');
+      // Zastosuj filtrację jeśli jest searchQuery
+      List<Client> filteredClients = clients;
+      if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+        onProgress?.call(0.8, 'Filtrowanie wyników...');
+        final query = searchQuery.toLowerCase();
+        filteredClients = clients.where((client) {
+          return client.name.toLowerCase().contains(query) ||
+              client.email.toLowerCase().contains(query) ||
+              client.phone.toLowerCase().contains(query) ||
+              (client.pesel?.toLowerCase().contains(query) ?? false);
+        }).toList();
+        print('🔍 [getAllClients] Po filtrowaniu: ${filteredClients.length} klientów');
       }
 
-      onProgress?.call(0.7, 'Przetwarzanie danych z Firebase Functions...');
+      // Zastosuj sortowanie
+      if (sortBy == 'fullName' || sortBy == 'name') {
+        filteredClients.sort((a, b) => a.name.compareTo(b.name));
+      }
 
-      final clients = (data['clients'] as List)
-          .map((clientData) => _convertFirebaseFunctionToClient(clientData))
-          .toList();
+      // Zastosuj paginację jeśli pageSize < 1000
+      List<Client> finalClients;
+      if (pageSize >= 1000) {
+        print('🔍 [getAllClients] Zwracam wszystkich ${filteredClients.length} klientów (pageSize=$pageSize)');
+        finalClients = filteredClients;
+      } else {
+        final startIndex = (page - 1) * pageSize;
+        final endIndex = (startIndex + pageSize).clamp(0, filteredClients.length);
+        finalClients = filteredClients.sublist(
+          startIndex.clamp(0, filteredClients.length),
+          endIndex,
+        );
+        print('🔍 [getAllClients] Paginacja: ${finalClients.length} z ${filteredClients.length} (strona $page, rozmiar $pageSize)');
+      }
 
-      print(
-        '🎉 [getAllClients] Firebase Functions SUCCESS - pobranych ${clients.length} klientów',
-      );
-      logError(
-        'getAllClients',
-        'SUCCESS: Pobrano ${clients.length} klientów z Firebase Functions',
-      );
-      onProgress?.call(1.0, 'Zakończono (Firebase Functions)');
-
-      return clients;
+      onProgress?.call(1.0, 'Zakończono');
+      logError('getAllClients', 'SUCCESS: Zwrócono ${finalClients.length} klientów z ${filteredClients.length} dostępnych');
+      
+      return finalClients;
     } catch (e) {
-      // 🚨 ENHANCED ERROR LOGGING
-      print('❌ [getAllClients] Firebase Functions ERROR:');
-      print('   - Error type: ${e.runtimeType}');
-      print('   - Error message: $e');
-      print('   - Stack trace: ${StackTrace.current}');
-
-      logError(
-        'getAllClients',
-        'Firebase Functions FAILED: $e, przechodzę na fallback',
-      );
-
-      // Fallback do standardowego ClientService
-      onProgress?.call(0.3, 'Przełączanie na standardowy serwis...');
-
-      try {
-        final clients = await _fallbackService.loadAllClientsWithProgress(
-          onProgress: (progress, stage) {
-            onProgress?.call(0.3 + (progress * 0.7), 'Fallback: $stage');
-          },
-        );
-
-        print(
-          '🔍 [getAllClients] Fallback pobrał ${clients.length} klientów z bazy',
-        );
-
-        // Zastosuj filtrację jeśli jest searchQuery
-        List<Client> filteredClients = clients;
-        if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-          onProgress?.call(0.9, 'Filtrowanie wyników...');
-          final query = searchQuery.toLowerCase();
-          filteredClients = clients.where((client) {
-            return client.name.toLowerCase().contains(query) ||
-                client.email.toLowerCase().contains(query) ||
-                client.phone.toLowerCase().contains(query) ||
-                (client.pesel?.toLowerCase().contains(query) ?? false);
-          }).toList();
-          print(
-            '🔍 [getAllClients] Po filtrowaniu: ${filteredClients.length} klientów',
-          );
-        }
-
-        // Zastosuj sortowanie
-        if (sortBy == 'fullName' || sortBy == 'name') {
-          filteredClients.sort((a, b) => a.name.compareTo(b.name));
-        }
-
-        // USUNIĘTE OGRANICZENIE PAGINACJI - zwracamy wszystkich gdy pageSize >= 1000
-        List<Client> finalClients;
-        if (pageSize >= 1000) {
-          print(
-            '🔍 [getAllClients] Zwracam wszystkich ${filteredClients.length} klientów (pageSize=$pageSize)',
-          );
-          finalClients = filteredClients;
-        } else {
-          // Zastosuj paginację tylko dla małych pageSize
-          final startIndex = (page - 1) * pageSize;
-          final endIndex = (startIndex + pageSize).clamp(
-            0,
-            filteredClients.length,
-          );
-          finalClients = filteredClients.sublist(
-            startIndex.clamp(0, filteredClients.length),
-            endIndex,
-          );
-          print(
-            '🔍 [getAllClients] Paginacja: ${finalClients.length} z ${filteredClients.length} (strona $page, rozmiar $pageSize)',
-          );
-        }
-
-        logError(
-          'getAllClients',
-          'Fallback: Zwracam ${finalClients.length} klientów z ${filteredClients.length} dostępnych',
-        );
-        onProgress?.call(1.0, 'Zakończono (Fallback)');
-
-        return finalClients;
-      } catch (fallbackError) {
-        logError('getAllClients', 'Fallback też nie działa: $fallbackError');
-        onProgress?.call(1.0, 'Błąd');
-        throw Exception(
-          'Nie można pobrać klientów: Firebase Functions ($e), Fallback ($fallbackError)',
-        );
-      }
+      print('❌ [getAllClients] Błąd: $e');
+      logError('getAllClients', 'Błąd pobierania klientów: $e');
+      onProgress?.call(1.0, 'Błąd');
+      throw Exception('Nie można pobrać klientów: $e');
     }
   }
 
-  /// Pobiera aktywnych klientów - próbuje Firebase Functions, fallback to ClientService
+  /// Pobiera aktywnych klientów - używa bezpośrednio ClientService (Firebase Functions wyłączone)
   Future<List<Client>> getActiveClients({bool forceRefresh = false}) async {
-    print('🚀 [getActiveClients] Rozpoczynam pobieranie aktywnych klientów...');
+    print('🚀 [getActiveClients] START - używam bezpośrednio ClientService (Firebase Functions wyłączone)');
     try {
-      // Najpierw spróbuj Firebase Functions
-      print('   - Próbuję Firebase Functions...');
-      print('   - Region: europe-west1');
-      print('   - Funkcja: getActiveClients');
+      // Używaj bezpośrednio ClientService zamiast problematycznych Firebase Functions
+      final stream = _fallbackService.getActiveClients(limit: 10000);
+      final activeClients = await stream.first;
 
-      final result = await _functions
-          .httpsCallable('getActiveClients')
-          .call({'forceRefresh': forceRefresh})
-          .timeout(
-            const Duration(seconds: 10),
-            onTimeout: () =>
-                throw Exception('Firebase Functions timeout po 10s'),
-          );
-
-      print('   - Otrzymano odpowiedź z Firebase Functions');
-      final data = result.data;
-      print('   - Raw data type: ${data?.runtimeType}');
-      print(
-        '   - Raw data keys: ${data is Map ? data.keys.toList() : 'nie jest mapą'}',
-      );
-
-      if (data == null || data['clients'] == null) {
-        throw Exception('Brak danych z Firebase Functions - data=$data');
-      }
-
-      final activeClients = (data['clients'] as List)
-          .map((clientData) => _convertFirebaseFunctionToClient(clientData))
-          .toList();
-
-      print(
-        '🎉 [getActiveClients] Firebase Functions - pobrano ${activeClients.length} aktywnych klientów',
-      );
-      logError(
-        'getActiveClients',
-        'Pobrano ${activeClients.length} aktywnych klientów z Firebase Functions',
-      );
+      print('🔍 [getActiveClients] Pobrał ${activeClients.length} aktywnych klientów z bazy');
+      logError('getActiveClients', 'SUCCESS: Pobrano ${activeClients.length} aktywnych klientów');
+      
       return activeClients;
     } catch (e) {
-      print('⚠️ [getActiveClients] Firebase Functions błąd: $e');
-      logError(
-        'getActiveClients',
-        'Firebase Functions nie działają: $e, przechodzę na fallback',
-      );
-
-      // Fallback do standardowego ClientService
-      try {
-        print('   - Próbuję fallback ClientService z limitem 10000...');
-        final stream = _fallbackService.getActiveClients(
-          limit: 10000,
-        ); // Zwiększony limit
-        final activeClients = await stream.first;
-
-        print(
-          '� [getActiveClients] Fallback pobrał ${activeClients.length} aktywnych klientów',
-        );
-
-        logError(
-          'getActiveClients',
-          'Fallback: Pobrano ${activeClients.length} aktywnych klientów',
-        );
-        return activeClients;
-      } catch (fallbackError) {
-        print('❌ [getActiveClients] Fallback też nie działa: $fallbackError');
-        logError('getActiveClients', 'Fallback też nie działa: $fallbackError');
-        throw Exception(
-          'Nie można pobrać aktywnych klientów: Firebase Functions ($e), Fallback ($fallbackError)',
-        );
-      }
+      print('❌ [getActiveClients] Błąd: $e');
+      logError('getActiveClients', 'Błąd pobierania aktywnych klientów: $e');
+      throw Exception('Nie można pobrać aktywnych klientów: $e');
     }
   }
 
@@ -480,19 +340,16 @@ class IntegratedClientService extends BaseService {
   Stream<List<Client>> searchClients(String query, {int limit = 30}) =>
       _fallbackService.searchClients(query, limit: limit);
 
-  /// Testowa funkcja do diagnozowania problemów z Firebase Functions
+  /// Testowa funkcja do diagnozowania problemów z Firebase Functions (wyłączona ze względu na błędy)
   Future<Map<String, dynamic>> debugTest() async {
-    try {
-      final result = await _functions.httpsCallable('debugClientsTest').call();
-
-      logError('debugTest', 'Test Firebase Functions zakończony pomyślnie');
-      logError('debugTest', 'Wynik: ${result.data}');
-
-      return Map<String, dynamic>.from(result.data ?? {});
-    } catch (e) {
-      logError('debugTest', e);
-      throw Exception('Błąd podczas testu Firebase Functions: $e');
-    }
+    logError('debugTest', 'Firebase Functions są wyłączone - zwracam mock response');
+    
+    return {
+      'status': 'disabled',
+      'message': 'Firebase Functions zostały wyłączone w IntegratedClientService ze względu na błędy',
+      'fallback': 'Używamy bezpośrednio ClientService',
+      'timestamp': DateTime.now().toIso8601String(),
+    };
   }
 
   /// Konwertuje dane z Firebase Functions do obiektu Client

@@ -41,6 +41,17 @@ abstract class BaseService {
     _cacheTimestamps.remove(key);
   }
 
+  /// Ustawia dane w cache
+  void setCachedData<T>(String key, T data) {
+    _cache[key] = data;
+    _cacheTimestamps[key] = DateTime.now();
+  }
+
+  /// Usuwa dane z cache (alias dla clearCache)
+  void clearCachedData(String key) {
+    clearCache(key);
+  }
+
   /// Czyści cały cache
   void clearAllCache() {
     _cache.clear();

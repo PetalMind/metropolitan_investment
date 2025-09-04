@@ -28,6 +28,7 @@ const premiumAnalyticsService = require("./services/premium-analytics-service");
 const customEmailService = require("./services/custom-email-service"); // 🚀 DODANE: Niestandardowe maile HTML
 const smtpTestService = require("./services/smtp-test-service"); // 🚀 DODANE: Testowanie SMTP
 const enhancedClientsService = require("./services/enhanced-clients-service"); // 🚀 DODANE: Enhanced Clients Service
+const scheduledEmailService = require("./services/scheduled-email-service"); // 🚀 DODANE: Zaplanowane emaile przez Cloud Functions
 const analyticsScreenService = require("./analytics-screen-service"); // 🚀 DODANE: Analytics Screen Service
 const testAnalytics = require("./test-analytics"); // 🚀 TEMPORARY: Test Analytics
 
@@ -198,6 +199,9 @@ module.exports = {
 
   // Funkcje Enhanced Clients - 🚀 NOWE
   ...enhancedClientsService,
+
+  // Funkcje zaplanowanych emaili - 🚀 NOWE CLOUD FUNCTIONS
+  ...scheduledEmailService,
 
   // Funkcje batch produktów - 🚀 NOWE OPTYMALIZACJA
   ...require("./services/product-batch-service"),

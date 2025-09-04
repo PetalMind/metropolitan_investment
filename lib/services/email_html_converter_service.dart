@@ -5,26 +5,14 @@ import '../models_and_services.dart';
 
 /// 🎨 Service responsible for converting Quill content to HTML
 /// Extracted from WowEmailEditorScreen for better separation of concerns
+/// Now uses FontFamilyService for better font management
 class EmailHtmlConverterService {
   /// Font family configuration with fallbacks
-  static const Map<String, String> availableFonts = {
-    'Arial': 'Arial',
-    'Helvetica': 'Helvetica',
-    'Times New Roman': 'Times New Roman',
-    'Courier New': 'Courier New',
-    'Verdana': 'Verdana',
-    'Georgia': 'Georgia',
-    'Trebuchet MS': 'Trebuchet MS',
-    'Tahoma': 'Tahoma',
-    'Calibri': 'Calibri',
-    'Segoe UI': 'Segoe UI',
-    'Open Sans': 'Open Sans',
-    'Roboto': 'Roboto',
-    'Lato': 'Lato',
-    'Montserrat': 'Montserrat',
+  static Map<String, String> get availableFonts => {
+    for (String font in FontFamilyService.allFonts) font: font
   };
 
-  static const String defaultFont = 'Arial';
+  static String get defaultFont => 'Arial';
 
   /// Enhanced font sizes with complete range
   static const Map<String, String> fontSizes = {
@@ -43,39 +31,31 @@ class EmailHtmlConverterService {
 
   /// Get CSS font family with fallbacks
   static String getCssFontFamily(String fontName) {
-    const fontFallbacks = {
-      'Arial': 'Arial, "Helvetica Neue", Helvetica, sans-serif',
-      'Helvetica': 'Helvetica, "Helvetica Neue", Arial, sans-serif',
-      'Times New Roman': '"Times New Roman", Times, serif',
-      'Courier New': '"Courier New", Courier, monospace',
-      'Verdana': 'Verdana, Geneva, sans-serif',
-      'Georgia': 'Georgia, "Times New Roman", Times, serif',
-      'Trebuchet MS':
-          '"Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Tahoma, sans-serif',
-      'Tahoma': 'Tahoma, Geneva, sans-serif',
-      'Calibri': 'Calibri, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-      'Segoe UI': '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
-      'Open Sans':
-          '"Open Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-      'Roboto': 'Roboto, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-      'Lato': 'Lato, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-      'Montserrat':
-          'Montserrat, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-    };
-
-    return fontFallbacks[fontName] ?? '$fontName, Arial, sans-serif';
+    return FontFamilyService.getCSSFontFamily(fontName);
   }
 
-  /// Convert Quill controller content to HTML with enhanced formatting support
-  static String convertQuillToHtml(QuillController controller) {
+  /// Convert Quill controller content to HTML for preview (without full document structure)
+  static String convertQuillToHtmlForPreview(QuillController controller) {
     try {
-      if (controller.document.length <= 1) return '<p></p>';
+      debugPrint('🔄 Starting HTML conversion for preview...');
+      debugPrint('📊 Document length: ${controller.document.length}');
 
       final plainText = controller.document.toPlainText();
-      if (plainText.trim().isEmpty) return '<p></p>';
+      debugPrint('📄 Plain text: "$plainText"');
+      debugPrint('📄 Plain text length: ${plainText.length}');
+
+      // If document is essentially empty, return formatted empty content
+      if (controller.document.length <= 1 || plainText.trim().isEmpty) {
+        debugPrint('📭 Document is empty, returning placeholder');
+        return '<div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #666; font-style: italic;"><p>Wpisz treść wiadomości...</p></div>';
+      }
+
+      debugPrint('🔄 Converting delta to HTML for preview...');
+      final deltaJson = controller.document.toDelta().toJson();
+      debugPrint('📋 Delta JSON: $deltaJson');
 
       final converter = QuillDeltaToHtmlConverter(
-        controller.document.toDelta().toJson(),
+        deltaJson,
         ConverterOptions(
           converterOptions: OpConverterOptions(
             inlineStylesFlag: true,
@@ -87,12 +67,78 @@ class EmailHtmlConverterService {
       );
 
       final htmlOutput = converter.convert();
-      return _enhanceHtmlWithEmailCompatibility(htmlOutput);
+      debugPrint(
+        '✅ HTML conversion for preview successful: ${htmlOutput.length} characters',
+      );
+      debugPrint(
+        '🎨 Preview HTML: ${htmlOutput.substring(0, htmlOutput.length > 200 ? 200 : htmlOutput.length)}...',
+      );
+
+      // For preview, return just the content without full document structure
+      return htmlOutput;
+    } catch (e) {
+      debugPrint('⚠️ HTML conversion for preview error: $e');
+      final plainText = controller.document.toPlainText();
+      const defaultFontFamily = 'Arial, sans-serif';
+      final fallbackHtml =
+          '<div style="font-family: $defaultFontFamily !important; font-size: 16px; line-height: 1.6;"><p>${plainText.isNotEmpty ? plainText.replaceAll('\n', '<br>') : 'Błąd konwersji HTML'}</p></div>';
+      debugPrint('🔄 Returning fallback HTML for preview: $fallbackHtml');
+      return fallbackHtml;
+    }
+  }
+
+  /// Convert Quill controller content to HTML with enhanced formatting support
+  static String convertQuillToHtml(QuillController controller) {
+    try {
+      debugPrint('🔄 Starting HTML conversion...');
+      debugPrint('📊 Document length: ${controller.document.length}');
+      
+      final plainText = controller.document.toPlainText();
+      debugPrint('📄 Plain text: "$plainText"');
+      debugPrint('📄 Plain text length: ${plainText.length}');
+
+      // If document is essentially empty, return formatted empty content
+      if (controller.document.length <= 1 || plainText.trim().isEmpty) {
+        debugPrint('📭 Document is empty, returning placeholder');
+        return '<div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #666; font-style: italic;"><p>Wpisz treść wiadomości...</p></div>';
+      }
+
+      debugPrint('🔄 Converting delta to HTML...');
+      final deltaJson = controller.document.toDelta().toJson();
+      debugPrint('📋 Delta JSON: $deltaJson');
+      
+      final converter = QuillDeltaToHtmlConverter(
+        deltaJson,
+        ConverterOptions(
+          converterOptions: OpConverterOptions(
+            inlineStylesFlag: true,
+            allowBackgroundClasses: false,
+            paragraphTag: 'p',
+            inlineStyles: _buildInlineStyles(),
+          ),
+        ),
+      );
+
+      final htmlOutput = converter.convert();
+      debugPrint(
+        '✅ HTML conversion successful: ${htmlOutput.length} characters',
+      );
+      debugPrint(
+        '🎨 Raw HTML: ${htmlOutput.substring(0, htmlOutput.length > 200 ? 200 : htmlOutput.length)}...',
+      );
+
+      final finalHtml = _enhanceHtmlWithEmailCompatibility(htmlOutput);
+      debugPrint('🚀 Final HTML: ${finalHtml.length} characters');
+
+      return finalHtml;
     } catch (e) {
       debugPrint('⚠️ HTML conversion error: $e');
       final plainText = controller.document.toPlainText();
       const defaultFontFamily = 'Arial, sans-serif';
-      return '<div style="font-family: $defaultFontFamily !important; font-size: 16px; line-height: 1.6;"><p>$plainText</p></div>';
+      final fallbackHtml =
+          '<div style="font-family: $defaultFontFamily !important; font-size: 16px; line-height: 1.6;"><p>${plainText.isNotEmpty ? plainText.replaceAll('\n', '<br>') : 'Błąd konwersji HTML'}</p></div>';
+      debugPrint('🔄 Returning fallback HTML: $fallbackHtml');
+      return fallbackHtml;
     }
   }
 
@@ -183,12 +229,17 @@ class EmailHtmlConverterService {
   static String? _convertFontAttribute(dynamic value) {
     if (value.toString().isEmpty) return null;
     
-    final cssFontFamily = getCssFontFamily(value.toString());
-    final knownFonts = availableFonts.keys;
-    if (!knownFonts.contains(value.toString())) {
-      debugPrint('⚠️ Warning: font "${value.toString()}" may not be supported by email clients.');
+    final fontName = value.toString();
+    final cssFontFamily = getCssFontFamily(fontName);
+    
+    // Check if font requires Google Fonts
+    if (FontFamilyService.isGoogleFont(fontName)) {
+      debugPrint('📤 Font "$fontName" requires Google Fonts. Email may need additional setup.');
+    } else if (!FontFamilyService.isWebSafeFont(fontName)) {
+      debugPrint('⚠️ Warning: font "$fontName" may not be supported by email clients.');
     }
-    debugPrint('🎨 Converting font to HTML: $value → $cssFontFamily');
+    
+    debugPrint('🎨 Converting font to HTML: $fontName → $cssFontFamily');
     return 'font-family: $cssFontFamily !important';
   }
 
@@ -256,6 +307,10 @@ class EmailHtmlConverterService {
   static String _enhanceHtmlWithEmailCompatibility(String htmlOutput) {
     String finalHtml = htmlOutput;
 
+    // Detect Google Fonts usage
+    final requiredGoogleFonts = FontFamilyService.extractFontsFromHtml(htmlOutput);
+    final googleFontsLinks = FontFamilyService.generateGoogleFontsHtml(requiredGoogleFonts);
+
     // Add email-compatible structure if not present
     if (!finalHtml.contains('<html>') && !finalHtml.contains('<body>')) {
       finalHtml = '''
@@ -265,6 +320,7 @@ class EmailHtmlConverterService {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Email Content</title>
+  ${googleFontsLinks.isNotEmpty ? '  $googleFontsLinks' : ''}
   ${_getEmailCompatibleStyles()}
 </head>
 <body>
@@ -277,8 +333,17 @@ class EmailHtmlConverterService {
   </table>
 </body>
 </html>''';
+    } else if (googleFontsLinks.isNotEmpty && finalHtml.contains('<head>')) {
+      // Inject Google Fonts into existing head
+      finalHtml = finalHtml.replaceFirst(
+        '<head>',
+        '<head>\n  $googleFontsLinks',
+      );
     }
 
+    if (requiredGoogleFonts.isNotEmpty) {
+      debugPrint('📤 HTML enhanced with Google Fonts: ${requiredGoogleFonts.join(', ')}');
+    }
     debugPrint('🎨 HTML conversion completed with enhanced structure');
     return finalHtml;
   }

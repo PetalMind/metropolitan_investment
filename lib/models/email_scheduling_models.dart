@@ -55,6 +55,21 @@ class ScheduledEmail {
     return {
       'recipientsCount': recipients.length,
       'recipientsEmails': recipients.map((r) => r.client.email).toList(),
+      'recipientsData': recipients
+          .map(
+            (r) => {
+              'clientId': r.client.id,
+              'clientName': r.client.name,
+              'clientEmail': r.client.email,
+              'clientPhone': r.client.phone,
+              'totalInvestmentAmount': r.totalInvestmentAmount,
+              'totalRemainingCapital': r.totalRemainingCapital,
+              'totalSharesValue': r.totalSharesValue,
+              'investmentCount': r.investmentCount,
+              'capitalSecuredByRealEstate': r.capitalSecuredByRealEstate,
+            },
+          )
+          .toList(),
       'subject': subject,
       'htmlContent': htmlContent,
       'scheduledDateTime': Timestamp.fromDate(scheduledDateTime),
@@ -80,9 +95,62 @@ class ScheduledEmail {
 
   /// Utwórz z Map z Firestore
   factory ScheduledEmail.fromMap(Map<String, dynamic> map, String id) {
+    // Reconstruct recipients from stored data
+    final List<InvestorSummary> reconstructedRecipients = [];
+    final recipientsData = map['recipientsData'] as List<dynamic>? ?? [];
+
+    for (final recipientMap in recipientsData) {
+      if (recipientMap is Map<String, dynamic>) {
+        try {
+          final client = Client(
+            id: recipientMap['clientId'] as String? ?? '',
+            name: recipientMap['clientName'] as String? ?? '',
+            email: recipientMap['clientEmail'] as String? ?? '',
+            phone: recipientMap['clientPhone'] as String? ?? '',
+            address: '', // Not stored in scheduled email
+            pesel: '', // Not stored in scheduled email
+            notes: '', // Not stored in scheduled email
+            createdAt: DateTime.now(), // Placeholder
+            updatedAt: DateTime.now(), // Placeholder
+          );
+
+          final totalRemainingCapital =
+              (recipientMap['totalRemainingCapital'] as num?)?.toDouble() ??
+              0.0;
+          final totalSharesValue =
+              (recipientMap['totalSharesValue'] as num?)?.toDouble() ?? 0.0;
+          final totalInvestmentAmount =
+              (recipientMap['totalInvestmentAmount'] as num?)?.toDouble() ??
+              0.0;
+          final capitalSecuredByRealEstate =
+              (recipientMap['capitalSecuredByRealEstate'] as num?)
+                  ?.toDouble() ??
+              0.0;
+
+          final investorSummary = InvestorSummary(
+            client: client,
+            investments: [], // Not needed for email sending
+            totalRemainingCapital: totalRemainingCapital,
+            totalSharesValue: totalSharesValue,
+            totalValue: totalRemainingCapital + totalSharesValue,
+            totalInvestmentAmount: totalInvestmentAmount,
+            totalRealizedCapital: 0.0, // Not stored, use default
+            capitalSecuredByRealEstate: capitalSecuredByRealEstate,
+            capitalForRestructuring: 0.0, // Not stored, use default
+            investmentCount: recipientMap['investmentCount'] as int? ?? 0,
+          );
+
+          reconstructedRecipients.add(investorSummary);
+        } catch (e) {
+          // Skip invalid recipient data
+          print('❌ Error reconstructing recipient: $e');
+        }
+      }
+    }
+
     return ScheduledEmail(
       id: id,
-      recipients: [], // Will be loaded separately if needed
+      recipients: reconstructedRecipients,
       subject: map['subject'] as String? ?? '',
       htmlContent: map['htmlContent'] as String? ?? '',
       scheduledDateTime:

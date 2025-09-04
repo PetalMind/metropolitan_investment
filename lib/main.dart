@@ -12,6 +12,7 @@ import 'theme/app_theme_professional.dart';
 import 'providers/auth_provider.dart';
 import 'config/app_routes.dart';
 import 'services/calendar_notification_service.dart'; // 🚀 NOWE
+import 'services/email_scheduling_service.dart'; // 🚀 NOWE
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,10 @@ Future<void> main() async {
 
     // 🚀 NOWE: Inicjalizuj system powiadomień kalendarza
     await CalendarNotificationService().initialize();
+    
+    // 🚀 NOWE: Inicjalizuj serwis planowania emaili
+    final emailSchedulingService = EmailSchedulingService();
+    emailSchedulingService.start();
   } catch (e) {
     // Silent fail for production
   }

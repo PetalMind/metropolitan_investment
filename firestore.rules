@@ -62,6 +62,16 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     
+    // Scheduled emails collection
+    match /scheduled_emails/{emailId} {
+      allow read, write: if request.auth != null;
+      allow create: if request.auth != null && 
+        resource == null &&
+        request.resource.data.keys().hasAll(['recipientsData', 'subject', 'htmlContent', 'scheduledDateTime', 'senderEmail', 'senderName', 'status', 'createdAt', 'createdBy']);
+      // Allow updates for status changes (pending -> sending -> sent/failed)
+      allow update: if request.auth != null;
+    }
+    
     // Voting status changes collection
     match /voting_status_changes/{changeId} {
       allow read: if request.auth != null;

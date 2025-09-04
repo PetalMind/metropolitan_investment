@@ -24,7 +24,6 @@ class EmailSchedulingService {
 
   final FirebaseFirestore _firestore;
   final EmailAndExportService _emailService;
-  Timer? _backgroundTimer;
 
   EmailSchedulingService({
     FirebaseFirestore? firestore,
@@ -32,27 +31,25 @@ class EmailSchedulingService {
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
        _emailService = emailService ?? EmailAndExportService();
 
-  /// Uruchom serwis - rozpocznij sprawdzanie zaplanowanych emaili
+  /// Uruchom serwis - sprawdź Cloud Functions deployment
   void start() {
-    if (_backgroundTimer?.isActive == true) return;
-
-    debugPrint('📅 [$_logTag] Starting email scheduling service...');
-
-    // Sprawdzaj co minutę czy są emaile do wysłania
-    _backgroundTimer = Timer.periodic(
-      const Duration(minutes: 1),
-      (_) => _processScheduledEmails(),
+    // UWAGA: Background processing zostało przeniesione do Cloud Functions
+    // Funkcja processScheduledEmails uruchamia się automatycznie co minutę
+    debugPrint('📅 [$_logTag] Email scheduling service initialized');
+    debugPrint(
+      '📅 [$_logTag] Background processing handled by Cloud Functions',
     );
-
-    // Wykonaj również natychmiastowe sprawdzenie
-    _processScheduledEmails();
+    
+    // Nie uruchamiamy już lokalnego timera - Cloud Functions zajmuje się tym
+    // _backgroundTimer = Timer.periodic(...) // USUNIĘTE
   }
 
   /// Zatrzymaj serwis
   void stop() {
-    _backgroundTimer?.cancel();
-    _backgroundTimer = null;
-    debugPrint('📅 [$_logTag] Email scheduling service stopped');
+    // Background timer już nie jest używany - Cloud Functions zajmuje się przetwarzaniem
+    debugPrint(
+      '📅 [$_logTag] Email scheduling service stopped (Cloud Functions continue processing)',
+    );
   }
 
   /// Zaplanuj wysyłkę emaila
@@ -72,6 +69,21 @@ class EmailSchedulingService {
       // Walidacja daty
       if (scheduledDateTime.isBefore(DateTime.now())) {
         throw ArgumentError('Scheduled date must be in the future');
+      }
+
+      // Walidacja recipientów
+      if (recipients.isEmpty &&
+          (additionalRecipients == null || additionalRecipients.isEmpty)) {
+        throw ArgumentError('Lista odbiorców nie może być pusta');
+      }
+
+      debugPrint(
+        '📅 [$_logTag] Scheduling email with ${recipients.length} recipients',
+      );
+      for (final recipient in recipients) {
+        debugPrint(
+          '📅 [$_logTag] Recipient: ${recipient.client.name} (${recipient.client.email})',
+        );
       }
 
       // Tworzenie dokumentu zaplanowanego emaila
@@ -251,10 +263,24 @@ class EmailSchedulingService {
     try {
       final scheduledEmail = ScheduledEmail.fromMap(data, emailId);
 
+      // Walidacja recipientów przed wysłaniem
+      if (scheduledEmail.recipients.isEmpty) {
+        debugPrint('❌ [$_logTag] No recipients found for email: $emailId');
+        await _updateEmailStatus(
+          emailId,
+          ScheduledEmailStatus.failed,
+          errorMessage: 'Brak odbiorców - email nie może zostać wysłany',
+        );
+        return;
+      }
+
       // Oznacz jako wysyłany
       await _updateEmailStatus(emailId, ScheduledEmailStatus.sending);
 
       debugPrint('📅 [$_logTag] Sending scheduled email: $emailId');
+      debugPrint(
+        '📅 [$_logTag] Recipients count: ${scheduledEmail.recipients.length}',
+      );
 
       // Wyślij email przez EmailAndExportService
       final results = await _emailService.sendCustomEmailsToMultipleClients(
@@ -476,6 +502,56 @@ class EmailSchedulingService {
   /// Dispose resources
   void dispose() {
     stop();
+  }
+
+  /// 🔧 DEBUG: Sprawdź i napraw zaplanowane emaile z pustymi recipientami
+  Future<List<String>> debugAndFixEmptyRecipients() async {
+    final List<String> fixedEmails = [];
+
+    try {
+      final querySnapshot = await _firestore
+          .collection(_collectionName)
+          .where('status', isEqualTo: ScheduledEmailStatus.pending.name)
+          .get();
+
+      debugPrint(
+        '📅 [$_logTag] Checking ${querySnapshot.docs.length} pending emails for empty recipients',
+      );
+
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        final recipientsData = data['recipientsData'] as List<dynamic>? ?? [];
+
+        if (recipientsData.isEmpty) {
+          // Email z pustymi recipientami - oznacz jako failed
+          await _updateEmailStatus(
+            doc.id,
+            ScheduledEmailStatus.failed,
+            errorMessage:
+                'Email zaplanowany bez odbiorców - automatycznie anulowany',
+          );
+
+          fixedEmails.add(doc.id);
+          debugPrint('📅 [$_logTag] Fixed empty recipients email: ${doc.id}');
+        } else {
+          debugPrint(
+            '📅 [$_logTag] Email ${doc.id} has ${recipientsData.length} recipients - OK',
+          );
+        }
+      }
+
+      if (fixedEmails.isNotEmpty) {
+        debugPrint(
+          '📅 [$_logTag] Fixed ${fixedEmails.length} emails with empty recipients',
+        );
+      } else {
+        debugPrint('📅 [$_logTag] No emails with empty recipients found');
+      }
+    } catch (e) {
+      debugPrint('❌ [$_logTag] Error debugging empty recipients: $e');
+    }
+
+    return fixedEmails;
   }
 }
 

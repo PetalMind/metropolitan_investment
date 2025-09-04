@@ -70,9 +70,6 @@ class InvestorSummary {
           double.infinity,
         );
 
-    print(
-      '🎯 [InvestorSummary.fromInvestments] ${client.name}: remaining=$totalRemainingCapital, restructuring=$capitalForRestructuring, secured=$capitalSecuredByRealEstate',
-    );
 
     // ⭐ WARTOŚĆ CAŁKOWITA = TYLKO kapitał pozostały
     final totalValue = totalRemainingCapital;
@@ -105,9 +102,7 @@ class InvestorSummary {
     Client client,
     List<Investment> investments,
   ) {
-    print(
-      '✅ [InvestorSummary.withoutCalculations] Zbieranie danych dla: ${client.name} (${investments.length} inwestycji)',
-    );
+  
 
     // ✅ TYLKO ZBIERANIE DANYCH - bez obliczeń zabezpieczonego kapitału
     double totalRemainingCapital = 0;
