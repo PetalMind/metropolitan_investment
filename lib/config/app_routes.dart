@@ -282,7 +282,7 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.login,
         pageBuilder: (context, state) =>
-            _buildPageWithTransition(context, state, const LoginScreen()),
+            _buildPageWithTransition(context, state, const SpectacularAuthScreen()),
       ),
 
       GoRoute(

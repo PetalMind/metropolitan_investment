@@ -103,6 +103,13 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   
+  # HTML WebView Editor
+  flutter_inappwebview: ^6.0.0
+  
+  # Local HTTP Server for assets
+  shelf: ^1.4.2
+  shelf_static: ^1.1.3
+  
   # Audio
   audioplayers: ^6.1.0
   
@@ -140,6 +147,7 @@ flutter:
   assets:
     - assets/logos/
     - assets/audio/
+    - assets/html/
     
 
   # Local fonts configuration for Enhanced Email Editor

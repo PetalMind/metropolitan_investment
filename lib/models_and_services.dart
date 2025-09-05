@@ -197,6 +197,7 @@ export 'widgets/dialogs/product_history_dialog.dart'; // ⭐ NOWE: Dialog histor
 // Email system widgets
 export 'widgets/email_editor_widget.dart'; // 🚀 NOWE: Reusable widget edytora emaili
 export 'widgets/email/email_scheduling_widget.dart'; // 🚀 NOWE: Widget planowania wysyłek emaili
+export 'widgets/quill_email_editor.dart'; // 🚀 NOWE: Quill Email Editor z Delta to HTML conversion
 
 // Premium Analytics Components
 export 'widgets/premium_analytics/premium_analytics_header.dart'; // 🚀 NOWE: Nowoczesny responsywny header

@@ -3,13 +3,14 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_quill/flutter_quill.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart' as html_package;
 
 import '../../models_and_services.dart';
 import '../theme/app_theme.dart';
 import '../services/email_html_converter_service.dart';
+
+import '../widgets/html_editor_widget.dart';
 
 /// **🚀 WOW EMAIL EDITOR SCREEN - NAJPIĘKNIEJSZY SCREEN W FLUTTER! 🚀**
 ///
@@ -39,7 +40,6 @@ class WowEmailEditorScreen extends StatefulWidget {
 class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     with TickerProviderStateMixin {
   // 🎮 KONTROLERY PODSTAWOWE
-  late QuillController _quillController;
   late FocusNode _editorFocusNode;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
@@ -49,6 +49,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   );
   final _subjectController = TextEditingController();
   final _additionalEmailController = TextEditingController();
+  final _contentController = TextEditingController(); // For HTML content
 
   // 🎭 STAN SCREEN Z WOW EFEKTAMI
   bool _isLoading = false;
@@ -64,6 +65,9 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   String _currentPreviewHtml =
       '<div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #666; font-style: italic;"><p>Ładowanie podglądu...</p></div>';
   double _previewZoomLevel = 1.0;
+  
+  // 🆕 NEW HTML EDITOR INTEGRATION
+  bool _useHtmlEditor = true; // Toggle between Quill and HTML editor
   
   // 📊 ENHANCED LOADING STATE
   String _loadingMessage = 'Przygotowywanie wiadomości...';
@@ -109,12 +113,11 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   }
 
   void _initializeWowScreen() {
+    // Initialize with HTML content if provided
     if (widget.initialMessage != null && widget.initialMessage!.isNotEmpty) {
-      final doc = Document()..insert(0, widget.initialMessage!);
-      _quillController = QuillController(document: doc, selection: const TextSelection.collapsed(offset: 0));
-    } else {
-      _quillController = QuillController.basic();
+      _contentController.text = widget.initialMessage!;
     }
+    
     _editorFocusNode = FocusNode();
 
     // 💾 INITIALIZE AUTO-SAVE SERVICE
@@ -182,8 +185,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     _initializeRecipients();
     _loadSmtpEmail();
 
-    // 🎪 REAL-TIME PREVIEW LISTENER (Added once - cleanup in dispose())
-    _quillController.addListener(_updatePreviewContent);
+    // 🎪 REAL-TIME PREVIEW LISTENER - Only listen to content controller now
+    _contentController.addListener(_updatePreviewContent);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeContent();
@@ -230,15 +233,9 @@ Z poważaniem,
 Zespół Metropolitan Investment''';
 
     try {
-      _quillController.clear();
-      _quillController.document.insert(0, content);
+      _contentController.text = content;
       
-      _quillController.updateSelection(
-        TextSelection.collapsed(offset: content.length),
-        ChangeSource.local,
-      );
-      
-      debugPrint('🎨 Initial content loaded');
+      debugPrint('🎨 Initial content loaded to HTML editor');
     } catch (e) {
       debugPrint('Error initializing content: $e');
     }
@@ -258,7 +255,7 @@ Zespół Metropolitan Investment''';
       _startAutoSaveTimer();
 
       // Add listeners for content changes (cleanup in dispose())
-      _quillController.addListener(_onContentChanged);
+      _contentController.addListener(_onContentChanged);
       _subjectController.addListener(_onContentChanged);
       _senderNameController.addListener(_onContentChanged);
       _senderEmailController.addListener(_onContentChanged);
@@ -351,11 +348,10 @@ Zespół Metropolitan Investment''';
       _senderNameController.text = draft['senderName'] ?? '';
       _senderEmailController.text = draft['senderEmail'] ?? '';
 
-      // Restore Quill content
+      // Restore HTML content
       final content = draft['content'] as String;
       if (content.isNotEmpty) {
-        _quillController.clear();
-        _quillController.document.insert(0, content);
+        _contentController.text = content;
       }
 
       // Restore recipients
@@ -427,7 +423,7 @@ Zespół Metropolitan Investment''';
     });
 
     try {
-      final content = _quillController.document.toPlainText();
+      final content = _contentController.text;
       final subject = _subjectController.text;
       final senderName = _senderNameController.text;
       final senderEmail = _senderEmailController.text;
@@ -487,19 +483,19 @@ Zespół Metropolitan Investment''';
     _autoSaveTimer?.cancel();
 
     // 🧹 REMOVE ALL LISTENERS (Memory leak fix)
-    _quillController.removeListener(_updatePreviewContent);
-    _quillController.removeListener(_onContentChanged);
+    _contentController.removeListener(_updatePreviewContent);
+    _contentController.removeListener(_onContentChanged);
     _subjectController.removeListener(_onContentChanged);
     _senderNameController.removeListener(_onContentChanged);
     _senderEmailController.removeListener(_onContentChanged);
 
     // 🧹 DISPOSE ALL CONTROLLERS
-    _quillController.dispose();
     _editorFocusNode.dispose();
     _senderEmailController.dispose();
     _senderNameController.dispose();
     _subjectController.dispose();
     _additionalEmailController.dispose();
+    _contentController.dispose();
     
     // 🧹 DISPOSE ALL ANIMATION CONTROLLERS
     _settingsAnimationController.dispose();
@@ -525,24 +521,18 @@ Zespół Metropolitan Investment''';
         setState(() {
           try {
             debugPrint('🔄 Starting preview update...');
-            debugPrint(
-              '📝 Quill document length: ${_quillController.document.length}',
-            );
-            debugPrint(
-              '📄 Plain text: "${_quillController.document.toPlainText()}"',
-            );
+            
+            // 🎨 USE HTML EDITOR CONTENT DIRECTLY (Quill removed)
+            _currentPreviewHtml = _contentController.text.isNotEmpty
+                ? _contentController.text
+                : '<p style="font-family: Arial, sans-serif; color: #666; font-style: italic;">Wpisz treść wiadomości...</p>';
 
-            // 🎨 UŻYJ PROFESJONALNEGO SERWISU KONWERSJI DLA PODGLĄDU
-            _currentPreviewHtml =
-                EmailHtmlConverterService.convertQuillToHtmlForPreview(
-              _quillController,
+            debugPrint(
+              '🎨 HTML Editor content used: ${_currentPreviewHtml.length} characters',
             );
             
             debugPrint(
-              '🎨 Initial HTML: ${_currentPreviewHtml.length} characters',
-            );
-            debugPrint(
-              '🎨 HTML preview: ${_currentPreviewHtml.substring(0, _currentPreviewHtml.length > 200 ? 200 : _currentPreviewHtml.length)}...',
+              '🎨 Preview HTML: ${_currentPreviewHtml.substring(0, _currentPreviewHtml.length > 200 ? 200 : _currentPreviewHtml.length)}...',
             );
 
             // 📧 DODAJ SZCZEGÓŁY INWESTYCJI JEŚLI WŁĄCZONE (dla podglądu używamy plain text)
@@ -557,14 +547,14 @@ Zespół Metropolitan Investment''';
               );
             }
             
-            debugPrint('🎪 Preview updated with EmailHtmlConverterService');
+            debugPrint('🎪 Preview updated with mixed editor support');
           } catch (e) {
             debugPrint('⚠️ Preview update error: $e');
             // Fallback to plain text if conversion fails
-            final plainText = _quillController.document.toPlainText();
-            debugPrint('📄 Fallback plain text: "$plainText"');
+            String fallbackText = _contentController.text;
+            debugPrint('📄 Fallback text: "$fallbackText"');
             _currentPreviewHtml =
-                '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">${plainText.isNotEmpty ? plainText.replaceAll('\n', '<br>') : 'Wpisz treść wiadomości...'}</div>';
+                '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">${fallbackText.isNotEmpty ? fallbackText.replaceAll('\n', '<br>') : 'Wpisz treść wiadomości...'}</div>';
             debugPrint('🔄 Fallback HTML: $_currentPreviewHtml');
           }
         });
@@ -580,15 +570,26 @@ Zespół Metropolitan Investment''';
         try {
           debugPrint('🚀 Force preview update starting...');
 
-          // 🎨 UŻYJ NOWEJ FUNKCJI KONWERSJI QUILL DO HTML DLA PODGLĄDU
-          _currentPreviewHtml =
-              EmailHtmlConverterService.convertQuillToHtmlForPreview(
-            _quillController,
-          );
-          
-          debugPrint(
-            '🎨 Force update - HTML generated: ${_currentPreviewHtml.length} characters',
-          );
+          // 🎨 HANDLE BOTH QUILL AND HTML EDITOR CONTENT
+          if (_useHtmlEditor) {
+            // For HTML editor, use the content directly
+            _currentPreviewHtml = _contentController.text.isNotEmpty
+                ? _contentController.text
+                : '<p style="font-family: Arial, sans-serif; color: #666; font-style: italic;">Wpisz treść wiadomości...</p>';
+
+            debugPrint(
+              '🎨 Force update - HTML Editor content used: ${_currentPreviewHtml.length} characters',
+            );
+          } else {
+            // For fallback case, use content controller directly
+            _currentPreviewHtml = _contentController.text.isNotEmpty
+                ? _contentController.text
+                : '<p>Wpisz treść wiadomości...</p>';
+
+            debugPrint(
+              '🎨 Force update - Quill converted to HTML: ${_currentPreviewHtml.length} characters',
+            );
+          }
 
           // 📧 DODAJ SZCZEGÓŁY INWESTYCJI JEŚLI WŁĄCZONE (dla podglądu)
           if (_includeInvestmentDetails) {
@@ -600,12 +601,18 @@ Zespół Metropolitan Investment''';
             debugPrint('💼 Force update - Investment details added');
           }
           
-          debugPrint('🎪 Preview force updated with EmailHtmlConverterService');
+          debugPrint('🎪 Preview force updated with mixed editor support');
         } catch (e) {
           debugPrint('⚠️ Force preview update error: $e');
-          final plainText = _quillController.document.toPlainText();
+          String fallbackText;
+          if (_useHtmlEditor) {
+            fallbackText = _contentController.text;
+          } else {
+            fallbackText =
+                _contentController.text; // Always use HTML content now
+          }
           _currentPreviewHtml =
-              '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">${plainText.isNotEmpty ? plainText.replaceAll('\n', '<br>') : 'Wpisz treść wiadomości...'}</div>';
+              '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">${fallbackText.isNotEmpty ? fallbackText.replaceAll('\n', '<br>') : 'Wpisz treść wiadomości...'}</div>';
           debugPrint('🔄 Force update fallback applied');
         }
       });
@@ -714,17 +721,6 @@ Zespół Metropolitan Investment''';
     });
   }
 
-  void _insertInvestmentDetails() {
-    final cursor = _quillController.selection.baseOffset;
-    final investmentText = _generateInvestmentDetailsText();
-
-    _quillController.document.insert(cursor, investmentText);
-    _quillController.updateSelection(
-      TextSelection.collapsed(offset: cursor + investmentText.length),
-      ChangeSource.local,
-    );
-  }
-
   String _generateInvestmentDetailsText() {
     if (widget.selectedInvestors.isEmpty) {
       return '\n\n=== BRAK DANYCH INWESTYCYJNYCH ===\n\nNie wybrano żadnych inwestorów.\n\n';
@@ -767,48 +763,46 @@ Zespół Metropolitan Investment''';
 
   // 🧪 TESTING HELPER - ADD SAMPLE FORMATTED CONTENT WITH FONTS
   void _addSampleContent() {
-    final sampleContent = '''Witam Szanownych Państwa!
+    final sampleContent = '''<p>Witam Szanownych Państwa!</p>
 
-To jest przykład wiadomości z różnymi formatowaniami i czcionkami:
+<p>To jest przykład wiadomości z różnymi formatowaniami i czcionkami:</p>
 
-BOLD TEXT - pogrubione (Arial)
-Elegant Heading - nagłówek (Playfair Display)  
-Professional Content - treść biznesowa (Open Sans)
-Modern Style - nowoczesny styl (Poppins)
+<p><strong style="font-family: Arial;">BOLD TEXT - pogrubione (Arial)</strong></p>
+<p><span style="font-family: 'Playfair Display';">Elegant Heading - nagłówek (Playfair Display)</span></p>
+<p><span style="font-family: 'Open Sans';">Professional Content - treść biznesowa (Open Sans)</span></p>
+<p><span style="font-family: 'Poppins';">Modern Style - nowoczesny styl (Poppins)</span></p>
 
-Lista punktowana:
-• Pierwszy punkt (Roboto)
-• Drugi punkt z ważną informacją (Inter)
-• Trzeci punkt (Lato)
+<p>Lista punktowana:</p>
+<ul>
+<li><span style="font-family: 'Roboto';">Pierwszy punkt (Roboto)</span></li>
+<li><span style="font-family: 'Inter';"><strong>Drugi punkt z ważną informacją (Inter)</strong></span></li>
+<li><span style="font-family: 'Lato';"><em>Trzeci punkt (Lato)</em></span></li>
+</ul>
 
-Lista numerowana:
-1. Krok pierwszy (Montserrat)
-2. Krok drugi (Source Sans Pro)
-3. Krok trzeci (Work Sans)
+<p>Lista numerowana:</p>
+<ol>
+<li><span style="font-family: 'Montserrat';">Krok pierwszy (Montserrat)</span></li>
+<li><span style="font-family: 'Source Sans Pro';">Krok drugi (Source Sans Pro)</span></li>
+<li><span style="font-family: 'Work Sans';">Krok trzeci (Work Sans)</span></li>
+</ol>
 
-Link do strony: https://metropolitan-investment.pl
+<p>Link do strony: <a href="https://metropolitan-investment.pl">https://metropolitan-investment.pl</a></p>
 
-"To jest cytat z ważnym komunikatem" - Merriweather
+<blockquote><span style="font-family: 'Merriweather';">"To jest cytat z ważnym komunikatem" - Merriweather</span></blockquote>
 
-Kod przykładowy: console.log("Hello World!");
+<p>Kod przykładowy: <code>console.log("Hello World!");</code></p>
 
-Z poważaniem,
-Zespół Metropolitan Investment''';
+<p>Z poważaniem,<br>
+Zespół Metropolitan Investment</p>''';
 
     try {
-      _quillController.clear();
-      _quillController.document.insert(0, sampleContent);
-
-      _quillController.updateSelection(
-        TextSelection.collapsed(offset: sampleContent.length),
-        ChangeSource.local,
-      );
+      _contentController.text = sampleContent;
 
       // Force immediate preview update to test new conversion function
       _forcePreviewUpdate();
 
       debugPrint(
-        '🧪 Sample content loaded for testing - preview should update immediately',
+        '🧪 Sample HTML content loaded for testing - preview should update immediately',
       );
 
       // Show success message
@@ -866,7 +860,7 @@ Zespół Metropolitan Investment''';
           ),
           TextButton(
             onPressed: () async {
-              _quillController.clear();
+              _contentController.clear(); // Clear HTML content instead
               _subjectController.clear();
 
               // Clear draft
@@ -1006,9 +1000,22 @@ Zespół Metropolitan Investment''';
         _loadingProgress = 0.1;
       });
       
-      final emailHtml = EmailHtmlConverterService.convertQuillToHtml(
-        _quillController,
-      );
+      // 🎨 GET EMAIL HTML FROM APPROPRIATE EDITOR
+      String emailHtml;
+      if (_useHtmlEditor) {
+        // For HTML editor, use content directly
+        emailHtml = _contentController.text.isNotEmpty
+            ? _contentController.text
+            : '<p>Treść wiadomości jest pusta.</p>';
+        debugPrint('📧 Using HTML Editor content directly');
+      } else {
+        // Fallback case - use HTML content as well
+        emailHtml = _contentController.text.isNotEmpty
+            ? _contentController.text
+            : '<p>Treść wiadomości jest pusta.</p>';
+        debugPrint('📧 Using fallback HTML content');
+      }
+      
       final finalHtml = _includeInvestmentDetails 
           ? EmailHtmlConverterService.addInvestmentDetailsToHtml(
               emailHtml,
@@ -1273,8 +1280,14 @@ Zespół Metropolitan Investment''';
         (sum, result) => sum + result.executionTimeMs,
       );
 
-      // Convert Quill content to plain text for backup
-      final plainTextContent = _quillController.document.toPlainText();
+      // Convert HTML content to plain text for backup
+      final plainTextContent = _contentController.text
+          .replaceAll(RegExp(r'<[^>]*>'), '') // Strip HTML tags
+          .replaceAll('&nbsp;', ' ')
+          .replaceAll('&amp;', '&')
+          .replaceAll('&lt;', '<')
+          .replaceAll('&gt;', '>')
+          .trim();
 
       // Create email history entry
       final emailHistory = EmailHistory(
@@ -2521,7 +2534,7 @@ Zespół Metropolitan Investment''';
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Column(
                   children: [
-                    // Editor Header
+                    // Editor Header with Toggle
                     Container(
                       padding: EdgeInsets.all(isMobile ? 16 : 20),
                       decoration: BoxDecoration(
@@ -2545,21 +2558,38 @@ Zespół Metropolitan Investment''';
                       child: Row(
                         children: [
                           Icon(
-                            Icons.edit_outlined,
+                            _useHtmlEditor ? Icons.code : Icons.edit_outlined,
                             color: AppTheme.secondaryGold,
                             size: 24,
                           ),
                           SizedBox(width: 12),
                           Expanded(
-                            child: Text(
-                              'Edytor treści',
-                              style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: isMobile ? 16 : 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _useHtmlEditor
+                                      ? 'HTML Editor (Enhanced)'
+                                      : 'Classic Editor (Quill)',
+                                  style: TextStyle(
+                                    color: AppTheme.textPrimary,
+                                    fontSize: isMobile ? 16 : 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (!isMobile)
+                                  Text(
+                                    'Profesjonalny edytor HTML',
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
+
+                          SizedBox(width: 8),
                           IconButton(
                             icon: Icon(
                               _isEditorExpanded
@@ -2579,211 +2609,13 @@ Zespół Metropolitan Investment''';
                     // Editor Content
                     Container(
                       height: _isEditorExpanded
-                          ? (isMobile ? 400 : 500)
-                          : (isMobile ? 250 : 300),
-                      padding: EdgeInsets.all(isMobile ? 16 : 20),
-                      child: QuillEditor(
-                        controller: _quillController,
-                        focusNode: _editorFocusNode,
-                        scrollController: ScrollController(),
-                        config: QuillEditorConfig(
-                          customStyles: DefaultStyles(
-                            paragraph: DefaultTextBlockStyle(
-                              TextStyle(
-                                fontSize: 16,
-                                color: AppTheme.textPrimary,
-                                fontFamily: 'Inter', // Modern UI local font
-                              ),
-                              HorizontalSpacing.zero,
-                              VerticalSpacing.zero,
-                              VerticalSpacing.zero,
-                              null,
-                            ),
-                            h1: DefaultTextBlockStyle(
-                              TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                                fontFamily:
-                                    'Montserrat', // Professional heading font
-                              ),
-                              HorizontalSpacing.zero,
-                              VerticalSpacing.zero,
-                              VerticalSpacing.zero,
-                              null,
-                            ),
-                            h2: DefaultTextBlockStyle(
-                              TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                                fontFamily:
-                                    'Montserrat', // Professional heading font
-                              ),
-                              HorizontalSpacing.zero,
-                              VerticalSpacing.zero,
-                              VerticalSpacing.zero,
-                              null,
-                            ),
-                            h3: DefaultTextBlockStyle(
-                              TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                                fontFamily:
-                                    'Montserrat', // Professional heading font
-                              ),
-                              HorizontalSpacing.zero,
-                              VerticalSpacing.zero,
-                              VerticalSpacing.zero,
-                              null,
-                            ),
-                            h4: DefaultTextBlockStyle(
-                              TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                                fontFamily:
-                                    'Montserrat', // Professional heading font
-                              ),
-                              HorizontalSpacing.zero,
-                              VerticalSpacing.zero,
-                              VerticalSpacing.zero,
-                              null,
-                            ),
-                            h5: DefaultTextBlockStyle(
-                              TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                                fontFamily:
-                                    'Montserrat', // Professional heading font
-                              ),
-                              HorizontalSpacing.zero,
-                              VerticalSpacing.zero,
-                              VerticalSpacing.zero,
-                              null,
-                            ),
-                            h6: DefaultTextBlockStyle(
-                              TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                                fontFamily:
-                                    'Montserrat', // Professional heading font
-                              ),
-                              HorizontalSpacing.zero,
-                              VerticalSpacing.zero,
-                              VerticalSpacing.zero,
-                              null,
-                            ),
-                            placeHolder: DefaultTextBlockStyle(
-                              TextStyle(
-                                fontSize: 16,
-                                color: AppTheme.textSecondary,
-                                fontFamily: 'Inter', // Modern UI local font
-                              ),
-                              HorizontalSpacing.zero,
-                              VerticalSpacing.zero,
-                              VerticalSpacing.zero,
-                              null,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Toolbar
-                    Container(
-                      padding: EdgeInsets.all(isMobile ? 12 : 16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppTheme.backgroundSecondary.withValues(
-                              alpha: 0.9,
-                            ),
-                            AppTheme.backgroundPrimary.withValues(
-                              alpha: 0.7,
-                            ),
-                          ],
-                        ),
-                        border: Border(
-                          top: BorderSide(
-                            color: AppTheme.borderPrimary.withValues(
-                              alpha: 0.3,
-                            ),
-                            width: 1,
-                          ),
-                        ),
-                      ),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: IntrinsicWidth(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              
-                              // 🎯 ENHANCED QUILL TOOLBAR - ULEPSZONA KONFIGURACJA
-                              QuillSimpleToolbar(
-                                controller: _quillController,
-                                config: QuillSimpleToolbarConfig(
-                                  // 🎨 LAYOUT & DISPLAY
-                                  multiRowsDisplay: !isMobile,
-                                  showDividers: true,
-
-                                  // ✏️ BASIC TEXT FORMATTING (Enhanced - wszystkie funkcje włączone)
-                                  showBoldButton: true,
-                                  showItalicButton: true,
-                                  showUnderLineButton: true,
-                                  showStrikeThrough: true,
-                                  showInlineCode: true,
-                                  showClearFormat: true,
-                                  showSmallButton: true,
-                                  showSubscript:
-                                      true, // Włączone na wszystkich urządzeniach
-                                  showSuperscript:
-                                      true, // Włączone na wszystkich urządzeniach
-
-                                  // 🔤 FONT & SIZE CONTROLS - TYLKO LOKALNE CZCIONKI
-                                  showFontFamily: true,
-                                  showFontSize: true,
-                                  
-                                  // 🎨 COLOR CONTROLS - Enabled
-                                  showColorButton: true,
-                                  showBackgroundColorButton: true,
-                                  
-                                  // 📝 STRUCTURAL FORMATTING (wszystkie włączone)
-                                  showHeaderStyle: true,
-                                  showQuote: true,
-                                  showCodeBlock: true, // Włączone na mobile
-                                  
-                                  // 📋 LIST CONTROLS
-                                  showListBullets: true,
-                                  showListNumbers: true,
-                                  showListCheck: true,
-                                  
-                                  // 📐 ALIGNMENT & INDENTATION
-                                  showAlignmentButtons: true,
-                                  showDirection:
-                                      false, // Usually not needed for emails
-                                  showIndent: true,
-                                  
-                                  // 🔗 LINKS & MEDIA
-                                  showLink: true,
-                                  showSearchButton:
-                                      false, // Not needed for email editor
-                                  
-                                  // ↩️ UNDO/REDO
-                                  showUndo: true,
-                                  showRedo: true,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                          ? (isMobile ? 500 : 600)
+                          : (isMobile ? 300 : 400),
+                      padding: EdgeInsets.all(isMobile ? 8 : 12),
+                      child: _buildHtmlEditor(
+                        isMobile,
+                        isTablet,
+                      ), // Always use HTML editor
                     ),
                   ],
                 ),
@@ -2794,6 +2626,42 @@ Zespół Metropolitan Investment''';
       },
     );
   }
+
+  // 📝 Metoda budująca HTML Editor
+  Widget _buildHtmlEditor(bool isMobile, bool isTablet) {
+    return HtmlEditorWidget(
+      height: 450, // Increased height for better editing experience
+      showPreview: false, // Preview handled separately in main screen
+      enabled: true,
+      onContentChanged: (content) {
+        _contentController.text = content;
+        _updatePreviewContent();
+      },
+      onReady: () {
+        if (kDebugMode) {
+          print('🚀 HTML Editor ready in wow_email_editor_screen');
+        }
+      },
+      onFocusChanged: (focused) {
+        if (kDebugMode) {
+          print('🎯 HTML Editor focus: $focused');
+        }
+      },
+      onError: (error) {
+        if (kDebugMode) {
+          print('❌ HTML Editor error: $error');
+        }
+      },
+      initialContent: _contentController.text.isNotEmpty
+          ? _contentController.text
+          : '<p>Napisz swoją wiadomość...</p>',
+    );
+  } // 📝 Metoda budująca Quill Editor (fallback)
+
+  // REMOVED: _buildQuillEditor function completely removed since we only use HTML editor
+
+  // � Metoda przełączania edytorów
+  // REMOVED: _switchEditor function no longer needed since we only use HTML editor
 
   // 👁️ LIVE PREVIEW PANEL Z DARK/LIGHT TOGGLE
   Widget _buildLivePreviewPanel(bool isMobile, bool isTablet) {
@@ -3004,8 +2872,11 @@ Zespół Metropolitan Investment''';
                           ),
                           // 🎨 ENHANCED SPANS WITH FULL FONT AND COLOR SUPPORT
                           'span': html_package.Style(
-                            // Let inline styles override colors
-                            fontFamily: 'Arial, sans-serif',
+                                // Let inline styles override - no default overrides
+                              ),
+                              // 🎨 FONT ELEMENTS - Support for different font families
+                              'font': html_package.Style(
+                                // Let inline font attributes take precedence
                           ),
                           // 🏷️ HEADERS
                           'h1': html_package.Style(
@@ -3080,15 +2951,15 @@ Zespół Metropolitan Investment''';
                             // Remove default color to allow inline styles to take precedence
                             margin: html_package.Margins.only(bottom: 16),
                             lineHeight: html_package.LineHeight.number(1.6),
-                            fontFamily: 'Arial, sans-serif',
+                                // Remove default fontFamily to allow inheritance
                           ),
                           'div': html_package.Style(
                             // Remove default color to allow inline styles to take precedence
                             lineHeight: html_package.LineHeight.number(1.6),
-                            fontFamily: 'Arial, sans-serif',
+                                // Remove default fontFamily to allow inheritance
                           ),
 
-                          // ✏️ TEXT FORMATTING
+                              // ✏️ TEXT FORMATTING - Enhanced support
                           'strong': html_package.Style(
                             fontWeight: FontWeight.bold,
                           ),
@@ -3096,17 +2967,39 @@ Zespół Metropolitan Investment''';
                             fontWeight: FontWeight.bold,
                           ),
                           'em': html_package.Style(
-                            fontStyle: FontStyle.italic),
-                          'i': html_package.Style(fontStyle: FontStyle.italic),
+                                fontStyle: FontStyle.italic,
+                              ),
+                              'i': html_package.Style(
+                                fontStyle: FontStyle.italic,
+                              ),
                           'u': html_package.Style(
                             textDecoration: TextDecoration.underline,
                           ),
+                              'ins': html_package.Style(
+                                textDecoration: TextDecoration.underline,
+                              ),
                           's': html_package.Style(
                             textDecoration: TextDecoration.lineThrough,
                           ),
                           'del': html_package.Style(
                             textDecoration: TextDecoration.lineThrough,
                           ),
+                              'strike': html_package.Style(
+                                textDecoration: TextDecoration.lineThrough,
+                              ),
+                              // 🎨 Support for combined decorations (underline + strikethrough)
+                              'u s': html_package.Style(
+                                textDecoration: TextDecoration.combine([
+                                  TextDecoration.underline,
+                                  TextDecoration.lineThrough,
+                                ]),
+                              ),
+                              's u': html_package.Style(
+                                textDecoration: TextDecoration.combine([
+                                  TextDecoration.underline,
+                                  TextDecoration.lineThrough,
+                                ]),
+                              ),
 
                           // 📋 LISTS
                           'ul': html_package.Style(
@@ -3478,118 +3371,7 @@ Zespół Metropolitan Investment''';
   }
 
   // ⏳ WOW LOADING BANNER
-  Widget _buildWowLoadingBanner() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.secondaryGold.withOpacity( 0.15),
-            AppTheme.secondaryGold.withOpacity( 0.1),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.secondaryGold, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.secondaryGold.withOpacity( 0.2),
-            blurRadius: 20,
-            spreadRadius: 2,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Header row with spinning indicator
-          Row(
-            children: [
-              SizedBox(
-                width: 32,
-                height: 32,
-                child: CircularProgressIndicator(
-                  value: _loadingProgress > 0 ? _loadingProgress : null,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.secondaryGold),
-                  backgroundColor: AppTheme.secondaryGold.withOpacity( 0.2),
-                  strokeWidth: 3,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Wysyłanie Wiadomości Email',
-                      style: TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _loadingMessage,
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          
-          // Progress bar and counter (if progress is available)
-          if (_loadingProgress > 0) ...[
-            const SizedBox(height: 16),
-            Column(
-              children: [
-                // Progress bar
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: _loadingProgress,
-                    backgroundColor: AppTheme.backgroundSecondary,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.secondaryGold),
-                    minHeight: 6,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Progress text
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${(_loadingProgress * 100).toInt()}% ukończone',
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (_totalEmailsToSend > 0)
-                      Text(
-                        '$_emailsSent / $_totalEmailsToSend emaili',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+  // REMOVED: _buildWowLoadingBanner function no longer needed
 
   // 🎬 WOW AKCJE DOLNE
   Widget _buildWowActions(bool canEdit, bool isMobile, bool isTablet) {
