@@ -48,6 +48,71 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
   String _currentHtml = '';
   bool _isEditorReady = false;
 
+  // Available fonts for the editor - Professional selection for emails
+  static const List<String> _availableFonts = [
+    // Classic email-safe serif fonts
+    'Times New Roman',
+    'Times',
+    'Georgia',
+    'Garamond',
+    'Book Antiqua',
+    'Palatino',
+
+    // Modern sans-serif fonts
+    'Arial',
+    'Arial Black',
+    'Helvetica',
+    'Helvetica Neue',
+    'Calibri',
+    'Trebuchet MS',
+    'Verdana',
+    'Tahoma',
+    'Geneva',
+    'Century Gothic',
+    'Segoe UI',
+
+    // Web fonts commonly available
+    'Inter',
+    'Open Sans',
+    'Roboto',
+    'Lato',
+    'Montserrat',
+    'Source Sans Pro',
+    'Nunito',
+    'Poppins',
+    'Playfair Display',
+    'Merriweather',
+
+    // Monospace fonts for code
+    'Courier New',
+    'Monaco',
+    'Consolas',
+    'Menlo',
+    'Source Code Pro',
+    'Fira Code',
+
+    // Decorative and impact fonts
+    'Impact',
+    'Oswald',
+    'Bebas Neue',
+    'Raleway',
+    'Ubuntu',
+
+    // Polish-friendly and international fonts
+    'DejaVu Sans',
+    'Liberation Sans',
+    'Noto Sans',
+    'PT Sans',
+    'Exo',
+
+    // Email-safe fallbacks
+    'serif',
+    'sans-serif',
+    'monospace',
+    'cursive',
+    'fantasy',
+  ];
+
   // Animation controllers
   late AnimationController _loadingController;
   late Animation<double> _loadingAnimation;
@@ -105,6 +170,9 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
     });
     _loadingController.stop();
 
+    // Inject custom fonts and CSS into the editor
+    _injectFontsAndStyles();
+
     // Set initial content if provided with slight delay
     if (widget.initialContent.isNotEmpty) {
       Timer(const Duration(milliseconds: 100), () {
@@ -119,8 +187,97 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
     }
 
     if (kDebugMode) {
-      print('🚀 Enhanced HTML Editor ready');
+      print(
+        '🚀 Enhanced HTML Editor ready with ${_availableFonts.length} fonts',
+      );
     }
+  }
+
+  /// Injects custom fonts and styles into the HTML editor
+  void _injectFontsAndStyles() {
+    Timer(const Duration(milliseconds: 300), () async {
+      if (!mounted || !_isEditorReady) return;
+
+      try {
+        // Inject Google Fonts and custom CSS for better font support
+        const String fontCSS = '''
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Exo:wght@300;400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap');
+            
+            body {
+              font-family: 'Inter', 'Arial', sans-serif;
+              line-height: 1.6;
+              color: #333;
+            }
+            
+            .font-arial { font-family: 'Arial', sans-serif; }
+            .font-arial-black { font-family: 'Arial Black', sans-serif; }
+            .font-helvetica { font-family: 'Helvetica', 'Arial', sans-serif; }
+            .font-times { font-family: 'Times New Roman', 'Times', serif; }
+            .font-georgia { font-family: 'Georgia', serif; }
+            .font-garamond { font-family: 'Garamond', serif; }
+            .font-calibri { font-family: 'Calibri', sans-serif; }
+            .font-trebuchet { font-family: 'Trebuchet MS', sans-serif; }
+            .font-verdana { font-family: 'Verdana', sans-serif; }
+            .font-tahoma { font-family: 'Tahoma', sans-serif; }
+            .font-inter { font-family: 'Inter', sans-serif; }
+            .font-open-sans { font-family: 'Open Sans', sans-serif; }
+            .font-roboto { font-family: 'Roboto', sans-serif; }
+            .font-lato { font-family: 'Lato', sans-serif; }
+            .font-montserrat { font-family: 'Montserrat', sans-serif; }
+            .font-source-sans { font-family: 'Source Sans Pro', sans-serif; }
+            .font-nunito { font-family: 'Nunito', sans-serif; }
+            .font-poppins { font-family: 'Poppins', sans-serif; }
+            .font-playfair { font-family: 'Playfair Display', serif; }
+            .font-merriweather { font-family: 'Merriweather', serif; }
+            .font-courier { font-family: 'Courier New', 'Courier', monospace; }
+            .font-monaco { font-family: 'Monaco', 'Menlo', monospace; }
+            .font-consolas { font-family: 'Consolas', monospace; }
+            .font-fira-code { font-family: 'Fira Code', monospace; }
+            .font-impact { font-family: 'Impact', sans-serif; }
+            .font-oswald { font-family: 'Oswald', sans-serif; }
+            .font-bebas { font-family: 'Bebas Neue', sans-serif; }
+            .font-raleway { font-family: 'Raleway', sans-serif; }
+            .font-ubuntu { font-family: 'Ubuntu', sans-serif; }
+            .font-pt-sans { font-family: 'PT Sans', sans-serif; }
+            .font-exo { font-family: 'Exo', sans-serif; }
+          </style>
+        ''';
+
+        // Insert the CSS into the editor's head
+        await _htmlController.evaluateJavascriptWeb('''
+          var head = document.head || document.getElementsByTagName('head')[0];
+          var style = document.createElement('style');
+          style.type = 'text/css';
+          style.innerHTML = `$fontCSS`;
+          head.appendChild(style);
+        ''');
+
+        if (kDebugMode) {
+          print('✅ Custom fonts and styles injected successfully');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('❌ Error injecting fonts: $e');
+        }
+      }
+    });
   }
 
   void _onContentChanged(String html) {
@@ -159,6 +316,225 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
 
     if (kDebugMode) {
       print('🎯 Editor focus: $focused');
+    }
+  }
+
+  /// Shows a dialog for selecting fonts
+  Future<void> _showFontSelectionDialog() async {
+    if (!_isEditorReady) return;
+
+    final selectedFont = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        // Create a local scroll controller for this dialog
+        final scrollController = ScrollController();
+
+        return AlertDialog(
+          backgroundColor: AppTheme.backgroundSecondary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.font_download,
+                color: AppTheme.secondaryGold,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Wybierz czcionkę',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          content: Container(
+            width: double.maxFinite,
+            height: 400,
+            child: Column(
+              children: [
+                // Search bar
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Szukaj czcionki...',
+                    hintStyle: TextStyle(color: AppTheme.textSecondary),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: AppTheme.secondaryGold,
+                    ),
+                    filled: true,
+                    fillColor: AppTheme.backgroundPrimary,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  style: TextStyle(color: AppTheme.textPrimary),
+                  onChanged: (query) {
+                    // Implement search functionality if needed
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Font list with proper scroll controller
+                Expanded(
+                  child: Scrollbar(
+                    controller: scrollController,
+                    thumbVisibility: true,
+                    child: ListView.builder(
+                      controller: scrollController,
+                      itemCount: _availableFonts.length,
+                      itemBuilder: (context, index) {
+                        final font = _availableFonts[index];
+                        return ListTile(
+                          dense: true,
+                          leading: Icon(
+                            Icons.text_fields,
+                            color: AppTheme.secondaryGold,
+                            size: 20,
+                          ),
+                          title: Text(
+                            font,
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontFamily:
+                                  font == 'serif' ||
+                                      font == 'sans-serif' ||
+                                      font == 'monospace' ||
+                                      font == 'cursive' ||
+                                      font == 'fantasy'
+                                  ? null
+                                  : font,
+                              fontSize: 16,
+                            ),
+                          ),
+                          subtitle: Text(
+                            _getFontCategory(font),
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                          onTap: () {
+                            // Dispose scroll controller before closing
+                            scrollController.dispose();
+                            Navigator.of(context).pop(font);
+                          },
+                          hoverColor: AppTheme.primaryColor.withOpacity(0.1),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                // Dispose scroll controller before closing
+                scrollController.dispose();
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                'Anuluj',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (selectedFont != null && _isEditorReady) {
+      await _applyFontFamily(selectedFont);
+    }
+  }
+
+  /// Gets the category of a font for display
+  String _getFontCategory(String font) {
+    if ([
+      'Arial',
+      'Arial Black',
+      'Helvetica',
+      'Calibri',
+      'Trebuchet MS',
+      'Verdana',
+      'Tahoma',
+      'Geneva',
+      'Century Gothic',
+      'Segoe UI',
+      'Inter',
+      'Open Sans',
+      'Roboto',
+      'Lato',
+      'Montserrat',
+      'Source Sans Pro',
+      'Nunito',
+      'Poppins',
+      'sans-serif',
+    ].contains(font)) {
+      return 'Sans-serif';
+    } else if ([
+      'Times New Roman',
+      'Times',
+      'Georgia',
+      'Garamond',
+      'Book Antiqua',
+      'Palatino',
+      'Playfair Display',
+      'Merriweather',
+      'serif',
+    ].contains(font)) {
+      return 'Serif';
+    } else if ([
+      'Courier New',
+      'Monaco',
+      'Consolas',
+      'Menlo',
+      'Source Code Pro',
+      'Fira Code',
+      'monospace',
+    ].contains(font)) {
+      return 'Monospace';
+    } else if (['Impact', 'Oswald', 'Bebas Neue'].contains(font)) {
+      return 'Impact';
+    } else if ([
+      'DejaVu Sans',
+      'Liberation Sans',
+      'Noto Sans',
+      'PT Sans',
+      'Ubuntu',
+      'Exo',
+      'Raleway',
+    ].contains(font)) {
+      return 'Międzynarodowa';
+    } else {
+      return 'Dekoracyjna';
+    }
+  }
+
+  /// Applies the selected font family to the current selection
+  Future<void> _applyFontFamily(String fontFamily) async {
+    if (!_isEditorReady) return;
+
+    try {
+      // Apply font family to current selection using JavaScript
+      await _htmlController.evaluateJavascriptWeb('''
+        document.execCommand('fontName', false, '$fontFamily');
+      ''');
+
+      if (kDebugMode) {
+        print('✅ Applied font family: $fontFamily');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error applying font family: $e');
+      }
     }
   }
 
@@ -288,6 +664,21 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
               fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(width: 16),
+
+          // Font selection button
+          IconButton(
+            icon: Icon(
+              Icons.font_download,
+              color: AppTheme.secondaryGold,
+              size: 18,
+            ),
+            onPressed: _showFontSelectionDialog,
+            tooltip: 'Wybierz czcionkę',
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+
           const Spacer(),
 
           // Preview toggle button
@@ -564,7 +955,29 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                         ),
                       )
                     : html_package.Html(
-                        data: _currentHtml,
+                        data:
+                            '''
+                        <style>
+                          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Exo:wght@300;400;500;600;700&display=swap');
+                          @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap');
+                        </style>
+                        $_currentHtml
+                        ''',
                         style: {
                           "body": html_package.Style(
                             margin: html_package.Margins.zero,
