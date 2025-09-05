@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart' as html_package;
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models_and_services.dart';
 import '../theme/app_theme.dart';
@@ -1483,21 +1482,41 @@ Zespół Metropolitan Investment''';
                 isExpanded: true,
                 items: [
                   // Group headers for categories
-                  ...FontFamilyService.googleFonts.map((font) {
+                  ...FontFamilyService.localFonts.map((font) {
                     // Determine category for styling
                     String category = '';
                     Color categoryColor = Colors.white;
+                    final displayName = FontFamilyService.getDisplayName(font);
                     
-                    if (['Open Sans', 'Roboto', 'Lato', 'Montserrat', 'Source Sans Pro', 'Nunito Sans', 'Inter', 'Work Sans'].contains(font)) {
+                    if ([
+                      'OpenSans',
+                      'Roboto',
+                      'Lato',
+                      'Montserrat',
+                      'SourceSans3',
+                      'NunitoSans',
+                      'Inter',
+                      'WorkSans',
+                    ].contains(font)) {
                       category = '📰 Professional';
                       categoryColor = Color(0xFF60a5fa);
-                    } else if (['Merriweather', 'Playfair Display', 'Libre Baskerville', 'Crimson Text'].contains(font)) {
+                    } else if ([
+                      'Merriweather',
+                      'PlayfairDisplay',
+                      'LibreBaskerville',
+                      'CrimsonText',
+                    ].contains(font)) {
                       category = '📝 Elegant';
                       categoryColor = Color(0xFFc084fc);
                     } else if (['Poppins', 'Raleway', 'Ubuntu', 'Nunito'].contains(font)) {
                       category = '🎨 Modern';
                       categoryColor = Color(0xFF34d399);
-                    } else if (['Roboto Condensed', 'Oswald', 'Fira Sans', 'PT Sans'].contains(font)) {
+                    } else if ([
+                      'RobotoCondensed',
+                      'Oswald',
+                      'FiraSans',
+                      'PTSans',
+                    ].contains(font)) {
                       category = '💼 Corporate';
                       categoryColor = Color(0xFFfbbf24);
                     }
@@ -1519,7 +1538,7 @@ Zespół Metropolitan Investment''';
                             SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                font,
+                                displayName,
                                 style: TextStyle(
                                   fontFamily: font,
                                   color: Colors.white,
@@ -1834,13 +1853,24 @@ Zespół Metropolitan Investment''';
       final fontAttr = attrs.attributes[Attribute.font.key];
       if (fontAttr != null && fontAttr.value != null) {
         final fontName = fontAttr.value.toString();
-        // Ensure the font exists in our available fonts list
-        if (FontFamilyService.allFonts.contains(fontName)) {
+        // Ensure the font exists in our available local fonts list
+        if (FontFamilyService.localFonts.contains(fontName)) {
           return fontName;
+        }
+        // Check if it's a display name and convert to font key
+        final fontKey = FontFamilyService.fontDisplayNames.entries
+            .firstWhere(
+              (entry) => entry.value == fontName,
+              orElse: () => const MapEntry('', ''),
+            )
+            .key;
+        if (fontKey.isNotEmpty &&
+            FontFamilyService.localFonts.contains(fontKey)) {
+          return fontKey;
         }
       }
     }
-    return 'Open Sans'; // Default to first Google Font
+    return 'OpenSans'; // Default to first local font
   }
 
   Color _getCurrentTextColor() {
@@ -1906,64 +1936,24 @@ Zespół Metropolitan Investment''';
 
   // 🎨 FONT UTILITY METHODS
 
-  /// Get TextStyle with the correct font family (Google Fonts or system fonts)
+  /// Get TextStyle with the correct font family (Local Fonts)
   TextStyle _getTextStyleWithFont(String fontFamily, {double? fontSize, FontWeight? fontWeight, Color? color}) {
-    if (FontFamilyService.isGoogleFont(fontFamily)) {
-      switch (fontFamily) {
-        // 📰 Professional & Business
-        case 'Open Sans':
-          return GoogleFonts.openSans(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Roboto':
-          return GoogleFonts.roboto(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Lato':
-          return GoogleFonts.lato(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Montserrat':
-          return GoogleFonts.montserrat(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Source Sans Pro':
-          return GoogleFonts.sourceSans3(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Nunito Sans':
-          return GoogleFonts.nunitoSans(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Inter':
-          return GoogleFonts.inter(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Work Sans':
-          return GoogleFonts.workSans(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        
-        // 📝 Elegant & Readable
-        case 'Merriweather':
-          return GoogleFonts.merriweather(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Playfair Display':
-          return GoogleFonts.playfairDisplay(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Libre Baskerville':
-          return GoogleFonts.libreBaskerville(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Crimson Text':
-          return GoogleFonts.crimsonText(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        
-        // 🎨 Modern & Stylish
-        case 'Poppins':
-          return GoogleFonts.poppins(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Raleway':
-          return GoogleFonts.raleway(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Ubuntu':
-          return GoogleFonts.ubuntu(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Nunito':
-          return GoogleFonts.nunito(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        
-        // 💼 Corporate & Clean
-        case 'Roboto Condensed':
-          return GoogleFonts.robotoCondensed(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Oswald':
-          return GoogleFonts.oswald(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'Fira Sans':
-          return GoogleFonts.firaSans(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        case 'PT Sans':
-          return GoogleFonts.ptSans(fontSize: fontSize, fontWeight: fontWeight, color: color);
-        
-        default:
-          return TextStyle(fontFamily: fontFamily, fontSize: fontSize, fontWeight: fontWeight, color: color);
-      }
-    } else {
-      return TextStyle(fontFamily: fontFamily, fontSize: fontSize, fontWeight: fontWeight, color: color);
+    // Convert display name to Flutter font family name if needed
+    final flutterFontFamily = FontFamilyService.getFlutterFontFamily(
+      fontFamily,
+    );
+    
+    if (FontFamilyService.isLocalFont(flutterFontFamily)) {
+      return TextStyle(
+        fontFamily: flutterFontFamily,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
     }
+    
+    // Fallback to system fonts
+    return TextStyle(fontSize: fontSize, fontWeight: fontWeight, color: color);
   }
 
   // 🎨 HTML FONT PROCESSING METHODS
@@ -1985,61 +1975,14 @@ Zespół Metropolitan Investment''';
 
   /// Get appropriate font family for flutter_html rendering
   String _getFontFamilyForHtml(String fontName) {
-    if (FontFamilyService.isGoogleFont(fontName)) {
-      // For Google Fonts, flutter_html needs to use GoogleFonts.fontFamily
-      switch (fontName) {
-        // 📰 Professional & Business
-        case 'Open Sans':
-          return GoogleFonts.openSans().fontFamily!;
-        case 'Roboto':
-          return GoogleFonts.roboto().fontFamily!;
-        case 'Lato':
-          return GoogleFonts.lato().fontFamily!;
-        case 'Montserrat':
-          return GoogleFonts.montserrat().fontFamily!;
-        case 'Source Sans Pro':
-          return GoogleFonts.sourceSans3().fontFamily!;
-        case 'Nunito Sans':
-          return GoogleFonts.nunitoSans().fontFamily!;
-        case 'Inter':
-          return GoogleFonts.inter().fontFamily!;
-        case 'Work Sans':
-          return GoogleFonts.workSans().fontFamily!;
-        
-        // 📝 Elegant & Readable
-        case 'Merriweather':
-          return GoogleFonts.merriweather().fontFamily!;
-        case 'Playfair Display':
-          return GoogleFonts.playfairDisplay().fontFamily!;
-        case 'Libre Baskerville':
-          return GoogleFonts.libreBaskerville().fontFamily!;
-        case 'Crimson Text':
-          return GoogleFonts.crimsonText().fontFamily!;
-        
-        // 🎨 Modern & Stylish
-        case 'Poppins':
-          return GoogleFonts.poppins().fontFamily!;
-        case 'Raleway':
-          return GoogleFonts.raleway().fontFamily!;
-        case 'Ubuntu':
-          return GoogleFonts.ubuntu().fontFamily!;
-        case 'Nunito':
-          return GoogleFonts.nunito().fontFamily!;
-        
-        // 💼 Corporate & Clean
-        case 'Roboto Condensed':
-          return GoogleFonts.robotoCondensed().fontFamily!;
-        case 'Oswald':
-          return GoogleFonts.oswald().fontFamily!;
-        case 'Fira Sans':
-          return GoogleFonts.firaSans().fontFamily!;
-        case 'PT Sans':
-          return GoogleFonts.ptSans().fontFamily!;
-        
-        default:
-          return fontName;
-      }
+    // Convert display name to Flutter font family name if needed
+    final flutterFontFamily = FontFamilyService.getFlutterFontFamily(fontName);
+    
+    if (FontFamilyService.isLocalFont(flutterFontFamily)) {
+      return flutterFontFamily;
     }
+    
+    // Fallback to system font
     return fontName;
   }
 
@@ -2218,67 +2161,9 @@ Zespół Metropolitan Investment''';
           ),
         ),
         actions: [
-          // 🔊 TEST AUDIO BUTTON (for debugging)
-          if (kDebugMode)
-            IconButton(
-              icon: Icon(Icons.volume_up, color: AppTheme.secondaryGold),
-              onPressed: () async {
-                try {
-                  debugPrint('🧪 Manual audio test started...');
-                  await AudioService.instance.testAudio();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Audio test executed - check console'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  debugPrint('🧪 Manual audio test failed: $e');
-                }
-              },
-              tooltip: 'Test Audio (Debug)',
-            ),
-          // 🧪 SIMPLE AUDIO TEST BUTTON (for debugging)
-          if (kDebugMode)
-            IconButton(
-              icon: Icon(Icons.music_note, color: Colors.orange),
-              onPressed: () async {
-                try {
-                  debugPrint('🧪 Simple audio test started...');
-                  await SimpleAudioTest.testEmailSound();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Simple audio test - check console'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  debugPrint('🧪 Simple audio test failed: $e');
-                }
-              },
-              tooltip: 'Simple Audio Test (Debug)',
-            ),
-          if (_isPreviewVisible)
-            IconButton(
-              icon: Icon(
-                _isPreviewDarkTheme ? Icons.light_mode : Icons.dark_mode,
-                color: AppTheme.secondaryGold,
-              ),
-              onPressed: _togglePreviewTheme,
-              tooltip: 'Zmień motyw podglądu',
-            ),
-          IconButton(
-            icon: Icon(
-              _isPreviewVisible ? Icons.visibility_off : Icons.visibility,
-              color: AppTheme.secondaryGold,
-            ),
-            onPressed: _togglePreviewVisibility,
-            tooltip: _isPreviewVisible ? 'Ukryj podgląd' : 'Pokaż podgląd',
-          ),
+        
+  
+
         ],
       ),
       body: LayoutBuilder(
@@ -3624,7 +3509,8 @@ Zespół Metropolitan Investment''';
                                       true, // Włączone na wszystkich urządzeniach
 
                                   // 🔤 FONT & SIZE CONTROLS
-                                  showFontFamily: false, // We have custom font dropdown
+                                  showFontFamily:
+                                      false, // Using custom font dropdown with local fonts
                                   showFontSize: true,
                                   
                                   // 🎨 COLOR CONTROLS - Włączone ponownie

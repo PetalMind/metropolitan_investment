@@ -121,29 +121,35 @@ async function processScheduledEmail(emailId, emailData) {
             Object.assign(additionalRecipients, emailData.additionalRecipients);
         }
 
-        // Wywołaj funkcję wysyłania emaili
+        // Wywołaj funkcję wysyłania emaili - używamy sendPreGeneratedEmails
         const customEmailService = require('./custom-email-service');
-        const sendFunction = customEmailService.sendCustomEmailsToMultipleClients;
+        const sendFunction = customEmailService.sendPreGeneratedEmails;
 
-        const results = await sendFunction.call(null, {
-            data: {
-                investors: investors,
-                subject: emailData.subject || '',
-                htmlContent: emailData.htmlContent || '',
-                senderEmail: emailData.senderEmail || '',
-                senderName: emailData.senderName || '',
-                includeInvestmentDetails: emailData.includeInvestmentDetails || false,
-                additionalEmails: Object.keys(additionalRecipients),
-                // Dodatkowe dane potrzebne dla funkcji
-                investmentDetailsByClient: {}, // Puste - scheduled emails używają htmlContent
-                aggregatedInvestmentsForAdditionals: ''
-            }
+        // Przygotuj dane w formacie wymaganym przez sendPreGeneratedEmails
+        const completeEmailHtmlByClient = {};
+        investors.forEach(investor => {
+            completeEmailHtmlByClient[investor.client.id] = emailData.htmlContent;
         });
 
-        // Sprawdź wyniki
-        const hasErrors = results.some(result => !result.success);
-        const successCount = results.filter(result => result.success).length;
-        const totalCount = results.length;
+        const callableRequest = {
+            data: {
+                recipients: investors,
+                additionalEmails: Object.keys(additionalRecipients),
+                subject: emailData.subject || '',
+                completeEmailHtmlByClient: completeEmailHtmlByClient,
+                aggregatedEmailHtmlForAdditionals: emailData.htmlContent, // Ten sam HTML dla dodatkowych
+                senderEmail: emailData.senderEmail || '',
+                senderName: emailData.senderName || ''
+            }
+        };
+
+        const results = await sendFunction(callableRequest);
+
+        // Sprawdź wyniki - sendPreGeneratedEmails zwraca obiekt z results array
+        const emailResults = results.results || [];
+        const hasErrors = emailResults.some(result => !result.success);
+        const successCount = emailResults.filter(result => result.success).length;
+        const totalCount = emailResults.length;
 
         if (hasErrors) {
             await updateEmailStatus(emailId, 'partiallyFailed', {

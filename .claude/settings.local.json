@@ -28,7 +28,9 @@
       "Bash(flutter clean:*)",
       "Bash(cat:*)",
       "Bash(firebase functions:list:*)",
-      "Bash(firebase functions:log:*)"
+      "Bash(firebase functions:log:*)",
+      "Bash(firebase functions:shell:*)",
+      "Bash(firebase functions:call:*)"
     ],
     "deny": [],
     "additionalDirectories": [

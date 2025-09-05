@@ -364,9 +364,11 @@ class EmailHtmlConverterService {
     final fontName = value.toString();
     final cssFontFamily = getCssFontFamily(fontName);
     
-    // Check if font requires Google Fonts
-    if (FontFamilyService.isGoogleFont(fontName)) {
-      debugPrint('🌐 Font "$fontName" is a Google Font - will be loaded for web compatibility.');
+    // Check if font is a local font
+    if (FontFamilyService.isLocalFont(fontName)) {
+      debugPrint(
+        '📱 Font "$fontName" is a local font - loaded from app assets.',
+      );
     } else {
       debugPrint('⚠️ Font "$fontName" may need fallbacks for email clients.');
     }
@@ -488,11 +490,15 @@ class EmailHtmlConverterService {
   static String _enhanceHtmlWithEmailCompatibility(String htmlOutput) {
     String finalHtml = htmlOutput;
 
-    // Detect Google Fonts usage
-    final requiredGoogleFonts = FontFamilyService.extractFontsFromHtml(htmlOutput);
-    final googleFontsLinks = FontFamilyService.generateGoogleFontsHtml(requiredGoogleFonts);
+    // Detect local fonts usage
+    final requiredLocalFonts = FontFamilyService.extractFontsFromHtml(
+      htmlOutput,
+    );
+    final localFontsCss = FontFamilyService.generateLocalFontsCss(
+      requiredLocalFonts,
+    );
     
-    debugPrint('🎨 Detected fonts in HTML: $requiredGoogleFonts');
+    debugPrint('🎨 Detected fonts in HTML: $requiredLocalFonts');
 
     // Add email-compatible structure if not present
     if (!finalHtml.contains('<html>') && !finalHtml.contains('<body>')) {
@@ -503,7 +509,7 @@ class EmailHtmlConverterService {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Email Content</title>
-  ${googleFontsLinks.isNotEmpty ? '  $googleFontsLinks' : ''}
+  ${localFontsCss.isNotEmpty ? '  <style>\n$localFontsCss\n  </style>' : ''}
   ${_getEmailCompatibleStyles()}
 </head>
 <body>
@@ -516,16 +522,18 @@ class EmailHtmlConverterService {
   </table>
 </body>
 </html>''';
-    } else if (googleFontsLinks.isNotEmpty && finalHtml.contains('<head>')) {
-      // Inject Google Fonts into existing head
+    } else if (localFontsCss.isNotEmpty && finalHtml.contains('<head>')) {
+      // Inject local fonts CSS into existing head
       finalHtml = finalHtml.replaceFirst(
         '<head>',
-        '<head>\n  $googleFontsLinks',
+        '<head>\n  <style>\n$localFontsCss\n  </style>',
       );
     }
 
-    if (requiredGoogleFonts.isNotEmpty) {
-      debugPrint('📤 HTML enhanced with Google Fonts: ${requiredGoogleFonts.join(', ')}');
+    if (requiredLocalFonts.isNotEmpty) {
+      debugPrint(
+        '📤 HTML enhanced with Local Fonts: ${requiredLocalFonts.join(', ')}',
+      );
     }
     debugPrint('🎨 HTML conversion completed with enhanced structure');
     return finalHtml;

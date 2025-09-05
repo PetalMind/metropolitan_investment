@@ -7,7 +7,6 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme_professional.dart';
 import 'providers/auth_provider.dart';
@@ -43,8 +42,7 @@ Future<void> main() async {
     final emailSchedulingService = EmailSchedulingService();
     emailSchedulingService.start();
     
-    // 🎨 PRELOAD GOOGLE FONTS for email editor
-    await _preloadGoogleFonts();
+    // 🎨 Local fonts are automatically available from app assets
   } catch (e) {
     // Silent fail for production
   }
@@ -85,43 +83,5 @@ class MetropolitanInvestmentApp extends StatelessWidget {
   }
 }
 
-/// 🎨 PRELOAD GOOGLE FONTS FOR EMAIL EDITOR
-Future<void> _preloadGoogleFonts() async {
-  try {
-    // Preload all Google Fonts used in the email editor
-    await Future.wait([
-      GoogleFonts.pendingFonts([
-        // 📰 Professional & Business
-        GoogleFonts.openSans(),
-        GoogleFonts.roboto(),
-        GoogleFonts.lato(),
-        GoogleFonts.montserrat(),
-        GoogleFonts.sourceSans3(),
-        GoogleFonts.nunitoSans(),
-        GoogleFonts.inter(),
-        GoogleFonts.workSans(),
-        
-        // 📝 Elegant & Readable
-        GoogleFonts.merriweather(),
-        GoogleFonts.playfairDisplay(),
-        GoogleFonts.libreBaskerville(),
-        GoogleFonts.crimsonText(),
-        
-        // 🎨 Modern & Stylish
-        GoogleFonts.poppins(),
-        GoogleFonts.raleway(),
-        GoogleFonts.ubuntu(),
-        GoogleFonts.nunito(),
-        
-        // 💼 Corporate & Clean
-        GoogleFonts.robotoCondensed(),
-        GoogleFonts.oswald(),
-        GoogleFonts.firaSans(),
-        GoogleFonts.ptSans(),
-      ]),
-    ]);
-    debugPrint('🎨 All Google Fonts (20 fonts) preloaded successfully');
-  } catch (e) {
-    debugPrint('⚠️ Failed to preload Google Fonts: $e');
-  }
-}
+/// 🎨 LOCAL FONTS ARE AUTOMATICALLY AVAILABLE
+/// No preloading needed for local fonts as they are bundled with the app
