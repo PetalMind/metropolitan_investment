@@ -150,6 +150,21 @@ class EmailAutoSaveService {
     return drafts.isNotEmpty ? drafts.first : null;
   }
 
+  /// Check if there are any drafts available for recovery
+  Future<bool> hasRecoverableDrafts() async {
+    try {
+      final draft = await getLatestDraft();
+      if (draft == null) return false;
+
+      // Check if draft is not older than 7 days
+      final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+      return !draft.lastModified.isBefore(sevenDaysAgo);
+    } catch (e) {
+      debugPrint('❌ Error checking for recoverable drafts: $e');
+      return false;
+    }
+  }
+
   /// Clear all old drafts (older than 30 days)
   Future<void> cleanupOldDrafts() async {
     try {
@@ -168,29 +183,41 @@ class EmailAutoSaveService {
     }
   }
 
-  /// Get auto-save status info
-  Future<AutoSaveStatus> getAutoSaveStatus() async {
+  /// Handle draft recovery with option to delete rejected drafts
+  /// Returns true if draft was recovered, false if rejected/deleted, null if no draft
+  Future<bool?> handleDraftRecovery({
+    required Future<bool?> Function(EmailDraft draft) showRecoveryDialog,
+    required Function(EmailDraft draft) onDraftRecovered,
+  }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final lastSaveTimestamp = prefs.getInt(_lastSaveKey);
-      final draftsCount = (await getAllDrafts()).length;
-      
-      return AutoSaveStatus(
-        isEnabled: _autoSaveTimer?.isActive ?? false,
-        lastSaveTime: lastSaveTimestamp != null 
-            ? DateTime.fromMillisecondsSinceEpoch(lastSaveTimestamp)
-            : null,
-        draftsCount: draftsCount,
-        currentDraftId: _currentDraftId,
-      );
+      final draft = await getLatestDraft();
+      if (draft == null) return null;
+
+      // Check if draft is not older than 7 days
+      final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+      if (draft.lastModified.isBefore(sevenDaysAgo)) {
+        await deleteDraft(draft.id);
+        debugPrint('🗑️ Old draft deleted: ${draft.id}');
+        return null;
+      }
+
+      // Show recovery dialog
+      final shouldRecover = await showRecoveryDialog(draft);
+
+      if (shouldRecover == true) {
+        // Recover the draft
+        onDraftRecovered(draft);
+        debugPrint('✅ Draft recovered: ${draft.id}');
+        return true;
+      } else {
+        // Delete the rejected draft
+        await deleteDraft(draft.id);
+        debugPrint('🗑️ Draft rejected and deleted: ${draft.id}');
+        return false;
+      }
     } catch (e) {
-      debugPrint('❌ Failed to get auto-save status: $e');
-      return AutoSaveStatus(
-        isEnabled: false,
-        lastSaveTime: null,
-        draftsCount: 0,
-        currentDraftId: null,
-      );
+      debugPrint('❌ Error handling draft recovery: $e');
+      return null;
     }
   }
 

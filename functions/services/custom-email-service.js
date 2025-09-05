@@ -882,41 +882,114 @@ function generateBasicEmailContent({ htmlContent, senderName, recipientEmail }) 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wiadomość od ${senderName}</title>
     <style>
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
+        
         body { 
-            font-family: Arial, sans-serif; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             line-height: 1.6; 
-            color: #333; 
-            max-width: 600px; 
-            margin: 0 auto; 
-            padding: 20px; 
-            background-color: #f4f4f4;
+            color: #2c2c2c; 
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
         }
+        
         .email-container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 680px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
+        
         .header { 
-            background: linear-gradient(135deg, #1a237e, #3949ab); 
-            color: white; 
-            padding: 30px 20px; 
-            text-align: center; 
-            border-radius: 8px 8px 0 0; 
-            margin: -30px -30px 30px -30px;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: #ffffff; 
+            padding: 40px 30px; 
+            text-align: center;
         }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+        
+        .header .subtitle {
+            font-size: 14px;
+            color: #d4af37;
+            font-weight: 400;
+            opacity: 0.9;
+        }
+        
         .content { 
-            background: white; 
-            padding: 20px 0; 
+            background: #ffffff; 
+            padding: 40px 30px;
         }
+        
+        .greeting {
+            font-size: 18px;
+            color: #1e293b;
+            margin-bottom: 24px;
+            font-weight: 500;
+        }
+        
+        .user-content {
+            margin: 30px 0;
+            line-height: 1.7;
+            color: #374151;
+        }
+        
+        .user-content h1, .user-content h2, .user-content h3 {
+            color: #1e293b;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        
+        .user-content p {
+            margin-bottom: 16px;
+            color: #374151;
+        }
+        
         .footer { 
-            background: #f5f5f5; 
-            padding: 20px; 
+            background: #f8fafc; 
+            padding: 30px; 
             text-align: center; 
-            font-size: 14px; 
-            color: #666; 
-            border-radius: 0 0 8px 8px; 
-            margin: 30px -30px -30px -30px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer p {
+            font-size: 13px; 
+            color: #64748b; 
+            margin-bottom: 8px;
+        }
+        
+        .footer .company-name {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                box-shadow: none;
+            }
+            
+            .header, .content, .footer {
+                padding: 24px 20px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .greeting {
+                font-size: 16px;
+            }
         }
     </style>
 </head>
@@ -924,18 +997,23 @@ function generateBasicEmailContent({ htmlContent, senderName, recipientEmail }) 
     <div class="email-container">
         <div class="header">
             <h1>${senderName}</h1>
-            <p>Wiadomość dla Ciebie</p>
+            <div class="subtitle">Profesjonalne Zarządzanie Kapitałem</div>
         </div>
         
         <div class="content">
-            <div class="message-content">
+            <div class="greeting">
+                Szanowni Państwo,
+            </div>
+            
+            <div class="user-content">
                 ${htmlContent}
             </div>
         </div>
         
         <div class="footer">
-            <p>Ten email został wygenerowany automatycznie ${new Date().toLocaleString('pl-PL')}.</p>
-            <p><strong>${senderName}</strong> - Profesjonalne Zarządzanie Kapitałem</p>
+            <p>Ten email został wysłany automatycznie dnia ${new Date().toLocaleDateString('pl-PL')}.</p>
+            <p><span class="company-name">${senderName}</span></p>
+            <p>W razie pytań, prosimy o kontakt z naszym działem obsługi klienta.</p>
         </div>
     </div>
 </body>
@@ -1205,41 +1283,53 @@ async function getInvestmentDetailsForClient(clientId) {
 
       return `
         <tr>
-          <td>${safeToString(investment.productName || investment.nazwa_produktu || 'Nieokreślony produkt')}</td>
-          <td>${formatCurrency(investmentAmount)}</td>
-          <td>${formatCurrency(remainingCapital)}</td>
-          <td>${formatCurrency(realizedCapital)}</td>
-          <td>${investment.status || 'Aktywna'}</td>
+          <td data-label="Produkt">${safeToString(investment.productName || investment.nazwa_produktu || 'Nieokreślony produkt')}</td>
+          <td data-label="Kwota Inwestycji">${formatCurrency(investmentAmount)}</td>
+          <td data-label="Kapitał Pozostały">${formatCurrency(remainingCapital)}</td>
+          <td data-label="Kapitał Zrealizowany">${formatCurrency(realizedCapital)}</td>
+          <td data-label="Status">${investment.status || 'Aktywna'}</td>
         </tr>
       `;
     }).join('');
 
     return `
-      <div class="investment-details">
-        <h3>📊 Podsumowanie Twojego Portfela</h3>
-        <div class="summary">
-          <p><strong>Liczba inwestycji:</strong> ${investments.length}</p>
-          <p><strong>Całkowita kwota inwestycji:</strong> <span class="total">${formatCurrency(totalInvestmentAmount)}</span></p>
-          <p><strong>Kapitał pozostały:</strong> <span class="total">${formatCurrency(totalRemainingCapital)}</span></p>
-          <p><strong>Kapitał zrealizowany:</strong> ${formatCurrency(totalRealizedCapital)}</p>
+      <h3>📊 Podsumowanie Twojego Portfela</h3>
+      <div class="summary">
+        <div class="summary-grid">
+          <div class="summary-item">
+            <div class="summary-label">Liczba inwestycji</div>
+            <div class="summary-value">${investments.length}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Całkowita kwota</div>
+            <div class="summary-value highlight">${formatCurrency(totalInvestmentAmount)}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Kapitał pozostały</div>
+            <div class="summary-value">${formatCurrency(totalRemainingCapital)}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Kapitał zrealizowany</div>
+            <div class="summary-value">${formatCurrency(totalRealizedCapital)}</div>
+          </div>
         </div>
-        
-        <h3>📋 Szczegóły Inwestycji</h3>
-        <table class="investment-table">
-          <thead>
-            <tr>
-              <th>Produkt</th>
-              <th>Kwota Inwestycji</th>
-              <th>Kapitał Pozostały</th>
-              <th>Kapitał Zrealizowany</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${investmentRows}
-          </tbody>
-        </table>
       </div>
+      
+      <h3>📋 Szczegóły Inwestycji</h3>
+      <table class="investment-table">
+        <thead>
+          <tr>
+            <th>Produkt</th>
+            <th>Kwota Inwestycji</th>
+            <th>Kapitał Pozostały</th>
+            <th>Kapitał Zrealizowany</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${investmentRows}
+        </tbody>
+      </table>
     `;
 
   } catch (error) {
@@ -1259,96 +1349,317 @@ function generatePersonalizedEmailContent({
   totalAmount,
   investmentCount
 }) {
-  // Podstawowe CSS dla email
+  // Profesjonalne, responsywne CSS dla email
   const emailStyles = `
     <style>
+      /* Reset i podstawowe style */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      
       body { 
-        font-family: Arial, sans-serif; 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         line-height: 1.6; 
-        color: #333; 
-        max-width: 600px; 
-        margin: 0 auto; 
-        padding: 20px; 
+        color: #2c2c2c; 
+        background-color: #f8f9fa;
+        margin: 0;
+        padding: 0;
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
       }
+      
+      .email-container {
+        max-width: 680px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      }
+      
       .header { 
-        background: linear-gradient(135deg, #1a237e, #3949ab); 
-        color: white; 
-        padding: 30px 20px; 
-        text-align: center; 
-        border-radius: 8px 8px 0 0; 
-        margin-bottom: 0;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        color: #ffffff; 
+        padding: 40px 30px; 
+        text-align: center;
       }
+      
+      .header h1 {
+        font-size: 24px;
+        font-weight: 300;
+        margin-bottom: 8px;
+        letter-spacing: 0.5px;
+      }
+      
+      .header .subtitle {
+        font-size: 14px;
+        color: #d4af37;
+        font-weight: 400;
+        opacity: 0.9;
+      }
+      
       .content { 
-        background: white; 
-        padding: 30px; 
-        border: 1px solid #e0e0e0; 
-        border-top: none;
+        background: #ffffff; 
+        padding: 40px 30px;
       }
+      
+      .greeting {
+        font-size: 18px;
+        color: #1e293b;
+        margin-bottom: 24px;
+        font-weight: 500;
+      }
+      
       .summary { 
-        background: #f8f9fa; 
-        padding: 20px; 
-        margin: 20px 0; 
+        background: #f8fafc; 
+        padding: 24px; 
+        margin: 30px 0; 
         border-radius: 8px; 
-        border-left: 4px solid #1a237e; 
+        border-left: 3px solid #d4af37;
+        border: 1px solid #e2e8f0;
       }
-      .footer { 
-        background: #f5f5f5; 
-        padding: 20px; 
-        text-align: center; 
-        font-size: 14px; 
-        color: #666; 
-        border-radius: 0 0 8px 8px; 
-        border: 1px solid #e0e0e0;
-        border-top: none;
+      
+      .summary h3 {
+        color: #1e293b;
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
       }
+      
+      .summary-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      
+      .summary-item {
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .summary-label {
+        font-size: 13px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 500;
+        margin-bottom: 4px;
+      }
+      
+      .summary-value {
+        font-size: 18px;
+        color: #1e293b;
+        font-weight: 600;
+      }
+      
+      .summary-value.highlight {
+        color: #d4af37;
+        font-size: 20px;
+      }
+      
       .investment-details {
-        margin: 20px 0;
+        margin: 30px 0;
       }
+      
+      .investment-details h3 {
+        color: #1e293b;
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #f1f5f9;
+      }
+      
       .investment-table { 
         width: 100%; 
         border-collapse: collapse; 
-        margin: 20px 0; 
-      }
-      .investment-table th, 
-      .investment-table td { 
-        border: 1px solid #ddd; 
-        padding: 12px; 
-        text-align: left; 
-      }
-      .investment-table th { 
-        background-color: #1a237e; 
-        color: white; 
-      }
-      .total { 
-        font-weight: bold; 
-        color: #1a237e; 
-        font-size: 18px; 
-      }
-      .user-content {
         margin: 20px 0;
-        line-height: 1.8;
+        background: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       }
+      
+      .investment-table th { 
+        background: #1e293b; 
+        color: #ffffff; 
+        padding: 16px 12px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      
+      .investment-table td { 
+        padding: 14px 12px; 
+        border-bottom: 1px solid #f1f5f9;
+        color: #2c2c2c;
+      }
+      
+      .investment-table tr:hover {
+        background-color: #f8fafc;
+      }
+      
+      .investment-table tr:last-child td {
+        border-bottom: none;
+      }
+      
+      .total { 
+        font-weight: 700; 
+        color: #d4af37; 
+        font-size: 16px; 
+      }
+      
+      .user-content {
+        margin: 30px 0;
+        line-height: 1.7;
+        color: #374151;
+      }
+      
       .user-content h1, .user-content h2, .user-content h3 {
-        color: #1a237e;
-        margin-top: 30px;
-        margin-bottom: 15px;
+        color: #1e293b;
+        margin-top: 24px;
+        margin-bottom: 12px;
+        font-weight: 600;
       }
+      
+      .user-content h1 { font-size: 24px; }
+      .user-content h2 { font-size: 20px; }
+      .user-content h3 { font-size: 18px; }
+      
       .user-content p {
-        margin-bottom: 15px;
+        margin-bottom: 16px;
+        color: #374151;
       }
+      
       .user-content ul, .user-content ol {
         margin-left: 20px;
-        margin-bottom: 15px;
+        margin-bottom: 16px;
       }
+      
       .user-content li {
         margin-bottom: 8px;
+        color: #374151;
       }
+      
       .user-content strong {
-        color: #1a237e;
+        color: #1e293b;
+        font-weight: 600;
       }
+      
       .user-content em {
         font-style: italic;
-        color: #666;
+        color: #6b7280;
+      }
+      
+      .footer { 
+        background: #f8fafc; 
+        padding: 30px; 
+        text-align: center; 
+        border-top: 1px solid #e2e8f0;
+      }
+      
+      .footer p {
+        font-size: 13px; 
+        color: #64748b; 
+        margin-bottom: 8px;
+      }
+      
+      .footer .company-name {
+        font-weight: 600;
+        color: #1e293b;
+      }
+      
+      /* Responsywność mobilna */
+      @media only screen and (max-width: 600px) {
+        .email-container {
+          margin: 0;
+          box-shadow: none;
+        }
+        
+        .header, .content, .footer {
+          padding: 24px 20px;
+        }
+        
+        .header h1 {
+          font-size: 20px;
+        }
+        
+        .greeting {
+          font-size: 16px;
+        }
+        
+        .summary {
+          padding: 20px;
+          margin: 20px 0;
+        }
+        
+        .summary-grid {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        
+        .investment-table {
+          font-size: 14px;
+        }
+        
+        .investment-table th,
+        .investment-table td {
+          padding: 10px 8px;
+        }
+        
+        .user-content h1 { font-size: 20px; }
+        .user-content h2 { font-size: 18px; }
+        .user-content h3 { font-size: 16px; }
+      }
+      
+      /* Wsparcie dla klientów email */
+      @media only screen and (max-width: 480px) {
+        .summary-grid {
+          display: block;
+        }
+        
+        .summary-item {
+          margin-bottom: 16px;
+        }
+        
+        .investment-table,
+        .investment-table tbody,
+        .investment-table th,
+        .investment-table td,
+        .investment-table tr {
+          display: block;
+        }
+        
+        .investment-table th {
+          display: none;
+        }
+        
+        .investment-table tr {
+          border: 1px solid #e2e8f0;
+          margin-bottom: 8px;
+          border-radius: 4px;
+          padding: 12px;
+        }
+        
+        .investment-table td {
+          border: none;
+          padding: 4px 0;
+          position: relative;
+          padding-left: 35%;
+        }
+        
+        .investment-table td:before {
+          content: attr(data-label) ": ";
+          position: absolute;
+          left: 0;
+          width: 30%;
+          font-weight: 600;
+          color: #1e293b;
+        }
       }
     </style>
   `;
@@ -1358,45 +1669,38 @@ function generatePersonalizedEmailContent({
     <html>
     <head>
       <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Wiadomość od ${senderName}</title>
       ${emailStyles}
     </head>
     <body>
-      <div class="header">
-        <div style="display: flex; align-items: center; justify-content: center; flex-direction: column;">
-          <svg width="270" height="143" viewBox="0 0 159.77333 84.173332" style="margin-bottom: 15px;">
-            <g>
-              <path d="m 162.859,267.559 -22.386,-29.84 h -2.555 l -21.891,29.941 v -49.972 h -12.961 v 68.726 h 14.922 l 21.504,-29.551 21.5,29.551 h 14.828 v -68.726 h -12.961 z m 96.012,-49.766 h -51.445 c 0,22.871 0,45.848 0,68.719 h 51.445 v -12.567 h -38.582 v -15.804 h 37.207 v -12.078 h -37.207 v -15.516 h 38.582 z m 51.434,56.937 h -21.793 v 11.782 c 19.836,0 36.625,0 56.554,0 V 274.73 H 323.27 V 217.793 H 310.305 Z M 433.52,217.793 h -15.418 l -20.028,22.969 h -12.469 v -22.969 h -12.96 v 68.816 c 10.902,0 21.8,-0.097 32.695,-0.097 16.199,-0.098 24.742,-10.895 24.742,-22.778 0,-9.425 -4.32,-18.949 -17.379,-21.597 l 20.817,-23.469 z m -47.915,56.641 v 0 -21.985 h 19.735 c 8.246,0 11.781,5.492 11.781,10.992 0,5.493 -3.633,10.993 -11.781,10.993 z m 140.387,-22.676 c -0.191,-17.77 -11.094,-35.543 -35.242,-35.543 -24.152,0 -35.348,17.379 -35.348,35.441 0,18.071 11.586,36.231 35.348,36.231 23.66,0 35.445,-18.16 35.242,-36.129 z m -57.824,-0.293 v 0 c 0.297,-11.289 6.379,-23.371 22.582,-23.371 16.199,0 22.289,12.176 22.48,23.469 0.2,11.582 -6.281,24.542 -22.48,24.542 -16.203,0 -22.879,-13.054 -22.582,-24.64 z m 119.379,-13.457 h -19.442 v -20.215 h -12.96 v 68.719 c 10.8,0 21.601,0.097 32.402,0.097 33.582,0 33.676,-48.601 0,-48.601 z m -19.442,11.879 v 0 h 19.442 c 16.594,0 16.492,24.351 0,24.351 h -19.442 z m 140.586,1.871 c -0.195,-17.77 -11.089,-35.543 -35.242,-35.543 -24.156,0 -35.347,17.379 -35.347,35.441 0,18.071 11.586,36.231 35.347,36.231 23.66,0 35.442,-18.16 35.242,-36.129 z m -57.824,-0.293 v 0 c 0.297,-11.289 6.379,-23.371 22.582,-23.371 16.199,0 22.285,12.176 22.485,23.469 0.195,11.582 -6.286,24.542 -22.485,24.542 -16.203,0 -22.879,-13.054 -22.582,-24.64 z m 99.942,35.047 v -56.746 h 35.343 v -11.973 h -48.304 v 68.719 z m 64.199,-68.719 v 68.719 h 12.863 v -68.719 z m 65.578,56.937 h -21.797 v 11.782 c 19.836,0 36.625,0 56.559,0 V 274.73 h -21.793 v -56.937 h -12.969 z m 111.031,-43.98 h -35.929 l -5.891,-12.957 h -14.039 l 30.828,68.719 h 14.137 l 30.837,-68.719 h -14.142 z m -17.965,41.328 v 0 l -12.757,-29.254 h 25.527 z m 108.588,14.531 h 12.95 v -68.816 h -8.05 v -0.105 l -36.13,46.437 v -46.332 h -12.96 v 68.719 h 10.51 l 33.68,-42.606 v 42.703" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-              <path d="m 351.273,152.938 h 5.54 v -49.032 h -5.54 v 49.032" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-              <path d="m 383.828,140.117 h 5.391 v -6.301 c 2.383,3.918 6.164,7.075 12.398,7.075 8.754,0 13.867,-5.883 13.867,-14.504 v -22.481 h -5.394 v 21.153 c 0,6.726 -3.641,10.925 -10.016,10.925 -6.23,0 -10.855,-4.55 -10.855,-11.343 v -20.735 h -5.391 v 36.211" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-              <path d="m 434.984,140.117 h 5.954 l 12.187,-30.047 12.258,30.047 h 5.812 l -15.761,-36.488 h -4.758 l -15.692,36.488" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-              <path d="m 517.109,124.148 c -0.629,6.586 -4.414,12.188 -11.558,12.188 -6.231,0 -10.996,-5.184 -11.766,-12.188 z m -10.578,-16.386 c 4.973,0 8.477,2.031 11.418,5.113 l 3.36,-3.016 c -3.637,-4.062 -8.051,-6.793 -14.918,-6.793 -9.946,0 -18.067,7.633 -18.067,18.914 0,10.5 7.356,18.911 17.367,18.911 10.715,0 16.883,-8.547 16.883,-19.196 0,-0.488 0,-1.05 -0.074,-1.89 h -28.715 c 0.77,-7.629 6.375,-12.043 12.746,-12.043" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-              <path d="m 543.422,108.531 2.73,3.852 c 3.922,-2.942 8.266,-4.621 12.539,-4.621 4.34,0 7.493,2.242 7.493,5.742 v 0.141 c 0,3.64 -4.27,5.043 -9.036,6.371 -5.671,1.613 -11.976,3.574 -11.976,10.226 v 0.141 c 0,6.234 5.183,10.367 12.328,10.367 4.414,0 9.316,-1.543 13.027,-3.996 l -2.449,-4.063 c -3.367,2.172 -7.219,3.5 -10.719,3.5 -4.273,0 -7.004,-2.238 -7.004,-5.246 v -0.144 c 0,-3.43 4.485,-4.758 9.317,-6.235 5.601,-1.679 11.629,-3.851 11.629,-10.359 v -0.144 c 0,-6.864 -5.676,-10.852 -12.891,-10.852 -5.183,0 -10.926,2.031 -14.988,5.32" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-              <path d="m 596.633,113.504 v 21.848 h -5.043 v 4.765 h 5.043 v 10.926 h 5.39 v -10.926 h 11.489 v -4.765 h -11.489 v -21.145 c 0,-4.414 2.45,-6.027 6.094,-6.027 1.821,0 3.363,0.351 5.254,1.261 v -4.625 c -1.891,-0.976 -3.922,-1.539 -6.516,-1.539 -5.808,0 -10.222,2.871 -10.222,10.227" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-              <path d="m 638.297,140.117 h 5.391 v -6.094 c 2.382,3.571 5.605,6.868 11.699,6.868 5.879,0 9.668,-3.157 11.633,-7.219 2.585,3.996 6.433,7.219 12.742,7.219 8.332,0 13.449,-5.606 13.449,-14.571 v -22.414 h -5.391 v 21.153 c 0,7.004 -3.507,10.925 -9.386,10.925 -5.469,0 -10.016,-4.058 -10.016,-11.207 v -20.871 h -5.324 v 21.289 c 0,6.797 -3.574,10.789 -9.317,10.789 -5.742,0 -10.089,-4.761 -10.089,-11.418 v -20.66 h -5.391 v 36.211" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-              <path d="m 743.297,124.148 c -0.637,6.586 -4.414,12.188 -11.563,12.188 -6.23,0 -10.996,-5.184 -11.765,-12.188 z m -10.574,-16.386 c 4.968,0 8.472,2.031 11.414,5.113 l 3.359,-3.016 c -3.644,-4.062 -8.058,-6.793 -14.922,-6.793 -9.941,0 -18.066,7.633 -18.066,18.914 0,10.5 7.351,18.911 17.375,18.911 10.711,0 16.875,-8.547 16.875,-19.196 0,-0.488 0,-1.05 -0.07,-1.89 h -28.719 c 0.769,-7.629 6.375,-12.043 12.754,-12.043" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-              <path d="m 771.488,140.117 h 5.391 v -6.301 c 2.383,3.918 6.164,7.075 12.394,7.075 8.758,0 13.868,-5.883 13.868,-14.504 v -22.481 h -5.391 v 21.153 c 0,6.726 -3.645,10.925 -10.02,10.925 -6.23,0 -10.851,-4.55 -10.851,-11.343 v -20.735 h -5.391 v 36.211" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-              <path d="m 830.074,113.504 v 21.848 h -5.039 v 4.765 h 5.039 v 10.926 h 5.399 v -10.926 h 11.488 v -4.765 h -11.488 v -21.145 c 0,-4.414 2.453,-6.027 6.093,-6.027 1.817,0 3.36,0.351 5.247,1.261 v -4.625 c -1.887,-0.976 -3.918,-1.539 -6.504,-1.539 -5.821,0 -10.235,2.871 -10.235,10.227" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-              <path d="m 513.23,363.922 h 32.723 V 487.16 L 513.23,514.227 V 363.922" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-              <path d="m 566.406,363.922 h 32.727 V 498.414 L 566.406,480.047 V 363.922" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-              <path d="m 619.586,363.922 h 32.727 V 528.266 L 619.586,509.895 V 363.922" style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
-            </g>
-          </svg>
-          <h2 style="margin: 0; font-size: 18px; color: #d4af37;">Wiadomość do Ciebie</h2>
-        </div>
-      </div>
-      
-      <div class="content">
-        <div class=user-content">
-          ${htmlContent}
+      <div class="email-container">
+        <div class="header">
+          <h1>${senderName}</h1>
+          <div class="subtitle">Profesjonalne Zarządzanie Kapitałem</div>
         </div>
         
-        ${investmentDetailsHtml}
-      </div>
-      
-      <div class="footer">
-        <p>Ten email został wysłany ${new Date().toLocaleString('pl-PL')}.</p>
-        <p><strong>${senderName}</strong> - Profesjonalne Zarządzanie Kapitałem</p>
-        <p>W razie pytań, prosimy o kontakt z naszym działem obsługi klienta.</p>
+        <div class="content">
+          <div class="greeting">
+            Szanowny/a ${clientName || 'Kliencie'},
+          </div>
+          
+          <div class="user-content">
+            ${htmlContent}
+          </div>
+          
+          ${investmentDetailsHtml ? `
+            <div class="investment-details">
+              ${investmentDetailsHtml}
+            </div>
+          ` : ''}
+        </div>
+        
+        <div class="footer">
+          <p>Ten email został wysłany automatycznie dnia ${new Date().toLocaleDateString('pl-PL')}.</p>
+          <p><span class="company-name">${senderName}</span></p>
+          <p>W razie pytań, prosimy o kontakt z naszym działem obsługi klienta.</p>
+        </div>
       </div>
     </body>
     </html>

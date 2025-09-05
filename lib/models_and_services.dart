@@ -127,6 +127,7 @@ export 'services/universal_investment_service.dart'
 export 'services/smtp_service.dart'; // 🚀 NOWE: Serwis konfiguracji i testowania SMTP
 export 'services/email_scheduling_service.dart'; // 🚀 NOWE: Serwis planowania wysyłek emaili
 export 'services/email_advanced_formatting_service.dart'; // 🚀 NOWE: Serwis zaawansowanego formatowania emaili
+export 'services/font_family_service.dart'; // 🚀 NOWE: Serwis zarządzania lokalnymi czcionkami
 export 'services/calendar_service.dart'; // 🚀 NOWE: Serwis kalendarza
 export 'services/calendar_notification_service.dart'; // 🚀 NOWE: Serwis powiadomień kalendarza
 export 'services/client_side_excel_export_service.dart'; // 🚀 NOWE: Generowanie Excel po stronie klienta

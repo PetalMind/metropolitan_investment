@@ -26,9 +26,11 @@ class AuthWrapper extends StatelessWidget {
           return const AuthLoadingScreen();
         }
 
-        // Redirect to login if user is not logged in
+        // Redirect to spectacular auth if user is not logged in
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          context.go(AppRoutes.login);
+          context.go(
+            AppRoutes.spectacularAuth,
+          ); // 🎨 NEW: Spectacular auth experience
         });
         return const AuthLoadingScreen();
       },
@@ -133,7 +135,7 @@ class _AuthLoadingScreenState extends State<AuthLoadingScreen>
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
+                                color: Colors.black.withValues(alpha: 0.3),
                                 blurRadius: 20,
                                 offset: const Offset(0, 10),
                               ),
@@ -169,7 +171,7 @@ class _AuthLoadingScreenState extends State<AuthLoadingScreen>
                 Text(
                   'Ładowanie aplikacji...',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppTheme.textOnPrimary.withOpacity(0.8),
+                    color: AppTheme.textOnPrimary.withValues(alpha: 0.8),
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -182,7 +184,7 @@ class _AuthLoadingScreenState extends State<AuthLoadingScreen>
                   height: 40,
                   child: CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      AppTheme.textOnPrimary.withOpacity(0.8),
+                      AppTheme.textOnPrimary.withValues(alpha: 0.8),
                     ),
                     strokeWidth: 3,
                   ),
@@ -217,9 +219,11 @@ class StreamAuthWrapper extends StatelessWidget {
           return const AuthLoadingScreen();
         }
 
-        // Redirect to login if user is not logged in
+        // Redirect to spectacular auth if user is not logged in
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          context.go(AppRoutes.login);
+          context.go(
+            AppRoutes.spectacularAuth,
+          ); // 🎨 NEW: Spectacular auth experience
         });
         return const AuthLoadingScreen();
       },
@@ -342,7 +346,7 @@ class _SplashScreenState extends State<SplashScreen>
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withValues(alpha: 0.3),
                               blurRadius: 30,
                               offset: const Offset(0, 15),
                             ),
@@ -388,7 +392,7 @@ class _SplashScreenState extends State<SplashScreen>
                             'Profesjonalne zarządzanie inwestycjami',
                             style: Theme.of(context).textTheme.bodyLarge
                                 ?.copyWith(
-                                  color: AppTheme.textOnPrimary.withOpacity(
+                                  color: AppTheme.textOnPrimary.withValues(alpha: 
                                     0.9,
                                   ),
                                   letterSpacing: 1.0,

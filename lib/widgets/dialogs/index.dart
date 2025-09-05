@@ -9,3 +9,6 @@ export 'product_details_tabs.dart';
 export 'product_analytics_tab.dart';
 export 'product_investors_tab.dart';
 export 'product_overview_tab.dart';
+
+// Dialog wylogowywania
+export 'logout_dialog.dart';

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Lokalnych Czcionek - HTML Output</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .font-test {
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+        .font-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .sample-text {
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        .css-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Czcionek z EmailHtmlConverterService</h1>
+    <p>Ten test pokazuje jak lokalne czcionki z assets/fonts/ są interpretowane jako HTML dla emaili.</p>
+    
+    <div class="font-test">
+        <div class="font-name">CrimsonText</div>
+        <div class="sample-text" style="font-family: CrimsonText, serif;">
+            To jest tekst w czcionce CrimsonText. Przykład polskich znaków: ąćęłńóśźż ĄĆĘŁŃÓŚŹŻ.
+        </div>
+        <div class="css-info">CSS: font-family: CrimsonText, serif;</div>
+    </div>
+    
+    <div class="font-test">
+        <div class="font-name">FiraSans</div>
+        <div class="sample-text" style="font-family: FiraSans, sans-serif;">
+            To jest tekst w czcionce FiraSans. Professional sans-serif font for business documents.
+        </div>
+        <div class="css-info">CSS: font-family: FiraSans, sans-serif;</div>
+    </div>
+    
+    <div class="font-test">
+        <div class="font-name">Inter</div>
+        <div class="sample-text" style="font-family: Inter, sans-serif;">
+            To jest tekst w czcionce Inter. Modern font designed for user interfaces.
+        </div>
+        <div class="css-info">CSS: font-family: Inter, sans-serif;</div>
+    </div>
+    
+    <div class="font-test">
+        <div class="font-name">Lato</div>
+        <div class="sample-text" style="font-family: Lato, sans-serif;">
+            To jest tekst w czcionce Lato. Clean and friendly humanist sans-serif.
+        </div>
+        <div class="css-info">CSS: font-family: Lato, sans-serif;</div>
+    </div>
+    
+    <div class="font-test">
+        <div class="font-name">Montserrat</div>
+        <div class="sample-text" style="font-family: Montserrat, sans-serif;">
+            To jest tekst w czcionce Montserrat. Professional font for headings and branding.
+        </div>
+        <div class="css-info">CSS: font-family: Montserrat, sans-serif;</div>
+    </div>
+    
+    <div class="font-test">
+        <div class="font-name">Nunito</div>
+        <div class="sample-text" style="font-family: Nunito, sans-serif;">
+            To jest tekst w czcionce Nunito. Rounded sans-serif font for friendly appearance.
+        </div>
+        <div class="css-info">CSS: font-family: Nunito, sans-serif;</div>
+    </div>
+    
+    <script>
+        // Test czy czcionki są załadowane
+        document.addEventListener('DOMContentLoaded', function() {
+            const fontFamilies = ['CrimsonText', 'FiraSans', 'Inter', 'Lato', 'Montserrat', 'Nunito'];
+            
+            fontFamilies.forEach(font => {
+                const element = document.createElement('span');
+                element.style.fontFamily = font;
+                element.style.fontSize = '16px';
+                element.textContent = 'Test';
+                document.body.appendChild(element);
+                
+                // Sprawdź czy czcionka została załadowana
+                const computedStyle = window.getComputedStyle(element);
+                const actualFont = computedStyle.fontFamily;
+                
+                console.log(`Font ${font}: ${actualFont.includes(font) ? '✅ Załadowana' : '❌ Fallback'}`);
+                document.body.removeChild(element);
+            });
+        });
+    </script>
+</body>
+</html>

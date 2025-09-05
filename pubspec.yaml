@@ -218,8 +218,3 @@ fonts:
       - asset: assets/fonts/Roboto/Roboto-VariableFont_wdth,wght.ttf
         weight: 100
         style: normal
-  - family: WorkSans
-    fonts:
-      - asset: assets/fonts/Work_Sans/WorkSans-VariableFont_wght.ttf
-        weight: 100
-        style: normal

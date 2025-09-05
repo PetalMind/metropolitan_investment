@@ -25,7 +25,7 @@ class EmailHtmlConverterService {
 
   /// Get CSS font family with fallbacks
   static String getCssFontFamily(String fontName) {
-    return '$fontName, Arial, sans-serif';
+    return FontFamilyService.getCssFontFamily(fontName);
   }
 
   /// Convert Quill controller content to HTML for preview (without full document structure)

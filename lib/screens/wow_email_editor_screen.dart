@@ -2592,7 +2592,7 @@ Zespół Metropolitan Investment''';
                               TextStyle(
                                 fontSize: 16,
                                 color: AppTheme.textPrimary,
-                                fontFamily: 'OpenSans', // Default local font
+                                fontFamily: 'Inter', // Modern UI local font
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -2681,7 +2681,7 @@ Zespół Metropolitan Investment''';
                               TextStyle(
                                 fontSize: 16,
                                 color: AppTheme.textSecondary,
-                                fontFamily: 'OpenSans', // Default local font
+                                fontFamily: 'Inter', // Modern UI local font
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -2746,13 +2746,13 @@ Zespół Metropolitan Investment''';
                                   showSuperscript:
                                       true, // Włączone na wszystkich urządzeniach
 
-                                  // 🔤 FONT & SIZE CONTROLS
-                                  showFontFamily: false,
-                                  showFontSize: false,
+                                  // 🔤 FONT & SIZE CONTROLS - TYLKO LOKALNE CZCIONKI
+                                  showFontFamily: true,
+                                  showFontSize: true,
                                   
-                                  // 🎨 COLOR CONTROLS - Disabled
-                                  showColorButton: false,
-                                  showBackgroundColorButton: false,
+                                  // 🎨 COLOR CONTROLS - Enabled
+                                  showColorButton: true,
+                                  showBackgroundColorButton: true,
                                   
                                   // 📝 STRUCTURAL FORMATTING (wszystkie włączone)
                                   showHeaderStyle: true,

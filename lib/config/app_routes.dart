@@ -6,6 +6,7 @@ import '../screens/premium_investor_analytics_screen.dart';
 import '../screens/calendar_screen_enhanced.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
+import '../screens/spectacular_auth_screen.dart'; // 🎨 NEW: Spectacular auth screen
 import '../screens/enhanced_clients_screen.dart';
 import '../screens/products_management_screen.dart'; // ✅ POWRÓT: Do oryginalnego ekranu z nowymi serwisami
 import '../screens/employees_screen.dart';
@@ -25,6 +26,8 @@ class AppRoutes {
   static const String root = '/';
   static const String login = '/login';
   static const String register = '/register';
+  static const String spectacularAuth =
+      '/spectacular-auth'; // 🎨 NEW: Spectacular auth experience
   static const String forgotPassword = '/forgot-password';
 
   // === GŁÓWNE SEKCJE ===
@@ -101,6 +104,7 @@ class AppRoutes {
     root,
     login,
     register,
+    spectacularAuth, // 🎨 NEW: Spectacular auth
     forgotPassword,
   ];
 
@@ -110,6 +114,7 @@ class AppRoutes {
     if (route == root ||
         route == login ||
         route == register ||
+        route == spectacularAuth || // 🎨 NEW: Spectacular auth
         route == forgotPassword) {
       return true;
     }
@@ -284,6 +289,15 @@ class AppRouter {
         path: AppRoutes.register,
         pageBuilder: (context, state) =>
             _buildPageWithTransition(context, state, const RegisterScreen()),
+      ),
+
+      GoRoute(
+        path: AppRoutes.spectacularAuth,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const SpectacularAuthScreen(),
+        ),
       ),
 
       // === GŁÓWNE SEKCJE (z Shell Layout) ===
