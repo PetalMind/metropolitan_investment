@@ -59,7 +59,6 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
       data: AppThemePro.professionalTheme,
       child: Scaffold(
         backgroundColor: AppThemePro.backgroundPrimary,
-        appBar: _buildAppBar(context),
         body: _isLoading
             ? const Center(
                 child: MetropolitanLoadingWidget.products(),

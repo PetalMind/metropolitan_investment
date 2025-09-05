@@ -133,8 +133,6 @@ export 'services/client_side_excel_export_service.dart'; // 🚀 NOWE: Generowan
 export 'services/unified_export_service.dart'; // 🚀 NOWE: Ujednolicony serwis eksportu (Excel, PDF, Word)
 export 'services/simple_audio_test.dart'; // 🧪 TEST: Prosty serwis testowania audio
 
-// 🎨 FONT MANAGEMENT SYSTEM
-export 'services/font_family_service.dart'; // 🚀 LEGACY: Basic font service
 
 // Voting status change model
 // VotingStatusChange is exported via models/voting_status_change.dart above

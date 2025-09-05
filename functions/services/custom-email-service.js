@@ -1418,9 +1418,9 @@ function normalizeQuillHtml(html) {
     (match, fontFamily) => {
       const cleanFont = fontFamily.trim();
       
-      // Mapowanie zgodne z frontendem _customFontFamilies (expanded with Google Fonts)
+      // Mapowanie zgodne z FontFamilyService - obsługa nazw lokalnych czcionek i ich display names
       const fontFamilyMap = {
-        // System fonts
+        // System fonts (legacy)
         'Arial': 'Arial, sans-serif',
         'Helvetica': 'Helvetica, Arial, sans-serif',
         'Times New Roman': 'Times New Roman, Times, serif',
@@ -1428,34 +1428,50 @@ function normalizeQuillHtml(html) {
         'Verdana': 'Verdana, sans-serif',
         'Calibri': 'Calibri, sans-serif',
         
-        // Google Fonts - popular choices for professional documents
-        'Roboto': 'Roboto, sans-serif',
-        'Open Sans': 'Open Sans, sans-serif',
-        'Lato': 'Lato, sans-serif',
-        'Source Sans Pro': 'Source Sans Pro, sans-serif',
-        'Montserrat': 'Montserrat, sans-serif',
-        'Poppins': 'Poppins, sans-serif',
-        'Nunito': 'Nunito, sans-serif',
-        'Inter': 'Inter, sans-serif',
-        'Work Sans': 'Work Sans, sans-serif',
-        'Fira Sans': 'Fira Sans, sans-serif',
+        // Local fonts - Flutter internal names
+        'OpenSans': '"Open Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'Roboto': 'Roboto, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+        'Lato': 'Lato, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'Montserrat': 'Montserrat, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'SourceSans3': '"Source Sans Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'NunitoSans': '"Nunito Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'Inter': 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'WorkSans': '"Work Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'FiraSans': '"Fira Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         
-        // Serif Google Fonts
-        'Merriweather': 'Merriweather, serif',
-        'Playfair Display': 'Playfair Display, serif',
-        'Crimson Text': 'Crimson Text, serif',
-        'Libre Baskerville': 'Libre Baskerville, serif',
+        // Local fonts - Serif
+        'Merriweather': 'Merriweather, Georgia, "Times New Roman", serif',
+        'PlayfairDisplay': '"Playfair Display", Georgia, "Times New Roman", serif',
+        'CrimsonText': '"Crimson Text", Georgia, "Times New Roman", serif',
+        'LibreBaskerville': '"Libre Baskerville", Georgia, "Times New Roman", serif',
         
-        // Monospace
+        // Local fonts - Modern
+        'Poppins': 'Poppins, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'Raleway': 'Raleway, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'Ubuntu': 'Ubuntu, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'Nunito': 'Nunito, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        
+        // Local fonts - Corporate
+        'RobotoCondensed': '"Roboto Condensed", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'Oswald': 'Oswald, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'PTSans': '"PT Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        
+        // Display names mapping - dla kompatybilności z HTML z display names
+        'Open Sans': '"Open Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'Source Sans Pro': '"Source Sans Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'Nunito Sans': '"Nunito Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'Work Sans': '"Work Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'Fira Sans': '"Fira Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'Playfair Display': '"Playfair Display", Georgia, "Times New Roman", serif',
+        'Libre Baskerville': '"Libre Baskerville", Georgia, "Times New Roman", serif',
+        'Crimson Text': '"Crimson Text", Georgia, "Times New Roman", serif',
+        'Roboto Condensed': '"Roboto Condensed", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'PT Sans': '"PT Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        
+        // Legacy compatibility (monospace)
         'Courier New': 'Courier New, Courier, monospace',
         'Fira Code': 'Fira Code, monospace',
         'Source Code Pro': 'Source Code Pro, monospace',
-        
-        // Display fonts
-        'Oswald': 'Oswald, sans-serif',
-        'Raleway': 'Raleway, sans-serif',
-        
-        // Legacy compatibility
         'Monaco': 'Monaco, Consolas, monospace',
       };
 

@@ -5,13 +5,7 @@ import '../models_and_services.dart';
 
 /// 🎨 Service responsible for converting Quill content to HTML
 /// Extracted from WowEmailEditorScreen for better separation of concerns
-/// Now uses FontFamilyService for better font management
 class EmailHtmlConverterService {
-  /// Font family configuration with fallbacks
-  static Map<String, String> get availableFonts => {
-    for (String font in FontFamilyService.allFonts) font: font
-  };
-
   static String get defaultFont => 'Arial';
 
   /// Enhanced font sizes with complete range
@@ -31,7 +25,7 @@ class EmailHtmlConverterService {
 
   /// Get CSS font family with fallbacks
   static String getCssFontFamily(String fontName) {
-    return FontFamilyService.getCSSFontFamily(fontName);
+    return '$fontName, Arial, sans-serif';
   }
 
   /// Convert Quill controller content to HTML for preview (without full document structure)
@@ -364,14 +358,7 @@ class EmailHtmlConverterService {
     final fontName = value.toString();
     final cssFontFamily = getCssFontFamily(fontName);
     
-    // Check if font is a local font
-    if (FontFamilyService.isLocalFont(fontName)) {
-      debugPrint(
-        '📱 Font "$fontName" is a local font - loaded from app assets.',
-      );
-    } else {
-      debugPrint('⚠️ Font "$fontName" may need fallbacks for email clients.');
-    }
+    debugPrint('🎨 Using font: $fontName with fallbacks');
     
     debugPrint('🎨 Converting font to HTML: $fontName → $cssFontFamily');
     return 'font-family: $cssFontFamily !important';
@@ -490,15 +477,7 @@ class EmailHtmlConverterService {
   static String _enhanceHtmlWithEmailCompatibility(String htmlOutput) {
     String finalHtml = htmlOutput;
 
-    // Detect local fonts usage
-    final requiredLocalFonts = FontFamilyService.extractFontsFromHtml(
-      htmlOutput,
-    );
-    final localFontsCss = FontFamilyService.generateLocalFontsCss(
-      requiredLocalFonts,
-    );
-    
-    debugPrint('🎨 Detected fonts in HTML: $requiredLocalFonts');
+    debugPrint('🎨 Using standard web fonts for email compatibility');
 
     // Add email-compatible structure if not present
     if (!finalHtml.contains('<html>') && !finalHtml.contains('<body>')) {
@@ -509,7 +488,6 @@ class EmailHtmlConverterService {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Email Content</title>
-  ${localFontsCss.isNotEmpty ? '  <style>\n$localFontsCss\n  </style>' : ''}
   ${_getEmailCompatibleStyles()}
 </head>
 <body>
@@ -522,20 +500,8 @@ class EmailHtmlConverterService {
   </table>
 </body>
 </html>''';
-    } else if (localFontsCss.isNotEmpty && finalHtml.contains('<head>')) {
-      // Inject local fonts CSS into existing head
-      finalHtml = finalHtml.replaceFirst(
-        '<head>',
-        '<head>\n  <style>\n$localFontsCss\n  </style>',
-      );
     }
-
-    if (requiredLocalFonts.isNotEmpty) {
-      debugPrint(
-        '📤 HTML enhanced with Local Fonts: ${requiredLocalFonts.join(', ')}',
-      );
-    }
-    debugPrint('🎨 HTML conversion completed with enhanced structure');
+    debugPrint('🎨 HTML conversion completed with web-compatible structure');
     return finalHtml;
   }
 

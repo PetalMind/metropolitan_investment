@@ -1354,793 +1354,13 @@ Zespół Metropolitan Investment''';
     return _getEnabledRecipientsCount() + _additionalEmails.length;
   }
 
-  // 🎨 BUILD CUSTOM FONT CONTROLS ROW
-  Widget _buildFontControlsRow(bool isMobile) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF1e293b).withOpacity(0.95),
-            Color(0xFF334155).withOpacity(0.85),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.secondaryGold.withOpacity(0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                Icon(
-                  Icons.font_download_rounded,
-                  color: AppTheme.secondaryGold,
-                  size: 20,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'Typography Controls',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 12),
-            // Controls Row
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              children: [
-                _buildFontFamilyDropdown(isMobile),
-                _buildFontColorButton(isMobile),
-                _buildTextFormattingButtons(isMobile),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  // 🎨 BUILD FONT FAMILY DROPDOWN - PROFESSIONAL DESIGN
-  Widget _buildFontFamilyDropdown(bool isMobile) {
-    return Container(
-      constraints: BoxConstraints(
-        minWidth: isMobile ? 140 : 180,
-        maxWidth: isMobile ? 180 : 220,
-      ),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF475569).withOpacity(0.8),
-            Color(0xFF64748b).withOpacity(0.6),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppTheme.secondaryGold.withOpacity(0.4),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Padding(
-            padding: EdgeInsets.only(left: 12),
-            child: Icon(
-              Icons.font_download_outlined,
-              color: AppTheme.secondaryGold,
-              size: 16,
-            ),
-          ),
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _getCurrentFontFamily(),
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isMobile ? 12 : 14,
-                  fontWeight: FontWeight.w500,
-                ),
-                dropdownColor: Color(0xFF1e293b),
-                icon: Padding(
-                  padding: EdgeInsets.only(right: 8),
-                  child: Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    color: AppTheme.secondaryGold,
-                    size: 18,
-                  ),
-                ),
-                isExpanded: true,
-                items: [
-                  // Group headers for categories
-                  ...FontFamilyService.localFonts.map((font) {
-                    // Determine category for styling
-                    String category = '';
-                    Color categoryColor = Colors.white;
-                    final displayName = FontFamilyService.getDisplayName(font);
-                    
-                    if ([
-                      'OpenSans',
-                      'Roboto',
-                      'Lato',
-                      'Montserrat',
-                      'SourceSans3',
-                      'NunitoSans',
-                      'Inter',
-                      'WorkSans',
-                    ].contains(font)) {
-                      category = '📰 Professional';
-                      categoryColor = Color(0xFF60a5fa);
-                    } else if ([
-                      'Merriweather',
-                      'PlayfairDisplay',
-                      'LibreBaskerville',
-                      'CrimsonText',
-                    ].contains(font)) {
-                      category = '📝 Elegant';
-                      categoryColor = Color(0xFFc084fc);
-                    } else if (['Poppins', 'Raleway', 'Ubuntu', 'Nunito'].contains(font)) {
-                      category = '🎨 Modern';
-                      categoryColor = Color(0xFF34d399);
-                    } else if ([
-                      'RobotoCondensed',
-                      'Oswald',
-                      'FiraSans',
-                      'PTSans',
-                    ].contains(font)) {
-                      category = '💼 Corporate';
-                      categoryColor = Color(0xFFfbbf24);
-                    }
-                    
-                    return DropdownMenuItem<String>(
-                      value: font,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 3,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                color: categoryColor,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                displayName,
-                                style: TextStyle(
-                                  fontFamily: font,
-                                  color: Colors.white,
-                                  fontSize: isMobile ? 12 : 14,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ],
-                onChanged: (String? newFont) {
-                  if (newFont != null) {
-                    _applyFontFamily(newFont);
-                  }
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  // 🎨 BUILD FONT COLOR BUTTON - PROFESSIONAL DESIGN
-  Widget _buildFontColorButton(bool isMobile) {
-    final currentColor = _getCurrentTextColor();
-    
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF475569).withOpacity(0.8),
-            Color(0xFF64748b).withOpacity(0.6),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppTheme.secondaryGold.withOpacity(0.4),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      child: PopupMenuButton<Color>(
-        icon: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 8,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.palette_outlined,
-                color: AppTheme.secondaryGold,
-                size: 16,
-              ),
-              SizedBox(width: 8),
-              Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: currentColor,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.3),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 2,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-              if (!isMobile) ...[
-                SizedBox(width: 8),
-                Text(
-                  'Color',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-              SizedBox(width: 4),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: AppTheme.secondaryGold,
-                size: 16,
-              ),
-            ],
-          ),
-        ),
-        tooltip: 'Text Color',
-        color: Color(0xFF1e293b),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(
-            color: AppTheme.secondaryGold.withOpacity(0.3),
-            width: 1,
-          ),
-        ),
-        itemBuilder: (context) => [
-          PopupMenuItem<Color>(
-            enabled: false,
-            child: Container(
-              padding: EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.palette_rounded,
-                    color: AppTheme.secondaryGold,
-                    size: 16,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Professional Color Palette',
-                    style: TextStyle(
-                      color: AppTheme.secondaryGold,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          PopupMenuItem<Color>(
-            enabled: false,
-            height: 1,
-            child: Divider(
-              color: AppTheme.secondaryGold.withOpacity(0.3),
-              height: 1,
-            ),
-          ),
-          // Professional color grid
-          PopupMenuItem<Color>(
-            enabled: false,
-            child: Container(
-              width: 280,
-              padding: EdgeInsets.all(8),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _basicColors.map((color) {
-                  final isSelected = color.value == currentColor.value;
-                  
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      _applyTextColor(color);
-                    },
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isSelected ? AppTheme.secondaryGold : Colors.white.withOpacity(0.2),
-                          width: isSelected ? 2 : 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 3,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      child: isSelected
-                          ? Icon(
-                              Icons.check_rounded,
-                              color: _getContrastingColor(color),
-                              size: 16,
-                            )
-                          : null,
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ],
-        onSelected: (Color color) {
-          _applyTextColor(color);
-        },
-      ),
-    );
-  }
 
-  // 🎨 BUILD TEXT FORMATTING BUTTONS - PROFESSIONAL DESIGN
-  Widget _buildTextFormattingButtons(bool isMobile) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF475569).withOpacity(0.8),
-            Color(0xFF64748b).withOpacity(0.6),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppTheme.secondaryGold.withOpacity(0.4),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Bold button
-          _buildFormatButton(
-            icon: Icons.format_bold,
-            isActive: _isFormatActive('bold'),
-            onPressed: () => _toggleBold(),
-            tooltip: 'Bold (Ctrl+B)',
-          ),
-          
-          // Italic button
-          _buildFormatButton(
-            icon: Icons.format_italic,
-            isActive: _isFormatActive('italic'),
-            onPressed: () => _toggleItalic(),
-            tooltip: 'Italic (Ctrl+I)',
-          ),
-          
-          // Underline button
-          _buildFormatButton(
-            icon: Icons.format_underlined,
-            isActive: _isFormatActive('underline'),
-            onPressed: () => _toggleUnderline(),
-            tooltip: 'Underline (Ctrl+U)',
-          ),
-          
-          // Strikethrough button
-          _buildFormatButton(
-            icon: Icons.format_strikethrough,
-            isActive: _isFormatActive('strike'),
-            onPressed: () => _toggleStrikethrough(),
-            tooltip: 'Strikethrough',
-          ),
-        ],
-      ),
-    );
-  }
 
-  // 🎨 BUILD INDIVIDUAL FORMAT BUTTON
-  Widget _buildFormatButton({
-    required IconData icon,
-    required bool isActive,
-    required VoidCallback onPressed,
-    required String tooltip,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          padding: EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: isActive 
-              ? AppTheme.secondaryGold.withOpacity(0.3)
-              : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Icon(
-            icon,
-            size: 16,
-            color: isActive 
-              ? AppTheme.secondaryGold
-              : Colors.white.withOpacity(0.8),
-          ),
-        ),
-      ),
-    );
-  }
 
-  // 🎨 HELPER METHODS FOR FONT CONTROLS
 
-  String _getCurrentFontFamily() {
-    // Get current font family from selection or default
-    final selection = _quillController.selection;
-    if (selection.isValid) {
-      final attrs = _quillController.document.collectStyle(selection.start, 0);
-      final fontAttr = attrs.attributes[Attribute.font.key];
-      if (fontAttr != null && fontAttr.value != null) {
-        final fontName = fontAttr.value.toString();
-        // Ensure the font exists in our available local fonts list
-        if (FontFamilyService.localFonts.contains(fontName)) {
-          return fontName;
-        }
-        // Check if it's a display name and convert to font key
-        final fontKey = FontFamilyService.fontDisplayNames.entries
-            .firstWhere(
-              (entry) => entry.value == fontName,
-              orElse: () => const MapEntry('', ''),
-            )
-            .key;
-        if (fontKey.isNotEmpty &&
-            FontFamilyService.localFonts.contains(fontKey)) {
-          return fontKey;
-        }
-      }
-    }
-    return 'OpenSans'; // Default to first local font
-  }
 
-  Color _getCurrentTextColor() {
-    // Get current text color from selection or default
-    final selection = _quillController.selection;
-    if (selection.isValid) {
-      final attrs = _quillController.document.collectStyle(selection.start, 0);
-      final colorAttr = attrs.attributes[Attribute.color.key];
-      if (colorAttr != null && colorAttr.value != null) {
-        final colorValue = colorAttr.value.toString();
-        return _parseColorFromString(colorValue);
-      }
-    }
-    return Colors.black; // Default color
-  }
-
-  Color _getContrastingColor(Color color) {
-    // Return white or black based on background brightness
-    final luminance = color.computeLuminance();
-    return luminance > 0.5 ? Colors.black : Colors.white;
-  }
-
-  Color _parseColorFromString(String colorString) {
-    try {
-      if (colorString.startsWith('#')) {
-        final hex = colorString.substring(1);
-        if (hex.length == 6) {
-          return Color(int.parse(hex, radix: 16) + 0xFF000000);
-        } else if (hex.length == 8) {
-          return Color(int.parse(hex, radix: 16));
-        }
-      } else if (colorString.startsWith('0x')) {
-        return Color(int.parse(colorString));
-      } else if (colorString.startsWith('rgb')) {
-        // Parse rgb(r, g, b) format
-        final rgbMatch = RegExp(r'rgb\((\d+),\s*(\d+),\s*(\d+)\)').firstMatch(colorString);
-        if (rgbMatch != null) {
-          final r = int.parse(rgbMatch.group(1)!);
-          final g = int.parse(rgbMatch.group(2)!);
-          final b = int.parse(rgbMatch.group(3)!);
-          return Color.fromARGB(255, r, g, b);
-        }
-      }
-      return Colors.black;
-    } catch (e) {
-      debugPrint('⚠️ Error parsing color "$colorString": $e');
-      return Colors.black;
-    }
-  }
-
-  String _getColorName(Color color) {
-    if (color == Colors.black) return 'Czarny';
-    if (color == Colors.white) return 'Biały';
-    if (color == Colors.red) return 'Czerwony';
-    if (color == Colors.blue) return 'Niebieski';
-    if (color == Colors.green) return 'Zielony';
-    if (color == Colors.orange) return 'Pomarańczowy';
-    if (color == Colors.purple) return 'Fioletowy';
-    if (color == Colors.brown) return 'Brązowy';
-    if (color == Colors.grey) return 'Szary';
-    return 'Kolor';
-  }
-
-  // 🎨 FONT UTILITY METHODS
-
-  /// Get TextStyle with the correct font family (Local Fonts)
-  TextStyle _getTextStyleWithFont(String fontFamily, {double? fontSize, FontWeight? fontWeight, Color? color}) {
-    // Convert display name to Flutter font family name if needed
-    final flutterFontFamily = FontFamilyService.getFlutterFontFamily(
-      fontFamily,
-    );
-    
-    if (FontFamilyService.isLocalFont(flutterFontFamily)) {
-      return TextStyle(
-        fontFamily: flutterFontFamily,
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-        color: color,
-      );
-    }
-    
-    // Fallback to system fonts
-    return TextStyle(fontSize: fontSize, fontWeight: fontWeight, color: color);
-  }
-
-  // 🎨 HTML FONT PROCESSING METHODS
-
-  /// Extract the main font family from HTML content
-  String _extractMainFontFromHtml(String html) {
-    final fontFamilyRegex = RegExp(r'font-family:\s*([^;!]+)', caseSensitive: false);
-    final match = fontFamilyRegex.firstMatch(html);
-    if (match != null) {
-      final fontStack = match.group(1)!;
-      // Get the first font in the stack
-      final firstFont = fontStack.split(',').first.trim().replaceAll('"', '').replaceAll("'", '');
-      if (FontFamilyService.allFonts.contains(firstFont)) {
-        return firstFont;
-      }
-    }
-    return 'Arial'; // Default fallback
-  }
-
-  /// Get appropriate font family for flutter_html rendering
-  String _getFontFamilyForHtml(String fontName) {
-    // Convert display name to Flutter font family name if needed
-    final flutterFontFamily = FontFamilyService.getFlutterFontFamily(fontName);
-    
-    if (FontFamilyService.isLocalFont(flutterFontFamily)) {
-      return flutterFontFamily;
-    }
-    
-    // Fallback to system font
-    return fontName;
-  }
-
-  // 🎨 FONT APPLICATION METHODS
-
-  void _applyFontFamily(String fontFamily) {
-    final selection = _quillController.selection;
-    debugPrint('🎯 Applying font family: $fontFamily');
-    debugPrint('🎯 Selection: start=${selection.start}, end=${selection.end}, collapsed=${selection.isCollapsed}');
-    
-    if (selection.isValid) {
-      final fontAttribute = Attribute('font', AttributeScope.inline, fontFamily);
-      
-      if (selection.isCollapsed) {
-        // Apply to future typing
-        debugPrint('🎯 Applying to cursor position (future typing)');
-        _quillController.formatSelection(fontAttribute);
-      } else {
-        // Apply to selected text
-        final selectedLength = selection.end - selection.start;
-        debugPrint('🎯 Applying to selected text: start=${selection.start}, length=$selectedLength');
-        _quillController.formatText(
-          selection.start,
-          selectedLength,
-          fontAttribute,
-        );
-      }
-      
-      // Force preview update and focus
-      _forcePreviewUpdate();
-      
-      // Show user feedback
-      setState(() {});
-      
-      debugPrint('🎨 Applied font family: $fontFamily to selection');
-    } else {
-      debugPrint('⚠️ Invalid selection - cannot apply font family');
-    }
-  }
-
-  void _applyTextColor(Color color) {
-    final selection = _quillController.selection;
-    // Format color as 6-digit hex (remove alpha)
-    final colorHex = color.toARGB32().toRadixString(16).substring(2);
-    final colorString = '#$colorHex';
-    
-    debugPrint('🎯 Applying text color: $colorString');
-    debugPrint('🎯 Selection: start=${selection.start}, end=${selection.end}, collapsed=${selection.isCollapsed}');
-    
-    if (selection.isValid) {
-      final colorAttribute = Attribute('color', AttributeScope.inline, colorString);
-      
-      if (selection.isCollapsed) {
-        // Apply to future typing
-        debugPrint('🎯 Applying color to cursor position (future typing)');
-        _quillController.formatSelection(colorAttribute);
-      } else {
-        // Apply to selected text
-        final selectedLength = selection.end - selection.start;
-        debugPrint('🎯 Applying color to selected text: start=${selection.start}, length=$selectedLength');
-        _quillController.formatText(
-          selection.start,
-          selectedLength,
-          colorAttribute,
-        );
-      }
-      
-      // Force preview update and UI refresh
-      _forcePreviewUpdate();
-      setState(() {});
-      
-      debugPrint('🎨 Applied text color: $colorString to selection');
-    } else {
-      debugPrint('⚠️ Invalid selection - cannot apply text color');
-    }
-  }
-
-  // 🎨 TEXT FORMATTING METHODS
-
-  bool _isFormatActive(String formatType) {
-    final selection = _quillController.selection;
-    if (!selection.isValid) return false;
-    
-    final attrs = _quillController.document.collectStyle(selection.start, 0);
-    
-    switch (formatType) {
-      case 'bold':
-        return attrs.attributes.containsKey(Attribute.bold.key);
-      case 'italic':
-        return attrs.attributes.containsKey(Attribute.italic.key);
-      case 'underline':
-        return attrs.attributes.containsKey(Attribute.underline.key);
-      case 'strike':
-        return attrs.attributes.containsKey(Attribute.strikeThrough.key);
-      default:
-        return false;
-    }
-  }
-
-  void _toggleBold() {
-    final selection = _quillController.selection;
-    if (selection.isValid) {
-      _quillController.formatSelection(Attribute.bold);
-      _forcePreviewUpdate();
-      setState(() {});
-      debugPrint('🎨 Toggled bold formatting');
-    }
-  }
-
-  void _toggleItalic() {
-    final selection = _quillController.selection;
-    if (selection.isValid) {
-      _quillController.formatSelection(Attribute.italic);
-      _forcePreviewUpdate();
-      setState(() {});
-      debugPrint('🎨 Toggled italic formatting');
-    }
-  }
-
-  void _toggleUnderline() {
-    final selection = _quillController.selection;
-    if (selection.isValid) {
-      _quillController.formatSelection(Attribute.underline);
-      _forcePreviewUpdate();
-      setState(() {});
-      debugPrint('🎨 Toggled underline formatting');
-    }
-  }
-
-  void _toggleStrikethrough() {
-    final selection = _quillController.selection;
-    if (selection.isValid) {
-      _quillController.formatSelection(Attribute.strikeThrough);
-      _forcePreviewUpdate();
-      setState(() {});
-      debugPrint('🎨 Toggled strikethrough formatting');
-    }
-  }
-
-  // 🎨 BASIC COLOR PALETTE
-  static const List<Color> _basicColors = [
-    Colors.black,
-    Colors.white,
-    Colors.red,
-    Colors.blue,
-    Colors.green,
-    Colors.orange,
-    Colors.purple,
-    Colors.brown,
-    Colors.grey,
-    Color(0xFF1E88E5), // Blue
-    Color(0xFF43A047), // Green  
-    Color(0xFFF57C00), // Orange
-    Color(0xFF8E24AA), // Purple
-    Color(0xFFE53935), // Red
-    Color(0xFF6D4C41), // Brown
-    Color(0xFF757575), // Grey
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -2161,9 +1381,16 @@ Zespół Metropolitan Investment''';
           ),
         ),
         actions: [
-        
-  
-
+          
+          // Preview toggle button
+          IconButton(
+            icon: Icon(
+              _isPreviewVisible ? Icons.visibility_off : Icons.visibility,
+              color: AppTheme.textSecondary,
+            ),
+            tooltip: _isPreviewVisible ? 'Ukryj podgląd' : 'Pokaż podgląd',
+            onPressed: _togglePreviewVisibility,
+          ),
         ],
       ),
       body: LayoutBuilder(
@@ -3365,6 +2592,7 @@ Zespół Metropolitan Investment''';
                               TextStyle(
                                 fontSize: 16,
                                 color: AppTheme.textPrimary,
+                                fontFamily: 'OpenSans', // Default local font
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -3376,6 +2604,8 @@ Zespół Metropolitan Investment''';
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.textPrimary,
+                                fontFamily:
+                                    'Montserrat', // Professional heading font
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -3387,6 +2617,8 @@ Zespół Metropolitan Investment''';
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.textPrimary,
+                                fontFamily:
+                                    'Montserrat', // Professional heading font
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -3398,6 +2630,8 @@ Zespół Metropolitan Investment''';
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.textPrimary,
+                                fontFamily:
+                                    'Montserrat', // Professional heading font
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -3409,6 +2643,8 @@ Zespół Metropolitan Investment''';
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.textPrimary,
+                                fontFamily:
+                                    'Montserrat', // Professional heading font
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -3420,6 +2656,8 @@ Zespół Metropolitan Investment''';
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.textPrimary,
+                                fontFamily:
+                                    'Montserrat', // Professional heading font
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -3431,6 +2669,8 @@ Zespół Metropolitan Investment''';
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.textPrimary,
+                                fontFamily:
+                                    'Montserrat', // Professional heading font
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -3441,6 +2681,7 @@ Zespół Metropolitan Investment''';
                               TextStyle(
                                 fontSize: 16,
                                 color: AppTheme.textSecondary,
+                                fontFamily: 'OpenSans', // Default local font
                               ),
                               HorizontalSpacing.zero,
                               VerticalSpacing.zero,
@@ -3483,9 +2724,6 @@ Zespół Metropolitan Investment''';
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // 🎨 CUSTOM FONT CONTROLS ROW
-                              _buildFontControlsRow(isMobile),
-                              if (!isMobile) SizedBox(height: 8),
                               
                               // 🎯 ENHANCED QUILL TOOLBAR - ULEPSZONA KONFIGURACJA
                               QuillSimpleToolbar(
@@ -3509,13 +2747,12 @@ Zespół Metropolitan Investment''';
                                       true, // Włączone na wszystkich urządzeniach
 
                                   // 🔤 FONT & SIZE CONTROLS
-                                  showFontFamily:
-                                      false, // Using custom font dropdown with local fonts
-                                  showFontSize: true,
+                                  showFontFamily: false,
+                                  showFontSize: false,
                                   
-                                  // 🎨 COLOR CONTROLS - Włączone ponownie
-                                  showColorButton: true,
-                                  showBackgroundColorButton: true,
+                                  // 🎨 COLOR CONTROLS - Disabled
+                                  showColorButton: false,
+                                  showBackgroundColorButton: false,
                                   
                                   // 📝 STRUCTURAL FORMATTING (wszystkie włączone)
                                   showHeaderStyle: true,
@@ -3649,9 +2886,18 @@ Zespół Metropolitan Investment''';
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  Icons.font_download,
+                                  Icons.text_format,
                                   size: 14,
                                   color: AppTheme.successPrimary,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Podstawowe formatowanie',
+                                  style: TextStyle(
+                                    color: AppTheme.successPrimary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                                 
                               ],
@@ -3754,12 +3000,12 @@ Zespół Metropolitan Investment''';
                                 : Colors.black,
                             lineHeight: html_package.LineHeight.number(1.6),
                             fontSize: html_package.FontSize(16),
-                            fontFamily: _getFontFamilyForHtml(_extractMainFontFromHtml(_currentPreviewHtml)),
+                            fontFamily: 'Arial, sans-serif',
                           ),
                           // 🎨 ENHANCED SPANS WITH FULL FONT AND COLOR SUPPORT
                           'span': html_package.Style(
                             // Let inline styles override colors
-                            fontFamily: _getFontFamilyForHtml(_extractMainFontFromHtml(_currentPreviewHtml)),
+                            fontFamily: 'Arial, sans-serif',
                           ),
                           // 🏷️ HEADERS
                           'h1': html_package.Style(
@@ -3834,12 +3080,12 @@ Zespół Metropolitan Investment''';
                             // Remove default color to allow inline styles to take precedence
                             margin: html_package.Margins.only(bottom: 16),
                             lineHeight: html_package.LineHeight.number(1.6),
-                            fontFamily: _getFontFamilyForHtml(_extractMainFontFromHtml(_currentPreviewHtml)),
+                            fontFamily: 'Arial, sans-serif',
                           ),
                           'div': html_package.Style(
                             // Remove default color to allow inline styles to take precedence
                             lineHeight: html_package.LineHeight.number(1.6),
-                            fontFamily: _getFontFamilyForHtml(_extractMainFontFromHtml(_currentPreviewHtml)),
+                            fontFamily: 'Arial, sans-serif',
                           ),
 
                           // ✏️ TEXT FORMATTING

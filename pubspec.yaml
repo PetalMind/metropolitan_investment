@@ -146,217 +146,80 @@ flutter:
 fonts:
   - family: CrimsonText
     fonts:
-      - asset: assets/fonts/crimson_text_400.ttf
+      - asset: assets/fonts/Crimson_Text/CrimsonText-Regular.ttf
         weight: 400
-      - asset: assets/fonts/crimson_text_600.ttf
+      - asset: assets/fonts/Crimson_Text/CrimsonText-SemiBold.ttf
         weight: 600
-      - asset: assets/fonts/crimson_text_700.ttf
+      - asset: assets/fonts/Crimson_Text/CrimsonText-Bold.ttf
         weight: 700
   - family: FiraSans
     fonts:
-      - asset: assets/fonts/fira_sans_300.ttf
+      - asset: assets/fonts/Fira_Sans/FiraSans-Light.ttf
         weight: 300
-      - asset: assets/fonts/fira_sans_400.ttf
+      - asset: assets/fonts/Fira_Sans/FiraSans-Regular.ttf
         weight: 400
-      - asset: assets/fonts/fira_sans_500.ttf
+      - asset: assets/fonts/Fira_Sans/FiraSans-Medium.ttf
         weight: 500
-      - asset: assets/fonts/fira_sans_600.ttf
+      - asset: assets/fonts/Fira_Sans/FiraSans-SemiBold.ttf
         weight: 600
-      - asset: assets/fonts/fira_sans_700.ttf
+      - asset: assets/fonts/Fira_Sans/FiraSans-Bold.ttf
         weight: 700
   - family: Inter
     fonts:
-      - asset: assets/fonts/inter_300.ttf
-        weight: 300
-      - asset: assets/fonts/inter_400.ttf
-        weight: 400
-      - asset: assets/fonts/inter_500.ttf
-        weight: 500
-      - asset: assets/fonts/inter_600.ttf
-        weight: 600
-      - asset: assets/fonts/inter_700.ttf
-        weight: 700
+      - asset: assets/fonts/Inter/Inter-VariableFont_opsz,wght.ttf
+        weight: 100
+        style: normal
   - family: Lato
     fonts:
-      - asset: assets/fonts/lato_300.ttf
+      - asset: assets/fonts/Lato/Lato-Light.ttf
         weight: 300
-      - asset: assets/fonts/lato_400.ttf
+      - asset: assets/fonts/Lato/Lato-Regular.ttf
         weight: 400
-      - asset: assets/fonts/lato_700.ttf
+      - asset: assets/fonts/Lato/Lato-Bold.ttf
         weight: 700
   - family: LibreBaskerville
     fonts:
-      - asset: assets/fonts/libre_baskerville_400.ttf
+      - asset: assets/fonts/Libre_Baskerville/LibreBaskerville-Regular.ttf
         weight: 400
-      - asset: assets/fonts/libre_baskerville_700.ttf
+      - asset: assets/fonts/Libre_Baskerville/LibreBaskerville-Bold.ttf
         weight: 700
   - family: Merriweather
     fonts:
-      - asset: assets/fonts/merriweather_300.ttf
-        weight: 300
-      - asset: assets/fonts/merriweather_400.ttf
-        weight: 400
-      - asset: assets/fonts/merriweather_500.ttf
-        weight: 500
-      - asset: assets/fonts/merriweather_600.ttf
-        weight: 600
-      - asset: assets/fonts/merriweather_700.ttf
-        weight: 700
+      - asset: assets/fonts/Merriweather/Merriweather-VariableFont_opsz,wdth,wght.ttf
+        weight: 100
+        style: normal
   - family: Montserrat
     fonts:
-      - asset: assets/fonts/montserrat_300.ttf
-        weight: 300
-      - asset: assets/fonts/montserrat_400.ttf
-        weight: 400
-      - asset: assets/fonts/montserrat_500.ttf
-        weight: 500
-      - asset: assets/fonts/montserrat_600.ttf
-        weight: 600
-      - asset: assets/fonts/montserrat_700.ttf
-        weight: 700
+      - asset: assets/fonts/Montserrat/Montserrat-VariableFont_wght.ttf
+        weight: 100
+        style: normal
   - family: Nunito
     fonts:
-      - asset: assets/fonts/nunito_300.ttf
-        weight: 300
-      - asset: assets/fonts/nunito_400.ttf
-        weight: 400
-      - asset: assets/fonts/nunito_500.ttf
-        weight: 500
-      - asset: assets/fonts/nunito_600.ttf
-        weight: 600
-      - asset: assets/fonts/nunito_700.ttf
-        weight: 700
+      - asset: assets/fonts/Nunito/Nunito-VariableFont_wght.ttf
+        weight: 100
+        style: normal
   - family: NunitoSans
     fonts:
-      - asset: assets/fonts/nunito_sans_300.ttf
-        weight: 300
-      - asset: assets/fonts/nunito_sans_400.ttf
-        weight: 400
-      - asset: assets/fonts/nunito_sans_500.ttf
-        weight: 500
-      - asset: assets/fonts/nunito_sans_600.ttf
-        weight: 600
-      - asset: assets/fonts/nunito_sans_700.ttf
-        weight: 700
-  - family: OpenSans
-    fonts:
-      - asset: assets/fonts/open_sans_300.ttf
-        weight: 300
-      - asset: assets/fonts/open_sans_400.ttf
-        weight: 400
-      - asset: assets/fonts/open_sans_500.ttf
-        weight: 500
-      - asset: assets/fonts/open_sans_600.ttf
-        weight: 600
-      - asset: assets/fonts/open_sans_700.ttf
-        weight: 700
+      - asset: assets/fonts/Nunito_Sans/NunitoSans-VariableFont_YTLC,opsz,wdth,wght.ttf
+        weight: 100
+        style: normal
   - family: Oswald
     fonts:
-      - asset: assets/fonts/oswald_300.ttf
-        weight: 300
-      - asset: assets/fonts/oswald_400.ttf
-        weight: 400
-      - asset: assets/fonts/oswald_500.ttf
-        weight: 500
-      - asset: assets/fonts/oswald_600.ttf
-        weight: 600
-      - asset: assets/fonts/oswald_700.ttf
-        weight: 700
-  - family: PlayfairDisplay
-    fonts:
-      - asset: assets/fonts/playfair_display_400.ttf
-        weight: 400
-      - asset: assets/fonts/playfair_display_500.ttf
-        weight: 500
-      - asset: assets/fonts/playfair_display_600.ttf
-        weight: 600
-      - asset: assets/fonts/playfair_display_700.ttf
-        weight: 700
-  - family: Poppins
-    fonts:
-      - asset: assets/fonts/poppins_300.ttf
-        weight: 300
-      - asset: assets/fonts/poppins_400.ttf
-        weight: 400
-      - asset: assets/fonts/poppins_500.ttf
-        weight: 500
-      - asset: assets/fonts/poppins_600.ttf
-        weight: 600
-      - asset: assets/fonts/poppins_700.ttf
-        weight: 700
-  - family: PTSans
-    fonts:
-      - asset: assets/fonts/pt_sans_400.ttf
-        weight: 400
-      - asset: assets/fonts/pt_sans_700.ttf
-        weight: 700
+      - asset: assets/fonts/Oswald/Oswald-VariableFont_wght.ttf
+        weight: 100
+        style: normal
   - family: Raleway
     fonts:
-      - asset: assets/fonts/raleway_300.ttf
-        weight: 300
-      - asset: assets/fonts/raleway_400.ttf
-        weight: 400
-      - asset: assets/fonts/raleway_500.ttf
-        weight: 500
-      - asset: assets/fonts/raleway_600.ttf
-        weight: 600
-      - asset: assets/fonts/raleway_700.ttf
-        weight: 700
+      - asset: assets/fonts/Raleway/Raleway-VariableFont_wght.ttf
+        weight: 100
+        style: normal
   - family: Roboto
     fonts:
-      - asset: assets/fonts/roboto_300.ttf
-        weight: 300
-      - asset: assets/fonts/roboto_400.ttf
-        weight: 400
-      - asset: assets/fonts/roboto_500.ttf
-        weight: 500
-      - asset: assets/fonts/roboto_600.ttf
-        weight: 600
-      - asset: assets/fonts/roboto_700.ttf
-        weight: 700
-  - family: RobotoCondensed
-    fonts:
-      - asset: assets/fonts/roboto_condensed_300.ttf
-        weight: 300
-      - asset: assets/fonts/roboto_condensed_400.ttf
-        weight: 400
-      - asset: assets/fonts/roboto_condensed_500.ttf
-        weight: 500
-      - asset: assets/fonts/roboto_condensed_600.ttf
-        weight: 600
-      - asset: assets/fonts/roboto_condensed_700.ttf
-        weight: 700
-  - family: SourceSans3
-    fonts:
-      - asset: assets/fonts/source_sans_3_300.ttf
-        weight: 300
-      - asset: assets/fonts/source_sans_3_400.ttf
-        weight: 400
-      - asset: assets/fonts/source_sans_3_500.ttf
-        weight: 500
-      - asset: assets/fonts/source_sans_3_600.ttf
-        weight: 600
-      - asset: assets/fonts/source_sans_3_700.ttf
-        weight: 700
-  - family: Ubuntu
-    fonts:
-      - asset: assets/fonts/ubuntu_300.ttf
-        weight: 300
-      - asset: assets/fonts/ubuntu_400.ttf
-        weight: 400
-      - asset: assets/fonts/ubuntu_500.ttf
-        weight: 500
-      - asset: assets/fonts/ubuntu_700.ttf
-        weight: 700
+      - asset: assets/fonts/Roboto/Roboto-VariableFont_wdth,wght.ttf
+        weight: 100
+        style: normal
   - family: WorkSans
     fonts:
-      - asset: assets/fonts/work_sans_300.ttf
-        weight: 300
-      - asset: assets/fonts/work_sans_400.ttf
-        weight: 400
-      - asset: assets/fonts/work_sans_500.ttf
-        weight: 500
-      - asset: assets/fonts/work_sans_600.ttf
-        weight: 600
-      - asset: assets/fonts/work_sans_700.ttf
-        weight: 700
+      - asset: assets/fonts/Work_Sans/WorkSans-VariableFont_wght.ttf
+        weight: 100
+        style: normal
