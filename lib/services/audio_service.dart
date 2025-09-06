@@ -462,6 +462,94 @@ class AudioService {
     }
   }
 
+  /// Play button click sound effect
+  Future<void> playButtonClickSound() async {
+    if (!_isEnabled) return;
+
+    try {
+      // Ensure audio player is initialized
+      await _initializeAudioPlayer();
+
+      if (kDebugMode) {
+        print('🔘 Playing button click sound...');
+      }
+
+      if (kIsWeb) {
+        // Web environment: Use enhanced web audio implementation
+        await _playButtonClickForWeb();
+      } else {
+        // Mobile/Desktop: Use asset source
+        await _audioPlayer.play(AssetSource('audio/button_click.mp3'));
+      }
+
+      if (kDebugMode) {
+        print('🔘 Button click sound played successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Error playing button_click.mp3: $e');
+      }
+
+      // Fallback to system click sound
+      try {
+        await _playSystemClickSound();
+        if (kDebugMode) {
+          print('🔘 Fallback to system click sound');
+        }
+      } catch (fallbackError) {
+        if (kDebugMode) {
+          print('⚠️ Fallback click sound also failed: $fallbackError');
+        }
+      }
+    }
+  }
+
+  /// Enhanced web audio implementation for button click sound
+  Future<void> _playButtonClickForWeb() async {
+    if (!kIsWeb) return;
+
+    try {
+      if (kDebugMode) {
+        print('🌐 Attempting web button click audio playback...');
+      }
+
+      // Method 1: Try to use audioplayers with explicit web configuration
+      await _audioPlayer.setPlayerMode(PlayerMode.lowLatency);
+      await _audioPlayer.play(AssetSource('audio/button_click.mp3'));
+
+      if (kDebugMode) {
+        print('🌐 Web button click audio played via audioplayers successfully');
+      }
+
+      // Wait a moment to ensure audio starts
+      await Future.delayed(const Duration(milliseconds: 100));
+    } catch (e) {
+      if (kDebugMode) {
+        print('🌐 Button click audioplayers failed on web: $e');
+      }
+
+      // Fallback to system click sound
+      await _playSystemClickSound();
+    }
+  }
+
+  /// Play system click sound as fallback
+  Future<void> _playSystemClickSound() async {
+    try {
+      // Use system feedback for button click
+      await HapticFeedback.selectionClick();
+      
+      if (kIsWeb) {
+        // Create a simple click tone
+        await _playWebTone(1200, 50); // High frequency, very short duration for click
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error playing system click sound: $e');
+      }
+    }
+  }
+
   /// Play a celebratory sound sequence for bulk successful email sending
   Future<void> playBulkSuccessSound() async {
     if (!_isEnabled) return;

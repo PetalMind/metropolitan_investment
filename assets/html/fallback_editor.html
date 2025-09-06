@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metropolitan Investment - Fallback Email Editor</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .editor-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .toolbar {
+            background: #2c2c2c;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .toolbar button {
+            background: #d4af37;
+            border: none;
+            padding: 8px 12px;
+            margin-right: 5px;
+            border-radius: 4px;
+            color: black;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .toolbar button:hover {
+            background: #b8860b;
+        }
+        
+        .editor {
+            min-height: 300px;
+            padding: 20px;
+            outline: none;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        
+        .status {
+            background: #f8f9fa;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        /* Ensure jQuery availability indicator */
+        .jquery-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #28a745;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+        }
+        
+        .jquery-status.error {
+            background: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="jquery-status" id="jqueryStatus">jQuery Loading...</div>
+    
+    <div class="editor-container">
+        <div class="toolbar">
+            <button onclick="formatText('bold')"><b>B</b></button>
+            <button onclick="formatText('italic')"><i>I</i></button>
+            <button onclick="formatText('underline')"><u>U</u></button>
+            <button onclick="formatText('justifyLeft')">Lewo</button>
+            <button onclick="formatText('justifyCenter')">Środek</button>
+            <button onclick="formatText('justifyRight')">Prawo</button>
+            <button onclick="insertList('ul')">Lista</button>
+            <button onclick="insertLink()">Link</button>
+            <button onclick="getContent()">Pobierz HTML</button>
+        </div>
+        
+        <div class="editor" 
+             contenteditable="true" 
+             id="editor"
+             placeholder="Napisz swoją wiadomość...">
+        </div>
+        
+        <div class="status" id="status">
+            Gotowy do edycji. Znaki: <span id="charCount">0</span>
+        </div>
+    </div>
+
+    <!-- Load jQuery with fallback -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" 
+            integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" 
+            crossorigin="anonymous"
+            onerror="loadFallbackEditor()"></script>
+    
+    <script>
+        // Check jQuery availability
+        function checkJQuery() {
+            const status = document.getElementById('jqueryStatus');
+            if (typeof jQuery !== 'undefined' && typeof $ !== 'undefined') {
+                status.textContent = '✅ jQuery Ready';
+                status.className = 'jquery-status';
+                setTimeout(() => status.style.display = 'none', 3000);
+                console.log('✅ jQuery loaded successfully in fallback editor');
+            } else {
+                status.textContent = '❌ jQuery Failed';
+                status.className = 'jquery-status error';
+                console.warn('❌ jQuery not available in fallback editor');
+            }
+        }
+        
+        // Fallback editor without jQuery
+        function loadFallbackEditor() {
+            console.log('🔄 Loading fallback editor without jQuery');
+            const status = document.getElementById('jqueryStatus');
+            status.textContent = '⚠️ Fallback Mode';
+            status.className = 'jquery-status error';
+        }
+        
+        // Basic formatting functions
+        function formatText(command) {
+            document.execCommand(command, false, null);
+            updateCharCount();
+        }
+        
+        function insertList(type) {
+            const command = type === 'ul' ? 'insertUnorderedList' : 'insertOrderedList';
+            document.execCommand(command, false, null);
+            updateCharCount();
+        }
+        
+        function insertLink() {
+            const url = prompt('Wprowadź URL:', 'https://');
+            if (url && url !== 'https://') {
+                document.execCommand('createLink', false, url);
+                updateCharCount();
+            }
+        }
+        
+        function getContent() {
+            const editor = document.getElementById('editor');
+            const html = editor.innerHTML;
+            console.log('📋 Editor content:', html);
+            
+            // Notify Flutter about content
+            if (window.flutter_inappwebview) {
+                window.flutter_inappwebview.callHandler('getContent', html);
+            }
+            
+            return html;
+        }
+        
+        function setContent(html) {
+            const editor = document.getElementById('editor');
+            editor.innerHTML = html;
+            updateCharCount();
+            console.log('📝 Content set in fallback editor');
+        }
+        
+        function updateCharCount() {
+            const editor = document.getElementById('editor');
+            const count = editor.textContent.length;
+            document.getElementById('charCount').textContent = count;
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(checkJQuery, 100);
+            
+            const editor = document.getElementById('editor');
+            editor.addEventListener('input', updateCharCount);
+            editor.addEventListener('paste', function() {
+                setTimeout(updateCharCount, 100);
+            });
+            
+            updateCharCount();
+            
+            // Notify Flutter that fallback editor is ready
+            setTimeout(() => {
+                if (window.flutter_inappwebview) {
+                    window.flutter_inappwebview.callHandler('onReady', true);
+                }
+                console.log('🚀 Fallback HTML editor ready');
+            }, 500);
+        });
+    </script>
+</body>
+</html>

@@ -311,7 +311,7 @@ function generateMockEmailContent({ clientName, investments, totals, template, c
       </div>
       
       <div style="padding: 20px;">
-        <p>Szanowny/a <strong>${clientName}</strong>,</p>
+        <p>Dzień dobry,</p>
         
         ${customMessage ? `<p><em>${customMessage}</em></p>` : ''}
         
@@ -346,7 +346,7 @@ function generateMockEmailContent({ clientName, investments, totals, template, c
   const text = `
 ${senderName} - Podsumowanie Inwestycji (DEV MODE)
 
-Szanowny/a ${clientName},
+Dzień dobry,
 
 ${customMessage || ''}
 

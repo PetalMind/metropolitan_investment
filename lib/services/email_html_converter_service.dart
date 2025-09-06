@@ -511,7 +511,6 @@ class EmailHtmlConverterService {
   <style>
     /* Base styles for email compatibility */
     body { 
-      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important; 
       line-height: 1.6 !important; 
       color: #333333 !important; 
       margin: 0; 
@@ -676,7 +675,6 @@ class EmailHtmlConverterService {
     buffer.writeln(
       '• Kapitał pozostały: ${_formatCurrency(totalRemainingCapital)}',
     );
-    buffer.writeln('• Wartość udziałów: ${_formatCurrency(totalSharesValue)}');
     buffer.writeln('• Liczba inwestycji: $totalInvestments');
     buffer.writeln('• Liczba inwestorów: ${selectedInvestors.length}');
     buffer.writeln();
@@ -698,9 +696,7 @@ class EmailHtmlConverterService {
       buffer.writeln(
         '   💰 Kapitał pozostały: ${_formatCurrency(investor.totalRemainingCapital)}',
       );
-      buffer.writeln(
-        '   📈 Wartość udziałów: ${_formatCurrency(investor.totalSharesValue)}',
-      );
+  
       buffer.writeln('   🔢 Liczba inwestycji: ${investor.investmentCount}');
 
       if (investor.capitalSecuredByRealEstate > 0) {

@@ -156,39 +156,108 @@ fonts:
     fonts:
       - asset: assets/fonts/Crimson_Text/CrimsonText-Regular.ttf
         weight: 400
-      - asset: assets/fonts/Crimson_Text/CrimsonText-SemiBold.ttf
-        weight: 600
+      - asset: assets/fonts/Crimson_Text/CrimsonText-Italic.ttf
+        weight: 400
+        style: italic
       - asset: assets/fonts/Crimson_Text/CrimsonText-Bold.ttf
         weight: 700
+      - asset: assets/fonts/Crimson_Text/CrimsonText-BoldItalic.ttf
+        weight: 700
+        style: italic
+      - asset: assets/fonts/Crimson_Text/CrimsonText-SemiBold.ttf
+        weight: 600
+      - asset: assets/fonts/Crimson_Text/CrimsonText-SemiBoldItalic.ttf
+        weight: 600
+        style: italic
   - family: FiraSans
     fonts:
       - asset: assets/fonts/Fira_Sans/FiraSans-Light.ttf
         weight: 300
+      - asset: assets/fonts/Fira_Sans/FiraSans-LightItalic.ttf
+        weight: 300
+        style: italic
       - asset: assets/fonts/Fira_Sans/FiraSans-Regular.ttf
         weight: 400
+      - asset: assets/fonts/Fira_Sans/FiraSans-Italic.ttf
+        weight: 400
+        style: italic
       - asset: assets/fonts/Fira_Sans/FiraSans-Medium.ttf
         weight: 500
+      - asset: assets/fonts/Fira_Sans/FiraSans-MediumItalic.ttf
+        weight: 500
+        style: italic
       - asset: assets/fonts/Fira_Sans/FiraSans-SemiBold.ttf
         weight: 600
+      - asset: assets/fonts/Fira_Sans/FiraSans-SemiBoldItalic.ttf
+        weight: 600
+        style: italic
       - asset: assets/fonts/Fira_Sans/FiraSans-Bold.ttf
         weight: 700
+      - asset: assets/fonts/Fira_Sans/FiraSans-BoldItalic.ttf
+        weight: 700
+        style: italic
+      - asset: assets/fonts/Fira_Sans/FiraSans-ExtraBold.ttf
+        weight: 800
+      - asset: assets/fonts/Fira_Sans/FiraSans-ExtraBoldItalic.ttf
+        weight: 800
+        style: italic
+      - asset: assets/fonts/Fira_Sans/FiraSans-Black.ttf
+        weight: 900
+      - asset: assets/fonts/Fira_Sans/FiraSans-BlackItalic.ttf
+        weight: 900
+        style: italic
+      - asset: assets/fonts/Fira_Sans/FiraSans-Thin.ttf
+        weight: 100
+      - asset: assets/fonts/Fira_Sans/FiraSans-ThinItalic.ttf
+        weight: 100
+        style: italic
+      - asset: assets/fonts/Fira_Sans/FiraSans-ExtraLight.ttf
+        weight: 200
+      - asset: assets/fonts/Fira_Sans/FiraSans-ExtraLightItalic.ttf
+        weight: 200
+        style: italic
   - family: Inter
     fonts:
       - asset: assets/fonts/Inter/Inter-VariableFont_opsz,wght.ttf
         weight: 100
         style: normal
+      - asset: assets/fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf
+        weight: 100
+        style: italic
   - family: Lato
     fonts:
+      - asset: assets/fonts/Lato/Lato-Thin.ttf
+        weight: 100
+      - asset: assets/fonts/Lato/Lato-ThinItalic.ttf
+        weight: 100
+        style: italic
       - asset: assets/fonts/Lato/Lato-Light.ttf
         weight: 300
+      - asset: assets/fonts/Lato/Lato-LightItalic.ttf
+        weight: 300
+        style: italic
       - asset: assets/fonts/Lato/Lato-Regular.ttf
         weight: 400
+      - asset: assets/fonts/Lato/Lato-Italic.ttf
+        weight: 400
+        style: italic
       - asset: assets/fonts/Lato/Lato-Bold.ttf
         weight: 700
+      - asset: assets/fonts/Lato/Lato-BoldItalic.ttf
+        weight: 700
+        style: italic
+      - asset: assets/fonts/Lato/Lato-Black.ttf
+        weight: 900
+      - asset: assets/fonts/Lato/Lato-BlackItalic.ttf
+        weight: 900
+        style: italic
   - family: LibreBaskerville
     fonts:
       - asset: assets/fonts/Libre_Baskerville/LibreBaskerville-Regular.ttf
         weight: 400
+      - asset: assets/fonts/Libre_Baskerville/LibreBaskerville-Italic.ttf
+        weight: 400
+        style: italic
       - asset: assets/fonts/Libre_Baskerville/LibreBaskerville-Bold.ttf
         weight: 700
   - family: Merriweather
@@ -196,33 +265,22 @@ fonts:
       - asset: assets/fonts/Merriweather/Merriweather-VariableFont_opsz,wdth,wght.ttf
         weight: 100
         style: normal
+      - asset: assets/fonts/Merriweather/Merriweather-Italic-VariableFont_opsz,wdth,wght.ttf
+        weight: 100
+        style: italic
   - family: Montserrat
     fonts:
       - asset: assets/fonts/Montserrat/Montserrat-VariableFont_wght.ttf
         weight: 100
         style: normal
+      - asset: assets/fonts/Montserrat/Montserrat-Italic-VariableFont_wght.ttf
+        weight: 100
+        style: italic
   - family: Nunito
     fonts:
       - asset: assets/fonts/Nunito/Nunito-VariableFont_wght.ttf
         weight: 100
         style: normal
-  - family: NunitoSans
-    fonts:
-      - asset: assets/fonts/Nunito_Sans/NunitoSans-VariableFont_YTLC,opsz,wdth,wght.ttf
+      - asset: assets/fonts/Nunito/Nunito-Italic-VariableFont_wght.ttf
         weight: 100
-        style: normal
-  - family: Oswald
-    fonts:
-      - asset: assets/fonts/Oswald/Oswald-VariableFont_wght.ttf
-        weight: 100
-        style: normal
-  - family: Raleway
-    fonts:
-      - asset: assets/fonts/Raleway/Raleway-VariableFont_wght.ttf
-        weight: 100
-        style: normal
-  - family: Roboto
-    fonts:
-      - asset: assets/fonts/Roboto/Roboto-VariableFont_wdth,wght.ttf
-        weight: 100
-        style: normal
+        style: italic

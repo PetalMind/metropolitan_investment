@@ -838,6 +838,63 @@ async function generateAllInvestmentsSummary(recipients) {
 }
 
 /**
+ * Generuje SVG logo w kolorze złotym dla email headers
+ */
+function getGoldenLogoSvg() {
+  return `
+<svg version="1.1" id="metropolitan-logo" width="360" height="189" viewBox="0 0 159.77333 84.173332" 
+     xmlns="http://www.w3.org/2000/svg" style="display: block; margin: 0 auto;">
+  <g id="g1">
+    <g id="group-R5">
+      <path id="path3" d="m 162.859,267.559 -22.386,-29.84 h -2.555 l -21.891,29.941 v -49.972 h -12.961 v 68.726 h 14.922 l 21.504,-29.551 21.5,29.551 h 14.828 v -68.726 h -12.961 z m 96.012,-49.766 h -51.445 c 0,22.871 0,45.848 0,68.719 h 51.445 v -12.567 h -38.582 v -15.804 h 37.207 v -12.078 h -37.207 v -15.516 h 38.582 z m 51.434,56.937 h -21.793 v 11.782 c 19.836,0 36.625,0 56.554,0 V 274.73 H 323.27 V 217.793 H 310.305 Z M 433.52,217.793 h -15.418 l -20.028,22.969 h -12.469 v -22.969 h -12.96 v 68.816 c 10.902,0 21.8,-0.097 32.695,-0.097 16.199,-0.098 24.742,-10.895 24.742,-22.778 0,-9.425 -4.32,-18.949 -17.379,-21.597 l 20.817,-23.469 z m -47.915,56.641 v 0 -21.985 h 19.735 c 8.246,0 11.781,5.492 11.781,10.992 0,5.493 -3.633,10.993 -11.781,10.993 z m 140.387,-22.676 c -0.191,-17.77 -11.094,-35.543 -35.242,-35.543 -24.152,0 -35.348,17.379 -35.348,35.441 0,18.071 11.586,36.231 35.348,36.231 23.66,0 35.445,-18.16 35.242,-36.129 z m -57.824,-0.293 v 0 c 0.297,-11.289 6.379,-23.371 22.582,-23.371 16.199,0 22.289,12.176 22.48,23.469 0.2,11.582 -6.281,24.542 -22.48,24.542 -16.203,0 -22.879,-13.054 -22.582,-24.64 z m 119.379,-13.457 h -19.442 v -20.215 h -12.96 v 68.719 c 10.8,0 21.601,0.097 32.402,0.097 33.582,0 33.676,-48.601 0,-48.601 z m -19.442,11.879 v 0 h 19.442 c 16.594,0 16.492,24.351 0,24.351 h -19.442 z m 140.586,1.871 c -0.195,-17.77 -11.089,-35.543 -35.242,-35.543 -24.156,0 -35.347,17.379 -35.347,35.441 0,18.071 11.586,36.231 35.347,36.231 23.66,0 35.442,-18.16 35.242,-36.129 z m -57.824,-0.293 v 0 c 0.297,-11.289 6.379,-23.371 22.582,-23.371 16.199,0 22.285,12.176 22.485,23.469 0.195,11.582 -6.286,24.542 -22.485,24.542 -16.203,0 -22.879,-13.054 -22.582,-24.64 z m 99.942,35.047 v -56.746 h 35.343 v -11.973 h -48.304 v 68.719 z m 64.199,-68.719 v 68.719 h 12.863 v -68.719 z m 65.578,56.937 h -21.797 v 11.782 c 19.836,0 36.625,0 56.559,0 V 274.73 h -21.793 v -56.937 h -12.969 z m 111.031,-43.98 h -35.929 l -5.891,-12.957 h -14.039 l 30.828,68.719 h 14.137 l 30.837,-68.719 h -14.142 z m -17.965,41.328 v 0 l -12.757,-29.254 h 25.527 z m 108.588,14.531 h 12.95 v -68.816 h -8.05 v -0.105 l -36.13,46.437 v -46.332 h -12.96 v 68.719 h 10.51 l 33.68,-42.606 v 42.703" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+      <path id="path4" d="m 351.273,152.938 h 5.54 v -49.032 h -5.54 v 49.032" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+      <path id="path5" d="m 383.828,140.117 h 5.391 v -6.301 c 2.383,3.918 6.164,7.075 12.398,7.075 8.754,0 13.867,-5.883 13.867,-14.504 v -22.481 h -5.394 v 21.153 c 0,6.726 -3.641,10.925 -10.016,10.925 -6.23,0 -10.855,-4.55 -10.855,-11.343 v -20.735 h -5.391 v 36.211" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+      <path id="path6" d="m 434.984,140.117 h 5.954 l 12.187,-30.047 12.258,30.047 h 5.812 l -15.761,-36.488 h -4.758 l -15.692,36.488" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+      <path id="path7" d="m 517.109,124.148 c -0.629,6.586 -4.414,12.188 -11.558,12.188 -6.231,0 -10.996,-5.184 -11.766,-12.188 z m -10.578,-16.386 c 4.973,0 8.477,2.031 11.418,5.113 l 3.36,-3.016 c -3.637,-4.062 -8.051,-6.793 -14.918,-6.793 -9.946,0 -18.067,7.633 -18.067,18.914 0,10.5 7.356,18.911 17.367,18.911 10.715,0 16.883,-8.547 16.883,-19.196 0,-0.488 0,-1.05 -0.074,-1.89 h -28.715 c 0.77,-7.629 6.375,-12.043 12.746,-12.043" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+      <path id="path8" d="m 543.422,108.531 2.73,3.852 c 3.922,-2.942 8.266,-4.621 12.539,-4.621 4.34,0 7.493,2.242 7.493,5.742 v 0.141 c 0,3.64 -4.27,5.043 -9.036,6.371 -5.671,1.613 -11.976,3.574 -11.976,10.226 v 0.141 c 0,6.234 5.183,10.367 12.328,10.367 4.414,0 9.316,-1.543 13.027,-3.996 l -2.449,-4.063 c -3.367,2.172 -7.219,3.5 -10.719,3.5 -4.273,0 -7.004,-2.238 -7.004,-5.246 v -0.144 c 0,-3.43 4.485,-4.758 9.317,-6.235 5.601,-1.679 11.629,-3.851 11.629,-10.359 v -0.144 c 0,-6.864 -5.676,-10.852 -12.891,-10.852 -5.183,0 -10.926,2.031 -14.988,5.32" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+      <path id="path9" d="m 596.633,113.504 v 21.848 h -5.043 v 4.765 h 5.043 v 10.926 h 5.39 v -10.926 h 11.489 v -4.765 h -11.489 v -21.145 c 0,-4.414 2.45,-6.027 6.094,-6.027 1.821,0 3.363,0.351 5.254,1.261 v -4.625 c -1.891,-0.976 -3.922,-1.539 -6.516,-1.539 -5.808,0 -10.222,2.871 -10.222,10.227" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+      <path id="path10" d="m 638.297,140.117 h 5.391 v -6.094 c 2.382,3.571 5.605,6.868 11.699,6.868 5.879,0 9.668,-3.157 11.633,-7.219 2.585,3.996 6.433,7.219 12.742,7.219 8.332,0 13.449,-5.606 13.449,-14.571 v -22.414 h -5.391 v 21.153 c 0,7.004 -3.507,10.925 -9.386,10.925 -5.469,0 -10.016,-4.058 -10.016,-11.207 v -20.871 h -5.324 v 21.289 c 0,6.797 -3.574,10.789 -9.317,10.789 -5.742,0 -10.089,-4.761 -10.089,-11.418 v -20.66 h -5.391 v 36.211" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+      <path id="path11" d="m 743.297,124.148 c -0.637,6.586 -4.414,12.188 -11.563,12.188 -6.23,0 -10.996,-5.184 -11.765,-12.188 z m -10.574,-16.386 c 4.968,0 8.472,2.031 11.414,5.113 l 3.359,-3.016 c -3.644,-4.062 -8.058,-6.793 -14.922,-6.793 -9.941,0 -18.066,7.633 -18.066,18.914 0,10.5 7.351,18.911 17.375,18.911 10.711,0 16.875,-8.547 16.875,-19.196 0,-0.488 0,-1.05 -0.07,-1.89 h -28.719 c 0.769,-7.629 6.375,-12.043 12.754,-12.043" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+      <path id="path12" d="m 771.488,140.117 h 5.391 v -6.301 c 2.383,3.918 6.164,7.075 12.394,7.075 8.758,0 13.868,-5.883 13.868,-14.504 v -22.481 h -5.391 v 21.153 c 0,6.726 -3.645,10.925 -10.02,10.925 -6.23,0 -10.851,-4.55 -10.851,-11.343 v -20.735 h -5.391 v 36.211" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+      <path id="path13" d="m 830.074,113.504 v 21.848 h -5.039 v 4.765 h 5.039 v 10.926 h 5.399 v -10.926 h 11.488 v -4.765 h -11.488 v -21.145 c 0,-4.414 2.453,-6.027 6.093,-6.027 1.817,0 3.36,0.351 5.247,1.261 v -4.625 c -1.887,-0.976 -3.918,-1.539 -6.504,-1.539 -5.821,0 -10.235,2.871 -10.235,10.227" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+      <path id="path14" d="m 513.23,363.922 h 32.723 V 487.16 L 513.23,514.227 V 363.922" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+      <path id="path15" d="m 566.406,363.922 h 32.727 V 498.414 L 566.406,480.047 V 363.922" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+      <path id="path16" d="m 619.586,363.922 h 32.727 V 528.266 L 619.586,509.895 V 363.922" 
+            style="fill:#d4af37;fill-opacity:1;fill-rule:nonzero;stroke:none" 
+            transform="matrix(0.13333333,0,0,-0.13333333,0,84.173333)" />
+    </g>
+  </g>
+</svg>
+  `;
+}
+
+/**
  * Formatuje wartość jako walutę
  */
 function formatCurrency(amount) {
@@ -889,10 +946,9 @@ function generateBasicEmailContent({ htmlContent, senderName, recipientEmail }) 
         }
         
         body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             line-height: 1.6; 
             color: #2c2c2c; 
-            background-color: #f8f9fa;
+            background-color: #2c2c2c;
             margin: 0;
             padding: 0;
         }
@@ -900,12 +956,12 @@ function generateBasicEmailContent({ htmlContent, senderName, recipientEmail }) 
         .email-container {
             max-width: 680px;
             margin: 0 auto;
-            background-color: #ffffff;
+            background-color: #2c2c2c;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
         
         .header { 
-            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            background-color: #1e293b;
             color: #ffffff; 
             padding: 40px 30px; 
             text-align: center;
@@ -996,15 +1052,13 @@ function generateBasicEmailContent({ htmlContent, senderName, recipientEmail }) 
 <body>
     <div class="email-container">
         <div class="header">
-            <h1>${senderName}</h1>
-            <div class="subtitle">Profesjonalne Zarządzanie Kapitałem</div>
+            ${getGoldenLogoSvg()}
+            <div class="subtitle" style="margin-top: 16px;">Profesjonalne Zarządzanie Kapitałem</div>
         </div>
         
         <div class="content">
-            <div class="greeting">
-                Szanowni Państwo,
-            </div>
-            
+        
+        
             <div class="user-content">
                 ${htmlContent}
             </div>
@@ -1283,53 +1337,72 @@ async function getInvestmentDetailsForClient(clientId) {
 
       return `
         <tr>
-          <td data-label="Produkt">${safeToString(investment.productName || investment.nazwa_produktu || 'Nieokreślony produkt')}</td>
-          <td data-label="Kwota Inwestycji">${formatCurrency(investmentAmount)}</td>
-          <td data-label="Kapitał Pozostały">${formatCurrency(remainingCapital)}</td>
-          <td data-label="Kapitał Zrealizowany">${formatCurrency(realizedCapital)}</td>
-          <td data-label="Status">${investment.status || 'Aktywna'}</td>
+          <td data-label="Produkt">
+            <div class="product-info">
+              <div class="product-name">${safeToString(investment.productName || investment.nazwa_produktu || 'Nieokreślony produkt')}</div>
+              <div class="product-id">${investment.id || ''}</div>
+            </div>
+          </td>
+          <td data-label="Kwota Inwestycji" class="amount-cell">${formatCurrency(investmentAmount)}</td>
+          <td data-label="Pozostały Kapitał" class="amount-cell">${formatCurrency(remainingCapital)}</td>
+          <td data-label="Zrealizowany Kapitał" class="amount-cell">${formatCurrency(realizedCapital)}</td>
+          <td data-label="Status">
+            <span class="status-badge ${investment.status === 'Aktywna' || !investment.status ? 'active' : 'other'}">${investment.status || 'Aktywna'}</span>
+          </td>
         </tr>
       `;
     }).join('');
 
     return `
-      <h3>📊 Podsumowanie Twojego Portfela</h3>
-      <div class="summary">
-        <div class="summary-grid">
-          <div class="summary-item">
-            <div class="summary-label">Liczba inwestycji</div>
-            <div class="summary-value">${investments.length}</div>
-          </div>
-          <div class="summary-item">
-            <div class="summary-label">Całkowita kwota</div>
-            <div class="summary-value highlight">${formatCurrency(totalInvestmentAmount)}</div>
-          </div>
-          <div class="summary-item">
-            <div class="summary-label">Kapitał pozostały</div>
-            <div class="summary-value">${formatCurrency(totalRemainingCapital)}</div>
-          </div>
-          <div class="summary-item">
-            <div class="summary-label">Kapitał zrealizowany</div>
-            <div class="summary-value">${formatCurrency(totalRealizedCapital)}</div>
+      <div class="portfolio-section">
+        <div class="section-header">
+          <h3>📊 Podsumowanie Portfela</h3>
+        </div>
+
+        <div class="portfolio-summary">
+          <div class="summary-cards">
+            <div class="summary-card">
+              <div class="card-label">Liczba inwestycji</div>
+              <div class="card-value">${investments.length}</div>
+            </div>
+            <div class="summary-card primary">
+              <div class="card-label">Całkowita kwota inwestycji</div>
+              <div class="card-value">${formatCurrency(totalInvestmentAmount)}</div>
+            </div>
+            <div class="summary-card">
+              <div class="card-label">Kapitał pozostały</div>
+              <div class="card-value">${formatCurrency(totalRemainingCapital)}</div>
+            </div>
+            <div class="summary-card">
+              <div class="card-label">Kapitał zrealizowany</div>
+              <div class="card-value">${formatCurrency(totalRealizedCapital)}</div>
+            </div>
           </div>
         </div>
       </div>
       
-      <h3>📋 Szczegóły Inwestycji</h3>
-      <table class="investment-table">
-        <thead>
-          <tr>
-            <th>Produkt</th>
-            <th>Kwota Inwestycji</th>
-            <th>Kapitał Pozostały</th>
-            <th>Kapitał Zrealizowany</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${investmentRows}
-        </tbody>
-      </table>
+      <div class="investments-section">
+        <div class="section-header">
+          <h3>📋 Szczegóły Inwestycji</h3>
+        </div>
+        
+        <div class="investments-table-container">
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th>Produkt</th>
+                <th>Kwota Inwestycji</th>
+                <th>Pozostały Kapitał</th>
+                <th>Zrealizowany Kapitał</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${investmentRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
     `;
 
   } catch (error) {
@@ -1378,7 +1451,7 @@ function generatePersonalizedEmailContent({
       }
       
       .header { 
-        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        background: #1e293b;
         color: #ffffff; 
         padding: 40px 30px; 
         text-align: center;
@@ -1411,15 +1484,173 @@ function generatePersonalizedEmailContent({
       }
       
       .summary { 
-        background: #f8fafc; 
+        background: #f9fafb;
         padding: 24px; 
         margin: 30px 0; 
-        border-radius: 8px; 
-        border-left: 3px solid #d4af37;
-        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
       }
-      
-      .summary h3 {
+
+      /* Nowe style dla profesjonalnego designu */
+      .portfolio-section, .investments-section {
+        margin: 32px 0;
+      }
+
+      .section-header {
+        margin-bottom: 24px;
+      }
+
+      .section-header h3 {
+        color: #1e293b;
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #f1f5f9;
+      }
+
+      .portfolio-summary {
+        background: #ffffff;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        padding: 24px;
+      }
+
+      .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+      }
+
+      .summary-card {
+        background: #f8fafc;
+        padding: 20px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        text-align: center;
+        transition: all 0.2s ease;
+      }
+
+      .summary-card.primary {
+        background: #1e293b;
+        color: #ffffff;
+        border-color: #1e293b;
+      }
+
+      .summary-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+
+      .card-label {
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #64748b;
+        margin-bottom: 8px;
+      }
+
+      .summary-card.primary .card-label {
+        color: #d4af37;
+      }
+
+      .card-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1e293b;
+      }
+
+      .summary-card.primary .card-value {
+        color: #ffffff;
+      }
+
+      .investments-table-container {
+        background: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      }
+
+      .modern-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+      }
+
+      .modern-table th {
+        background: #f8fafc;
+        color: #374151;
+        padding: 16px 20px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #e2e8f0;
+      }
+
+      .modern-table td {
+        padding: 16px 20px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+      }
+
+      .modern-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .modern-table tr:hover {
+        background-color: #f8fafc;
+      }
+
+      .product-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .product-name {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 14px;
+      }
+
+      .product-id {
+        font-size: 12px;
+        color: #64748b;
+        font-family: 'Courier New', monospace;
+      }
+
+      .amount-cell {
+        font-weight: 600;
+        color: #1e293b;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .status-badge.active {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+      }
+
+      .status-badge.other {
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+      }      .summary h3 {
         color: #1e293b;
         font-size: 16px;
         font-weight: 600;
@@ -1428,6 +1659,7 @@ function generatePersonalizedEmailContent({
         align-items: center;
       }
       
+      /* Legacy styles - keeping for backward compatibility */
       .summary-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -1458,6 +1690,19 @@ function generatePersonalizedEmailContent({
         color: #d4af37;
         font-size: 20px;
       }
+        margin-bottom: 4px;
+      }
+
+      .summary-value {
+        font-size: 18px;
+        color: #1e293b;
+        font-weight: 600;
+      }
+
+      .summary-value.highlight {
+        color: #d4af37;
+        font-size: 20px;
+      }
       
       .investment-details {
         margin: 30px 0;
@@ -1472,6 +1717,7 @@ function generatePersonalizedEmailContent({
         border-bottom: 2px solid #f1f5f9;
       }
       
+      /* Legacy investment table styles - keeping for backward compatibility */
       .investment-table { 
         width: 100%; 
         border-collapse: collapse; 
@@ -1483,14 +1729,15 @@ function generatePersonalizedEmailContent({
       }
       
       .investment-table th { 
-        background: #1e293b; 
-        color: #ffffff; 
+        background: #f8fafc;
+        color: #374151;
         padding: 16px 12px;
         text-align: left;
         font-weight: 600;
         font-size: 13px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        border-bottom: 2px solid #e2e8f0;
       }
       
       .investment-table td { 
@@ -1592,6 +1839,38 @@ function generatePersonalizedEmailContent({
           font-size: 16px;
         }
         
+        /* Nowe style mobilne */
+        .portfolio-summary {
+          padding: 16px;
+        }
+
+        .summary-cards {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+
+        .summary-card {
+          padding: 16px;
+        }
+
+        .card-value {
+          font-size: 20px;
+        }
+
+        .modern-table {
+          font-size: 14px;
+        }
+
+        .modern-table th,
+        .modern-table td {
+          padding: 12px 16px;
+        }
+
+        .section-header h3 {
+          font-size: 18px;
+        }
+
+        /* Legacy styles */
         .summary {
           padding: 20px;
           margin: 20px 0;
@@ -1616,8 +1895,61 @@ function generatePersonalizedEmailContent({
         .user-content h3 { font-size: 16px; }
       }
       
-      /* Wsparcie dla klientów email */
+      /* Wsparcie dla klientów email i bardzo małych ekranów */
       @media only screen and (max-width: 480px) {
+        /* Nowe style dla kart */
+        .summary-cards {
+          display: block;
+        }
+
+        .summary-card {
+          margin-bottom: 12px;
+        }
+
+        /* Nowa tabela na małych ekranach */
+        .modern-table,
+        .modern-table tbody,
+        .modern-table th,
+        .modern-table td,
+        .modern-table tr {
+          display: block;
+        }
+
+        .modern-table th {
+          display: none;
+        }
+
+        .modern-table tr {
+          border: 1px solid #e2e8f0;
+          margin-bottom: 12px;
+          border-radius: 8px;
+          padding: 16px;
+          background: #ffffff;
+        }
+
+        .modern-table td {
+          border: none;
+          padding: 8px 0;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .modern-table td:before {
+          content: attr(data-label) ": ";
+          font-weight: 600;
+          color: #64748b;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .product-info {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        /* Legacy styles */
         .summary-grid {
           display: block;
         }
@@ -1676,15 +2008,13 @@ function generatePersonalizedEmailContent({
     <body>
       <div class="email-container">
         <div class="header">
-          <h1>${senderName}</h1>
-          <div class="subtitle">Profesjonalne Zarządzanie Kapitałem</div>
+          ${getGoldenLogoSvg()}
+          <div class="subtitle" style="margin-top: 16px;">Profesjonalne Zarządzanie Kapitałem</div>
         </div>
         
         <div class="content">
-          <div class="greeting">
-            Szanowny/a ${clientName || 'Kliencie'},
-          </div>
-          
+         
+     
           <div class="user-content">
             ${htmlContent}
           </div>
@@ -1718,10 +2048,10 @@ function normalizeQuillHtml(html) {
 
   // 1. Upewnij się, że font-family ma bezpieczne fallback fonts
   normalizedHtml = normalizedHtml.replace(
-    /font-family:\s*([^;,"]+)(?![,"])/g, 
+    /font-family:\s*([^;,"]+)(?![,"])/g,
     (match, fontFamily) => {
       const cleanFont = fontFamily.trim();
-      
+
       // Mapowanie zgodne z FontFamilyService - obsługa nazw lokalnych czcionek i ich display names
       const fontFamilyMap = {
         // System fonts (legacy)
@@ -1731,7 +2061,7 @@ function normalizeQuillHtml(html) {
         'Georgia': 'Georgia, serif',
         'Verdana': 'Verdana, sans-serif',
         'Calibri': 'Calibri, sans-serif',
-        
+
         // Local fonts - Flutter internal names
         'OpenSans': '"Open Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         'Roboto': 'Roboto, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
@@ -1742,24 +2072,24 @@ function normalizeQuillHtml(html) {
         'Inter': 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         'WorkSans': '"Work Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         'FiraSans': '"Fira Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-        
+
         // Local fonts - Serif
         'Merriweather': 'Merriweather, Georgia, "Times New Roman", serif',
         'PlayfairDisplay': '"Playfair Display", Georgia, "Times New Roman", serif',
         'CrimsonText': '"Crimson Text", Georgia, "Times New Roman", serif',
         'LibreBaskerville': '"Libre Baskerville", Georgia, "Times New Roman", serif',
-        
+
         // Local fonts - Modern
         'Poppins': 'Poppins, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         'Raleway': 'Raleway, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         'Ubuntu': 'Ubuntu, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         'Nunito': 'Nunito, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-        
+
         // Local fonts - Corporate
         'RobotoCondensed': '"Roboto Condensed", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         'Oswald': 'Oswald, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         'PTSans': '"PT Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-        
+
         // Display names mapping - dla kompatybilności z HTML z display names
         'Open Sans': '"Open Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         'Source Sans Pro': '"Source Sans Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
@@ -1771,7 +2101,7 @@ function normalizeQuillHtml(html) {
         'Crimson Text': '"Crimson Text", Georgia, "Times New Roman", serif',
         'Roboto Condensed': '"Roboto Condensed", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         'PT Sans': '"PT Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-        
+
         // Legacy compatibility (monospace)
         'Courier New': 'Courier New, Courier, monospace',
         'Fira Code': 'Fira Code, monospace',
@@ -1795,19 +2125,19 @@ function normalizeQuillHtml(html) {
 
   // 2. Normalizuj font-size - upewnij się, że ma jednostki
   normalizedHtml = normalizedHtml.replace(
-    /font-size:\s*(\d+)(?!px|pt|em|rem|%)/g, 
+    /font-size:\s*(\d+)(?!px|pt|em|rem|%)/g,
     'font-size: $1px'
   );
 
   // 3. Normalizuj kolory hex do uppercase dla lepszej kompatybilności
   normalizedHtml = normalizedHtml.replace(
-    /color:\s*(#[a-f0-9]{6})/gi, 
+    /color:\s*(#[a-f0-9]{6})/gi,
     (match, colorValue) => `color: ${colorValue.toUpperCase()}`
   );
 
   // 4. Normalizuj background-color hex
   normalizedHtml = normalizedHtml.replace(
-    /background-color:\s*(#[a-f0-9]{6})/gi, 
+    /background-color:\s*(#[a-f0-9]{6})/gi,
     (match, colorValue) => `background-color: ${colorValue.toUpperCase()}`
   );
 
@@ -1833,7 +2163,7 @@ function normalizeQuillHtml(html) {
         }
       </style>
     `;
-    
+
     // Wstaw style na początku jeśli HTML ma strukturę
     if (normalizedHtml.includes('<head>')) {
       normalizedHtml = normalizedHtml.replace('<head>', `<head>${emailResetStyles}`);
@@ -1843,7 +2173,7 @@ function normalizeQuillHtml(html) {
   }
 
   console.log(`📧 [normalizeQuillHtml] Normalized HTML length: ${normalizedHtml.length}`);
-  
+
   return normalizedHtml;
 }
 

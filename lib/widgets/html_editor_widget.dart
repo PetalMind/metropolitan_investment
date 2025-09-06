@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:flutter_html/flutter_html.dart' as html_package;
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
-import '../theme/app_theme.dart';
+import '../models_and_services.dart';
 
 /// 🚀 Enhanced HTML Email Editor Widget
 ///
@@ -47,71 +49,26 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
   String _errorMessage = '';
   String _currentHtml = '';
   bool _isEditorReady = false;
+  bool _useFallbackEditor = false;
 
-  // Available fonts for the editor - Professional selection for emails
-  static const List<String> _availableFonts = [
-    // Classic email-safe serif fonts
-    'Times New Roman',
-    'Times',
-    'Georgia',
-    'Garamond',
-    'Book Antiqua',
-    'Palatino',
-
-    // Modern sans-serif fonts
-    'Arial',
-    'Arial Black',
-    'Helvetica',
-    'Helvetica Neue',
-    'Calibri',
-    'Trebuchet MS',
-    'Verdana',
-    'Tahoma',
-    'Geneva',
-    'Century Gothic',
-    'Segoe UI',
-
-    // Web fonts commonly available
-    'Inter',
-    'Open Sans',
-    'Roboto',
-    'Lato',
-    'Montserrat',
-    'Source Sans Pro',
-    'Nunito',
-    'Poppins',
-    'Playfair Display',
-    'Merriweather',
-
-    // Monospace fonts for code
-    'Courier New',
-    'Monaco',
-    'Consolas',
-    'Menlo',
-    'Source Code Pro',
-    'Fira Code',
-
-    // Decorative and impact fonts
-    'Impact',
-    'Oswald',
-    'Bebas Neue',
-    'Raleway',
-    'Ubuntu',
-
-    // Polish-friendly and international fonts
-    'DejaVu Sans',
-    'Liberation Sans',
-    'Noto Sans',
-    'PT Sans',
-    'Exo',
-
-    // Email-safe fallbacks
-    'serif',
-    'sans-serif',
-    'monospace',
-    'cursive',
-    'fantasy',
-  ];
+  // Get available fonts from FontFamilyService - dynamic list from assets/fonts
+  List<String> get _availableFonts {
+    final localFonts = FontFamilyService.getFontFamilyNames();
+    
+    // Add some commonly requested web-safe fallbacks at the end
+    final webSafeFallbacks = [
+      'Arial',
+      'Helvetica', 
+      'Times New Roman',
+      'Georgia',
+      'Verdana',
+      'serif',
+      'sans-serif',
+      'monospace',
+    ];
+    
+    return [...localFonts, ...webSafeFallbacks];
+  }
 
   // Animation controllers
   late AnimationController _loadingController;
@@ -167,6 +124,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
     setState(() {
       _isLoading = false;
       _isEditorReady = true;
+      _hasError = false; // Clear any previous errors
     });
     _loadingController.stop();
 
@@ -177,7 +135,15 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
     if (widget.initialContent.isNotEmpty) {
       Timer(const Duration(milliseconds: 100), () {
         if (mounted && _isEditorReady) {
-          _htmlController.setText(widget.initialContent);
+          try {
+            _htmlController.setText(widget.initialContent);
+          } catch (e) {
+            if (kDebugMode) {
+              print('❌ Error setting initial content: $e');
+            }
+            // Try alternative approach if direct setText fails
+            _tryAlternativeContentSetting();
+          }
         }
       });
     }
@@ -186,19 +152,262 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
       widget.onReady!();
     }
 
+    // Check font loading status after a delay
+    Timer(const Duration(milliseconds: 1000), () async {
+      if (mounted && _isEditorReady) {
+        await _verifyFontLoading();
+      }
+    });
+
     if (kDebugMode) {
       print(
-        '🚀 Enhanced HTML Editor ready with ${_availableFonts.length} fonts',
+        '🚀 Enhanced HTML Editor ready with ${_availableFonts.length} fonts from FontFamilyService',
+      );
+      print(
+        '📋 Available local fonts: ${FontFamilyService.getFontFamilyNames().join(', ')}',
       );
     }
   }
 
-  /// Injects custom fonts and styles into the HTML editor
+  /// Alternative method to set content if primary method fails
+  void _tryAlternativeContentSetting() {
+    Timer(const Duration(milliseconds: 500), () async {
+      if (!mounted || !_isEditorReady) return;
+
+      try {
+        // Try using JavaScript evaluation to set content
+        await _htmlController.evaluateJavascriptWeb('''
+          document.body.innerHTML = `${widget.initialContent}`;
+        ''');
+
+        if (kDebugMode) {
+          print('✅ Alternative content setting successful');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('❌ Alternative content setting failed: $e');
+        }
+        _handleEditorError('Failed to set initial content: $e');
+      }
+    });
+  }
+
+  /// Handle editor errors gracefully
+  void _handleEditorError(String error) {
+    if (!mounted) return;
+
+    setState(() {
+      _hasError = true;
+      _errorMessage = error;
+      _isLoading = false;
+    });
+
+    if (widget.onError != null) {
+      widget.onError!(error);
+    }
+
+    if (kDebugMode) {
+      print('❌ HTML Editor error handled: $error');
+    }
+
+    // Try to load fallback editor if enhanced editor fails
+    if (!_useFallbackEditor) {
+      _loadFallbackEditor();
+    }
+  }
+
+  /// Loads a simple fallback HTML editor when the enhanced editor fails
+  void _loadFallbackEditor() {
+    if (!mounted) return;
+
+    try {
+      debugPrint('🔄 Loading fallback HTML editor...');
+      setState(() {
+        _useFallbackEditor = true;
+        _hasError = false; // Clear error since we have a working fallback
+        _isLoading = false;
+        _isEditorReady = true;
+      });
+
+      // Notify that editor is ready
+      if (widget.onReady != null) {
+        widget.onReady!();
+      }
+
+      debugPrint('✅ Fallback editor loaded successfully');
+    } catch (e) {
+      debugPrint('❌ Failed to load fallback editor: $e');
+      // Keep error state if even fallback fails
+      setState(() {
+        _hasError = true;
+        _errorMessage = 'Both enhanced and fallback editors failed to load';
+      });
+    }
+  }
+
+  /// Checks if local fonts are available in the HTML editor context
+  Future<bool> _checkLocalFontsAvailability() async {
+    try {
+      // Test if we can detect a local font in the HTML editor
+      final result = await _htmlController.evaluateJavascriptWeb('''
+        (function() {
+          // Create a test element to check font availability
+          var testDiv = document.createElement('div');
+          testDiv.style.fontFamily = 'Inter, Arial, sans-serif';
+          testDiv.style.position = 'absolute';
+          testDiv.style.left = '-9999px';
+          testDiv.innerHTML = 'Test';
+          document.body.appendChild(testDiv);
+          
+          // Check if the font was loaded by measuring width difference
+          var width1 = testDiv.offsetWidth;
+          testDiv.style.fontFamily = 'Arial, sans-serif';
+          var width2 = testDiv.offsetWidth;
+          
+          document.body.removeChild(testDiv);
+          
+          // If widths are different, font is available
+          return width1 !== width2;
+        })();
+      ''');
+
+      if (kDebugMode) {
+        print('🔍 Font availability check result: $result');
+      }
+
+      return result == true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error checking font availability: $e');
+      }
+      return false;
+    }
+  }
+
+  /// Enhanced font verification with detailed logging
+  Future<void> _verifyFontLoading() async {
+    try {
+      if (kDebugMode) {
+        print('🔍 === FONT LOADING VERIFICATION ===');
+        print(
+          '📋 Available fonts from FontFamilyService: ${_availableFonts.length}',
+        );
+        print(
+          '🏠 Local fonts: ${FontFamilyService.getFontFamilyNames().join(', ')}',
+        );
+      }
+
+      // Check if we're running on web
+      final isWeb = kIsWeb;
+      if (kDebugMode) {
+        print('🌐 Running on web: $isWeb');
+      }
+
+      // Test font availability in HTML editor context
+      final localFontsAvailable = await _checkLocalFontsAvailability();
+      if (kDebugMode) {
+        print('✅ Local fonts available in HTML editor: $localFontsAvailable');
+      }
+
+      // Test specific fonts
+      final testFonts = ['Inter', 'Montserrat', 'Arial'];
+      for (final font in testFonts) {
+        final fontStack = await _getEditorSafeFontStack(font);
+        final isLocal = FontFamilyService.isLocalFont(font);
+        if (kDebugMode) {
+          print('🎨 Font: $font | Local: $isLocal | Stack: $fontStack');
+        }
+      }
+
+      // Check if fonts are properly injected
+      await _testFontInjection();
+
+      if (kDebugMode) {
+        print('🔍 === FONT VERIFICATION COMPLETE ===');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error during font verification: $e');
+      }
+    }
+  }
+
+  /// Test if fonts are properly injected into the HTML editor
+  Future<void> _testFontInjection() async {
+    try {
+      // Check if our custom CSS was injected
+      final cssInjected = await _htmlController.evaluateJavascriptWeb('''
+        (function() {
+          var styles = document.querySelectorAll('style');
+          var foundCustomCSS = false;
+          for (var i = 0; i < styles.length; i++) {
+            if (styles[i].innerHTML.includes('Inter') && styles[i].innerHTML.includes('@import')) {
+              foundCustomCSS = true;
+              break;
+            }
+          }
+          return foundCustomCSS;
+        })();
+      ''');
+
+      if (kDebugMode) {
+        print('🎨 Custom CSS injected: $cssInjected');
+      }
+
+      // Test if a specific font is available
+      final fontAvailable = await _htmlController.evaluateJavascriptWeb('''
+        (function() {
+          // Create test element
+          var testDiv = document.createElement('div');
+          testDiv.style.fontFamily = 'Inter, Arial, sans-serif';
+          testDiv.style.position = 'absolute';
+          testDiv.style.left = '-9999px';
+          testDiv.style.fontSize = '24px';
+          testDiv.innerHTML = 'Test font rendering';
+          document.body.appendChild(testDiv);
+          
+          // Measure width
+          var width1 = testDiv.offsetWidth;
+          
+          // Change to fallback and measure again
+          testDiv.style.fontFamily = 'Arial, sans-serif';
+          var width2 = testDiv.offsetWidth;
+          
+          // Clean up
+          document.body.removeChild(testDiv);
+          
+          // Return if font made a difference
+          return {
+            width1: width1,
+            width2: width2,
+            different: width1 !== width2,
+            difference: Math.abs(width1 - width2)
+          };
+        })();
+      ''');
+
+      if (kDebugMode) {
+        print('🔤 Font rendering test: $fontAvailable');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error testing font injection: $e');
+      }
+    }
+  }
+
+  /// Injects custom fonts, styles, and jQuery dependencies into the HTML editor
   void _injectFontsAndStyles() {
     Timer(const Duration(milliseconds: 300), () async {
       if (!mounted || !_isEditorReady) return;
 
       try {
+        // First, ensure jQuery is loaded if needed
+        await _ensureJQueryLoaded();
+
+        // Check if local fonts are available in the HTML editor context
+        final localFontsAvailable = await _checkLocalFontsAvailability();
+
         // Inject Google Fonts and custom CSS for better font support
         const String fontCSS = '''
           <style>
@@ -219,6 +428,8 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
             @import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap');
             @import url('https://fonts.googleapis.com/css2?family=Exo:wght@300;400;500;600;700&display=swap');
             @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap');
             
             body {
               font-family: 'Inter', 'Arial', sans-serif;
@@ -257,6 +468,8 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
             .font-ubuntu { font-family: 'Ubuntu', sans-serif; }
             .font-pt-sans { font-family: 'PT Sans', sans-serif; }
             .font-exo { font-family: 'Exo', sans-serif; }
+            .font-crimson-text { font-family: 'Crimson Text', serif; }
+            .font-libre-baskerville { font-family: 'Libre Baskerville', serif; }
           </style>
         ''';
 
@@ -271,6 +484,9 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
 
         if (kDebugMode) {
           print('✅ Custom fonts and styles injected successfully');
+          print(
+            '🔍 Local fonts available in HTML editor: $localFontsAvailable',
+          );
         }
       } catch (e) {
         if (kDebugMode) {
@@ -280,30 +496,183 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
     });
   }
 
+  /// Ensures jQuery is loaded for HTML editor functionality
+  Future<void> _ensureJQueryLoaded() async {
+    try {
+      // Check if jQuery is already loaded
+      final jqueryExists = await _htmlController.evaluateJavascriptWeb('''
+        (function() {
+          return typeof jQuery !== 'undefined' && typeof \$ !== 'undefined';
+        })();
+      ''');
+
+      if (jqueryExists != true) {
+        if (kDebugMode) {
+          print('⚠️ jQuery not found, loading jQuery...');
+        }
+
+        // Load jQuery from CDN
+        await _htmlController.evaluateJavascriptWeb('''
+          (function() {
+            if (typeof jQuery === 'undefined' || typeof \$ === 'undefined') {
+              var script = document.createElement('script');
+              script.src = 'https://code.jquery.com/jquery-3.6.0.min.js';
+              script.integrity = 'sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=';
+              script.crossOrigin = 'anonymous';
+              script.onload = function() {
+                console.log('✅ jQuery loaded successfully');
+              };
+              script.onerror = function() {
+                console.warn('❌ Failed to load jQuery from CDN');
+              };
+              document.head.appendChild(script);
+            }
+          })();
+        ''');
+
+        // Wait a bit for jQuery to load
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        if (kDebugMode) {
+          print('✅ jQuery loading initiated');
+        }
+      } else {
+        if (kDebugMode) {
+          print('✅ jQuery already available');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error checking/loading jQuery: $e');
+      }
+    }
+  }
+
+  /// Apply font with simple execCommand method (matches FontSettingButtons behavior)
+  Future<void> _applyFontWithFallbacks(String fontName) async {
+    if (!_isEditorReady) return;
+
+    try {
+      // Get font stack with fallbacks for email safety
+      final fontStack = await _getEditorSafeFontStack(fontName);
+
+      if (kDebugMode) {
+        print('🎨 Applying font stack: $fontStack');
+      }
+
+      // Use simple execCommand method (same as FontSettingButtons)
+      _htmlController.execCommand('fontName', argument: fontStack);
+
+      if (kDebugMode) {
+        print('✅ Font applied successfully: $fontName → $fontStack');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error applying font: $e');
+      }
+      // Ultimate fallback: try simple fontName without fallbacks
+      try {
+        _htmlController.execCommand('fontName', argument: fontName);
+        if (kDebugMode) {
+          print('✅ Fallback font applied: $fontName');
+        }
+      } catch (fallbackError) {
+        if (kDebugMode) {
+          print('❌ Fallback font application failed: $fallbackError');
+        }
+      }
+    }
+  }
+
+  /// Get editor-safe font stack that works in HTML editor context
+  Future<String> _getEditorSafeFontStack(String primaryFont) async {
+    // Check if local fonts are available in the editor
+    final localFontsAvailable = await _checkLocalFontsAvailability();
+
+    if (localFontsAvailable && FontFamilyService.isLocalFont(primaryFont)) {
+      // Use local font with fallbacks
+      return FontFamilyService.getEmailSafeFontFamily(primaryFont);
+    } else {
+      // Use Google Fonts equivalent or web-safe fallback
+      return _getGoogleFontEquivalent(primaryFont);
+    }
+  }
+
+  /// Get Google Font equivalent for local fonts when local fonts aren't available
+  String _getGoogleFontEquivalent(String fontName) {
+    // Map local fonts to their Google Font equivalents
+    final googleFontMap = {
+      'CrimsonText': 'Crimson Text',
+      'FiraSans': 'Fira Sans',
+      'Inter': 'Inter',
+      'Lato': 'Lato',
+      'LibreBaskerville': 'Libre Baskerville',
+      'Merriweather': 'Merriweather',
+      'Montserrat': 'Montserrat',
+      'Nunito': 'Nunito',
+      // Add more mappings as needed
+    };
+
+    // Web-safe fallbacks for each font type
+    final webSafeFallbacks = {
+      'CrimsonText': 'serif',
+      'FiraSans': 'sans-serif',
+      'Inter': 'sans-serif',
+      'Lato': 'sans-serif',
+      'LibreBaskerville': 'serif',
+      'Merriweather': 'serif',
+      'Montserrat': 'sans-serif',
+      'Nunito': 'sans-serif',
+    };
+
+    final googleFont = googleFontMap[fontName] ?? fontName;
+
+    // For system fonts, get CSS font family from FontFamilyService
+    if (!FontFamilyService.isLocalFont(fontName)) {
+      return FontFamilyService.getCssFontFamily(fontName);
+    }
+
+    // Return Google Font with fallback
+    return '"$googleFont", ${webSafeFallbacks[fontName] ?? 'sans-serif'}';
+  }
+
   void _onContentChanged(String html) {
     if (!mounted) return; // Add mounted check
 
-    _currentHtml = html;
+    try {
+      _currentHtml = html;
 
-    // Debounce content changes to avoid excessive updates
-    _contentChangeTimer?.cancel();
-    _contentChangeTimer = Timer(const Duration(milliseconds: 300), () {
-      if (!mounted) return; // Add mounted check in timer too
+      // Debounce content changes to avoid excessive updates
+      _contentChangeTimer?.cancel();
+      _contentChangeTimer = Timer(const Duration(milliseconds: 300), () {
+        if (!mounted) return; // Add mounted check in timer too
 
-      if (widget.onContentChanged != null) {
-        widget.onContentChanged!(html);
+        try {
+          if (widget.onContentChanged != null) {
+            widget.onContentChanged!(html);
+          }
+
+          if (mounted) {
+            setState(() {}); // Trigger preview update
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('❌ Error in content change callback: $e');
+          }
+        }
+      });
+
+      if (kDebugMode) {
+        print('📝 Content changed: ${html.length} characters');
+        print(
+          '🖼️ Rendering preview HTML: "${html.length > 100 ? html.substring(0, 100) + '...' : html}"',
+        );
       }
-
-      if (mounted) {
-        setState(() {}); // Trigger preview update
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error handling content change: $e');
       }
-    });
-
-    if (kDebugMode) {
-      print('📝 Content changed: ${html.length} characters');
-      print(
-        '🖼️ Rendering preview HTML: "${html.length > 100 ? html.substring(0, 100) + '...' : html}"',
-      );
+      _handleEditorError('Content change error: $e');
     }
   }
 
@@ -316,225 +685,6 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
 
     if (kDebugMode) {
       print('🎯 Editor focus: $focused');
-    }
-  }
-
-  /// Shows a dialog for selecting fonts
-  Future<void> _showFontSelectionDialog() async {
-    if (!_isEditorReady) return;
-
-    final selectedFont = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        // Create a local scroll controller for this dialog
-        final scrollController = ScrollController();
-
-        return AlertDialog(
-          backgroundColor: AppTheme.backgroundSecondary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Icon(
-                Icons.font_download,
-                color: AppTheme.secondaryGold,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Wybierz czcionkę',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          content: Container(
-            width: double.maxFinite,
-            height: 400,
-            child: Column(
-              children: [
-                // Search bar
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Szukaj czcionki...',
-                    hintStyle: TextStyle(color: AppTheme.textSecondary),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: AppTheme.secondaryGold,
-                    ),
-                    filled: true,
-                    fillColor: AppTheme.backgroundPrimary,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  style: TextStyle(color: AppTheme.textPrimary),
-                  onChanged: (query) {
-                    // Implement search functionality if needed
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Font list with proper scroll controller
-                Expanded(
-                  child: Scrollbar(
-                    controller: scrollController,
-                    thumbVisibility: true,
-                    child: ListView.builder(
-                      controller: scrollController,
-                      itemCount: _availableFonts.length,
-                      itemBuilder: (context, index) {
-                        final font = _availableFonts[index];
-                        return ListTile(
-                          dense: true,
-                          leading: Icon(
-                            Icons.text_fields,
-                            color: AppTheme.secondaryGold,
-                            size: 20,
-                          ),
-                          title: Text(
-                            font,
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontFamily:
-                                  font == 'serif' ||
-                                      font == 'sans-serif' ||
-                                      font == 'monospace' ||
-                                      font == 'cursive' ||
-                                      font == 'fantasy'
-                                  ? null
-                                  : font,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: Text(
-                            _getFontCategory(font),
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
-                          onTap: () {
-                            // Dispose scroll controller before closing
-                            scrollController.dispose();
-                            Navigator.of(context).pop(font);
-                          },
-                          hoverColor: AppTheme.primaryColor.withOpacity(0.1),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                // Dispose scroll controller before closing
-                scrollController.dispose();
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                'Anuluj',
-                style: TextStyle(color: AppTheme.textSecondary),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (selectedFont != null && _isEditorReady) {
-      await _applyFontFamily(selectedFont);
-    }
-  }
-
-  /// Gets the category of a font for display
-  String _getFontCategory(String font) {
-    if ([
-      'Arial',
-      'Arial Black',
-      'Helvetica',
-      'Calibri',
-      'Trebuchet MS',
-      'Verdana',
-      'Tahoma',
-      'Geneva',
-      'Century Gothic',
-      'Segoe UI',
-      'Inter',
-      'Open Sans',
-      'Roboto',
-      'Lato',
-      'Montserrat',
-      'Source Sans Pro',
-      'Nunito',
-      'Poppins',
-      'sans-serif',
-    ].contains(font)) {
-      return 'Sans-serif';
-    } else if ([
-      'Times New Roman',
-      'Times',
-      'Georgia',
-      'Garamond',
-      'Book Antiqua',
-      'Palatino',
-      'Playfair Display',
-      'Merriweather',
-      'serif',
-    ].contains(font)) {
-      return 'Serif';
-    } else if ([
-      'Courier New',
-      'Monaco',
-      'Consolas',
-      'Menlo',
-      'Source Code Pro',
-      'Fira Code',
-      'monospace',
-    ].contains(font)) {
-      return 'Monospace';
-    } else if (['Impact', 'Oswald', 'Bebas Neue'].contains(font)) {
-      return 'Impact';
-    } else if ([
-      'DejaVu Sans',
-      'Liberation Sans',
-      'Noto Sans',
-      'PT Sans',
-      'Ubuntu',
-      'Exo',
-      'Raleway',
-    ].contains(font)) {
-      return 'Międzynarodowa';
-    } else {
-      return 'Dekoracyjna';
-    }
-  }
-
-  /// Applies the selected font family to the current selection
-  Future<void> _applyFontFamily(String fontFamily) async {
-    if (!_isEditorReady) return;
-
-    try {
-      // Apply font family to current selection using JavaScript
-      await _htmlController.evaluateJavascriptWeb('''
-        document.execCommand('fontName', false, '$fontFamily');
-      ''');
-
-      if (kDebugMode) {
-        print('✅ Applied font family: $fontFamily');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error applying font family: $e');
-      }
     }
   }
 
@@ -666,19 +816,6 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
           ),
           const SizedBox(width: 16),
 
-          // Font selection button
-          IconButton(
-            icon: Icon(
-              Icons.font_download,
-              color: AppTheme.secondaryGold,
-              size: 18,
-            ),
-            onPressed: _showFontSelectionDialog,
-            tooltip: 'Wybierz czcionkę',
-            padding: const EdgeInsets.all(6),
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
-
           const Spacer(),
 
           // Preview toggle button
@@ -701,7 +838,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
   }
 
   Widget _buildEditorView() {
-    if (_hasError) {
+    if (_hasError && !_useFallbackEditor) {
       return _buildErrorView();
     }
 
@@ -709,149 +846,301 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
       return _buildLoadingView();
     }
 
+    // Show fallback editor if needed
+    if (_useFallbackEditor) {
+      return _buildFallbackEditor();
+    }
+
     return Stack(
       children: [
-        // Main HTML Editor
-        HtmlEditor(
-          controller: _htmlController,
-          htmlEditorOptions: HtmlEditorOptions(
-            hint: 'Napisz swoją wiadomość...',
-            shouldEnsureVisible: true,
-            initialText: widget.initialContent.isNotEmpty
-                ? widget.initialContent
-                : '',
-            autoAdjustHeight: false,
-            adjustHeightForKeyboard: true,
-            disabled: !widget.enabled, // Fix: use widget.enabled properly
-            darkMode: false, // Light mode for better compatibility
-          ),
-          htmlToolbarOptions: const HtmlToolbarOptions(
-            toolbarPosition: ToolbarPosition.aboveEditor,
-            toolbarType: ToolbarType.nativeGrid,
-            defaultToolbarButtons: [
-              StyleButtons(),
-              FontSettingButtons(
-                fontName: true,
-                fontSize: true,
-                fontSizeUnit: false,
-              ),
-              FontButtons(
-                bold: true,
-                italic: true,
-                underline: true,
-                clearAll: false,
-                strikethrough: true,
-                superscript: false,
-                subscript: false,
-              ),
-              ColorButtons(foregroundColor: true, highlightColor: true),
-              ListButtons(ul: true, ol: true, listStyles: false),
-              ParagraphButtons(
-                textDirection: false,
-                lineHeight: true,
-                caseConverter: false,
-                alignCenter: true,
-                alignJustify: false,
-                alignLeft: true,
-                alignRight: true,
-                increaseIndent: true,
-                decreaseIndent: true,
-              ),
-              InsertButtons(
-                link: true,
-                picture: false,
-                audio: false,
-                video: false,
-                table: true,
-                hr: false,
-                otherFile: false,
-              ),
-              OtherButtons(
-                fullscreen: false,
-                codeview: true,
-                undo: true,
-                redo: true,
-                help: false,
-                copy: false,
-                paste: false,
-              ),
-            ],
-            toolbarItemHeight: 40,
-            gridViewHorizontalSpacing: 5,
-            gridViewVerticalSpacing: 5,
-          ),
-          otherOptions: OtherOptions(
-            height: widget.height - 90, // Account for toolbar and padding
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.grey.shade300),
+        // Main HTML Editor with explicit sizing
+        SizedBox(
+          width: double.infinity,
+          height: widget.height - 90,
+          child: HtmlEditor(
+            controller: _htmlController,
+            htmlEditorOptions: HtmlEditorOptions(
+              hint: 'Napisz swoją wiadomość...',
+              shouldEnsureVisible: true,
+              initialText: widget.initialContent.isNotEmpty
+                  ? widget.initialContent
+                  : '',
+              autoAdjustHeight: false,
+              adjustHeightForKeyboard: true,
+              disabled: !widget.enabled, // Fix: use widget.enabled properly
+              darkMode: false, // Light mode for better compatibility
+              webInitialScripts: UnmodifiableListView([
+                // Ensure jQuery is available for the editor
+                WebScript(
+                  name: 'jQuery-loader',
+                  script: '''
+                    if (typeof jQuery === 'undefined') {
+                      var script = document.createElement('script');
+                      script.src = 'https://code.jquery.com/jquery-3.6.0.min.js';
+                      script.crossOrigin = 'anonymous';
+                      document.head.appendChild(script);
+                    }
+                  ''',
+                ),
+              ]),
             ),
+            htmlToolbarOptions: HtmlToolbarOptions(
+              toolbarPosition: ToolbarPosition.aboveEditor,
+              toolbarType: ToolbarType.nativeGrid,
+              customToolbarButtons: [
+                // Enhanced font family dropdown with extensive font options
+                SizedBox(
+                  width: 120, // Fixed width to prevent layout issues
+                  height: 40,
+                  child: Container(
+                    padding: const EdgeInsets.only(left: 8.0, right: 4.0),
+                    decoration: BoxDecoration(
+                      color: AppTheme.backgroundSecondary,
+                      border: Border.all(
+                        color: AppTheme.borderPrimary.withValues(alpha: 0.3),
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: CustomDropdownButtonHideUnderline(
+                      child: CustomDropdownButton<String>(
+                        elevation: 8,
+                        iconEnabledColor: AppTheme.secondaryGold,
+                        iconSize: 14,
+                        isExpanded:
+                            true, // Important: allows dropdown to use full width
+                        itemHeight:
+                            48, // Increased height for better touch targets
+                        dropdownColor: AppTheme.backgroundSecondary,
+                        menuDirection: DropdownMenuDirection.down,
+                        menuMaxHeight:
+                            MediaQuery.of(context).size.height /
+                            3, // Limit height for scrolling
+                        hint: Text(
+                          'Czcionka',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+                        items: _availableFonts.map((String font) {
+                          return CustomDropdownMenuItem<String>(
+                            value: font,
+                            child: PointerInterceptor(
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6.0,
+                                    vertical: 4.0,
+                                  ),
+                                  child: Text(
+                                    font,
+                                    style: TextStyle(
+                                      color: AppTheme.textPrimary,
+                                      fontFamily:
+                                          font == 'serif' ||
+                                              font == 'sans-serif' ||
+                                              font == 'monospace' ||
+                                              font == 'cursive' ||
+                                              font == 'fantasy'
+                                          ? null
+                                          : font,
+                                      fontSize: 11,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        value: null,
+                        onChanged: (String? newFont) async {
+                          if (newFont != null && _isEditorReady) {
+                            try {
+                              // Enhanced font application with fallbacks for email compatibility
+                              await _applyFontWithFallbacks(newFont);
+                              if (kDebugMode) {
+                                print('✅ Applied font: $newFont');
+                              }
+                            } catch (e) {
+                              if (kDebugMode) {
+                                print('❌ Error applying font: $e');
+                              }
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              defaultToolbarButtons: [
+                StyleButtons(),
+                FontSettingButtons(
+                  fontName:
+                      true, // Enable default font dropdown to compare with custom implementation
+                  fontSize: true,
+                  fontSizeUnit: false,
+                ),
+                FontButtons(
+                  bold: true,
+                  italic: true,
+                  underline: true,
+                  clearAll: false,
+                  strikethrough: true,
+                  superscript: false,
+                  subscript: false,
+                ),
+                ColorButtons(foregroundColor: true, highlightColor: true),
+                ListButtons(ul: true, ol: true, listStyles: false),
+                ParagraphButtons(
+                  textDirection: false,
+                  lineHeight: true,
+                  caseConverter: false,
+                  alignCenter: true,
+                  alignJustify: false,
+                  alignLeft: true,
+                  alignRight: true,
+                  increaseIndent: true,
+                  decreaseIndent: true,
+                ),
+                InsertButtons(
+                  link: true,
+                  picture: true,
+                  audio: false,
+                  video: false,
+                  table: true,
+                  hr: false,
+                  otherFile: false,
+                ),
+                OtherButtons(
+                  fullscreen: true,
+                  codeview: true,
+                  undo: true,
+                  redo: true,
+                  help: false,
+                  copy: false,
+                  paste: false,
+                ),
+              ],
+              toolbarItemHeight: 40,
+              gridViewHorizontalSpacing: 5,
+              gridViewVerticalSpacing: 5,
+            ),
+            otherOptions: OtherOptions(
+              height: widget.height - 90, // Account for toolbar and padding
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+            ),
+            callbacks: Callbacks(
+              onBeforeCommand: (String? currentHtml) {
+                if (kDebugMode) {
+                  print('🔧 Before command executed');
+                }
+              },
+              onChangeContent: (String? changed) {
+                try {
+                  if (changed != null) {
+                    _onContentChanged(changed);
+                  }
+                } catch (e) {
+                  if (kDebugMode) {
+                    print('❌ Error in onChangeContent: $e');
+                  }
+                  _handleEditorError('Content change error: $e');
+                }
+              },
+              onChangeCodeview: (String? changed) {
+                try {
+                  if (changed != null) {
+                    _onContentChanged(changed);
+                  }
+                } catch (e) {
+                  if (kDebugMode) {
+                    print('❌ Error in onChangeCodeview: $e');
+                  }
+                  _handleEditorError('Code view change error: $e');
+                }
+              },
+              onInit: () {
+                try {
+                  if (kDebugMode) {
+                    print('🎯 HtmlEditor onInit callback fired');
+                  }
+                  _onEditorReady();
+                } catch (e) {
+                  if (kDebugMode) {
+                    print('❌ Error in onInit: $e');
+                  }
+                  _handleEditorError('Editor initialization error: $e');
+                }
+              },
+              onFocus: () {
+                try {
+                  _onFocusChanged(true);
+                } catch (e) {
+                  if (kDebugMode) {
+                    print('❌ Error in onFocus: $e');
+                  }
+                }
+              },
+              onBlur: () {
+                try {
+                  _onFocusChanged(false);
+                } catch (e) {
+                  if (kDebugMode) {
+                    print('❌ Error in onBlur: $e');
+                  }
+                }
+              },
+              onBlurCodeview: () {
+                try {
+                  _onFocusChanged(false);
+                } catch (e) {
+                  if (kDebugMode) {
+                    print('❌ Error in onBlurCodeview: $e');
+                  }
+                }
+              },
+              onEnter: () {
+                if (kDebugMode) {
+                  print('↵ Enter pressed in editor');
+                }
+              },
+              onPaste: () {
+                if (kDebugMode) {
+                  print('📋 Content pasted');
+                }
+              },
+              onKeyDown: (int? keyCode) {
+                if (kDebugMode && keyCode != null) {
+                  print('⌨️ Key pressed: $keyCode');
+                }
+              },
+              onKeyUp: (int? keyCode) {
+                // Handle key up events if needed
+              },
+              onMouseDown: () {
+                // Handle mouse down if needed
+              },
+              onMouseUp: () {
+                // Handle mouse up if needed
+              },
+              onNavigationRequestMobile: (String url) {
+                if (kDebugMode) {
+                  print('🔗 Navigation request: $url');
+                }
+                return NavigationActionPolicy.ALLOW;
+              },
+            ),
+            plugins: const [
+              // Remove plugins for now to simplify initialization
+            ],
           ),
-          callbacks: Callbacks(
-            onBeforeCommand: (String? currentHtml) {
-              if (kDebugMode) {
-                print('🔧 Before command executed');
-              }
-            },
-            onChangeContent: (String? changed) {
-              if (changed != null) {
-                _onContentChanged(changed);
-              }
-            },
-            onChangeCodeview: (String? changed) {
-              if (changed != null) {
-                _onContentChanged(changed);
-              }
-            },
-            onInit: () {
-              if (kDebugMode) {
-                print('🎯 HtmlEditor onInit callback fired');
-              }
-              _onEditorReady();
-            },
-            onFocus: () {
-              _onFocusChanged(true);
-            },
-            onBlur: () {
-              _onFocusChanged(false);
-            },
-            onBlurCodeview: () {
-              _onFocusChanged(false);
-            },
-            onEnter: () {
-              if (kDebugMode) {
-                print('↵ Enter pressed in editor');
-              }
-            },
-            onPaste: () {
-              if (kDebugMode) {
-                print('📋 Content pasted');
-              }
-            },
-            onKeyDown: (int? keyCode) {
-              if (kDebugMode && keyCode != null) {
-                print('⌨️ Key pressed: $keyCode');
-              }
-            },
-            onKeyUp: (int? keyCode) {
-              // Handle key up events if needed
-            },
-            onMouseDown: () {
-              // Handle mouse down if needed
-            },
-            onMouseUp: () {
-              // Handle mouse up if needed
-            },
-            onNavigationRequestMobile: (String url) {
-              if (kDebugMode) {
-                print('🔗 Navigation request: $url');
-              }
-              return NavigationActionPolicy.ALLOW;
-            },
-          ),
-          plugins: const [
-            // Remove plugins for now to simplify initialization
-          ],
         ),
 
         // Disabled overlay
@@ -1147,6 +1436,88 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildFallbackEditor() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundPrimary,
+        border: Border.all(
+          color: AppTheme.borderPrimary.withValues(alpha: 0.3),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          // Fallback status bar
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.warningColor.withValues(alpha: 0.1),
+              border: Border(
+                bottom: BorderSide(
+                  color: AppTheme.warningColor.withValues(alpha: 0.3),
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.warning_amber_outlined,
+                  size: 16,
+                  color: AppTheme.warningColor,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Tryb zapasowy - podstawowy edytor HTML',
+                  style: TextStyle(
+                    color: AppTheme.warningColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Simple HTML editor with WebView loading the fallback HTML
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: AppTheme.borderPrimary.withValues(alpha: 0.2),
+                ),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: TextField(
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+                  decoration: const InputDecoration(
+                    hintText:
+                        'Wprowadź kod HTML...\n\nPrzykład:\n<p>Twoja wiadomość</p>\n<h2>Nagłówek</h2>\n<ul>\n  <li>Element listy</li>\n</ul>',
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.all(16),
+                  ),
+                  onChanged: (html) {
+                    _currentHtml = html;
+                    if (widget.onContentChanged != null) {
+                      widget.onContentChanged!(html);
+                    }
+                  },
+                  controller: TextEditingController(text: _currentHtml),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

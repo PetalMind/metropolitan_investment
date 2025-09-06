@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 import '../models_and_services.dart';
 import '../widgets/metropolitan_logo_widget.dart';
 import '../config/app_routes.dart';
+import '../services/audio_service.dart';
 
 /// 🌟 **SPECTACULAR AUTH SCREEN** - Metropolitan Investment
 ///
@@ -252,6 +253,9 @@ class _SpectacularAuthScreenState extends State<SpectacularAuthScreen>
   Future<void> _handleAuth() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Play button click sound
+    AudioService.instance.playButtonClickSound();
+    
     HapticFeedback.heavyImpact();
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -290,6 +294,9 @@ class _SpectacularAuthScreenState extends State<SpectacularAuthScreen>
   }
 
   void _toggleMode() {
+    // Play button click sound
+    AudioService.instance.playButtonClickSound();
+    
     HapticFeedback.selectionClick();
     setState(() {
       _isLoginMode = !_isLoginMode;
@@ -659,6 +666,7 @@ class _SpectacularAuthScreenState extends State<SpectacularAuthScreen>
             ),
           ),
           onPressed: () {
+            AudioService.instance.playButtonClickSound();
             HapticFeedback.selectionClick();
             setState(() => _isPasswordVisible = !_isPasswordVisible);
           },
@@ -696,6 +704,7 @@ class _SpectacularAuthScreenState extends State<SpectacularAuthScreen>
               ),
             ),
             onPressed: () {
+              AudioService.instance.playButtonClickSound();
               HapticFeedback.selectionClick();
               setState(
                 () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible,
@@ -803,6 +812,7 @@ class _SpectacularAuthScreenState extends State<SpectacularAuthScreen>
             child: Checkbox(
               value: _acceptTerms,
               onChanged: (value) {
+                AudioService.instance.playButtonClickSound();
                 HapticFeedback.selectionClick();
                 setState(() => _acceptTerms = value ?? false);
                 _validateForm();
@@ -937,6 +947,7 @@ class _SpectacularAuthScreenState extends State<SpectacularAuthScreen>
           child: Checkbox(
             value: _rememberMe,
             onChanged: (value) {
+              AudioService.instance.playButtonClickSound();
               HapticFeedback.selectionClick();
               setState(() => _rememberMe = value ?? false);
             },
@@ -961,6 +972,7 @@ class _SpectacularAuthScreenState extends State<SpectacularAuthScreen>
         const Spacer(),
         TextButton(
           onPressed: () {
+            AudioService.instance.playButtonClickSound();
             HapticFeedback.selectionClick();
             // TODO: Implement forgot password
           },

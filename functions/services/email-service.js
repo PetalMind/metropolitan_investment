@@ -313,7 +313,7 @@ function generateEmailContent({ clientName, investments, totals, template, custo
     <head>
       <meta charset="utf-8">
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        body { line-height: 1.6; color: #333; }
         .header { background: #1a237e; color: white; padding: 20px; text-align: center; }
         .content { padding: 20px; }
         .summary { background: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px; }
@@ -332,9 +332,7 @@ function generateEmailContent({ clientName, investments, totals, template, custo
       </div>
       
       <div class="content">
-        <p>Szanowny/a <strong>${clientName}</strong>,</p>
-        
-        ${customMessage ? `<p><em>${customMessage}</em></p>` : ''}
+                ${customMessage ? `<p><em>${customMessage}</em></p>` : ''}
         
         <p>Przesyłamy aktualne podsumowanie Twoich inwestycji w naszej firmie:</p>
 
@@ -406,7 +404,7 @@ function generateEmailContent({ clientName, investments, totals, template, custo
 ${senderName}
 Podsumowanie Twoich Inwestycji
 
-Szanowny/a ${clientName},
+Dzień dobry,
 
 ${customMessage || ''}
 
