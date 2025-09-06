@@ -443,21 +443,10 @@ class _SpectacularAuthScreenState extends State<SpectacularAuthScreen>
       child: Column(
         children: [
           // Premium logo with glow effect
-          Container(
-            decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.secondaryGold.withValues(alpha: 0.3),
-                  blurRadius: 30,
-                  spreadRadius: 5,
-                ),
-              ],
-            ),
-            child: const MetropolitanLogoWidget.splash(
-              size: 200,
+       const MetropolitanLogoWidget.splash(
+              size: 350,
               color: AppTheme.secondaryGold,
             ),
-          ),
 
           const SizedBox(height: 24),
 
@@ -469,17 +458,6 @@ class _SpectacularAuthScreenState extends State<SpectacularAuthScreen>
                 opacity: _logoController.value,
                 child: Column(
                   children: [
-                    Text(
-                      'Metropolitan Investment',
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(
-                            color: AppTheme.textPrimary,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.5,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,

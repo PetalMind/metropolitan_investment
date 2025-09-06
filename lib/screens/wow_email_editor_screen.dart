@@ -2569,7 +2569,7 @@ Zespół Metropolitan Investment</p>''';
                               children: [
                                 Text(
                                   _useHtmlEditor
-                                      ? 'HTML Editor (Enhanced)'
+                                      ? 'Edytor '
                                       : 'Classic Editor (Quill)',
                                   style: TextStyle(
                                     color: AppTheme.textPrimary,

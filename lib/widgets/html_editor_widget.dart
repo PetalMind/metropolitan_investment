@@ -807,7 +807,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
           Icon(Icons.edit_note, color: AppTheme.secondaryGold, size: 20),
           const SizedBox(width: 8),
           Text(
-            'HTML Editor',
+            'Edytor HTML',
             style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 14,
@@ -816,22 +816,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
           ),
           const SizedBox(width: 16),
 
-          const Spacer(),
-
-          // Preview toggle button
-          IconButton(
-            icon: Icon(
-              _showPreviewInternal ? Icons.edit : Icons.preview,
-              color: AppTheme.secondaryGold,
-              size: 20,
-            ),
-            onPressed: _togglePreview,
-            tooltip: _showPreviewInternal ? 'Tryb edycji' : 'Podgląd',
-            padding: const EdgeInsets.all(8),
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          ),
-
-          const SizedBox(width: 8),
+     
         ],
       ),
     );
@@ -888,93 +873,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
               toolbarPosition: ToolbarPosition.aboveEditor,
               toolbarType: ToolbarType.nativeGrid,
               customToolbarButtons: [
-                // Enhanced font family dropdown with extensive font options
-                SizedBox(
-                  width: 120, // Fixed width to prevent layout issues
-                  height: 40,
-                  child: Container(
-                    padding: const EdgeInsets.only(left: 8.0, right: 4.0),
-                    decoration: BoxDecoration(
-                      color: AppTheme.backgroundSecondary,
-                      border: Border.all(
-                        color: AppTheme.borderPrimary.withValues(alpha: 0.3),
-                      ),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: CustomDropdownButtonHideUnderline(
-                      child: CustomDropdownButton<String>(
-                        elevation: 8,
-                        iconEnabledColor: AppTheme.secondaryGold,
-                        iconSize: 14,
-                        isExpanded:
-                            true, // Important: allows dropdown to use full width
-                        itemHeight:
-                            48, // Increased height for better touch targets
-                        dropdownColor: AppTheme.backgroundSecondary,
-                        menuDirection: DropdownMenuDirection.down,
-                        menuMaxHeight:
-                            MediaQuery.of(context).size.height /
-                            3, // Limit height for scrolling
-                        hint: Text(
-                          'Czcionka',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 11,
-                          ),
-                        ),
-                        items: _availableFonts.map((String font) {
-                          return CustomDropdownMenuItem<String>(
-                            value: font,
-                            child: PointerInterceptor(
-                              child: SizedBox(
-                                width: double.infinity,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6.0,
-                                    vertical: 4.0,
-                                  ),
-                                  child: Text(
-                                    font,
-                                    style: TextStyle(
-                                      color: AppTheme.textPrimary,
-                                      fontFamily:
-                                          font == 'serif' ||
-                                              font == 'sans-serif' ||
-                                              font == 'monospace' ||
-                                              font == 'cursive' ||
-                                              font == 'fantasy'
-                                          ? null
-                                          : font,
-                                      fontSize: 11,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                        value: null,
-                        onChanged: (String? newFont) async {
-                          if (newFont != null && _isEditorReady) {
-                            try {
-                              // Enhanced font application with fallbacks for email compatibility
-                              await _applyFontWithFallbacks(newFont);
-                              if (kDebugMode) {
-                                print('✅ Applied font: $newFont');
-                              }
-                            } catch (e) {
-                              if (kDebugMode) {
-                                print('❌ Error applying font: $e');
-                              }
-                            }
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                ),
+         
               ],
               defaultToolbarButtons: [
                 StyleButtons(),
@@ -1017,9 +916,9 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                 ),
                 OtherButtons(
                   fullscreen: true,
-                  codeview: true,
-                  undo: true,
-                  redo: true,
+                  codeview: false,
+                  undo: false,
+                  redo: false,
                   help: false,
                   copy: false,
                   paste: false,
