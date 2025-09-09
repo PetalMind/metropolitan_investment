@@ -51,16 +51,22 @@ class CurrencyFormatter {
     return '${percentage.toStringAsFixed(decimals)}%';
   }
 
-  /// Formatuje wartość osi dla wykresów
-  /// [value] - wartość do sformatowania
-  static String formatAxisValue(double value) {
-    if (value >= 1000000000) {
-      return '${(value / 1000000000).toStringAsFixed(0)}B';
-    } else if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(0)}M';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(0)}K';
-    }
-    return value.toStringAsFixed(0);
+  /// Format currency with email-specific formatting (spaces as separators)
+  /// Used in email templates for consistent PLN formatting
+  static String formatCurrencyForEmail(double amount) {
+    final formatted = amount.toStringAsFixed(2);
+    final parts = formatted.split('.');
+    final integerPart = parts[0];
+    final decimalPart = parts[1];
+
+    // Add spaces every 3 digits from the right
+    final reversed = integerPart.split('').reversed.join();
+    final spaced = reversed.replaceAllMapped(
+      RegExp(r'.{3}'),
+      (match) => '${match.group(0)} ',
+    );
+    final result = spaced.split('').reversed.join().trim();
+
+    return '$result,$decimalPart PLN';
   }
 }

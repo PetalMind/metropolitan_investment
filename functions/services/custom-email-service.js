@@ -374,6 +374,7 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
     additionalEmailsCount: request.data.additionalEmails?.length || 0,
     subject: request.data.subject,
     includeInvestmentDetails: request.data.includeInvestmentDetails,
+    isGroupEmail: request.data.isGroupEmail,
     hasInvestmentDetailsByClient: !!(request.data.investmentDetailsByClient && Object.keys(request.data.investmentDetailsByClient).length > 0),
     hasAggregatedInvestmentsForAdditionals: !!(request.data.aggregatedInvestmentsForAdditionals && request.data.aggregatedInvestmentsForAdditionals.length > 0),
     senderEmail: request.data.senderEmail,
@@ -387,6 +388,7 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
       htmlContent,
       subject,
       includeInvestmentDetails = false,
+      isGroupEmail = false,
       investmentDetailsByClient = null,
       aggregatedInvestmentsForAdditionals = null,
       senderEmail,
@@ -442,6 +444,8 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
     }
 
     console.log(`📧 [MixedEmailService] Przetwarzam ${recipients.length} inwestorów + ${additionalEmails.length} dodatkowych emaili`);
+    console.log(`📊 [MixedEmailService] Tryb email: ${isGroupEmail ? 'GRUPOWY (dodatkowi odbiorcy otrzymają inwestycje wszystkich)' : 'INDYWIDUALNY (każdy otrzymuje tylko swoje inwestycje)'}`);
+    console.log(`🔍 [MixedEmailService] Dołączyć szczegóły inwestycji: ${includeInvestmentDetails ? 'TAK' : 'NIE'}`);
 
     // 📬 PRZETWÓRZ I WYŚLIJ MAILE
     const results = [];
@@ -470,7 +474,7 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
           continue;
         }
 
-        // 📊 POBIERZ INWESTYCJE ODBIORCY (klient może dostarczyć gotowy HTML)
+        // 📊 POBIERZ INWESTYCJE ODBIORCY - KAŻDY INWESTOR OTRZYMUJE TYLKO SWOJE INWESTYCJE
         let investmentDetailsHtml = '';
         if (includeInvestmentDetails) {
           console.log(`🔍 [MixedEmailService] Sprawdzam inwestycje dla ${recipient.clientName} (ID: ${recipient.clientId})`);
@@ -552,7 +556,7 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
       try {
         // 📧 GENERUJ TREŚĆ EMAIL DLA DODATKOWEGO ODBIORCY
         let emailHtml;
-        if (includeInvestmentDetails && recipients.length > 0) {
+        if (includeInvestmentDetails && recipients.length > 0 && isGroupEmail) {
           // Użyj gotowego zbiorczego raportu z frontendu jeśli dostępny
           if (aggregatedInvestmentsForAdditionals && aggregatedInvestmentsForAdditionals.trim().length > 0) {
             console.log(`✅ [MixedEmailService] Używam gotowego zbiorczego raportu z frontendu dla ${email}`);
@@ -595,6 +599,14 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
               investmentCount: 0
             });
           }
+        } else if (includeInvestmentDetails && recipients.length > 0 && !isGroupEmail) {
+          // 🚫 PERSONALIZOWANY EMAIL - nie dołączaj inwestycji dla dodatkowcy odbiorców
+          console.log(`🚫 [MixedEmailService] Email nie jest grupowy - dodatkowi odbiorcy nie otrzymają inwestycji (${email})`);
+          emailHtml = generateBasicEmailContent({
+            htmlContent: htmlContent,
+            senderName: senderName,
+            recipientEmail: email
+          });
         } else {
           // Podstawowa treść bez szczegółów inwestycji
           emailHtml = generateBasicEmailContent({
@@ -669,6 +681,7 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
       senderEmail: senderEmail,
       senderName: senderName,
       includeInvestmentDetails: includeInvestmentDetails,
+      isGroupEmail: isGroupEmail,
       hasDetailedInvestmentTables: !!(investmentDetailsByClient && Object.keys(investmentDetailsByClient).length > 0),
       hasAggregatedReportForAdditionals: !!(aggregatedInvestmentsForAdditionals && aggregatedInvestmentsForAdditionals.length > 0),
       htmlContentLength: htmlContent.length,
@@ -714,6 +727,7 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
     };
 
     console.log(`🎉 [MixedEmailService] Wysłano ${successful}/${totalRecipients} maili pomyślnie (${investorResults.filter(r => r.success).length} inwestorów + ${additionalResults.filter(r => r.success).length} dodatkowych) w ${Date.now() - startTime}ms`);
+    console.log(`📊 [MixedEmailService] Tryb email: ${isGroupEmail ? 'GRUPOWY' : 'INDYWIDUALNY'} | Inwestycje: ${includeInvestmentDetails ? 'DOŁĄCZONE' : 'BEZ INWESTYCJI'}`);
     return finalResult;
 
   } catch (error) {

@@ -722,7 +722,7 @@ class _EnhancedProductDetailsDialogState
         Expanded(
           child: _buildMetricCard(
             title: 'Inwestycja',
-            value: _formatCurrency(widget.product.investmentAmount),
+            value: CurrencyFormatter.formatCurrencyForEmail(widget.product.investmentAmount),
             subtitle: 'Kapitał początkowy',
             icon: Icons.input,
             color: AppTheme.infoPrimary,
@@ -732,7 +732,7 @@ class _EnhancedProductDetailsDialogState
         Expanded(
           child: _buildMetricCard(
             title: 'Wartość',
-            value: _formatCurrency(widget.product.totalValue),
+            value: CurrencyFormatter.formatCurrencyForEmail(widget.product.totalValue),
             subtitle: 'Aktualna wartość',
             icon: Icons.account_balance_wallet,
             color: AppTheme.secondaryGold,
@@ -742,7 +742,7 @@ class _EnhancedProductDetailsDialogState
         Expanded(
           child: _buildMetricCard(
             title: profitLoss >= 0 ? 'Zysk' : 'Strata',
-            value: _formatCurrency(profitLoss.abs()),
+            value: CurrencyFormatter.formatCurrencyForEmail(profitLoss.abs()),
             subtitle: '${profitLossPercentage.toStringAsFixed(1)}%',
             icon: profitLoss >= 0 ? Icons.trending_up : Icons.trending_down,
             color: profitLoss >= 0
@@ -774,7 +774,7 @@ class _EnhancedProductDetailsDialogState
             Expanded(
               child: _buildMetricCard(
                 title: 'Inwestycja',
-                value: _formatCurrency(widget.product.investmentAmount),
+                value: CurrencyFormatter.formatCurrencyForEmail(widget.product.investmentAmount),
                 subtitle: 'PLN',
                 icon: Icons.input,
                 color: AppTheme.infoPrimary,
@@ -784,7 +784,7 @@ class _EnhancedProductDetailsDialogState
             Expanded(
               child: _buildMetricCard(
                 title: 'Wartość',
-                value: _formatCurrency(widget.product.totalValue),
+                value: CurrencyFormatter.formatCurrencyForEmail(widget.product.totalValue),
                 subtitle: 'PLN',
                 icon: Icons.account_balance_wallet,
                 color: AppTheme.secondaryGold,
@@ -798,7 +798,7 @@ class _EnhancedProductDetailsDialogState
             Expanded(
               child: _buildMetricCard(
                 title: profitLoss >= 0 ? 'Zysk' : 'Strata',
-                value: _formatCurrency(profitLoss.abs()),
+                value: CurrencyFormatter.formatCurrencyForEmail(profitLoss.abs()),
                 subtitle: '${profitLossPercentage.toStringAsFixed(1)}%',
                 icon: profitLoss >= 0 ? Icons.trending_up : Icons.trending_down,
                 color: profitLoss >= 0
@@ -829,7 +829,7 @@ class _EnhancedProductDetailsDialogState
       children: [
         _buildMetricCard(
           title: 'Inwestycja',
-          value: _formatCurrency(widget.product.investmentAmount),
+          value: CurrencyFormatter.formatCurrencyForEmail(widget.product.investmentAmount),
           subtitle: 'Kapitał początkowy',
           icon: Icons.input,
           color: AppTheme.infoPrimary,
@@ -837,7 +837,7 @@ class _EnhancedProductDetailsDialogState
         const SizedBox(height: 12),
         _buildMetricCard(
           title: 'Wartość obecna',
-          value: _formatCurrency(widget.product.totalValue),
+          value: CurrencyFormatter.formatCurrencyForEmail(widget.product.totalValue),
           subtitle: 'Aktualna wycena',
           icon: Icons.account_balance_wallet,
           color: AppTheme.secondaryGold,
@@ -845,7 +845,7 @@ class _EnhancedProductDetailsDialogState
         const SizedBox(height: 12),
         _buildMetricCard(
           title: profitLoss >= 0 ? 'Zysk' : 'Strata',
-          value: _formatCurrency(profitLoss.abs()),
+          value: CurrencyFormatter.formatCurrencyForEmail(profitLoss.abs()),
           subtitle: '${profitLossPercentage.toStringAsFixed(1)}% ROI',
           icon: profitLoss >= 0 ? Icons.trending_up : Icons.trending_down,
           color: profitLoss >= 0
@@ -1060,16 +1060,6 @@ class _EnhancedProductDetailsDialogState
     }
   }
 
-  String _formatCurrency(double amount) {
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(2)}M zł';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(0)}K zł';
-    } else {
-      return '${amount.toStringAsFixed(2)} zł';
-    }
-  }
-
   /// Handles toggling edit mode
   void _toggleEditMode() {
     setState(() {
@@ -1203,7 +1193,9 @@ class _EnhancedProductDetailsDialogState
         );
       }
     }
-  }  Widget _buildOverviewTab() {
+  }
+
+  Widget _buildOverviewTab() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1507,7 +1499,7 @@ class _EnhancedProductDetailsDialogState
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  _formatCurrency(investor.viableRemainingCapital),
+                  CurrencyFormatter.formatCurrencyForEmail(investor.viableRemainingCapital),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -1561,7 +1553,7 @@ class _EnhancedProductDetailsDialogState
                     Expanded(
                       child: _buildAnalyticsCard(
                         'Łączny Kapitał',
-                        _formatCurrency(
+                        CurrencyFormatter.formatCurrencyForEmail(
                           _investors.fold(
                             0.0,
                             (sum, investor) =>
@@ -1581,7 +1573,7 @@ class _EnhancedProductDetailsDialogState
                       child: _buildAnalyticsCard(
                         'Średnia Inwestycja',
                         _investors.isNotEmpty
-                            ? _formatCurrency(
+                            ? CurrencyFormatter.formatCurrencyForEmail(
                                 _investors.fold(
                                       0.0,
                                       (sum, investor) =>
@@ -1702,7 +1694,7 @@ class _EnhancedProductDetailsDialogState
                             ),
                           ),
                           Text(
-                            _formatCurrency(investor.viableRemainingCapital),
+                            CurrencyFormatter.formatCurrencyForEmail(investor.viableRemainingCapital),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: index == 0
@@ -1879,22 +1871,22 @@ class _EnhancedProductDetailsDialogState
           if (widget.product.realizedCapital != null)
             _buildDetailRow(
               'Zrealizowany kapitał',
-              _formatCurrency(widget.product.realizedCapital!),
+              CurrencyFormatter.formatCurrencyForEmail(widget.product.realizedCapital!),
             ),
           if (widget.product.remainingCapital != null)
             _buildDetailRow(
               'Pozostały kapitał',
-              _formatCurrency(widget.product.remainingCapital!),
+              CurrencyFormatter.formatCurrencyForEmail(widget.product.remainingCapital!),
             ),
           if (widget.product.realizedInterest != null)
             _buildDetailRow(
               'Zrealizowane odsetki',
-              _formatCurrency(widget.product.realizedInterest!),
+              CurrencyFormatter.formatCurrencyForEmail(widget.product.realizedInterest!),
             ),
           if (widget.product.remainingInterest != null)
             _buildDetailRow(
               'Pozostałe odsetki',
-              _formatCurrency(widget.product.remainingInterest!),
+              CurrencyFormatter.formatCurrencyForEmail(widget.product.remainingInterest!),
             ),
           if (widget.product.interestRate != null)
             _buildDetailRow(
@@ -1990,13 +1982,13 @@ class _EnhancedProductDetailsDialogState
           if (widget.product.pricePerShare != null)
             _buildDetailRow(
               'Cena za udział',
-              _formatCurrency(widget.product.pricePerShare!),
+              CurrencyFormatter.formatCurrencyForEmail(widget.product.pricePerShare!),
             ),
           if (widget.product.companyName != null)
             _buildDetailRow('Nazwa spółki', widget.product.companyName!),
           _buildDetailRow(
             'Wartość całkowita',
-            _formatCurrency(widget.product.totalValue),
+            CurrencyFormatter.formatCurrencyForEmail(widget.product.totalValue),
           ),
         ],
       ),
@@ -2307,7 +2299,7 @@ class _EnhancedProductDetailsDialogState
           const SizedBox(height: 20),
           _buildDetailRow(
             'Wartość całkowita',
-            _formatCurrency(widget.product.totalValue),
+            CurrencyFormatter.formatCurrencyForEmail(widget.product.totalValue),
           ),
           if (widget.product.companyName != null)
             _buildDetailRow('Firma', widget.product.companyName!),
@@ -2451,7 +2443,7 @@ class _EnhancedProductDetailsDialogState
                       _InfoItem(label: 'ID Produktu', value: widget.product.id),
                       _InfoItem(label: 'Typ', value: widget.product.productType.displayName),
                       _InfoItem(label: 'Status', value: widget.product.isActive ? 'Aktywny' : 'Nieaktywny'),
-                      _InfoItem(label: 'Kwota inwestycji', value: _formatCurrency(widget.product.investmentAmount)),
+                      _InfoItem(label: 'Kwota inwestycji', value: CurrencyFormatter.formatCurrencyForEmail(widget.product.investmentAmount)),
                       _InfoItem(label: 'Data utworzenia', value: _formatDate(widget.product.createdAt)),
                       _InfoItem(label: 'Ostatnia aktualizacja', value: _formatDate(widget.product.uploadedAt)),
                       _InfoItem(label: 'Waluta', value: widget.product.currency ?? 'PLN'),
@@ -2982,5 +2974,80 @@ class _EnhancedProductDetailsDialogState
       }
     }
     return sum;
+  }
+}
+
+/// Helper class for info items
+class _InfoItem {
+  final String label;
+  final String value;
+
+  const _InfoItem({
+    required this.label,
+    required this.value,
+  });
+}
+
+/// Animated info tile widget
+class _AnimatedInfoTile extends StatelessWidget {
+  final _InfoItem item;
+
+  const _AnimatedInfoTile({
+    required this.item,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
+      builder: (context, animValue, child) {
+        return Transform.translate(
+          offset: Offset(0, 8 * (1 - animValue)),
+          child: Opacity(
+            opacity: animValue,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.backgroundPrimary.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.borderPrimary.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 100,
+                    child: Text(
+                      '${item.label}:',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textTertiary,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      item.value,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

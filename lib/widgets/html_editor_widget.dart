@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'dart:collection';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:flutter_html/flutter_html.dart' as html_package;
-import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../models_and_services.dart';
+import '../utils/email_content_utils.dart';
 
 /// 🚀 Enhanced HTML Email Editor Widget
 ///
@@ -51,25 +50,6 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
   bool _isEditorReady = false;
   bool _useFallbackEditor = false;
 
-  // Get available fonts from FontFamilyService - dynamic list from assets/fonts
-  List<String> get _availableFonts {
-    final localFonts = FontFamilyService.getFontFamilyNames();
-    
-    // Add some commonly requested web-safe fallbacks at the end
-    final webSafeFallbacks = [
-      'Arial',
-      'Helvetica', 
-      'Times New Roman',
-      'Georgia',
-      'Verdana',
-      'serif',
-      'sans-serif',
-      'monospace',
-    ];
-    
-    return [...localFonts, ...webSafeFallbacks];
-  }
-
   // Animation controllers
   late AnimationController _loadingController;
   late Animation<double> _loadingAnimation;
@@ -90,9 +70,6 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
     // Add safety timeout in case onInit callback doesn't fire
     Timer(const Duration(seconds: 5), () {
       if (mounted && _isLoading) {
-        if (kDebugMode) {
-          print('⚠️ HTML Editor timeout - forcing ready state');
-        }
         _onEditorReady();
       }
     });
@@ -138,9 +115,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
           try {
             _htmlController.setText(widget.initialContent);
           } catch (e) {
-            if (kDebugMode) {
-              print('❌ Error setting initial content: $e');
-            }
+            // Error setting initial content
             // Try alternative approach if direct setText fails
             _tryAlternativeContentSetting();
           }
@@ -159,14 +134,16 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
       }
     });
 
-    if (kDebugMode) {
-      print(
-        '🚀 Enhanced HTML Editor ready with ${_availableFonts.length} fonts from FontFamilyService',
-      );
-      print(
-        '📋 Available local fonts: ${FontFamilyService.getFontFamilyNames().join(', ')}',
-      );
-    }
+    // Auto-enable fullscreen for better user experience
+    Timer(const Duration(milliseconds: 1500), () async {
+      if (mounted && _isEditorReady) {
+        try {
+          await _enableFullscreenMode();
+        } catch (e) {
+          // Fullscreen nie jest krytyczny, więc ignorujemy błędy
+        }
+      }
+    });
   }
 
   /// Alternative method to set content if primary method fails
@@ -179,14 +156,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
         await _htmlController.evaluateJavascriptWeb('''
           document.body.innerHTML = `${widget.initialContent}`;
         ''');
-
-        if (kDebugMode) {
-          print('✅ Alternative content setting successful');
-        }
       } catch (e) {
-        if (kDebugMode) {
-          print('❌ Alternative content setting failed: $e');
-        }
         _handleEditorError('Failed to set initial content: $e');
       }
     });
@@ -206,10 +176,6 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
       widget.onError!(error);
     }
 
-    if (kDebugMode) {
-      print('❌ HTML Editor error handled: $error');
-    }
-
     // Try to load fallback editor if enhanced editor fails
     if (!_useFallbackEditor) {
       _loadFallbackEditor();
@@ -221,7 +187,6 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
     if (!mounted) return;
 
     try {
-      debugPrint('🔄 Loading fallback HTML editor...');
       setState(() {
         _useFallbackEditor = true;
         _hasError = false; // Clear error since we have a working fallback
@@ -233,10 +198,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
       if (widget.onReady != null) {
         widget.onReady!();
       }
-
-      debugPrint('✅ Fallback editor loaded successfully');
     } catch (e) {
-      debugPrint('❌ Failed to load fallback editor: $e');
       // Keep error state if even fallback fails
       setState(() {
         _hasError = true;
@@ -271,64 +233,66 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
         })();
       ''');
 
-      if (kDebugMode) {
-        print('🔍 Font availability check result: $result');
-      }
-
       return result == true;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error checking font availability: $e');
-      }
       return false;
     }
   }
 
-  /// Enhanced font verification with detailed logging
   Future<void> _verifyFontLoading() async {
     try {
-      if (kDebugMode) {
-        print('🔍 === FONT LOADING VERIFICATION ===');
-        print(
-          '📋 Available fonts from FontFamilyService: ${_availableFonts.length}',
-        );
-        print(
-          '🏠 Local fonts: ${FontFamilyService.getFontFamilyNames().join(', ')}',
-        );
-      }
-
-      // Check if we're running on web
-      final isWeb = kIsWeb;
-      if (kDebugMode) {
-        print('🌐 Running on web: $isWeb');
-      }
-
       // Test font availability in HTML editor context
-      final localFontsAvailable = await _checkLocalFontsAvailability();
-      if (kDebugMode) {
-        print('✅ Local fonts available in HTML editor: $localFontsAvailable');
-      }
+      await _checkLocalFontsAvailability();
 
       // Test specific fonts
       final testFonts = ['Inter', 'Montserrat', 'Arial'];
       for (final font in testFonts) {
-        final fontStack = await _getEditorSafeFontStack(font);
-        final isLocal = FontFamilyService.isLocalFont(font);
-        if (kDebugMode) {
-          print('🎨 Font: $font | Local: $isLocal | Stack: $fontStack');
-        }
+        await _getEditorSafeFontStack(font);
+        FontFamilyService.isLocalFont(font);
       }
 
       // Check if fonts are properly injected
       await _testFontInjection();
+    } catch (e) {
+      // Error during font verification
+    }
+  }
 
-      if (kDebugMode) {
-        print('🔍 === FONT VERIFICATION COMPLETE ===');
+  /// Auto-enable fullscreen mode for better user experience
+  Future<void> _enableFullscreenMode() async {
+    try {
+      // Sprawdź czy fullscreen jest dostępny w edytorze
+      final hasFullscreenButton = await _htmlController.evaluateJavascriptWeb(
+        '''
+        (function() {
+          // Szukamy przycisku fullscreen w toolbar
+          var fullscreenBtn = document.querySelector('[title*="fullscreen"], [title*="Fullscreen"], [aria-label*="fullscreen"]');
+          if (!fullscreenBtn) {
+            // Alternatywne selektory dla przycisku fullscreen
+            fullscreenBtn = document.querySelector('.note-btn-fullscreen, .btn-fullscreen, button[data-original-title*="fullscreen"]');
+          }
+          return fullscreenBtn !== null;
+        })();
+      ''',
+      );
+
+      if (hasFullscreenButton == true) {
+        // Aktywuj fullscreen programowo
+        await _htmlController.evaluateJavascriptWeb('''
+          (function() {
+            var fullscreenBtn = document.querySelector('[title*="fullscreen"], [title*="Fullscreen"], [aria-label*="fullscreen"]');
+            if (!fullscreenBtn) {
+              fullscreenBtn = document.querySelector('.note-btn-fullscreen, .btn-fullscreen, button[data-original-title*="fullscreen"]');
+            }
+            if (fullscreenBtn && !document.fullscreenElement) {
+              // Symuluj kliknięcie przycisku fullscreen
+              fullscreenBtn.click();
+            }
+          })();
+        ''');
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error during font verification: $e');
-      }
+      // Nie krytyczny błąd - fullscreen to enhancement
     }
   }
 
@@ -336,7 +300,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
   Future<void> _testFontInjection() async {
     try {
       // Check if our custom CSS was injected
-      final cssInjected = await _htmlController.evaluateJavascriptWeb('''
+      await _htmlController.evaluateJavascriptWeb('''
         (function() {
           var styles = document.querySelectorAll('style');
           var foundCustomCSS = false;
@@ -350,12 +314,8 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
         })();
       ''');
 
-      if (kDebugMode) {
-        print('🎨 Custom CSS injected: $cssInjected');
-      }
-
       // Test if a specific font is available
-      final fontAvailable = await _htmlController.evaluateJavascriptWeb('''
+      await _htmlController.evaluateJavascriptWeb('''
         (function() {
           // Create test element
           var testDiv = document.createElement('div');
@@ -385,14 +345,8 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
           };
         })();
       ''');
-
-      if (kDebugMode) {
-        print('🔤 Font rendering test: $fontAvailable');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error testing font injection: $e');
-      }
+      // Error during font injection test
     }
   }
 
@@ -406,7 +360,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
         await _ensureJQueryLoaded();
 
         // Check if local fonts are available in the HTML editor context
-        final localFontsAvailable = await _checkLocalFontsAvailability();
+        await _checkLocalFontsAvailability();
 
         // Inject Google Fonts and custom CSS for better font support
         const String fontCSS = '''
@@ -435,6 +389,14 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
               font-family: 'Inter', 'Arial', sans-serif;
               line-height: 1.6;
               color: #333;
+              background-color: #ffffff !important; /* Wymuszenie białego tła */
+            }
+            
+            /* Domyślne białe tło dla obszaru edycji */
+            .note-editable, .ql-editor, [contenteditable="true"] {
+              background-color: #ffffff !important;
+              color: #333333 !important;
+              min-height: 200px;
             }
             
             .font-arial { font-family: 'Arial', sans-serif; }
@@ -482,16 +444,8 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
           head.appendChild(style);
         ''');
 
-        if (kDebugMode) {
-          print('✅ Custom fonts and styles injected successfully');
-          print(
-            '🔍 Local fonts available in HTML editor: $localFontsAvailable',
-          );
-        }
       } catch (e) {
-        if (kDebugMode) {
-          print('❌ Error injecting fonts: $e');
-        }
+        // Error during font injection
       }
     });
   }
@@ -507,10 +461,6 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
       ''');
 
       if (jqueryExists != true) {
-        if (kDebugMode) {
-          print('⚠️ jQuery not found, loading jQuery...');
-        }
-
         // Load jQuery from CDN
         await _htmlController.evaluateJavascriptWeb('''
           (function() {
@@ -532,55 +482,9 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
 
         // Wait a bit for jQuery to load
         await Future.delayed(const Duration(milliseconds: 500));
-
-        if (kDebugMode) {
-          print('✅ jQuery loading initiated');
-        }
-      } else {
-        if (kDebugMode) {
-          print('✅ jQuery already available');
-        }
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error checking/loading jQuery: $e');
-      }
-    }
-  }
-
-  /// Apply font with simple execCommand method (matches FontSettingButtons behavior)
-  Future<void> _applyFontWithFallbacks(String fontName) async {
-    if (!_isEditorReady) return;
-
-    try {
-      // Get font stack with fallbacks for email safety
-      final fontStack = await _getEditorSafeFontStack(fontName);
-
-      if (kDebugMode) {
-        print('🎨 Applying font stack: $fontStack');
-      }
-
-      // Use simple execCommand method (same as FontSettingButtons)
-      _htmlController.execCommand('fontName', argument: fontStack);
-
-      if (kDebugMode) {
-        print('✅ Font applied successfully: $fontName → $fontStack');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error applying font: $e');
-      }
-      // Ultimate fallback: try simple fontName without fallbacks
-      try {
-        _htmlController.execCommand('fontName', argument: fontName);
-        if (kDebugMode) {
-          print('✅ Fallback font applied: $fontName');
-        }
-      } catch (fallbackError) {
-        if (kDebugMode) {
-          print('❌ Fallback font application failed: $fallbackError');
-        }
-      }
+      // Error during jQuery check/loading
     }
   }
 
@@ -656,22 +560,11 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
             setState(() {}); // Trigger preview update
           }
         } catch (e) {
-          if (kDebugMode) {
-            print('❌ Error in content change callback: $e');
-          }
+          // Error in content change callback
         }
       });
-
-      if (kDebugMode) {
-        print('📝 Content changed: ${html.length} characters');
-        print(
-          '🖼️ Rendering preview HTML: "${html.length > 100 ? html.substring(0, 100) + '...' : html}"',
-        );
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error handling content change: $e');
-      }
+      // Error handling content change
       _handleEditorError('Content change error: $e');
     }
   }
@@ -682,50 +575,11 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
     if (widget.onFocusChanged != null) {
       widget.onFocusChanged!(focused);
     }
-
-    if (kDebugMode) {
-      print('🎯 Editor focus: $focused');
-    }
   }
 
   /// Get default formatted email content
   String _getDefaultEmailContent() {
-    return '''
-<div style="font-family: Inter, Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #333;">
-  <h2 style="color: #2c2c2c; margin-bottom: 20px;">Szanowni Państwo,</h2>
-  
-  <p style="margin-bottom: 15px;">
-    Dziękujemy za zaufanie i inwestycje w nasze produkty. W załączeniu przesyłamy aktualne informacje dotyczące Państwa portfela inwestycyjnego.
-  </p>
-  
-  <h3 style="color: #2c2c2c; margin-top: 25px; margin-bottom: 15px;">Najważniejsze informacje:</h3>
-  
-  <ul style="margin-left: 20px; margin-bottom: 20px;">
-    <li style="margin-bottom: 8px;">Aktualna wartość portfela</li>
-    <li style="margin-bottom: 8px;">Status wszystkich inwestycji</li>
-    <li style="margin-bottom: 8px;">Planowane wypłaty</li>
-  </ul>
-  
-  <p style="margin-bottom: 15px;">
-    W przypadku pytań lub potrzeby dodatkowych informacji, prosimy o kontakt pod numerem telefonu lub poprzez e-mail.
-  </p>
-  
-  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
-    <p style="margin-bottom: 10px;"><strong>Z poważaniem,</strong></p>
-    <p style="margin-bottom: 5px;">Zespół Metropolitan Investment</p>
-    <p style="font-size: 14px; color: #666;">
-      Tel: <a href="tel:+48123456789" style="color: #d4af37; text-decoration: none;">+48 123 456 789</a><br>
-      Email: <a href="mailto:biuro@metropolitan-investment.pl" style="color: #d4af37; text-decoration: none;">biuro@metropolitan-investment.pl</a>
-    </p>
-  </div>
-</div>
-    '''.trim();
-  }
-
-  void _togglePreview() {
-    setState(() {
-      _showPreviewInternal = !_showPreviewInternal;
-    });
+    return EmailContentUtils.getDefaultEmailContentForWidget();
   }
 
   Future<String> getContent() async {
@@ -735,9 +589,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
       final html = await _htmlController.getText();
       return html;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error getting content: $e');
-      }
+      // Error getting content
       return _currentHtml;
     }
   }
@@ -752,9 +604,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
       _htmlController.setText(html);
       _currentHtml = html;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error setting content: $e');
-      }
+      // Error setting content
     }
   }
 
@@ -764,9 +614,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
     try {
       _htmlController.insertHtml(html);
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error inserting content: $e');
-      }
+      // Error inserting content
     }
   }
 
@@ -776,9 +624,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
     try {
       _htmlController.insertText(text);
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error inserting text: $e');
-      }
+      // Error inserting text
     }
   }
 
@@ -828,11 +674,13 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
           end: Alignment.bottomRight,
           colors: [
             AppTheme.backgroundSecondary,
-            AppTheme.backgroundSecondary.withOpacity(0.8),
+            AppTheme.backgroundSecondary.withValues(alpha: 0.8),
           ],
         ),
         border: Border(
-          bottom: BorderSide(color: AppTheme.borderPrimary.withOpacity(0.3)),
+          bottom: BorderSide(
+            color: AppTheme.borderPrimary.withValues(alpha: 0.3),
+          ),
         ),
       ),
       child: Row(
@@ -886,8 +734,8 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                   : _getDefaultEmailContent(),
               autoAdjustHeight: false,
               adjustHeightForKeyboard: true,
-              disabled: !widget.enabled, // Fix: use widget.enabled properly
-              darkMode: false, // Light mode for better compatibility
+              disabled: !widget.enabled,
+              darkMode: false, // Jasny motyw z białym tłem - DOMYŚLNIE WŁĄCZONY
               webInitialScripts: UnmodifiableListView([
                 // Ensure jQuery is available for the editor
                 WebScript(
@@ -899,6 +747,22 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                       script.crossOrigin = 'anonymous';
                       document.head.appendChild(script);
                     }
+                  ''',
+                ),
+                // Ustawienia białego tła dla edytora web
+                WebScript(
+                  name: 'white-background-web',
+                  script: '''
+                    setTimeout(function() {
+                      document.body.style.backgroundColor = '#ffffff';
+                      document.body.style.color = '#333333';
+                      // Upewnij się, że obszar edycji ma białe tło
+                      var editableArea = document.querySelector('.note-editable, .ql-editor, [contenteditable="true"]');
+                      if (editableArea) {
+                        editableArea.style.backgroundColor = '#ffffff';
+                        editableArea.style.color = '#333333';
+                      }
+                    }, 500);
                   ''',
                 ),
               ]),
@@ -944,18 +808,18 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                   picture: true,
                   audio: false,
                   video: false,
-                  table: true,
+                  table: false,
                   hr: false,
-                  otherFile: false,
+                  otherFile: true,
                 ),
                 OtherButtons(
-                  fullscreen: true,
-                  codeview: false,
-                  undo: false,
-                  redo: false,
+                  fullscreen: true, // Fullscreen domyślnie włączony
+                  codeview: true,
+                  undo: true, // Włączamy undo/redo dla lepszej funkcjonalności
+                  redo: true,
                   help: false,
-                  copy: false,
-                  paste: false,
+                  copy: true, // Włączamy copy/paste dla lepszej użyteczności
+                  paste: true,
                 ),
               ],
               toolbarItemHeight: 40,
@@ -965,15 +829,13 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
             otherOptions: OtherOptions(
               height: widget.height - 90, // Account for toolbar and padding
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Colors.white, // Domyślne białe tło edytora
                 border: Border.all(color: Colors.grey.shade300),
               ),
             ),
             callbacks: Callbacks(
               onBeforeCommand: (String? currentHtml) {
-                if (kDebugMode) {
-                  print('🔧 Before command executed');
-                }
+                // Before command executed
               },
               onChangeContent: (String? changed) {
                 try {
@@ -981,9 +843,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                     _onContentChanged(changed);
                   }
                 } catch (e) {
-                  if (kDebugMode) {
-                    print('❌ Error in onChangeContent: $e');
-                  }
+                  // Error in onChangeContent
                   _handleEditorError('Content change error: $e');
                 }
               },
@@ -993,22 +853,15 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                     _onContentChanged(changed);
                   }
                 } catch (e) {
-                  if (kDebugMode) {
-                    print('❌ Error in onChangeCodeview: $e');
-                  }
+                  // Error in onChangeCodeview
                   _handleEditorError('Code view change error: $e');
                 }
               },
               onInit: () {
                 try {
-                  if (kDebugMode) {
-                    print('🎯 HtmlEditor onInit callback fired');
-                  }
                   _onEditorReady();
                 } catch (e) {
-                  if (kDebugMode) {
-                    print('❌ Error in onInit: $e');
-                  }
+                  // Error in onInit
                   _handleEditorError('Editor initialization error: $e');
                 }
               },
@@ -1016,43 +869,31 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                 try {
                   _onFocusChanged(true);
                 } catch (e) {
-                  if (kDebugMode) {
-                    print('❌ Error in onFocus: $e');
-                  }
+                  // Error in onFocus
                 }
               },
               onBlur: () {
                 try {
                   _onFocusChanged(false);
                 } catch (e) {
-                  if (kDebugMode) {
-                    print('❌ Error in onBlur: $e');
-                  }
+                  // Error in onBlur
                 }
               },
               onBlurCodeview: () {
                 try {
                   _onFocusChanged(false);
                 } catch (e) {
-                  if (kDebugMode) {
-                    print('❌ Error in onBlurCodeview: $e');
-                  }
+                  // Error in onBlurCodeview
                 }
               },
               onEnter: () {
-                if (kDebugMode) {
-                  print('↵ Enter pressed in editor');
-                }
+                // Enter pressed in editor
               },
               onPaste: () {
-                if (kDebugMode) {
-                  print('📋 Content pasted');
-                }
+                // Content pasted
               },
               onKeyDown: (int? keyCode) {
-                if (kDebugMode && keyCode != null) {
-                  print('⌨️ Key pressed: $keyCode');
-                }
+                // Handle key down events if needed
               },
               onKeyUp: (int? keyCode) {
                 // Handle key up events if needed
@@ -1064,9 +905,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                 // Handle mouse up if needed
               },
               onNavigationRequestMobile: (String url) {
-                if (kDebugMode) {
-                  print('🔗 Navigation request: $url');
-                }
+                // Navigation request
                 return NavigationActionPolicy.ALLOW;
               },
             ),
@@ -1080,7 +919,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
         if (!widget.enabled)
           Container(
             decoration: BoxDecoration(
-              color: AppTheme.backgroundSecondary.withOpacity(0.8),
+              color: AppTheme.backgroundSecondary.withValues(alpha: 0.8),
             ),
             child: Center(
               child: Column(
@@ -1115,7 +954,10 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
         Expanded(flex: 1, child: _buildEditorView()),
 
         // Divider
-        Container(width: 1, color: AppTheme.borderPrimary.withOpacity(0.3)),
+        Container(
+          width: 1,
+          color: AppTheme.borderPrimary.withValues(alpha: 0.3),
+        ),
 
         // Preview on the right
         Expanded(flex: 1, child: _buildPreviewView()),
@@ -1132,10 +974,10 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
           Container(
             height: 40,
             decoration: BoxDecoration(
-              color: AppTheme.backgroundSecondary.withOpacity(0.5),
+              color: AppTheme.backgroundSecondary.withValues(alpha: 0.5),
               border: Border(
                 bottom: BorderSide(
-                  color: AppTheme.borderPrimary.withOpacity(0.3),
+                  color: AppTheme.borderPrimary.withValues(alpha: 0.3),
                 ),
               ),
             ),
@@ -1281,14 +1123,10 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                           ),
                         },
                         onLinkTap: (url, attributes, element) {
-                          if (kDebugMode) {
-                            print('🔗 Link tapped: $url');
-                          }
+                          // Link tapped
                         },
                         onAnchorTap: (url, attributes, element) {
-                          if (kDebugMode) {
-                            print('⚓ Anchor tapped: $url');
-                          }
+                          // Anchor tapped
                         },
                         extensions: [
                           // Support for additional HTML elements
@@ -1330,13 +1168,15 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                       child: CircularProgressIndicator(
                         value: _loadingAnimation.value,
                         strokeWidth: 3,
-                        backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+                        backgroundColor: AppTheme.bondsColor.withValues(
+                          alpha: 0.2,
+                        ),
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          AppTheme.primaryColor,
+                          AppTheme.bondsColor,
                         ),
                       ),
                     ),
-                    Icon(Icons.html, size: 28, color: AppTheme.primaryColor),
+                    Icon(Icons.html, size: 28, color: AppTheme.bondsColor),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -1356,9 +1196,9 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                     borderRadius: BorderRadius.circular(1),
                     gradient: LinearGradient(
                       colors: [
-                        AppTheme.primaryColor.withOpacity(0.3),
+                        AppTheme.primaryColor.withValues(alpha: 0.3),
                         AppTheme.primaryColor,
-                        AppTheme.primaryColor.withOpacity(0.3),
+                        AppTheme.primaryColor.withValues(alpha: 0.3),
                       ],
                       stops: [0.0, _loadingAnimation.value, 1.0],
                     ),
@@ -1457,8 +1297,8 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
   Widget _buildErrorView() {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.errorColor.withOpacity(0.1),
-        border: Border.all(color: AppTheme.errorColor.withOpacity(0.3)),
+        color: AppTheme.errorColor.withValues(alpha: 0.1),
+        border: Border.all(color: AppTheme.errorColor.withValues(alpha: 0.3)),
       ),
       child: Center(
         child: Column(
@@ -1503,59 +1343,5 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
         ),
       ),
     );
-  }
-}
-
-/// Legacy wrapper class for backward compatibility
-class HtmlEditorControllerWrapper {
-  String _content = '';
-  final List<void Function()> _listeners = [];
-
-  void addListener(void Function() listener) => _listeners.add(listener);
-
-  void removeListener(void Function() listener) => _listeners.remove(listener);
-
-  void dispose() {
-    _listeners.clear();
-    _content = '';
-  }
-
-  Future<String> getText() async => _content;
-
-  void setText(String html) {
-    _content = html.replaceAll(RegExp(r'<script[^>]*>[\s\S]*?<\/script>'), '');
-    _notifyListeners();
-  }
-
-  void setTextWithWhiteDefault(String html) {
-    // Ensure white text color is applied as default
-    String styledHtml = html;
-    if (!html.contains('color:') || !html.contains('white')) {
-      styledHtml =
-          '''
-      <div style="color: white; font-family: Arial, sans-serif; font-size: 14px;">
-        $html
-      </div>
-      ''';
-    }
-    setText(styledHtml);
-  }
-
-  void clear() {
-    _content = '';
-    _notifyListeners();
-  }
-
-  void insertHtml(String html) {
-    _content = _content + html;
-    _notifyListeners();
-  }
-
-  void _notifyListeners() {
-    for (final l in _listeners) {
-      try {
-        l();
-      } catch (_) {}
-    }
   }
 }

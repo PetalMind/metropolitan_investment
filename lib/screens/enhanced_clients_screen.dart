@@ -49,6 +49,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
 
   // Data
   List<Client> _allClients = [];
+  List<Client> _originalClients =
+      []; // 🚀 NOWE: Przechowuje wszystkich klientów dla zachowania zaznaczenia
   List<Client> _activeClients = [];
   ClientStats? _clientStats;
   
@@ -262,6 +264,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
         if (mounted) {
           setState(() {
             _allClients = clients;
+            _originalClients =
+                clients; // 🚀 NOWE: Zachowaj kopię wszystkich klientów
             _activeClients = clients.where((c) => c.isActive != false).toList();
             _clientStats = clientStats;
             _isLoading =
@@ -449,9 +453,22 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           forceRefresh: false,
         );
 
+        // 🚀 NOWE: W trybie selekcji dodaj zaznaczone klientów jeśli nie są w wynikach
+        List<Client> finalResults = results;
+        if (_isSelectionMode && _originalClients.isNotEmpty) {
+          final selectedClients = _originalClients
+              .where((client) => _selectedClientIds.contains(client.id))
+              .toList();
+          for (final selectedClient in selectedClients) {
+            if (!finalResults.any((client) => client.id == selectedClient.id)) {
+              finalResults.add(selectedClient);
+            }
+          }
+        }
+
         if (mounted) {
           setState(() {
-            _allClients = results;
+            _allClients = finalResults;
             _isSearching = false; // 🚀 Zakończ wyszukiwanie
           });
         }
@@ -485,7 +502,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     // Dla krótkich zapytań (1-2 znaki) używaj lokalnego filtrowania
     if (_currentSearchQuery.isNotEmpty && _currentSearchQuery.length <= 2) {
       final query = _currentSearchQuery.toLowerCase();
-      return _allClients.where((client) {
+      final filtered = _allClients.where((client) {
         final clientName = client.name.toLowerCase();
         final companyName = client.companyName?.toLowerCase() ?? '';
         final email = client.email.toLowerCase();
@@ -494,6 +511,20 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
             companyName.contains(query) ||
             email.contains(query);
       }).toList();
+
+      // 🚀 NOWE: W trybie selekcji dodaj zaznaczone klientów jeśli nie są w wynikach filtrowania
+      if (_isSelectionMode && _originalClients.isNotEmpty) {
+        final selectedClients = _originalClients
+            .where((client) => _selectedClientIds.contains(client.id))
+            .toList();
+        for (final selectedClient in selectedClients) {
+          if (!filtered.any((client) => client.id == selectedClient.id)) {
+            filtered.add(selectedClient);
+          }
+        }
+      }
+
+      return filtered;
     }
 
     if (_currentSearchQuery.isNotEmpty && _currentSearchQuery.length > 2) {
@@ -784,6 +815,13 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       // Sprawdź czy emaile zostały wysłane pomyślnie
       if (result == true && mounted) {
         _toggleEmailMode(); // Wyłącz tryb email po wysłaniu
+        
+        // 🚀 NOWE: Wyczyść wyszukiwanie i odśwież listę klientów do pełnej
+        _searchController.clear();
+        _currentSearchQuery = '';
+        _lastServerSearchQuery = '';
+        await _loadInitialData(); // Odśwież do pełnej listy klientów
+        
         _showSuccessSnackBar(
           '✅ Emaile zostały wysłane do ${clientsWithEmail.length} odbiorców',
         );
@@ -840,10 +878,17 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
       context: context,
       builder: (context) => InvestorExportDialog(
         selectedInvestors: investorsData,
-        onExportComplete: () {
+        onExportComplete: () async {
           if (mounted && context.mounted) {
             // Dialog already handles its own closure, so we don't call Navigator.of(context).pop() here
             _toggleExportMode(); // Wyłącz tryb eksportu
+            
+            // 🚀 NOWE: Wyczyść wyszukiwanie i odśwież listę klientów do pełnej
+            _searchController.clear();
+            _currentSearchQuery = '';
+            _lastServerSearchQuery = '';
+            await _loadInitialData(); // Odśwież do pełnej listy klientów
+            
             _showSuccessSnackBar('✅ Eksport zakończony pomyślnie');
           }
         },

@@ -12,111 +12,6 @@ import 'base_service.dart';
 /// oraz eksportu danych inwestorów do różnych formatów.
 class EmailAndExportService extends BaseService {
   /// Wysyła email z listą inwestycji do klienta
-  ///
-  /// @param clientId ID klienta
-  /// @param clientEmail Email klienta
-  /// @param clientName Nazwa klienta
-  /// @param investmentIds Lista ID konkretnych inwestycji (opcjonalnie)
-  /// @param emailTemplate Typ szablonu ('summary'|'detailed'|'custom')
-  /// @param subject Temat maila (opcjonalnie)
-  /// @param customMessage Dodatkowa wiadomość (opcjonalnie)
-  /// @param senderEmail Email wysyłającego
-  /// @param senderName Nazwa wysyłającego (opcjonalnie)
-  Future<EmailSendResult> sendInvestmentEmailToClient({
-    required String clientId,
-    required String clientEmail,
-    required String clientName,
-    List<String>? investmentIds,
-    String emailTemplate = 'summary',
-    String? subject,
-    String? customMessage,
-    required String senderEmail,
-    String senderName = 'Metropolitan Investment',
-  }) async {
-    const String cacheKey = 'send_investment_email';
-
-    try {
-      // 🔍 Walidacja danych wejściowych
-      if (clientId.isEmpty || clientEmail.isEmpty || clientName.isEmpty) {
-        throw Exception('Wymagane są: clientId, clientEmail, clientName');
-      }
-
-      if (senderEmail.isEmpty) {
-        throw Exception('Wymagany jest senderEmail');
-      }
-
-      // Walidacja formatu email
-      final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-      if (!emailRegex.hasMatch(clientEmail)) {
-        throw Exception('Nieprawidłowy format email klienta');
-      }
-      if (!emailRegex.hasMatch(senderEmail)) {
-        throw Exception('Nieprawidłowy format email wysyłającego');
-      }
-
-      // 🔄 Przygotuj dane do wysłania do Firebase Functions
-      final functionData = {
-        'clientId': clientId,
-        'clientEmail': clientEmail,
-        'clientName': clientName,
-        if (investmentIds != null && investmentIds.isNotEmpty)
-          'investmentIds': investmentIds,
-        'emailTemplate': emailTemplate,
-        if (subject != null && subject.isNotEmpty) 'subject': subject,
-        if (customMessage != null && customMessage.isNotEmpty)
-          'customMessage': customMessage,
-        'senderEmail': senderEmail,
-        'senderName': senderName,
-      };
-
-      logDebug(
-        'sendInvestmentEmailToClient',
-        'Wysyłam email przez Firebase Functions: ${functionData.keys}',
-      );
-
-      // 🔥 Wywołaj Firebase Functions
-      final result = await FirebaseFunctions.instanceFor(
-        region: 'europe-west1',
-      ).httpsCallable('sendInvestmentEmailToClient').call(functionData);
-
-      logDebug('sendInvestmentEmailToClient', 'Email wysłany pomyślnie');
-
-      // 🎯 Przetwórz wynik
-      final data = result.data as Map<String, dynamic>;
-
-      if (data['success'] == true) {
-        // ♻️ Wyczyść cache po pomyślnej operacji
-        clearCache(cacheKey);
-
-        return EmailSendResult.fromJson(data);
-      } else {
-        throw Exception(
-          'Wysyłanie maila nie powiodło się: ${data['error'] ?? 'Nieznany błąd'}',
-        );
-      }
-    } catch (e) {
-      logError('sendInvestmentEmailToClient', e);
-
-      if (e.toString().contains('PERMISSION_DENIED') ||
-          e.toString().contains('unauthenticated')) {
-        throw Exception(
-          'Brak uprawnień do wysyłania maili. Zaloguj się ponownie.',
-        );
-      } else if (e.toString().contains('not-found')) {
-        throw Exception('Nie znaleziono inwestycji dla podanego klienta.');
-      } else if (e.toString().contains('invalid-argument')) {
-        throw Exception('Nieprawidłowe dane wejściowe: ${e.toString()}');
-      } else if (e.toString().contains('EAUTH') ||
-          e.toString().contains('ENOTFOUND')) {
-        throw Exception(
-          'Błąd konfiguracji serwera email. Skontaktuj się z administratorem.',
-        );
-      } else {
-        throw Exception('Błąd podczas wysyłania maila: $e');
-      }
-    }
-  }
-
   /// Eksportuje dane wybranych inwestorów
   ///
   /// @param clientIds Lista ID klientów do eksportu
@@ -344,55 +239,6 @@ class EmailAndExportService extends BaseService {
     }
   }
 
-  /// Helper: Wysyłaj email do wielu klientów (batch)
-  Future<List<EmailSendResult>> sendEmailsToMultipleClients({
-    required List<InvestorSummary> investors,
-    String emailTemplate = 'summary',
-    String? subject,
-    String? customMessage,
-    required String senderEmail,
-    String senderName = 'Metropolitan Investment',
-  }) async {
-    final results = <EmailSendResult>[];
-
-    for (final investor in investors) {
-      try {
-        final result = await sendInvestmentEmailToClient(
-          clientId: investor.client.id,
-          clientEmail: investor.client.email ?? '',
-          clientName: investor.client.name,
-          emailTemplate: emailTemplate,
-          subject: subject,
-          customMessage: customMessage,
-          senderEmail: senderEmail,
-          senderName: senderName,
-        );
-        results.add(result);
-      } catch (e) {
-        logError(
-          'sendEmailsToMultipleClients',
-          'Błąd wysyłania do ${investor.client.name}: $e',
-        );
-        // Dodaj wynik błędu
-        results.add(
-          EmailSendResult(
-            success: false,
-            messageId: '',
-            clientEmail: investor.client.email ?? '',
-            clientName: investor.client.name,
-            investmentCount: 0,
-            totalAmount: 0,
-            executionTimeMs: 0,
-            template: emailTemplate,
-            error: e.toString(),
-          ),
-        );
-      }
-    }
-
-    return results;
-  }
-
   String getThemedEmailTemplate({
     required String subject,
     required String content,
@@ -524,7 +370,7 @@ class EmailAndExportService extends BaseService {
             .map(
               (investor) => {
                 'clientId': investor.client.id,
-                'clientEmail': investor.client.email ?? '',
+                'clientEmail': investor.client.email,
                 'clientName': investor.client.name,
                 'investmentCount': investor.investmentCount,
                 'totalAmount': investor.totalRemainingCapital,
@@ -583,7 +429,7 @@ class EmailAndExportService extends BaseService {
             (investor) => EmailSendResult(
               success: false,
               messageId: '',
-              clientEmail: investor.client.email ?? '',
+              clientEmail: investor.client.email,
               clientName: investor.client.name,
               investmentCount: investor.investmentCount,
               totalAmount: investor.totalRemainingCapital,
@@ -704,7 +550,7 @@ class EmailAndExportService extends BaseService {
           EmailSendResult(
             success: false,
             messageId: '',
-            clientEmail: investor.client.email ?? '',
+            clientEmail: investor.client.email,
             clientName: investor.client.name,
             investmentCount: investor.investmentCount,
             totalAmount: investor.totalRemainingCapital,
@@ -743,6 +589,7 @@ class EmailAndExportService extends BaseService {
     String? subject,
     required String htmlContent,
     bool includeInvestmentDetails = false,
+    bool isGroupEmail = false,
     Map<String, String>? investmentDetailsByClient,
     String? aggregatedInvestmentsForAdditionals,
     required String senderEmail,
@@ -772,7 +619,7 @@ class EmailAndExportService extends BaseService {
             .map(
               (investor) => {
                 'clientId': investor.client.id,
-                'clientEmail': investor.client.email ?? '',
+                'clientEmail': investor.client.email,
                 'clientName': investor.client.name,
                 'investmentCount': investor.investmentCount,
                 'totalAmount': investor.totalRemainingCapital,
@@ -783,6 +630,7 @@ class EmailAndExportService extends BaseService {
         'htmlContent': htmlContent,
         'subject': subject ?? 'Wiadomość od $senderName',
         'includeInvestmentDetails': includeInvestmentDetails,
+        'isGroupEmail': isGroupEmail,
         'senderEmail': senderEmail,
         'senderName': senderName,
         if (investmentDetailsByClient != null && investmentDetailsByClient.isNotEmpty)
@@ -850,7 +698,7 @@ class EmailAndExportService extends BaseService {
           EmailSendResult(
             success: false,
             messageId: '',
-            clientEmail: investor.client.email ?? '',
+            clientEmail: investor.client.email,
             clientName: investor.client.name,
             investmentCount: investor.investmentCount,
             totalAmount: investor.totalRemainingCapital,
@@ -889,7 +737,7 @@ Future<String> _getFirebaseProjectId() async {
   try {
     final app = Firebase.app();
     final options = app.options;
-    return options.projectId ?? 'metropolitan-investment';
+    return options.projectId;
   } catch (e) {
     return 'metropolitan-investment';
   }

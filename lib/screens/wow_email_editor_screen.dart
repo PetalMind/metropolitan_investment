@@ -11,6 +11,8 @@ import '../../models_and_services.dart';
 import '../theme/app_theme.dart';
 
 import '../widgets/html_editor_widget.dart';
+import '../utils/email_content_utils.dart';
+import '../utils/currency_formatter.dart';
 
 /// **🚀 WOW EMAIL EDITOR SCREEN - NAJPIĘKNIEJSZY SCREEN W FLUTTER! 🚀**
 ///
@@ -219,7 +221,9 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   }
 
   void _initializeContent() {
-    final content = widget.initialMessage ?? _getDefaultEmailContent();
+    final content =
+        widget.initialMessage ??
+        EmailContentUtils.getDefaultEmailContentForEditor();
 
     try {
       _contentController.text = content;
@@ -228,32 +232,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     } catch (e) {
       debugPrint('Error initializing content: $e');
     }
-  }
-
-  /// Get default formatted email content - matches HTML editor widget
-  String _getDefaultEmailContent() {
-    return '''
-<div style="font-family: Inter, Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #333;">
-  <h2 style="color: #2c2c2c; margin-bottom: 20px;">Szanowni Państwo,</h2>
-  
-  <p style="margin-bottom: 15px;">
-    Przesyłamy aktualne informacje dotyczące Państwa inwestycji w Metropolitan Investment.
-  </p>
-
-  <h3 style="color: #2c2c2c; margin-top: 25px; margin-bottom: 15px;">Poniżej znajdą Państwo szczegółowe podsumowanie swojego portfela inwestycyjnego. </h3>
-  <p>W razie pytań prosimy o kontakt z naszym działem obsługi klienta.</p>
-
-  
-  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
-    <p style="margin-bottom: 10px;"><strong>Z poważaniem,</strong></p>
-    <p style="margin-bottom: 5px;">Zespół Metropolitan Investment</p>
-    <p style="font-size: 14px; color: #666;">
-      Tel: <a href="tel:+48123456789" style="color: #d4af37; text-decoration: none;">+48 123 456 789</a><br>
-      Email: <a href="mailto:biuro@metropolitan-investment.pl" style="color: #d4af37; text-decoration: none;">biuro@metropolitan-investment.pl</a>
-    </p>
-  </div>
-</div>
-    '''.trim();
   }
 
   // 💾 AUTO-SAVE FUNCTIONALITY IMPLEMENTATION
@@ -795,7 +773,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
           📈 Szczegółowe Informacje o Inwestycjach
         </h3>
         <p style="margin: 0; color: #666; font-size: 14px;">
-          Poniżej znajdą Państwo wszystkie inwestycje przypisane do wybranych inwestorów:
+          ${_isGroupEmail ? 'Poniżej znajdą Państwo wszystkie inwestycje przypisane do wybranych inwestorów:' : 'Poniżej znajdą Państwo Wasze inwestycje:'}
         </p>
       </div>
     ''');
@@ -807,9 +785,16 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     double totalRealizedCapital = 0;
 
     try {
-      // Pobierz inwestycje dla każdego włączonego inwestora
-      for (int index = 0; index < enabledInvestors.length; index++) {
-        final investor = enabledInvestors[index];
+      // 🎯 LOGIKA PERSONALIZACJI - jeśli nie grupowy, pokaż tylko pierwszego jako przykład
+      final investorsToProcess = _isGroupEmail
+          ? enabledInvestors
+          : (enabledInvestors.isNotEmpty
+                ? [enabledInvestors.first]
+                : <InvestorSummary>[]);
+
+      // Pobierz inwestycje dla każdego wybranego inwestora (lub tylko pierwszego)
+      for (int index = 0; index < investorsToProcess.length; index++) {
+        final investor = investorsToProcess[index];
         final clientId = investor.client.id;
         final clientName = investor.client.name;
         
@@ -842,9 +827,9 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                   <div style="font-weight: 500; color: #2c2c2c; margin-bottom: 4px;">${investment.productName ?? 'Nieokreślony produkt'}</div>
                   <div style="font-size: 12px; color: #666;">ID: ${investment.id}</div>
                 </td>
-                <td style="padding: 12px 8px; text-align: right; color: #2c2c2c; font-weight: 500;">${_formatCurrency(investmentAmount)}</td>
-                <td style="padding: 12px 8px; text-align: right; color: #28a745; font-weight: 500;">${_formatCurrency(remainingCapital)}</td>
-                <td style="padding: 12px 8px; text-align: right; color: #007bff; font-weight: 500;">${_formatCurrency(realizedCapital)}</td>
+                <td style="padding: 12px 8px; text-align: right; color: #2c2c2c; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(investmentAmount)}</td>
+                <td style="padding: 12px 8px; text-align: right; color: #28a745; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(remainingCapital)}</td>
+                <td style="padding: 12px 8px; text-align: right; color: #007bff; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(realizedCapital)}</td>
                 <td style="padding: 12px 8px; text-align: center;">
                   <span style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 500; 
                                background: ${investment.status.toString() == 'InvestmentStatus.active' ? '#d4edda' : '#f8d7da'}; 
@@ -869,7 +854,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                 <h4 style="margin: 0; font-size: 16px; font-weight: 600;">👤 $clientName</h4>
                 <div style="margin-top: 8px; display: flex; gap: 24px; font-size: 14px;">
                   <span>📊 Inwestycje: ${investments.length}</span>
-                  <span>💰 Kapitał pozostały: ${_formatCurrency(clientRemainingCapital)}</span>
+                  <span>💰 Kapitał pozostały: ${CurrencyFormatter.formatCurrencyForEmail(clientRemainingCapital)}</span>
                 </div>
               </div>
               
@@ -888,9 +873,9 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                     ${investmentRows.join('')}
                     <tr style="background: #e8f5e8; font-weight: 600; border-top: 2px solid #28a745;">
                       <td style="padding: 12px 8px;">📈 PODSUMOWANIE</td>
-                      <td style="padding: 12px 8px; text-align: right; color: #2c2c2c;">${_formatCurrency(clientInvestmentAmount)}</td>
-                      <td style="padding: 12px 8px; text-align: right; color: #28a745;">${_formatCurrency(clientRemainingCapital)}</td>
-                      <td style="padding: 12px 8px; text-align: right; color: #007bff;">${_formatCurrency(clientRealizedCapital)}</td>
+                      <td style="padding: 12px 8px; text-align: right; color: #2c2c2c;">${CurrencyFormatter.formatCurrencyForEmail(clientInvestmentAmount)}</td>
+                      <td style="padding: 12px 8px; text-align: right; color: #28a745;">${CurrencyFormatter.formatCurrencyForEmail(clientRemainingCapital)}</td>
+                      <td style="padding: 12px 8px; text-align: right; color: #007bff;">${CurrencyFormatter.formatCurrencyForEmail(clientRealizedCapital)}</td>
                       <td style="padding: 12px 8px; text-align: center; color: #28a745;">${investments.length} inwestycji</td>
                     </tr>
                   </tbody>
@@ -914,7 +899,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         buffer.write('''
           <div style="margin: 32px 0 20px 0; padding: 20px; background: linear-gradient(135deg, #2c2c2c, #1a1a1a); color: #d4af37; border-radius: 12px;">
             <h3 style="margin: 0 0 16px 0; color: #d4af37; font-size: 18px; font-weight: 600; text-align: center;">
-              📊 PODSUMOWANIE GLOBALNE
+              📊 ${_isGroupEmail ? 'PODSUMOWANIE GLOBALNE' : 'PODSUMOWANIE OSOBISTE'}
             </h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
               <div style="text-align: center;">
@@ -922,21 +907,23 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                 <div style="font-size: 14px; color: #d4af37;">Łączna liczba inwestycji</div>
               </div>
               <div style="text-align: center;">
-                <div style="font-size: 24px; font-weight: 600; color: #ffffff;">${_formatCurrency(totalInvestmentAmount)}</div>
+                <div style="font-size: 24px; font-weight: 600; color: #ffffff;">${CurrencyFormatter.formatCurrencyForEmail(totalInvestmentAmount)}</div>
                 <div style="font-size: 14px; color: #d4af37;">Całkowita kwota inwestycji</div>
               </div>
               <div style="text-align: center;">
-                <div style="font-size: 24px; font-weight: 600; color: #28a745;">${_formatCurrency(totalRemainingCapital)}</div>
+                <div style="font-size: 24px; font-weight: 600; color: #28a745;">${CurrencyFormatter.formatCurrencyForEmail(totalRemainingCapital)}</div>
                 <div style="font-size: 14px; color: #d4af37;">Kapitał pozostały</div>
               </div>
               <div style="text-align: center;">
-                <div style="font-size: 24px; font-weight: 600; color: #007bff;">${_formatCurrency(totalRealizedCapital)}</div>
+                <div style="font-size: 24px; font-weight: 600; color: #007bff;">${CurrencyFormatter.formatCurrencyForEmail(totalRealizedCapital)}</div>
                 <div style="font-size: 14px; color: #d4af37;">Kapitał zrealizowany</div>
               </div>
             </div>
           </div>
         ''');
       }
+
+     
       
       // Footer z datą generowania
       buffer.write('''
@@ -1053,10 +1040,6 @@ Zespół Metropolitan Investment</p>''';
         ),
       );
     }
-  }
-
-  String _formatCurrency(double amount) {
-    return '${amount.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\\d{1,3})(?=(\\d{3})+(?!\\d))'), (Match m) => '${m[1]} ')} PLN';
   }
 
   String _formatDate(DateTime date) {
@@ -1356,6 +1339,7 @@ Zespół Metropolitan Investment</p>''';
         subject: _subjectController.text,
         htmlContent: finalHtml,
         includeInvestmentDetails: _includeInvestmentDetails,
+        isGroupEmail: _isGroupEmail,
         senderEmail: _senderEmailController.text,
         senderName: _senderNameController.text,
       );
@@ -2179,10 +2163,11 @@ Zespół Metropolitan Investment</p>''';
 
   // ⚙️ OPCJE EMAIL Z WOW SWITCHAMI
   Widget _buildEmailOptions(bool isMobile) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildWowSwitch(
+    if (isMobile) {
+      // Mobile layout: Stack switches vertically
+      return Column(
+        children: [
+          _buildWowSwitch(
             title: 'Szczegóły inwestycji',
             subtitle: 'Dołącz informacje o inwestycjach',
             value: _includeInvestmentDetails,
@@ -2192,20 +2177,51 @@ Zespół Metropolitan Investment</p>''';
             },
             icon: Icons.attach_money_outlined,
           ),
-        ),
-        if (!isMobile) SizedBox(width: 16),
-        if (!isMobile)
+          SizedBox(height: 12),
+          _buildWowSwitch(
+            title: 'Email grupowy',
+            subtitle: 'Wyślij do wszystkich odbiorców',
+            value: _isGroupEmail,
+            onChanged: (value) {
+              setState(() => _isGroupEmail = value);
+              _forcePreviewUpdate(); // Update preview when toggling group email
+            },
+            icon: Icons.group_outlined,
+          ),
+        ],
+      );
+    } else {
+      // Desktop layout: Keep switches side by side
+      return Row(
+        children: [
+          Expanded(
+            child: _buildWowSwitch(
+              title: 'Szczegóły inwestycji',
+              subtitle: 'Dołącz informacje o inwestycjach',
+              value: _includeInvestmentDetails,
+              onChanged: (value) {
+                setState(() => _includeInvestmentDetails = value);
+                _forcePreviewUpdate(); // Immediately update preview when toggling investment details
+              },
+              icon: Icons.attach_money_outlined,
+            ),
+          ),
+          SizedBox(width: 16),
           Expanded(
             child: _buildWowSwitch(
               title: 'Email grupowy',
               subtitle: 'Wyślij do wszystkich odbiorców',
               value: _isGroupEmail,
-              onChanged: (value) => setState(() => _isGroupEmail = value),
+              onChanged: (value) {
+                setState(() => _isGroupEmail = value);
+                _forcePreviewUpdate(); // Update preview when toggling group email
+              },
               icon: Icons.group_outlined,
             ),
           ),
-      ],
-    );
+        ],
+      );
+    }
   }
 
   // 🎨 WOW SWITCH

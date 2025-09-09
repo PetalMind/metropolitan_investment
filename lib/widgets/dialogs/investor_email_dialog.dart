@@ -460,6 +460,67 @@ class _InvestorEmailDialogState extends State<InvestorEmailDialog> {
     );
   }
 
+  String _generatePersonalizedHtmlContent(InvestorSummary investor) {
+    final customMessage = _customMessageController.text.isNotEmpty
+        ? _customMessageController.text
+        : null;
+
+    switch (_emailTemplate) {
+      case 'summary':
+        return '''
+<p>Witaj ${investor.client.name},</p>
+
+<p>Poniżej znajdziesz podsumowanie Twoich inwestycji w Metropolitan Investment:</p>
+
+<ul>
+  <li><strong>Liczba inwestycji:</strong> ${investor.investmentCount}</li>
+  <li><strong>Całkowita wartość pozostała do spłaty:</strong> ${investor.totalRemainingCapital.toStringAsFixed(2)} PLN</li>
+</ul>
+
+${customMessage != null ? '<p>$customMessage</p>' : ''}
+
+<p>Pozdrawiamy,<br/>
+Zespół Metropolitan Investment</p>
+''';
+
+      case 'detailed':
+        return '''
+<p>Witaj ${investor.client.name},</p>
+
+<p>Szczegółowe informacje o Twoich inwestycjach:</p>
+
+<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">
+  <tr>
+    <th style="background-color: #f0f0f0;">Liczba inwestycji</th>
+    <th style="background-color: #f0f0f0;">Wartość pozostała do spłaty</th>
+  </tr>
+  <tr>
+    <td style="text-align: center;">${investor.investmentCount}</td>
+    <td style="text-align: right;">${investor.totalRemainingCapital.toStringAsFixed(2)} PLN</td>
+  </tr>
+</table>
+
+${customMessage != null ? '<p>$customMessage</p>' : ''}
+
+<p>W razie pytań prosimy o kontakt.</p>
+
+<p>Pozdrawiamy,<br/>
+Zespół Metropolitan Investment</p>
+''';
+
+      case 'custom':
+      default:
+        return '''
+<p>Witaj ${investor.client.name},</p>
+
+${customMessage ?? 'Dziękujemy za zaufanie i wybór Metropolitan Investment.'}
+
+<p>Pozdrawiamy,<br/>
+Zespół Metropolitan Investment</p>
+''';
+    }
+  }
+
   Future<void> _sendEmails() async {
     if (!_formKey.currentState!.validate()) return;
     
@@ -484,11 +545,19 @@ class _InvestorEmailDialogState extends State<InvestorEmailDialog> {
     });
 
     try {
-      final results = await _emailAndExportService.sendEmailsToMultipleClients(
+      // Przygotuj spersonalizowaną zawartość HTML dla każdego klienta
+      final completeEmailHtmlByClient = <String, String>{};
+      for (final investor in investorsWithEmail) {
+        completeEmailHtmlByClient[investor.client.id] =
+            _generatePersonalizedHtmlContent(investor);
+      }
+
+      final results = await _emailAndExportService
+          .sendPreGeneratedEmailsToMixedRecipients(
         investors: investorsWithEmail,
-        emailTemplate: _emailTemplate,
+            additionalEmails: [], // Brak dodatkowych emaili
         subject: _subjectController.text.isNotEmpty ? _subjectController.text : null,
-        customMessage: _customMessageController.text.isNotEmpty ? _customMessageController.text : null,
+            completeEmailHtmlByClient: completeEmailHtmlByClient,
         senderEmail: _senderEmailController.text,
         senderName: _senderNameController.text,
       );
