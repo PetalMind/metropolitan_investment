@@ -8,9 +8,13 @@ import 'package:flutter_html/flutter_html.dart' as html_package;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../models_and_services.dart';
+import '../models/email_template.dart';
+import '../models/email_attachment.dart';
 import '../theme/app_theme.dart';
 
 import '../widgets/html_editor_widget.dart';
+import '../widgets/email/email_template_selector.dart';
+import '../widgets/email/attachment_manager_widget.dart';
 import '../utils/email_content_utils.dart';
 import '../utils/currency_formatter.dart';
 
@@ -105,6 +109,12 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   bool _isAutoSaving = false;
   DateTime? _lastAutoSaveTime;
   late UserPreferencesService _preferencesService;
+  
+  // 📧 TEMPLATE & ATTACHMENT FUNCTIONALITY
+  bool _isTemplatesSectionCollapsed = false;
+  bool _isAttachmentsSectionCollapsed = false;
+  List<EmailAttachment> _attachments = [];
+  EmailTemplateModel? _selectedTemplate;
 
   @override
   void initState() {
@@ -195,14 +205,55 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   }
 
   void _initializeRecipients() {
+    debugPrint(
+      '🔍 [EmailEditor] Initializing ${widget.selectedInvestors.length} recipients...',
+    );
+    
     for (final investor in widget.selectedInvestors) {
       final clientId = investor.client.id;
       final email = investor.client.email;
 
-      _recipientEnabled[clientId] =
+      // Walidacja email i domyślne włączenie dla prawidłowych adresów
+      final hasValidEmail =
           email.isNotEmpty &&
           RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
+      
+      _recipientEnabled[clientId] = hasValidEmail;
       _recipientEmails[clientId] = email;
+      
+      // 🔍 DEBUG: Log recipient initialization with more details
+      debugPrint(
+        '🔍 [EmailEditor] Initialize ${investor.client.name} (ID: $clientId, Email: "$email"): ${hasValidEmail ? "ENABLED" : "DISABLED - Invalid email"}',
+      );
+
+      // Log potential issues
+      if (email.isEmpty) {
+        debugPrint(
+          '⚠️ [EmailEditor] WARNING: ${investor.client.name} has empty email address',
+        );
+      } else if (!hasValidEmail) {
+        debugPrint(
+          '⚠️ [EmailEditor] WARNING: ${investor.client.name} has invalid email format: "$email"',
+        );
+      }
+    }
+
+    final enabledCount = _recipientEnabled.values
+        .where((enabled) => enabled)
+        .length;
+    final disabledCount = _recipientEnabled.values
+        .where((enabled) => !enabled)
+        .length;
+
+    debugPrint(
+      '🔍 [EmailEditor] Recipients initialized - Total: ${widget.selectedInvestors.length}, Enabled: $enabledCount, Disabled: $disabledCount',
+    );
+
+    // Additional warning if no recipients are enabled
+    if (enabledCount == 0) {
+      debugPrint(
+        '❌ [EmailEditor] CRITICAL: No recipients are enabled for email sending!',
+      );
     }
   }
 
@@ -960,13 +1011,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         ''');
       }
 
-      // Footer z datą generowania
-      buffer.write('''
-        <div style="margin: 20px 0; padding: 16px; background: #f8f9fa; border-radius: 8px; text-align: center; font-size: 12px; color: #666;">
-          <p style="margin: 0;">📅 Raport wygenerowany: ${_formatDate(DateTime.now())} o ${_formatTimeOnly(DateTime.now())}</p>
-          <p style="margin: 4px 0 0 0;">🏢 Metropolitan Investment S.A.</p>
-        </div>
-      ''');
+
     } catch (e) {
       debugPrint('❌ Błąd podczas pobierania danych inwestycji: $e');
       return '''<div style="padding: 20px; text-align: center; color: #dc3545; border: 1px solid #dc3545; border-radius: 8px; background: #f8d7da;">
@@ -1133,6 +1178,24 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       ..._additionalEmails,
     ].where((email) => email.isNotEmpty).toList();
 
+    // 🔍 DEBUG: Log recipient filtering
+    debugPrint(
+      '🔍 [EmailEditor] Total selected investors: ${widget.selectedInvestors.length}',
+    );
+    debugPrint(
+      '🔍 [EmailEditor] Enabled investors: ${enabledInvestors.length}',
+    );
+    for (final investor in widget.selectedInvestors) {
+      final enabled = _recipientEnabled[investor.client.id] ?? false;
+      debugPrint(
+        '🔍 [EmailEditor] ${investor.client.name} (${investor.client.email}): $enabled',
+      );
+    }
+    debugPrint(
+      '🔍 [EmailEditor] Additional emails: ${_additionalEmails.length}',
+    );
+    debugPrint('🔍 [EmailEditor] Total valid emails: ${allEmails.length}');
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -1146,7 +1209,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
     if (allEmails.isEmpty) {
       setState(() {
-        _error = 'Brak aktywnych odbiorców email.';
+        _error =
+            'Brak odbiorców z prawidłowymi adresami email. Sprawdź czy odbiorcy mają prawidłowe adresy email i są zaznaczeni.';
         _isLoading = false;
       });
       return;
@@ -1221,13 +1285,62 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
       // Handle scheduled vs immediate sending
       if (_isSchedulingEnabled && _scheduledDateTime != null) {
+        // Additional validation for scheduling
+        if (enabledInvestors.isEmpty && _additionalEmails.isEmpty) {
+          setState(() {
+            _error =
+                'Nie można zaplanować emaila bez odbiorców. Sprawdź czy odbiorcy mają prawidłowe adresy email i są zaznaczeni.';
+            _isLoading = false;
+            _schedulingError = 'Brak odbiorców do zaplanowania';
+          });
+          return;
+        }
+
+        // Dodatkowa walidacja przed planowaniem
+        final invalidEmails = <String>[];
+        final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+        
+        for (final investor in enabledInvestors) {
+          if (!emailRegex.hasMatch(investor.client.email)) {
+            invalidEmails.add('${investor.client.name}: ${investor.client.email}');
+          }
+        }
+        
+        for (final email in _additionalEmails) {
+          if (!emailRegex.hasMatch(email)) {
+            invalidEmails.add('Dodatkowy: $email');
+          }
+        }
+        
+        if (invalidEmails.isNotEmpty) {
+          setState(() {
+            _error = 'Nieprawidłowe adresy email:\n${invalidEmails.join('\n')}';
+            _isLoading = false;
+            _schedulingError = 'Napraw adresy email przed planowaniem';
+          });
+          return;
+        }
+
+        // Log scheduling details for debugging
+        debugPrint(
+          '📅 [EmailEditor] Scheduling email with ${enabledInvestors.length} enabled investors + ${_additionalEmails.length} additional emails',
+        );
+        for (final investor in enabledInvestors) {
+          debugPrint(
+            '📅 [EmailEditor] Scheduling for: ${investor.client.name} (${investor.client.email})',
+          );
+        }
+        for (final email in _additionalEmails) {
+          debugPrint('📅 [EmailEditor] Additional recipient: $email');
+        }
+
         // Schedule email for later
         setState(() {
           _loadingMessage = 'Planowanie wysyłki emaila...';
           _loadingProgress = 0.5;
         });
 
-        final _ = await _emailSchedulingService.scheduleEmail(
+        final scheduledEmailId = await _emailSchedulingService.scheduleEmail(
           recipients: enabledInvestors,
           subject: _subjectController.text,
           htmlContent: finalHtml,
@@ -1244,6 +1357,9 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
           createdBy: 'current_user', // TODO: Get actual user ID
         );
 
+        debugPrint(
+          '📅 [EmailEditor] Email scheduled successfully with ID: $scheduledEmailId',
+        );
         setState(() {
           _loadingMessage = 'Email zaplanowany pomyślnie';
           _loadingProgress = 1.0;
@@ -1555,6 +1671,39 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     return _getEnabledRecipientsCount() + _additionalEmails.length;
   }
 
+  /// Sprawdza czy są dostępni odbiorcy do wysłania
+  bool _hasValidRecipients() {
+    final enabledRecipients = _getEnabledRecipientsCount();
+    final additionalEmails = _additionalEmails.length;
+    return enabledRecipients > 0 || additionalEmails > 0;
+  }
+
+  /// Sprawdza czy można zaplanować email (ma odbiorców i ustawienia)
+  bool _canScheduleEmail() {
+    if (!_hasValidRecipients()) return false;
+    if (_isSchedulingEnabled && _scheduledDateTime == null) return false;
+    if (_isSchedulingEnabled && _scheduledDateTime!.isBefore(DateTime.now()))
+      return false;
+    return true;
+  }
+
+  /// Pobierz komunikat o stanie odbiorców
+  String _getRecipientsStatusMessage() {
+    final enabledRecipients = _getEnabledRecipientsCount();
+    final additionalEmails = _additionalEmails.length;
+    final totalSelected = widget.selectedInvestors.length;
+
+    if (enabledRecipients == 0 && additionalEmails == 0) {
+      return 'Brak odbiorców - dodaj odbiorców lub sprawdź adresy email';
+    } else if (enabledRecipients < totalSelected) {
+      final disabled = totalSelected - enabledRecipients;
+      return '$enabledRecipients odbiorców gotowych ($disabled wyłączonych z powodu błędnych adresów email)';
+    } else {
+      final total = enabledRecipients + additionalEmails;
+      return '$total odbiorców gotowych do wysłania';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1634,6 +1783,11 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
                             SizedBox(height: isMobile ? 16 : 24),
 
+                            // Template Selector
+                            _buildTemplateSection(isMobile, isTablet),
+
+                            SizedBox(height: isMobile ? 16 : 24),
+                            
                             // Recipients List
                             _buildRecipientsList(isMobile),
 
@@ -3593,51 +3747,101 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       ),
       child: _isLoading
           ? _buildLoadingContentForActions()
-          : Row(
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.close),
-                    label: Text('Anuluj'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.textSecondary,
-                      side: BorderSide(color: AppTheme.borderPrimary),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                // Recipients status message
+                if (!_hasValidRecipients() ||
+                    (_isSchedulingEnabled && _schedulingError != null))
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    margin: EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.orange,
+                          size: 20,
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            !_hasValidRecipients()
+                                ? _getRecipientsStatusMessage()
+                                : _schedulingError ?? 'Błąd planowania',
+                            style: TextStyle(
+                              color: Colors.orange.shade700,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: canEdit ? _sendEmails : null,
-                    icon: Icon(
-                      _isSchedulingEnabled ? Icons.schedule : Icons.send,
-                    ),
-                    label: Text(
-                      _isSchedulingEnabled
-                          ? 'Zaplanuj wysyłkę'
-                          : 'Wyślij wiadomości',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.secondaryGold,
-                      foregroundColor: AppTheme.primaryColor,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: Icon(Icons.close),
+                        label: Text('Anuluj'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.textSecondary,
+                          side: BorderSide(color: AppTheme.borderPrimary),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2,
                     ),
-                  ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed:
+                            canEdit && _hasValidRecipients() && !_isLoading
+                            ? _sendEmails
+                            : null,
+                        icon: Icon(
+                          _isSchedulingEnabled ? Icons.schedule : Icons.send,
+                        ),
+                        label: Text(
+                          _isSchedulingEnabled
+                              ? 'Zaplanuj wysyłkę'
+                              : 'Wyślij wiadomości',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              canEdit && _hasValidRecipients() && !_isLoading
+                              ? AppTheme.secondaryGold
+                              : Colors.grey,
+                          foregroundColor:
+                              canEdit && _hasValidRecipients() && !_isLoading
+                              ? AppTheme.primaryColor
+                              : Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -3736,5 +3940,171 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         ],
       ],
     );
+  }
+
+  /// 📧 TEMPLATE SECTION
+  Widget _buildTemplateSection(bool isMobile, bool isTablet) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      height: _isTemplatesSectionCollapsed ? 60 : null,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppTheme.backgroundSecondary.withValues(alpha: 0.9),
+              AppTheme.backgroundPrimary.withValues(alpha: 0.7),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppTheme.borderPrimary.withValues(alpha: 0.3),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header
+            InkWell(
+              onTap: () {
+                setState(() {
+                  _isTemplatesSectionCollapsed = !_isTemplatesSectionCollapsed;
+                });
+                HapticFeedback.selectionClick();
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: EdgeInsets.all(isMobile ? 16 : 20),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.description_outlined,
+                      color: AppTheme.secondaryGold,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Szablony Email',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: isMobile ? 16 : 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    if (_selectedTemplate != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondaryGold.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _selectedTemplate!.name,
+                          style: TextStyle(
+                            color: AppTheme.secondaryGold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Icon(
+                      _isTemplatesSectionCollapsed
+                          ? Icons.keyboard_arrow_down
+                          : Icons.keyboard_arrow_up,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Content
+            if (!_isTemplatesSectionCollapsed)
+              Container(
+                height: 400,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: EmailTemplateSelector(
+                  onTemplateSelected: _onTemplateSelected,
+                  showCategoryFilter: true,
+                  selectedTemplateId: _selectedTemplate?.id,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 📧 TEMPLATE SELECTION HANDLER
+  void _onTemplateSelected(EmailTemplateModel template) {
+    setState(() {
+      _selectedTemplate = template;
+    });
+    
+    // Apply template to editor
+    if (widget.selectedInvestors.isNotEmpty) {
+      final investor = widget.selectedInvestors.first;
+      final personalizedContent = template.renderForInvestor(investor);
+      
+      // Set subject
+      _subjectController.text = template.subject;
+      
+      // Set content
+      _contentController.text = personalizedContent;
+      
+      // Update preview
+      _updatePreviewContent();
+    } else {
+      // Use template without personalization
+      _subjectController.text = template.subject;
+      _contentController.text = template.content;
+      _updatePreviewContent();
+    }
+    
+    // Mark as having changes
+    _markUnsavedChanges();
+    
+    HapticFeedback.mediumImpact();
+  }
+
+  /// 📎 ATTACHMENTS CHANGED HANDLER
+  void _onAttachmentsChanged(List<EmailAttachment> attachments) {
+    setState(() {
+      _attachments = List.from(attachments);
+    });
+    
+    _markUnsavedChanges();
+  }
+
+  /// 📎 GET TOTAL ATTACHMENT SIZE
+  String _getTotalAttachmentSize() {
+    final totalBytes = _attachments.fold<int>(0, (total, attachment) => total + attachment.size);
+    if (totalBytes < 1024) {
+      return '$totalBytes B';
+    } else if (totalBytes < 1024 * 1024) {
+      return '${(totalBytes / 1024).toStringAsFixed(1)} KB';
+    } else {
+      return '${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+  }
+
+  /// 💾 MARK AS HAVING UNSAVED CHANGES
+  void _markUnsavedChanges() {
+    setState(() {
+      _hasUnsavedChanges = true;
+    });
   }
 }

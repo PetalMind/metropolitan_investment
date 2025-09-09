@@ -354,6 +354,360 @@ const sendPreGeneratedEmails = onCall(async (request) => {
 });
 
 /**
+ * ✉️ WEWNĘTRZNA FUNKCJA - Wysyła niestandardowe maile do mieszanej listy odbiorców
+ * 
+ * Używana przez scheduled-email-service.js - nie jest owijana w onCall.
+ * 
+ * @param {Object} data - Dane wejściowe (bez request wrapper)
+ * @returns {Promise<Object>} Wyniki wysyłania
+ */
+async function sendEmailsToMixedRecipientsInternal(data) {
+  const startTime = Date.now();
+  console.log(`📧 [MixedEmailServiceInternal] Rozpoczynam wysyłanie do mieszanej listy odbiorców`);
+  console.log(`📊 [MixedEmailServiceInternal] Dane wejściowe:`, JSON.stringify({
+    recipientCount: data.recipients?.length || 0,
+    additionalEmailsCount: data.additionalEmails?.length || 0,
+    subject: data.subject,
+    includeInvestmentDetails: data.includeInvestmentDetails,
+    isGroupEmail: data.isGroupEmail,
+    senderEmail: data.senderEmail,
+    htmlContentLength: data.htmlContent?.length || 0,
+  }, null, 2));
+
+  try {
+    const {
+      recipients = [],
+      additionalEmails = [],
+      htmlContent,
+      subject,
+      includeInvestmentDetails = false,
+      isGroupEmail = false,
+      investmentDetailsByClient = null,
+      aggregatedInvestmentsForAdditionals = null,
+      senderEmail,
+      senderName = 'Metropolitan Investment'
+    } = data;
+
+    // 🔍 WALIDACJA DANYCH WEJŚCIOWYCH
+    const totalRecipients = recipients.length + additionalEmails.length;
+    if (totalRecipients === 0) {
+      throw new Error('Lista odbiorców (inwestorzy + dodatkowe emaile) nie może być pusta');
+    }
+
+    if (!htmlContent || htmlContent.trim().length === 0) {
+      throw new Error('Treść HTML nie może być pusta');
+    }
+
+    if (!senderEmail) {
+      throw new Error('Wymagany jest email wysyłającego');
+    }
+
+    if (!subject || subject.trim().length === 0) {
+      throw new Error('Temat maila jest wymagany');
+    }
+
+    // Walidacja formatu email wysyłającego
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(senderEmail)) {
+      throw new Error('Nieprawidłowy format email wysyłającego');
+    }
+
+    // Walidacja dodatkowych emaili
+    for (const email of additionalEmails) {
+      if (!emailRegex.test(email)) {
+        throw new Error(`Nieprawidłowy format dodatkowego email: ${email}`);
+      }
+    }
+
+    // Ograniczenie liczby odbiorców
+    if (totalRecipients > 100) {
+      throw new Error('Maksymalna liczba odbiorców w jednej operacji: 100');
+    }
+
+    console.log(`📧 [MixedEmailServiceInternal] Przetwarzam ${recipients.length} inwestorów + ${additionalEmails.length} dodatkowych emaili`);
+    console.log(`📊 [MixedEmailServiceInternal] Tryb email: ${isGroupEmail ? 'GRUPOWY' : 'INDYWIDUALNY'}`);
+    console.log(`🔍 [MixedEmailServiceInternal] Dołączyć szczegóły inwestycji: ${includeInvestmentDetails ? 'TAK' : 'NIE'}`);
+
+    // 📬 PRZETWÓRZ I WYŚLIJ MAILE
+    const results = [];
+    const transporter = await createEmailTransporter();
+
+    // 📧 WYŚLIJ DO INWESTORÓW
+    for (const recipient of recipients) {
+      const recipientStartTime = Date.now();
+
+      try {
+        // Walidacja danych odbiorcy
+        if (!recipient.clientEmail || !emailRegex.test(recipient.clientEmail)) {
+          console.warn(`⚠️ [MixedEmailServiceInternal] Nieprawidłowy email inwestora: ${recipient.clientEmail}`);
+          results.push({
+            success: false,
+            messageId: '',
+            recipientEmail: recipient.clientEmail || '',
+            recipientName: recipient.clientName || 'Nieznany',
+            recipientType: 'investor',
+            investmentCount: recipient.investmentCount || 0,
+            totalAmount: recipient.totalAmount || 0,
+            executionTimeMs: Date.now() - recipientStartTime,
+            template: 'mixed_custom_html',
+            error: 'Nieprawidłowy adres email inwestora'
+          });
+          continue;
+        }
+
+        // 📊 POBIERZ INWESTYCJE ODBIORCY
+        let investmentDetailsHtml = '';
+        if (includeInvestmentDetails) {
+          console.log(`🔍 [MixedEmailServiceInternal] Sprawdzam inwestycje dla ${recipient.clientName} (ID: ${recipient.clientId})`);
+
+          if (investmentDetailsByClient && investmentDetailsByClient[recipient.clientId]) {
+            investmentDetailsHtml = investmentDetailsByClient[recipient.clientId];
+            console.log(`✅ [MixedEmailServiceInternal] Używam gotowej tabeli z frontendu dla ${recipient.clientName}`);
+          } else if (recipient.clientId) {
+            console.log(`🔄 [MixedEmailServiceInternal] Pobieram inwestycje z Firestore dla ${recipient.clientName}`);
+            investmentDetailsHtml = await getInvestmentDetailsForClient(recipient.clientId);
+          } else {
+            console.warn(`⚠️ [MixedEmailServiceInternal] Brak clientId dla ${recipient.clientName}`);
+          }
+        }
+
+        // 📧 GENERUJ SPERSONALIZOWANĄ TREŚĆ EMAIL
+        const personalizedHtml = generatePersonalizedEmailContent({
+          clientName: recipient.clientName,
+          htmlContent: htmlContent,
+          investmentDetailsHtml: investmentDetailsHtml,
+          senderName: senderName,
+          totalAmount: recipient.totalAmount || 0,
+          investmentCount: recipient.investmentCount || 0
+        });
+
+        // 📬 WYŚLIJ EMAIL DO INWESTORA
+        const normalizedHtml = normalizeQuillHtml(personalizedHtml);
+        const mailOptions = {
+          from: `${senderName} <${senderEmail}>`,
+          to: recipient.clientEmail,
+          subject: subject,
+          html: normalizedHtml,
+          text: stripHtmlTags(normalizedHtml),
+        };
+
+        const emailResult = await transporter.sendMail(mailOptions);
+
+        console.log(`✅ [MixedEmailServiceInternal] Email wysłany do inwestora ${recipient.clientName} (${recipient.clientEmail}). MessageId: ${emailResult.messageId}`);
+
+        results.push({
+          success: true,
+          messageId: emailResult.messageId,
+          recipientEmail: recipient.clientEmail,
+          recipientName: recipient.clientName,
+          recipientType: 'investor',
+          investmentCount: recipient.investmentCount || 0,
+          totalAmount: recipient.totalAmount || 0,
+          executionTimeMs: Date.now() - recipientStartTime,
+          template: 'mixed_custom_html'
+        });
+
+      } catch (recipientError) {
+        console.error(`❌ [MixedEmailServiceInternal] Błąd wysyłania do inwestora ${recipient.clientName}:`, recipientError);
+
+        results.push({
+          success: false,
+          messageId: '',
+          recipientEmail: recipient.clientEmail || '',
+          recipientName: recipient.clientName || 'Nieznany',
+          recipientType: 'investor',
+          investmentCount: recipient.investmentCount || 0,
+          totalAmount: recipient.totalAmount || 0,
+          executionTimeMs: Date.now() - recipientStartTime,
+          template: 'mixed_custom_html',
+          error: recipientError.message || recipientError.toString()
+        });
+      }
+    }
+
+    // 📧 WYŚLIJ DO DODATKOWYCH EMAILI
+    for (let i = 0; i < additionalEmails.length; i++) {
+      const email = additionalEmails[i];
+      const recipientStartTime = Date.now();
+
+      try {
+        // 📧 GENERUJ TREŚĆ EMAIL DLA DODATKOWEGO ODBIORCY
+        let emailHtml;
+        if (includeInvestmentDetails && recipients.length > 0 && isGroupEmail) {
+          // Użyj gotowego zbiorczego raportu z frontendu jeśli dostępny
+          if (aggregatedInvestmentsForAdditionals && aggregatedInvestmentsForAdditionals.trim().length > 0) {
+            console.log(`✅ [MixedEmailServiceInternal] Używam gotowego zbiorczego raportu z frontendu dla ${email}`);
+            emailHtml = generatePersonalizedEmailContent({
+              clientName: 'Szanowni Państwo',
+              htmlContent: htmlContent,
+              investmentDetailsHtml: aggregatedInvestmentsForAdditionals,
+              senderName: senderName,
+              totalAmount: 0,
+              investmentCount: 0
+            });
+          } else if (investmentDetailsByClient && Object.keys(investmentDetailsByClient).length > 0) {
+            console.log(`🔄 [MixedEmailServiceInternal] Buduję zbiorczy raport z fragmentów per-client dla ${email}`);
+            let combined = '<h3>📈 Podsumowanie wybranych inwestycji</h3>';
+            for (const r of recipients) {
+              const htmlSnippet = investmentDetailsByClient[r.clientId];
+              if (htmlSnippet) {
+                combined += `<div style="margin-bottom:12px;"><h4>${safeToString(r.clientName)}</h4>${htmlSnippet}</div>`;
+              }
+            }
+            emailHtml = generatePersonalizedEmailContent({
+              clientName: 'Szanowni Państwo',
+              htmlContent: htmlContent,
+              investmentDetailsHtml: combined,
+              senderName: senderName,
+              totalAmount: 0,
+              investmentCount: 0
+            });
+          } else {
+            console.log(`🔄 [MixedEmailServiceInternal] Generuję zbiorczy raport na serwerze dla ${email}`);
+            const allInvestmentsHtml = await generateAllInvestmentsSummary(recipients);
+            emailHtml = generatePersonalizedEmailContent({
+              clientName: 'Szanowni Państwo',
+              htmlContent: htmlContent,
+              investmentDetailsHtml: allInvestmentsHtml,
+              senderName: senderName,
+              totalAmount: 0,
+              investmentCount: 0
+            });
+          }
+        } else if (includeInvestmentDetails && recipients.length > 0 && !isGroupEmail) {
+          console.log(`🚫 [MixedEmailServiceInternal] Email nie jest grupowy - dodatkowi odbiorcy nie otrzymają inwestycji (${email})`);
+          emailHtml = generateBasicEmailContent({
+            htmlContent: htmlContent,
+            senderName: senderName,
+            recipientEmail: email
+          });
+        } else {
+          emailHtml = generateBasicEmailContent({
+            htmlContent: htmlContent,
+            senderName: senderName,
+            recipientEmail: email
+          });
+        }
+
+        // 📬 WYŚLIJ EMAIL DO DODATKOWEGO ODBIORCY
+        const normalizedHtml = normalizeQuillHtml(emailHtml);
+        const mailOptions = {
+          from: `${senderName} <${senderEmail}>`,
+          to: email,
+          subject: subject,
+          html: normalizedHtml,
+          text: stripHtmlTags(normalizedHtml),
+        };
+
+        const emailResult = await transporter.sendMail(mailOptions);
+
+        console.log(`✅ [MixedEmailServiceInternal] Email wysłany do dodatkowego odbiorcy (${email}). MessageId: ${emailResult.messageId}`);
+
+        results.push({
+          success: true,
+          messageId: emailResult.messageId,
+          recipientEmail: email,
+          recipientName: email,
+          recipientType: 'additional',
+          investmentCount: 0,
+          totalAmount: 0,
+          executionTimeMs: Date.now() - recipientStartTime,
+          template: 'mixed_basic_html'
+        });
+
+      } catch (recipientError) {
+        console.error(`❌ [MixedEmailServiceInternal] Błąd wysyłania do dodatkowego email ${email}:`, recipientError);
+
+        results.push({
+          success: false,
+          messageId: '',
+          recipientEmail: email,
+          recipientName: email,
+          recipientType: 'additional',
+          investmentCount: 0,
+          totalAmount: 0,
+          executionTimeMs: Date.now() - recipientStartTime,
+          template: 'mixed_basic_html',
+          error: recipientError.message || recipientError.toString()
+        });
+      }
+    }
+
+    // 📝 ZAPISZ HISTORIĘ WYSŁANIA MAILI
+    const successful = results.filter(r => r.success).length;
+    const failed = results.length - successful;
+    const investorResults = results.filter(r => r.recipientType === 'investor');
+    const additionalResults = results.filter(r => r.recipientType === 'additional');
+
+    const historyRecord = {
+      operation: 'scheduled_mixed_recipients_email',
+      source: 'scheduled-email-service',
+      totalRecipients: totalRecipients,
+      investorCount: recipients.length,
+      additionalEmailCount: additionalEmails.length,
+      successful: successful,
+      failed: failed,
+      successfulInvestors: investorResults.filter(r => r.success).length,
+      failedInvestors: investorResults.length - investorResults.filter(r => r.success).length,
+      successfulAdditional: additionalResults.filter(r => r.success).length,
+      failedAdditional: additionalResults.length - additionalResults.filter(r => r.success).length,
+      subject: subject,
+      senderEmail: senderEmail,
+      senderName: senderName,
+      includeInvestmentDetails: includeInvestmentDetails,
+      isGroupEmail: isGroupEmail,
+      htmlContentLength: htmlContent.length,
+      sentAt: new Date(),
+      executionTimeMs: Date.now() - startTime,
+      results: results.map(r => ({
+        recipientEmail: r.recipientEmail,
+        recipientName: r.recipientName,
+        recipientType: r.recipientType,
+        success: r.success,
+        error: r.error || null
+      }))
+    };
+
+    try {
+      await db.collection('email_history').add(historyRecord);
+      console.log(`📝 [MixedEmailServiceInternal] Historia maili zapisana`);
+    } catch (historyError) {
+      console.warn(`⚠️ [MixedEmailServiceInternal] Nie udało się zapisać historii:`, historyError);
+    }
+
+    // 🎯 ZWRÓĆ WYNIK
+    const finalResult = {
+      success: true,
+      results: results,
+      summary: {
+        total: totalRecipients,
+        successful: successful,
+        failed: failed,
+        investors: {
+          total: recipients.length,
+          successful: investorResults.filter(r => r.success).length,
+          failed: investorResults.length - investorResults.filter(r => r.success).length
+        },
+        additional: {
+          total: additionalEmails.length,
+          successful: additionalResults.filter(r => r.success).length,
+          failed: additionalResults.length - additionalResults.filter(r => r.success).length
+        },
+        successRate: totalRecipients > 0 ? (successful / totalRecipients * 100).toFixed(1) : '0.0',
+        executionTimeMs: Date.now() - startTime
+      }
+    };
+
+    console.log(`🎉 [MixedEmailServiceInternal] Wysłano ${successful}/${totalRecipients} maili pomyślnie w ${Date.now() - startTime}ms`);
+    return finalResult;
+
+  } catch (error) {
+    console.error(`❌ [MixedEmailServiceInternal] Błąd podczas wysyłania maili:`, error);
+    throw error;
+  }
+}
+
+/**
  * ✉️ Wysyła niestandardowe maile do mieszanej listy odbiorców (inwestorzy + dodatkowe emaile)
  * 
  * @param {Object} request.data - Dane żądania
@@ -1619,4 +1973,5 @@ module.exports = {
   sendCustomHtmlEmailsToMultipleClients,
   sendEmailsToMixedRecipients,
   sendPreGeneratedEmails,
+  sendEmailsToMixedRecipientsInternal, // 🚀 NOWA: Wewnętrzna funkcja dla scheduled-email-service
 };

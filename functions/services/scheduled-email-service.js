@@ -82,14 +82,75 @@ const processScheduledEmails = onSchedule({
  */
 async function processScheduledEmail(emailId, emailData) {
     console.log(`📧 [ScheduledEmailService] Processing email: ${emailId}`);
+    console.log(`📊 [ScheduledEmailService] Email data summary:`, {
+        subject: emailData.subject || 'No subject',
+        senderEmail: emailData.senderEmail || 'No sender',
+        recipientsCount: (emailData.recipientsData || []).length,
+        additionalRecipientsCount: Object.keys(emailData.additionalRecipients || {}).length,
+        includeInvestmentDetails: emailData.includeInvestmentDetails,
+        htmlContentLength: (emailData.htmlContent || '').length,
+        scheduledDateTime: emailData.scheduledDateTime?.toDate?.() || 'Unknown'
+    });
 
     try {
         // Walidacja danych
         const recipientsData = emailData.recipientsData || [];
-        if (recipientsData.length === 0) {
-            console.log(`❌ [ScheduledEmailService] No recipients for email: ${emailId}`);
+        const additionalRecipientsMap = emailData.additionalRecipients || {};
+        const totalRecipients = recipientsData.length + Object.keys(additionalRecipientsMap).length;
+
+        console.log(`📊 [ScheduledEmailService] Recipients breakdown - Main: ${recipientsData.length}, Additional: ${Object.keys(additionalRecipientsMap).length}, Total: ${totalRecipients}`);
+
+        if (totalRecipients === 0) {
+            console.log(`❌ [ScheduledEmailService] No recipients for email: ${emailId} - scheduling failed due to empty recipients`);
             await updateEmailStatus(emailId, 'failed', {
-                errorMessage: 'Brak odbiorców - email nie może zostać wysłany'
+                errorMessage: 'Brak odbiorców - email nie może zostać wysłany. Sprawdź czy odbiorcy mają prawidłowe adresy email.'
+            });
+            return;
+        }
+
+        // Walidacja głównych odbiorców
+        let validMainRecipients = 0;
+        for (const recipient of recipientsData) {
+            if (recipient.clientEmail && recipient.clientEmail.includes('@')) {
+                validMainRecipients++;
+            } else {
+                console.warn(`⚠️ [ScheduledEmailService] Invalid recipient email: ${recipient.clientName} - ${recipient.clientEmail}`);
+            }
+        }
+
+        // Walidacja dodatkowych odbiorców
+        let validAdditionalRecipients = 0;
+        for (const email of Object.keys(additionalRecipientsMap)) {
+            if (email && email.includes('@')) {
+                validAdditionalRecipients++;
+            } else {
+                console.warn(`⚠️ [ScheduledEmailService] Invalid additional email: ${email}`);
+            }
+        }
+
+        const totalValidRecipients = validMainRecipients + validAdditionalRecipients;
+
+        if (totalValidRecipients === 0) {
+            console.log(`❌ [ScheduledEmailService] No valid email addresses for email: ${emailId}`);
+            await updateEmailStatus(emailId, 'failed', {
+                errorMessage: `Brak prawidłowych adresów email - sprawdzono ${totalRecipients} odbiorców, ale żaden nie ma prawidłowego adresu email.`
+            });
+            return;
+        }
+
+        console.log(`✅ [ScheduledEmailService] Valid recipients found: ${totalValidRecipients} out of ${totalRecipients} total`);        // Dodatkowa walidacja treści
+        if (!emailData.htmlContent || emailData.htmlContent.trim().length === 0) {
+            console.log(`❌ [ScheduledEmailService] No HTML content for email: ${emailId}`);
+            await updateEmailStatus(emailId, 'failed', {
+                errorMessage: 'Brak treści wiadomości - email nie może zostać wysłany'
+            });
+            return;
+        }
+
+        if (!emailData.subject || emailData.subject.trim().length === 0) {
+            console.log(`❌ [ScheduledEmailService] No subject for email: ${emailId}`);
+            await updateEmailStatus(emailId, 'failed', {
+                errorMessage: 'Brak tematu wiadomości - email nie może zostać wysłany'
             });
             return;
         }
@@ -116,34 +177,48 @@ async function processScheduledEmail(emailId, emailData) {
         }));
 
         // Przygotuj dodatkowych odbiorców
-        const additionalRecipients = {};
+        const finalAdditionalRecipients = {};
         if (emailData.additionalRecipients) {
-            Object.assign(additionalRecipients, emailData.additionalRecipients);
+            Object.assign(finalAdditionalRecipients, emailData.additionalRecipients);
         }
 
-        // Wywołaj funkcję wysyłania emaili - używamy sendPreGeneratedEmails
+        // Wywołaj funkcję wysyłania emaili - używamy sendEmailsToMixedRecipientsInternal
         const customEmailService = require('./custom-email-service');
-        const sendFunction = customEmailService.sendPreGeneratedEmails;
 
-        // Przygotuj dane w formacie wymaganym przez sendPreGeneratedEmails
-        const completeEmailHtmlByClient = {};
-        investors.forEach(investor => {
-            completeEmailHtmlByClient[investor.client.id] = emailData.htmlContent;
-        });
-
-        const callableRequest = {
-            data: {
-                recipients: investors,
-                additionalEmails: Object.keys(additionalRecipients),
-                subject: emailData.subject || '',
-                completeEmailHtmlByClient: completeEmailHtmlByClient,
-                aggregatedEmailHtmlForAdditionals: emailData.htmlContent, // Ten sam HTML dla dodatkowych
-                senderEmail: emailData.senderEmail || '',
-                senderName: emailData.senderName || ''
-            }
+        // Przygotuj dane w formacie wymaganym przez sendEmailsToMixedRecipientsInternal
+        const callData = {
+            recipients: investors,
+            additionalEmails: Object.keys(finalAdditionalRecipients),
+            htmlContent: emailData.htmlContent,
+            subject: emailData.subject || '',
+            includeInvestmentDetails: emailData.includeInvestmentDetails || false,
+            isGroupEmail: true, // Dla zaplanowanych emaili defaultowo grupowy
+            senderEmail: emailData.senderEmail || '',
+            senderName: emailData.senderName || ''
         };
 
-        const results = await sendFunction(callableRequest);
+        // Wywołaj funkcję bezpośrednio z retry logic
+        let results;
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+            try {
+                results = await customEmailService.sendEmailsToMixedRecipientsInternal(callData);
+                break; // Sukces - wyjdź z pętli
+            } catch (retryError) {
+                retryCount++;
+                console.warn(`⚠️ [ScheduledEmailService] Retry ${retryCount}/${maxRetries} for email ${emailId}: ${retryError.message}`);
+                
+                if (retryCount >= maxRetries) {
+                    throw retryError; // Ostatnia próba - rzuć błąd
+                }
+                
+                // Czekaj przed ponowną próbą (exponential backoff)
+                const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 10000);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
 
         // Sprawdź wyniki - sendPreGeneratedEmails zwraca obiekt z results array
         const emailResults = results.results || [];
@@ -190,8 +265,6 @@ async function updateEmailStatus(emailId, status, additionalData = {}) {
     };
 
     if (additionalData.sentAt) {
-        updates.sentAt = admin.firestore.Timestamp.fromDate(additionalData.sentAt);
-        delete updates.sentAt; // Remove from additionalData to avoid duplication
         updates.sentAt = admin.firestore.Timestamp.fromDate(additionalData.sentAt);
     }
 

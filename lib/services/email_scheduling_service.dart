@@ -282,14 +282,17 @@ class EmailSchedulingService {
         '📅 [$_logTag] Recipients count: ${scheduledEmail.recipients.length}',
       );
 
-      // Wyślij email przez EmailAndExportService
-      final results = await _emailService.sendCustomEmailsToMultipleClients(
+      // Wyślij email przez EmailAndExportService - używamy nowej metody dla spójności
+      final additionalEmails = scheduledEmail.additionalRecipients.keys.toList();
+      final results = await _emailService.sendCustomEmailsToMixedRecipients(
         investors: scheduledEmail.recipients,
+        additionalEmails: additionalEmails,
         subject: scheduledEmail.subject,
         htmlContent: scheduledEmail.htmlContent,
         senderEmail: scheduledEmail.senderEmail,
         senderName: scheduledEmail.senderName,
         includeInvestmentDetails: scheduledEmail.includeInvestmentDetails,
+        isGroupEmail: true, // Zaplanowane emaile są domyślnie grupowe
       );
 
       // Sprawdź wyniki wysyłki
