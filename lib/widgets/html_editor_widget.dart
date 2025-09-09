@@ -399,6 +399,66 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
               min-height: 200px;
             }
             
+            /* Dodatkowe wymuszenie białego tła dla wszystkich elementów edytora */
+            .note-editor, .note-editing-area, .note-editor .note-editing-area .note-editable {
+              background-color: #ffffff !important;
+            }
+            
+            /* Białe tło dla iframe i webview */
+            iframe, webview {
+              background-color: #ffffff !important;
+            }
+            
+            /* Białe tło dla wszystkich divów w edytorze */
+            div, p, span {
+              background-color: transparent !important;
+            }
+            
+            /* Zapewnienie białego tła dla głównego kontenera edytora */
+            .html-editor-container {
+              background-color: #ffffff !important;
+            }
+            
+            /* Style dla czarnych elementów toolbara */
+            .note-toolbar, .note-toolbar-wrapper {
+              background-color: #ffffff !important;
+            }
+            
+            .note-toolbar .note-btn, .note-toolbar button, .note-toolbar .btn {
+              color: #000000 !important;
+              background-color: transparent !important;
+              border: 1px solid #e0e0e0 !important;
+            }
+            
+            .note-toolbar .note-btn:hover, .note-toolbar button:hover, .note-toolbar .btn:hover {
+              background-color: #f5f5f5 !important;
+              color: #000000 !important;
+            }
+            
+            .note-toolbar .note-btn.active, .note-toolbar button.active, .note-toolbar .btn.active {
+              background-color: #e3f2fd !important;
+              color: #000000 !important;
+            }
+            
+            .note-toolbar .dropdown-menu {
+              background-color: #ffffff !important;
+              color: #000000 !important;
+            }
+            
+            .note-toolbar .dropdown-menu li a {
+              color: #000000 !important;
+            }
+            
+            .note-toolbar .dropdown-menu li a:hover {
+              background-color: #f5f5f5 !important;
+              color: #000000 !important;
+            }
+            
+            /* Style dla ikon w toolbarze */
+            .note-toolbar i, .note-toolbar .fa, .note-toolbar svg {
+              color: #000000 !important;
+            }
+            
             .font-arial { font-family: 'Arial', sans-serif; }
             .font-arial-black { font-family: 'Arial Black', sans-serif; }
             .font-helvetica { font-family: 'Helvetica', 'Arial', sans-serif; }
@@ -720,10 +780,14 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
 
     return Stack(
       children: [
-        // Main HTML Editor with explicit sizing
-        SizedBox(
+        // Main HTML Editor with explicit sizing and white background
+        Container(
           width: double.infinity,
           height: widget.height - 90,
+          decoration: BoxDecoration(
+            color: Colors.white, // Wymuszenie białego tła kontenera
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: HtmlEditor(
             controller: _htmlController,
             htmlEditorOptions: HtmlEditorOptions(
@@ -765,11 +829,76 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                     }, 500);
                   ''',
                 ),
+                // Dodatkowe wymuszenie białego tła
+                WebScript(
+                  name: 'force-white-background',
+                  script: '''
+                    function forceWhiteBackground() {
+                      // Wymuszenie białego tła na wszystkich kluczowych elementach
+                      var elements = document.querySelectorAll('body, .note-editor, .note-editing-area, .note-editable, [contenteditable="true"], .ql-editor, iframe');
+                      elements.forEach(function(el) {
+                        el.style.backgroundColor = '#ffffff !important';
+                        el.style.color = '#333333 !important';
+                      });
+                      
+                      // Wymuszenie czarnych elementów toolbara
+                      var toolbarElements = document.querySelectorAll('.note-toolbar .note-btn, .note-toolbar button, .note-toolbar .btn, .note-toolbar i, .note-toolbar .fa, .note-toolbar svg');
+                      toolbarElements.forEach(function(el) {
+                        el.style.color = '#000000 !important';
+                      });
+                      
+                      // Dodaj CSS bezpośrednio do head
+                      var style = document.createElement('style');
+                      style.textContent = `
+                        body, .note-editor, .note-editing-area, .note-editable, [contenteditable="true"], .ql-editor {
+                          background-color: #ffffff !important;
+                          color: #333333 !important;
+                        }
+                        .note-toolbar, .note-toolbar-wrapper {
+                          background-color: #ffffff !important;
+                        }
+                        .note-toolbar .note-btn, .note-toolbar button, .note-toolbar .btn {
+                          color: #000000 !important;
+                          background-color: transparent !important;
+                        }
+                        .note-toolbar .note-btn:hover, .note-toolbar button:hover, .note-toolbar .btn:hover {
+                          background-color: #f5f5f5 !important;
+                          color: #000000 !important;
+                        }
+                        .note-toolbar i, .note-toolbar .fa, .note-toolbar svg {
+                          color: #000000 !important;
+                        }
+                        * {
+                          background-color: transparent !important;
+                        }
+                        body {
+                          background-color: #ffffff !important;
+                        }
+                      `;
+                      document.head.appendChild(style);
+                    }
+                    
+                    // Uruchom natychmiast i powtarzaj
+                    forceWhiteBackground();
+                    setInterval(forceWhiteBackground, 1000);
+                    
+                    // Nasłuchuj na zmiany DOM
+                    var observer = new MutationObserver(forceWhiteBackground);
+                    observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+                  ''',
+                ),
               ]),
             ),
             htmlToolbarOptions: HtmlToolbarOptions(
               toolbarPosition: ToolbarPosition.aboveEditor,
               toolbarType: ToolbarType.nativeGrid,
+              dropdownIconColor: AppTheme.backgroundPrimary,
+              dropdownBackgroundColor: AppTheme.neutralPrimary,
+              buttonFillColor: AppTheme.backgroundPrimary,
+              buttonSelectedColor: Colors.amber, // aktywne ikony
+              textStyle: TextStyle(color: AppTheme.backgroundPrimary),
+              buttonBorderColor: Colors.grey.shade700,
+              buttonColor: AppTheme.backgroundPrimary,
               customToolbarButtons: [
          
               ],
@@ -967,7 +1096,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
 
   Widget _buildPreviewView() {
     return Container(
-      decoration: BoxDecoration(color: AppTheme.backgroundPrimary),
+      decoration: BoxDecoration(color: Colors.white), // Białe tło dla preview
       child: Column(
         children: [
           // Preview header
@@ -1050,6 +1179,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                             lineHeight: const html_package.LineHeight(1.6),
                             fontFamily: 'Inter, Arial, sans-serif',
                             color: const Color(0xFF333333),
+                            backgroundColor: Colors.white, // Białe tło dla body
                           ),
                           "h1, h2, h3, h4, h5, h6": html_package.Style(
                             color: const Color(0xFF2c2c2c),
@@ -1215,7 +1345,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
   Widget _buildFallbackEditor() {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.backgroundPrimary,
+        color: Colors.white, // Białe tło dla fallback editora
         border: Border.all(
           color: AppTheme.borderPrimary.withValues(alpha: 0.3),
         ),
@@ -1260,6 +1390,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
             child: Container(
               margin: const EdgeInsets.all(8),
               decoration: BoxDecoration(
+                color: Colors.white, // Białe tło dla obszaru edycji
                 border: Border.all(
                   color: AppTheme.borderPrimary.withValues(alpha: 0.2),
                 ),
@@ -1271,11 +1402,17 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                   maxLines: null,
                   expands: true,
                   textAlignVertical: TextAlignVertical.top,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 14,
+                    color: Colors.black, // Czarny tekst na białym tle
+                  ),
                   decoration: const InputDecoration(
                     hintText:
                         'Wprowadź kod HTML...\n\nPrzykład:\n<p>Twoja wiadomość</p>\n<h2>Nagłówek</h2>\n<ul>\n  <li>Element listy</li>\n</ul>',
                     border: InputBorder.none,
+                    fillColor: Colors.white, // Białe tło pola tekstowego
+                    filled: true,
                     contentPadding: EdgeInsets.all(16),
                   ),
                   onChanged: (html) {

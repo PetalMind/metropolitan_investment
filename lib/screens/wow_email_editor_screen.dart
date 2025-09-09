@@ -67,10 +67,10 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   String _currentPreviewHtml =
       '<div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #666; font-style: italic;"><p>Ładowanie podglądu...</p></div>';
   double _previewZoomLevel = 1.0;
-  
+
   // 🆕 NEW HTML EDITOR INTEGRATION
   bool _useHtmlEditor = true; // Toggle between Quill and HTML editor
-  
+
   // 📊 ENHANCED LOADING STATE
   String _loadingMessage = 'Przygotowywanie wiadomości...';
   int _emailsSent = 0;
@@ -106,8 +106,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   DateTime? _lastAutoSaveTime;
   late UserPreferencesService _preferencesService;
 
-
-
   @override
   void initState() {
     super.initState();
@@ -119,7 +117,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     if (widget.initialMessage != null && widget.initialMessage!.isNotEmpty) {
       _contentController.text = widget.initialMessage!;
     }
-    
+
     _editorFocusNode = FocusNode();
 
     // 💾 INITIALIZE AUTO-SAVE SERVICE
@@ -227,7 +225,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
     try {
       _contentController.text = content;
-      
+
       debugPrint('🎨 Initial content loaded to HTML editor');
     } catch (e) {
       debugPrint('Error initializing content: $e');
@@ -489,22 +487,22 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     _subjectController.dispose();
     _additionalEmailController.dispose();
     _contentController.dispose();
-    
+
     // 🧹 DISPOSE ALL ANIMATION CONTROLLERS
     _settingsAnimationController.dispose();
     _editorAnimationController.dispose();
     _mainScreenController.dispose();
     _recipientsAnimationController.dispose();
-    
+
     // 🧹 STOP SERVICES
     _emailSchedulingService.stop();
-    
+
     super.dispose();
   }
 
   // 🎪 ENHANCED REAL-TIME PREVIEW UPDATER WITH DEBOUNCING
   Timer? _previewUpdateTimer;
-  
+
   void _updatePreviewContent() {
     // Cancel previous timer to debounce rapid changes
     _previewUpdateTimer?.cancel();
@@ -514,7 +512,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         setState(() {
           try {
             debugPrint('🔄 Starting preview update...');
-            
+
             // 🎨 USE HTML EDITOR CONTENT DIRECTLY (Quill removed)
             _currentPreviewHtml = _contentController.text.isNotEmpty
                 ? _contentController.text
@@ -523,40 +521,43 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
             debugPrint(
               '🎨 HTML Editor content used: ${_currentPreviewHtml.length} characters',
             );
-            
+
             debugPrint(
               '🎨 Preview HTML: ${_currentPreviewHtml.substring(0, _currentPreviewHtml.length > 200 ? 200 : _currentPreviewHtml.length)}...',
             );
 
             // 📧 DODAJ SZCZEGÓŁY INWESTYCJI JEŚLI WŁĄCZONE (asynchronicznie)
             if (_includeInvestmentDetails) {
-              _currentPreviewHtml += '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>';
-              
+              _currentPreviewHtml +=
+                  '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>';
+
               // Asynchroniczne ładowanie szczegółów inwestycji
-              _generateInvestmentDetailsHtml().then((investmentDetailsHtml) {
-                if (mounted) {
-                  setState(() {
-                    // Zamień placeholder na rzeczywiste dane
-                    _currentPreviewHtml = _currentPreviewHtml.replaceAll(
-                      '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>',
-                      investmentDetailsHtml
-                    );
+              _generateInvestmentDetailsHtml()
+                  .then((investmentDetailsHtml) {
+                    if (mounted) {
+                      setState(() {
+                        // Zamień placeholder na rzeczywiste dane
+                        _currentPreviewHtml = _currentPreviewHtml.replaceAll(
+                          '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>',
+                          investmentDetailsHtml,
+                        );
+                      });
+                    }
+                  })
+                  .catchError((e) {
+                    if (mounted) {
+                      setState(() {
+                        _currentPreviewHtml = _currentPreviewHtml.replaceAll(
+                          '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>',
+                          '<div style="margin-top: 20px; padding: 15px; background: #f8d7da; border-radius: 8px; color: #721c24;">❌ Błąd ładowania danych inwestycji</div>',
+                        );
+                      });
+                    }
                   });
-                }
-              }).catchError((e) {
-                if (mounted) {
-                  setState(() {
-                    _currentPreviewHtml = _currentPreviewHtml.replaceAll(
-                      '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>',
-                      '<div style="margin-top: 20px; padding: 15px; background: #f8d7da; border-radius: 8px; color: #721c24;">❌ Błąd ładowania danych inwestycji</div>'
-                    );
-                  });
-                }
-              });
-              
+
               debugPrint('💼 Investment details loading initiated');
             }
-            
+
             debugPrint('🎪 Preview updated with mixed editor support');
           } catch (e) {
             debugPrint('⚠️ Preview update error: $e');
@@ -603,33 +604,38 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
           // 📧 DODAJ SZCZEGÓŁY INWESTYCJI JEŚLI WŁĄCZONE (asynchronicznie)
           if (_includeInvestmentDetails) {
-            _currentPreviewHtml += '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>';
-            
+            _currentPreviewHtml +=
+                '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>';
+
             // Asynchroniczne ładowanie szczegółów inwestycji
-            _generateInvestmentDetailsHtml().then((investmentDetailsHtml) {
-              if (mounted) {
-                setState(() {
-                  // Zamień placeholder na rzeczywiste dane
-                  _currentPreviewHtml = _currentPreviewHtml.replaceAll(
-                    '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>',
-                    investmentDetailsHtml
-                  );
+            _generateInvestmentDetailsHtml()
+                .then((investmentDetailsHtml) {
+                  if (mounted) {
+                    setState(() {
+                      // Zamień placeholder na rzeczywiste dane
+                      _currentPreviewHtml = _currentPreviewHtml.replaceAll(
+                        '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>',
+                        investmentDetailsHtml,
+                      );
+                    });
+                  }
+                })
+                .catchError((e) {
+                  if (mounted) {
+                    setState(() {
+                      _currentPreviewHtml = _currentPreviewHtml.replaceAll(
+                        '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>',
+                        '<div style="margin-top: 20px; padding: 15px; background: #f8d7da; border-radius: 8px; color: #721c24;">❌ Błąd ładowania danych inwestycji</div>',
+                      );
+                    });
+                  }
                 });
-              }
-            }).catchError((e) {
-              if (mounted) {
-                setState(() {
-                  _currentPreviewHtml = _currentPreviewHtml.replaceAll(
-                    '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>',
-                    '<div style="margin-top: 20px; padding: 15px; background: #f8d7da; border-radius: 8px; color: #721c24;">❌ Błąd ładowania danych inwestycji</div>'
-                  );
-                });
-              }
-            });
-            
-            debugPrint('💼 Force update - Investment details loading initiated');
+
+            debugPrint(
+              '💼 Force update - Investment details loading initiated',
+            );
           }
-          
+
           debugPrint('🎪 Preview force updated with mixed editor support');
         } catch (e) {
           debugPrint('⚠️ Force preview update error: $e');
@@ -751,29 +757,50 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   }
 
   // 📊 NOWA IMPLEMENTACJA - Pobiera rzeczywiste dane inwestycji identycznie jak eksport
-  Future<String> _generateInvestmentDetailsHtml() async {
-    if (widget.selectedInvestors.isEmpty) {
+  // Dodano parametr allInvestors dla generowania HTML wszystkich inwestorów dla dodatkowych odbiorców
+  Future<String> _generateInvestmentDetailsHtml({
+    List<InvestorSummary>? allInvestors,
+  }) async {
+    // Jeśli nie podano allInvestors, użyj domyślnej logiki (tylko włączone inwestory)
+    final investorsToProcess = allInvestors ?? widget.selectedInvestors;
+
+    if (investorsToProcess.isEmpty) {
       return '<div style="padding: 20px; text-align: center; color: #666; font-style: italic;">Nie wybrano żadnych inwestorów.</div>';
     }
 
-    final enabledInvestors = widget.selectedInvestors
-        .where((investor) => _recipientEnabled[investor.client.id] ?? false)
-        .toList();
+    // Dla wszystkich inwestorów zawsze pokazuj wszystkich (bez filtrowania _recipientEnabled)
+    final enabledInvestors = allInvestors != null
+        ? investorsToProcess // Jeśli podano allInvestors, użyj wszystkich
+        : widget.selectedInvestors
+              .where(
+                (investor) => _recipientEnabled[investor.client.id] ?? false,
+              )
+              .toList();
 
-    if (enabledInvestors.isEmpty) {
+    if (enabledInvestors.isEmpty && allInvestors == null) {
       return '<div style="padding: 20px; text-align: center; color: #666; font-style: italic;">Brak aktywnych odbiorców z danymi inwestycyjnymi.</div>';
     }
 
     final buffer = StringBuffer();
-    
-    // Header sekcji
+
+    // Header sekcji - dostosuj tytuł w zależności od kontekstu
+    final isForAllInvestors = allInvestors != null;
+    final headerTitle = isForAllInvestors
+        ? '📈 Szczegółowe Informacje wszystkich inwestycji'
+        : '📈 Szczegółowe Informacje o Inwestycjach';
+    final headerDescription = isForAllInvestors
+        ? 'Poniżej znajdą Państwo wszystkie inwestycje wszystkich klientów:'
+        : (_isGroupEmail
+              ? 'Poniżej znajdą Państwo wszystkie inwestycje przypisane do wybranych inwestorów:'
+              : 'Poniżej znajdą Państwo Wasze inwestycje:');
+
     buffer.write('''
       <div style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 12px; border-left: 4px solid #d4af37;">
         <h3 style="margin: 0 0 16px 0; color: #2c2c2c; font-size: 18px; font-weight: 600;">
-          📈 Szczegółowe Informacje o Inwestycjach
+          $headerTitle
         </h3>
         <p style="margin: 0; color: #666; font-size: 14px;">
-          ${_isGroupEmail ? 'Poniżej znajdą Państwo wszystkie inwestycje przypisane do wybranych inwestorów:' : 'Poniżej znajdą Państwo Wasze inwestycje:'}
+          $headerDescription
         </p>
       </div>
     ''');
@@ -786,45 +813,49 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
     try {
       // 🎯 LOGIKA PERSONALIZACJI - jeśli nie grupowy, pokaż tylko pierwszego jako przykład
-      final investorsToProcess = _isGroupEmail
-          ? enabledInvestors
-          : (enabledInvestors.isNotEmpty
-                ? [enabledInvestors.first]
-                : <InvestorSummary>[]);
+      final investorsToProcess = isForAllInvestors
+          ? allInvestors
+          : (_isGroupEmail
+                ? enabledInvestors
+                : (enabledInvestors.isNotEmpty
+                      ? [enabledInvestors.first]
+                      : <InvestorSummary>[]));
 
       // Pobierz inwestycje dla każdego wybranego inwestora (lub tylko pierwszego)
       for (int index = 0; index < investorsToProcess.length; index++) {
         final investor = investorsToProcess[index];
         final clientId = investor.client.id;
         final clientName = investor.client.name;
-        
-        debugPrint('🔍 Pobieranie inwestycji dla klienta: $clientName ($clientId)');
-        
+
+        debugPrint(
+          '🔍 Pobieranie inwestycji dla klienta: $clientName ($clientId)',
+        );
+
         // Pobierz inwestycje klienta z Firebase - identycznie jak w eksporcie
         final investments = await _getInvestmentsByClientId(clientId);
-        
+
         if (investments.isNotEmpty) {
           // Oblicz podsumowania dla klienta
           double clientInvestmentAmount = 0;
           double clientRemainingCapital = 0;
           double clientRealizedCapital = 0;
-          
+
           final investmentRows = <String>[];
-          
+
           for (final investment in investments) {
             final investmentAmount = investment.investmentAmount;
             final remainingCapital = investment.remainingCapital;
             final realizedCapital = investment.realizedCapital;
-            
+
             clientInvestmentAmount += investmentAmount;
             clientRemainingCapital += remainingCapital;
             clientRealizedCapital += realizedCapital;
-            
+
             // Wiersz inwestycji
             investmentRows.add('''
               <tr style="border-bottom: 1px solid #e9ecef;">
                 <td style="padding: 12px 8px; vertical-align: top;">
-                  <div style="font-weight: 500; color: #2c2c2c; margin-bottom: 4px;">${investment.productName ?? 'Nieokreślony produkt'}</div>
+                  <div style="font-weight: 500; color: #2c2c2c; margin-bottom: 4px;">${investment.productName}</div>
                   <div style="font-size: 12px; color: #666;">ID: ${investment.id}</div>
                 </td>
                 <td style="padding: 12px 8px; text-align: right; color: #2c2c2c; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(investmentAmount)}</td>
@@ -840,13 +871,13 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
               </tr>
             ''');
           }
-          
+
           // Dodaj do globalnych statystyk
           totalInvestments += investments.length;
           totalInvestmentAmount += clientInvestmentAmount;
           totalRemainingCapital += clientRemainingCapital;
           totalRealizedCapital += clientRealizedCapital;
-          
+
           // Sekcja dla klienta
           buffer.write('''
             <div style="margin: 24px 0; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden;">
@@ -893,13 +924,19 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
           ''');
         }
       }
-      
+
       // Globalne podsumowanie
       if (totalInvestments > 0) {
+        final summaryTitle = isForAllInvestors
+            ? '📊 PODSUMOWANIE WSZYSTKICH INWESTYCJI'
+            : (_isGroupEmail
+                  ? 'PODSUMOWANIE GLOBALNE'
+                  : 'PODSUMOWANIE OSOBISTE');
+
         buffer.write('''
           <div style="margin: 32px 0 20px 0; padding: 20px; background: linear-gradient(135deg, #2c2c2c, #1a1a1a); color: #d4af37; border-radius: 12px;">
             <h3 style="margin: 0 0 16px 0; color: #d4af37; font-size: 18px; font-weight: 600; text-align: center;">
-              📊 ${_isGroupEmail ? 'PODSUMOWANIE GLOBALNE' : 'PODSUMOWANIE OSOBISTE'}
+              $summaryTitle
             </h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
               <div style="text-align: center;">
@@ -923,8 +960,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         ''');
       }
 
-     
-      
       // Footer z datą generowania
       buffer.write('''
         <div style="margin: 20px 0; padding: 16px; background: #f8f9fa; border-radius: 8px; text-align: center; font-size: 12px; color: #666;">
@@ -932,17 +967,16 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
           <p style="margin: 4px 0 0 0;">🏢 Metropolitan Investment S.A.</p>
         </div>
       ''');
-      
     } catch (e) {
       debugPrint('❌ Błąd podczas pobierania danych inwestycji: $e');
       return '''<div style="padding: 20px; text-align: center; color: #dc3545; border: 1px solid #dc3545; border-radius: 8px; background: #f8d7da;">
                  ⚠️ Wystąpił błąd podczas pobierania danych inwestycji: $e
                </div>''';
     }
-    
+
     return buffer.toString();
   }
-  
+
   // 📊 HELPER METHOD - Pobiera inwestycje klienta z Firebase
   Future<List<Investment>> _getInvestmentsByClientId(String clientId) async {
     try {
@@ -960,92 +994,12 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     }
   }
 
-  // 🔄 ZAKTUALIZOWANA WERSJA - używa nowej HTML funkcji
-  String _generateInvestmentDetailsText() {
-    // Wywołanie asynchroniczne zostanie obsłużone w _updatePreviewContent
-    return 'Ładowanie szczegółów inwestycji...';
-  }
 
-  // 🧪 TESTING HELPER - ADD SAMPLE FORMATTED CONTENT WITH FONTS
-  void _addSampleContent() {
-    final sampleContent = '''<p>Witam Szanownych Państwa!</p>
-
-<p>To jest przykład wiadomości z różnymi formatowaniami i czcionkami:</p>
-
-<p><strong style="font-family: Arial;">BOLD TEXT - pogrubione (Arial)</strong></p>
-<p><span style="font-family: 'Playfair Display';">Elegant Heading - nagłówek (Playfair Display)</span></p>
-<p><span style="font-family: 'Open Sans';">Professional Content - treść biznesowa (Open Sans)</span></p>
-<p><span style="font-family: 'Poppins';">Modern Style - nowoczesny styl (Poppins)</span></p>
-
-<p>Lista punktowana:</p>
-<ul>
-<li><span style="font-family: 'Roboto';">Pierwszy punkt (Roboto)</span></li>
-<li><span style="font-family: 'Inter';"><strong>Drugi punkt z ważną informacją (Inter)</strong></span></li>
-<li><span style="font-family: 'Lato';"><em>Trzeci punkt (Lato)</em></span></li>
-</ul>
-
-<p>Lista numerowana:</p>
-<ol>
-<li><span style="font-family: 'Montserrat';">Krok pierwszy (Montserrat)</span></li>
-<li><span style="font-family: 'Source Sans Pro';">Krok drugi (Source Sans Pro)</span></li>
-<li><span style="font-family: 'Work Sans';">Krok trzeci (Work Sans)</span></li>
-</ol>
-
-<p>Link do strony: <a href="https://metropolitan-investment.pl">https://metropolitan-investment.pl</a></p>
-
-<blockquote><span style="font-family: 'Merriweather';">"To jest cytat z ważnym komunikatem" - Merriweather</span></blockquote>
-
-<p>Kod przykładowy: <code>console.log("Hello World!");</code></p>
-
-<p>Z poważaniem,<br>
-Zespół Metropolitan Investment</p>''';
-
-    try {
-      _contentController.text = sampleContent;
-
-      // Force immediate preview update to test new conversion function
-      _forcePreviewUpdate();
-
-      debugPrint(
-        '🧪 Sample HTML content loaded for testing - preview should update immediately',
-      );
-
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.science, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Załadowano przykładową treść do testowania!'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } catch (e) {
-      debugPrint('Error loading sample content: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.error, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Błąd podczas ładowania przykładowej treści'),
-            ],
-          ),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
-  }
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
-  
+
   String _formatTimeOnly(DateTime date) {
     return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
@@ -1075,9 +1029,9 @@ Zespół Metropolitan Investment</p>''';
                 _hasUnsavedChanges = false;
                 _lastAutoSaveTime = null;
               });
-              
+
               Navigator.of(context).pop();
-              
+
               // Show confirmation
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1173,7 +1127,7 @@ Zespół Metropolitan Investment</p>''';
     final enabledInvestors = widget.selectedInvestors
         .where((investor) => _recipientEnabled[investor.client.id] ?? false)
         .toList();
-    
+
     final allEmails = <String>[
       ...enabledInvestors.map((inv) => inv.client.email),
       ..._additionalEmails,
@@ -1204,7 +1158,7 @@ Zespół Metropolitan Investment</p>''';
         _loadingMessage = 'Konwertowanie treści do HTML...';
         _loadingProgress = 0.1;
       });
-      
+
       // 🎨 GET EMAIL HTML FROM APPROPRIATE EDITOR
       String emailHtml;
       if (_useHtmlEditor) {
@@ -1220,22 +1174,39 @@ Zespół Metropolitan Investment</p>''';
             : '<p>Treść wiadomości jest pusta.</p>';
         debugPrint('📧 Using fallback HTML content');
       }
-      
+
       // 📊 NOWE PODEJŚCIE - Używamy nowej funkcji dla rzeczywistych danych inwestycji
       String finalHtml;
+      String? aggregatedInvestmentsForAdditionals;
+
       if (_includeInvestmentDetails) {
         setState(() {
           _loadingMessage = 'Pobieranie szczegółów inwestycji...';
           _loadingProgress = 0.15;
         });
-        
-        // Pobierz rzeczywiste szczegóły inwestycji z Firebase
+
+        // Pobierz rzeczywiste szczegóły inwestycji z Firebase dla inwestorów
         final investmentDetailsHtml = await _generateInvestmentDetailsHtml();
         finalHtml = emailHtml + investmentDetailsHtml;
+
+        // Jeśli są dodatkowi odbiorcy, wygeneruj HTML wszystkich inwestycji dla nich
+        if (_additionalEmails.isNotEmpty) {
+          setState(() {
+            _loadingMessage =
+                'Przygotowywanie danych dla dodatkowych odbiorców...';
+            _loadingProgress = 0.18;
+          });
+
+          // Wygeneruj HTML wszystkich inwestycji dla dodatkowych odbiorców
+          final allInvestorsHtml = await _generateInvestmentDetailsHtml(
+            allInvestors: widget.selectedInvestors,
+          );
+          aggregatedInvestmentsForAdditionals = allInvestorsHtml;
+        }
       } else {
         finalHtml = emailHtml;
       }
-      
+
       // 🎨 ENHANCED LOGGING FOR EMAIL HTML
       debugPrint('📧 Final email HTML length: ${finalHtml.length} characters');
       if (finalHtml.contains('font-family:')) {
@@ -1332,7 +1303,7 @@ Zespół Metropolitan Investment</p>''';
       });
 
       final emailService = EmailAndExportService();
-      
+
       final results = await emailService.sendCustomEmailsToMixedRecipients(
         investors: enabledInvestors,
         additionalEmails: _additionalEmails,
@@ -1342,6 +1313,8 @@ Zespół Metropolitan Investment</p>''';
         isGroupEmail: _isGroupEmail,
         senderEmail: _senderEmailController.text,
         senderName: _senderNameController.text,
+        aggregatedInvestmentsForAdditionals:
+            aggregatedInvestmentsForAdditionals,
       );
 
       // 📊 Save email history after successful sending
@@ -1357,7 +1330,8 @@ Zespół Metropolitan Investment</p>''';
       setState(() {
         _emailsSent = results.length;
         _loadingProgress = 1.0;
-        _loadingMessage = 'Wysłano $successfulEmails z ${results.length} wiadomości';
+        _loadingMessage =
+            'Wysłano $successfulEmails z ${results.length} wiadomości';
         _results = results;
         _isLoading = false;
       });
@@ -1365,7 +1339,7 @@ Zespół Metropolitan Investment</p>''';
       // 🔊 Play success sound if emails were sent successfully
       if (successfulEmails > 0) {
         await _playSuccessSound();
-        
+
         // 💾 Clear draft after successful sending
         await _preferencesService.clearEmailDraft();
         setState(() {
@@ -1581,14 +1555,6 @@ Zespół Metropolitan Investment</p>''';
     return _getEnabledRecipientsCount() + _additionalEmails.length;
   }
 
-
-
-
-
-
-
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1608,7 +1574,6 @@ Zespół Metropolitan Investment</p>''';
           ),
         ),
         actions: [
-          
           // Preview toggle button
           IconButton(
             icon: Icon(
@@ -1644,9 +1609,7 @@ Zespół Metropolitan Investment</p>''';
                         end: Alignment.bottomRight,
                         colors: [
                           AppTheme.backgroundPrimary,
-                          AppTheme.backgroundSecondary.withValues(
-                            alpha: 0.8,
-                          ),
+                          AppTheme.backgroundSecondary.withValues(alpha: 0.8),
                         ],
                       ),
                     ),
@@ -1717,32 +1680,32 @@ Zespół Metropolitan Investment</p>''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.secondaryGold.withOpacity( 0.1),
-            AppTheme.primaryColor.withOpacity( 0.1),
+            AppTheme.secondaryGold.withOpacity(0.1),
+            AppTheme.primaryColor.withOpacity(0.1),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border(
           top: BorderSide(
-            color: AppTheme.secondaryGold.withOpacity( 0.3),
+            color: AppTheme.secondaryGold.withOpacity(0.3),
             width: 2,
           ),
           left: BorderSide(
-            color: AppTheme.secondaryGold.withOpacity( 0.3),
+            color: AppTheme.secondaryGold.withOpacity(0.3),
             width: 2,
           ),
           right: BorderSide(
-            color: AppTheme.secondaryGold.withOpacity( 0.3),
+            color: AppTheme.secondaryGold.withOpacity(0.3),
             width: 2,
           ),
           bottom: BorderSide(
-            color: AppTheme.secondaryGold.withOpacity( 0.3),
+            color: AppTheme.secondaryGold.withOpacity(0.3),
             width: 2,
           ),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.secondaryGold.withOpacity( 0.1),
+            color: AppTheme.secondaryGold.withOpacity(0.1),
             blurRadius: 20,
             spreadRadius: 2,
           ),
@@ -1819,9 +1782,9 @@ Zespół Metropolitan Investment</p>''';
           vertical: isMobile ? 6 : 8,
         ),
         decoration: BoxDecoration(
-          color: _getAutoSaveIndicatorColor().withOpacity( 0.1),
+          color: _getAutoSaveIndicatorColor().withOpacity(0.1),
           border: Border.all(
-            color: _getAutoSaveIndicatorColor().withOpacity( 0.3),
+            color: _getAutoSaveIndicatorColor().withOpacity(0.3),
             width: 1,
           ),
           borderRadius: BorderRadius.circular(20),
@@ -1905,7 +1868,7 @@ Zespół Metropolitan Investment</p>''';
                   child: Icon(
                     Icons.save,
                     size: isMobile ? 12 : 14,
-                    color: _getAutoSaveIndicatorColor().withOpacity( 0.7),
+                    color: _getAutoSaveIndicatorColor().withOpacity(0.7),
                   ),
                 ),
               ),
@@ -1977,18 +1940,18 @@ Zespół Metropolitan Investment</p>''';
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppTheme.backgroundSecondary.withOpacity( 0.9),
-                AppTheme.backgroundPrimary.withOpacity( 0.7),
+                AppTheme.backgroundSecondary.withOpacity(0.9),
+                AppTheme.backgroundPrimary.withOpacity(0.7),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: AppTheme.borderPrimary.withOpacity( 0.3),
+              color: AppTheme.borderPrimary.withOpacity(0.3),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity( 0.1),
+                color: Colors.black.withOpacity(0.1),
                 blurRadius: 15,
                 spreadRadius: 1,
               ),
@@ -2133,7 +2096,7 @@ Zespół Metropolitan Investment</p>''';
             ? Icon(icon, color: AppTheme.secondaryGold)
             : null,
         filled: true,
-        fillColor: AppTheme.backgroundSecondary.withOpacity( 0.3),
+        fillColor: AppTheme.backgroundSecondary.withOpacity(0.3),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: AppTheme.borderPrimary),
@@ -2141,7 +2104,7 @@ Zespół Metropolitan Investment</p>''';
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: AppTheme.borderPrimary.withOpacity( 0.3),
+            color: AppTheme.borderPrimary.withOpacity(0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -2153,9 +2116,7 @@ Zespół Metropolitan Investment</p>''';
           borderSide: BorderSide(color: AppTheme.errorPrimary, width: 2),
         ),
         labelStyle: TextStyle(color: AppTheme.textSecondary),
-        hintStyle: TextStyle(
-          color: AppTheme.textSecondary.withOpacity( 0.7),
-        ),
+        hintStyle: TextStyle(color: AppTheme.textSecondary.withOpacity(0.7)),
       ),
       style: TextStyle(color: AppTheme.textPrimary),
     );
@@ -2239,14 +2200,14 @@ Zespół Metropolitan Investment</p>''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.backgroundSecondary.withOpacity( 0.5),
-            AppTheme.backgroundPrimary.withOpacity( 0.3),
+            AppTheme.backgroundSecondary.withOpacity(0.5),
+            AppTheme.backgroundPrimary.withOpacity(0.3),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: (value ? AppTheme.secondaryGold : AppTheme.borderPrimary)
-              .withOpacity( 0.3),
+              .withOpacity(0.3),
         ),
       ),
       child: Row(
@@ -2255,8 +2216,8 @@ Zespół Metropolitan Investment</p>''';
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: value
-                  ? AppTheme.secondaryGold.withOpacity( 0.1)
-                  : AppTheme.borderPrimary.withOpacity( 0.1),
+                  ? AppTheme.secondaryGold.withOpacity(0.1)
+                  : AppTheme.borderPrimary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -2281,10 +2242,7 @@ Zespół Metropolitan Investment</p>''';
                 SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                 ),
               ],
             ),
@@ -2293,7 +2251,7 @@ Zespół Metropolitan Investment</p>''';
             value: value,
             onChanged: onChanged,
             activeColor: AppTheme.secondaryGold,
-            activeTrackColor: AppTheme.secondaryGold.withOpacity( 0.3),
+            activeTrackColor: AppTheme.secondaryGold.withOpacity(0.3),
           ),
         ],
       ),
@@ -2312,14 +2270,12 @@ Zespół Metropolitan Investment</p>''';
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.errorPrimary.withOpacity( 0.1),
-              AppTheme.errorPrimary.withOpacity( 0.05),
+              AppTheme.errorPrimary.withOpacity(0.1),
+              AppTheme.errorPrimary.withOpacity(0.05),
             ],
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.errorPrimary.withOpacity( 0.3),
-          ),
+          border: Border.all(color: AppTheme.errorPrimary.withOpacity(0.3)),
         ),
         child: Column(
           children: [
@@ -2334,10 +2290,7 @@ Zespół Metropolitan Investment</p>''';
                 Expanded(
                   child: Text(
                     'Brak odbiorców email. Dodaj inwestorów lub dodatkowe adresy email.',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
                   ),
                 ),
               ],
@@ -2397,14 +2350,12 @@ Zespół Metropolitan Investment</p>''';
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppTheme.successPrimary.withOpacity( 0.1),
-                AppTheme.successPrimary.withOpacity( 0.05),
+                AppTheme.successPrimary.withOpacity(0.1),
+                AppTheme.successPrimary.withOpacity(0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppTheme.successPrimary.withOpacity( 0.3),
-            ),
+            border: Border.all(color: AppTheme.successPrimary.withOpacity(0.3)),
           ),
           child: Column(
             children: [
@@ -2499,19 +2450,19 @@ Zespół Metropolitan Investment</p>''';
                                       hintText: 'Wpisz adres email...',
                                       filled: true,
                                       fillColor: AppTheme.backgroundSecondary
-                                          .withOpacity( 0.3),
+                                          .withOpacity(0.3),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                         borderSide: BorderSide(
                                           color: AppTheme.borderPrimary
-                                              .withOpacity( 0.3),
+                                              .withOpacity(0.3),
                                         ),
                                       ),
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                         borderSide: BorderSide(
                                           color: AppTheme.borderPrimary
-                                              .withOpacity( 0.3),
+                                              .withOpacity(0.3),
                                         ),
                                       ),
                                       focusedBorder: OutlineInputBorder(
@@ -2560,8 +2511,9 @@ Zespół Metropolitan Investment</p>''';
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                     colors: [
-                                      AppTheme.backgroundSecondary
-                                          .withOpacity( 0.5),
+                                      AppTheme.backgroundSecondary.withOpacity(
+                                        0.5,
+                                      ),
                                       AppTheme.backgroundPrimary.withValues(
                                         alpha: 0.3,
                                       ),
@@ -2569,8 +2521,9 @@ Zespół Metropolitan Investment</p>''';
                                   ),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: AppTheme.borderPrimary
-                                        .withOpacity( 0.3),
+                                    color: AppTheme.borderPrimary.withOpacity(
+                                      0.3,
+                                    ),
                                   ),
                                 ),
                                 child: Column(
@@ -2599,7 +2552,7 @@ Zespół Metropolitan Investment</p>''';
                                           ),
                                           backgroundColor: AppTheme
                                               .secondaryGold
-                                              .withOpacity( 0.1),
+                                              .withOpacity(0.1),
                                           deleteIcon: Icon(
                                             Icons.close,
                                             size: 16,
@@ -2613,7 +2566,7 @@ Zespół Metropolitan Investment</p>''';
                                             ),
                                             side: BorderSide(
                                               color: AppTheme.secondaryGold
-                                                  .withOpacity( 0.3),
+                                                  .withOpacity(0.3),
                                             ),
                                           ),
                                         );
@@ -2655,18 +2608,19 @@ Zespół Metropolitan Investment</p>''';
                                         end: Alignment.bottomRight,
                                         colors: [
                                           AppTheme.backgroundSecondary
-                                              .withOpacity( 0.3),
+                                              .withOpacity(0.3),
                                           AppTheme.backgroundPrimary
-                                              .withOpacity( 0.2),
+                                              .withOpacity(0.2),
                                         ],
                                       ),
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
                                         color: isEnabled
                                             ? AppTheme.successPrimary
-                                                  .withOpacity( 0.3)
-                                            : AppTheme.errorPrimary
-                                                  .withOpacity( 0.3),
+                                                  .withOpacity(0.3)
+                                            : AppTheme.errorPrimary.withOpacity(
+                                                0.3,
+                                              ),
                                       ),
                                     ),
                                     child: Row(
@@ -2694,8 +2648,7 @@ Zespół Metropolitan Investment</p>''';
                                                 style: TextStyle(
                                                   color: isEnabled
                                                       ? AppTheme.textPrimary
-                                                      : AppTheme
-                                                            .textSecondary
+                                                      : AppTheme.textSecondary
                                                             .withOpacity(0.6),
                                                   fontWeight: FontWeight.w600,
                                                   fontSize: 14,
@@ -2706,10 +2659,8 @@ Zespół Metropolitan Investment</p>''';
                                                 client.email,
                                                 style: TextStyle(
                                                   color: isEnabled
-                                                      ? AppTheme
-                                                            .textSecondary
-                                                      : AppTheme
-                                                            .textSecondary
+                                                      ? AppTheme.textSecondary
+                                                      : AppTheme.textSecondary
                                                             .withOpacity(0.5),
                                                   fontSize: 12,
                                                 ),
@@ -2757,18 +2708,18 @@ Zespół Metropolitan Investment</p>''';
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppTheme.backgroundSecondary.withOpacity( 0.8),
-                  AppTheme.backgroundPrimary.withOpacity( 0.6),
+                  AppTheme.backgroundSecondary.withOpacity(0.8),
+                  AppTheme.backgroundPrimary.withOpacity(0.6),
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppTheme.secondaryGold.withOpacity( 0.5),
+                color: AppTheme.secondaryGold.withOpacity(0.5),
                 width: 2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.secondaryGold.withOpacity( 0.1),
+                  color: AppTheme.secondaryGold.withOpacity(0.1),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),
@@ -2788,8 +2739,8 @@ Zespół Metropolitan Investment</p>''';
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            AppTheme.secondaryGold.withOpacity( 0.1),
-                            AppTheme.primaryColor.withOpacity( 0.1),
+                            AppTheme.secondaryGold.withOpacity(0.1),
+                            AppTheme.primaryColor.withOpacity(0.1),
                           ],
                         ),
                         border: Border(
@@ -2917,18 +2868,18 @@ Zespół Metropolitan Investment</p>''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.backgroundSecondary.withOpacity( 0.9),
-            AppTheme.backgroundPrimary.withOpacity( 0.7),
+            AppTheme.backgroundSecondary.withOpacity(0.9),
+            AppTheme.backgroundPrimary.withOpacity(0.7),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppTheme.secondaryGold.withOpacity( 0.5),
+          color: AppTheme.secondaryGold.withOpacity(0.5),
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.secondaryGold.withOpacity( 0.1),
+            color: AppTheme.secondaryGold.withOpacity(0.1),
             blurRadius: 20,
             spreadRadius: 2,
           ),
@@ -2948,13 +2899,13 @@ Zespół Metropolitan Investment</p>''';
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      AppTheme.secondaryGold.withOpacity( 0.1),
-                      AppTheme.primaryColor.withOpacity( 0.1),
+                      AppTheme.secondaryGold.withOpacity(0.1),
+                      AppTheme.primaryColor.withOpacity(0.1),
                     ],
                   ),
                   border: Border(
                     bottom: BorderSide(
-                      color: AppTheme.borderPrimary.withOpacity( 0.3),
+                      color: AppTheme.borderPrimary.withOpacity(0.3),
                       width: 1,
                     ),
                   ),
@@ -3013,7 +2964,6 @@ Zespół Metropolitan Investment</p>''';
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                
                               ],
                             ),
                           ),
@@ -3106,130 +3056,130 @@ Zespół Metropolitan Investment</p>''';
                           }
 
                           return html_package.Html(
-                        data: _currentPreviewHtml,
-                        style: {
-                          'body': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            lineHeight: html_package.LineHeight.number(1.6),
-                            fontSize: html_package.FontSize(16),
-                            fontFamily: 'Arial, sans-serif',
-                          ),
-                          // 🎨 ENHANCED SPANS WITH FULL FONT AND COLOR SUPPORT
-                          'span': html_package.Style(
+                            data: _currentPreviewHtml,
+                            style: {
+                              'body': html_package.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                lineHeight: html_package.LineHeight.number(1.6),
+                                fontSize: html_package.FontSize(16),
+                                fontFamily: 'Arial, sans-serif',
+                              ),
+                              // 🎨 ENHANCED SPANS WITH FULL FONT AND COLOR SUPPORT
+                              'span': html_package.Style(
                                 // Let inline styles override - no default overrides
                               ),
                               // 🎨 FONT ELEMENTS - Support for different font families
                               'font': html_package.Style(
                                 // Let inline font attributes take precedence
-                          ),
-                          // 🏷️ HEADERS
-                          'h1': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: html_package.FontSize(32),
-                            margin: html_package.Margins.only(
-                              top: 16,
-                              bottom: 8,
-                            ),
-                          ),
-                          'h2': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: html_package.FontSize(24),
-                            margin: html_package.Margins.only(
-                              top: 16,
-                              bottom: 8,
-                            ),
-                          ),
-                          'h3': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: html_package.FontSize(20),
-                            margin: html_package.Margins.only(
-                              top: 16,
-                              bottom: 8,
-                            ),
-                          ),
-                          'h4': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: html_package.FontSize(18),
-                            margin: html_package.Margins.only(
-                              top: 16,
-                              bottom: 8,
-                            ),
-                          ),
-                          'h5': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: html_package.FontSize(16),
-                            margin: html_package.Margins.only(
-                              top: 16,
-                              bottom: 8,
-                            ),
-                          ),
-                          'h6': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: html_package.FontSize(14),
-                            margin: html_package.Margins.only(
-                              top: 16,
-                              bottom: 8,
-                            ),
-                          ),
-                          
-                          // 📝 PARAGRAPHS AND TEXT
-                          'p': html_package.Style(
-                            // Remove default color to allow inline styles to take precedence
-                            margin: html_package.Margins.only(bottom: 16),
-                            lineHeight: html_package.LineHeight.number(1.6),
+                              ),
+                              // 🏷️ HEADERS
+                              'h1': html_package.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: html_package.FontSize(32),
+                                margin: html_package.Margins.only(
+                                  top: 16,
+                                  bottom: 8,
+                                ),
+                              ),
+                              'h2': html_package.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: html_package.FontSize(24),
+                                margin: html_package.Margins.only(
+                                  top: 16,
+                                  bottom: 8,
+                                ),
+                              ),
+                              'h3': html_package.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: html_package.FontSize(20),
+                                margin: html_package.Margins.only(
+                                  top: 16,
+                                  bottom: 8,
+                                ),
+                              ),
+                              'h4': html_package.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: html_package.FontSize(18),
+                                margin: html_package.Margins.only(
+                                  top: 16,
+                                  bottom: 8,
+                                ),
+                              ),
+                              'h5': html_package.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: html_package.FontSize(16),
+                                margin: html_package.Margins.only(
+                                  top: 16,
+                                  bottom: 8,
+                                ),
+                              ),
+                              'h6': html_package.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: html_package.FontSize(14),
+                                margin: html_package.Margins.only(
+                                  top: 16,
+                                  bottom: 8,
+                                ),
+                              ),
+
+                              // 📝 PARAGRAPHS AND TEXT
+                              'p': html_package.Style(
+                                // Remove default color to allow inline styles to take precedence
+                                margin: html_package.Margins.only(bottom: 16),
+                                lineHeight: html_package.LineHeight.number(1.6),
                                 // Remove default fontFamily to allow inheritance
-                          ),
-                          'div': html_package.Style(
-                            // Remove default color to allow inline styles to take precedence
-                            lineHeight: html_package.LineHeight.number(1.6),
+                              ),
+                              'div': html_package.Style(
+                                // Remove default color to allow inline styles to take precedence
+                                lineHeight: html_package.LineHeight.number(1.6),
                                 // Remove default fontFamily to allow inheritance
-                          ),
+                              ),
 
                               // ✏️ TEXT FORMATTING - Enhanced support
-                          'strong': html_package.Style(
-                            fontWeight: FontWeight.bold,
-                          ),
-                          'b': html_package.Style(
-                            fontWeight: FontWeight.bold,
-                          ),
-                          'em': html_package.Style(
+                              'strong': html_package.Style(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              'b': html_package.Style(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              'em': html_package.Style(
                                 fontStyle: FontStyle.italic,
                               ),
                               'i': html_package.Style(
                                 fontStyle: FontStyle.italic,
                               ),
-                          'u': html_package.Style(
-                            textDecoration: TextDecoration.underline,
-                          ),
+                              'u': html_package.Style(
+                                textDecoration: TextDecoration.underline,
+                              ),
                               'ins': html_package.Style(
                                 textDecoration: TextDecoration.underline,
                               ),
-                          's': html_package.Style(
-                            textDecoration: TextDecoration.lineThrough,
-                          ),
-                          'del': html_package.Style(
-                            textDecoration: TextDecoration.lineThrough,
-                          ),
+                              's': html_package.Style(
+                                textDecoration: TextDecoration.lineThrough,
+                              ),
+                              'del': html_package.Style(
+                                textDecoration: TextDecoration.lineThrough,
+                              ),
                               'strike': html_package.Style(
                                 textDecoration: TextDecoration.lineThrough,
                               ),
@@ -3247,114 +3197,118 @@ Zespół Metropolitan Investment</p>''';
                                 ]),
                               ),
 
-                          // 📋 LISTS
-                          'ul': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            margin: html_package.Margins.only(
-                              left: 20,
-                              bottom: 16,
-                            ),
-                            padding: html_package.HtmlPaddings.only(left: 20),
-                          ),
-                          'ol': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            margin: html_package.Margins.only(
-                              left: 20,
-                              bottom: 16,
-                            ),
-                            padding: html_package.HtmlPaddings.only(left: 20),
-                          ),
-                          'li': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            margin: html_package.Margins.only(bottom: 8),
-                            lineHeight: html_package.LineHeight.number(1.5),
-                          ),
+                              // 📋 LISTS
+                              'ul': html_package.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                margin: html_package.Margins.only(
+                                  left: 20,
+                                  bottom: 16,
+                                ),
+                                padding: html_package.HtmlPaddings.only(
+                                  left: 20,
+                                ),
+                              ),
+                              'ol': html_package.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                margin: html_package.Margins.only(
+                                  left: 20,
+                                  bottom: 16,
+                                ),
+                                padding: html_package.HtmlPaddings.only(
+                                  left: 20,
+                                ),
+                              ),
+                              'li': html_package.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                margin: html_package.Margins.only(bottom: 8),
+                                lineHeight: html_package.LineHeight.number(1.5),
+                              ),
 
-                          // 💬 QUOTES AND CODE
-                          'blockquote': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white70
-                                : Colors.black87,
-                            margin: html_package.Margins.only(
-                              left: 20,
-                              right: 20,
-                              bottom: 16,
-                            ),
-                            padding: html_package.HtmlPaddings.all(16),
-                            backgroundColor: _isPreviewDarkTheme
-                                ? Colors.grey[800]
-                                : Colors.grey[100],
-                            fontStyle: FontStyle.italic,
-                          ),
-                          'code': html_package.Style(
-                            backgroundColor: _isPreviewDarkTheme
-                                ? Colors.grey[800]
-                                : Colors.grey[200],
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            fontFamily: 'Courier New, monospace',
-                            padding: html_package.HtmlPaddings.symmetric(
-                              horizontal: 4,
-                              vertical: 2,
-                            ),
-                            fontSize: html_package.FontSize(14),
-                          ),
-                          'pre': html_package.Style(
-                            backgroundColor: _isPreviewDarkTheme
-                                ? Colors.grey[900]
-                                : Colors.grey[100],
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            fontFamily: 'Courier New, monospace',
-                            padding: html_package.HtmlPaddings.all(12),
-                            margin: html_package.Margins.only(bottom: 16),
-                          ),
+                              // 💬 QUOTES AND CODE
+                              'blockquote': html_package.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white70
+                                    : Colors.black87,
+                                margin: html_package.Margins.only(
+                                  left: 20,
+                                  right: 20,
+                                  bottom: 16,
+                                ),
+                                padding: html_package.HtmlPaddings.all(16),
+                                backgroundColor: _isPreviewDarkTheme
+                                    ? Colors.grey[800]
+                                    : Colors.grey[100],
+                                fontStyle: FontStyle.italic,
+                              ),
+                              'code': html_package.Style(
+                                backgroundColor: _isPreviewDarkTheme
+                                    ? Colors.grey[800]
+                                    : Colors.grey[200],
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                fontFamily: 'Courier New, monospace',
+                                padding: html_package.HtmlPaddings.symmetric(
+                                  horizontal: 4,
+                                  vertical: 2,
+                                ),
+                                fontSize: html_package.FontSize(14),
+                              ),
+                              'pre': html_package.Style(
+                                backgroundColor: _isPreviewDarkTheme
+                                    ? Colors.grey[900]
+                                    : Colors.grey[100],
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                fontFamily: 'Courier New, monospace',
+                                padding: html_package.HtmlPaddings.all(12),
+                                margin: html_package.Margins.only(bottom: 16),
+                              ),
 
-                          // 🔗 LINKS
-                          'a': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.lightBlue[300]
-                                : Colors.blue[700],
-                            textDecoration: TextDecoration.underline,
-                          ),
+                              // 🔗 LINKS
+                              'a': html_package.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.lightBlue[300]
+                                    : Colors.blue[700],
+                                textDecoration: TextDecoration.underline,
+                              ),
 
-                          // 📊 TABLES (basic styling)
-                          'table': html_package.Style(
-                            width: html_package.Width(
-                              100,
-                              html_package.Unit.percent,
-                            ),
-                            margin: html_package.Margins.only(bottom: 16),
-                          ),
-                          'th': html_package.Style(
-                            backgroundColor: _isPreviewDarkTheme
-                                ? Colors.grey[700]
-                                : Colors.grey[200],
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            fontWeight: FontWeight.bold,
-                            padding: html_package.HtmlPaddings.all(8),
-                          ),
-                          'td': html_package.Style(
-                            color: _isPreviewDarkTheme
-                                ? Colors.white
-                                : Colors.black,
-                            padding: html_package.HtmlPaddings.all(8),
-                          ),
-                        },
-                        onLinkTap: (url, attributes, element) {
-                          debugPrint('🔗 Link tapped: $url');
-                          // Handle link taps if needed
-                        },
+                              // 📊 TABLES (basic styling)
+                              'table': html_package.Style(
+                                width: html_package.Width(
+                                  100,
+                                  html_package.Unit.percent,
+                                ),
+                                margin: html_package.Margins.only(bottom: 16),
+                              ),
+                              'th': html_package.Style(
+                                backgroundColor: _isPreviewDarkTheme
+                                    ? Colors.grey[700]
+                                    : Colors.grey[200],
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                fontWeight: FontWeight.bold,
+                                padding: html_package.HtmlPaddings.all(8),
+                              ),
+                              'td': html_package.Style(
+                                color: _isPreviewDarkTheme
+                                    ? Colors.white
+                                    : Colors.black,
+                                padding: html_package.HtmlPaddings.all(8),
+                              ),
+                            },
+                            onLinkTap: (url, attributes, element) {
+                              debugPrint('🔗 Link tapped: $url');
+                              // Handle link taps if needed
+                            },
                           );
                         },
                       ),
@@ -3378,14 +3332,12 @@ Zespół Metropolitan Investment</p>''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.backgroundSecondary.withOpacity( 0.8),
-            AppTheme.backgroundPrimary.withOpacity( 0.6),
+            AppTheme.backgroundSecondary.withOpacity(0.8),
+            AppTheme.backgroundPrimary.withOpacity(0.6),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppTheme.secondaryGold.withOpacity( 0.2),
-        ),
+        border: Border.all(color: AppTheme.secondaryGold.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3454,13 +3406,13 @@ Zespół Metropolitan Investment</p>''';
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [color.withOpacity( 0.1), color.withOpacity( 0.05)],
+          colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity( 0.3)),
+        border: Border.all(color: color.withOpacity(0.3)),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity( 0.1),
+            color: color.withOpacity(0.1),
             blurRadius: 10,
             spreadRadius: 1,
           ),
@@ -3522,15 +3474,15 @@ Zespół Metropolitan Investment</p>''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.errorPrimary.withOpacity( 0.1),
-            AppTheme.errorPrimary.withOpacity( 0.05),
+            AppTheme.errorPrimary.withOpacity(0.1),
+            AppTheme.errorPrimary.withOpacity(0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.errorPrimary),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.errorPrimary.withOpacity( 0.1),
+            color: AppTheme.errorPrimary.withOpacity(0.1),
             blurRadius: 15,
             spreadRadius: 1,
           ),
@@ -3566,15 +3518,15 @@ Zespół Metropolitan Investment</p>''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.successPrimary.withOpacity( 0.1),
-            AppTheme.successPrimary.withOpacity( 0.05),
+            AppTheme.successPrimary.withOpacity(0.1),
+            AppTheme.successPrimary.withOpacity(0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.successPrimary),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.successPrimary.withOpacity( 0.1),
+            color: AppTheme.successPrimary.withOpacity(0.1),
             blurRadius: 15,
             spreadRadius: 1,
           ),
@@ -3603,10 +3555,7 @@ Zespół Metropolitan Investment</p>''';
                 SizedBox(height: 4),
                 Text(
                   'Liczba wysłanych wiadomości: ${_results!.length}',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                 ),
               ],
             ),
@@ -3628,17 +3577,15 @@ Zespół Metropolitan Investment</p>''';
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.backgroundSecondary.withOpacity( 0.9),
-            AppTheme.backgroundPrimary.withOpacity( 0.7),
+            AppTheme.backgroundSecondary.withOpacity(0.9),
+            AppTheme.backgroundPrimary.withOpacity(0.7),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppTheme.secondaryGold.withOpacity( 0.3),
-        ),
+        border: Border.all(color: AppTheme.secondaryGold.withOpacity(0.3)),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.secondaryGold.withOpacity( 0.1),
+            color: AppTheme.secondaryGold.withOpacity(0.1),
             blurRadius: 20,
             spreadRadius: 2,
           ),
@@ -3791,5 +3738,3 @@ Zespół Metropolitan Investment</p>''';
     );
   }
 }
-
-
