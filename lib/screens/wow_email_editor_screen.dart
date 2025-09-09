@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart' as html_package;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../models_and_services.dart';
 import '../theme/app_theme.dart';
-import '../services/email_html_converter_service.dart';
 
 import '../widgets/html_editor_widget.dart';
 
@@ -219,18 +219,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   }
 
   void _initializeContent() {
-    final content =
-        widget.initialMessage ??
-        '''Szanowni Państwo,
-
-Przesyłamy aktualne informacje dotyczące Państwa inwestycji w Metropolitan Investment.
-
-Poniżej znajdą Państwo szczegółowe podsumowanie swojego portfela inwestycyjnego.
-
-W razie pytań prosimy o kontakt z naszym działem obsługi klienta.
-
-Z poważaniem,
-Zespół Metropolitan Investment''';
+    final content = widget.initialMessage ?? _getDefaultEmailContent();
 
     try {
       _contentController.text = content;
@@ -239,6 +228,32 @@ Zespół Metropolitan Investment''';
     } catch (e) {
       debugPrint('Error initializing content: $e');
     }
+  }
+
+  /// Get default formatted email content - matches HTML editor widget
+  String _getDefaultEmailContent() {
+    return '''
+<div style="font-family: Inter, Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #333;">
+  <h2 style="color: #2c2c2c; margin-bottom: 20px;">Szanowni Państwo,</h2>
+  
+  <p style="margin-bottom: 15px;">
+    Przesyłamy aktualne informacje dotyczące Państwa inwestycji w Metropolitan Investment.
+  </p>
+
+  <h3 style="color: #2c2c2c; margin-top: 25px; margin-bottom: 15px;">Poniżej znajdą Państwo szczegółowe podsumowanie swojego portfela inwestycyjnego. </h3>
+  <p>W razie pytań prosimy o kontakt z naszym działem obsługi klienta.</p>
+
+  
+  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+    <p style="margin-bottom: 10px;"><strong>Z poważaniem,</strong></p>
+    <p style="margin-bottom: 5px;">Zespół Metropolitan Investment</p>
+    <p style="font-size: 14px; color: #666;">
+      Tel: <a href="tel:+48123456789" style="color: #d4af37; text-decoration: none;">+48 123 456 789</a><br>
+      Email: <a href="mailto:biuro@metropolitan-investment.pl" style="color: #d4af37; text-decoration: none;">biuro@metropolitan-investment.pl</a>
+    </p>
+  </div>
+</div>
+    '''.trim();
   }
 
   // 💾 AUTO-SAVE FUNCTIONALITY IMPLEMENTATION
@@ -535,16 +550,33 @@ Zespół Metropolitan Investment''';
               '🎨 Preview HTML: ${_currentPreviewHtml.substring(0, _currentPreviewHtml.length > 200 ? 200 : _currentPreviewHtml.length)}...',
             );
 
-            // 📧 DODAJ SZCZEGÓŁY INWESTYCJI JEŚLI WŁĄCZONE (dla podglądu używamy plain text)
+            // 📧 DODAJ SZCZEGÓŁY INWESTYCJI JEŚLI WŁĄCZONE (asynchronicznie)
             if (_includeInvestmentDetails) {
-              final investmentDetailsText = _generateInvestmentDetailsText();
-              _currentPreviewHtml +=
-                  '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">' +
-                  investmentDetailsText.replaceAll('\n', '<br>') +
-                  '</div>';
-              debugPrint(
-                '💼 Investment details added: ${_currentPreviewHtml.length} characters',
-              );
+              _currentPreviewHtml += '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>';
+              
+              // Asynchroniczne ładowanie szczegółów inwestycji
+              _generateInvestmentDetailsHtml().then((investmentDetailsHtml) {
+                if (mounted) {
+                  setState(() {
+                    // Zamień placeholder na rzeczywiste dane
+                    _currentPreviewHtml = _currentPreviewHtml.replaceAll(
+                      '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>',
+                      investmentDetailsHtml
+                    );
+                  });
+                }
+              }).catchError((e) {
+                if (mounted) {
+                  setState(() {
+                    _currentPreviewHtml = _currentPreviewHtml.replaceAll(
+                      '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>',
+                      '<div style="margin-top: 20px; padding: 15px; background: #f8d7da; border-radius: 8px; color: #721c24;">❌ Błąd ładowania danych inwestycji</div>'
+                    );
+                  });
+                }
+              });
+              
+              debugPrint('💼 Investment details loading initiated');
             }
             
             debugPrint('🎪 Preview updated with mixed editor support');
@@ -591,14 +623,33 @@ Zespół Metropolitan Investment''';
             );
           }
 
-          // 📧 DODAJ SZCZEGÓŁY INWESTYCJI JEŚLI WŁĄCZONE (dla podglądu)
+          // 📧 DODAJ SZCZEGÓŁY INWESTYCJI JEŚLI WŁĄCZONE (asynchronicznie)
           if (_includeInvestmentDetails) {
-            final investmentDetailsText = _generateInvestmentDetailsText();
-            _currentPreviewHtml +=
-                '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">' +
-                investmentDetailsText.replaceAll('\n', '<br>') +
-                '</div>';
-            debugPrint('💼 Force update - Investment details added');
+            _currentPreviewHtml += '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>';
+            
+            // Asynchroniczne ładowanie szczegółów inwestycji
+            _generateInvestmentDetailsHtml().then((investmentDetailsHtml) {
+              if (mounted) {
+                setState(() {
+                  // Zamień placeholder na rzeczywiste dane
+                  _currentPreviewHtml = _currentPreviewHtml.replaceAll(
+                    '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>',
+                    investmentDetailsHtml
+                  );
+                });
+              }
+            }).catchError((e) {
+              if (mounted) {
+                setState(() {
+                  _currentPreviewHtml = _currentPreviewHtml.replaceAll(
+                    '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>',
+                    '<div style="margin-top: 20px; padding: 15px; background: #f8d7da; border-radius: 8px; color: #721c24;">❌ Błąd ładowania danych inwestycji</div>'
+                  );
+                });
+              }
+            });
+            
+            debugPrint('💼 Force update - Investment details loading initiated');
           }
           
           debugPrint('🎪 Preview force updated with mixed editor support');
@@ -721,44 +772,211 @@ Zespół Metropolitan Investment''';
     });
   }
 
-  String _generateInvestmentDetailsText() {
+  // 📊 NOWA IMPLEMENTACJA - Pobiera rzeczywiste dane inwestycji identycznie jak eksport
+  Future<String> _generateInvestmentDetailsHtml() async {
     if (widget.selectedInvestors.isEmpty) {
-      return '\n\n=== BRAK DANYCH INWESTYCYJNYCH ===\n\nNie wybrano żadnych inwestorów.\n\n';
+      return '<div style="padding: 20px; text-align: center; color: #666; font-style: italic;">Nie wybrano żadnych inwestorów.</div>';
+    }
+
+    final enabledInvestors = widget.selectedInvestors
+        .where((investor) => _recipientEnabled[investor.client.id] ?? false)
+        .toList();
+
+    if (enabledInvestors.isEmpty) {
+      return '<div style="padding: 20px; text-align: center; color: #666; font-style: italic;">Brak aktywnych odbiorców z danymi inwestycyjnymi.</div>';
     }
 
     final buffer = StringBuffer();
-    buffer.writeln('\n\n=== INFORMACJE O KLIENTACH ===\n');
+    
+    // Header sekcji
+    buffer.write('''
+      <div style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 12px; border-left: 4px solid #d4af37;">
+        <h3 style="margin: 0 0 16px 0; color: #2c2c2c; font-size: 18px; font-weight: 600;">
+          📈 Szczegółowe Informacje o Inwestycjach
+        </h3>
+        <p style="margin: 0; color: #666; font-size: 14px;">
+          Poniżej znajdą Państwo wszystkie inwestycje przypisane do wybranych inwestorów:
+        </p>
+      </div>
+    ''');
 
-    final limitedInvestors = widget.selectedInvestors.take(5).toList();
-    buffer.writeln(
-      limitedInvestors.length == 1
-          ? '👤 DANE KLIENTA:'
-          : '👥 DANE KLIENTÓW:',
-    );
+    // Statystyki globalne
+    int totalInvestments = 0;
+    double totalInvestmentAmount = 0;
+    double totalRemainingCapital = 0;
+    double totalRealizedCapital = 0;
 
-    for (int i = 0; i < limitedInvestors.length; i++) {
-      final investor = limitedInvestors[i];
-      final client = investor.client;
-
-      buffer.writeln();
-      buffer.writeln('${i + 1}. ${client.name}');
-      buffer.writeln('   📧 Email: ${client.email}');
+    try {
+      // Pobierz inwestycje dla każdego włączonego inwestora
+      for (int index = 0; index < enabledInvestors.length; index++) {
+        final investor = enabledInvestors[index];
+        final clientId = investor.client.id;
+        final clientName = investor.client.name;
+        
+        debugPrint('🔍 Pobieranie inwestycji dla klienta: $clientName ($clientId)');
+        
+        // Pobierz inwestycje klienta z Firebase - identycznie jak w eksporcie
+        final investments = await _getInvestmentsByClientId(clientId);
+        
+        if (investments.isNotEmpty) {
+          // Oblicz podsumowania dla klienta
+          double clientInvestmentAmount = 0;
+          double clientRemainingCapital = 0;
+          double clientRealizedCapital = 0;
+          
+          final investmentRows = <String>[];
+          
+          for (final investment in investments) {
+            final investmentAmount = investment.investmentAmount;
+            final remainingCapital = investment.remainingCapital;
+            final realizedCapital = investment.realizedCapital;
+            
+            clientInvestmentAmount += investmentAmount;
+            clientRemainingCapital += remainingCapital;
+            clientRealizedCapital += realizedCapital;
+            
+            // Wiersz inwestycji
+            investmentRows.add('''
+              <tr style="border-bottom: 1px solid #e9ecef;">
+                <td style="padding: 12px 8px; vertical-align: top;">
+                  <div style="font-weight: 500; color: #2c2c2c; margin-bottom: 4px;">${investment.productName ?? 'Nieokreślony produkt'}</div>
+                  <div style="font-size: 12px; color: #666;">ID: ${investment.id}</div>
+                </td>
+                <td style="padding: 12px 8px; text-align: right; color: #2c2c2c; font-weight: 500;">${_formatCurrency(investmentAmount)}</td>
+                <td style="padding: 12px 8px; text-align: right; color: #28a745; font-weight: 500;">${_formatCurrency(remainingCapital)}</td>
+                <td style="padding: 12px 8px; text-align: right; color: #007bff; font-weight: 500;">${_formatCurrency(realizedCapital)}</td>
+                <td style="padding: 12px 8px; text-align: center;">
+                  <span style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 500; 
+                               background: ${investment.status.toString() == 'InvestmentStatus.active' ? '#d4edda' : '#f8d7da'}; 
+                               color: ${investment.status.toString() == 'InvestmentStatus.active' ? '#155724' : '#721c24'};">
+                    ${investment.status == InvestmentStatus.active ? 'Aktywna' : 'Nieaktywna'}
+                  </span>
+                </td>
+              </tr>
+            ''');
+          }
+          
+          // Dodaj do globalnych statystyk
+          totalInvestments += investments.length;
+          totalInvestmentAmount += clientInvestmentAmount;
+          totalRemainingCapital += clientRemainingCapital;
+          totalRealizedCapital += clientRealizedCapital;
+          
+          // Sekcja dla klienta
+          buffer.write('''
+            <div style="margin: 24px 0; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden;">
+              <div style="background: #2c2c2c; color: #d4af37; padding: 16px;">
+                <h4 style="margin: 0; font-size: 16px; font-weight: 600;">👤 $clientName</h4>
+                <div style="margin-top: 8px; display: flex; gap: 24px; font-size: 14px;">
+                  <span>📊 Inwestycje: ${investments.length}</span>
+                  <span>💰 Kapitał pozostały: ${_formatCurrency(clientRemainingCapital)}</span>
+                </div>
+              </div>
+              
+              <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                  <thead>
+                    <tr style="background: #f8f9fa; color: #495057;">
+                      <th style="padding: 12px 8px; text-align: left; font-weight: 600;">Produkt</th>
+                      <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Kwota Inwestycji</th>
+                      <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Kapitał Pozostały</th>
+                      <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Kapitał Zrealizowany</th>
+                      <th style="padding: 12px 8px; text-align: center; font-weight: 600;">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${investmentRows.join('')}
+                    <tr style="background: #e8f5e8; font-weight: 600; border-top: 2px solid #28a745;">
+                      <td style="padding: 12px 8px;">📈 PODSUMOWANIE</td>
+                      <td style="padding: 12px 8px; text-align: right; color: #2c2c2c;">${_formatCurrency(clientInvestmentAmount)}</td>
+                      <td style="padding: 12px 8px; text-align: right; color: #28a745;">${_formatCurrency(clientRemainingCapital)}</td>
+                      <td style="padding: 12px 8px; text-align: right; color: #007bff;">${_formatCurrency(clientRealizedCapital)}</td>
+                      <td style="padding: 12px 8px; text-align: center; color: #28a745;">${investments.length} inwestycji</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ''');
+        } else {
+          // Brak inwestycji dla klienta
+          buffer.write('''
+            <div style="margin: 16px 0; padding: 16px; border: 1px solid #ffc107; border-radius: 8px; background: #fff3cd;">
+              <div style="color: #856404; font-weight: 500;">⚠️ $clientName</div>
+              <div style="color: #856404; font-size: 14px; margin-top: 4px;">Brak inwestycji w systemie</div>
+            </div>
+          ''');
+        }
+      }
+      
+      // Globalne podsumowanie
+      if (totalInvestments > 0) {
+        buffer.write('''
+          <div style="margin: 32px 0 20px 0; padding: 20px; background: linear-gradient(135deg, #2c2c2c, #1a1a1a); color: #d4af37; border-radius: 12px;">
+            <h3 style="margin: 0 0 16px 0; color: #d4af37; font-size: 18px; font-weight: 600; text-align: center;">
+              📊 PODSUMOWANIE GLOBALNE
+            </h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+              <div style="text-align: center;">
+                <div style="font-size: 24px; font-weight: 600; color: #ffffff;">$totalInvestments</div>
+                <div style="font-size: 14px; color: #d4af37;">Łączna liczba inwestycji</div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-size: 24px; font-weight: 600; color: #ffffff;">${_formatCurrency(totalInvestmentAmount)}</div>
+                <div style="font-size: 14px; color: #d4af37;">Całkowita kwota inwestycji</div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-size: 24px; font-weight: 600; color: #28a745;">${_formatCurrency(totalRemainingCapital)}</div>
+                <div style="font-size: 14px; color: #d4af37;">Kapitał pozostały</div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-size: 24px; font-weight: 600; color: #007bff;">${_formatCurrency(totalRealizedCapital)}</div>
+                <div style="font-size: 14px; color: #d4af37;">Kapitał zrealizowany</div>
+              </div>
+            </div>
+          </div>
+        ''');
+      }
+      
+      // Footer z datą generowania
+      buffer.write('''
+        <div style="margin: 20px 0; padding: 16px; background: #f8f9fa; border-radius: 8px; text-align: center; font-size: 12px; color: #666;">
+          <p style="margin: 0;">📅 Raport wygenerowany: ${_formatDate(DateTime.now())} o ${_formatTimeOnly(DateTime.now())}</p>
+          <p style="margin: 4px 0 0 0;">🏢 Metropolitan Investment S.A.</p>
+        </div>
+      ''');
+      
+    } catch (e) {
+      debugPrint('❌ Błąd podczas pobierania danych inwestycji: $e');
+      return '''<div style="padding: 20px; text-align: center; color: #dc3545; border: 1px solid #dc3545; border-radius: 8px; background: #f8d7da;">
+                 ⚠️ Wystąpił błąd podczas pobierania danych inwestycji: $e
+               </div>''';
     }
-
-    if (widget.selectedInvestors.length > 5) {
-      buffer.writeln();
-      buffer.writeln(
-        '...oraz ${widget.selectedInvestors.length - 5} innych klientów.',
-      );
-    }
-
-    buffer.writeln();
-    buffer.writeln('---');
-    buffer.writeln('Dane aktualne na dzień: ${_formatDate(DateTime.now())}');
-    buffer.writeln('Metropolitan Investment');
-    buffer.writeln();
-
+    
     return buffer.toString();
+  }
+  
+  // 📊 HELPER METHOD - Pobiera inwestycje klienta z Firebase
+  Future<List<Investment>> _getInvestmentsByClientId(String clientId) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('investments')
+          .where('clientId', isEqualTo: clientId)
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => Investment.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      debugPrint('❌ Błąd pobierania inwestycji dla klienta $clientId: $e');
+      return [];
+    }
+  }
+
+  // 🔄 ZAKTUALIZOWANA WERSJA - używa nowej HTML funkcji
+  String _generateInvestmentDetailsText() {
+    // Wywołanie asynchroniczne zostanie obsłużone w _updatePreviewContent
+    return 'Ładowanie szczegółów inwestycji...';
   }
 
   // 🧪 TESTING HELPER - ADD SAMPLE FORMATTED CONTENT WITH FONTS
@@ -843,6 +1061,10 @@ Zespół Metropolitan Investment</p>''';
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+  
+  String _formatTimeOnly(DateTime date) {
+    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   void _clearEditor() {
@@ -1016,12 +1238,20 @@ Zespół Metropolitan Investment</p>''';
         debugPrint('📧 Using fallback HTML content');
       }
       
-      final finalHtml = _includeInvestmentDetails 
-          ? EmailHtmlConverterService.addInvestmentDetailsToHtml(
-              emailHtml,
-              widget.selectedInvestors,
-            )
-          : emailHtml;
+      // 📊 NOWE PODEJŚCIE - Używamy nowej funkcji dla rzeczywistych danych inwestycji
+      String finalHtml;
+      if (_includeInvestmentDetails) {
+        setState(() {
+          _loadingMessage = 'Pobieranie szczegółów inwestycji...';
+          _loadingProgress = 0.15;
+        });
+        
+        // Pobierz rzeczywiste szczegóły inwestycji z Firebase
+        final investmentDetailsHtml = await _generateInvestmentDetailsHtml();
+        finalHtml = emailHtml + investmentDetailsHtml;
+      } else {
+        finalHtml = emailHtml;
+      }
       
       // 🎨 ENHANCED LOGGING FOR EMAIL HTML
       debugPrint('📧 Final email HTML length: ${finalHtml.length} characters');

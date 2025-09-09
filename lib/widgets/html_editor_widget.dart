@@ -688,6 +688,40 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
     }
   }
 
+  /// Get default formatted email content
+  String _getDefaultEmailContent() {
+    return '''
+<div style="font-family: Inter, Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #333;">
+  <h2 style="color: #2c2c2c; margin-bottom: 20px;">Szanowni Państwo,</h2>
+  
+  <p style="margin-bottom: 15px;">
+    Dziękujemy za zaufanie i inwestycje w nasze produkty. W załączeniu przesyłamy aktualne informacje dotyczące Państwa portfela inwestycyjnego.
+  </p>
+  
+  <h3 style="color: #2c2c2c; margin-top: 25px; margin-bottom: 15px;">Najważniejsze informacje:</h3>
+  
+  <ul style="margin-left: 20px; margin-bottom: 20px;">
+    <li style="margin-bottom: 8px;">Aktualna wartość portfela</li>
+    <li style="margin-bottom: 8px;">Status wszystkich inwestycji</li>
+    <li style="margin-bottom: 8px;">Planowane wypłaty</li>
+  </ul>
+  
+  <p style="margin-bottom: 15px;">
+    W przypadku pytań lub potrzeby dodatkowych informacji, prosimy o kontakt pod numerem telefonu lub poprzez e-mail.
+  </p>
+  
+  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+    <p style="margin-bottom: 10px;"><strong>Z poważaniem,</strong></p>
+    <p style="margin-bottom: 5px;">Zespół Metropolitan Investment</p>
+    <p style="font-size: 14px; color: #666;">
+      Tel: <a href="tel:+48123456789" style="color: #d4af37; text-decoration: none;">+48 123 456 789</a><br>
+      Email: <a href="mailto:biuro@metropolitan-investment.pl" style="color: #d4af37; text-decoration: none;">biuro@metropolitan-investment.pl</a>
+    </p>
+  </div>
+</div>
+    '''.trim();
+  }
+
   void _togglePreview() {
     setState(() {
       _showPreviewInternal = !_showPreviewInternal;
@@ -849,7 +883,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
               shouldEnsureVisible: true,
               initialText: widget.initialContent.isNotEmpty
                   ? widget.initialContent
-                  : '',
+                  : _getDefaultEmailContent(),
               autoAdjustHeight: false,
               adjustHeightForKeyboard: true,
               disabled: !widget.enabled, // Fix: use widget.enabled properly
