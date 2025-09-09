@@ -148,10 +148,9 @@ flutter:
     - assets/logos/
     - assets/audio/
     - assets/html/
-    
 
   # Local fonts configuration for Enhanced Email Editor
-fonts:
+  fonts:
   - family: CrimsonText
     fonts:
       - asset: assets/fonts/Crimson_Text/CrimsonText-Regular.ttf

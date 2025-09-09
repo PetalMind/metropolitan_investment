@@ -26,11 +26,10 @@ class AuthWrapper extends StatelessWidget {
           return const AuthLoadingScreen();
         }
 
-        // Redirect to spectacular auth if user is not logged in
+        // Redirect to professional auth if user is not logged in
         WidgetsBinding.instance.addPostFrameCallback((_) {
           context.go(
-            AppRoutes.spectacularAuth,
-          ); // 🎨 NEW: Spectacular auth experience
+            AppRoutes.proAuth); // �️ NEW: Professional auth experience
         });
         return const AuthLoadingScreen();
       },
@@ -219,11 +218,10 @@ class StreamAuthWrapper extends StatelessWidget {
           return const AuthLoadingScreen();
         }
 
-        // Redirect to spectacular auth if user is not logged in
+        // Redirect to professional auth if user is not logged in
         WidgetsBinding.instance.addPostFrameCallback((_) {
           context.go(
-            AppRoutes.spectacularAuth,
-          ); // 🎨 NEW: Spectacular auth experience
+            AppRoutes.proAuth); // �️ NEW: Professional auth experience
         });
         return const AuthLoadingScreen();
       },
