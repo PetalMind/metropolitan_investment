@@ -37,6 +37,25 @@ class EmailAttachment {
     this.metadata = const {},
   });
 
+  /// Konstruktor pomocniczy dla szybkiego tworzenia załączników
+  EmailAttachment.simple({
+    required String fileName,
+    required Uint8List content,
+    required String mimeType,
+    String? description,
+  }) : id = DateTime.now().millisecondsSinceEpoch.toString(),
+       name = fileName,
+       originalName = fileName,
+       mimeType = mimeType,
+       size = content.length,
+       description = description,
+       storageUrl = null,
+       storagePath = null,
+       data = content,
+       createdAt = DateTime.now(),
+       uploadedBy = 'current_user',
+       metadata = const {};
+
   /// Tworzy EmailAttachment z Firestore DocumentSnapshot
   factory EmailAttachment.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -147,6 +166,12 @@ class EmailAttachment {
 
   /// Sprawdza czy rozmiar pliku jest akceptowalny (max 25MB dla email)
   bool get isSizeAcceptable => size <= 25 * 1024 * 1024;
+
+  /// Alias dla fileName dla kompatybilności z różnymi API
+  String get fileName => name;
+
+  /// Alias dla content dla email service
+  Uint8List? get content => data;
 
   /// Sprawdza czy typ pliku jest bezpieczny
   bool get isSafeType {

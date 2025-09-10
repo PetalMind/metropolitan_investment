@@ -3,8 +3,10 @@ import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:flutter_html/flutter_html.dart' as html_package;
+import 'package:file_picker/file_picker.dart';
 
 import '../models_and_services.dart';
+import '../models/email_attachment.dart';
 import '../utils/email_content_utils.dart';
 
 /// 🚀 Enhanced HTML Email Editor Widget
@@ -17,6 +19,7 @@ class HtmlEditorWidget extends StatefulWidget {
   final Function()? onReady;
   final Function(bool focused)? onFocusChanged;
   final Function(String error)? onError;
+  final Function(EmailAttachment attachment)? onFileAttached;
   final double height;
   final bool enabled;
   final bool showPreview;
@@ -28,7 +31,8 @@ class HtmlEditorWidget extends StatefulWidget {
     this.onReady,
     this.onFocusChanged,
     this.onError,
-    this.height = 400,
+    this.onFileAttached,
+    this.height = 800,
     this.enabled = true,
     this.showPreview = false,
   });
@@ -783,7 +787,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
         // Main HTML Editor with explicit sizing and white background
         Container(
           width: double.infinity,
-          height: widget.height - 90,
+          height: widget.height - 60, // Zmniejszona z 90 na 60 żeby było więcej miejsca na editor
           decoration: BoxDecoration(
             color: Colors.white, // Wymuszenie białego tła kontenera
             borderRadius: BorderRadius.circular(8),
@@ -899,9 +903,6 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
               textStyle: TextStyle(color: AppTheme.backgroundPrimary),
               buttonBorderColor: Colors.grey.shade700,
               buttonColor: AppTheme.backgroundPrimary,
-              customToolbarButtons: [
-         
-              ],
               defaultToolbarButtons: [
                 StyleButtons(),
                 FontSettingButtons(
@@ -939,7 +940,7 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
                   video: false,
                   table: false,
                   hr: false,
-                  otherFile: true,
+                  otherFile: false,
                 ),
                 OtherButtons(
                   fullscreen: true, // Fullscreen domyślnie włączony
@@ -954,9 +955,30 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
               toolbarItemHeight: 40,
               gridViewHorizontalSpacing: 5,
               gridViewVerticalSpacing: 5,
+              customToolbarButtons: [
+                Container(
+                  margin: EdgeInsets.symmetric(horizontal: 2),
+                  child: InkWell(
+                    onTap: () => _showFilePickerDialog(),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppTheme.backgroundPrimary,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Icon(
+                        Icons.attach_file,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             otherOptions: OtherOptions(
-              height: widget.height - 90, // Account for toolbar and padding
+              height: widget.height - 60, // Account for toolbar and padding - zmniejszona z 90 na 60
               decoration: BoxDecoration(
                 color: Colors.white, // Domyślne białe tło edytora
                 border: Border.all(color: Colors.grey.shade300),
@@ -1480,5 +1502,106 @@ class _HtmlEditorWidgetState extends State<HtmlEditorWidget>
         ),
       ),
     );
+  }
+
+  /// Pokazuje dialog wyboru pliku
+  Future<void> _showFilePickerDialog() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+        withData: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        
+        // Sprawdź rozmiar pliku (max 25MB)
+        if (file.size > 25 * 1024 * 1024) {
+          widget.onError?.call('Plik jest za duży. Maksymalny rozmiar to 25MB.');
+          return;
+        }
+
+        // Sprawdź czy mamy dane pliku
+        if (file.bytes == null) {
+          widget.onError?.call('Błąd podczas wczytywania pliku.');
+          return;
+        }
+
+        // Utwórz EmailAttachment
+        final attachment = EmailAttachment.simple(
+          fileName: file.name,
+          content: file.bytes!,
+          mimeType: _getMimeType(file.name),
+        );
+
+        // Przekaż załącznik do parent widget
+        widget.onFileAttached?.call(attachment);
+      }
+    } catch (e) {
+      widget.onError?.call('Błąd podczas wybierania pliku: $e');
+    }
+  }
+
+  /// Określa typ MIME na podstawie rozszerzenia pliku
+  String _getMimeType(String fileName) {
+    final extension = fileName.toLowerCase().split('.').last;
+    
+    switch (extension) {
+      // Dokumenty
+      case 'pdf':
+        return 'application/pdf';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'ppt':
+        return 'application/vnd.ms-powerpoint';
+      case 'pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case 'txt':
+        return 'text/plain';
+      case 'rtf':
+        return 'application/rtf';
+      
+      // Obrazy
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'svg':
+        return 'image/svg+xml';
+      case 'webp':
+        return 'image/webp';
+      
+      // Archiwa
+      case 'zip':
+        return 'application/zip';
+      case 'rar':
+        return 'application/x-rar-compressed';
+      case '7z':
+        return 'application/x-7z-compressed';
+      
+      // Media
+      case 'mp3':
+        return 'audio/mpeg';
+      case 'mp4':
+        return 'video/mp4';
+      case 'wav':
+        return 'audio/wav';
+      case 'avi':
+        return 'video/x-msvideo';
+      
+      // Domyślny
+      default:
+        return 'application/octet-stream';
+    }
   }
 }

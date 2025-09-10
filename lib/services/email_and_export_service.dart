@@ -2,8 +2,10 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:firebase_core/firebase_core.dart';
 import '../models/investor_summary.dart';
+import '../models/email_attachment.dart';
 import 'base_service.dart';
 
 /// Serwis obsługi email i eksportu danych
@@ -594,6 +596,7 @@ class EmailAndExportService extends BaseService {
     String? aggregatedInvestmentsForAdditionals,
     required String senderEmail,
     String senderName = 'Metropolitan Investment',
+    List<EmailAttachment>? attachments,
   }) async {
     const String cacheKey = 'send_mixed_emails';
 
@@ -637,12 +640,33 @@ class EmailAndExportService extends BaseService {
           'investmentDetailsByClient': investmentDetailsByClient,
         if (aggregatedInvestmentsForAdditionals != null && aggregatedInvestmentsForAdditionals.isNotEmpty)
           'aggregatedInvestmentsForAdditionals': aggregatedInvestmentsForAdditionals,
+        if (attachments != null && attachments.isNotEmpty)
+          'attachments': attachments.where((attachment) => attachment.content != null).map((attachment) => {
+            'filename': attachment.fileName,
+            'content': base64Encode(attachment.content!),
+            'contentType': attachment.mimeType,
+            'encoding': 'base64',
+          }).toList(),
       };
 
       logDebug(
         'sendCustomEmailsToMixedRecipients',
         'Wysyłam do ${investors.length} inwestorów + ${additionalEmails.length} dodatkowych maili',
       );
+
+      // Debug załączników
+      if (attachments != null && attachments.isNotEmpty) {
+        logDebug(
+          'sendCustomEmailsToMixedRecipients',
+          'Załączniki: ${attachments.length} plików, łączny rozmiar: ${attachments.fold(0, (sum, att) => sum + att.size)} bajtów',
+        );
+        for (final attachment in attachments) {
+          logDebug(
+            'sendCustomEmailsToMixedRecipients',
+            'Załącznik: ${attachment.fileName} (${attachment.mimeType}, ${attachment.size} B)',
+          );
+        }
+      }
 
       // Wywołaj nową Firebase Functions dla mieszanych odbiorców
       final result = await FirebaseFunctions.instanceFor(

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart' as html_package;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../models_and_services.dart';
 import '../models/email_template.dart';
@@ -110,7 +111,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   bool _isLoading = false;
   bool _includeInvestmentDetails = true;
   bool _isGroupEmail = false;
-  bool _isEditorExpanded = false;
+  bool _isEditorExpanded = true; // Domyślnie rozwinięty dla lepszego doświadczenia
   bool _isSettingsCollapsed = false;
   bool _isRecipientsCollapsed = false;
   bool _isPreviewVisible = false;
@@ -1981,6 +1982,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         senderName: _senderNameController.text,
         aggregatedInvestmentsForAdditionals:
             aggregatedInvestmentsForAdditionals,
+        attachments: _attachments,
       );
 
       // 📊 Save email history after successful sending
@@ -2349,6 +2351,11 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
                             // Editor
                             _buildWowEditor(isMobile, isTablet),
+
+                            SizedBox(height: isMobile ? 16 : 24),
+
+                            // Attachments Section
+                            _buildAttachmentsSection(isMobile, isTablet),
 
                             SizedBox(height: isMobile ? 16 : 24),
 
@@ -3551,8 +3558,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                     // Editor Content
                     Container(
                       height: _isEditorExpanded
-                          ? (isMobile ? 500 : 600)
-                          : (isMobile ? 300 : 400),
+                          ? (isMobile ? 600 : (isTablet ? 750 : 900))
+                          : (isMobile ? 400 : (isTablet ? 500 : 600)),
                       padding: EdgeInsets.all(isMobile ? 8 : 12),
                       child: _buildHtmlEditor(
                         isMobile,
@@ -3572,7 +3579,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   // 📝 Metoda budująca HTML Editor
   Widget _buildHtmlEditor(bool isMobile, bool isTablet) {
     return HtmlEditorWidget(
-      height: 450, // Increased height for better editing experience
+      height: isMobile ? 500 : (isTablet ? 650 : 800), // Znacznie zwiększona wysokość w zależności od urządzenia
       showPreview: false, // Preview handled separately in main screen
       enabled: true,
       onContentChanged: (content) {
@@ -3583,6 +3590,29 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         if (kDebugMode) {
           print('🚀 HTML Editor ready in wow_email_editor_screen');
         }
+      },
+      onFileAttached: (EmailAttachment attachment) {
+        setState(() {
+          _attachments.add(attachment);
+          _markUnsavedChanges();
+        });
+        
+        // Pokaż powiadomienie o dodaniu załącznika
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.attach_file, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Dodano załącznik: ${attachment.fileName}'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
       },
       onFocusChanged: (focused) {
         if (kDebugMode) {
@@ -4692,10 +4722,604 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     }
   }
 
-  /// 💾 MARK AS HAVING UNSAVED CHANGES
+  /// 📎 ATTACHMENTS SECTION
+  Widget _buildAttachmentsSection(bool isMobile, bool isTablet) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      height: _isAttachmentsSectionCollapsed ? 60 : null,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppTheme.backgroundSecondary.withOpacity(0.9),
+              AppTheme.backgroundPrimary.withOpacity(0.7),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppTheme.borderPrimary.withOpacity(0.3),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryColor.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header
+            InkWell(
+              onTap: () {
+                setState(() {
+                  _isAttachmentsSectionCollapsed = !_isAttachmentsSectionCollapsed;
+                });
+                HapticFeedback.selectionClick();
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.secondaryGold.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.attach_file,
+                        color: AppTheme.secondaryGold,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Załączniki',
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _attachments.isEmpty
+                                ? 'Brak załączników'
+                                : '${_attachments.length} załączników (${_getTotalAttachmentSize()})',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_attachments.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondaryGold.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${_attachments.length}',
+                          style: TextStyle(
+                            color: AppTheme.secondaryGold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Icon(
+                      _isAttachmentsSectionCollapsed
+                          ? Icons.keyboard_arrow_down
+                          : Icons.keyboard_arrow_up,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Content
+            if (!_isAttachmentsSectionCollapsed)
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: _buildAttachmentsList(isMobile),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 📎 ATTACHMENTS LIST WIDGET
+  Widget _buildAttachmentsList(bool isMobile) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Add attachment button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _pickAttachment,
+            icon: Icon(Icons.add, color: AppTheme.secondaryGold),
+            label: Text(
+              'Dodaj załącznik',
+              style: TextStyle(color: AppTheme.secondaryGold),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: AppTheme.secondaryGold),
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ),
+        
+        if (_attachments.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          // Attachments list
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundSecondary.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppTheme.borderPrimary.withOpacity(0.2),
+              ),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _attachments.length,
+              separatorBuilder: (context, index) => Divider(
+                color: AppTheme.borderPrimary.withOpacity(0.2),
+                height: 1,
+              ),
+              itemBuilder: (context, index) {
+                final attachment = _attachments[index];
+                return _buildAttachmentItem(attachment, index);
+              },
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          // Total size info
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundSecondary.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: AppTheme.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Całkowity rozmiar: ${_getTotalAttachmentSize()}',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                const Spacer(),
+                if (_getTotalAttachmentSizeBytes() > 25 * 1024 * 1024)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.errorColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'Przekroczono 25MB',
+                      style: TextStyle(
+                        color: AppTheme.errorColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// 📎 ATTACHMENT ITEM WIDGET
+  Widget _buildAttachmentItem(EmailAttachment attachment, int index) {
+    final sizeStr = _formatFileSize(attachment.size);
+    final isTooBig = attachment.size > 25 * 1024 * 1024; // 25MB limit
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          // File icon
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: _getFileTypeColor(attachment.fileName).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              _getFileTypeIcon(attachment.fileName),
+              size: 16,
+              color: _getFileTypeColor(attachment.fileName),
+            ),
+          ),
+          const SizedBox(width: 12),
+          
+          // File info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  attachment.fileName,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(
+                      sizeStr,
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                    if (isTooBig) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppTheme.errorColor.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Text(
+                          'Za duży',
+                          style: TextStyle(
+                            color: AppTheme.errorColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // Actions
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => _editAttachment(index),
+                icon: Icon(
+                  Icons.edit,
+                  size: 16,
+                  color: AppTheme.textSecondary,
+                ),
+                tooltip: 'Edytuj nazwę',
+              ),
+              IconButton(
+                onPressed: () => _removeAttachment(index),
+                icon: Icon(
+                  Icons.delete,
+                  size: 16,
+                  color: AppTheme.errorColor,
+                ),
+                tooltip: 'Usuń załącznik',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 📎 GET TOTAL ATTACHMENT SIZE IN BYTES
+  int _getTotalAttachmentSizeBytes() {
+    return _attachments.fold<int>(0, (total, attachment) => total + attachment.size);
+  }
+
+  /// 📎 FORMAT FILE SIZE
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) {
+      return '$bytes B';
+    } else if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    } else {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+  }
+
+  /// 📎 GET FILE TYPE ICON
+  IconData _getFileTypeIcon(String filename) {
+    final extension = filename.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'doc':
+      case 'docx':
+        return Icons.description;
+      case 'xls':
+      case 'xlsx':
+        return Icons.table_chart;
+      case 'ppt':
+      case 'pptx':
+        return Icons.slideshow;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+        return Icons.image;
+      case 'zip':
+      case 'rar':
+      case '7z':
+        return Icons.archive;
+      default:
+        return Icons.attach_file;
+    }
+  }
+
+  /// 📎 GET FILE TYPE COLOR
+  Color _getFileTypeColor(String filename) {
+    final extension = filename.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'pdf':
+        return Colors.red;
+      case 'doc':
+      case 'docx':
+        return Colors.blue;
+      case 'xls':
+      case 'xlsx':
+        return Colors.green;
+      case 'ppt':
+      case 'pptx':
+        return Colors.orange;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+        return Colors.purple;
+      case 'zip':
+      case 'rar':
+      case '7z':
+        return Colors.amber;
+      default:
+        return AppTheme.textSecondary;
+    }
+  }
+
+  /// 📎 PICK ATTACHMENT
+  Future<void> _pickAttachment() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+        withData: true, // Need file data for email attachment
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        
+        // Check file size (max 25MB per attachment)
+        if (file.size > 25 * 1024 * 1024) {
+          _showErrorDialog('Plik jest za duży', 'Maksymalny rozmiar pojedynczego załącznika to 25MB. Wybrany plik ma ${_formatFileSize(file.size)}.');
+          return;
+        }
+        
+        // Check total size (max 50MB total)
+        final totalSize = _getTotalAttachmentSizeBytes() + file.size;
+        if (totalSize > 50 * 1024 * 1024) {
+          _showErrorDialog('Przekroczono limit', 'Całkowity rozmiar załączników nie może przekraczać 50MB. Aktualnie: ${_getTotalAttachmentSize()}, po dodaniu: ${_formatFileSize(totalSize)}.');
+          return;
+        }
+
+        final attachment = EmailAttachment.simple(
+          fileName: file.name,
+          content: file.bytes!,
+          mimeType: file.extension != null ? _getContentType(file.extension!) : 'application/octet-stream',
+        );
+
+        setState(() {
+          _attachments.add(attachment);
+        });
+
+        _markUnsavedChanges();
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Dodano załącznik: ${file.name}'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      _showErrorDialog('Błąd', 'Nie udało się dodać załącznika: $e');
+    }
+  }
+
+  /// 📎 REMOVE ATTACHMENT
+  void _removeAttachment(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Usuń załącznik'),
+        content: Text('Czy na pewno chcesz usunąć załącznik "${_attachments[index].fileName}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Anuluj'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              setState(() {
+                _attachments.removeAt(index);
+              });
+              _markUnsavedChanges();
+            },
+            child: Text('Usuń', style: TextStyle(color: AppTheme.errorColor)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 📎 EDIT ATTACHMENT
+  void _editAttachment(int index) {
+    final attachment = _attachments[index];
+    final controller = TextEditingController(text: attachment.fileName);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Edytuj nazwę załącznika'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                labelText: 'Nazwa pliku',
+                border: OutlineInputBorder(),
+              ),
+              autofocus: true,
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Rozmiar: ${_formatFileSize(attachment.size)}',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Anuluj'),
+          ),
+          TextButton(
+            onPressed: () {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty && newName != attachment.fileName) {
+                setState(() {
+                  _attachments[index] = attachment.copyWith(
+                    name: newName,
+                  );
+                });
+                _markUnsavedChanges();
+              }
+              Navigator.of(context).pop();
+            },
+            child: Text('Zapisz'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 📎 GET CONTENT TYPE
+  String _getContentType(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'ppt':
+        return 'application/vnd.ms-powerpoint';
+      case 'pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'zip':
+        return 'application/zip';
+      case 'txt':
+        return 'text/plain';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  /// 📎 SHOW ERROR DIALOG
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.error, color: AppTheme.errorColor),
+            SizedBox(width: 12),
+            Text(title),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 📎 MARK UNSAVED CHANGES
   void _markUnsavedChanges() {
     setState(() {
       _hasUnsavedChanges = true;
     });
   }
+
 }

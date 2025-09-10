@@ -59,6 +59,7 @@ function loadEmailStyles() {
  * @param {string} request.data.aggregatedEmailHtmlForAdditionals - Kompletny HTML dla dodatkowych odbiorców
  * @param {string} request.data.senderEmail - Email wysyłającego
  * @param {string} request.data.senderName - Nazwa wysyłającego
+ * @param {Array} request.data.attachments - Lista załączników email (base64)
  * @returns {Promise<Object>} Wyniki wysyłania
  */
 const sendPreGeneratedEmails = onCall(async (request) => {
@@ -183,6 +184,7 @@ const sendPreGeneratedEmails = onCall(async (request) => {
           subject: subject,
           html: normalizedHtml,
           text: stripHtmlTags(normalizedHtml),
+          attachments: request.data.attachments || [],
         };
 
         const emailResult = await transporter.sendMail(mailOptions);
@@ -251,6 +253,7 @@ const sendPreGeneratedEmails = onCall(async (request) => {
           subject: subject,
           html: normalizedHtml,
           text: stripHtmlTags(normalizedHtml),
+          attachments: request.data.attachments || [],
         };
 
         const emailResult = await transporter.sendMail(mailOptions);
@@ -359,6 +362,7 @@ const sendPreGeneratedEmails = onCall(async (request) => {
  * Używana przez scheduled-email-service.js - nie jest owijana w onCall.
  * 
  * @param {Object} data - Dane wejściowe (bez request wrapper)
+ * @param {Array} data.attachments - Lista załączników email (base64)
  * @returns {Promise<Object>} Wyniki wysyłania
  */
 async function sendEmailsToMixedRecipientsInternal(data) {
@@ -385,7 +389,8 @@ async function sendEmailsToMixedRecipientsInternal(data) {
       investmentDetailsByClient = null,
       aggregatedInvestmentsForAdditionals = null,
       senderEmail,
-      senderName = 'Metropolitan Investment'
+      senderName = 'Metropolitan Investment',
+      attachments = []
     } = data;
 
     // 🔍 WALIDACJA DANYCH WEJŚCIOWYCH
@@ -489,6 +494,7 @@ async function sendEmailsToMixedRecipientsInternal(data) {
           subject: subject,
           html: normalizedHtml,
           text: stripHtmlTags(normalizedHtml),
+          attachments: data.attachments || [],
         };
 
         const emailResult = await transporter.sendMail(mailOptions);
@@ -596,6 +602,7 @@ async function sendEmailsToMixedRecipientsInternal(data) {
           subject: subject,
           html: normalizedHtml,
           text: stripHtmlTags(normalizedHtml),
+          attachments: data.attachments || [],
         };
 
         const emailResult = await transporter.sendMail(mailOptions);
@@ -717,6 +724,7 @@ async function sendEmailsToMixedRecipientsInternal(data) {
  * @param {boolean} request.data.includeInvestmentDetails - Czy dołączyć szczegóły inwestycji
  * @param {string} request.data.senderEmail - Email wysyłającego
  * @param {string} request.data.senderName - Nazwa wysyłającego
+ * @param {Array} request.data.attachments - Lista załączników email (base64)
  * @returns {Promise<Object>} Wyniki wysyłania
  */
 const sendEmailsToMixedRecipients = onCall(async (request) => {
@@ -745,7 +753,8 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
       investmentDetailsByClient = null,
       aggregatedInvestmentsForAdditionals = null,
       senderEmail,
-      senderName = 'Metropolitan Investment'
+      senderName = 'Metropolitan Investment',
+      attachments = []
     } = request.data;
 
     // 🔍 WALIDACJA DANYCH WEJŚCIOWYCH
@@ -865,6 +874,7 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
           subject: subject,
           html: normalizedHtml,
           text: stripHtmlTags(normalizedHtml),
+          attachments: request.data.attachments || [],
         };
 
         const emailResult = await transporter.sendMail(mailOptions);
@@ -974,6 +984,7 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
           subject: subject,
           html: normalizedHtml,
           text: stripHtmlTags(normalizedHtml),
+          attachments: request.data.attachments || [],
         };
 
         const emailResult = await transporter.sendMail(mailOptions);
