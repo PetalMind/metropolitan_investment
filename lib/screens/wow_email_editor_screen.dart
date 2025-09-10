@@ -1348,6 +1348,165 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     }
   }
 
+  // 📊 NOWA FUNKCJA - Generuje dane inwestycji dla pojedynczego klienta (nie wszystkich)
+  Future<String> _generateInvestmentDetailsForClient(
+    String clientId,
+    String clientName,
+  ) async {
+    // 🚀 CACHE KEY dla pojedynczego klienta
+    final cacheKey = 'client_${clientId}_investment_details';
+
+    // 📋 Sprawdź cache
+    if (_investmentDetailsCache.containsKey(cacheKey)) {
+      debugPrint(
+        '✅ [CACHE] Using cached investment details for client $clientId',
+      );
+      return _investmentDetailsCache[cacheKey]!;
+    }
+
+    debugPrint(
+      '🔍 [INDIVIDUAL CLIENT] Generating investment details for: $clientName ($clientId)',
+    );
+
+    try {
+      // Pobierz inwestycje tylko dla tego klienta
+      final investments = await _getInvestmentsByClientId(clientId);
+
+      if (investments.isEmpty) {
+        final emptyMessage =
+            '''
+          <div style="margin: 20px 0; padding: 16px; border: 1px solid #ffc107; border-radius: 8px; background: #fff3cd;">
+            <div style="color: #856404; font-weight: 500;">⚠️ $clientName</div>
+            <div style="color: #856404; font-size: 14px; margin-top: 4px;">Brak inwestycji w systemie</div>
+          </div>
+        ''';
+        _investmentDetailsCache[cacheKey] = emptyMessage;
+        return emptyMessage;
+      }
+
+      // Oblicz podsumowania dla klienta
+      double clientInvestmentAmount = 0;
+      double clientRemainingCapital = 0;
+      double clientRealizedCapital = 0;
+      double clientCapitalSecuredByRealEstate = 0;
+      double clientCapitalForRestructuring = 0;
+
+      final investmentRows = <String>[];
+
+      for (final investment in investments) {
+        final investmentAmount = investment.investmentAmount;
+        final remainingCapital = investment.remainingCapital;
+        final realizedCapital = investment.realizedCapital;
+        final capitalSecuredByRealEstate =
+            investment.capitalSecuredByRealEstate;
+        final capitalForRestructuring = investment.capitalForRestructuring;
+
+        clientInvestmentAmount += investmentAmount;
+        clientRemainingCapital += remainingCapital;
+        clientRealizedCapital += realizedCapital;
+        clientCapitalSecuredByRealEstate += capitalSecuredByRealEstate;
+        clientCapitalForRestructuring += capitalForRestructuring;
+
+        // Wiersz inwestycji
+        investmentRows.add('''
+          <tr style="border-bottom: 1px solid #e9ecef;">
+            <td style="padding: 12px 8px; vertical-align: top;">
+              <div style="font-weight: 500; color: #2c2c2c; margin-bottom: 4px;">${investment.productName}</div>
+              <div style="font-size: 12px; color: #666;">${investment.productType.displayName}</div>
+            </td>
+            <td style="padding: 12px 8px; text-align: right; color: #2c2c2c; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(investmentAmount)}</td>
+            <td style="padding: 12px 8px; text-align: right; color: #28a745; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(remainingCapital)}</td>
+            <td style="padding: 12px 8px; text-align: right; color: #007bff; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(realizedCapital)}</td>
+            <td style="padding: 12px 8px; text-align: right; color: #ff6b35; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(capitalSecuredByRealEstate)}</td>
+            <td style="padding: 12px 8px; text-align: right; color: #ffa500; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(capitalForRestructuring)}</td>
+            <td style="padding: 12px 8px; text-align: center;">
+              <span style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 500; 
+                           background: ${investment.status.toString() == 'InvestmentStatus.active' ? '#d4edda' : '#f8d7da'}; 
+                           color: ${investment.status.toString() == 'InvestmentStatus.active' ? '#155724' : '#721c24'};">
+                ${investment.status == InvestmentStatus.active ? 'Aktywna' : 'Nieaktywna'}
+              </span>
+            </td>
+          </tr>
+        ''');
+      }
+
+      // Generuj HTML dla pojedynczego klienta
+      final result =
+          '''
+        <div style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 12px; border-left: 4px solid #d4af37;">
+          <h3 style="margin: 0 0 16px 0; color: #2c2c2c; font-size: 18px; font-weight: 600;">
+            📊 Podsumowanie Portfela
+          </h3>
+          <p style="margin: 0; color: #666; font-size: 14px;">
+            Personalizowane zestawienie inwestycji dla: $clientName
+          </p>
+        </div>
+        
+        <div style="margin: 24px 0; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden;">
+          <div style="background: #2c2c2c; color: #d4af37; padding: 16px;">
+            <h4 style="margin: 0; font-size: 16px; font-weight: 600;">👤 $clientName</h4>
+            <div style="margin-top: 8px; display: flex; gap: 24px; font-size: 14px;">
+              <span>📊 Inwestycje: ${investments.length}</span>
+              <span>💰 Kapitał pozostały: ${CurrencyFormatter.formatCurrencyForEmail(clientRemainingCapital)}</span>
+            </div>
+          </div>
+          
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+              <thead>
+                <tr style="background: #f8f9fa; color: #495057;">
+                  <th style="padding: 12px 8px; text-align: left; font-weight: 600;">Produkt</th>
+                  <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Kwota Inwestycji</th>
+                  <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Kapitał Pozostały</th>
+                  <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Kapitał Zrealizowany</th>
+                  <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Kapitał Zabezpieczony</th>
+                  <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Kapitał do Restrukturyzacji</th>
+                  <th style="padding: 12px 8px; text-align: center; font-weight: 600;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${investmentRows.join('')}
+                <tr style="background: #e8f5e8; font-weight: 600; border-top: 2px solid #28a745;">
+                  <td style="padding: 12px 8px;">📈 PODSUMOWANIE</td>
+                  <td style="padding: 12px 8px; text-align: right; color: #2c2c2c;">${CurrencyFormatter.formatCurrencyForEmail(clientInvestmentAmount)}</td>
+                  <td style="padding: 12px 8px; text-align: right; color: #28a745;">${CurrencyFormatter.formatCurrencyForEmail(clientRemainingCapital)}</td>
+                  <td style="padding: 12px 8px; text-align: right; color: #007bff;">${CurrencyFormatter.formatCurrencyForEmail(clientRealizedCapital)}</td>
+                  <td style="padding: 12px 8px; text-align: right; color: #ff6b35;">${CurrencyFormatter.formatCurrencyForEmail(clientCapitalSecuredByRealEstate)}</td>
+                  <td style="padding: 12px 8px; text-align: right; color: #ffa500;">${CurrencyFormatter.formatCurrencyForEmail(clientCapitalForRestructuring)}</td>
+                  <td style="padding: 12px 8px; text-align: center; color: #28a745;">${investments.length} inwestycji</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ''';
+
+      // 🚀 CACHE RESULT for future use
+      _investmentDetailsCache[cacheKey] = result;
+
+      debugPrint(
+        '✅ [INDIVIDUAL CLIENT] Generated ${result.length} characters for $clientName with ${investments.length} investments',
+      );
+
+      return result;
+    } catch (e) {
+      debugPrint(
+        '❌ [INDIVIDUAL CLIENT] Error generating data for $clientName: $e',
+      );
+
+      final errorMessage =
+          '''
+        <div style="margin: 20px 0; padding: 16px; border: 1px solid #dc3545; border-radius: 8px; background: #f8d7da;">
+          <div style="color: #721c24; font-weight: 500;">❌ $clientName</div>
+          <div style="color: #721c24; font-size: 14px; margin-top: 4px;">Błąd podczas pobierania danych inwestycji</div>
+        </div>
+      ''';
+
+      _investmentDetailsCache[cacheKey] = errorMessage;
+      return errorMessage;
+    }
+  }
+
 
 
   String _formatDate(DateTime date) {
@@ -1548,9 +1707,10 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         debugPrint('📧 Using fallback HTML content');
       }
 
-      // 📊 NOWE PODEJŚCIE - Używamy nowej funkcji dla rzeczywistych danych inwestycji
-      String finalHtml;
+      // 📊 NOWE PODEJŚCIE - Generujemy mapę danych per klient dla indywidualnych emaili
+      String finalHtml = emailHtml;
       String? aggregatedInvestmentsForAdditionals;
+      Map<String, String>? investmentDetailsByClient;
 
       if (_includeInvestmentDetails) {
         setState(() {
@@ -1558,16 +1718,45 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
           _loadingProgress = 0.15;
         });
 
-        // Pobierz rzeczywiste szczegóły inwestycji z Firebase dla inwestorów
-        debugPrint(
-          '📤 Calling _generateInvestmentDetailsHtml for selected investors (${widget.selectedInvestors.length} total)',
-        );
-        final investmentDetailsHtml = await _generateInvestmentDetailsHtml(
-          type: RecipientType.main,
-        );
-        finalHtml = emailHtml + investmentDetailsHtml;
-      } else {
-        finalHtml = emailHtml;
+        // 🔥 KLUCZOWA POPRAWKA: Generuj dane PER KLIENT dla indywidualnych emaili
+        if (!_isGroupEmail) {
+          debugPrint(
+            '🔍 [EMAIL INDIVIDUAL] Generuję dane per klient dla ${enabledInvestors.length} inwestorów',
+          );
+
+          investmentDetailsByClient = <String, String>{};
+
+          // Generuj dane dla każdego włączonego inwestora osobno
+          for (final investor in enabledInvestors) {
+            debugPrint(
+              '� [EMAIL INDIVIDUAL] Generuję dane dla ${investor.client.name} (${investor.client.id})',
+            );
+
+            final individualHtml = await _generateInvestmentDetailsForClient(
+              investor.client.id,
+              investor.client.name,
+            );
+
+            investmentDetailsByClient[investor.client.id] = individualHtml;
+
+            debugPrint(
+              '✅ [EMAIL INDIVIDUAL] Wygenerowano ${individualHtml.length} znaków dla ${investor.client.name}',
+            );
+          }
+
+          debugPrint(
+            '✅ [EMAIL INDIVIDUAL] Mapa danych per klient gotowa: ${investmentDetailsByClient.keys.length} klientów',
+          );
+        } else {
+          // Tryb grupowy - użyj istniejącej logiki
+          debugPrint(
+            '📤 [EMAIL GROUP] Calling _generateInvestmentDetailsHtml for group email (${widget.selectedInvestors.length} total)',
+          );
+          final investmentDetailsHtml = await _generateInvestmentDetailsHtml(
+            type: RecipientType.main,
+          );
+          finalHtml = emailHtml + investmentDetailsHtml;
+        }
       }
 
       // 🔥 WAŻNE: Zawsze generuj dane dla dodatkowych odbiorców, niezależnie od _includeInvestmentDetails
@@ -1787,6 +1976,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         htmlContent: finalHtml,
         includeInvestmentDetails: _includeInvestmentDetails,
         isGroupEmail: _isGroupEmail,
+        investmentDetailsByClient: investmentDetailsByClient,
         senderEmail: _senderEmailController.text,
         senderName: _senderNameController.text,
         aggregatedInvestmentsForAdditionals:
