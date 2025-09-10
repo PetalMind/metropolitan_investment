@@ -35,7 +35,12 @@ const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
 // === Przywrócona definicja widgetu i stanu ===
 class PremiumInvestorAnalyticsScreen extends StatefulWidget {
   final String? initialSearchQuery;
-  const PremiumInvestorAnalyticsScreen({super.key, this.initialSearchQuery});
+  final String? showClientId;
+  const PremiumInvestorAnalyticsScreen({
+    super.key, 
+    this.initialSearchQuery,
+    this.showClientId,
+  });
   @override
   State<PremiumInvestorAnalyticsScreen> createState() =>
       _PremiumInvestorAnalyticsScreenState();
@@ -697,6 +702,15 @@ class _PremiumInvestorAnalyticsScreenState
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _applyFiltersAndSort();
+        }
+      });
+    }
+
+    // 🚀 NOWA FUNKCJONALNOŚĆ: Jeśli mamy showClientId, znajdź i pokaż tego inwestora
+    if (widget.showClientId != null && widget.showClientId!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _handleShowClient(widget.showClientId!);
         }
       });
     }
@@ -2994,6 +3008,53 @@ class _PremiumInvestorAnalyticsScreenState
   // === RBAC aliasy i brakujące metody używane w UI (oryginalnie w extension) ===
   void _clearSelection() => _deselectAllInvestors();
   void _selectAllVisibleInvestors() => _selectAllInvestors();
+
+  /// 🚀 NOWA METODA: Obsługuje pokazanie konkretnego klienta po załadowaniu danych
+  void _handleShowClient(String clientId) {
+    print('🎯 [PremiumAnalytics] Szukam klienta o ID: $clientId');
+    
+    // Najpierw szukaj po dokładnym ID
+    InvestorSummary? investor;
+    try {
+      investor = _allInvestors.firstWhere((inv) => inv.client.id == clientId);
+    } catch (e) {
+      // Jeśli nie znaleziono po ID, szukaj po nazwie (fallback)
+      try {
+        investor = _allInvestors.firstWhere(
+          (inv) => inv.client.name.toLowerCase().contains(clientId.toLowerCase()),
+        );
+      } catch (e) {
+        investor = null;
+      }
+    }
+    
+    if (investor != null) {
+      print('✅ [PremiumAnalytics] Znaleziono inwestora: ${investor.client.name}');
+      
+      // Przejdź na zakładkę Inwestorzy (index 1)
+      _tabController.animateTo(1);
+      
+      // Krótkie opóźnienie aby tab się załadował, potem pokaż dialog
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _showInvestorDetails(investor!);
+        }
+      });
+    } else {
+      print('❌ [PremiumAnalytics] Nie znaleziono klienta o ID: $clientId');
+      
+      // Pokaż komunikat o błędzie
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Nie znaleziono klienta o ID: $clientId'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
 
   // 🚀 NOWE METODY POMOCNICZE DLA UJEDNOLICENIA Z DASHBOARD
 

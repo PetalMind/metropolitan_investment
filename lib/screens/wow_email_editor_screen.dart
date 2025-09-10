@@ -10,13 +10,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models_and_services.dart';
 import '../models/email_template.dart';
 import '../models/email_attachment.dart';
-import '../theme/app_theme.dart';
 
 import '../widgets/html_editor_widget.dart';
 import '../widgets/email/email_template_selector.dart';
-import '../widgets/email/attachment_manager_widget.dart';
 import '../utils/email_content_utils.dart';
-import '../utils/currency_formatter.dart';
 
 /// **🚀 WOW EMAIL EDITOR SCREEN - NAJPIĘKNIEJSZY SCREEN W FLUTTER! 🚀**
 ///
@@ -41,6 +38,58 @@ class WowEmailEditorScreen extends StatefulWidget {
 
   @override
   State<WowEmailEditorScreen> createState() => _WowEmailEditorScreenState();
+}
+
+// 🎯 UJEDNOLICONY ENUM dla typów odbiorców z flagami
+enum RecipientType {
+  main,
+  additional,
+  preview;
+
+  // 🏷️ WŁAŚCIWOŚCI OKREŚLAJĄCE ZACHOWANIE (uproszczone)
+  bool get includesAllInvestors {
+    switch (this) {
+      case RecipientType.additional:
+      case RecipientType.preview:
+        return true; // Wszystkie inwestycje
+      case RecipientType.main:
+        return false; // Firebase określa logikę
+    }
+  }
+
+  String get displayName {
+    switch (this) {
+      case RecipientType.main:
+        return 'Główni odbiorcy';
+      case RecipientType.additional:
+        return 'Dodatkowi odbiorcy';
+      case RecipientType.preview:
+        return 'Podgląd';
+    }
+  }
+
+  // 🎨 UJEDNOLICONE NAGŁÓWKI dla każdego typu
+  (String title, String description) getHeaders(bool isGroupEmail) {
+    switch (this) {
+      case RecipientType.additional:
+        return (
+          '📈 Szczegółowe Informacje wszystkich inwestycji',
+          'Poniżej znajdą Państwo wszystkie inwestycje wszystkich wybranych klientów:',
+        );
+      case RecipientType.preview:
+        return (
+          '👀 Podgląd: Szczegółowe Informacje o Investycjach',
+          'Podgląd wiadomości - pokazuje wszystkie inwestycje wybranych klientów:',
+        );
+      case RecipientType.main:
+        return (
+          '📈 Szczegółowe Informacje o Inwestycjach',
+          isGroupEmail
+              ? 'Poniżej znajdą Państwo wszystkie inwestycje przypisane do wybranych inwestorów:'
+              : 'Poniżej znajdą Państwo Wasze inwestycje:',
+        );
+    }
+  }
 }
 
 class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
@@ -582,8 +631,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
               _currentPreviewHtml +=
                   '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>';
 
-              // Asynchroniczne ładowanie szczegółów inwestycji
-              _generateInvestmentDetailsHtml()
+              // Asynchroniczne ładowanie szczegółów inwestycji dla preview
+              _generateInvestmentDetailsHtml(type: RecipientType.preview)
                   .then((investmentDetailsHtml) {
                     if (mounted) {
                       setState(() {
@@ -658,8 +707,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
             _currentPreviewHtml +=
                 '<div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; color: #666; font-style: italic;">⏳ Ładowanie szczegółów inwestycji...</div>';
 
-            // Asynchroniczne ładowanie szczegółów inwestycji
-            _generateInvestmentDetailsHtml()
+            // Asynchroniczne ładowanie szczegółów inwestycji dla preview
+            _generateInvestmentDetailsHtml(type: RecipientType.preview)
                 .then((investmentDetailsHtml) {
                   if (mounted) {
                     setState(() {
@@ -807,43 +856,73 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     });
   }
 
-  // 📊 NOWA IMPLEMENTACJA - Pobiera rzeczywiste dane inwestycji identycznie jak eksport
-  // Dodano parametr allInvestors dla generowania HTML wszystkich inwestorów dla dodatkowych odbiorców
+  // 🎯 ZOPTYMALIZOWANA IMPLEMENTACJA - Jedna funkcja z cache dla wszystkich typów odbiorców
+
+  Map<String, String> _investmentDetailsCache = {};
+  Map<String, List<Investment>> _clientInvestmentsCache =
+      {}; // 🚀 Smart cache dla inwestycji klientów
+
+  // 🗑️ Czyszczenie cache (np. przy zmianie danych)
+  void _clearInvestmentDetailsCache() {
+    _investmentDetailsCache.clear();
+    _clientInvestmentsCache.clear();
+    debugPrint('🗑️ Investment details cache cleared');
+  }
+  
   Future<String> _generateInvestmentDetailsHtml({
-    List<InvestorSummary>? allInvestors,
+    RecipientType type = RecipientType.main,
+    List<InvestorSummary>? specificInvestors,
   }) async {
-    // Jeśli nie podano allInvestors, użyj domyślnej logiki (tylko włączone inwestory)
-    final investorsToProcess = allInvestors ?? widget.selectedInvestors;
+    // 🚀 CACHE KEY - unikalne dla każdego typu odbiorców
+    final cacheKey =
+        '${type.name}_${specificInvestors?.length ?? widget.selectedInvestors.length}';
+
+    // 📋 Sprawdź cache
+    if (_investmentDetailsCache.containsKey(cacheKey)) {
+      debugPrint('✅ [CACHE] Using cached investment details for $type');
+      return _investmentDetailsCache[cacheKey]!;
+    }
+
+    debugPrint('🔍 [INVESTMENT HTML] Generating for type: ${type.displayName}');
+    debugPrint('🔍 [INVESTMENT HTML] Cache key: $cacheKey');
+    debugPrint(
+      '🔍 [INVESTMENT HTML] Specific investors: ${specificInvestors?.length ?? "using widget.selectedInvestors"}',
+    );
+
+    // 🎯 UJEDNOLICONA LOGIKA dla wszystkich typów odbiorców
+    final investorsToProcess = specificInvestors ?? widget.selectedInvestors;
+
+    debugPrint(
+      '🔍 [INVESTMENT HTML] investorsToProcess.length: ${investorsToProcess.length}',
+    );
 
     if (investorsToProcess.isEmpty) {
+      debugPrint(
+        '❌ [INVESTMENT HTML] No investors to process, returning empty message',
+      );
       return '<div style="padding: 20px; text-align: center; color: #666; font-style: italic;">Nie wybrano żadnych inwestorów.</div>';
     }
 
-    // Dla wszystkich inwestorów zawsze pokazuj wszystkich (bez filtrowania _recipientEnabled)
-    final enabledInvestors = allInvestors != null
-        ? investorsToProcess // Jeśli podano allInvestors, użyj wszystkich
-        : widget.selectedInvestors
-              .where(
-                (investor) => _recipientEnabled[investor.client.id] ?? false,
-              )
-              .toList();
+    // 🎯 UPROSZCZONA LOGIKA - Firebase Function już obsługuje filtrowanie
+    // Firebase już wie które dane wysłać do którego typu odbiorcy
+    List<InvestorSummary> enabledInvestors = List.from(investorsToProcess);
 
-    if (enabledInvestors.isEmpty && allInvestors == null) {
-      return '<div style="padding: 20px; text-align: center; color: #666; font-style: italic;">Brak aktywnych odbiorców z danymi inwestycyjnymi.</div>';
+    debugPrint(
+      '🔍 [INVESTMENT HTML] Processing ${enabledInvestors.length} investors for ${type.displayName}',
+    );
+
+    // 📋 Walidacja - sprawdź czy mamy inwestorów do przetworzenia
+    if (enabledInvestors.isEmpty) {
+      debugPrint('❌ [INVESTMENT HTML] No investors available');
+      final emptyMessage =
+          '<div style="padding: 20px; text-align: center; color: #666; font-style: italic;">Nie wybrano żadnych inwestorów do analizy.</div>';
+      _investmentDetailsCache[cacheKey] = emptyMessage;
+      return emptyMessage;
     }
-
     final buffer = StringBuffer();
 
-    // Header sekcji - dostosuj tytuł w zależności od kontekstu
-    final isForAllInvestors = allInvestors != null;
-    final headerTitle = isForAllInvestors
-        ? '📈 Szczegółowe Informacje wszystkich inwestycji'
-        : '📈 Szczegółowe Informacje o Inwestycjach';
-    final headerDescription = isForAllInvestors
-        ? 'Poniżej znajdą Państwo wszystkie inwestycje wszystkich klientów:'
-        : (_isGroupEmail
-              ? 'Poniżej znajdą Państwo wszystkie inwestycje przypisane do wybranych inwestorów:'
-              : 'Poniżej znajdą Państwo Wasze inwestycje:');
+    // 🎨 NAGŁÓWKI z wykorzystaniem metody enum
+    final (headerTitle, headerDescription) = type.getHeaders(_isGroupEmail);
 
     buffer.write('''
       <div style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 12px; border-left: 4px solid #d4af37;">
@@ -858,23 +937,18 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
     // Statystyki globalne
     int totalInvestments = 0;
-    double totalInvestmentAmount = 0;
-    double totalRemainingCapital = 0;
-    double totalRealizedCapital = 0;
 
     try {
-      // 🎯 LOGIKA PERSONALIZACJI - jeśli nie grupowy, pokaż tylko pierwszego jako przykład
-      final investorsToProcess = isForAllInvestors
-          ? allInvestors
-          : (_isGroupEmail
-                ? enabledInvestors
-                : (enabledInvestors.isNotEmpty
-                      ? [enabledInvestors.first]
-                      : <InvestorSummary>[]));
+      // 🎯 UPROSZCZONA LOGIKA - Firebase obsługuje personalizację
+      final finalInvestorsToProcess = enabledInvestors;
 
-      // Pobierz inwestycje dla każdego wybranego inwestora (lub tylko pierwszego)
-      for (int index = 0; index < investorsToProcess.length; index++) {
-        final investor = investorsToProcess[index];
+      debugPrint(
+        '🔍 Processing ${finalInvestorsToProcess.length} investors for ${type.displayName}',
+      );
+
+      // Pobierz inwestycje dla każdego inwestora
+      for (int index = 0; index < finalInvestorsToProcess.length; index++) {
+        final investor = finalInvestorsToProcess[index];
         final clientId = investor.client.id;
         final clientName = investor.client.name;
 
@@ -882,14 +956,20 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
           '🔍 Pobieranie inwestycji dla klienta: $clientName ($clientId)',
         );
 
-        // Pobierz inwestycje klienta z Firebase - identycznie jak w eksporcie
+        // Pobierz inwestycje klienta z Firebase
         final investments = await _getInvestmentsByClientId(clientId);
 
+        debugPrint(
+          '🔍 Processing ${investments.length} investments for client $clientName',
+        );
+        
         if (investments.isNotEmpty) {
           // Oblicz podsumowania dla klienta
           double clientInvestmentAmount = 0;
           double clientRemainingCapital = 0;
           double clientRealizedCapital = 0;
+          double clientCapitalSecuredByRealEstate = 0;
+          double clientCapitalForRestructuring = 0;
 
           final investmentRows = <String>[];
 
@@ -897,21 +977,28 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
             final investmentAmount = investment.investmentAmount;
             final remainingCapital = investment.remainingCapital;
             final realizedCapital = investment.realizedCapital;
+            final capitalSecuredByRealEstate =
+                investment.capitalSecuredByRealEstate;
+            final capitalForRestructuring = investment.capitalForRestructuring;
 
             clientInvestmentAmount += investmentAmount;
             clientRemainingCapital += remainingCapital;
             clientRealizedCapital += realizedCapital;
+            clientCapitalSecuredByRealEstate += capitalSecuredByRealEstate;
+            clientCapitalForRestructuring += capitalForRestructuring;
 
             // Wiersz inwestycji
             investmentRows.add('''
               <tr style="border-bottom: 1px solid #e9ecef;">
                 <td style="padding: 12px 8px; vertical-align: top;">
                   <div style="font-weight: 500; color: #2c2c2c; margin-bottom: 4px;">${investment.productName}</div>
-                  <div style="font-size: 12px; color: #666;">ID: ${investment.id}</div>
+                  <div style="font-size: 12px; color: #666;">${investment.productType.displayName}</div>
                 </td>
                 <td style="padding: 12px 8px; text-align: right; color: #2c2c2c; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(investmentAmount)}</td>
                 <td style="padding: 12px 8px; text-align: right; color: #28a745; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(remainingCapital)}</td>
                 <td style="padding: 12px 8px; text-align: right; color: #007bff; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(realizedCapital)}</td>
+                <td style="padding: 12px 8px; text-align: right; color: #ff6b35; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(capitalSecuredByRealEstate)}</td>
+                <td style="padding: 12px 8px; text-align: right; color: #ffa500; font-weight: 500;">${CurrencyFormatter.formatCurrencyForEmail(capitalForRestructuring)}</td>
                 <td style="padding: 12px 8px; text-align: center;">
                   <span style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 500; 
                                background: ${investment.status.toString() == 'InvestmentStatus.active' ? '#d4edda' : '#f8d7da'}; 
@@ -925,9 +1012,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
           // Dodaj do globalnych statystyk
           totalInvestments += investments.length;
-          totalInvestmentAmount += clientInvestmentAmount;
-          totalRemainingCapital += clientRemainingCapital;
-          totalRealizedCapital += clientRealizedCapital;
 
           // Sekcja dla klienta
           buffer.write('''
@@ -948,6 +1032,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                       <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Kwota Inwestycji</th>
                       <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Kapitał Pozostały</th>
                       <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Kapitał Zrealizowany</th>
+                      <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Kapitał Zabezpieczony</th>
+                      <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Kapitał do Restrukturyzacji</th>
                       <th style="padding: 12px 8px; text-align: center; font-weight: 600;">Status</th>
                     </tr>
                   </thead>
@@ -958,6 +1044,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                       <td style="padding: 12px 8px; text-align: right; color: #2c2c2c;">${CurrencyFormatter.formatCurrencyForEmail(clientInvestmentAmount)}</td>
                       <td style="padding: 12px 8px; text-align: right; color: #28a745;">${CurrencyFormatter.formatCurrencyForEmail(clientRemainingCapital)}</td>
                       <td style="padding: 12px 8px; text-align: right; color: #007bff;">${CurrencyFormatter.formatCurrencyForEmail(clientRealizedCapital)}</td>
+                      <td style="padding: 12px 8px; text-align: right; color: #ff6b35;">${CurrencyFormatter.formatCurrencyForEmail(clientCapitalSecuredByRealEstate)}</td>
+                      <td style="padding: 12px 8px; text-align: right; color: #ffa500;">${CurrencyFormatter.formatCurrencyForEmail(clientCapitalForRestructuring)}</td>
                       <td style="padding: 12px 8px; text-align: center; color: #28a745;">${investments.length} inwestycji</td>
                     </tr>
                   </tbody>
@@ -976,39 +1064,226 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         }
       }
 
-      // Globalne podsumowanie
+      // Szczegółowa lista wszystkich inwestycji
       if (totalInvestments > 0) {
-        final summaryTitle = isForAllInvestors
-            ? '📊 PODSUMOWANIE WSZYSTKICH INWESTYCJI'
-            : (_isGroupEmail
-                  ? 'PODSUMOWANIE GLOBALNE'
-                  : 'PODSUMOWANIE OSOBISTE');
+        // Zbierz wszystkie inwestycje z wszystkich klientów
+        final allInvestments = <Map<String, dynamic>>[];
 
-        buffer.write('''
-          <div style="margin: 32px 0 20px 0; padding: 20px; background: linear-gradient(135deg, #2c2c2c, #1a1a1a); color: #d4af37; border-radius: 12px;">
-            <h3 style="margin: 0 0 16px 0; color: #d4af37; font-size: 18px; font-weight: 600; text-align: center;">
-              $summaryTitle
-            </h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-              <div style="text-align: center;">
-                <div style="font-size: 24px; font-weight: 600; color: #ffffff;">$totalInvestments</div>
-                <div style="font-size: 14px; color: #d4af37;">Łączna liczba inwestycji</div>
-              </div>
-              <div style="text-align: center;">
-                <div style="font-size: 24px; font-weight: 600; color: #ffffff;">${CurrencyFormatter.formatCurrencyForEmail(totalInvestmentAmount)}</div>
-                <div style="font-size: 14px; color: #d4af37;">Całkowita kwota inwestycji</div>
-              </div>
-              <div style="text-align: center;">
-                <div style="font-size: 24px; font-weight: 600; color: #28a745;">${CurrencyFormatter.formatCurrencyForEmail(totalRemainingCapital)}</div>
-                <div style="font-size: 14px; color: #d4af37;">Kapitał pozostały</div>
-              </div>
-              <div style="text-align: center;">
-                <div style="font-size: 24px; font-weight: 600; color: #007bff;">${CurrencyFormatter.formatCurrencyForEmail(totalRealizedCapital)}</div>
-                <div style="font-size: 14px; color: #d4af37;">Kapitał zrealizowany</div>
+        for (int index = 0; index < finalInvestorsToProcess.length; index++) {
+          final investor = finalInvestorsToProcess[index];
+          final clientId = investor.client.id;
+          final clientName = investor.client.name;
+
+          try {
+            final investments = await _getInvestmentsByClientId(clientId);
+            for (final investment in investments) {
+              allInvestments.add({
+                'clientName': clientName,
+                'investment': investment,
+              });
+            }
+          } catch (e) {
+            debugPrint(
+              '❌ Błąd pobierania inwestycji dla klienta $clientId: $e',
+            );
+          }
+        }
+
+        if (allInvestments.isNotEmpty) {
+          final detailsTitle = switch (type) {
+            RecipientType.additional =>
+              '📋 SZCZEGÓŁOWA LISTA WSZYSTKICH INWESTYCJI',
+            RecipientType.preview =>
+              '📋 SZCZEGÓŁOWA LISTA WSZYSTKICH INWESTYCJI',
+            RecipientType.main =>
+              _isGroupEmail
+                  ? 'SZCZEGÓŁOWA LISTA INWESTYCJI'
+                  : 'SZCZEGÓŁOWA LISTA TWOICH INWESTYCJI',
+          };
+
+          buffer.write('''
+            <div style="margin: 24px 0; padding: 20px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 12px; border-left: 4px solid #007bff;">
+              <h3 style="margin: 0 0 20px 0; color: #2c2c2c; font-size: 18px; font-weight: 600; text-align: center;">
+                $detailsTitle
+              </h3>
+              <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                  <thead>
+                    <tr style="background: linear-gradient(135deg, #2c2c2c, #1a1a1a); color: #d4af37;">
+                      <th style="padding: 16px 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #d4af37;">Klient</th>
+                      <th style="padding: 16px 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #d4af37;">Produkt</th>
+                      <th style="padding: 16px 12px; text-align: right; font-weight: 600; border-bottom: 2px solid #d4af37;">Kwota Inwestycji</th>
+                      <th style="padding: 16px 12px; text-align: right; font-weight: 600; border-bottom: 2px solid #d4af37;">Kapitał Pozostały</th>
+                      <th style="padding: 16px 12px; text-align: right; font-weight: 600; border-bottom: 2px solid #d4af37;">Kapitał Zrealizowany</th>
+                      <th style="padding: 16px 12px; text-align: right; font-weight: 600; border-bottom: 2px solid #d4af37;">Kapitał Zabezpieczony</th>
+                      <th style="padding: 16px 12px; text-align: right; font-weight: 600; border-bottom: 2px solid #d4af37;">Kapitał do Restrukturyzacji</th>
+                      <th style="padding: 16px 12px; text-align: center; font-weight: 600; border-bottom: 2px solid #d4af37;">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+          ''');
+
+          // Dodaj każdą inwestycję jako osobny wiersz
+          for (int i = 0; i < allInvestments.length; i++) {
+            final item = allInvestments[i];
+            final clientName = item['clientName'] as String;
+            final investment = item['investment'] as Investment;
+
+            final rowStyle = i % 2 == 0
+                ? 'background: #ffffff;'
+                : 'background: #f8f9fa;';
+
+            final statusColor = investment.status == InvestmentStatus.active
+                ? '#28a745'
+                : '#dc3545';
+            final statusBg = investment.status == InvestmentStatus.active
+                ? '#d4edda'
+                : '#f8d7da';
+            final statusText = investment.status == InvestmentStatus.active
+                ? 'Aktywna'
+                : 'Nieaktywna';
+
+            buffer.write('''
+              <tr style="$rowStyle border-bottom: 1px solid #e9ecef;">
+                <td style="padding: 14px 12px; vertical-align: top;">
+                  <div style="font-weight: 500; color: #2c2c2c;">$clientName</div>
+                </td>
+                <td style="padding: 14px 12px; vertical-align: top;">
+                  <div style="font-weight: 500; color: #2c2c2c; margin-bottom: 4px;">${investment.productName}</div>
+                  <div style="font-size: 12px; color: #666;">${investment.productType.displayName}</div>
+                </td>
+                <td style="padding: 14px 12px; text-align: right; color: #2c2c2c; font-weight: 500;">
+                  ${CurrencyFormatter.formatCurrencyForEmail(investment.investmentAmount)}
+                </td>
+                <td style="padding: 14px 12px; text-align: right; color: #28a745; font-weight: 500;">
+                  ${CurrencyFormatter.formatCurrencyForEmail(investment.remainingCapital)}
+                </td>
+                <td style="padding: 14px 12px; text-align: right; color: #007bff; font-weight: 500;">
+                  ${CurrencyFormatter.formatCurrencyForEmail(investment.realizedCapital)}
+                </td>
+                <td style="padding: 14px 12px; text-align: right; color: #ff6b35; font-weight: 500;">
+                  ${CurrencyFormatter.formatCurrencyForEmail(investment.capitalSecuredByRealEstate)}
+                </td>
+                <td style="padding: 14px 12px; text-align: right; color: #ffa500; font-weight: 500;">
+                  ${CurrencyFormatter.formatCurrencyForEmail(investment.capitalForRestructuring)}
+                </td>
+                <td style="padding: 14px 12px; text-align: center;">
+                  <span style="padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; background: $statusBg; color: $statusColor;">
+                    $statusText
+                  </span>
+                </td>
+              </tr>
+            ''');
+          }
+
+          buffer.write('''
+                  </tbody>
+                </table>
               </div>
             </div>
-          </div>
-        ''');
+          ''');
+        }
+      }
+
+      // Szczegółowe podsumowanie inwestycji klienta
+      if (totalInvestments > 0) {
+        // Pokaż inwestycje pogrupowane według klientów
+        debugPrint(
+          '📋 Starting detailed investment sections for ${finalInvestorsToProcess.length} investors',
+        );
+        for (int index = 0; index < finalInvestorsToProcess.length; index++) {
+          final investor = finalInvestorsToProcess[index];
+          final clientId = investor.client.id;
+          final clientName = investor.client.name;
+
+          debugPrint(
+            '👤 Processing detailed section for client: $clientName (ID: $clientId)',
+          );
+
+          try {
+            final investments = await _getInvestmentsByClientId(clientId);
+            debugPrint(
+              '💰 Found ${investments.length} investments for client $clientName',
+            );
+
+            if (investments.isNotEmpty) {
+              // Nagłówek klienta - bardziej kompaktowy
+              buffer.write('''
+                <div style="margin-bottom: 20px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(212, 175, 55, 0.2);">
+                  <div style="background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%); padding: 12px 16px; border-bottom: 2px solid #d4af37;">
+                    <h4 style="margin: 0; color: #d4af37; font-size: 15px; font-weight: 600; display: flex; align-items: center;">
+                      👤 $clientName <span style="margin-left: 12px; font-size: 12px; color: #ffffff; opacity: 0.8;">(${investments.length} inwestycji)</span>
+                    </h4>
+                  </div>
+              ''');
+
+              // Lista inwestycji klienta - kompaktowa lista
+              buffer.write('''
+                <div style="background: #ffffff;">
+              ''');
+
+              for (int i = 0; i < investments.length; i++) {
+                final investment = investments[i];
+                final statusColor = investment.status == InvestmentStatus.active
+                    ? '#28a745'
+                    : '#dc3545';
+                final statusBg = investment.status == InvestmentStatus.active
+                    ? '#e8f5e8'
+                    : '#fdeaea';
+                final statusText = investment.status == InvestmentStatus.active
+                    ? 'Aktywna'
+                    : 'Nieaktywna';
+                final bgColor = i % 2 == 0 ? '#ffffff' : '#f8f9fa';
+
+                buffer.write('''
+                  <div style="display: flex; align-items: center; padding: 10px 16px; background: $bgColor; border-bottom: 1px solid #e9ecef;">
+                    <!-- Nazwa produktu i status -->
+                    <div style="flex: 1; min-width: 200px;">
+                      <div style="font-weight: 600; color: #2c2c2c; font-size: 14px; margin-bottom: 4px;">${investment.productName}</div>
+                      <span style="font-size: 12px; color: #666; opacity: 0.8;">${investment.productType.displayName}</span>
+                      <span style="padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 500; background: $statusBg; color: $statusColor;">
+                        $statusText
+                      </span>
+                    </div>
+                    
+                    <!-- Kwoty w jednej linii poziomej -->
+                    <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 10px; color: #666; opacity: 0.8;">Kwota Inwestycji:</span>
+                        <span style="font-size: 13px; font-weight: 600; color: #2c2c2c;">${CurrencyFormatter.formatCurrencyForEmail(investment.investmentAmount)}</span>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 10px; color: #666; opacity: 0.8;">Kapitał Pozostały:</span>
+                        <span style="font-size: 13px; font-weight: 600; color: #28a745;">${CurrencyFormatter.formatCurrencyForEmail(investment.remainingCapital)}</span>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 10px; color: #666; opacity: 0.8;">Kapitał Zrealizowany:</span>
+                        <span style="font-size: 13px; font-weight: 600; color: #007bff;">${CurrencyFormatter.formatCurrencyForEmail(investment.realizedCapital)}</span>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 10px; color: #666; opacity: 0.8;">Kapitał Zabezpieczony:</span>
+                        <span style="font-size: 13px; font-weight: 600; color: #ff6b35;">${CurrencyFormatter.formatCurrencyForEmail(investment.capitalSecuredByRealEstate)}</span>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 10px; color: #666; opacity: 0.8;">Kapitał do Restrukturyzacji:</span>
+                        <span style="font-size: 13px; font-weight: 600; color: #ffa500;">${CurrencyFormatter.formatCurrencyForEmail(investment.capitalForRestructuring)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ''');
+              }
+
+              buffer.write('''
+                </div>
+              </div>
+              '''); // Zamknij sekcję klienta
+            }
+          } catch (e) {
+            debugPrint(
+              '❌ Błąd pobierania inwestycji dla klienta $clientId: $e',
+            );
+          }
+        }
       }
 
 
@@ -1019,20 +1294,54 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                </div>''';
     }
 
-    return buffer.toString();
+    final result = buffer.toString();
+
+    // 🚀 CACHE RESULT for future use
+    _investmentDetailsCache[cacheKey] = result;
+
+    debugPrint(
+      '✅ [INVESTMENT HTML] Generated and cached for type: $type, length: ${result.length} characters',
+    );
+
+    if (result.length < 100) {
+      debugPrint('❌ [INVESTMENT HTML] WARNING: Very short result for $type!');
+    } else {
+      debugPrint('✅ [INVESTMENT HTML] Good result length for $type');
+    }
+    
+    return result;
   }
 
-  // 📊 HELPER METHOD - Pobiera inwestycje klienta z Firebase
+  // 📊 HELPER METHOD - Pobiera inwestycje klienta z Firebase z cache'owaniem
   Future<List<Investment>> _getInvestmentsByClientId(String clientId) async {
+    // 🚀 SPRAWDŹ CACHE NAJPIERW
+    if (_clientInvestmentsCache.containsKey(clientId)) {
+      debugPrint('✅ [CACHE] Using cached investments for client: $clientId');
+      return _clientInvestmentsCache[clientId]!;
+    }
+    
     try {
+      debugPrint('🔍 Querying investments for client: $clientId');
       final querySnapshot = await FirebaseFirestore.instance
           .collection('investments')
           .where('clientId', isEqualTo: clientId)
           .get();
 
-      return querySnapshot.docs
+      final investments = querySnapshot.docs
           .map((doc) => Investment.fromFirestore(doc))
           .toList();
+          
+      // 🚀 ZAPISZ W CACHE
+      _clientInvestmentsCache[clientId] = investments;
+
+      debugPrint(
+        '🔍 Found and cached ${investments.length} investments for client $clientId',
+      );
+      for (final investment in investments) {
+        debugPrint('🔍   - ${investment.productName} (${investment.id})');
+      }
+
+      return investments;
     } catch (e) {
       debugPrint('❌ Błąd pobierania inwestycji dla klienta $clientId: $e');
       return [];
@@ -1250,25 +1559,76 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         });
 
         // Pobierz rzeczywiste szczegóły inwestycji z Firebase dla inwestorów
-        final investmentDetailsHtml = await _generateInvestmentDetailsHtml();
+        debugPrint(
+          '📤 Calling _generateInvestmentDetailsHtml for selected investors (${widget.selectedInvestors.length} total)',
+        );
+        final investmentDetailsHtml = await _generateInvestmentDetailsHtml(
+          type: RecipientType.main,
+        );
         finalHtml = emailHtml + investmentDetailsHtml;
-
-        // Jeśli są dodatkowi odbiorcy, wygeneruj HTML wszystkich inwestycji dla nich
-        if (_additionalEmails.isNotEmpty) {
-          setState(() {
-            _loadingMessage =
-                'Przygotowywanie danych dla dodatkowych odbiorców...';
-            _loadingProgress = 0.18;
-          });
-
-          // Wygeneruj HTML wszystkich inwestycji dla dodatkowych odbiorców
-          final allInvestorsHtml = await _generateInvestmentDetailsHtml(
-            allInvestors: widget.selectedInvestors,
-          );
-          aggregatedInvestmentsForAdditionals = allInvestorsHtml;
-        }
       } else {
         finalHtml = emailHtml;
+      }
+
+      // 🔥 WAŻNE: Zawsze generuj dane dla dodatkowych odbiorców, niezależnie od _includeInvestmentDetails
+      // 📧 DODATKOWI ODBIORCY otrzymują ZAWSZE wszystkie inwestycje WSZYSTKICH pierwotnie wybranych inwestorów
+      // 📧 niezależnie od tego czy główni odbiorcy są zaznaczeni w checkboxach czy nie
+      if (_additionalEmails.isNotEmpty) {
+        setState(() {
+          _loadingMessage =
+              'Przygotowywanie danych dla dodatkowych odbiorców...';
+          _loadingProgress = 0.18;
+        });
+
+        debugPrint(
+          '🔍 [ADDITIONAL RECIPIENTS] === LOGIKA DODATKOWYCH ODBIORCÓW ===',
+        );
+        debugPrint(
+          '🔍 [ADDITIONAL RECIPIENTS] Additional emails count: ${_additionalEmails.length}',
+        );
+        debugPrint(
+          '🔍 [ADDITIONAL RECIPIENTS] Total selected investors: ${widget.selectedInvestors.length}',
+        );
+        debugPrint(
+          '🔍 [ADDITIONAL RECIPIENTS] Enabled investors (checkboxes): ${enabledInvestors.length}',
+        );
+        debugPrint(
+          '🔥 [ADDITIONAL RECIPIENTS] WAŻNE: Dodatkowi odbiorcy widzą WSZYSTKICH ${widget.selectedInvestors.length} inwestorów (również ${widget.selectedInvestors.length - enabledInvestors.length} odznaczonych!)',
+        );
+
+        // 🔥 KLUCZOWA LOGIKA: Dodatkowi odbiorcy ZAWSZE dostają inwestycje WSZYSTKICH pierwotnie wybranych
+        // 📋 WAŻNE: Obejmuje to również inwestycje klientów ODZNACZONYCH w checkboxach!
+        // 🎯 Logika: Odznaczeni klienci = NIE dostają maili, ALE ich inwestycje = SĄ w zestawieniu dla dodatkowych
+        final allInvestorsHtml = await _generateInvestmentDetailsHtml(
+          type: RecipientType.additional,
+          specificInvestors: widget
+              .selectedInvestors, // ← WSZYSTKICH pierwotnie wybranych (również odznaczonych!)
+        );
+        aggregatedInvestmentsForAdditionals = allInvestorsHtml;
+        
+        debugPrint(
+          '🔍 [ADDITIONAL RECIPIENTS] Generated HTML length: ${allInvestorsHtml.length} characters',
+        );
+
+        if (allInvestorsHtml.isEmpty) {
+          debugPrint(
+            '❌ [ADDITIONAL RECIPIENTS] WARNING: Generated HTML is EMPTY!',
+          );
+          debugPrint(
+            '❌ [ADDITIONAL RECIPIENTS] This might indicate no investments found for selected investors',
+          );
+        } else {
+          debugPrint(
+            '✅ [ADDITIONAL RECIPIENTS] Successfully generated investment data for additional recipients',
+          );
+        }
+
+        // 📋 DEBUG: Lista inwestorów dla dodatkowych odbiorców
+        for (final investor in widget.selectedInvestors) {
+          debugPrint(
+            '🔍 [ADDITIONAL RECIPIENTS] Will include investor: ${investor.client.name} (${investor.client.id})',
+          );
+        }
       }
 
       // 🎨 ENHANCED LOGGING FOR EMAIL HTML
@@ -1697,10 +2057,19 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       return 'Brak odbiorców - dodaj odbiorców lub sprawdź adresy email';
     } else if (enabledRecipients < totalSelected) {
       final disabled = totalSelected - enabledRecipients;
-      return '$enabledRecipients odbiorców gotowych ($disabled wyłączonych z powodu błędnych adresów email)';
+      final total = enabledRecipients + additionalEmails;
+      if (additionalEmails > 0) {
+        return '$enabledRecipients odbiorców z checkboxów + $additionalEmails dodatkowych = $total łącznie ($disabled wyłączonych checkboxów)';
+      } else {
+        return '$enabledRecipients odbiorców gotowych ($disabled wyłączonych z powodu błędnych adresów email)';
+      }
     } else {
       final total = enabledRecipients + additionalEmails;
-      return '$total odbiorców gotowych do wysłania';
+      if (additionalEmails > 0) {
+        return '$enabledRecipients odbiorców z checkboxów + $additionalEmails dodatkowych = $total łącznie';
+      } else {
+        return '$total odbiorców gotowych do wysłania';
+      }
     }
   }
 
@@ -1783,11 +2152,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
                             SizedBox(height: isMobile ? 16 : 24),
 
-                            // Template Selector
-                            _buildTemplateSection(isMobile, isTablet),
-
-                            SizedBox(height: isMobile ? 16 : 24),
-                            
                             // Recipients List
                             _buildRecipientsList(isMobile),
 
@@ -2725,6 +3089,43 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                                           ),
                                         );
                                       }).toList(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              
+                              // 🎯 INFORMACJA O DODATKOWYCH ODBIORCACH
+                              SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.secondaryGold.withOpacity(
+                                    0.1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: AppTheme.secondaryGold.withOpacity(
+                                      0.3,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      size: 18,
+                                      color: AppTheme.secondaryGold,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Dodatkowi odbiorcy otrzymają informacje o WSZYSTKICH wybranych inwestorach, niezależnie od ustawień checkboxów poniżej',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppTheme.textSecondary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),

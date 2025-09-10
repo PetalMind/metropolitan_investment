@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../models_and_services.dart';
+import '../config/app_routes.dart'; // 🚀 NOWE: Import dla extension methods
 import '../providers/auth_provider.dart';
 import '../services/firebase_functions_products_service.dart' as fb;
 import '../services/unified_product_service.dart' as unified;
@@ -12,6 +13,7 @@ import '../widgets/premium_error_widget.dart';
 import '../widgets/metropolitan_loading_system.dart';
 import '../widgets/product_management/scroll_aware_product_header.dart';
 import '../widgets/product_management/product_type_distribution_widget.dart';
+import '../widgets/dialogs/product_details_dialog.dart'; // 🚀 NOWE: Dialog produktów
 
 // RBAC: wspólny tooltip dla braku uprawnień
 const String kRbacNoPermissionTooltip = 'Brak uprawnień – rola user';
@@ -516,7 +518,18 @@ class _ModernProductsManagementScreenState extends State<ModernProductsManagemen
   }
 
   void _showProductDetails(UnifiedProduct product) {
-    // TODO: Implement product details dialog
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => EnhancedProductDetailsDialog(
+        product: product,
+        onShowInvestors: () {
+          Navigator.of(context).pop();
+          // Przejdź do analizy inwestorów z wyszukiwaniem produktu
+          context.goToInvestorAnalyticsWithSearch(product.name);
+        },
+      ),
+    );
   }
 
   @override

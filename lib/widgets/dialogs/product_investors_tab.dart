@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
 import '../../models_and_services.dart'; // Centralized import
+import '../../config/app_routes.dart'; // 🚀 NOWE: Import dla extension methods
 import '../premium_error_widget.dart';
 import 'product_details_service.dart';
 import 'investor_edit_dialog.dart'; // ⭐ NOWE: Import dialogu edycji
@@ -1189,11 +1190,9 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       // Pokaż dialog edycji inwestora
       _showInvestorEditDialog(investor);
     } else {
-      // Stara logika - przejście do analityki inwestorów
+      // 🚀 ULEPSZONA LOGIKA - przejście do analityki inwestorów z konkretnym klientem
       Navigator.of(context).pop(); // Zamknij dialog produktu
-      context.go(
-        '/investor-analytics?search=${Uri.encodeComponent(investor.client.name)}',
-      );
+      context.goToInvestorAnalyticsWithClient(investor.client.id);
     }
   }
 

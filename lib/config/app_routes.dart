@@ -415,10 +415,14 @@ class AppRouter {
             path: AppRoutes.investorAnalytics,
             pageBuilder: (context, state) {
               final searchQuery = state.uri.queryParameters['search'];
+              final showClientId = state.uri.queryParameters['showClient'];
               return _buildPageWithTransition(
                 context,
                 state,
-                PremiumInvestorAnalyticsScreen(initialSearchQuery: searchQuery),
+                PremiumInvestorAnalyticsScreen(
+                  initialSearchQuery: searchQuery,
+                  showClientId: showClientId,
+                ),
               );
             },
           ),
@@ -686,6 +690,18 @@ extension BuildContextRouterExtensions on BuildContext {
   bool isInSection(String baseRoute) {
     final currentRoute = GoRouterState.of(this).matchedLocation;
     return currentRoute.startsWith(baseRoute);
+  }
+
+  /// 🚀 NOWA METODA: Nawiguje do analizy inwestorów z konkretnym klientem do pokazania
+  void goToInvestorAnalyticsWithClient(String clientId) {
+    final encodedClientId = Uri.encodeComponent(clientId);
+    go('${AppRoutes.investorAnalytics}?showClient=$encodedClientId');
+  }
+
+  /// 🚀 NOWA METODA: Nawiguje do analizy inwestorów z wyszukiwaniem
+  void goToInvestorAnalyticsWithSearch(String searchQuery) {
+    final encodedQuery = Uri.encodeComponent(searchQuery);
+    go('${AppRoutes.investorAnalytics}?search=$encodedQuery');
   }
 }
 

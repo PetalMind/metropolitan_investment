@@ -10,12 +10,14 @@ Flutter-based investment management platform with Firebase backend, specialized 
 - **Routing**: Go Router with shell layout architecture in `lib/config/app_routes.dart`
 - **Theme**: Professional dark theme with gold accents - use `AppTheme` class constants
 - **Models**: Central export from `lib/models_and_services.dart` - **ALWAYS import from here**
+- **Rich Text**: Advanced email editor with HTML support (`WowEmailEditorScreen`)
 
 ### Backend (Firebase)
 - **Region**: `europe-west1` for all Firebase Functions (closer to Poland)
 - **Firestore**: Unified data architecture with optimized compound indexes
 - **Functions**: Modular system with specialized analytics modules (Node.js 20)
 - **Authentication**: Firebase Auth with custom `AuthProvider` and redirect logic
+- **Email System**: Nodemailer integration with SMTP configuration and scheduling
 
 ### Critical Service Pattern
 All services extend `BaseService` with 5-minute TTL caching:
@@ -140,6 +142,16 @@ Consumer<AuthProvider>(
 
 ### UI Component Patterns
 ```dart
+// Advanced email editor integration with HTML support
+showDialog(
+  context: context,
+  builder: (context) => WowEmailEditorScreen(
+    selectedInvestors: selectedInvestors,
+    initialSubject: 'Investment Update',
+    initialMessage: '<p>Professional HTML content...</p>',
+  ),
+);
+
 // Animated, responsive dialog pattern
 showDialog(
   context: context,
@@ -217,6 +229,12 @@ const normalizedData = fieldMappingUtils.normalizeFields(rawData);
 - Responsive Framework: ^1.5.1
 - Shimmer: ^3.0.0
 - Syncfusion Charts: ^30.2.4
+- Flutter HTML: ^3.0.0 (for rich text editor)
+
+### Email System
+- Flutter Quill: ^11.4.2 (rich text editor)
+- HTML Editor Enhanced: ^2.7.1 (HTML editing)
+- Nodemailer: ^6.9.0 (backend email service)
 
 ## Development Environment Setup
 
@@ -242,4 +260,4 @@ const normalizedData = fieldMappingUtils.normalizeFields(rawData);
 
 ---
 
-*This document is maintained for AI coding assistants. Last updated: January 2025*
+*This document is maintained for AI coding assistants. Last updated: September 2025*

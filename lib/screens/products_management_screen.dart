@@ -1780,17 +1780,8 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           _buildSearchAndFilters(),
           if (_isLoading)
             SliverFillRemaining(
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFF1A1B23), Color(0xFF2A2D3A)],
-                  ),
-                ),
-                child: const Center(
-                  child: MetropolitanLoadingWidget.products(showProgress: true),
-                ),
+              child: const Center(
+                child: MetropolitanLoadingWidget.products(),
               ),
             )
           else if (_error != null)

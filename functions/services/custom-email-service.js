@@ -533,7 +533,11 @@ async function sendEmailsToMixedRecipientsInternal(data) {
       try {
         // 📧 GENERUJ TREŚĆ EMAIL DLA DODATKOWEGO ODBIORCY
         let emailHtml;
-        if (includeInvestmentDetails && recipients.length > 0 && isGroupEmail) {
+        if (includeInvestmentDetails && recipients.length > 0) {
+          // 🔥 KLUCZOWA POPRAWKA: Dodatkowi odbiorcy ZAWSZE dostają dane inwestycji wszystkich pierwotnie wybranych inwestorów!
+          // Niezależnie od wartości isGroupEmail - to dotyczy tylko personalizacji dla głównych odbiorców
+          console.log(`✅ [MixedEmailServiceInternal] Generuję dane inwestycji dla dodatkowego odbiorcy: ${email}`);
+
           // Użyj gotowego zbiorczego raportu z frontendu jeśli dostępny
           if (aggregatedInvestmentsForAdditionals && aggregatedInvestmentsForAdditionals.trim().length > 0) {
             console.log(`✅ [MixedEmailServiceInternal] Używam gotowego zbiorczego raportu z frontendu dla ${email}`);
@@ -574,14 +578,9 @@ async function sendEmailsToMixedRecipientsInternal(data) {
               investmentCount: 0
             });
           }
-        } else if (includeInvestmentDetails && recipients.length > 0 && !isGroupEmail) {
-          console.log(`🚫 [MixedEmailServiceInternal] Email nie jest grupowy - dodatkowi odbiorcy nie otrzymają inwestycji (${email})`);
-          emailHtml = generateBasicEmailContent({
-            htmlContent: htmlContent,
-            senderName: senderName,
-            recipientEmail: email
-          });
         } else {
+          // Brak danych inwestycji lub brak inwestorów - podstawowa treść
+          console.log(`� [MixedEmailServiceInternal] Podstawowa treść dla ${email} (brak inwestycji lub nie włączono szczegółów)`);
           emailHtml = generateBasicEmailContent({
             htmlContent: htmlContent,
             senderName: senderName,
@@ -910,7 +909,11 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
       try {
         // 📧 GENERUJ TREŚĆ EMAIL DLA DODATKOWEGO ODBIORCY
         let emailHtml;
-        if (includeInvestmentDetails && recipients.length > 0 && isGroupEmail) {
+        if (includeInvestmentDetails && recipients.length > 0) {
+          // 🔥 KLUCZOWA ZMIANA: Dodatkowi odbiorcy ZAWSZE otrzymują dane inwestycyjne 
+          // niezależnie od wartości isGroupEmail (bo nie są główni odbiorcy!)
+          console.log(`✅ [MixedEmailService] Generuję dane inwestycji dla dodatkowego odbiorcy: ${email} (niezależnie od isGroupEmail: ${isGroupEmail})`);
+
           // Użyj gotowego zbiorczego raportu z frontendu jeśli dostępny
           if (aggregatedInvestmentsForAdditionals && aggregatedInvestmentsForAdditionals.trim().length > 0) {
             console.log(`✅ [MixedEmailService] Używam gotowego zbiorczego raportu z frontendu dla ${email}`);
@@ -953,16 +956,9 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
               investmentCount: 0
             });
           }
-        } else if (includeInvestmentDetails && recipients.length > 0 && !isGroupEmail) {
-          // 🚫 PERSONALIZOWANY EMAIL - nie dołączaj inwestycji dla dodatkowcy odbiorców
-          console.log(`🚫 [MixedEmailService] Email nie jest grupowy - dodatkowi odbiorcy nie otrzymają inwestycji (${email})`);
-          emailHtml = generateBasicEmailContent({
-            htmlContent: htmlContent,
-            senderName: senderName,
-            recipientEmail: email
-          });
         } else {
-          // Podstawowa treść bez szczegółów inwestycji
+          // Podstawowa treść bez szczegółów inwestycji lub brak odbiorców
+          console.log(`� [MixedEmailService] Podstawowa treść dla ${email} (includeInvestmentDetails: ${includeInvestmentDetails}, recipients: ${recipients.length})`);
           emailHtml = generateBasicEmailContent({
             htmlContent: htmlContent,
             senderName: senderName,
