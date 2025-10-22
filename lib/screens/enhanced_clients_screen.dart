@@ -4,14 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../models_and_services.dart';
-import '../providers/auth_provider.dart';
 import '../theme/app_theme_professional.dart';
 import '../widgets/enhanced_clients/collapsible_search_header_fixed.dart'
     as CollapsibleHeader;
 import '../widgets/enhanced_clients/spectacular_clients_grid.dart';
-import '../widgets/enhanced_clients/enhanced_clients_header.dart';
 import '../widgets/enhanced_clients/clients_legend_widget.dart';
-import '../screens/wow_email_editor_screen.dart';
 import '../widgets/enhanced_client_dialog/enhanced_client_dialog.dart';
 
 /// 🎨 SPEKTAKULARNY EKRAN KLIENTÓW Z EFEKTEM WOW
@@ -46,6 +43,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   late AnimationController _headerController;
   late AnimationController _gridController;
   late AnimationController _selectionController;
+
+  // Scroll listener function reference for cleanup
+  late VoidCallback _scrollListener;
 
   // Data
   List<Client> _allClients = [];
@@ -87,7 +87,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   // 🎯 NOWE: Stan legendy
   bool _isLegendExpanded = false;
 
-  // Pagination state
+  // Pagination state - currently disabled (hasMoreData always false)
   bool _hasMoreData = false;
 
   List<Client> get _selectedClients => _displayedClients
@@ -100,6 +100,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   // Responsywność
   bool get _isTablet => MediaQuery.of(context).size.width > 768;
 
+  /// Load more clients - currently disabled since _hasMoreData is always false
+  /// This method is kept for future pagination implementation
   void _loadMoreClients() async {
     if (_isLoadingMore || !_hasMoreData) return;
 
@@ -134,6 +136,9 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   void dispose() {
     // cancel debounce timer if active
     _searchDebounce?.cancel();
+    // remove listeners to prevent memory leaks
+    _searchController.removeListener(_onSearchChanged);
+    _scrollController.removeListener(_scrollListener);
     _searchController.dispose();
     _scrollController.dispose();
     _headerController.dispose();
@@ -174,7 +179,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
   }
 
   void _setupScrollListener() {
-    _scrollController.addListener(() {
+    _scrollListener = () {
       final isCollapsed = _scrollController.offset > 100;
       if (isCollapsed != _isHeaderCollapsed) {
         setState(() {
@@ -187,7 +192,8 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
           _headerController.reverse();
         }
       }
-    });
+    };
+    _scrollController.addListener(_scrollListener);
   }
 
   /// 🚀 NOWA METODA: Załaduj WSZYSTKICH klientów bezpośrednio z Firebase Functions
@@ -201,15 +207,7 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
     });
 
     try {
-      print(
-        '🔄 [EnhancedClientsScreen] Rozpoczynam ładowanie WSZYSTKICH klientów z Firebase Functions...',
-      );
-
       // 🚀 KROK 1: Pobierz WSZYSTKICH klientów przez Firebase Functions
-      print(
-        '🎯 [EnhancedClientsScreen] Pobieranie WSZYSTKICH klientów przez Firebase Functions...',
-      );
-
       final functions = FirebaseFunctions.instanceFor(region: 'europe-west1');
       final clientsResult = await functions
           .httpsCallable('getAllActiveClientsFunction')
@@ -272,13 +270,6 @@ class _EnhancedClientsScreenState extends State<EnhancedClientsScreen>
                 false; // 🚀 POPRAWKA: Reset loading po udanym załadowaniu klientów
           });
         }
-
-        print('✅ [SUCCESS] Dane klientów załadowane z Firebase Functions:');
-        print('    - ${clients.length} klientów WSZYSTKICH');
-        print(
-          '    - ${clients.where((c) => c.isActive != false).length} aktywnych',
-        );
-        print('    - Źródło: Firebase Functions - getAllActiveClientsFunction');
 
         // 🚀 KROK 2: Pobierz dane inwestycji przez Firebase Functions
         await _loadInvestmentDataFromFirebase();

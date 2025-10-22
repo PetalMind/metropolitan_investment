@@ -103,12 +103,6 @@ class CalendarNotificationService {
       return true;
     }).toList();
 
-    // 🚀 DEBUG: Log dla debugowania
-    print('📅 CalendarNotificationService: Znaleziono ${upcomingEvents.length} wydarzeń, aktywnych: ${activeEvents.length}');
-    for (final event in activeEvents) {
-      print('   • ${event.title} (${event.startDate.day}/${event.startDate.month}) - ${event.status.name} - ${event.priority.name}');
-    }
-
     return activeEvents.length;
   }
 
@@ -170,25 +164,7 @@ class CalendarNotificationService {
   /// Sprawdza przeterminowane wydarzenia i oznacza je jako wymagające uwagi
   Future<void> checkOverdueEvents() async {
     try {
-      final now = DateTime.now();
-      final yesterday = now.subtract(const Duration(days: 1));
-
-      final recentEvents = await _calendarService.getEventsInRange(
-        startDate: yesterday,
-        endDate: now,
-      );
-
-      // Szuka wydarzeń, które powinny być zakończone ale są wciąż pending
-      final overdueEvents = recentEvents
-          .where(
-            (event) =>
-                event.endDate.isBefore(now) &&
-                event.status == CalendarEventStatus.pending,
-          )
-          .toList();
-
       // Informacyjnie - nie wpływa na główny licznik powiadomień kalendarza
-      print('Znaleziono ${overdueEvents.length} przeterminowanych wydarzeń');
     } catch (e) {
       print('Błąd podczas sprawdzania przeterminowanych wydarzeń: $e');
     }

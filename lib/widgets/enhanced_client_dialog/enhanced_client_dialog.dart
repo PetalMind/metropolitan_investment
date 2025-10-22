@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import '../../models_and_services.dart';
 import '../../theme/app_theme_professional.dart';
+import '../../config/app_routes.dart';
 import 'client_overview_tab.dart';
 import 'client_contact_tab.dart';
 import 'client_investments_tab.dart';
@@ -269,6 +271,28 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
     } else {
       Navigator.of(context).pop();
       widget.onCancel?.call();
+    }
+  }
+
+  /// 🚀 NOWA METODA: Obsługa kliknięcia na inwestycję
+  void _handleInvestmentTapped(String investmentId, String productName) {
+    print('🚀 [EnhancedClientDialog] Obsługuję kliknięcie inwestycji');
+    print('   Investment ID: $investmentId');
+    print('   Product Name: $productName');
+
+    // Zamknij dialog najpierw
+    if (mounted) {
+      Navigator.of(context).pop();
+
+      // Następnie nawiguj - teraz jesteśmy poza build tree dialogu
+      // Schedule nawigację na następny frame aby unikąć assertion errors
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && context.mounted) {
+          GoRouter.of(context).push(
+            '${AppRoutes.products}?investmentId=${Uri.encodeComponent(investmentId)}&productName=${Uri.encodeComponent(productName)}',
+          );
+        }
+      });
     }
   }
 
@@ -567,22 +591,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
                     children: [
                       Icon(tab.icon, size: 18),
                       const SizedBox(width: 6),
-                      if (index < 2) // Show numbers for first two tabs
-                        Container(
-                          margin: const EdgeInsets.only(left: 4),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppThemePro.textTertiary.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                          child: Text(
-                            '${index + 1}',
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                        ),
+                     
                     ],
                   ),
                 ],
@@ -614,6 +623,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
             client: widget.client,
             formData: _formData,
             additionalData: _currentAdditionalData,
+            onInvestmentTapped: _handleInvestmentTapped,
           ),
           ClientActionsTab(
             client: widget.client,

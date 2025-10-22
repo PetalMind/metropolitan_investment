@@ -21,14 +21,7 @@ class DashboardAudioService {
       // Configure audio player for web compatibility
       await _audioPlayer.setPlayerMode(PlayerMode.lowLatency);
       _isInitialized = true;
-
-      if (kDebugMode) {
-        print('🔊 [DashboardAudio] Service initialized successfully');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ [DashboardAudio] Failed to initialize: $e');
-      }
       _isEnabled = false;
     }
   }
@@ -43,20 +36,11 @@ class DashboardAudioService {
     }
 
     try {
-      if (kDebugMode) {
-        print('🚀 [DashboardAudio] Starting dashboard startup sound...');
-      }
-
       // For web compatibility, we'll play startup_success.mp3 with fallbacks
       await _playSuccessSound();
-
-      if (kDebugMode) {
-        print('🔊 [DashboardAudio] Dashboard success sound played');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ [DashboardAudio] Failed to play sound: $e');
-      }
+      // Fallback to synthetic tones
+      await _playWebSuccessSound();
     }
   }
 
@@ -66,14 +50,8 @@ class DashboardAudioService {
 
     try {
       await _playNotificationSound();
-
-      if (kDebugMode) {
-        print('🔊 [DashboardAudio] Notification sound played');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ [DashboardAudio] Failed to play notification: $e');
-      }
+      // Do nothing on error
     }
   }
 
@@ -88,9 +66,6 @@ class DashboardAudioService {
         await _playMobileStartupFile();
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ [DashboardAudio] Error in success sound: $e');
-      }
       // Fallback to synthetic tones
       await _playWebSuccessSound();
     }
@@ -99,23 +74,12 @@ class DashboardAudioService {
   /// Play startup_success.mp3 file on web
   Future<void> _playWebStartupFile() async {
     try {
-      if (kDebugMode) {
-        print('🚀 [DashboardAudio] Playing web startup_success.mp3...');
-      }
-
       await _audioPlayer.setPlayerMode(PlayerMode.lowLatency);
       await _audioPlayer.play(AssetSource('audio/startup_success.mp3'));
-
-      if (kDebugMode) {
-        print('🚀 [DashboardAudio] Web startup file played successfully');
-      }
 
       // Wait for audio to complete
       await Future.delayed(const Duration(milliseconds: 500));
     } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ [DashboardAudio] Web startup file failed: $e');
-      }
       // Fallback to synthetic tones
       await _playWebSuccessSound();
     }
@@ -124,22 +88,11 @@ class DashboardAudioService {
   /// Play startup_success.mp3 file on mobile/desktop
   Future<void> _playMobileStartupFile() async {
     try {
-      if (kDebugMode) {
-        print('🚀 [DashboardAudio] Playing mobile startup_success.mp3...');
-      }
-
       await _audioPlayer.play(AssetSource('audio/startup_success.mp3'));
-
-      if (kDebugMode) {
-        print('🚀 [DashboardAudio] Mobile startup file played successfully');
-      }
 
       // Wait for audio to complete
       await Future.delayed(const Duration(milliseconds: 500));
     } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ [DashboardAudio] Mobile startup file failed: $e');
-      }
       // Fallback to synthetic tones
       await _playWebSuccessSound();
     }
@@ -151,9 +104,7 @@ class DashboardAudioService {
       // Simple notification tone that works across platforms
       await _playWebNotificationSound();
     } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ [DashboardAudio] Error in notification sound: $e');
-      }
+      // Do nothing on error
     }
   }
 
@@ -167,9 +118,7 @@ class DashboardAudioService {
       await Future.delayed(const Duration(milliseconds: 40));
       await _playWebTone(783.99, 160); // G5
     } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ [DashboardAudio] Web success sound failed: $e');
-      }
+      // Do nothing on error
     }
   }
 
@@ -181,9 +130,7 @@ class DashboardAudioService {
       await Future.delayed(const Duration(milliseconds: 30));
       await _playWebTone(1108.73, 80); // C#6
     } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ [DashboardAudio] Web notification sound failed: $e');
-      }
+      // Do nothing on error
     }
   }
 
@@ -209,25 +156,14 @@ class DashboardAudioService {
       // For a real implementation, you would use:
       // await _audioPlayer.play(AssetSource('audio/tone_${frequency.round()}.mp3'));
       // or generate audio data programmatically
-
-      if (kDebugMode) {
-        print(
-          '🔊 [DashboardAudio] Playing tone: ${frequency.toStringAsFixed(1)} Hz for ${durationMs}ms',
-        );
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ [DashboardAudio] Web tone generation failed: $e');
-      }
+      // Do nothing on error
     }
   }
 
   /// Enable or disable audio
   void setEnabled(bool enabled) {
     _isEnabled = enabled;
-    if (kDebugMode) {
-      print('🔊 [DashboardAudio] Audio ${enabled ? 'enabled' : 'disabled'}');
-    }
   }
 
   /// Check if audio is enabled
@@ -238,13 +174,8 @@ class DashboardAudioService {
     try {
       await _audioPlayer.dispose();
       _isInitialized = false;
-      if (kDebugMode) {
-        print('🔊 [DashboardAudio] Service disposed');
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ [DashboardAudio] Error disposing: $e');
-      }
+      // Do nothing on error
     }
   }
 }

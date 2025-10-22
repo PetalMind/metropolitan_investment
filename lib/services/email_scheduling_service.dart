@@ -35,10 +35,6 @@ class EmailSchedulingService {
   void start() {
     // UWAGA: Background processing zostało przeniesione do Cloud Functions
     // Funkcja processScheduledEmails uruchamia się automatycznie co minutę
-    debugPrint('📅 [$_logTag] Email scheduling service initialized');
-    debugPrint(
-      '📅 [$_logTag] Background processing handled by Cloud Functions',
-    );
     
     // Nie uruchamiamy już lokalnego timera - Cloud Functions zajmuje się tym
     // _backgroundTimer = Timer.periodic(...) // USUNIĘTE
@@ -47,9 +43,6 @@ class EmailSchedulingService {
   /// Zatrzymaj serwis
   void stop() {
     // Background timer już nie jest używany - Cloud Functions zajmuje się przetwarzaniem
-    debugPrint(
-      '📅 [$_logTag] Email scheduling service stopped (Cloud Functions continue processing)',
-    );
   }
 
   /// Zaplanuj wysyłkę emaila
@@ -77,15 +70,6 @@ class EmailSchedulingService {
         throw ArgumentError('Lista odbiorców nie może być pusta');
       }
 
-      debugPrint(
-        '📅 [$_logTag] Scheduling email with ${recipients.length} recipients',
-      );
-      for (final recipient in recipients) {
-        debugPrint(
-          '📅 [$_logTag] Recipient: ${recipient.client.name} (${recipient.client.email})',
-        );
-      }
-
       // Tworzenie dokumentu zaplanowanego emaila
       final scheduledEmail = ScheduledEmail(
         id: '', // Będzie wygenerowane przez Firestore
@@ -108,12 +92,8 @@ class EmailSchedulingService {
           .collection(_collectionName)
           .add(scheduledEmail.toMap());
 
-      debugPrint('📅 [$_logTag] Email scheduled successfully: ${docRef.id}');
-      debugPrint('📅 [$_logTag] Scheduled for: $scheduledDateTime');
-
       return docRef.id;
     } catch (e) {
-      debugPrint('❌ [$_logTag] Error scheduling email: $e');
       rethrow;
     }
   }
@@ -170,9 +150,7 @@ class EmailSchedulingService {
         'cancelledAt': FieldValue.serverTimestamp(),
       });
 
-      debugPrint('📅 [$_logTag] Email cancelled: $emailId');
     } catch (e) {
-      debugPrint('❌ [$_logTag] Error cancelling email: $e');
       rethrow;
     }
   }
@@ -215,10 +193,8 @@ class EmailSchedulingService {
             .doc(emailId)
             .update(updates);
 
-        debugPrint('📅 [$_logTag] Email updated: $emailId');
       }
     } catch (e) {
-      debugPrint('❌ [$_logTag] Error updating email: $e');
       rethrow;
     }
   }
@@ -243,15 +219,10 @@ class EmailSchedulingService {
         return; // Brak emaili do wysłania
       }
 
-      debugPrint(
-        '📅 [$_logTag] Found ${querySnapshot.docs.length} emails to send',
-      );
-
       for (final doc in querySnapshot.docs) {
         await _processScheduledEmail(doc.id, doc.data());
       }
     } catch (e) {
-      debugPrint('❌ [$_logTag] Error processing scheduled emails: $e');
     }
   }
 
@@ -265,7 +236,6 @@ class EmailSchedulingService {
 
       // Walidacja recipientów przed wysłaniem
       if (scheduledEmail.recipients.isEmpty) {
-        debugPrint('❌ [$_logTag] No recipients found for email: $emailId');
         await _updateEmailStatus(
           emailId,
           ScheduledEmailStatus.failed,
@@ -276,11 +246,6 @@ class EmailSchedulingService {
 
       // Oznacz jako wysyłany
       await _updateEmailStatus(emailId, ScheduledEmailStatus.sending);
-
-      debugPrint('📅 [$_logTag] Sending scheduled email: $emailId');
-      debugPrint(
-        '📅 [$_logTag] Recipients count: ${scheduledEmail.recipients.length}',
-      );
 
       // Wyślij email przez EmailAndExportService - używamy nowej metody dla spójności
       final additionalEmails = scheduledEmail.additionalRecipients.keys.toList();
@@ -317,12 +282,7 @@ class EmailSchedulingService {
         // Audio is optional
       }
 
-      debugPrint(
-        '📅 [$_logTag] Email sent: $emailId ($successCount/$totalCount successful)',
-      );
     } catch (e) {
-      debugPrint('❌ [$_logTag] Error sending scheduled email $emailId: $e');
-
       // Oznacz jako nieudany
       await _updateEmailStatus(
         emailId,
@@ -433,11 +393,7 @@ class EmailSchedulingService {
 
       await batch.commit();
 
-      debugPrint(
-        '📅 [$_logTag] Cleaned up ${querySnapshot.docs.length} old emails',
-      );
     } catch (e) {
-      debugPrint('❌ [$_logTag] Error cleaning up old emails: $e');
     }
   }
 
@@ -517,10 +473,6 @@ class EmailSchedulingService {
           .where('status', isEqualTo: ScheduledEmailStatus.pending.name)
           .get();
 
-      debugPrint(
-        '📅 [$_logTag] Checking ${querySnapshot.docs.length} pending emails for empty recipients',
-      );
-
       for (final doc in querySnapshot.docs) {
         final data = doc.data();
         final recipientsData = data['recipientsData'] as List<dynamic>? ?? [];
@@ -535,23 +487,13 @@ class EmailSchedulingService {
           );
 
           fixedEmails.add(doc.id);
-          debugPrint('📅 [$_logTag] Fixed empty recipients email: ${doc.id}');
-        } else {
-          debugPrint(
-            '📅 [$_logTag] Email ${doc.id} has ${recipientsData.length} recipients - OK',
-          );
         }
       }
 
       if (fixedEmails.isNotEmpty) {
-        debugPrint(
-          '📅 [$_logTag] Fixed ${fixedEmails.length} emails with empty recipients',
-        );
       } else {
-        debugPrint('📅 [$_logTag] No emails with empty recipients found');
       }
     } catch (e) {
-      debugPrint('❌ [$_logTag] Error debugging empty recipients: $e');
     }
 
     return fixedEmails;

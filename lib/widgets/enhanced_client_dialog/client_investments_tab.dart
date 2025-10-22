@@ -18,12 +18,14 @@ class ClientInvestmentsTab extends StatefulWidget {
   final Client? client;
   final ClientFormData formData;
   final Map<String, dynamic>? additionalData;
+  final Function(String investmentId, String productName)? onInvestmentTapped;
 
   const ClientInvestmentsTab({
     super.key,
     this.client,
     required this.formData,
     this.additionalData,
+    this.onInvestmentTapped,
   });
 
   @override
@@ -38,10 +40,8 @@ class _ClientInvestmentsTabState extends State<ClientInvestmentsTab>
 
   // Formatowanie kwot z separatorem tysięcy
   String formatAmount(num amount) {
-    // Użyj NumberFormat z pakietu intl
-    return amount == null
-        ? '0'
-        : NumberFormat('#,##0', 'pl_PL').format(amount).replaceAll(',', ' ');
+    // Użyj NumberFormat z pakietu intl - num nigdy nie jest null
+    return NumberFormat('#,##0', 'pl_PL').format(amount).replaceAll(',', ' ');
   }
 
   // State
@@ -70,7 +70,10 @@ class _ClientInvestmentsTabState extends State<ClientInvestmentsTab>
 
   @override
   void dispose() {
+    // ⚠️ CRITICAL: Zatrzymaj repeat animation przed dispose
+    _loadingController.stop();
     _loadingController.dispose();
+    _cardController.stop();
     _cardController.dispose();
     super.dispose();
   }
@@ -86,7 +89,10 @@ class _ClientInvestmentsTabState extends State<ClientInvestmentsTab>
       vsync: this,
     );
 
-    _loadingController.repeat();
+    // ⚠️ Start repeat tylko gdy widget jest mounted
+    if (mounted) {
+      _loadingController.repeat();
+    }
   }
 
   Future<void> _loadInvestmentData() async {
@@ -127,11 +133,12 @@ class _ClientInvestmentsTabState extends State<ClientInvestmentsTab>
             '✅ [Investments] Używam danych z cache - ${_investments.length} inwestycji',
           );
 
-          setState(() {
-            _isLoading = false;
-          });
-
-          _cardController.forward();
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+            _cardController.forward();
+          }
           return;
         }
       }
@@ -154,17 +161,20 @@ class _ClientInvestmentsTabState extends State<ClientInvestmentsTab>
         '✅ [Investments] Pobrano ${_investments.length} inwestycji z serwisu',
       );
 
-      setState(() {
-        _isLoading = false;
-      });
-
-      _cardController.forward();
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        _cardController.forward();
+      }
     } catch (e) {
       print('❌ [Investments] Błąd ładowania danych: $e');
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Błąd podczas ładowania inwestycji: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Błąd podczas ładowania inwestycji: $e';
+        });
+      }
     }
   }
 
@@ -920,84 +930,13 @@ class _ClientInvestmentsTabState extends State<ClientInvestmentsTab>
   void _showInvestmentDetails(Investment investment) {
     HapticFeedback.lightImpact();
 
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: AppThemePro.premiumCardDecoration,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    _getProductTypeIcon(investment.productType.displayName),
-                    color: AppThemePro.accentGold,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Szczegóły inwestycji',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: AppThemePro.textPrimary,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              Text(
-                'ID: ${investment.id}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppThemePro.textPrimary,
-                ),
-              ),
-              Text(
-                'Typ: ${investment.productType}',
-                style: const TextStyle(color: AppThemePro.textSecondary),
-              ),
-
-              const SizedBox(height: 16),
-
-              Text(
-                'Kwota inwestycji: ${investment.investmentAmount.toStringAsFixed(2)} zł',
-                style: const TextStyle(color: AppThemePro.textPrimary),
-              ),
-              Text(
-                'Pozostały kapitał: ${investment.remainingCapital.toStringAsFixed(2)} zł',
-                style: const TextStyle(color: AppThemePro.textPrimary),
-              ),
-
-              const SizedBox(height: 24),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppThemePro.accentGold,
-                    foregroundColor: AppThemePro.backgroundPrimary,
-                  ),
-                  child: const Text('Zamknij'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    // 🚀 NOWE: Zamiast bezpośrednio nawigować, callback do parent dialog
+    // Unikamy problemu z GoRouter w build tree (window.dart assertion)
+    print('🔍 [ClientInvestmentsTab] Kliknięto inwestycję');
+    print('   Investment ID: ${investment.id}');
+    print('   Product Name: ${investment.productName}');
+    
+    // Callback do parent dialog
+    widget.onInvestmentTapped?.call(investment.id, investment.productName);
   }
 }

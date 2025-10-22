@@ -185,12 +185,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         }
       }
 
-      if (kDebugMode) {
-        print(
-          '🚀 [ProductDashboardWidget] Załadowano ${_optimizedProducts.length} produktów',
-        );
-      }
-
       // Investment list remains empty as we use optimized products directly
       _investments = [];
 
@@ -200,20 +194,10 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
           _dashboardStatistics = _convertGlobalStatsToUnified(
             optimizedResult!.statistics!,
           );
-          if (kDebugMode) {
-            print(
-              '🎯 [ProductDashboardWidget] Używam statystyk z OptimizedProductService',
-            );
-          }
         } else {
           // Fallback to statistics service
           _dashboardStatistics = await _statisticsService
               .getStatisticsFromInvestors();
-          if (kDebugMode) {
-            print(
-              '🔄 [ProductDashboardWidget] Fallback na UnifiedDashboardStatisticsService',
-            );
-          }
         }
       } catch (e) {
         if (kDebugMode) {
@@ -253,25 +237,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
       _scaleController.forward();
 
 
-      if (kDebugMode) {
-        print(
-          '✅ [ProductDashboard] Załadowano ${_optimizedProducts.length} produktów${optimizedResult != null ? " w ${optimizedResult.executionTime}ms (cache: ${optimizedResult.fromCache})" : ""}',
-        );
-        print(
-          '📊 [ProductDashboard] Statystyki dostępne: ${_dashboardStatistics != null}',
-        );
-        if (_dashboardStatistics != null) {
-          print(
-            '💰 [ProductDashboard] Źródło statystyk: ${_dashboardStatistics!.dataSource}',
-          );
-          print(
-            '💰 [ProductDashboard] Total Investment Amount: ${_dashboardStatistics!.totalInvestmentAmount}',
-          );
-          print(
-            '💰 [ProductDashboard] Total Remaining Capital: ${_dashboardStatistics!.totalRemainingCapital}',
-          );
-        }
-      }
     } catch (e) {
       if (kDebugMode) {
         print('❌ [ProductDashboard] Błąd podczas ładowania: $e');
@@ -301,15 +266,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     try {
       // Check if user is properly authenticated
       if (_userProfile != null && _userProfile!.isActive) {
-        if (kDebugMode) {
-          print(
-            '🚀 [ProductDashboard] User authenticated, playing startup sound...',
-          );
-          print(
-            '🚀 [ProductDashboard] User: ${_userProfile!.fullName} (${_userProfile!.email}) - Role: ${_userProfile!.role.toString().split('.').last}',
-          );
-        }
-
         // Check mounted again before async operations
         if (!mounted) return;
 
@@ -321,19 +277,7 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
 
         // Play startup success sound
         await _audioService.playDashboardLoadSuccess();
-
-        if (kDebugMode && mounted) {
-          print('🚀 [ProductDashboard] Startup sound played successfully');
-        }
       } else {
-        if (kDebugMode && mounted) {
-          print(
-            '🔇 [ProductDashboard] User not authenticated or inactive, skipping startup sound',
-          );
-          print(
-            '🔇 [ProductDashboard] UserProfile active: ${_userProfile?.isActive ?? false}',
-          );
-        }
       }
     } catch (e) {
       if (kDebugMode && mounted) {
@@ -1349,11 +1293,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
         final calculatedSecured = (investment.remainingCapital - investmentCapitalForRestructuring).clamp(0.0, double.infinity);
         totalCapitalSecured += calculatedSecured;
         
-        // 🔍 DEBUG: Log dla wybranych inwestycji
-        if (investment.remainingCapital > 0) {
-          print('🔍 [Selected] ${investment.id}: remaining=${investment.remainingCapital}, restructuring=${investmentCapitalForRestructuring}, secured=${calculatedSecured}');
-        }
-
         if (investment.status == InvestmentStatus.active) {
           activeItems++;
         }
@@ -2594,11 +2533,6 @@ class _ProductDashboardWidgetState extends State<ProductDashboardWidget>
     final estimatedCapitalSecured =
         (globalStats.totalRemainingCapital - estimatedCapitalForRestructuring)
             .clamp(0.0, double.infinity);
-
-    print('  • Total Remaining Capital: ${globalStats.totalRemainingCapital}');
-    print(
-      '  • Estimated Capital for Restructuring (5%): $estimatedCapitalForRestructuring',
-    );
 
     return UnifiedDashboardStatistics(
       totalInvestmentAmount: globalStats.totalValue,

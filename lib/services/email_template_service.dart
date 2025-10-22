@@ -39,11 +39,9 @@ class EmailTemplateService {
   /// Pobiera dane z cache lub wykonuje query
   Future<T?> getCachedData<T>(String key, Future<T?> Function() query) async {
     if (_isCacheValid && _cache.containsKey(key)) {
-      debugPrint('📧 [$_logTag] Cache hit for: $key');
       return _cache[key] as T?;
     }
 
-    debugPrint('📧 [$_logTag] Cache miss for: $key');
     final result = await query();
     if (result != null) {
       _cache[key] = result;
@@ -54,15 +52,12 @@ class EmailTemplateService {
 
   /// Log błędów
   void logError(String message, dynamic error) {
-    debugPrint('❌ [$_logTag] $message: $error');
   }
 
   /// Pobiera wszystkie aktywne szablony
   Future<List<EmailTemplateModel>?> getAllTemplates({bool activeOnly = true}) async {
     return await getCachedData('all_templates_$activeOnly', () async {
       try {
-        debugPrint('📧 [$_logTag] Fetching all templates (activeOnly: $activeOnly)');
-        
         Query query = _firestore
             .collection(_collectionName)
             .orderBy('category')
@@ -77,7 +72,6 @@ class EmailTemplateService {
             .map((doc) => EmailTemplateModel.fromFirestore(doc))
             .toList();
 
-        debugPrint('📧 [$_logTag] Found ${templates.length} templates');
         return templates;
       } catch (e) {
         logError('Error fetching templates', e);
@@ -92,9 +86,7 @@ class EmailTemplateService {
     bool activeOnly = true,
   }) async {
     return await getCachedData('templates_${category.name}_$activeOnly', () async {
-      try {
-        debugPrint('📧 [$_logTag] Fetching templates for category: ${category.displayName}');
-        
+        try {
         Query query = _firestore
             .collection(_collectionName)
             .where('category', isEqualTo: category.name)
@@ -109,7 +101,6 @@ class EmailTemplateService {
             .map((doc) => EmailTemplateModel.fromFirestore(doc))
             .toList();
 
-        debugPrint('📧 [$_logTag] Found ${templates.length} templates in category ${category.displayName}');
         return templates;
       } catch (e) {
         logError('Error fetching templates by category', e);
@@ -122,15 +113,12 @@ class EmailTemplateService {
   Future<EmailTemplateModel?> getTemplate(String templateId) async {
     return await getCachedData('template_$templateId', () async {
       try {
-        debugPrint('📧 [$_logTag] Fetching template: $templateId');
-        
         final doc = await _firestore
             .collection(_collectionName)
             .doc(templateId)
             .get();
 
         if (!doc.exists) {
-          debugPrint('📧 [$_logTag] Template not found: $templateId');
           return null;
         }
 
@@ -145,8 +133,6 @@ class EmailTemplateService {
   /// Tworzy nowy szablon
   Future<String?> createTemplate(EmailTemplateModel template) async {
     try {
-      debugPrint('📧 [$_logTag] Creating template: ${template.name}');
-      
       final templateWithTimestamps = template.copyWith(
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -165,7 +151,6 @@ class EmailTemplateService {
       // Clear cache
       clearCache();
 
-      debugPrint('📧 [$_logTag] Template created with ID: ${docRef.id}');
       return docRef.id;
     } catch (e) {
       logError('Error creating template', e);
@@ -176,8 +161,6 @@ class EmailTemplateService {
   /// Aktualizuje szablon
   Future<bool> updateTemplate(String templateId, EmailTemplateModel template) async {
     try {
-      debugPrint('📧 [$_logTag] Updating template: $templateId');
-      
       final updatedTemplate = template.copyWith(
         id: templateId,
         updatedAt: DateTime.now(),
@@ -197,7 +180,6 @@ class EmailTemplateService {
       // Clear cache
       clearCache();
 
-      debugPrint('📧 [$_logTag] Template updated: $templateId');
       return true;
     } catch (e) {
       logError('Error updating template', e);
@@ -208,8 +190,6 @@ class EmailTemplateService {
   /// Usuwa szablon (soft delete - oznacza jako nieaktywny)
   Future<bool> deleteTemplate(String templateId) async {
     try {
-      debugPrint('📧 [$_logTag] Soft deleting template: $templateId');
-      
       await _firestore
           .collection(_collectionName)
           .doc(templateId)
@@ -221,7 +201,6 @@ class EmailTemplateService {
       // Clear cache
       clearCache();
 
-      debugPrint('📧 [$_logTag] Template soft deleted: $templateId');
       return true;
     } catch (e) {
       logError('Error deleting template', e);
@@ -232,8 +211,6 @@ class EmailTemplateService {
   /// Hard delete szablon (trwałe usunięcie)
   Future<bool> permanentlyDeleteTemplate(String templateId) async {
     try {
-      debugPrint('📧 [$_logTag] Permanently deleting template: $templateId');
-      
       await _firestore
           .collection(_collectionName)
           .doc(templateId)
@@ -242,7 +219,6 @@ class EmailTemplateService {
       // Clear cache
       clearCache();
 
-      debugPrint('📧 [$_logTag] Template permanently deleted: $templateId');
       return true;
     } catch (e) {
       logError('Error permanently deleting template', e);
@@ -255,7 +231,6 @@ class EmailTemplateService {
     try {
       final original = await getTemplate(templateId);
       if (original == null) {
-        debugPrint('📧 [$_logTag] Cannot duplicate - template not found: $templateId');
         return null;
       }
 
@@ -285,8 +260,6 @@ class EmailTemplateService {
     Map<String, String>? customValues,
   }) {
     try {
-      debugPrint('📧 [$_logTag] Rendering template for investor: ${investor.client.name}');
-      
       // Podstawowe wartości dla inwestora
       final values = <String, String>{
         '{{client_name}}': investor.client.name,
@@ -317,7 +290,6 @@ class EmailTemplateService {
   /// Tworzy domyślne szablony systemowe
   Future<void> createDefaultTemplates() async {
     try {
-      debugPrint('📧 [$_logTag] Creating default templates');
 
       final defaultTemplates = [
         // Szablon powitalny
@@ -431,12 +403,10 @@ class EmailTemplateService {
           final templateId = await createTemplate(template);
           if (templateId != null) {
             created++;
-            debugPrint('📧 [$_logTag] Created default template: ${template.name}');
           }
         }
       }
 
-      debugPrint('📧 [$_logTag] Created $created new default templates');
     } catch (e) {
       logError('Error creating default templates', e);
     }

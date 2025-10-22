@@ -255,9 +255,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   }
 
   void _initializeRecipients() {
-    debugPrint(
-      '🔍 [EmailEditor] Initializing ${widget.selectedInvestors.length} recipients...',
-    );
     
     for (final investor in widget.selectedInvestors) {
       final clientId = investor.client.id;
@@ -270,21 +267,10 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       
       _recipientEnabled[clientId] = hasValidEmail;
       _recipientEmails[clientId] = email;
-      
-      // 🔍 DEBUG: Log recipient initialization with more details
-      debugPrint(
-        '🔍 [EmailEditor] Initialize ${investor.client.name} (ID: $clientId, Email: "$email"): ${hasValidEmail ? "ENABLED" : "DISABLED - Invalid email"}',
-      );
 
       // Log potential issues
       if (email.isEmpty) {
-        debugPrint(
-          '⚠️ [EmailEditor] WARNING: ${investor.client.name} has empty email address',
-        );
       } else if (!hasValidEmail) {
-        debugPrint(
-          '⚠️ [EmailEditor] WARNING: ${investor.client.name} has invalid email format: "$email"',
-        );
       }
     }
 
@@ -295,15 +281,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         .where((enabled) => !enabled)
         .length;
 
-    debugPrint(
-      '🔍 [EmailEditor] Recipients initialized - Total: ${widget.selectedInvestors.length}, Enabled: $enabledCount, Disabled: $disabledCount',
-    );
-
     // Additional warning if no recipients are enabled
     if (enabledCount == 0) {
-      debugPrint(
-        '❌ [EmailEditor] CRITICAL: No recipients are enabled for email sending!',
-      );
     }
   }
 
@@ -327,9 +306,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     try {
       _contentController.text = content;
 
-      debugPrint('🎨 Initial content loaded to HTML editor');
     } catch (e) {
-      debugPrint('Error initializing content: $e');
     }
   }
 
@@ -352,9 +329,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       _senderNameController.addListener(_onContentChanged);
       _senderEmailController.addListener(_onContentChanged);
 
-      debugPrint('💾 Auto-save initialized successfully');
     } catch (e) {
-      debugPrint('❌ Error initializing auto-save: $e');
     }
   }
 
@@ -467,7 +442,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       // Force preview update
       _forcePreviewUpdate();
 
-      debugPrint('✅ Draft recovered successfully');
 
       // Show success message
       if (mounted) {
@@ -486,7 +460,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         );
       }
     } catch (e) {
-      debugPrint('❌ Error recovering draft: $e');
     }
   }
 
@@ -536,10 +509,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
           _hasUnsavedChanges = false;
           _lastAutoSaveTime = DateTime.now();
         });
-        debugPrint('💾 Auto-save completed successfully');
       }
     } catch (e) {
-      debugPrint('❌ Auto-save failed: $e');
     } finally {
       setState(() {
         _isAutoSaving = false;
@@ -612,20 +583,11 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       if (mounted) {
         setState(() {
           try {
-            debugPrint('🔄 Starting preview update...');
 
             // 🎨 USE HTML EDITOR CONTENT DIRECTLY (Quill removed)
             _currentPreviewHtml = _contentController.text.isNotEmpty
                 ? _contentController.text
                 : '<p style="font-family: Arial, sans-serif; color: #666; font-style: italic;">Wpisz treść wiadomości...</p>';
-
-            debugPrint(
-              '🎨 HTML Editor content used: ${_currentPreviewHtml.length} characters',
-            );
-
-            debugPrint(
-              '🎨 Preview HTML: ${_currentPreviewHtml.substring(0, _currentPreviewHtml.length > 200 ? 200 : _currentPreviewHtml.length)}...',
-            );
 
             // 📧 DODAJ SZCZEGÓŁY INWESTYCJI JEŚLI WŁĄCZONE (asynchronicznie)
             if (_includeInvestmentDetails) {
@@ -656,18 +618,13 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                     }
                   });
 
-              debugPrint('💼 Investment details loading initiated');
             }
 
-            debugPrint('🎪 Preview updated with mixed editor support');
           } catch (e) {
-            debugPrint('⚠️ Preview update error: $e');
             // Fallback to plain text if conversion fails
             String fallbackText = _contentController.text;
-            debugPrint('📄 Fallback text: "$fallbackText"');
             _currentPreviewHtml =
                 '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">${fallbackText.isNotEmpty ? fallbackText.replaceAll('\n', '<br>') : 'Wpisz treść wiadomości...'}</div>';
-            debugPrint('🔄 Fallback HTML: $_currentPreviewHtml');
           }
         });
       }
@@ -680,7 +637,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     if (mounted) {
       setState(() {
         try {
-          debugPrint('🚀 Force preview update starting...');
 
           // 🎨 HANDLE BOTH QUILL AND HTML EDITOR CONTENT
           if (_useHtmlEditor) {
@@ -688,19 +644,11 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
             _currentPreviewHtml = _contentController.text.isNotEmpty
                 ? _contentController.text
                 : '<p style="font-family: Arial, sans-serif; color: #666; font-style: italic;">Wpisz treść wiadomości...</p>';
-
-            debugPrint(
-              '🎨 Force update - HTML Editor content used: ${_currentPreviewHtml.length} characters',
-            );
           } else {
             // For fallback case, use content controller directly
             _currentPreviewHtml = _contentController.text.isNotEmpty
                 ? _contentController.text
                 : '<p>Wpisz treść wiadomości...</p>';
-
-            debugPrint(
-              '🎨 Force update - Quill converted to HTML: ${_currentPreviewHtml.length} characters',
-            );
           }
 
           // 📧 DODAJ SZCZEGÓŁY INWESTYCJI JEŚLI WŁĄCZONE (asynchronicznie)
@@ -731,15 +679,9 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                     });
                   }
                 });
-
-            debugPrint(
-              '💼 Force update - Investment details loading initiated',
-            );
           }
 
-          debugPrint('🎪 Preview force updated with mixed editor support');
         } catch (e) {
-          debugPrint('⚠️ Force preview update error: $e');
           String fallbackText;
           if (_useHtmlEditor) {
             fallbackText = _contentController.text;
@@ -749,7 +691,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
           }
           _currentPreviewHtml =
               '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">${fallbackText.isNotEmpty ? fallbackText.replaceAll('\n', '<br>') : 'Wpisz treść wiadomości...'}</div>';
-          debugPrint('🔄 Force update fallback applied');
         }
       });
     }
@@ -867,7 +808,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   void _clearInvestmentDetailsCache() {
     _investmentDetailsCache.clear();
     _clientInvestmentsCache.clear();
-    debugPrint('🗑️ Investment details cache cleared');
   }
   
   Future<String> _generateInvestmentDetailsHtml({
@@ -880,27 +820,13 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
     // 📋 Sprawdź cache
     if (_investmentDetailsCache.containsKey(cacheKey)) {
-      debugPrint('✅ [CACHE] Using cached investment details for $type');
       return _investmentDetailsCache[cacheKey]!;
     }
-
-    debugPrint('🔍 [INVESTMENT HTML] Generating for type: ${type.displayName}');
-    debugPrint('🔍 [INVESTMENT HTML] Cache key: $cacheKey');
-    debugPrint(
-      '🔍 [INVESTMENT HTML] Specific investors: ${specificInvestors?.length ?? "using widget.selectedInvestors"}',
-    );
 
     // 🎯 UJEDNOLICONA LOGIKA dla wszystkich typów odbiorców
     final investorsToProcess = specificInvestors ?? widget.selectedInvestors;
 
-    debugPrint(
-      '🔍 [INVESTMENT HTML] investorsToProcess.length: ${investorsToProcess.length}',
-    );
-
     if (investorsToProcess.isEmpty) {
-      debugPrint(
-        '❌ [INVESTMENT HTML] No investors to process, returning empty message',
-      );
       return '<div style="padding: 20px; text-align: center; color: #666; font-style: italic;">Nie wybrano żadnych inwestorów.</div>';
     }
 
@@ -908,13 +834,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     // Firebase już wie które dane wysłać do którego typu odbiorcy
     List<InvestorSummary> enabledInvestors = List.from(investorsToProcess);
 
-    debugPrint(
-      '🔍 [INVESTMENT HTML] Processing ${enabledInvestors.length} investors for ${type.displayName}',
-    );
-
     // 📋 Walidacja - sprawdź czy mamy inwestorów do przetworzenia
     if (enabledInvestors.isEmpty) {
-      debugPrint('❌ [INVESTMENT HTML] No investors available');
       final emptyMessage =
           '<div style="padding: 20px; text-align: center; color: #666; font-style: italic;">Nie wybrano żadnych inwestorów do analizy.</div>';
       _investmentDetailsCache[cacheKey] = emptyMessage;
@@ -943,26 +864,14 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       // 🎯 UPROSZCZONA LOGIKA - Firebase obsługuje personalizację
       final finalInvestorsToProcess = enabledInvestors;
 
-      debugPrint(
-        '🔍 Processing ${finalInvestorsToProcess.length} investors for ${type.displayName}',
-      );
-
       // Pobierz inwestycje dla każdego inwestora
       for (int index = 0; index < finalInvestorsToProcess.length; index++) {
         final investor = finalInvestorsToProcess[index];
         final clientId = investor.client.id;
         final clientName = investor.client.name;
 
-        debugPrint(
-          '🔍 Pobieranie inwestycji dla klienta: $clientName ($clientId)',
-        );
-
         // Pobierz inwestycje klienta z Firebase
         final investments = await _getInvestmentsByClientId(clientId);
-
-        debugPrint(
-          '🔍 Processing ${investments.length} investments for client $clientName',
-        );
         
         if (investments.isNotEmpty) {
           // Oblicz podsumowania dla klienta
@@ -1084,9 +993,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
               });
             }
           } catch (e) {
-            debugPrint(
-              '❌ Błąd pobierania inwestycji dla klienta $clientId: $e',
-            );
+            // Error handled silently - continue with other clients
           }
         }
 
@@ -1189,23 +1096,13 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       // Szczegółowe podsumowanie inwestycji klienta
       if (totalInvestments > 0) {
         // Pokaż inwestycje pogrupowane według klientów
-        debugPrint(
-          '📋 Starting detailed investment sections for ${finalInvestorsToProcess.length} investors',
-        );
         for (int index = 0; index < finalInvestorsToProcess.length; index++) {
           final investor = finalInvestorsToProcess[index];
           final clientId = investor.client.id;
           final clientName = investor.client.name;
 
-          debugPrint(
-            '👤 Processing detailed section for client: $clientName (ID: $clientId)',
-          );
-
           try {
             final investments = await _getInvestmentsByClientId(clientId);
-            debugPrint(
-              '💰 Found ${investments.length} investments for client $clientName',
-            );
 
             if (investments.isNotEmpty) {
               // Nagłówek klienta - bardziej kompaktowy
@@ -1280,16 +1177,13 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
               '''); // Zamknij sekcję klienta
             }
           } catch (e) {
-            debugPrint(
-              '❌ Błąd pobierania inwestycji dla klienta $clientId: $e',
-            );
+            // Error handled silently - continue with other clients
           }
         }
       }
 
 
     } catch (e) {
-      debugPrint('❌ Błąd podczas pobierania danych inwestycji: $e');
       return '''<div style="padding: 20px; text-align: center; color: #dc3545; border: 1px solid #dc3545; border-radius: 8px; background: #f8d7da;">
                  ⚠️ Wystąpił błąd podczas pobierania danych inwestycji: $e
                </div>''';
@@ -1300,14 +1194,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     // 🚀 CACHE RESULT for future use
     _investmentDetailsCache[cacheKey] = result;
 
-    debugPrint(
-      '✅ [INVESTMENT HTML] Generated and cached for type: $type, length: ${result.length} characters',
-    );
-
     if (result.length < 100) {
-      debugPrint('❌ [INVESTMENT HTML] WARNING: Very short result for $type!');
     } else {
-      debugPrint('✅ [INVESTMENT HTML] Good result length for $type');
     }
     
     return result;
@@ -1317,12 +1205,10 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   Future<List<Investment>> _getInvestmentsByClientId(String clientId) async {
     // 🚀 SPRAWDŹ CACHE NAJPIERW
     if (_clientInvestmentsCache.containsKey(clientId)) {
-      debugPrint('✅ [CACHE] Using cached investments for client: $clientId');
       return _clientInvestmentsCache[clientId]!;
     }
     
     try {
-      debugPrint('🔍 Querying investments for client: $clientId');
       final querySnapshot = await FirebaseFirestore.instance
           .collection('investments')
           .where('clientId', isEqualTo: clientId)
@@ -1335,16 +1221,11 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       // 🚀 ZAPISZ W CACHE
       _clientInvestmentsCache[clientId] = investments;
 
-      debugPrint(
-        '🔍 Found and cached ${investments.length} investments for client $clientId',
-      );
       for (final investment in investments) {
-        debugPrint('🔍   - ${investment.productName} (${investment.id})');
       }
 
       return investments;
     } catch (e) {
-      debugPrint('❌ Błąd pobierania inwestycji dla klienta $clientId: $e');
       return [];
     }
   }
@@ -1359,15 +1240,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
     // 📋 Sprawdź cache
     if (_investmentDetailsCache.containsKey(cacheKey)) {
-      debugPrint(
-        '✅ [CACHE] Using cached investment details for client $clientId',
-      );
       return _investmentDetailsCache[cacheKey]!;
     }
-
-    debugPrint(
-      '🔍 [INDIVIDUAL CLIENT] Generating investment details for: $clientName ($clientId)',
-    );
 
     try {
       // Pobierz inwestycje tylko dla tego klienta
@@ -1485,16 +1359,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       // 🚀 CACHE RESULT for future use
       _investmentDetailsCache[cacheKey] = result;
 
-      debugPrint(
-        '✅ [INDIVIDUAL CLIENT] Generated ${result.length} characters for $clientName with ${investments.length} investments',
-      );
-
       return result;
     } catch (e) {
-      debugPrint(
-        '❌ [INDIVIDUAL CLIENT] Error generating data for $clientName: $e',
-      );
-
       final errorMessage =
           '''
         <div style="margin: 20px 0; padding: 16px; border: 1px solid #dc3545; border-radius: 8px; background: #f8d7da;">
@@ -1647,24 +1513,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       ..._additionalEmails,
     ].where((email) => email.isNotEmpty).toList();
 
-    // 🔍 DEBUG: Log recipient filtering
-    debugPrint(
-      '🔍 [EmailEditor] Total selected investors: ${widget.selectedInvestors.length}',
-    );
-    debugPrint(
-      '🔍 [EmailEditor] Enabled investors: ${enabledInvestors.length}',
-    );
-    for (final investor in widget.selectedInvestors) {
-      final enabled = _recipientEnabled[investor.client.id] ?? false;
-      debugPrint(
-        '🔍 [EmailEditor] ${investor.client.name} (${investor.client.email}): $enabled',
-      );
-    }
-    debugPrint(
-      '🔍 [EmailEditor] Additional emails: ${_additionalEmails.length}',
-    );
-    debugPrint('🔍 [EmailEditor] Total valid emails: ${allEmails.length}');
-
     setState(() {
       _isLoading = true;
       _error = null;
@@ -1699,13 +1547,11 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         emailHtml = _contentController.text.isNotEmpty
             ? _contentController.text
             : '<p>Treść wiadomości jest pusta.</p>';
-        debugPrint('📧 Using HTML Editor content directly');
       } else {
         // Fallback case - use HTML content as well
         emailHtml = _contentController.text.isNotEmpty
             ? _contentController.text
             : '<p>Treść wiadomości jest pusta.</p>';
-        debugPrint('📧 Using fallback HTML content');
       }
 
       // 📊 NOWE PODEJŚCIE - Generujemy mapę danych per klient dla indywidualnych emaili
@@ -1721,38 +1567,20 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
         // 🔥 KLUCZOWA POPRAWKA: Generuj dane PER KLIENT dla indywidualnych emaili
         if (!_isGroupEmail) {
-          debugPrint(
-            '🔍 [EMAIL INDIVIDUAL] Generuję dane per klient dla ${enabledInvestors.length} inwestorów',
-          );
-
           investmentDetailsByClient = <String, String>{};
 
           // Generuj dane dla każdego włączonego inwestora osobno
           for (final investor in enabledInvestors) {
-            debugPrint(
-              '� [EMAIL INDIVIDUAL] Generuję dane dla ${investor.client.name} (${investor.client.id})',
-            );
-
             final individualHtml = await _generateInvestmentDetailsForClient(
               investor.client.id,
               investor.client.name,
             );
 
             investmentDetailsByClient[investor.client.id] = individualHtml;
-
-            debugPrint(
-              '✅ [EMAIL INDIVIDUAL] Wygenerowano ${individualHtml.length} znaków dla ${investor.client.name}',
-            );
           }
 
-          debugPrint(
-            '✅ [EMAIL INDIVIDUAL] Mapa danych per klient gotowa: ${investmentDetailsByClient.keys.length} klientów',
-          );
         } else {
           // Tryb grupowy - użyj istniejącej logiki
-          debugPrint(
-            '📤 [EMAIL GROUP] Calling _generateInvestmentDetailsHtml for group email (${widget.selectedInvestors.length} total)',
-          );
           final investmentDetailsHtml = await _generateInvestmentDetailsHtml(
             type: RecipientType.main,
           );
@@ -1770,22 +1598,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
           _loadingProgress = 0.18;
         });
 
-        debugPrint(
-          '🔍 [ADDITIONAL RECIPIENTS] === LOGIKA DODATKOWYCH ODBIORCÓW ===',
-        );
-        debugPrint(
-          '🔍 [ADDITIONAL RECIPIENTS] Additional emails count: ${_additionalEmails.length}',
-        );
-        debugPrint(
-          '🔍 [ADDITIONAL RECIPIENTS] Total selected investors: ${widget.selectedInvestors.length}',
-        );
-        debugPrint(
-          '🔍 [ADDITIONAL RECIPIENTS] Enabled investors (checkboxes): ${enabledInvestors.length}',
-        );
-        debugPrint(
-          '🔥 [ADDITIONAL RECIPIENTS] WAŻNE: Dodatkowi odbiorcy widzą WSZYSTKICH ${widget.selectedInvestors.length} inwestorów (również ${widget.selectedInvestors.length - enabledInvestors.length} odznaczonych!)',
-        );
-
         // 🔥 KLUCZOWA LOGIKA: Dodatkowi odbiorcy ZAWSZE dostają inwestycje WSZYSTKICH pierwotnie wybranych
         // 📋 WAŻNE: Obejmuje to również inwestycje klientów ODZNACZONYCH w checkboxach!
         // 🎯 Logika: Odznaczeni klienci = NIE dostają maili, ALE ich inwestycje = SĄ w zestawieniu dla dodatkowych
@@ -1796,42 +1608,12 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         );
         aggregatedInvestmentsForAdditionals = allInvestorsHtml;
         
-        debugPrint(
-          '🔍 [ADDITIONAL RECIPIENTS] Generated HTML length: ${allInvestorsHtml.length} characters',
-        );
-
         if (allInvestorsHtml.isEmpty) {
-          debugPrint(
-            '❌ [ADDITIONAL RECIPIENTS] WARNING: Generated HTML is EMPTY!',
-          );
-          debugPrint(
-            '❌ [ADDITIONAL RECIPIENTS] This might indicate no investments found for selected investors',
-          );
         } else {
-          debugPrint(
-            '✅ [ADDITIONAL RECIPIENTS] Successfully generated investment data for additional recipients',
-          );
-        }
-
-        // 📋 DEBUG: Lista inwestorów dla dodatkowych odbiorców
-        for (final investor in widget.selectedInvestors) {
-          debugPrint(
-            '🔍 [ADDITIONAL RECIPIENTS] Will include investor: ${investor.client.name} (${investor.client.id})',
-          );
         }
       }
 
       // 🎨 ENHANCED LOGGING FOR EMAIL HTML
-      debugPrint('📧 Final email HTML length: ${finalHtml.length} characters');
-      if (finalHtml.contains('font-family:')) {
-        debugPrint('📧 Email contains custom font families ✅');
-      }
-      if (finalHtml.contains('color:')) {
-        debugPrint('📧 Email contains custom colors ✅');
-      }
-      if (finalHtml.contains('googleapis.com')) {
-        debugPrint('📧 Email includes Google Fonts links ✅');
-      }
 
       // Handle scheduled vs immediate sending
       if (_isSchedulingEnabled && _scheduledDateTime != null) {
@@ -1872,16 +1654,9 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         }
 
         // Log scheduling details for debugging
-        debugPrint(
-          '📅 [EmailEditor] Scheduling email with ${enabledInvestors.length} enabled investors + ${_additionalEmails.length} additional emails',
-        );
         for (final investor in enabledInvestors) {
-          debugPrint(
-            '📅 [EmailEditor] Scheduling for: ${investor.client.name} (${investor.client.email})',
-          );
         }
         for (final email in _additionalEmails) {
-          debugPrint('📅 [EmailEditor] Additional recipient: $email');
         }
 
         // Schedule email for later
@@ -1907,9 +1682,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
           createdBy: 'current_user', // TODO: Get actual user ID
         );
 
-        debugPrint(
-          '📅 [EmailEditor] Email scheduled successfully with ID: $scheduledEmailId',
-        );
         setState(() {
           _loadingMessage = 'Email zaplanowany pomyślnie';
           _loadingProgress = 1.0;
@@ -2014,7 +1786,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
           _hasUnsavedChanges = false;
           _lastAutoSaveTime = null;
         });
-        debugPrint('🗑️ Draft cleared after successful email sending');
       }
 
       // Powrót do poprzedniego ekranu z wynikiem
@@ -2180,14 +1951,9 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       );
 
       if (savedHistoryId != null) {
-        debugPrint(
-          '📊 Email history saved successfully with ID: $savedHistoryId',
-        );
       } else {
-        debugPrint('⚠️ Failed to save email history');
       }
     } catch (e) {
-      debugPrint('⚠️ Error saving email history: $e');
       // Don't throw error - this is not critical for email sending
     }
   }
@@ -2196,21 +1962,16 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   // 🔊 PLAY SUCCESS SOUND FOR EMAIL SENDING
   Future<void> _playSuccessSound() async {
     try {
-      debugPrint('🔊 Starting email success sound playback...');
 
       // Use AudioService to play custom email_sound.mp3
       await AudioService.instance.playEmailSentSound();
 
-      debugPrint('🔊 Email success sound played using AudioService');
     } catch (e) {
-      debugPrint('⚠️ AudioService playback failed: $e');
 
       // Fallback to system sound if AudioService fails
       try {
         SystemSound.play(SystemSoundType.alert);
-        debugPrint('🔊 Fallback to system sound completed');
       } catch (fallbackError) {
-        debugPrint('⚠️ System sound fallback also failed: $fallbackError');
       }
     }
   }
@@ -2448,7 +2209,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Profesjonalny Edytor Email',
+                  'Edytor Email',
                   style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: isMobile ? 18 : 22,
@@ -3588,7 +3349,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       },
       onReady: () {
         if (kDebugMode) {
-          print('🚀 HTML Editor ready in wow_email_editor_screen');
         }
       },
       onFileAttached: (EmailAttachment attachment) {
@@ -3616,12 +3376,10 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       },
       onFocusChanged: (focused) {
         if (kDebugMode) {
-          print('🎯 HTML Editor focus: $focused');
         }
       },
       onError: (error) {
         if (kDebugMode) {
-          print('❌ HTML Editor error: $error');
         }
       },
       initialContent: _contentController.text.isNotEmpty
@@ -3816,10 +3574,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                       padding: EdgeInsets.all(16),
                       child: Builder(
                         builder: (context) {
-                          debugPrint(
-                            '🖼️ Rendering preview HTML: "${_currentPreviewHtml.substring(0, _currentPreviewHtml.length > 100 ? 100 : _currentPreviewHtml.length)}..."',
-                          );
-
                           if (_currentPreviewHtml.isEmpty) {
                             return Text(
                               'Brak treści do podglądu',
@@ -4081,7 +3835,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                               ),
                             },
                             onLinkTap: (url, attributes, element) {
-                              debugPrint('🔗 Link tapped: $url');
                               // Handle link taps if needed
                             },
                           );

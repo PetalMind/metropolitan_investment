@@ -933,34 +933,7 @@ class _ProductInvestorsTabState extends State<ProductInvestorsTab>
       children: [
         const SizedBox(height: 4),
 
-        // 🚀 NOWE: Pokaż informację o podświetleniu
-        if (hasHighlightedInvestment)
-          Container(
-            margin: const EdgeInsets.only(bottom: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: AppTheme.primaryColor.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.star, size: 14, color: AppTheme.primaryColor),
-                const SizedBox(width: 4),
-                Text(
-                  'Zawiera inwestycję: ${widget.highlightInvestmentId}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.primaryColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
+    
 
         if (investor.client.email.isNotEmpty)
           Row(

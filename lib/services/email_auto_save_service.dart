@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,12 +12,10 @@ class EmailAutoSaveService {
   
   Timer? _autoSaveTimer;
   String? _currentDraftId;
-  Function()? _onDraftRestored;
   
   /// Initialize auto-save service with draft ID
   void initialize(String draftId, {Function()? onDraftRestored}) {
     _currentDraftId = draftId;
-    _onDraftRestored = onDraftRestored;
     _startAutoSaveTimer();
   }
 
@@ -67,10 +64,8 @@ class EmailAutoSaveService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyPrefix + draftId, jsonEncode(draft.toJson()));
       await prefs.setInt(_lastSaveKey, DateTime.now().millisecondsSinceEpoch);
-      
-      debugPrint('💾 Email draft saved: $draftId');
     } catch (e) {
-      debugPrint('❌ Failed to save email draft: $e');
+      // Handle save error silently in production
     }
   }
 
@@ -80,10 +75,9 @@ class EmailAutoSaveService {
     
     try {
       // This would be called by the email editor with current state
-      debugPrint('💾 Auto-saving draft: $_currentDraftId');
       // Note: Actual implementation would require callback from email editor
     } catch (e) {
-      debugPrint('❌ Auto-save failed: $e');
+      // Handle auto-save error silently in production
     }
   }
 
@@ -96,11 +90,10 @@ class EmailAutoSaveService {
       if (draftJson != null) {
         final draftData = jsonDecode(draftJson);
         final draft = EmailDraft.fromJson(draftData);
-        debugPrint('📧 Email draft loaded: $draftId');
         return draft;
       }
     } catch (e) {
-      debugPrint('❌ Failed to load email draft: $e');
+      // Handle load error silently in production
     }
     return null;
   }
@@ -119,7 +112,7 @@ class EmailAutoSaveService {
             final draftData = jsonDecode(draftJson);
             drafts.add(EmailDraft.fromJson(draftData));
           } catch (e) {
-            debugPrint('❌ Failed to parse draft: $key');
+            // Skip invalid draft silently in production
           }
         }
       }
@@ -128,7 +121,6 @@ class EmailAutoSaveService {
       drafts.sort((a, b) => b.lastModified.compareTo(a.lastModified));
       return drafts;
     } catch (e) {
-      debugPrint('❌ Failed to load drafts: $e');
       return [];
     }
   }
@@ -138,9 +130,8 @@ class EmailAutoSaveService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_keyPrefix + draftId);
-      debugPrint('🗑️ Email draft deleted: $draftId');
     } catch (e) {
-      debugPrint('❌ Failed to delete draft: $e');
+      // Handle delete error silently in production
     }
   }
 
@@ -160,7 +151,6 @@ class EmailAutoSaveService {
       final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
       return !draft.lastModified.isBefore(sevenDaysAgo);
     } catch (e) {
-      debugPrint('❌ Error checking for recoverable drafts: $e');
       return false;
     }
   }
@@ -176,10 +166,8 @@ class EmailAutoSaveService {
           await deleteDraft(draft.id);
         }
       }
-      
-      debugPrint('🧹 Cleaned up old email drafts');
     } catch (e) {
-      debugPrint('❌ Failed to cleanup old drafts: $e');
+      // Handle cleanup error silently in production
     }
   }
 
@@ -197,7 +185,6 @@ class EmailAutoSaveService {
       final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
       if (draft.lastModified.isBefore(sevenDaysAgo)) {
         await deleteDraft(draft.id);
-        debugPrint('🗑️ Old draft deleted: ${draft.id}');
         return null;
       }
 
@@ -207,16 +194,13 @@ class EmailAutoSaveService {
       if (shouldRecover == true) {
         // Recover the draft
         onDraftRecovered(draft);
-        debugPrint('✅ Draft recovered: ${draft.id}');
         return true;
       } else {
         // Delete the rejected draft
         await deleteDraft(draft.id);
-        debugPrint('🗑️ Draft rejected and deleted: ${draft.id}');
         return false;
       }
     } catch (e) {
-      debugPrint('❌ Error handling draft recovery: $e');
       return null;
     }
   }
@@ -225,7 +209,6 @@ class EmailAutoSaveService {
   void dispose() {
     stopAutoSave();
     _currentDraftId = null;
-    _onDraftRestored = null;
   }
 }
 

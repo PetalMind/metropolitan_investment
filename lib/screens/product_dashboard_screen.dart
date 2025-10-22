@@ -46,9 +46,6 @@ class _ProductDashboardScreenState extends State<ProductDashboardScreen>
 
     // Note: Startup sound is played by ProductDashboardWidget via DashboardAudioService
     // when data loads successfully. No need to duplicate it here.
-    if (kDebugMode) {
-      debugPrint('🏠 Dashboard screen initialized - audio handled by widget');
-    }
   }
 
  

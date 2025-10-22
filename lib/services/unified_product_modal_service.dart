@@ -42,16 +42,10 @@ class UnifiedProductModalService extends BaseService {
   }) async {
     final cacheKey = 'modal_${product.id}';
     
-    debugPrint('🎯 [UnifiedProductModalService] Pobieranie danych dla modalu:');
-    debugPrint('  - Product: ${product.name}');
-    debugPrint('  - ID: ${product.id}');
-    debugPrint('  - Force refresh: $forceRefresh');
-    
     // Sprawdź cache jeśli nie wymuszamy odświeżenia
     if (!forceRefresh && _modalCache.containsKey(cacheKey)) {
       final cached = _modalCache[cacheKey]!;
       if (cached.isValid) {
-        debugPrint('✅ [UnifiedProductModalService] Zwracam dane z cache');
         return cached;
       }
     }
@@ -90,16 +84,9 @@ class UnifiedProductModalService extends BaseService {
       // 6. Zapisz w cache
       _modalCache[cacheKey] = modalData;
       
-      debugPrint('✅ [UnifiedProductModalService] Dane załadowane:');
-      debugPrint('  - Inwestorzy: ${modalData.investors.length}');
-      debugPrint('  - Suma inwestycji: ${modalData.statistics.totalInvestmentAmount}');
-      debugPrint('  - Kapitał pozostały: ${modalData.statistics.totalRemainingCapital}');
-      debugPrint('  - Execution time: ${modalData.executionTime}ms');
-      
       return modalData;
       
     } catch (e) {
-      debugPrint('❌ [UnifiedProductModalService] Błąd: $e');
       rethrow;
     }
   }
@@ -107,8 +94,6 @@ class UnifiedProductModalService extends BaseService {
   /// Odnajduje prawdziwy productId z Firebase
   Future<String> _findRealProductId(UnifiedProduct product) async {
     try {
-      debugPrint('🔍 [UnifiedProductModalService] Szukam prawdziwego productId...');
-      
       // Użyj Firebase bezpośrednio
       final firestore = FirebaseFirestore.instance;
       final snapshot = await firestore
@@ -124,18 +109,14 @@ class UnifiedProductModalService extends BaseService {
         final productId = data['productId'] as String?;
 
         if (productId?.isNotEmpty == true) {
-          debugPrint('✅ [UnifiedProductModalService] Prawdziwy productId: $productId');
           return productId!;
         } else {
-          debugPrint('✅ [UnifiedProductModalService] Używam ID dokumentu: ${doc.id}');
           return doc.id;
         }
       } else {
-        debugPrint('⚠️ [UnifiedProductModalService] Fallback na oryginalny ID');
         return product.id;
       }
     } catch (e) {
-      debugPrint('❌ [UnifiedProductModalService] Błąd szukania productId: $e');
       return product.id;
     }
   }
@@ -189,11 +170,6 @@ class UnifiedProductModalService extends BaseService {
     await _investorsService.clearCacheForProduct(productId);
     // _productService dziedziczy po BaseService ale nie ma metody clearCache
     // więc pomijamy tą część
-    
-    debugPrint('🧹 [UnifiedProductModalService] Cache cleared for: $productId');
-    debugPrint('  - Modal cache cleared');
-    debugPrint('  - Investors service cache cleared');
-    debugPrint('  - Product service cache cleared');
   }
   
   /// Wyczyść cały cache
@@ -201,15 +177,12 @@ class UnifiedProductModalService extends BaseService {
   Future<void> clearAllCache() async {
     _modalCache.clear();
     await _investorsService.clearAllCache();
-    debugPrint('🧹 [UnifiedProductModalService] All cache cleared');
   }
   
   /// Odśwież dane po edycji inwestycji
   Future<ProductModalData> refreshAfterEdit({
     required UnifiedProduct product,
   }) async {
-    debugPrint('🔄 [UnifiedProductModalService] Odświeżanie po edycji...');
-    
     // Wyczyść cache
     clearProductCache(product.id);
     

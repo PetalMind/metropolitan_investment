@@ -31,22 +31,14 @@ class EmailHtmlConverterService {
   /// Convert Quill controller content to HTML for preview (without full document structure)
   static String convertQuillToHtmlForPreview(QuillController controller) {
     try {
-      debugPrint('🔄 Starting HTML conversion for preview...');
-      debugPrint('📊 Document length: ${controller.document.length}');
-
       final plainText = controller.document.toPlainText();
-      debugPrint('📄 Plain text: "$plainText"');
-      debugPrint('📄 Plain text length: ${plainText.length}');
 
       // If document is essentially empty, return formatted empty content
       if (controller.document.length <= 1 || plainText.trim().isEmpty) {
-        debugPrint('📭 Document is empty, returning placeholder');
         return '<div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #666; font-style: italic;"><p>Wpisz treść wiadomości...</p></div>';
       }
 
-      debugPrint('🔄 Converting delta to HTML for preview...');
       final deltaJson = controller.document.toDelta().toJson();
-      debugPrint('📋 Delta JSON: $deltaJson');
 
       final converter = QuillDeltaToHtmlConverter(
         deltaJson,
@@ -61,22 +53,14 @@ class EmailHtmlConverterService {
       );
 
       final htmlOutput = converter.convert();
-      debugPrint(
-        '✅ HTML conversion for preview successful: ${htmlOutput.length} characters',
-      );
-      debugPrint(
-        '🎨 Preview HTML: ${htmlOutput.substring(0, htmlOutput.length > 200 ? 200 : htmlOutput.length)}...',
-      );
 
       // For preview, return just the content without full document structure
       return htmlOutput;
     } catch (e) {
-      debugPrint('⚠️ HTML conversion for preview error: $e');
       final plainText = controller.document.toPlainText();
       const defaultFontFamily = 'Arial, sans-serif';
       final fallbackHtml =
           '<div style="font-family: $defaultFontFamily !important; font-size: 16px; line-height: 1.6;"><p>${plainText.isNotEmpty ? plainText.replaceAll('\n', '<br>') : 'Błąd konwersji HTML'}</p></div>';
-      debugPrint('🔄 Returning fallback HTML for preview: $fallbackHtml');
       return fallbackHtml;
     }
   }
@@ -84,22 +68,14 @@ class EmailHtmlConverterService {
   /// Convert Quill controller content to HTML with enhanced formatting support
   static String convertQuillToHtml(QuillController controller) {
     try {
-      debugPrint('🔄 Starting HTML conversion...');
-      debugPrint('📊 Document length: ${controller.document.length}');
-      
       final plainText = controller.document.toPlainText();
-      debugPrint('📄 Plain text: "$plainText"');
-      debugPrint('📄 Plain text length: ${plainText.length}');
 
       // If document is essentially empty, return formatted empty content
       if (controller.document.length <= 1 || plainText.trim().isEmpty) {
-        debugPrint('📭 Document is empty, returning placeholder');
         return '<div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #666; font-style: italic;"><p>Wpisz treść wiadomości...</p></div>';
       }
 
-      debugPrint('🔄 Converting delta to HTML...');
       final deltaJson = controller.document.toDelta().toJson();
-      debugPrint('📋 Delta JSON: $deltaJson');
       
       final converter = QuillDeltaToHtmlConverter(
         deltaJson,
@@ -114,24 +90,15 @@ class EmailHtmlConverterService {
       );
 
       final htmlOutput = converter.convert();
-      debugPrint(
-        '✅ HTML conversion successful: ${htmlOutput.length} characters',
-      );
-      debugPrint(
-        '🎨 Raw HTML: ${htmlOutput.substring(0, htmlOutput.length > 200 ? 200 : htmlOutput.length)}...',
-      );
 
       final finalHtml = _enhanceHtmlWithEmailCompatibility(htmlOutput);
-      debugPrint('🚀 Final HTML: ${finalHtml.length} characters');
 
       return finalHtml;
     } catch (e) {
-      debugPrint('⚠️ HTML conversion error: $e');
       final plainText = controller.document.toPlainText();
       const defaultFontFamily = 'Arial, sans-serif';
       final fallbackHtml =
           '<div style="font-family: $defaultFontFamily !important; font-size: 16px; line-height: 1.6;"><p>${plainText.isNotEmpty ? plainText.replaceAll('\n', '<br>') : 'Błąd konwersji HTML'}</p></div>';
-      debugPrint('🔄 Returning fallback HTML: $fallbackHtml');
       return fallbackHtml;
     }
   }
@@ -212,7 +179,6 @@ class EmailHtmlConverterService {
   static String? _convertColorAttribute(dynamic value) {
     if (value.toString().isEmpty) return null;
     String colorValue = value.toString().trim();
-    debugPrint('🎨 Converting color: $colorValue');
     
     // Handle hex colors with #
     if (colorValue.startsWith('#')) {
@@ -257,7 +223,6 @@ class EmailHtmlConverterService {
     // Handle HSL format - convert to standard named color or fallback
     if (colorValue.startsWith('hsl(')) {
       // For email compatibility, we'll use a fallback
-      debugPrint('⚠️ HSL color converted to fallback black for email compatibility');
       return 'color: #000000 !important';
     }
     
@@ -275,7 +240,6 @@ class EmailHtmlConverterService {
     }
     
     // Fallback for any unrecognized format
-    debugPrint('⚠️ Unrecognized color format: $colorValue, using fallback black');
     return 'color: #000000 !important';
   }
 
@@ -283,7 +247,6 @@ class EmailHtmlConverterService {
   static String? _convertBackgroundAttribute(dynamic value) {
     if (value.toString().isEmpty) return null;
     String colorValue = value.toString().trim();
-    debugPrint('🎨 Converting background: $colorValue');
     
     // Handle hex colors with #
     if (colorValue.startsWith('#')) {
@@ -322,13 +285,11 @@ class EmailHtmlConverterService {
       final r = rgbaMatch.group(1);
       final g = rgbaMatch.group(2);
       final b = rgbaMatch.group(3);
-      debugPrint('🎨 Converting RGBA to RGB for background color compatibility');
       return 'background-color: rgb($r, $g, $b) !important';
     }
     
     // Handle HSL format - convert to fallback transparent
     if (colorValue.startsWith('hsl(')) {
-      debugPrint('⚠️ HSL background color converted to transparent for email compatibility');
       return 'background-color: transparent !important';
     }
     
@@ -347,7 +308,6 @@ class EmailHtmlConverterService {
     }
     
     // Fallback for any unrecognized format
-    debugPrint('⚠️ Unrecognized background color format: $colorValue, using fallback transparent');
     return 'background-color: transparent !important';
   }
 
@@ -358,9 +318,6 @@ class EmailHtmlConverterService {
     final fontName = value.toString();
     final cssFontFamily = getCssFontFamily(fontName);
     
-    debugPrint('🎨 Using font: $fontName with fallbacks');
-    
-    debugPrint('🎨 Converting font to HTML: $fontName → $cssFontFamily');
     return 'font-family: $cssFontFamily !important';
   }
 
@@ -369,12 +326,10 @@ class EmailHtmlConverterService {
     if (value.toString().isEmpty) return null;
     
     final sizeValue = value.toString();
-    debugPrint('🎨 Converting size: $sizeValue');
-
+    
     // Handle predefined sizes from fontSizes map
     if (fontSizes.containsKey(sizeValue)) {
       final size = fontSizes[sizeValue]!;
-      debugPrint('🎨 Found predefined size: $sizeValue → ${size}px');
       return 'font-size: ${size}px !important';
     }
 
@@ -382,32 +337,26 @@ class EmailHtmlConverterService {
     final sizeMatch = RegExp(r'\((\d+)px\)').firstMatch(sizeValue);
     if (sizeMatch != null) {
       final size = sizeMatch.group(1)!;
-      debugPrint('🎨 Extracted size from format: $sizeValue → ${size}px');
       return 'font-size: ${size}px !important';
     }
 
     // Handle plain numbers
     if (RegExp(r'^\d+$').hasMatch(sizeValue)) {
-      debugPrint('🎨 Plain number size: $sizeValue → ${sizeValue}px');
       return 'font-size: ${sizeValue}px !important';
     }
 
     // Handle sizes with units
     if (RegExp(r'^\d+(\.\d+)?(px|pt|em|rem|%)$').hasMatch(sizeValue)) {
-      debugPrint('🎨 Size with unit: $sizeValue');
       return 'font-size: $sizeValue !important';
     }
 
     // Fallback
-    debugPrint('🎨 Fallback size: $sizeValue');
     return 'font-size: $sizeValue !important';
   }
 
   /// Convert alignment attribute
   static String? _convertAlignAttribute(dynamic value) {
     if (value.toString().isEmpty) return null;
-    debugPrint('🎨 Converting alignment: $value');
-    
     const validAlignments = ['left', 'center', 'right', 'justify'];
     final alignment = validAlignments.contains(value.toString()) 
         ? value.toString() 
@@ -420,7 +369,6 @@ class EmailHtmlConverterService {
     if (value.toString().isEmpty) return null;
     final indentValue = int.tryParse(value.toString()) ?? 1;
     final indentPx = indentValue * 30; // 30px per indent level
-    debugPrint('🎨 Converting indent: $value → ${indentPx}px');
     return 'margin-left: ${indentPx}px !important';
   }
 
@@ -429,19 +377,16 @@ class EmailHtmlConverterService {
     if (value.toString().isEmpty) return null;
     final headerLevel = int.tryParse(value.toString()) ?? 1;
     final fontSize = [32, 28, 24, 20, 18, 16][headerLevel.clamp(1, 6) - 1];
-    debugPrint('🎨 Converting header: level $headerLevel → ${fontSize}px');
     return 'font-size: ${fontSize}px !important; font-weight: 600 !important; margin: 16px 0 8px 0 !important; line-height: 1.2 !important';
   }
 
   /// Convert blockquote attribute
   static String? _convertBlockquoteAttribute(dynamic value) {
-    debugPrint('🎨 Converting blockquote');
     return 'margin: 16px 20px !important; padding: 16px !important; background-color: #f9f9f9 !important; border-left: 4px solid #ccc !important; font-style: italic !important';
   }
 
   /// Convert code block attribute
   static String? _convertCodeBlockAttribute(dynamic value) {
-    debugPrint('🎨 Converting code block');
     return 'background-color: #f4f4f4 !important; padding: 12px !important; font-family: "Courier New", monospace !important; white-space: pre-wrap !important; margin: 0 0 16px 0 !important; border-radius: 4px !important';
   }
 
@@ -449,7 +394,6 @@ class EmailHtmlConverterService {
   static String? _convertScriptAttribute(dynamic value) {
     if (value.toString().isEmpty) return null;
     final scriptType = value.toString();
-    debugPrint('🎨 Converting script: $scriptType');
     
     if (scriptType == 'super') {
       return 'vertical-align: super !important; font-size: 0.8em !important';
@@ -463,7 +407,6 @@ class EmailHtmlConverterService {
   static String? _convertFontWeightAttribute(dynamic value) {
     if (value.toString().isEmpty) return null;
     final weight = value.toString();
-    debugPrint('🎨 Converting font weight: $weight');
     
     // Convert numeric and text weights
     final validWeights = ['100', '200', '300', '400', '500', '600', '700', '800', '900', 'normal', 'bold', 'bolder', 'lighter'];
@@ -476,8 +419,6 @@ class EmailHtmlConverterService {
   /// Enhance HTML with email client compatibility
   static String _enhanceHtmlWithEmailCompatibility(String htmlOutput) {
     String finalHtml = htmlOutput;
-
-    debugPrint('🎨 Using standard web fonts for email compatibility');
 
     // Add email-compatible structure if not present
     if (!finalHtml.contains('<html>') && !finalHtml.contains('<body>')) {
@@ -501,7 +442,6 @@ class EmailHtmlConverterService {
 </body>
 </html>''';
     }
-    debugPrint('🎨 HTML conversion completed with web-compatible structure');
     return finalHtml;
   }
 

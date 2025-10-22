@@ -47,11 +47,9 @@ class EmailAttachmentService {
   /// Pobiera dane z cache lub wykonuje query
   Future<T?> getCachedData<T>(String key, Future<T?> Function() query) async {
     if (_isCacheValid && _cache.containsKey(key)) {
-      debugPrint('📎 [$_logTag] Cache hit for: $key');
       return _cache[key] as T?;
     }
 
-    debugPrint('📎 [$_logTag] Cache miss for: $key');
     final result = await query();
     if (result != null) {
       _cache[key] = result;
@@ -62,7 +60,6 @@ class EmailAttachmentService {
 
   /// Log błędów
   void logError(String message, dynamic error) {
-    debugPrint('❌ [$_logTag] $message: $error');
   }
 
   /// Wybiera pliki za pomocą file picker
@@ -71,8 +68,6 @@ class EmailAttachmentService {
     List<String>? allowedExtensions,
   }) async {
     try {
-      debugPrint('📎 [$_logTag] Opening file picker');
-      
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: allowMultiple,
         type: allowedExtensions != null 
@@ -83,20 +78,13 @@ class EmailAttachmentService {
       );
 
       if (result != null && result.files.isNotEmpty) {
-        debugPrint('📎 [$_logTag] Selected ${result.files.length} files');
-        
         // Waliduj rozmiary
         final validFiles = result.files.where((file) {
           if (file.size > _maxFileSize) {
-            debugPrint('⚠️ [$_logTag] File too large: ${file.name} (${file.size} bytes)');
             return false;
           }
           return true;
         }).toList();
-
-        if (validFiles.length != result.files.length) {
-          debugPrint('⚠️ [$_logTag] Filtered out ${result.files.length - validFiles.length} files due to size');
-        }
 
         return validFiles;
       }
@@ -121,8 +109,6 @@ class EmailAttachmentService {
         return null;
       }
 
-      debugPrint('📎 [$_logTag] Uploading file: ${file.name}');
-      
       // Sanitize filename
       final sanitizedName = _sanitizeFileName(file.name);
       final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -154,7 +140,6 @@ class EmailAttachmentService {
       final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
-      debugPrint('📎 [$_logTag] File uploaded successfully: $downloadUrl');
       return downloadUrl;
     } catch (e) {
       logError('Error uploading file', e);
@@ -171,8 +156,6 @@ class EmailAttachmentService {
     String? storagePath,
   }) async {
     try {
-      debugPrint('📎 [$_logTag] Creating attachment: ${file.name}');
-      
       final attachment = EmailAttachment(
         id: '', // Firestore wygeneruje ID
         name: _sanitizeFileName(file.name),
@@ -197,7 +180,6 @@ class EmailAttachmentService {
           .add(attachment.toFirestore());
 
       clearCache();
-      debugPrint('📎 [$_logTag] Attachment created with ID: ${docRef.id}');
       return docRef.id;
     } catch (e) {
       logError('Error creating attachment', e);
@@ -213,8 +195,6 @@ class EmailAttachmentService {
     Function(double)? onProgress,
   }) async {
     try {
-      debugPrint('📎 [$_logTag] Upload and create attachment: ${file.name}');
-      
       // Upload do Storage
       final storageUrl = await uploadFile(file, userId, onProgress: onProgress);
       if (storageUrl == null) {
@@ -253,7 +233,6 @@ class EmailAttachmentService {
             .get();
 
         if (!doc.exists) {
-          debugPrint('📎 [$_logTag] Attachment not found: $attachmentId');
           return null;
         }
 
@@ -291,7 +270,6 @@ class EmailAttachmentService {
             .map((doc) => EmailAttachment.fromFirestore(doc))
             .toList();
 
-        debugPrint('📎 [$_logTag] Found ${attachments.length} attachments for user $userId');
         return attachments;
       } catch (e) {
         logError('Error fetching user attachments', e);
@@ -303,8 +281,6 @@ class EmailAttachmentService {
   /// Usuwa attachment
   Future<bool> deleteAttachment(String attachmentId, {bool deleteFromStorage = true}) async {
     try {
-      debugPrint('📎 [$_logTag] Deleting attachment: $attachmentId');
-      
       // Pobierz attachment żeby uzyskać storage path
       final attachment = await getAttachment(attachmentId);
       
@@ -312,9 +288,7 @@ class EmailAttachmentService {
       if (deleteFromStorage && attachment?.storagePath != null) {
         try {
           await _storage.ref(attachment!.storagePath!).delete();
-          debugPrint('📎 [$_logTag] Deleted from storage: ${attachment.storagePath}');
         } catch (storageError) {
-          debugPrint('⚠️ [$_logTag] Could not delete from storage: $storageError');
         }
       }
 
@@ -322,7 +296,6 @@ class EmailAttachmentService {
       await _firestore.collection(_collectionName).doc(attachmentId).delete();
       
       clearCache();
-      debugPrint('📎 [$_logTag] Attachment deleted: $attachmentId');
       return true;
     } catch (e) {
       logError('Error deleting attachment', e);
@@ -414,8 +387,6 @@ class EmailAttachmentService {
     String? userId,
   }) async {
     try {
-      debugPrint('📎 [$_logTag] Cleaning up old attachments');
-      
       final cutoffDate = DateTime.now().subtract(olderThan);
       
       Query query = _firestore
@@ -437,7 +408,6 @@ class EmailAttachmentService {
         }
       }
 
-      debugPrint('📎 [$_logTag] Cleaned up $deletedCount old attachments');
       return deletedCount;
     } catch (e) {
       logError('Error cleaning up old attachments', e);

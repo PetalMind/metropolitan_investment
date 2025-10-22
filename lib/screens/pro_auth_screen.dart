@@ -148,11 +148,12 @@ class _ProAuthScreenState extends State<ProAuthScreen>
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final isValidEmail = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-    final isValidPassword = password.isNotEmpty && password.length >= 6;
+    final isValidPassword = password.isNotEmpty && password.length >= 6 && password.length <= 128;
+    final isValidEmailLength = email.length <= 254;
 
     bool newFormValid;
     if (_isLoginMode) {
-      newFormValid = email.isNotEmpty && isValidEmail && isValidPassword;
+      newFormValid = email.isNotEmpty && isValidEmail && isValidEmailLength && isValidPassword;
     } else {
       final firstName = _firstNameController.text.trim();
       final lastName = _lastNameController.text.trim();
@@ -160,13 +161,17 @@ class _ProAuthScreenState extends State<ProAuthScreen>
 
       newFormValid = firstName.isNotEmpty &&
           firstName.length >= 2 &&
+          firstName.length <= 50 &&
           lastName.isNotEmpty &&
           lastName.length >= 2 &&
+          lastName.length <= 50 &&
           email.isNotEmpty &&
           isValidEmail &&
+          isValidEmailLength &&
           isValidPassword &&
           RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)').hasMatch(password) &&
           confirmPassword == password &&
+          confirmPassword.length <= 128 &&
           _acceptTerms;
     }
 
@@ -699,12 +704,16 @@ class _ProAuthScreenState extends State<ProAuthScreen>
                 controller: _firstNameController,
                 label: 'Imię',
                 icon: Icons.person_outline,
+                maxLength: 50,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Podaj imię';
                   }
                   if (value.length < 2) {
                     return 'Imię musi mieć co najmniej 2 znaki';
+                  }
+                  if (value.length > 50) {
+                    return 'Imię może mieć maksymalnie 50 znaków';
                   }
                   return null;
                 },
@@ -716,12 +725,16 @@ class _ProAuthScreenState extends State<ProAuthScreen>
                 controller: _lastNameController,
                 label: 'Nazwisko',
                 icon: Icons.person_outline,
+                maxLength: 50,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Podaj nazwisko';
                   }
                   if (value.length < 2) {
                     return 'Nazwisko musi mieć co najmniej 2 znaki';
+                  }
+                  if (value.length > 50) {
+                    return 'Nazwisko może mieć maksymalnie 50 znaków';
                   }
                   return null;
                 },
@@ -741,9 +754,13 @@ class _ProAuthScreenState extends State<ProAuthScreen>
         hint: 'twoj@email.com',
         icon: Icons.email_outlined,
         keyboardType: TextInputType.emailAddress,
+        maxLength: 254,
         validator: (value) {
           if (value == null || value.isEmpty) {
             return 'Podaj adres email';
+          }
+          if (value.length > 254) {
+            return 'Adres email może mieć maksymalnie 254 znaki';
           }
           if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
             return 'Podaj prawidłowy adres email';
@@ -762,6 +779,7 @@ class _ProAuthScreenState extends State<ProAuthScreen>
         hint: _isLoginMode ? 'Wprowadź hasło' : 'Minimum 6 znaków',
         icon: Icons.lock_outlined,
         obscureText: !_showPassword,
+        maxLength: 128,
         suffixIcon: IconButton(
           onPressed: () {
             setState(() => _showPassword = !_showPassword);
@@ -783,6 +801,9 @@ class _ProAuthScreenState extends State<ProAuthScreen>
           if (value.length < 6) {
             return 'Hasło musi mieć co najmniej 6 znaków';
           }
+          if (value.length > 128) {
+            return 'Hasło może mieć maksymalnie 128 znaków';
+          }
           if (!_isLoginMode) {
             if (!RegExp(r'^(?=.*[a-z])').hasMatch(value)) {
               return 'Hasło musi zawierać małą literę';
@@ -799,6 +820,14 @@ class _ProAuthScreenState extends State<ProAuthScreen>
       ),
     ]);
 
+    // Password requirements hint for registration
+    if (!_isLoginMode && _passwordController.text.isNotEmpty) {
+      fields.addAll([
+        const SizedBox(height: 12),
+        _buildPasswordRequirements(),
+      ]);
+    }
+
     if (!_isLoginMode) {
       fields.addAll([
         const SizedBox(height: 20),
@@ -808,6 +837,7 @@ class _ProAuthScreenState extends State<ProAuthScreen>
           hint: 'Powtórz hasło',
           icon: Icons.lock_outlined,
           obscureText: !_showConfirmPassword,
+          maxLength: 128,
           suffixIcon: IconButton(
             onPressed: () {
               setState(() => _showConfirmPassword = !_showConfirmPassword);
@@ -825,6 +855,9 @@ class _ProAuthScreenState extends State<ProAuthScreen>
           validator: (value) {
             if (value == null || value.isEmpty) {
               return 'Potwierdź hasło';
+            }
+            if (value.length > 128) {
+              return 'Hasło może mieć maksymalnie 128 znaków';
             }
             if (value != _passwordController.text) {
               return 'Hasła nie są identyczne';
@@ -849,12 +882,14 @@ class _ProAuthScreenState extends State<ProAuthScreen>
     bool obscureText = false,
     Widget? suffixIcon,
     String? Function(String?)? validator,
+    int? maxLength,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
+      maxLength: maxLength,
       style: TextStyle(
         color: AppThemePro.textPrimary,
         fontSize: 15,
@@ -903,6 +938,10 @@ class _ProAuthScreenState extends State<ProAuthScreen>
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,
+        ),
+        counterStyle: TextStyle(
+          color: AppThemePro.textTertiary,
+          fontSize: 11,
         ),
       ),
     );
@@ -1092,6 +1131,91 @@ class _ProAuthScreenState extends State<ProAuthScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPasswordRequirements() {
+    final password = _passwordController.text;
+    final hasMinLength = password.length >= 6;
+    final hasLowercase = RegExp(r'^(?=.*[a-z])').hasMatch(password);
+    final hasUppercase = RegExp(r'^(?=.*[A-Z])').hasMatch(password);
+    final hasDigit = RegExp(r'^(?=.*\d)').hasMatch(password);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppThemePro.surfaceCard.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppThemePro.accentGold.withValues(alpha: 0.15),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Wymagania hasła:',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppThemePro.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildRequirementItem('Co najmniej 6 znaków', hasMinLength),
+          _buildRequirementItem('Mała litera (a-z)', hasLowercase),
+          _buildRequirementItem('Wielka litera (A-Z)', hasUppercase),
+          _buildRequirementItem('Cyfra (0-9)', hasDigit),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequirementItem(String text, bool isMet) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: isMet 
+                  ? AppThemePro.accentGold
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isMet 
+                    ? AppThemePro.accentGold
+                    : AppThemePro.textMuted,
+                width: 1.5,
+              ),
+            ),
+            child: isMet
+                ? Icon(
+                    Icons.check,
+                    size: 12,
+                    color: AppThemePro.primaryDark,
+                  )
+                : null,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: isMet 
+                    ? AppThemePro.accentGold
+                    : AppThemePro.textMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

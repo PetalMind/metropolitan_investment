@@ -49,8 +49,20 @@ class AuthService {
     bool rememberMe = false,
   }) async {
     try {
+      // Validate input lengths
+      final trimmedEmail = email.trim();
+      if (trimmedEmail.length > 254) {
+        return AuthResult.error('Adres email może mieć maksymalnie 254 znaki');
+      }
+      if (password.length > 128) {
+        return AuthResult.error('Hasło może mieć maksymalnie 128 znaków');
+      }
+      if (password.length < 6) {
+        return AuthResult.error('Hasło musi mieć co najmniej 6 znaków');
+      }
+
       final UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
+        email: trimmedEmail,
         password: password,
       );
 
@@ -62,7 +74,7 @@ class AuthService {
         _preferencesService ??= await UserPreferencesService.getInstance();
         await _preferencesService!.saveLoginPreferences(
           rememberMe: rememberMe,
-          email: email.trim(),
+          email: trimmedEmail,
         );
 
         return AuthResult.success(result.user!);
@@ -86,21 +98,48 @@ class AuthService {
     String? phone,
   }) async {
     try {
+      // Validate input lengths
+      final trimmedEmail = email.trim();
+      final trimmedFirstName = firstName.trim();
+      final trimmedLastName = lastName.trim();
+      
+      if (trimmedEmail.length > 254) {
+        return AuthResult.error('Adres email może mieć maksymalnie 254 znaki');
+      }
+      if (password.length > 128) {
+        return AuthResult.error('Hasło może mieć maksymalnie 128 znaków');
+      }
+      if (password.length < 6) {
+        return AuthResult.error('Hasło musi mieć co najmniej 6 znaków');
+      }
+      if (trimmedFirstName.length > 50) {
+        return AuthResult.error('Imię może mieć maksymalnie 50 znaków');
+      }
+      if (trimmedFirstName.length < 2) {
+        return AuthResult.error('Imię musi mieć co najmniej 2 znaki');
+      }
+      if (trimmedLastName.length > 50) {
+        return AuthResult.error('Nazwisko może mieć maksymalnie 50 znaków');
+      }
+      if (trimmedLastName.length < 2) {
+        return AuthResult.error('Nazwisko musi mieć co najmniej 2 znaki');
+      }
+
       final UserCredential result = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
+        email: trimmedEmail,
         password: password,
       );
 
       if (result.user != null) {
         // Update user display name
-        await result.user!.updateDisplayName('$firstName $lastName');
+        await result.user!.updateDisplayName('$trimmedFirstName $trimmedLastName');
 
         // Create user profile in Firestore
         await _createUserProfile(
           uid: result.user!.uid,
-          email: email.trim(),
-          firstName: firstName,
-          lastName: lastName,
+          email: trimmedEmail,
+          firstName: trimmedFirstName,
+          lastName: trimmedLastName,
           company: company,
           phone: phone,
         );
@@ -119,7 +158,12 @@ class AuthService {
   // Reset password
   Future<AuthResult> resetPassword({required String email}) async {
     try {
-      await _auth.sendPasswordResetEmail(email: email.trim());
+      final trimmedEmail = email.trim();
+      if (trimmedEmail.length > 254) {
+        return AuthResult.error('Adres email może mieć maksymalnie 254 znaki');
+      }
+      
+      await _auth.sendPasswordResetEmail(email: trimmedEmail);
       return AuthResult.success(
         null,
         'Link do resetowania hasła został wysłany na podany adres email',

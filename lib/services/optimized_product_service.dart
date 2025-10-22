@@ -36,12 +36,6 @@ class OptimizedProductService extends BaseService {
         }
       }
 
-      if (kDebugMode) {
-        print(
-          '🚀 [OptimizedProductService] Wywołuję getAllProductsWithInvestors...',
-        );
-      }
-
       final optimizedResult = await _fetchFromFirebase(
         forceRefresh,
         includeStatistics,
@@ -50,12 +44,6 @@ class OptimizedProductService extends BaseService {
 
       // Cache na 5 minut - używaj metody z BaseService
       await _setCacheData(cacheKey, optimizedResult);
-
-      if (kDebugMode) {
-        print(
-          '🎯 [OptimizedProductService] Pobrano ${optimizedResult.products.length} produktów z cache: ${optimizedResult.fromCache}',
-        );
-      }
 
       return optimizedResult;
     } catch (e) {
@@ -92,12 +80,6 @@ class OptimizedProductService extends BaseService {
     });
 
     stopwatch.stop();
-
-    if (kDebugMode) {
-      print(
-        '✅ [OptimizedProductService] Firebase Functions zakończone w ${stopwatch.elapsedMilliseconds}ms',
-      );
-    }
 
     final data = result.data as Map<String, dynamic>;
     return OptimizedProductsResult.fromMap(data);
