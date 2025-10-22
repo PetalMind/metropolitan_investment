@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import '../models_and_services.dart';
 
 /// 🎯 UJEDNOLICONY SERWIS LICZBY INWESTORÓW
@@ -65,25 +64,8 @@ class UnifiedInvestorCountService extends BaseService {
   /// Wewnętrzna metoda pobierania liczby inwestorów
   Future<int> _fetchInvestorCount(UnifiedProduct product) async {
     try {
-      if (kDebugMode) {
-        print(
-          '[UnifiedInvestorCount] Pobieranie liczby inwestorów dla: ${product.name}',
-        );
-        print('[UnifiedInvestorCount] ⭐ ZSYNCHRONIZOWANE: Używam tej samej logiki co ProductDetailsService');
-      }
-
       // ⭐ ZSYNCHRONIZOWANE: Używaj bezpośrednio product.id tak jak ProductDetailsService
-      // Sprawdź czy to deduplikowany produkt
-      final isDeduplicated = product.additionalInfo['isDeduplicated'] == true;
       
-      if (kDebugMode) {
-        if (isDeduplicated) {
-          print('[UnifiedInvestorCount] Produkt deduplikowany - szukam po ID pierwszej inwestycji: ${product.id}');
-        } else {
-          print('[UnifiedInvestorCount] Produkt pojedynczy - szukam po ID: ${product.id}');
-        }
-      }
-
       // Strategia 1: Użyj UltraPreciseProductInvestorsService z tym samym ID co ProductDetailsService
       try {
         final result = await _ultraPreciseService.getProductInvestors(
@@ -94,20 +76,9 @@ class UnifiedInvestorCountService extends BaseService {
 
         final count = result.investors.length;
 
-        if (kDebugMode) {
-          print(
-            '[UnifiedInvestorCount] ✅ UltraPrecise zwrócił: $count inwestorów (zsynchronizowane z ProductDetailsService)',
-          );
-          print('[UnifiedInvestorCount] Użyty productId: ${product.id}');
-          print('[UnifiedInvestorCount] Search strategy: ${result.searchStrategy}');
-          print('[UnifiedInvestorCount] From cache: ${result.fromCache}');
-        }
-
         return count;
       } catch (e) {
-        if (kDebugMode) {
-          print('[UnifiedInvestorCount] UltraPrecise failed: $e');
-        }
+        // Continue to fallback
       }
 
       // Strategia 2: Fallback - bezpośrednie zapytanie do Firebase
@@ -125,17 +96,9 @@ class UnifiedInvestorCountService extends BaseService {
             .toSet()
             .length;
 
-        if (kDebugMode) {
-          print(
-            '[UnifiedInvestorCount] Fallback zwrócił: $uniqueClients inwestorów',
-          );
-        }
-
         return uniqueClients;
       } catch (e) {
-        if (kDebugMode) {
-          print('[UnifiedInvestorCount] Fallback failed: $e');
-        }
+        // Continue to return 0
       }
 
       return 0;
@@ -158,14 +121,8 @@ class UnifiedInvestorCountService extends BaseService {
 
     // Async clear dla _ultraPreciseService (bez czekania)
     _ultraPreciseService.clearAllCache().catchError((e) {
-      if (kDebugMode) {
-        print('[UnifiedInvestorCount] Error clearing UltraPrecise cache: $e');
-      }
+      // Ignore errors in cache clearing
     });
-
-    if (kDebugMode) {
-      print('[UnifiedInvestorCount] Clearing all cache');
-    }
   }
 
   /// 🎯 NOWE: Force refresh dla konkretnego produktu

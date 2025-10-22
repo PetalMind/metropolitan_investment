@@ -25,69 +25,35 @@ class ClientIdMigrationScript {
       await _step3_FixAllProducts();
       await _step4_ValidateResults();
       await _step5_CreateReport();
-
-      print('\n✅ [Migration] Migracja zakończona pomyślnie!');
     } catch (e) {
-      print('\n❌ [Migration] Błąd podczas migracji: $e');
       rethrow;
     }
   }
 
   /// Krok 1: Inicjalizacja systemu mapowania
   Future<void> _step1_InitializeMapping() async {
-    print('📋 KROK 1: Inicjalizacja systemu mapowania...');
-
     await _mappingService.initialize();
-    final stats = _mappingService.getStatistics();
-
-    print('✅ Zainicjalizowano mapowanie:');
-    print('   - Excel ID -> Firestore: ${stats['excelMappings']}');
-    print('   - Nazwa -> Firestore: ${stats['nameMappings']}');
-    print('   - Unikalnych klientów: ${stats['totalUniqueClients']}\n');
   }
 
   /// Krok 2: Walidacja obecnego stanu
   Future<void> _step2_ValidateCurrentState() async {
-    print('📊 KROK 2: Walidacja obecnego stanu bazy danych...');
-
-    final results = await Future.wait([
+    await Future.wait([
       _validateCollection('investments', 'id_klient', 'klient'),
       _validateCollection('bonds', 'ID_Klient', 'Klient'),
       _validateCollection('shares', 'ID_Klient', 'Klient'),
       _validateCollection('loans', 'ID_Klient', 'Klient'),
       _validateCollection('apartments', 'ID_Klient', 'Klient'),
     ]);
-
-    print('📈 Podsumowanie stanu:');
-    for (int i = 0; i < results.length; i++) {
-      final collections = [
-        'investments',
-        'bonds',
-        'shares',
-        'loans',
-        'apartments',
-      ];
-      final result = results[i];
-      print(
-        '   - ${collections[i]}: ${result['resolved']}/${result['total']} zmapowanych',
-      );
-    }
-    print('');
   }
 
   /// Krok 3: Napraw wszystkie produkty
   Future<void> _step3_FixAllProducts() async {
-    print('🔧 KROK 3: Naprawa mapowania we wszystkich kolekcjach...');
-
     await _mappingService.fixAllProductsClientMapping();
-    print('✅ Naprawiono mapowanie we wszystkich kolekcjach\n');
   }
 
   /// Krok 4: Walidacja wyników
   Future<void> _step4_ValidateResults() async {
-    print('✅ KROK 4: Walidacja wyników migracji...');
-
-    final results = await Future.wait([
+    await Future.wait([
       _validateCollection(
         'investments',
         'id_klient',
@@ -104,28 +70,10 @@ class ClientIdMigrationScript {
         checkFixed: true,
       ),
     ]);
-
-    print('📈 Wyniki po migracji:');
-    for (int i = 0; i < results.length; i++) {
-      final collections = [
-        'investments',
-        'bonds',
-        'shares',
-        'loans',
-        'apartments',
-      ];
-      final result = results[i];
-      print(
-        '   - ${collections[i]}: ${result['fixed']}/${result['total']} naprawionych',
-      );
-    }
-    print('');
   }
 
   /// Krok 5: Generuj raport
   Future<void> _step5_CreateReport() async {
-    print('📄 KROK 5: Generowanie raportu migracji...');
-
     final stats = _mappingService.getStatistics();
     final report = {
       'migration_date': DateTime.now().toIso8601String(),
@@ -142,8 +90,6 @@ class ClientIdMigrationScript {
 
     // Zapisz raport do Firestore
     await _firestore.collection('migration_reports').add(report);
-
-    print('✅ Raport migracji zapisany do bazy danych\n');
   }
 
   /// Pomocnicza metoda walidacji kolekcji
@@ -189,10 +135,6 @@ class ClientIdMigrationScript {
 
 /// Funkcja główna do uruchomienia migracji
 Future<void> runClientIdMigration() async {
-  print('🔄 Uruchamianie migracji mapowania ID klientów...\n');
-
   final migration = ClientIdMigrationScript();
   await migration.executeMigration();
-
-  print('🎉 Migracja zakończona pomyślnie!');
 }

@@ -31,7 +31,6 @@ class _ClientStatsDebugWidgetState extends State<ClientStatsDebugWidget> {
       final debugData = <String, dynamic>{};
 
       // 1. Sprawdź liczbę dokumentów w kolekcjach
-      print('🔍 [DEBUG] Sprawdzanie kolekcji...');
 
       final clientsSnapshot = await FirebaseFirestore.instance
           .collection('clients')
@@ -75,7 +74,6 @@ class _ClientStatsDebugWidgetState extends State<ClientStatsDebugWidget> {
       };
 
       // 2. Sprawdź Firebase Functions
-      print('🔍 [DEBUG] Testowanie Firebase Functions...');
       try {
         final integratedService = IntegratedClientService();
         final stats = await integratedService.getClientStats(
@@ -100,7 +98,6 @@ class _ClientStatsDebugWidgetState extends State<ClientStatsDebugWidget> {
       }
 
       // 3. Sprawdź zunifikowane statystyki
-      print('🔍 [DEBUG] Testowanie zunifikowanych statystyk...');
       try {
         final allInvestments = await FirebaseFirestore.instance
             .collection('investments')

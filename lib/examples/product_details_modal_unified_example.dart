@@ -67,12 +67,7 @@ class _ProductDetailsModalUnifiedState
         });
 
         // 📊 DEBUG INFO - pokaż czy Product ID został zresolve'owany
-        if (result.wasProductIdResolved) {
-          debugPrint('🔍 [UnifiedModal] Product ID resolved:');
-          debugPrint('   Original: ${result.originalProductId}');
-          debugPrint('   Resolved: ${result.resolvedProductId}');
-          debugPrint('   Method: ${result.searchMetadata.resolutionMethod}');
-        }
+        // Debug prints removed for production
       }
     } catch (e) {
       if (mounted) {

@@ -44,33 +44,6 @@ class _CacheDebugWidgetState extends State<CacheDebugWidget> {
       final investments = await _cacheService.getAllInvestments();
 
       // Debug: sprawdź pierwsze kilka inwestycji
-      print('🔍 [CacheDebug] Znaleziono ${investments.length} inwestycji');
-      if (investments.isNotEmpty) {
-        final first = investments.first;
-        print('🔍 [CacheDebug] Przykładowa inwestycja:');
-        print('  - clientName: ${first.clientName}');
-        print('  - investmentAmount: ${first.investmentAmount}');
-        print('  - totalValue: ${first.totalValue}');
-        print('  - remainingCapital: ${first.remainingCapital}');
-        print('  - realizedCapital: ${first.realizedCapital}');
-
-        // Sprawdź sumy
-        double totalInvestment = 0;
-        double totalValue = 0;
-        int nonZeroCount = 0;
-
-        for (final inv in investments.take(10)) {
-          totalInvestment += inv.investmentAmount;
-          totalValue += inv.totalValue;
-          if (inv.investmentAmount > 0) nonZeroCount++;
-        }
-
-        print('🔍 [CacheDebug] Pierwsze 10 inwestycji:');
-        print('  - totalInvestment: $totalInvestment');
-        print('  - totalValue: $totalValue');
-        print('  - nonZeroCount: $nonZeroCount');
-      }
-
       setState(() {
         _investmentCount = investments.length;
         _isLoading = false;
@@ -95,7 +68,7 @@ class _CacheDebugWidgetState extends State<CacheDebugWidget> {
       });
       await _updateStats();
     } catch (e) {
-      print('Błąd podczas force refresh: $e');
+      // Handle error silently
     } finally {
       setState(() => _isLoading = false);
     }

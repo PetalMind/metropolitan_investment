@@ -1680,16 +1680,6 @@ Zespół Metropolitan Investment''';
     final htmlContent = converter.convert();
     
     // DEBUG - sprawdź wygenerowany HTML
-    if (kDebugMode) {
-      print('🔄 Generated HTML length: ${htmlContent.length}');
-      print('🎨 [PREVIEW] Delta operations:');
-      for (var op in deltaJson) {
-        print('  📝 $op');
-      }
-      print('🎨 [PREVIEW] Generated HTML (first 300 chars):');
-      print('  🔗 ${htmlContent.substring(0, htmlContent.length > 300 ? 300 : htmlContent.length)}${htmlContent.length > 300 ? "..." : ""}');
-    }
-
     final validatedRecipient = _getValidatedPreviewRecipient();
     if (validatedRecipient == null) {
       return const Center(

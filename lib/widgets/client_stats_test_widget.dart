@@ -28,22 +28,13 @@ class _ClientStatsTestWidgetState extends State<ClientStatsTestWidget> {
     });
 
     try {
-      print('🧪 [ClientStatsTestWidget] Rozpoczynam test statystyk...');
       final stats = await _service.getClientStats(forceRefresh: true);
-
-      print('📊 [ClientStatsTestWidget] Otrzymane statystyki:');
-      print('   - totalClients: ${stats.totalClients}');
-      print('   - totalInvestments: ${stats.totalInvestments}');
-      print('   - totalRemainingCapital: ${stats.totalRemainingCapital}');
-      print('   - averageCapitalPerClient: ${stats.averageCapitalPerClient}');
-      print('   - source: ${stats.source}');
 
       setState(() {
         _stats = stats;
         _isLoading = false;
       });
     } catch (e) {
-      print('❌ [ClientStatsTestWidget] Błąd: $e');
       setState(() {
         _error = e.toString();
         _isLoading = false;

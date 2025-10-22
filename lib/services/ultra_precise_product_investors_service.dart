@@ -24,13 +24,6 @@ class UltraPreciseProductInvestorsService {
     bool forceRefresh = false,
   }) async {
     try {
-      if (kDebugMode) {
-        print('[UltraPrecise] 🎯 Rozpoczynam ultra-precyzyjne wyszukiwanie...');
-        print('[UltraPrecise] - productId: $productId');
-        print('[UltraPrecise] - productName: $productName');
-        print('[UltraPrecise] - searchStrategy: $searchStrategy');
-      }
-
       // ⚠️ WALIDACJA
       if (productId == null && productName == null) {
         throw ArgumentError('Wymagany productId lub productName');
@@ -41,13 +34,6 @@ class UltraPreciseProductInvestorsService {
       String? resolvedProductName = productName;
 
       if (productId != null && _isDeduplikatedId(productId)) {
-        if (kDebugMode) {
-          print('[UltraPrecise] 🔍 Wykryto deduplikowany ID: $productId');
-          print(
-            '[UltraPrecise] 🔄 Próba mapowania na rzeczywisty productId...',
-          );
-        }
-
         // Spróbuj znaleźć rzeczywisty productId na podstawie deduplikowanego
         final mapping = await _mapDeduplikatedToRealProductId(
           productId,
@@ -56,19 +42,7 @@ class UltraPreciseProductInvestorsService {
         if (mapping != null) {
           resolvedProductId = mapping.realProductId;
           resolvedProductName = mapping.productName;
-
-          if (kDebugMode) {
-            print(
-              '[UltraPrecise] ✅ Zmapowano: $productId → $resolvedProductId',
-            );
-            print('[UltraPrecise] ✅ Nazwa: $resolvedProductName');
-          }
         } else {
-          if (kDebugMode) {
-            print(
-              '[UltraPrecise] ⚠️ Nie udało się zmapować ID, używam productName',
-            );
-          }
           // Fallback: użyj productName jeśli dostępne
           searchStrategy = 'productName';
         }
@@ -85,30 +59,8 @@ class UltraPreciseProductInvestorsService {
         'forceRefresh': forceRefresh,
       });
 
-      if (kDebugMode) {
-        print('[UltraPrecise] ✅ Pobrano dane z Firebase Functions');
-        print('[UltraPrecise] - Strategia: ${result.data['searchStrategy']}');
-        print('[UltraPrecise] - Inwestorów: ${result.data['totalCount']}');
-        print('[UltraPrecise] - Czas: ${result.data['executionTime']}ms');
-        print('[UltraPrecise] - Z cache: ${result.data['fromCache']}');
-        print('[UltraPrecise] - Raw data keys: ${result.data.keys.toList()}');
-      }
-
       return UltraPreciseProductInvestorsResult.fromMap(result.data);
     } catch (e) {
-      if (kDebugMode) {
-        print('[UltraPrecise] ❌ Błąd szczegółowy: $e');
-        print('[UltraPrecise] ❌ Typ błędu: ${e.runtimeType}');
-        if (e.toString().contains('500') || e.toString().contains('internal')) {
-          print(
-            '[UltraPrecise] 🔥 To jest błąd serwera - sprawdź logi Firebase Functions!',
-          );
-          print(
-            '[UltraPrecise] 🔍 Uruchom: firebase functions:log --only getProductInvestorsUltraPrecise',
-          );
-        }
-      }
-
       // Fallback - zwróć pustą listę z błędem
       return UltraPreciseProductInvestorsResult.empty(
         searchKey: productId ?? productName ?? 'unknown',
@@ -150,9 +102,6 @@ class UltraPreciseProductInvestorsService {
       );
       return true;
     } catch (e) {
-      if (kDebugMode) {
-        print('[UltraPrecise] ❌ Test połączenia nieudany: $e');
-      }
       return false;
     }
   }
@@ -161,10 +110,6 @@ class UltraPreciseProductInvestorsService {
   /// Wymusza ponowne pobranie danych z Firebase przy następnym zapytaniu
   Future<void> clearCacheForProduct(String productId) async {
     try {
-      if (kDebugMode) {
-        print('[UltraPrecise] 🧹 Czyszczenie cache dla produktu: $productId');
-      }
-
       // 🚀 UWAGA: Ta funkcja może nie istnieć w Firebase Functions
       // Czasowo wyłączamy wywołanie aby uniknąć błędów
       /*
@@ -181,9 +126,6 @@ class UltraPreciseProductInvestorsService {
         );
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('[UltraPrecise] ⚠️ Błąd czyszczenia cache: $e');
-      }
       // Nie rzucaj błędu - cache się automatycznie odświeży przy następnym zapytaniu
     }
   }
@@ -191,10 +133,6 @@ class UltraPreciseProductInvestorsService {
   /// 🧹 NOWA METODA: Globalne czyszczenie cache wszystkich produktów
   Future<void> clearAllCache() async {
     try {
-      if (kDebugMode) {
-        print('[UltraPrecise] 🧹 Globalne czyszczenie cache...');
-      }
-
       // 🚀 UWAGA: Ta funkcja może nie istnieć w Firebase Functions
       // Czasowo wyłączamy wywołanie aby uniknąć błędów
       /*
@@ -203,10 +141,6 @@ class UltraPreciseProductInvestorsService {
         'clearAll': true,
       });
       */
-
-      if (kDebugMode) {
-        print('[UltraPrecise] ✅ Globalny cache wyczyszczony (symulacja)');
-      }
     } catch (e) {
       if (kDebugMode) {
         print('[UltraPrecise] ⚠️ Błąd globalnego czyszczenia cache: $e');
@@ -635,9 +569,6 @@ Future<ProductIdMapping?> _mapDeduplikatedToRealProductId(
 
     return null;
   } catch (e) {
-    if (kDebugMode) {
-      print('[UltraPrecise] ❌ Błąd mapowania ID: $e');
-    }
     return null;
   }
 }

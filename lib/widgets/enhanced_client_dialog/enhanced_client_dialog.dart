@@ -276,10 +276,6 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
 
   /// 🚀 NOWA METODA: Obsługa kliknięcia na inwestycję
   void _handleInvestmentTapped(String investmentId, String productName) {
-    print('🚀 [EnhancedClientDialog] Obsługuję kliknięcie inwestycji');
-    print('   Investment ID: $investmentId');
-    print('   Product Name: $productName');
-
     // Zamknij dialog najpierw
     if (mounted) {
       Navigator.of(context).pop();
@@ -575,8 +571,7 @@ class _EnhancedClientDialogState extends State<EnhancedClientDialog>
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
-        tabs: _tabs.asMap().entries.map((entry) {
-          final index = entry.key;
+          tabs: _tabs.asMap().entries.map((entry) {
           final tab = entry.value;
 
           return Tab(
