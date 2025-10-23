@@ -736,10 +736,6 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
       // W ten sposób zapewniamy, że Excel będzie miał identyczne dane i format jak PDF/Word
       final unifiedExportService = UnifiedExportService();
       
-      // Generuj nazwę pliku w formacie Excel_metropolitan_YYYY-MM-DD.xlsx
-      final currentDate = DateTime.now().toIso8601String().split('T')[0]; // YYYY-MM-DD
-      final exportTitle = 'Excel_metropolitan_$currentDate';
-      
       // Używamy metody generateUnifiedExcel zamiast generateInvestorsExcel
       final result = await unifiedExportService.generateUnifiedExcel(
         investors: widget.selectedInvestors,
@@ -750,7 +746,6 @@ class _InvestorExportDialogState extends State<InvestorExportDialog> {
           'sortBy': _sortBy,
           'sortDescending': _sortOrder == 'desc',
         },
-        exportTitle: exportTitle,
       );
 
       return result;

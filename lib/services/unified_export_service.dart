@@ -145,8 +145,8 @@ class UnifiedExportService extends BaseService {
 
       final now = DateTime.now();
       final dateStr =
-          '${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')}.${now.year}';
-      final filename = 'Excel_metropolitan_$dateStr.xlsx';
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final filename = 'Raport_Inwestorow_$dateStr.xlsx';
 
       logDebug(
         'generateUnifiedExcel',

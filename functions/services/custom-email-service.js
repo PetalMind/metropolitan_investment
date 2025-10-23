@@ -824,23 +824,18 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
           continue;
         }
 
-        // 📊 POBIERZ INWESTYCJE ODBIORCY - KAŻDY INWESTOR OTRZYMUJE TYLKO SWOJE INWESTYCJE
+        // 📊 POBIERZ INWESTYCJE ODBIORCY
         let investmentDetailsHtml = '';
         if (includeInvestmentDetails) {
-          console.log(`🔍 [MixedEmailService] Sprawdzam inwestycje dla ${recipient.clientName} (ID: ${recipient.clientId})`);
-          console.log(`   - investmentDetailsByClient exists: ${!!(investmentDetailsByClient && Object.keys(investmentDetailsByClient).length > 0)}`);
-          console.log(`   - Available client IDs: ${investmentDetailsByClient ? Object.keys(investmentDetailsByClient).join(', ') : 'none'}`);
-
-          if (investmentDetailsByClient && investmentDetailsByClient[recipient.clientId]) {
-            // Use deterministic client-provided HTML
+          if (isGroupEmail && investmentDetailsByClient && investmentDetailsByClient['__group_email__']) {
+            // TRYB GRUPOWY: Wszyscy główni odbiorcy dostają ten sam zbiorczy raport
+            investmentDetailsHtml = investmentDetailsByClient['__group_email__'];
+          } else if (investmentDetailsByClient && investmentDetailsByClient[recipient.clientId]) {
+          // TRYB INDYWIDUALNY: Każdy dostaje tylko swoje inwestycje
             investmentDetailsHtml = investmentDetailsByClient[recipient.clientId];
-            console.log(`✅ [MixedEmailService] Używam gotowej tabeli z frontendu dla ${recipient.clientName} (${investmentDetailsHtml.length} chars)`);
           } else if (recipient.clientId) {
             // Fallback: fetch from Firestore
-            console.log(`🔄 [MixedEmailService] Pobieram inwestycje z Firestore dla ${recipient.clientName}`);
             investmentDetailsHtml = await getInvestmentDetailsForClient(recipient.clientId);
-          } else {
-            console.warn(`⚠️ [MixedEmailService] Brak clientId dla ${recipient.clientName}`);
           }
         }
 

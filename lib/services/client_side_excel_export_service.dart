@@ -93,8 +93,9 @@ class ClientSideExcelExportService extends BaseService {
       final executionTime = endTime.difference(startTime).inMilliseconds;
 
       final now = DateTime.now();
-      final dateStr = '${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')}.${now.year}';
-      final filename = 'Excel_metropolitan_$dateStr.xlsx';
+      final dateStr =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final filename = 'Raport_Inwestorow_$dateStr.xlsx';
 
       logDebug('generateInvestorsExcel', 'Excel wygenerowany w ${executionTime}ms, rozmiar: ${excelBytes.length} bajtów');
 

@@ -1576,11 +1576,16 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
             investmentDetailsByClient[investor.client.id] = individualHtml;
           }
         } else {
-          // Tryb grupowy - użyj istniejącej logiki
+          // 🔥 TRYB GRUPOWY: Generuj zbiorczy raport dla WSZYSTKICH głównych odbiorców
+          // NIE dodawaj do finalHtml - Firebase Function zrobi to za nas
           final investmentDetailsHtml = await _generateInvestmentDetailsHtml(
             type: RecipientType.main,
           );
-          finalHtml = emailHtml + investmentDetailsHtml;
+          
+          // Zapisz jako specjalny klucz dla trybu grupowego
+          investmentDetailsByClient = <String, String>{
+            '__group_email__': investmentDetailsHtml,
+          };
         }
       }
 
