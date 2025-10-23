@@ -148,31 +148,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     });
   }
 
-  /// Debugowanie - wypisz informacje o produktach po załadowaniu
-  void _debugProductsLoaded() {
-    if (kDebugMode) {
-      print('📊 [ProductsManagementScreen] DEBUG - Załadowano produkty:');
-      for (final product in _allProducts.take(5)) {
-        print('📊 [ProductsManagementScreen] - ${product.id}: ${product.name}');
-        print(
-          '📊 [ProductsManagementScreen]   - Typ: ${product.productType} (${product.productType.displayName})',
-        );
-        print(
-          '📊 [ProductsManagementScreen]   - Collection: ${product.productType.collectionName}',
-        );
-        print(
-          '📊 [ProductsManagementScreen]   originalProduct: ${product.originalProduct?.runtimeType}',
-        );
-        if (product.originalProduct is Investment) {
-          final inv = product.originalProduct as Investment;
-          print('📊 [ProductsManagementScreen]   investmentId: ${inv.id}');
-          print(
-            '📊 [ProductsManagementScreen]   - Original Investment Type: ${inv.productType} (${inv.productType.runtimeType})',
-          );
-        }
-      }
-    }
-  }
+
 
   void _handleRouteParameters() {
     final state = GoRouterState.of(context);
@@ -191,26 +167,9 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     // 🎯 NOWY: Obsługa parametru investmentId z URL
     final investmentIdFromUrl = state.uri.queryParameters['investmentId'];
 
-    print('🔍 [ProductsManagementScreen] Parametry z URL/Widget:');
-    print(
-      '🔍 [ProductsManagementScreen] highlightedProductId: ${widget.highlightedProductId}',
-    );
-    print(
-      '🔍 [ProductsManagementScreen] highlightedInvestmentId: ${widget.highlightedInvestmentId}',
-    );
-    print(
-      '🔍 [ProductsManagementScreen] investmentId z URL: $investmentIdFromUrl',
-    );
-    print('🔍 [ProductsManagementScreen] productName: $productName');
-    print('🔍 [ProductsManagementScreen] productType: $productType');
-    print('🔍 [ProductsManagementScreen] clientId: $clientId');
-    print('🔍 [ProductsManagementScreen] clientName: $clientName');
 
     // 🎯 PRIORYTET: Jeśli mamy investmentId z URL, użyj go
     if (investmentIdFromUrl != null && investmentIdFromUrl.isNotEmpty) {
-      print(
-        '🎯 [ProductsManagementScreen] Znaleziono investmentId z URL, szukam produktu...',
-      );
       _findAndShowProductForInvestment(investmentIdFromUrl);
       return;
     }
@@ -218,49 +177,29 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
     // Jeśli mamy konkretne ID produktu lub inwestycji, wyróżnij go
     if (widget.highlightedProductId != null ||
         widget.highlightedInvestmentId != null) {
-      print(
-        '🎯 [ProductsManagementScreen] Wyróżniam konkretny produkt/inwestycję',
-      );
+
       _highlightSpecificProduct();
       return;
     }
 
     // Obsługa wyszukiwania po nazwie produktu (fallback)
     if (productName != null && productName.isNotEmpty) {
-      print(
-        '🔍 [ProductsManagementScreen] Ustawianie wyszukiwania: $productName',
-      );
+  
       _searchController.text = productName;
       _applyFiltersAndSearch();
     }
 
     // Obsługa wyszukiwania po nazwie klienta (fallback)
     if (clientName != null && clientName.isNotEmpty) {
-      print(
-        '🔍 [ProductsManagementScreen] Wyszukiwanie po kliencie: $clientName',
-      );
+
       _searchController.text = clientName;
       _applyFiltersAndSearch();
     }
 
-    // TODO: Dodać obsługę filtrowania po productType
-    if (productType != null && productType.isNotEmpty) {
-      print('🔍 [ProductsManagementScreen] Typ produktu: $productType');
-      // Wymagałoby rozszerzenia ProductFilterCriteria o typ produktu
-      // setState(() {
-      //   _filterCriteria = _filterCriteria.copyWith(
-      //     productTypes: [ProductType.fromString(productType)],
-      //   );
-      // });
-      // _applyFiltersAndSearch();
-    }
   }
 
   /// 🎯 NOWA METODA: Znajdź i pokaż produkt dla konkretnej inwestycji
   Future<void> _findAndShowProductForInvestment(String investmentId) async {
-    print(
-      '🔍 [ProductsManagementScreen] Szukam produktu dla inwestycji: $investmentId',
-    );
 
     // Poczekaj aż dane zostaną załadowane
     if (_isLoading) {
@@ -272,10 +211,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
 
     // 🚀 NOWE: Użyj UniversalInvestmentService zamiast bezpośredniego Firebase
     try {
-      print(
-        '🔍 [ProductsManagementScreen] Wyszukuję inwestycję przez UniversalInvestmentService...',
-      );
-
       final investment = await UniversalInvestmentService.instance
           .getInvestment(investmentId);
 
@@ -284,12 +219,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         final companyId = investment.companyId;
         final productType = investment.productType.name;
 
-        print('🔍 [ProductsManagementScreen] Znaleziono inwestycję:');
-        print('  - Product Name: $productName');
-        print('  - Company ID: $companyId');
-        print('  - Product Type: $productType');
-        print('  - Investment ID: $investmentId');
-        print('  - Logical Investment ID: ${investment.id}');
 
         // KROK 2: Szukaj produktu na podstawie nazwy produktu i firmy
         bool foundProduct = false;
@@ -305,9 +234,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                 product.companyName == companyId;
 
             if (nameMatches && companyMatches) {
-              print(
-                '✅ [ProductsManagementScreen] Znaleziono deduplikowany produkt: ${product.name}',
-              );
+
 
               _searchController.text = product.name;
               _applyFiltersAndSearch();
@@ -337,10 +264,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                 product.companyName == companyId;
 
             if (nameMatches && companyMatches) {
-              print(
-                '✅ [ProductsManagementScreen] Znaleziono zoptymalizowany produkt: ${product.name}',
-              );
-
               _searchController.text = product.name;
               _applyFiltersAndSearch();
 
@@ -368,10 +291,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                     product.companyName == companyId);
 
             if (nameMatches && companyMatches) {
-              print(
-                '✅ [ProductsManagementScreen] Znaleziono standardowy produkt: ${product.name}',
-              );
-
+  
               _searchController.text = product.name;
               _applyFiltersAndSearch();
 
@@ -385,13 +305,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         }
 
         if (!foundProduct) {
-          print(
-            '❌ [ProductsManagementScreen] Nie znaleziono produktu dla inwestycji: $investmentId (logical: ${investment.id})',
-          );
-          print(
-            '📊 [ProductsManagementScreen] Nazwa produktu: "$productName", Firma: "$companyId"',
-          );
-          print('📊 [ProductsManagementScreen] Dostępne produkty:');
+
 
           if (_deduplicatedProducts.isNotEmpty) {
             print('  Deduplikowane (${_deduplicatedProducts.length}):');
@@ -430,9 +344,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           }
         }
       } else {
-        print(
-          '❌ [ProductsManagementScreen] Inwestycja $investmentId nie została znaleziona przez UniversalInvestmentService',
-        );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -444,9 +355,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
         }
       }
     } catch (e) {
-      print(
-        '❌ [ProductsManagementScreen] Błąd podczas wyszukiwania inwestycji: $e',
-      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -479,22 +387,15 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
       );
 
       if (targetProduct.id != widget.highlightedProductId) {
-        print(
-          '❌ [ProductsManagementScreen] Nie znaleziono produktu o ID: ${widget.highlightedProductId}',
-        );
+
         targetProduct = null;
       } else {
-        print(
-          '✅ [ProductsManagementScreen] Znaleziono produkt: ${targetProduct.name}',
-        );
+
       }
     }
 
     // Szukaj po ID inwestycji (w oryginalnym obiekcie lub additionalInfo)
     if (targetProduct == null && widget.highlightedInvestmentId != null) {
-      print(
-        '🔍 [ProductsManagementScreen] Szukam produktu dla inwestycji: ${widget.highlightedInvestmentId}',
-      );
 
       for (final product in _allProducts) {
         bool found = false;
@@ -505,9 +406,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
           if (investment.id == widget.highlightedInvestmentId) {
             targetProduct = product;
             found = true;
-            print(
-              '✅ [ProductsManagementScreen] Znaleziono produkt dla inwestycji (Investment): ${product.name}',
-            );
+
           }
         }
         // Sprawdź czy oryginalny produkt to Map z Firebase Functions
@@ -517,9 +416,7 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
               originalData['investment_id'] == widget.highlightedInvestmentId) {
             targetProduct = product;
             found = true;
-            print(
-              '✅ [ProductsManagementScreen] Znaleziono produkt dla inwestycji (Map): ${product.name}',
-            );
+
           }
         }
 
@@ -531,42 +428,31 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
                     widget.highlightedInvestmentId)) {
           targetProduct = product;
           found = true;
-          print(
-            '✅ [ProductsManagementScreen] Znaleziono produkt w additionalInfo: ${product.name}',
-          );
+  
         }
 
         // Sprawdź ID produktu jako backup (może to być to samo ID)
         if (!found && product.id == widget.highlightedInvestmentId) {
           targetProduct = product;
           found = true;
-          print(
-            '✅ [ProductsManagementScreen] Znaleziono produkt po ID produktu: ${product.name}',
-          );
+
         }
 
         if (found) break;
       }
 
       if (targetProduct == null) {
-        print(
-          '❌ [ProductsManagementScreen] Nie znaleziono produktu dla inwestycji: ${widget.highlightedInvestmentId}',
-        );
+
 
         // Dodaj debug informacje o dostępnych produktach
-        print('🔍 [ProductsManagementScreen] Dostępne produkty (pierwsze 5):');
         for (int i = 0; i < _allProducts.length && i < 5; i++) {
           final p = _allProducts[i];
           if (p.originalProduct is Investment) {
             final inv = p.originalProduct as Investment;
-            print('  - [$i] Investment ID: ${inv.id}, Name: ${p.name}');
           } else if (p.originalProduct is Map<String, dynamic>) {
             final data = p.originalProduct as Map<String, dynamic>;
-            print(
-              '  - [$i] Server Data ID: ${data['id']}, ClientID: ${data['clientId']}, Name: ${p.name}',
-            );
+      
           } else {
-            print('  - [$i] UnifiedProduct ID: ${p.id}, Name: ${p.name}');
           }
         }
       }
@@ -924,9 +810,6 @@ class _ProductsManagementScreenState extends State<ProductsManagementScreen>
 
       _applyFiltersAndSearch();
       _startAnimations();
-
-      // Debugowanie - wypisz informacje o produktach
-      _debugProductsLoaded();
 
       // Sprawdź czy trzeba wyróżnić konkretny produkt
       if (widget.highlightedProductId != null ||

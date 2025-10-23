@@ -177,6 +177,7 @@ class _EmployeeCardState extends State<EmployeeCard>
   }
 
   void _onHover(bool isHovered) {
+    if (!mounted) return;
     setState(() {
       _isHovered = isHovered;
     });
@@ -189,6 +190,7 @@ class _EmployeeCardState extends State<EmployeeCard>
   }
 
   void _onTapDown(TapDownDetails details) {
+    if (!mounted) return;
     setState(() {
       _isPressed = true;
     });
@@ -197,6 +199,7 @@ class _EmployeeCardState extends State<EmployeeCard>
   }
 
   void _onTapUp(TapUpDetails details) {
+    if (!mounted) return;
     setState(() {
       _isPressed = false;
     });
@@ -204,6 +207,7 @@ class _EmployeeCardState extends State<EmployeeCard>
   }
 
   void _onTapCancel() {
+    if (!mounted) return;
     setState(() {
       _isPressed = false;
     });

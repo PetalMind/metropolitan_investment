@@ -111,7 +111,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   bool _isLoading = false;
   bool _includeInvestmentDetails = true;
   bool _isGroupEmail = false;
-  bool _isEditorExpanded = true; // Domyślnie rozwinięty dla lepszego doświadczenia
+  bool _isEditorExpanded =
+      true; // Domyślnie rozwinięty dla lepszego doświadczenia
   bool _isSettingsCollapsed = false;
   bool _isRecipientsCollapsed = false;
   bool _isPreviewVisible = false;
@@ -159,7 +160,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   bool _isAutoSaving = false;
   DateTime? _lastAutoSaveTime;
   late UserPreferencesService _preferencesService;
-  
+
   // 📧 TEMPLATE & ATTACHMENT FUNCTIONALITY
   bool _isTemplatesSectionCollapsed = false;
   bool _isAttachmentsSectionCollapsed = false;
@@ -255,7 +256,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   }
 
   void _initializeRecipients() {
-    
     for (final investor in widget.selectedInvestors) {
       final clientId = investor.client.id;
       final email = investor.client.email;
@@ -264,14 +264,13 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       final hasValidEmail =
           email.isNotEmpty &&
           RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
-      
+
       _recipientEnabled[clientId] = hasValidEmail;
       _recipientEmails[clientId] = email;
 
       // Log potential issues
       if (email.isEmpty) {
-      } else if (!hasValidEmail) {
-      }
+      } else if (!hasValidEmail) {}
     }
 
     final enabledCount = _recipientEnabled.values
@@ -282,8 +281,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         .length;
 
     // Additional warning if no recipients are enabled
-    if (enabledCount == 0) {
-    }
+    if (enabledCount == 0) {}
   }
 
   Future<void> _loadSmtpEmail() async {
@@ -305,9 +303,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
     try {
       _contentController.text = content;
-
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   // 💾 AUTO-SAVE FUNCTIONALITY IMPLEMENTATION
@@ -328,9 +324,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       _subjectController.addListener(_onContentChanged);
       _senderNameController.addListener(_onContentChanged);
       _senderEmailController.addListener(_onContentChanged);
-
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   /// Check for existing draft and offer recovery
@@ -442,7 +436,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       // Force preview update
       _forcePreviewUpdate();
 
-
       // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -459,8 +452,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
           ),
         );
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   /// Start auto-save timer
@@ -583,7 +575,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       if (mounted) {
         setState(() {
           try {
-
             // 🎨 USE HTML EDITOR CONTENT DIRECTLY (Quill removed)
             _currentPreviewHtml = _contentController.text.isNotEmpty
                 ? _contentController.text
@@ -617,9 +608,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                       });
                     }
                   });
-
             }
-
           } catch (e) {
             // Fallback to plain text if conversion fails
             String fallbackText = _contentController.text;
@@ -637,7 +626,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     if (mounted) {
       setState(() {
         try {
-
           // 🎨 HANDLE BOTH QUILL AND HTML EDITOR CONTENT
           if (_useHtmlEditor) {
             // For HTML editor, use the content directly
@@ -680,7 +668,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                   }
                 });
           }
-
         } catch (e) {
           String fallbackText;
           if (_useHtmlEditor) {
@@ -809,7 +796,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     _investmentDetailsCache.clear();
     _clientInvestmentsCache.clear();
   }
-  
+
   Future<String> _generateInvestmentDetailsHtml({
     RecipientType type = RecipientType.main,
     List<InvestorSummary>? specificInvestors,
@@ -872,7 +859,13 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
         // Pobierz inwestycje klienta z Firebase
         final investments = await _getInvestmentsByClientId(clientId);
-        
+
+        if (kDebugMode) {
+          print(
+            '🔍 [InvestmentDetails] Client: $clientName (ID: $clientId), Investments found: ${investments.length}',
+          );
+        }
+
         if (investments.isNotEmpty) {
           // Oblicz podsumowania dla klienta
           double clientInvestmentAmount = 0;
@@ -1181,8 +1174,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
           }
         }
       }
-
-
     } catch (e) {
       return '''<div style="padding: 20px; text-align: center; color: #dc3545; border: 1px solid #dc3545; border-radius: 8px; background: #f8d7da;">
                  ⚠️ Wystąpił błąd podczas pobierania danych inwestycji: $e
@@ -1194,10 +1185,18 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     // 🚀 CACHE RESULT for future use
     _investmentDetailsCache[cacheKey] = result;
 
-    if (result.length < 100) {
-    } else {
+    // 🔍 DEBUG: Log result length for troubleshooting
+    if (kDebugMode) {
+      print(
+        '🔍 [InvestmentDetails] Type: ${type.name}, Investors: ${investorsToProcess.length}, HTML length: ${result.length}',
+      );
+      if (result.length < 200) {
+        print(
+          '⚠️ [InvestmentDetails] Short HTML detected! Content: ${result.substring(0, result.length.clamp(0, 200))}',
+        );
+      }
     }
-    
+
     return result;
   }
 
@@ -1207,7 +1206,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     if (_clientInvestmentsCache.containsKey(clientId)) {
       return _clientInvestmentsCache[clientId]!;
     }
-    
+
     try {
       final querySnapshot = await FirebaseFirestore.instance
           .collection('investments')
@@ -1217,12 +1216,11 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       final investments = querySnapshot.docs
           .map((doc) => Investment.fromFirestore(doc))
           .toList();
-          
+
       // 🚀 ZAPISZ W CACHE
       _clientInvestmentsCache[clientId] = investments;
 
-      for (final investment in investments) {
-      }
+      for (final investment in investments) {}
 
       return investments;
     } catch (e) {
@@ -1373,8 +1371,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       return errorMessage;
     }
   }
-
-
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
@@ -1559,6 +1555,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       String? aggregatedInvestmentsForAdditionals;
       Map<String, String>? investmentDetailsByClient;
 
+      // 🔥 GENERUJ DANE INWESTYCYJNE DLA GŁÓWNYCH ODBIORCÓW (tylko jeśli włączone)
       if (_includeInvestmentDetails) {
         setState(() {
           _loadingMessage = 'Pobieranie szczegółów inwestycji...';
@@ -1578,7 +1575,6 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
             investmentDetailsByClient[investor.client.id] = individualHtml;
           }
-
         } else {
           // Tryb grupowy - użyj istniejącej logiki
           final investmentDetailsHtml = await _generateInvestmentDetailsHtml(
@@ -1588,28 +1584,54 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         }
       }
 
-      // 🔥 WAŻNE: Zawsze generuj dane dla dodatkowych odbiorców, niezależnie od _includeInvestmentDetails
-      // 📧 DODATKOWI ODBIORCY otrzymują ZAWSZE wszystkie inwestycje WSZYSTKICH pierwotnie wybranych inwestorów
-      // 📧 niezależnie od tego czy główni odbiorcy są zaznaczeni w checkboxach czy nie
-      if (_additionalEmails.isNotEmpty) {
+      // 🔥 KLUCZOWA LOGIKA: Dodatkowi odbiorcy ZAWSZE dostają WSZYSTKIE inwestycje
+      // 📧 Niezależnie od ustawienia _includeInvestmentDetails (które dotyczy tylko głównych odbiorców)
+      // 📧 Niezależnie od tego czy główni odbiorcy są zaznaczeni w checkboxach czy nie
+      // 🎯 Logika biznesowa: Dodatkowe osoby (biuro, księgowość) = pełny raport zbiorczy
+      if (_additionalEmails.isNotEmpty && widget.selectedInvestors.isNotEmpty) {
         setState(() {
           _loadingMessage =
-              'Przygotowywanie danych dla dodatkowych odbiorców...';
+              'Przygotowywanie pełnego raportu dla dodatkowych odbiorców...';
           _loadingProgress = 0.18;
         });
 
-        // 🔥 KLUCZOWA LOGIKA: Dodatkowi odbiorcy ZAWSZE dostają inwestycje WSZYSTKICH pierwotnie wybranych
-        // 📋 WAŻNE: Obejmuje to również inwestycje klientów ODZNACZONYCH w checkboxach!
-        // 🎯 Logika: Odznaczeni klienci = NIE dostają maili, ALE ich inwestycje = SĄ w zestawieniu dla dodatkowych
+        if (kDebugMode) {
+          print(
+            '🔍 [AdditionalRecipients] Generating full report for additional recipients',
+          );
+          print('   - Additional emails count: ${_additionalEmails.length}');
+          print(
+            '   - Selected investors count: ${widget.selectedInvestors.length}',
+          );
+        }
+
+        // ZAWSZE generuj pełne dane dla dodatkowych odbiorców
         final allInvestorsHtml = await _generateInvestmentDetailsHtml(
           type: RecipientType.additional,
-          specificInvestors: widget
-              .selectedInvestors, // ← WSZYSTKICH pierwotnie wybranych (również odznaczonych!)
+          specificInvestors:
+              widget.selectedInvestors, // ← WSZYSCY pierwotnie wybrani
         );
         aggregatedInvestmentsForAdditionals = allInvestorsHtml;
-        
-        if (allInvestorsHtml.isEmpty) {
-        } else {
+
+        if (kDebugMode) {
+          print(
+            '🔍 [AdditionalRecipients] Generated HTML length: ${allInvestorsHtml.length}',
+          );
+          if (allInvestorsHtml.length < 500) {
+            print(
+              '⚠️ [AdditionalRecipients] WARNING: Very short HTML! Content preview:',
+            );
+            print(
+              allInvestorsHtml.substring(
+                0,
+                allInvestorsHtml.length.clamp(0, 300),
+              ),
+            );
+          } else {
+            print(
+              '✅ [AdditionalRecipients] HTML generated successfully (${allInvestorsHtml.length} chars)',
+            );
+          }
         }
       }
 
@@ -1631,19 +1653,21 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         // Dodatkowa walidacja przed planowaniem
         final invalidEmails = <String>[];
         final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-        
+
         for (final investor in enabledInvestors) {
           if (!emailRegex.hasMatch(investor.client.email)) {
-            invalidEmails.add('${investor.client.name}: ${investor.client.email}');
+            invalidEmails.add(
+              '${investor.client.name}: ${investor.client.email}',
+            );
           }
         }
-        
+
         for (final email in _additionalEmails) {
           if (!emailRegex.hasMatch(email)) {
             invalidEmails.add('Dodatkowy: $email');
           }
         }
-        
+
         if (invalidEmails.isNotEmpty) {
           setState(() {
             _error = 'Nieprawidłowe adresy email:\n${invalidEmails.join('\n')}';
@@ -1654,10 +1678,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         }
 
         // Log scheduling details for debugging
-        for (final investor in enabledInvestors) {
-        }
-        for (final email in _additionalEmails) {
-        }
+        for (final investor in enabledInvestors) {}
+        for (final email in _additionalEmails) {}
 
         // Schedule email for later
         setState(() {
@@ -1951,8 +1973,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       );
 
       if (savedHistoryId != null) {
-      } else {
-      }
+      } else {}
     } catch (e) {
       // Don't throw error - this is not critical for email sending
     }
@@ -1962,17 +1983,13 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   // 🔊 PLAY SUCCESS SOUND FOR EMAIL SENDING
   Future<void> _playSuccessSound() async {
     try {
-
       // Use AudioService to play custom email_sound.mp3
       await AudioService.instance.playEmailSentSound();
-
     } catch (e) {
-
       // Fallback to system sound if AudioService fails
       try {
         SystemSound.play(SystemSoundType.alert);
-      } catch (fallbackError) {
-      }
+      } catch (fallbackError) {}
     }
   }
 
@@ -3051,7 +3068,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                                   ],
                                 ),
                               ),
-                              
+
                               // 🎯 INFORMACJA O DODATKOWYCH ODBIORCACH
                               SizedBox(height: 12),
                               Container(
@@ -3340,7 +3357,11 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   // 📝 Metoda budująca HTML Editor
   Widget _buildHtmlEditor(bool isMobile, bool isTablet) {
     return HtmlEditorWidget(
-      height: isMobile ? 500 : (isTablet ? 650 : 800), // Znacznie zwiększona wysokość w zależności od urządzenia
+      height: isMobile
+          ? 500
+          : (isTablet
+                ? 650
+                : 800), // Znacznie zwiększona wysokość w zależności od urządzenia
       showPreview: false, // Preview handled separately in main screen
       enabled: true,
       onContentChanged: (content) {
@@ -3348,15 +3369,14 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         _updatePreviewContent();
       },
       onReady: () {
-        if (kDebugMode) {
-        }
+        if (kDebugMode) {}
       },
       onFileAttached: (EmailAttachment attachment) {
         setState(() {
           _attachments.add(attachment);
           _markUnsavedChanges();
         });
-        
+
         // Pokaż powiadomienie o dodaniu załącznika
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -3375,12 +3395,10 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         );
       },
       onFocusChanged: (focused) {
-        if (kDebugMode) {
-        }
+        if (kDebugMode) {}
       },
       onError: (error) {
-        if (kDebugMode) {
-        }
+        if (kDebugMode) {}
       },
       initialContent: _contentController.text.isNotEmpty
           ? _contentController.text
@@ -4427,18 +4445,18 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     setState(() {
       _selectedTemplate = template;
     });
-    
+
     // Apply template to editor
     if (widget.selectedInvestors.isNotEmpty) {
       final investor = widget.selectedInvestors.first;
       final personalizedContent = template.renderForInvestor(investor);
-      
+
       // Set subject
       _subjectController.text = template.subject;
-      
+
       // Set content
       _contentController.text = personalizedContent;
-      
+
       // Update preview
       _updatePreviewContent();
     } else {
@@ -4447,10 +4465,10 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       _contentController.text = template.content;
       _updatePreviewContent();
     }
-    
+
     // Mark as having changes
     _markUnsavedChanges();
-    
+
     HapticFeedback.mediumImpact();
   }
 
@@ -4459,13 +4477,16 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
     setState(() {
       _attachments = List.from(attachments);
     });
-    
+
     _markUnsavedChanges();
   }
 
   /// 📎 GET TOTAL ATTACHMENT SIZE
   String _getTotalAttachmentSize() {
-    final totalBytes = _attachments.fold<int>(0, (total, attachment) => total + attachment.size);
+    final totalBytes = _attachments.fold<int>(
+      0,
+      (total, attachment) => total + attachment.size,
+    );
     if (totalBytes < 1024) {
       return '$totalBytes B';
     } else if (totalBytes < 1024 * 1024) {
@@ -4509,7 +4530,8 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
             InkWell(
               onTap: () {
                 setState(() {
-                  _isAttachmentsSectionCollapsed = !_isAttachmentsSectionCollapsed;
+                  _isAttachmentsSectionCollapsed =
+                      !_isAttachmentsSectionCollapsed;
                 });
                 HapticFeedback.selectionClick();
               },
@@ -4622,7 +4644,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
             ),
           ),
         ),
-        
+
         if (_attachments.isNotEmpty) ...[
           const SizedBox(height: 16),
           // Attachments list
@@ -4648,7 +4670,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
               },
             ),
           ),
-          
+
           const SizedBox(height: 8),
           // Total size info
           Container(
@@ -4667,15 +4689,15 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                 const SizedBox(width: 6),
                 Text(
                   'Całkowity rozmiar: ${_getTotalAttachmentSize()}',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                 ),
                 const Spacer(),
                 if (_getTotalAttachmentSizeBytes() > 25 * 1024 * 1024)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.errorColor.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(4),
@@ -4701,7 +4723,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   Widget _buildAttachmentItem(EmailAttachment attachment, int index) {
     final sizeStr = _formatFileSize(attachment.size);
     final isTooBig = attachment.size > 25 * 1024 * 1024; // 25MB limit
-    
+
     return Container(
       padding: const EdgeInsets.all(12),
       child: Row(
@@ -4720,7 +4742,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
             ),
           ),
           const SizedBox(width: 12),
-          
+
           // File info
           Expanded(
             child: Column(
@@ -4749,7 +4771,10 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
                     if (isTooBig) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.errorColor.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(3),
@@ -4769,27 +4794,19 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
               ],
             ),
           ),
-          
+
           // Actions
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
                 onPressed: () => _editAttachment(index),
-                icon: Icon(
-                  Icons.edit,
-                  size: 16,
-                  color: AppTheme.textSecondary,
-                ),
+                icon: Icon(Icons.edit, size: 16, color: AppTheme.textSecondary),
                 tooltip: 'Edytuj nazwę',
               ),
               IconButton(
                 onPressed: () => _removeAttachment(index),
-                icon: Icon(
-                  Icons.delete,
-                  size: 16,
-                  color: AppTheme.errorColor,
-                ),
+                icon: Icon(Icons.delete, size: 16, color: AppTheme.errorColor),
                 tooltip: 'Usuń załącznik',
               ),
             ],
@@ -4801,7 +4818,10 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
   /// 📎 GET TOTAL ATTACHMENT SIZE IN BYTES
   int _getTotalAttachmentSizeBytes() {
-    return _attachments.fold<int>(0, (total, attachment) => total + attachment.size);
+    return _attachments.fold<int>(
+      0,
+      (total, attachment) => total + attachment.size,
+    );
   }
 
   /// 📎 FORMAT FILE SIZE
@@ -4884,24 +4904,32 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
 
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
-        
+
         // Check file size (max 25MB per attachment)
         if (file.size > 25 * 1024 * 1024) {
-          _showErrorDialog('Plik jest za duży', 'Maksymalny rozmiar pojedynczego załącznika to 25MB. Wybrany plik ma ${_formatFileSize(file.size)}.');
+          _showErrorDialog(
+            'Plik jest za duży',
+            'Maksymalny rozmiar pojedynczego załącznika to 25MB. Wybrany plik ma ${_formatFileSize(file.size)}.',
+          );
           return;
         }
-        
+
         // Check total size (max 50MB total)
         final totalSize = _getTotalAttachmentSizeBytes() + file.size;
         if (totalSize > 50 * 1024 * 1024) {
-          _showErrorDialog('Przekroczono limit', 'Całkowity rozmiar załączników nie może przekraczać 50MB. Aktualnie: ${_getTotalAttachmentSize()}, po dodaniu: ${_formatFileSize(totalSize)}.');
+          _showErrorDialog(
+            'Przekroczono limit',
+            'Całkowity rozmiar załączników nie może przekraczać 50MB. Aktualnie: ${_getTotalAttachmentSize()}, po dodaniu: ${_formatFileSize(totalSize)}.',
+          );
           return;
         }
 
         final attachment = EmailAttachment.simple(
           fileName: file.name,
           content: file.bytes!,
-          mimeType: file.extension != null ? _getContentType(file.extension!) : 'application/octet-stream',
+          mimeType: file.extension != null
+              ? _getContentType(file.extension!)
+              : 'application/octet-stream',
         );
 
         setState(() {
@@ -4909,7 +4937,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
         });
 
         _markUnsavedChanges();
-        
+
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -4936,7 +4964,9 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Usuń załącznik'),
-        content: Text('Czy na pewno chcesz usunąć załącznik "${_attachments[index].fileName}"?'),
+        content: Text(
+          'Czy na pewno chcesz usunąć załącznik "${_attachments[index].fileName}"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -4961,7 +4991,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
   void _editAttachment(int index) {
     final attachment = _attachments[index];
     final controller = TextEditingController(text: attachment.fileName);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -4980,10 +5010,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
             SizedBox(height: 8),
             Text(
               'Rozmiar: ${_formatFileSize(attachment.size)}',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
             ),
           ],
         ),
@@ -4997,9 +5024,7 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
               final newName = controller.text.trim();
               if (newName.isNotEmpty && newName != attachment.fileName) {
                 setState(() {
-                  _attachments[index] = attachment.copyWith(
-                    name: newName,
-                  );
+                  _attachments[index] = attachment.copyWith(name: newName);
                 });
                 _markUnsavedChanges();
               }
@@ -5074,5 +5099,4 @@ class _WowEmailEditorScreenState extends State<WowEmailEditorScreen>
       _hasUnsavedChanges = true;
     });
   }
-
 }

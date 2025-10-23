@@ -58,6 +58,7 @@ class _EmployeeTableWidgetState extends State<EmployeeTableWidget>
   }
 
   void _toggleSelectAll() {
+    if (!mounted) return;
     setState(() {
       selectAll = !selectAll;
       if (selectAll) {
@@ -70,6 +71,7 @@ class _EmployeeTableWidgetState extends State<EmployeeTableWidget>
   }
 
   void _toggleSelection(String employeeId) {
+    if (!mounted) return;
     setState(() {
       if (selectedEmployees.contains(employeeId)) {
         selectedEmployees.remove(employeeId);
@@ -365,6 +367,7 @@ class _EmployeeRowState extends State<_EmployeeRow>
   }
 
   void _onHover(bool isHovered) {
+    if (!mounted) return;
     setState(() {
       _isHovered = isHovered;
     });

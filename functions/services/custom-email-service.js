@@ -729,18 +729,6 @@ async function sendEmailsToMixedRecipientsInternal(data) {
  */
 const sendEmailsToMixedRecipients = onCall(async (request) => {
   const startTime = Date.now();
-  console.log(`📧 [MixedEmailService] Rozpoczynam wysyłanie do mieszanej listy odbiorców`);
-  console.log(`📊 [MixedEmailService] Dane wejściowe:`, JSON.stringify({
-    recipientCount: request.data.recipients?.length || 0,
-    additionalEmailsCount: request.data.additionalEmails?.length || 0,
-    subject: request.data.subject,
-    includeInvestmentDetails: request.data.includeInvestmentDetails,
-    isGroupEmail: request.data.isGroupEmail,
-    hasInvestmentDetailsByClient: !!(request.data.investmentDetailsByClient && Object.keys(request.data.investmentDetailsByClient).length > 0),
-    hasAggregatedInvestmentsForAdditionals: !!(request.data.aggregatedInvestmentsForAdditionals && request.data.aggregatedInvestmentsForAdditionals.length > 0),
-    senderEmail: request.data.senderEmail,
-    htmlContentLength: request.data.htmlContent?.length || 0,
-  }, null, 2));
 
   try {
     const {
@@ -919,56 +907,49 @@ const sendEmailsToMixedRecipients = onCall(async (request) => {
       try {
         // 📧 GENERUJ TREŚĆ EMAIL DLA DODATKOWEGO ODBIORCY
         let emailHtml;
-        if (includeInvestmentDetails && recipients.length > 0) {
-          // 🔥 KLUCZOWA ZMIANA: Dodatkowi odbiorcy ZAWSZE otrzymują dane inwestycyjne 
-          // niezależnie od wartości isGroupEmail (bo nie są główni odbiorcy!)
-          console.log(`✅ [MixedEmailService] Generuję dane inwestycji dla dodatkowego odbiorcy: ${email} (niezależnie od isGroupEmail: ${isGroupEmail})`);
 
-          // Użyj gotowego zbiorczego raportu z frontendu jeśli dostępny
-          if (aggregatedInvestmentsForAdditionals && aggregatedInvestmentsForAdditionals.trim().length > 0) {
-            console.log(`✅ [MixedEmailService] Używam gotowego zbiorczego raportu z frontendu dla ${email}`);
-            emailHtml = generatePersonalizedEmailContent({
-              clientName: 'Szanowni Państwo',
-              htmlContent: htmlContent,
-              investmentDetailsHtml: aggregatedInvestmentsForAdditionals,
-              senderName: senderName,
-              totalAmount: 0,
-              investmentCount: 0
-            });
-          } else if (investmentDetailsByClient && Object.keys(investmentDetailsByClient).length > 0) {
-            // Fallback: buduj z per-client fragmentów
-            console.log(`🔄 [MixedEmailService] Buduję zbiorczy raport z fragmentów per-client dla ${email}`);
-            let combined = '<h3>📈 Podsumowanie wybranych inwestycji</h3>';
-            for (const r of recipients) {
-              const htmlSnippet = investmentDetailsByClient[r.clientId];
-              if (htmlSnippet) {
-                combined += `<div style="margin-bottom:12px;"><h4>${safeToString(r.clientName)}</h4>${htmlSnippet}</div>`;
-              }
+        // 🔥 KLUCZOWA LOGIKA: Dodatkowi odbiorcy ZAWSZE otrzymują wszystkie inwestycje
+        // jeśli aggregatedInvestmentsForAdditionals jest dostępne (niezależnie od recipients.length i includeInvestmentDetails)
+        if (aggregatedInvestmentsForAdditionals && aggregatedInvestmentsForAdditionals.trim().length > 0) {
+          // PRIORYTET 1: Użyj gotowego zbiorczego raportu z frontendu (133k+ chars)
+          emailHtml = generatePersonalizedEmailContent({
+            clientName: 'Szanowni Państwo',
+            htmlContent: htmlContent,
+            investmentDetailsHtml: aggregatedInvestmentsForAdditionals,
+            senderName: senderName,
+            totalAmount: 0,
+            investmentCount: 0
+          });
+        } else if (recipients.length > 0 && investmentDetailsByClient && Object.keys(investmentDetailsByClient).length > 0) {
+          // FALLBACK 1: Zbuduj z per-client fragmentów (tylko jeśli są odbiorcy)
+          let combined = '<h3>📈 Podsumowanie wybranych inwestycji</h3>';
+          for (const r of recipients) {
+            const htmlSnippet = investmentDetailsByClient[r.clientId];
+            if (htmlSnippet) {
+              combined += `<div style="margin-bottom:12px;"><h4>${safeToString(r.clientName)}</h4>${htmlSnippet}</div>`;
             }
-            emailHtml = generatePersonalizedEmailContent({
-              clientName: 'Szanowni Państwo',
-              htmlContent: htmlContent,
-              investmentDetailsHtml: combined,
-              senderName: senderName,
-              totalAmount: 0,
-              investmentCount: 0
-            });
-          } else {
-            // Ostateczny fallback: wygeneruj na serwerze
-            console.log(`🔄 [MixedEmailService] Generuję zbiorczy raport na serwerze dla ${email}`);
-            const allInvestmentsHtml = await generateAllInvestmentsSummary(recipients);
-            emailHtml = generatePersonalizedEmailContent({
-              clientName: 'Szanowni Państwo',
-              htmlContent: htmlContent,
-              investmentDetailsHtml: allInvestmentsHtml,
-              senderName: senderName,
-              totalAmount: 0,
-              investmentCount: 0
-            });
           }
+          emailHtml = generatePersonalizedEmailContent({
+            clientName: 'Szanowni Państwo',
+            htmlContent: htmlContent,
+            investmentDetailsHtml: combined,
+            senderName: senderName,
+            totalAmount: 0,
+            investmentCount: 0
+          });
+        } else if (recipients.length > 0) {
+          // FALLBACK 2: Generuj na serwerze (tylko jeśli są odbiorcy)
+          const allInvestmentsHtml = await generateAllInvestmentsSummary(recipients);
+          emailHtml = generatePersonalizedEmailContent({
+            clientName: 'Szanowni Państwo',
+            htmlContent: htmlContent,
+            investmentDetailsHtml: allInvestmentsHtml,
+            senderName: senderName,
+            totalAmount: 0,
+            investmentCount: 0
+          });
         } else {
-          // Podstawowa treść bez szczegółów inwestycji lub brak odbiorców
-          console.log(`� [MixedEmailService] Podstawowa treść dla ${email} (includeInvestmentDetails: ${includeInvestmentDetails}, recipients: ${recipients.length})`);
+          // FALLBACK 3: Tylko podstawowa treść (brak odbiorców i brak aggregated data)
           emailHtml = generateBasicEmailContent({
             htmlContent: htmlContent,
             senderName: senderName,

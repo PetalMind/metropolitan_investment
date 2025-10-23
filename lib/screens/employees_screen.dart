@@ -21,7 +21,7 @@ class EmployeesScreen extends StatefulWidget {
 }
 
 class _EmployeesScreenState extends State<EmployeesScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   final EmployeeService _employeeService = EmployeeService();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -46,6 +46,10 @@ class _EmployeesScreenState extends State<EmployeesScreen>
 
   // Animation controllers
   late AnimationController _viewSwitchController;
+  
+  // Keep alive to preserve state
+  @override
+  bool get wantKeepAlive => true;
 
   // RBAC getter
   bool get canEdit => Provider.of<AuthProvider>(context, listen: false).isAdmin;
@@ -64,9 +68,14 @@ class _EmployeesScreenState extends State<EmployeesScreen>
 
   @override
   void dispose() {
-    _searchController.dispose();
+    // Cancel timer first to prevent any pending callbacks
     _searchTimer?.cancel();
+    _searchTimer = null;
+
+    // Dispose controllers
+    _searchController.dispose();
     _viewSwitchController.dispose();
+    
     super.dispose();
   }
 
@@ -99,10 +108,12 @@ class _EmployeesScreenState extends State<EmployeesScreen>
 
   void _onSearchChanged(String value) {
     _searchTimer?.cancel();
-    _searchTimer = Timer(const Duration(milliseconds: 800), () {
-      setState(() {
-        _searchQuery = value;
-      });
+    _searchTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() {
+          _searchQuery = value;
+        });
+      }
     });
   }
 
@@ -132,6 +143,8 @@ class _EmployeesScreenState extends State<EmployeesScreen>
   }
 
   void _toggleView() {
+    if (!mounted) return;
+    
     setState(() {
       _isTableView = !_isTableView;
     });
@@ -144,21 +157,29 @@ class _EmployeesScreenState extends State<EmployeesScreen>
   }
 
   void _showEmployeeForm({Employee? employee}) {
+    if (!mounted) return;
+    
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) => EmployeeForm(
         employee: employee,
         onDelete: employee != null ? _deleteEmployee : null,
       ),
     ).then((_) {
-      _loadBranches();
-      _loadPositions();
+      if (mounted) {
+        _loadBranches();
+        _loadPositions();
+      }
     });
   }
 
   void _deleteEmployee(Employee employee) {
+    if (!mounted) return;
+    
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) => AlertDialog(
         title: const Text('Usuń pracownika'),
         content: Text(
@@ -203,15 +224,18 @@ class _EmployeesScreenState extends State<EmployeesScreen>
   }
 
   List<Employee> _filterAndSortEmployees(List<Employee> employees) {
-    // Filter by branch
+    if (employees.isEmpty) return [];
+
+    // Start with all employees
     List<Employee> filtered = employees;
+    
+    // Chain filters efficiently
     if (_selectedBranch != null) {
-      filtered = employees
+      filtered = filtered
           .where((employee) => employee.branchCode == _selectedBranch)
           .toList();
     }
 
-    // Filter by status
     if (_selectedStatus != null) {
       final isActive = _selectedStatus == 'Aktywny';
       filtered = filtered
@@ -219,14 +243,13 @@ class _EmployeesScreenState extends State<EmployeesScreen>
           .toList();
     }
 
-    // Filter by position
     if (_selectedPosition != null) {
       filtered = filtered
           .where((employee) => employee.position == _selectedPosition)
           .toList();
     }
 
-    // Filter by search query
+    // Search query filtering with early return optimization
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       filtered = filtered.where((employee) {
@@ -383,6 +406,8 @@ class _EmployeesScreenState extends State<EmployeesScreen>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    
     final screenWidth = MediaQuery.of(context).size.width;
     final shouldShowTableView = screenWidth > 900 && _isTableView;
 
@@ -442,7 +467,9 @@ class _EmployeesScreenState extends State<EmployeesScreen>
       body: StreamBuilder<List<Employee>>(
         stream: _employeeService.getEmployees(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          // Show loading only on initial load
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
             return const Center(
               child: PremiumShimmerLoadingWidget.fullScreen(),
             );

@@ -115,10 +115,11 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
       '🔍 [ProductDetailsHeader] Building header for: ${widget.product.name}',
     );
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(padding),
-      decoration: BoxDecoration(
+    return SingleChildScrollView(
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(padding),
+        decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -152,6 +153,7 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
             _buildMainInfo(),
           ],
         ),
+      ),
       ),
     );
   }
@@ -477,9 +479,11 @@ class _ProductDetailsHeaderState extends State<ProductDetailsHeader>
         SizedBox(width: spacing),
 
         // Informacje o produkcie
-        Expanded(
+        // Informacje o produkcie
+        Flexible(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 widget.product.name,

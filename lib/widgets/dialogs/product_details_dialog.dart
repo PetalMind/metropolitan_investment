@@ -101,73 +101,78 @@ class _EnhancedProductDetailsDialogState
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: Container(
-        width: dialogWidth,
-        height: dialogHeight,
-        constraints: const BoxConstraints(maxWidth: 900, maxHeight: 800),
-        decoration: BoxDecoration(
-          color: AppTheme.backgroundModal,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: AppTheme.borderPrimary.withOpacity(0.3),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.4),
-              blurRadius: 30,
-              spreadRadius: 2,
-              offset: const Offset(0, 10),
-            ),
-            BoxShadow(
-              color: AppTheme.primaryColor.withOpacity(0.1),
-              blurRadius: 15,
-              spreadRadius: 0,
-              offset: const Offset(0, -2),
-            ),
-          ],
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 900,
+          maxHeight: screenHeight * 0.9,
+          minHeight: 400,
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: Column(
-            children: [
-              // Header z gradientem i przyciskiem zamknięcia - UPROSZCZONA WERSJA
-              ProductDetailsHeader(
-                product: widget.product,
-                investors: _investors,
-                isLoadingInvestors: _isLoadingInvestors,
-                onClose: () => Navigator.of(context).pop(),
-                onShowInvestors: widget.onShowInvestors,
-                isCollapsed:
-                    false, // ⭐ TYMCZASOWO: Wyłącz zwijanie dla debugowania
-                collapseFactor: 1.0, // ⭐ TYMCZASOWO: Pełny rozmiar
-                onEditModeChanged: (editMode) {
-                  setState(() {
-                    _isEditModeEnabled = editMode;
-                  });
-                },
-                onTabChanged: (tabIndex) {
-                  _tabController.animateTo(tabIndex);
-                },
-                onDataChanged: () async {
-                  await _loadInvestors();
-                },
+        child: Container(
+          width: dialogWidth,
+          decoration: BoxDecoration(
+            color: AppTheme.backgroundModal,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppTheme.borderPrimary.withOpacity(0.3),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.4),
+                blurRadius: 30,
+                spreadRadius: 2,
+                offset: const Offset(0, 10),
               ),
-
-              // Tab Content - UPROSZCZONA WERSJA BEZ NOTIFICATION LISTENER
-              Expanded(
-                child: ProductDetailsTabs(
-                  product: widget.product,
-                  tabController: _tabController,
-                  investors: _investors,
-                  isLoadingInvestors: _isLoadingInvestors,
-                  investorsError: _investorsError,
-                  onRefreshInvestors: _loadInvestors,
-                  isEditModeEnabled: _isEditModeEnabled,
-                  highlightInvestmentId: widget.highlightInvestmentId,
-                ),
+              BoxShadow(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                blurRadius: 15,
+                spreadRadius: 0,
+                offset: const Offset(0, -2),
               ),
             ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Column(
+              children: [
+                // Header z gradientem i przyciskiem zamknięcia - UPROSZCZONA WERSJA
+                ProductDetailsHeader(
+                  product: widget.product,
+                  investors: _investors,
+                  isLoadingInvestors: _isLoadingInvestors,
+                  onClose: () => Navigator.of(context).pop(),
+                  onShowInvestors: widget.onShowInvestors,
+                  isCollapsed:
+                      false, // ⭐ TYMCZASOWO: Wyłącz zwijanie dla debugowania
+                  collapseFactor: 1.0, // ⭐ TYMCZASOWO: Pełny rozmiar
+                  onEditModeChanged: (editMode) {
+                    setState(() {
+                      _isEditModeEnabled = editMode;
+                    });
+                  },
+                  onTabChanged: (tabIndex) {
+                    _tabController.animateTo(tabIndex);
+                  },
+                  onDataChanged: () async {
+                    await _loadInvestors();
+                  },
+                ),
+
+                // Tab Content - UPROSZCZONA WERSJA BEZ NOTIFICATION LISTENER
+                Expanded(
+                  child: ProductDetailsTabs(
+                    product: widget.product,
+                    tabController: _tabController,
+                    investors: _investors,
+                    isLoadingInvestors: _isLoadingInvestors,
+                    investorsError: _investorsError,
+                    onRefreshInvestors: _loadInvestors,
+                    isEditModeEnabled: _isEditModeEnabled,
+                    highlightInvestmentId: widget.highlightInvestmentId,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

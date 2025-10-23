@@ -492,6 +492,8 @@ class _EmployeeFormState extends State<EmployeeForm> {
                               AnimatedButton(
                                 onPressed: _isLoading ? null : _submitForm,
                                 isLoading: _isLoading,
+                                width:
+                                    200, // Fixed width to prevent infinite constraint
                                 child: Text(
                                   widget.employee == null
                                       ? 'Dodaj pracownika'
